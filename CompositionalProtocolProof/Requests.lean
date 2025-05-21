@@ -13,6 +13,6 @@ inductive Consistency
 | Weak : Consistency
 
 structure Request where
-  rw  : ReadWrite
-  ch  : Coherent
-  cn  : Consistency
+  rw          : ReadWrite
+  coherent    : Coherent
+  consistency : Consistency
