@@ -16,3 +16,7 @@ structure Request where
   rw          : ReadWrite
   coherent    : Coherent
   consistency : Consistency
+
+inductive LazyEager
+| lazy : LazyEager
+| eager : LazyEager
