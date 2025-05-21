@@ -1,0 +1,10 @@
+name = "compositional-protocol-proof"
+version = "0.1.0"
+defaultTargets = ["compositional-protocol-proof"]
+
+[[lean_lib]]
+name = "CompositionalProtocolProof"
+
+[[lean_exe]]
+name = "compositional-protocol-proof"
+root = "Main"
