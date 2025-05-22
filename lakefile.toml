@@ -2,6 +2,10 @@ name = "compositional-protocol-proof"
 version = "0.1.0"
 defaultTargets = ["compositional-protocol-proof"]
 
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+
 [[lean_lib]]
 name = "CompositionalProtocolProof"
 
