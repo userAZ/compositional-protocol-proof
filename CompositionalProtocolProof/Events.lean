@@ -34,4 +34,18 @@ structure DirectoryEvent where
   eReq : CacheEvent
   deid : DirectoryEventId
 
+inductive Event
+| cacheEvent : CacheEvent → Event
+| directoryEvent : DirectoryEvent → Event
+
+def Event.oStart (e : Event) : ℕ :=
+  match e with
+  | .cacheEvent ce => ce.o.oStart
+  | .directoryEvent de => de.o.oStart
+
+def Event.oEnd (e : Event) : ℕ :=
+  match e with
+  | .cacheEvent ce => ce.o.oEnd
+  | .directoryEvent de => de.o.oEnd
+
 def UniqueCacheEventIds (ce₁ ce₂ : CacheEvent) : Prop := ce₁.eid ≠ ce₂.eid
