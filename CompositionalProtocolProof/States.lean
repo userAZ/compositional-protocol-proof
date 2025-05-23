@@ -78,6 +78,12 @@ structure State where
 def State.lt : State → State → Prop
 | s₁, s₂ => s₁.p ≤ s₂.p ∧ s₁.c ≤ s₂.c ∧ (s₁.p ≠ s₂.p ∨ s₁.c ≠ s₁.c)
 
+instance State.instLT : (LT State) := {lt := State.lt}
+
+/- TODO: Make decidable. -/
+-- instance State.instDecidableLt (s₁ s₂ : State) : (Decidable (s₁ < s₂)) :=
+--   inferInstanceAs (Decidable (s₁ < s₂))
+
 abbrev SW : State := ⟨some .wr, true⟩
 abbrev MR : State := ⟨some .r , true⟩
 abbrev Vd : State := ⟨some .wr, false⟩
