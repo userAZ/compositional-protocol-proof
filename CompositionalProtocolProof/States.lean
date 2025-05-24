@@ -183,6 +183,35 @@ instance State.instDecidableLt (_ _ : State) : (DecidableLT State)
       exact h₁
     . exact h₂
 
+def State.le : State → State → Prop
+| s₁, s₂ => s₁.p ≤ s₂.p ∧ s₁.c ≤ s₂.c
+
+instance State.instLE : (LE State) := {le := State.le}
+
+instance State.instDecidableLe (_ _ : State) : (DecidableLE State)
+| ⟨p₁, true⟩, ⟨p₂, false⟩ => isFalse <| by
+  simp[LE.le]; simp[State.le]
+| ⟨p₁, false⟩, ⟨p₂, false⟩ | ⟨p₁, true⟩, ⟨p₂, true⟩ |⟨p₁, false⟩, ⟨p₂, true⟩ =>
+  if h₁ : p₁ < p₂ then isTrue <| by
+    simp[LE.le]; simp[State.le]
+    simp[LE.le]; simp[Permissions.le];
+    apply Or.intro_left
+    simp[LT.lt] at h₁; simp[Permissions.lt] at h₁
+    exact h₁
+  else if h₂ : p₁ = p₂ then isTrue <| by
+    simp[LE.le]; simp[State.le]
+    simp[LE.le]; simp[Permissions.le];
+    apply Or.intro_right
+    exact h₂
+  else isFalse <| by
+    simp[LE.le]; simp[State.le]
+    simp[LE.le]; simp[Permissions.le];
+    apply And.intro
+    . simp[LT.lt] at h₁
+      simp[Permissions.lt] at h₁
+      exact h₁
+    . exact h₂
+
 abbrev SW : State := ⟨some .wr, true⟩
 abbrev MR : State := ⟨some .r , true⟩
 abbrev Vd : State := ⟨some .wr, false⟩
