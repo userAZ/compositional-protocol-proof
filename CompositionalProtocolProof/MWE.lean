@@ -39,7 +39,7 @@ instance Ex.instLT : (LT Ex) := {lt := Ex.lt}
 -- instance Ex.instDecidableLt (ex₁ ex₂ : Ex) : (Decidable (ex₁ < ex₂)) :=
 --   inferInstanceAs (Decidable (ex₁ < ex₂))
 
-instance Ex.instDecidableLt (ex₁ ex₂ : Ex) : (DecidableLT Ex)
+instance Ex.instDecidableLt (_ _ : Ex) : (DecidableLT Ex)
 -- | ⟨n₁,b₁⟩, ⟨n₂,b₂⟩ => -- n₁ ≤ n₂ ∧ b₁ ≤ b₂ ∧ (n₁ ≠ n₂ ∨ b₁ ≠ b₂)
 | ⟨n₁,true⟩, ⟨n₂,false⟩ => -- n₁ ≤ n₂ ∧ b₁ ≤ b₂ ∧ (n₁ ≠ n₂ ∨ b₁ ≠ b₂)
   isFalse <| by
@@ -90,4 +90,32 @@ instance Ex.instDecidableLt (ex₁ ex₂ : Ex) : (DecidableLT Ex)
     simp[h,h₁]
     aesop
 | ⟨n₁,true⟩, ⟨n₂,true⟩ =>
-  --
+  -- NOTE: Try my merging false-false case.
+  if h : n₁ < n₂ then isTrue <| by
+    simp[LT.lt]
+    simp[Ex.lt]
+    apply And.intro
+    case left =>
+      simp[h] -- Q: How to make this work with Ex.lt with ex₁.n ≤ ex₂.n, instead of ex₁.n < ex₂.n ∨ ex₁.n = ex₁.n?
+    case right =>
+      intro h₁
+      -- contradiction
+      aesop -- Q: How to do this without aesop?
+  else if n₁ = n₂ then isFalse <| by
+    simp[LT.lt]
+    simp[Ex.lt]
+    intro h₁
+    cases h₁
+    case inl h₂ =>
+      contradiction
+    case inr h₂ =>
+      apply h₂
+  else isFalse <| by
+    simp[LT.lt]
+    simp[Ex.lt]
+    intro h₁
+    cases h₁
+    case inl h₂ =>
+      contradiction
+    case inr h₂ =>
+      apply h₂
