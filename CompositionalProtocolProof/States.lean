@@ -81,8 +81,14 @@ def State.lt : State → State → Prop
 instance State.instLT : (LT State) := {lt := State.lt}
 
 /- TODO: Make decidable. -/
--- instance State.instDecidableLt (s₁ s₂ : State) : (Decidable (s₁ < s₂)) :=
---   inferInstanceAs (Decidable (s₁ < s₂))
+instance State.instDecidableLt (s₁ s₂ : State) : (DecidableLT State)
+| ⟨p₁, true⟩, ⟨p₂, false⟩ =>
+  sorry
+| ⟨p₁, false⟩, ⟨p₂, false⟩ | ⟨p₁, true⟩, ⟨p₂, true⟩ =>
+  sorry
+| ⟨p₁, false⟩, ⟨p₂, true⟩ =>
+  sorry
+  -- inferInstanceAs (Decidable (s₁ < s₂))
 
 abbrev SW : State := ⟨some .wr, true⟩
 abbrev MR : State := ⟨some .r , true⟩
