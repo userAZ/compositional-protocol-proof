@@ -38,6 +38,7 @@ Permissions.
 A structure's state may have WR, R, or no permissions
 -/
 def Permissions := Option ReadWritePermissions
+deriving DecidableEq
 
 def Permissions.nat : Permissions → Nat
 | none => 0
