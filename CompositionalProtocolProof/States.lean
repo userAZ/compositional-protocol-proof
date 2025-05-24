@@ -86,7 +86,12 @@ instance State.instDecidableLt (s₁ s₂ : State) : (DecidableLT State)
   simp[LT.lt]
   simp[State.lt]
 | ⟨p₁, false⟩, ⟨p₂, false⟩ | ⟨p₁, true⟩, ⟨p₂, true⟩ =>
-  sorry
+  if h₁ : p₁ < p₂ then isTrue <| by
+    sorry
+  else if h₂ : p₁ = p₂ then isFalse <| by
+    sorry
+  else isFalse <| by
+    sorry
 | ⟨p₁, false⟩, ⟨p₂, true⟩ =>
   sorry
   -- inferInstanceAs (Decidable (s₁ < s₂))
