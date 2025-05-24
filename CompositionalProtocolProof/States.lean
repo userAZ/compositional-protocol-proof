@@ -82,8 +82,9 @@ instance State.instLT : (LT State) := {lt := State.lt}
 
 /- TODO: Make decidable. -/
 instance State.instDecidableLt (s₁ s₂ : State) : (DecidableLT State)
-| ⟨p₁, true⟩, ⟨p₂, false⟩ =>
-  sorry
+| ⟨p₁, true⟩, ⟨p₂, false⟩ => isFalse <| by
+  simp[LT.lt]
+  simp[State.lt]
 | ⟨p₁, false⟩, ⟨p₂, false⟩ | ⟨p₁, true⟩, ⟨p₂, true⟩ =>
   sorry
 | ⟨p₁, false⟩, ⟨p₂, true⟩ =>
