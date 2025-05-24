@@ -15,8 +15,6 @@ def Example.lt : Example → Example → Prop
 
 instance Example.instLT : (LT Example) := {lt := Example.lt}
 
-set_option diagnostics true
-
 instance Example.instDecidableLt (ex₁ ex₂ : Example) : (Decidable (ex₁ < ex₂)) :=
   inferInstanceAs (Decidable (ex₁.nat < ex₂.nat))
 
