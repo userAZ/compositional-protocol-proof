@@ -106,6 +106,18 @@ structure State where
   p : Permissions
   c : Coherent
 
+abbrev SW : State := ⟨some .wr, true⟩
+abbrev MR : State := ⟨some .r , true⟩
+abbrev Vd : State := ⟨some .wr, false⟩
+abbrev Vc : State := ⟨some .r , false⟩
+abbrev I  : State := ⟨none    , false⟩
+
+abbrev StateSW := {s : State // s = SW}
+abbrev StateMR := {s : State // s = MR}
+abbrev StateVd := {s : State // s = Vd}
+abbrev StateVc := {s : State // s = Vc}
+abbrev StateI  := {s : State // s = I}
+
 def State.lt : State → State → Prop
 | s₁, s₂ => s₁.p ≤ s₂.p ∧ s₁.c ≤ s₂.c ∧ (s₁ ≠ s₂) --(s₁.p ≠ s₂.p ∨ s₁.c ≠ s₁.c)
 
@@ -183,6 +195,12 @@ instance State.instDecidableLt (_ _ : State) : (DecidableLT State)
       exact h₁
     . exact h₂
 
+/- DedicdableLT State doesn't work? -/
+#eval I < Vc
+
+instance (s₁ s₂ : State) : Decidable (s₁ < s₂) :=
+  inferInstanceAs (Decidable ((s₁.lt s₂) = true))
+
 def State.le : State → State → Prop
 | s₁, s₂ => s₁.p ≤ s₂.p ∧ s₁.c ≤ s₂.c
 
@@ -212,21 +230,9 @@ instance State.instDecidableLe (_ _ : State) : (DecidableLE State)
       exact h₁
     . exact h₂
 
-abbrev SW : State := ⟨some .wr, true⟩
-abbrev MR : State := ⟨some .r , true⟩
-abbrev Vd : State := ⟨some .wr, false⟩
-abbrev Vc : State := ⟨some .r , false⟩
-abbrev I  : State := ⟨none    , false⟩
-
 inductive CacheId
 | proxy : ℕ → CacheId
 | cache : ℕ → CacheId
-
-abbrev StateSW := {s : State // s = SW}
-abbrev StateMR := {s : State // s = MR}
-abbrev StateVd := {s : State // s = Vd}
-abbrev StateVc := {s : State // s = Vc}
-abbrev StateI  := {s : State // s = I}
 
 abbrev Owner := CacheId
 abbrev Sharers := List CacheId
