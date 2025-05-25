@@ -3,15 +3,13 @@ import Mathlib
 structure Ex where
   n : Nat
   b : Bool
+deriving DecidableEq
 
 def Ex.lt : Ex → Ex → Prop
--- | ex₁, ex₂ => ex₁.n ≤ ex₂.n ∧ ex₁.b ≤ ex₂.b ∧ ex₁ ≠ ex₂ --(ex₁.n ≠ ex₂.n ∨ ex₂.b ≠ ex₂.b)
-| ex₁, ex₂ => (ex₁.n < ex₂.n ∨ ex₁.n = ex₂.n) ∧ (ex₁.b < ex₂.b ∨ ex₁.b = ex₂.b) ∧ ex₁ ≠ ex₂ --(ex₁.n ≠ ex₂.n ∨ ex₂.b ≠ ex₂.b)
+-- | ex₁, ex₂ => (ex₁.n < ex₂.n ∨ ex₁.n = ex₂.n) ∧ (ex₁.b < ex₂.b ∨ ex₁.b = ex₂.b) ∧ ex₁ ≠ ex₂
+| ex₁, ex₂ => (ex₁.n < ex₂.n || ex₁.n == ex₂.n) && (ex₁.b < ex₂.b || ex₁.b == ex₂.b) && ex₁ != ex₂
 
 instance Ex.instLT : (LT Ex) := {lt := Ex.lt}
-
--- instance Ex.instDecidableLt (ex₁ ex₂ : Ex) : (Decidable (ex₁ < ex₂)) :=
---   inferInstanceAs (Decidable (ex₁ < ex₂))
 
 instance Ex.instDecidableLt (_ _ : Ex) : (DecidableLT Ex)
 | ⟨n₁,true⟩, ⟨n₂,false⟩ => -- n₁ ≤ n₂ ∧ b₁ ≤ b₂ ∧ (n₁ ≠ n₂ ∨ b₁ ≠ b₂)
@@ -27,7 +25,6 @@ instance Ex.instDecidableLt (_ _ : Ex) : (DecidableLT Ex)
       simp[h] -- Q: How to make this work with Ex.lt with ex₁.n ≤ ex₂.n, instead of ex₁.n < ex₂.n ∨ ex₁.n = ex₁.n?
     case right =>
       intro h₁
-      -- contradiction
       aesop -- Q: How to do this without aesop?
   else if n₁ = n₂ then isFalse <| by
     simp[LT.lt]
@@ -62,3 +59,20 @@ instance Ex.instDecidableLt (_ _ : Ex) : (DecidableLT Ex)
     simp[Ex.lt]
     simp[h,h₁]
     aesop
+
+def t0 : Ex := ⟨0,false⟩
+def t1 : Ex := ⟨0,true⟩
+-- DecidableLT Ex doesn't work?
+#eval t0 < t1
+
+instance (ex₁ ex₂ : Ex) : (Decidable (ex₁ < ex₂)) :=
+  inferInstanceAs (Decidable (ex₁ < ex₂))
+
+def Ex.le : Ex → Ex → Prop
+-- | ex₁, ex₂ => ex₁.n ≤ ex₂.n ∧ ex₁.b ≤ ex₂.b ∧ ex₁ ≠ ex₂ --(ex₁.n ≠ ex₂.n ∨ ex₂.b ≠ ex₂.b)
+| ex₁, ex₂ => (ex₁.n < ex₂.n ∨ ex₁.n = ex₂.n) ∧ (ex₁.b < ex₂.b ∨ ex₁.b = ex₂.b) --(ex₁.n ≠ ex₂.n ∨ ex₂.b ≠ ex₂.b)
+
+instance Ex.instLE : (LE Ex) := {le := Ex.le}
+
+-- instance Ex.instDecidableLt (ex₁ ex₂ : Ex) : (Decidable (ex₁ < ex₂)) :=
+--   inferInstanceAs (Decidable (ex₁ < ex₂))
