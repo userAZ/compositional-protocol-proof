@@ -134,6 +134,34 @@ instance State.instDecidableLe (s₁ s₂ : State) : Decidable (s₁ ≤ s₂) :
   simp
   infer_instance
 
+abbrev State? := Option State
+
+instance State?.instDecidableLt (s₁? s₂? : State?) : Decidable (s₁? < s₂?) := by
+  dsimp [· < ·]
+  unfold Option.lt
+  match s₁?, s₂? with
+  | none, none =>
+    infer_instance
+  | some s₁, none =>
+    infer_instance
+  | none, some s₂ =>
+    infer_instance
+  | some s₁, some s₂ =>
+    apply State.instDecidableLt
+
+instance State?.instDecidableLe (s₁? s₂? : State?) : Decidable (s₁? ≤ s₂?) := by
+  dsimp [· ≤ ·]
+  unfold Option.le
+  match s₁?, s₂? with
+  | none, none =>
+    infer_instance
+  | some _, none =>
+    infer_instance
+  | none, some _ =>
+    infer_instance
+  | some s₁, some s₂ =>
+    apply State.instDecidableLe
+
 inductive CacheId
 | proxy : ℕ → CacheId
 | cache : ℕ → CacheId
