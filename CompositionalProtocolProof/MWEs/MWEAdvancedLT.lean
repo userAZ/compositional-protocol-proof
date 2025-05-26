@@ -1,21 +1,26 @@
 import Mathlib
 
+namespace MWE
+
 structure Ex where
   n : Nat
   b : Bool
 deriving DecidableEq
 
-def Ex.lt : Ex → Ex → Prop
--- | ex₁, ex₂ => (ex₁.n < ex₂.n ∨ ex₁.n = ex₂.n) ∧ (ex₁.b < ex₂.b ∨ ex₁.b = ex₂.b) ∧ ex₁ ≠ ex₂
-| ex₁, ex₂ => (ex₁.n < ex₂.n || ex₁.n == ex₂.n) && (ex₁.b < ex₂.b || ex₁.b == ex₂.b) && ex₁ != ex₂
+abbrev Ex.lt : Ex → Ex → Prop
+| ex₁, ex₂ => (ex₁.n ≤ ex₂.n) ∧ (ex₁.b ≤ ex₂.b) ∧ ex₁ ≠ ex₂
 
 instance Ex.instLT : (LT Ex) := {lt := Ex.lt}
 
+instance Ex.instDecidableRel : DecidableRel Ex.lt := inferInstance
+
+instance Ex.instDecidableLT : DecidableLT Ex := Ex.instDecidableRel
+/-
 instance Ex.instDecidableLt (_ _ : Ex) : (DecidableLT Ex)
-| ⟨n₁,true⟩, ⟨n₂,false⟩ => -- n₁ ≤ n₂ ∧ b₁ ≤ b₂ ∧ (n₁ ≠ n₂ ∨ b₁ ≠ b₂)
+| ⟨n₁,true⟩, ⟨n₂,false⟩ =>
   isFalse <| by
   simp[LT.lt]
-  simp[Ex.lt] -- Lean complains about too many recusions if merging simp[LT.lt, Ex.lt]
+  simp[Ex.lt] -- Lean complains about too many recusions if merged (simp[LT.lt, Ex.lt])
 | ⟨n₁, false⟩, ⟨n₂, false⟩ | ⟨n₁,true⟩, ⟨n₂,true⟩ =>
   if h : n₁ < n₂ then isTrue <| by
     simp[LT.lt]
@@ -59,20 +64,23 @@ instance Ex.instDecidableLt (_ _ : Ex) : (DecidableLT Ex)
     simp[Ex.lt]
     simp[h,h₁]
     aesop
+-/
 
 def t0 : Ex := ⟨0,false⟩
 def t1 : Ex := ⟨0,true⟩
 -- DecidableLT Ex doesn't work?
 #eval t0 < t1
-
+-- Need to use Decidable (ex₁ < ex₂) instead of DecidableLT Ex?
 instance (ex₁ ex₂ : Ex) : (Decidable (ex₁ < ex₂)) :=
-  inferInstanceAs (Decidable (ex₁ < ex₂))
-
-def Ex.le : Ex → Ex → Prop
--- | ex₁, ex₂ => ex₁.n ≤ ex₂.n ∧ ex₁.b ≤ ex₂.b ∧ ex₁ ≠ ex₂ --(ex₁.n ≠ ex₂.n ∨ ex₂.b ≠ ex₂.b)
-| ex₁, ex₂ => (ex₁.n < ex₂.n ∨ ex₁.n = ex₂.n) ∧ (ex₁.b < ex₂.b ∨ ex₁.b = ex₂.b) --(ex₁.n ≠ ex₂.n ∨ ex₂.b ≠ ex₂.b)
-
-instance Ex.instLE : (LE Ex) := {le := Ex.le}
+  inferInstanceAs (Decidable (ex₁ < ex₂)) -- failed to synthesize Decidable (ex₁ < ex₂)
 
 -- instance Ex.instDecidableLt (ex₁ ex₂ : Ex) : (Decidable (ex₁ < ex₂)) :=
 --   inferInstanceAs (Decidable (ex₁ < ex₂))
+
+def Ex.le : Ex → Ex → Prop
+| ex₁, ex₂ => ex₁.n ≤ ex₂.n ∧ ex₁.b ≤ ex₂.b
+
+instance Ex.instLE : (LE Ex) := {le := Ex.le}
+
+instance Ex.instDecidableLE (ex₁ ex₂ : Ex) : (Decidable (ex₁ ≤ ex₂)) :=
+  inferInstanceAs (Decidable (ex₁ ≤ ex₂))
