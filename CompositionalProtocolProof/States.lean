@@ -87,6 +87,7 @@ instance Permissions.instDecidableLe (p₁ p₂ : Permissions) : Decidable (p₁
 structure State where
   p : Permissions
   c : Coherent
+deriving DecidableEq
 
 abbrev SW : State := ⟨some .wr, true⟩
 abbrev MR : State := ⟨some .r , true⟩
