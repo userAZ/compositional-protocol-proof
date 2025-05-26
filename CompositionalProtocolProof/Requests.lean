@@ -4,6 +4,7 @@ import CompositionalProtocolProof.States
 inductive ReadWrite
 | r : ReadWrite
 | w : ReadWrite
+deriving DecidableEq
 
 -- abbrev Coherent, from Common.
 
@@ -12,11 +13,13 @@ inductive Consistency
 | Rel : Consistency
 | Acq : Consistency
 | Weak : Consistency
+deriving DecidableEq
 
 structure Request where
   rw          : ReadWrite
   coherent    : Coherent
   consistency : Consistency
+deriving DecidableEq
 
 inductive LazyEager
 | lazy : LazyEager
