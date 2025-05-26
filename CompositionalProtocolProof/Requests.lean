@@ -47,9 +47,11 @@ def Request.nonCoherent (r : Request) : Prop := r.coherent = false
 -- abbrev CoherentRead : Request := ⟨.r, true, ·⟩
 
 /- Want to specify that request is a request allowed by the family of interfaces -/
-def Request.RequestState : Request → State → State
+/-
+def Request.RequestState : Request → State → Option State
 | r, s =>
   match r with
   | ⟨.r, true, _⟩ | ⟨.w, true, _⟩ | ⟨.r, false, .Weak⟩ =>
     if s ≥ r.MRS then s
     else r.MRS
+-/
