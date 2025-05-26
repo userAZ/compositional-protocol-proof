@@ -141,7 +141,7 @@ instance State.instLT : (LT State) := {lt := State.lt}
 instance State.instDecidableLt (s₁ s₂ : State) : Decidable (s₁ < s₂) := by
   dsimp [· < ·]
   unfold State.lt
-  dsimp [· < ·]
+  dsimp
   match s₁, s₂ with
   | ⟨p₁, false⟩, ⟨p₂, true⟩ =>
     simp
