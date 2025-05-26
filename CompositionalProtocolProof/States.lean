@@ -151,7 +151,6 @@ instance State.instDecidableLt (s₁ s₂ : State) : Decidable (s₁ < s₂) := 
     infer_instance
   | ⟨p₁, true⟩, ⟨p₂, false⟩ =>
     simp
-    simp [Bool.instLE]
     infer_instance
 
 -- #eval I < Vc
