@@ -25,3 +25,11 @@ def CacheEvent.SucceedingState : CacheEvent → State → Option State
 | e, s => match e.d with
   | false => e.r.RequestState s
   | true => e.r.DowngradeState s
+
+def DirectoryState.CurrentSharers : DirectoryState → Sharers
+| ds => match ds with
+  | .SW _ o => {o}
+  | .MR _ sharers => sharers
+  | .Vd _ =>   {}
+  | .Vc _ =>   {}
+  | .I  _ =>   {}
