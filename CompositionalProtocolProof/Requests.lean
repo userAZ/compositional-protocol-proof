@@ -65,3 +65,54 @@ abbrev AcqRead : ValidRequest := ⟨⟨.r, false, .Acq⟩, by simp⟩
 abbrev NonCoherentWeakRead : ValidRequest := ⟨⟨.r, false, .Weak⟩, by simp⟩
 abbrev NonCoherentWeakWrite : ValidRequest := ⟨⟨.w, false, .Weak⟩, by simp⟩
 abbrev CoherentWeakWrite : ValidRequest := ⟨⟨.w, true, .Weak⟩, by simp⟩
+/-
+abbrev NonCoherentWeakRead : Request := ⟨.r, false, .Weak⟩
+abbrev NonCoherentWeakWrite : Request := ⟨.w, false, .Weak⟩
+abbrev NonCoherentReleaseWrite : Request := ⟨.w, false, .Rel⟩
+abbrev NonCoherentAcquire : Request := ⟨.r, false, .Acq⟩
+-/
+
+-- abbrev Request.NonCoherentWrite := λ r : Request => r.rw = .w ∧ r.coherent = false
+-- abbrev NoWeakWriteOnMR := λ (r : Request) (s : State) => ¬(r.NonCoherentWrite ∧ s = MR)
+
+/- 1. Want to specify that request is a request allowed by the family of interfaces -/
+/- 2. Can I remove the "Option" from Option State? -/
+/- 3. Likely need to constrain state to allowable states a request can be on -/
+/--
+What is the state a request leaves a cache entry in.
+-/
+def ValidRequest.RequestState (vr : ValidRequest) : State → Option State
+| s =>
+  match h : vr.val with
+  | ⟨_, true, _⟩ | ⟨.r, false, .Weak⟩ =>
+    if some s ≤ vr.val.MRS then s
+    else vr.val.MRS -- Must be a way to state this does not produce an Option Type?
+  | ⟨.w, false, .Weak⟩ | ⟨.w, false, .Rel⟩ =>
+    match hs : s with
+    | ⟨some .wr, true⟩ => s
+    | ⟨some .r, false⟩ =>
+      -- by sorry -- Not allowed by Family of Protocols
+      none
+    | _ => Vd
+  | ⟨.r, false, .Acq⟩ => Vc
+  | ⟨.w, false, .SC ⟩ | ⟨.r, false, .SC ⟩ => by
+    let hrestrictions := vr.prop
+    let hno_nc_sc := hrestrictions.left
+    exfalso
+    apply hno_nc_sc
+    unfold Request.SCNonCoherent
+    simp[h]
+  | ⟨.w, false, .Acq⟩ => by
+    let hrestrictions := vr.prop
+    let hno_nc_sc := hrestrictions.right.left
+    exfalso
+    apply hno_nc_sc
+    unfold Request.WriteAcquire
+    simp[h]
+  | ⟨.r, false, .Rel⟩ => by
+    let hrestrictions := vr.prop
+    let hno_nc_sc := hrestrictions.right.right
+    exfalso
+    apply hno_nc_sc
+    unfold Request.ReadRelease
+    simp[h]
