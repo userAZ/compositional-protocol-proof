@@ -21,11 +21,7 @@ def CoherentRead : Request := ⟨ .r, true, .SC ⟩
 def CoherentWrite : Request := ⟨ .w, true, .SC ⟩
 
 -- NOTE: this requires State LT (<) relation
-/-
-def CacheEvent.SucceedingState : CacheEvent → State → State
-| e, s => match e.r.coherent with
-  | true =>
-    if  then
-  | false =>
-    MR
--/
+def CacheEvent.SucceedingState : CacheEvent → State → Option State
+| e, s => match e.d with
+  | false => e.r.RequestState s
+  | true => e.r.DowngradeState s
