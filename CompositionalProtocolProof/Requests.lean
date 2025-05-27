@@ -47,14 +47,21 @@ def Request.MRS : Request → Option State
 def Request.isCoherent (r : Request) : Prop := r.coherent = true
 def Request.nonCoherent (r : Request) : Prop := r.coherent = false
 
--- abbrev CoherentRead : Request := ⟨.r, true, ·⟩
+-- Disallowed Requests
+abbrev Request.SCNonCoherent := λ r : Request => r.consistency = .SC ∧ r.coherent = false
+abbrev Request.WriteAcquire := λ r : Request => r.rw = .w ∧ r.consistency = .Acq
+abbrev Request.ReadRelease := λ r : Request => r.rw = .r ∧ r.consistency = .Rel
+-- Valid Request does not contain disallowed requests.
+abbrev Request.NoSCNonCoherent := λ r : Request => ¬r.SCNonCoherent
+abbrev Request.NoWriteAcquire := λ r : Request => ¬r.WriteAcquire
+abbrev Request.NoReadRelease := λ r : Request => ¬r.ReadRelease
+abbrev ValidRequest := {r : Request // r.NoSCNonCoherent ∧ r.NoWriteAcquire ∧ r.NoReadRelease}
 
-/- Want to specify that request is a request allowed by the family of interfaces -/
-/-
-def Request.RequestState : Request → State → Option State
-| r, s =>
-  match r with
-  | ⟨.r, true, _⟩ | ⟨.w, true, _⟩ | ⟨.r, false, .Weak⟩ =>
-    if s ≥ r.MRS then s
-    else r.MRS
--/
+abbrev SCWrite : ValidRequest := ⟨⟨.w, true, .SC⟩, by simp⟩
+abbrev SCRead : ValidRequest := ⟨⟨.r, true, .SC⟩, by simp⟩
+abbrev RelWrite : ValidRequest := ⟨⟨.w, false, .Rel⟩, by simp⟩
+abbrev CoherentRelWrite : ValidRequest := ⟨⟨.w, true, .Rel⟩, by simp⟩
+abbrev AcqRead : ValidRequest := ⟨⟨.r, false, .Acq⟩, by simp⟩
+abbrev NonCoherentWeakRead : ValidRequest := ⟨⟨.r, false, .Weak⟩, by simp⟩
+abbrev NonCoherentWeakWrite : ValidRequest := ⟨⟨.w, false, .Weak⟩, by simp⟩
+abbrev CoherentWeakWrite : ValidRequest := ⟨⟨.w, true, .Weak⟩, by simp⟩
