@@ -65,6 +65,7 @@ abbrev AcqRead : ValidRequest := ⟨⟨.r, false, .Acq⟩, by simp⟩
 abbrev NonCoherentWeakRead : ValidRequest := ⟨⟨.r, false, .Weak⟩, by simp⟩
 abbrev NonCoherentWeakWrite : ValidRequest := ⟨⟨.w, false, .Weak⟩, by simp⟩
 abbrev CoherentWeakWrite : ValidRequest := ⟨⟨.w, true, .Weak⟩, by simp⟩
+
 /-
 abbrev NonCoherentWeakRead : Request := ⟨.r, false, .Weak⟩
 abbrev NonCoherentWeakWrite : Request := ⟨.w, false, .Weak⟩
@@ -116,3 +117,12 @@ def ValidRequest.RequestState (vr : ValidRequest) : State → Option State
     apply hno_nc_sc
     unfold Request.ReadRelease
     simp[h]
+
+-- NOTE: move protocol interface here.
+abbrev ContainsEitherSCOrRelOrCRel := λ vr : Set ValidRequest => (SCWrite ∈ vr ∨ RelWrite ∈ vr ∨ CoherentRelWrite ∈ vr)
+abbrev ContainsEitherSCOrAcq := λ vr : Set ValidRequest => (SCRead ∈ vr ∨ AcqRead ∈ vr)
+abbrev ProtocolInterface := {vr : Set ValidRequest //
+  ContainsEitherSCOrRelOrCRel vr ∧ ContainsEitherSCOrAcq vr ∧
+  (SCWrite ∈ vr → SCRead ∈ vr) ∧ ((RelWrite ∈ vr ∨ CoherentRelWrite ∈ vr) → AcqRead ∈ vr) ∧
+  (AcqRead ∈ vr → NonCoherentWeakRead ∈ vr) ∧ (RelWrite ∈ vr → NonCoherentWeakWrite ∈ vr) ∧
+  (CoherentRelWrite ∈ vr → (CoherentWeakWrite ∈ vr ∨ NonCoherentWeakWrite ∈ vr))}
