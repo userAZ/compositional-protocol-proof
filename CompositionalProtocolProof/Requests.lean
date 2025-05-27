@@ -140,3 +140,13 @@ abbrev ProtocolInterface := {vr : Set ValidRequest //
   (SCWrite ∈ vr → SCRead ∈ vr) ∧ ((RelWrite ∈ vr ∨ CoherentRelWrite ∈ vr) → AcqRead ∈ vr) ∧
   (AcqRead ∈ vr → NonCoherentWeakRead ∈ vr) ∧ (RelWrite ∈ vr → NonCoherentWeakWrite ∈ vr) ∧
   (CoherentRelWrite ∈ vr → (CoherentWeakWrite ∈ vr ∨ NonCoherentWeakWrite ∈ vr))}
+
+-- Want to find states a protocol interface has.
+abbrev Request.toState : Request → State
+| ⟨rw, coherence, _⟩ => ⟨rw.toPerms, coherence⟩
+
+abbrev ValidRequest.toState : ValidRequest → State
+| ⟨req, _⟩ => req.toState
+
+-- Allowable state -- want to say all the states a valid protocol inerface (allowed by ProtocolInterface) allows
+abbrev ProtocolStates := (p : ProtocolInterface) → {s : Set State // ∀ r ∈ p.val, r.toState ∈ s}
