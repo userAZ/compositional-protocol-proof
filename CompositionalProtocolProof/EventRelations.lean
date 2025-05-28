@@ -31,6 +31,15 @@ abbrev CacheEvent.NoEncapSameAddressDowngrade (e : CacheEvent) (s : State) : Pro
 abbrev CacheEvent.External (e : CacheEvent) : Prop := ¬e.Local
 abbrev CacheEvent.WithoutCoherentPermissions (e : CacheEvent) (s : State) : Prop := (e.Local ∧ e.r.val.coherent = true ∧ s < e.r.val.MRS)
 
+/-- Axiom 2
+Events at the same address at a cache are ordered, or may encapsulate an external event to the same address.
+-/
+abbrev OrderedCacheEvents (e₁ e₂ : CacheEvent) (s : State) : Prop :=
+  e₁.cid = e₂.cid ∧ e₁.a = e₂.a ∧
+  if e₁.NoEncapSameAddressDowngrade s ∧ e₂.NoEncapSameAddressDowngrade s then (e₁.Ordered e₂ ∨ e₂.Ordered e₁)
+  else if e₁.WithoutCoherentPermissions s ∧ e₂.External then (e₁.Ordered e₂ ∨ e₂.Ordered e₁ ∨ e₁.Encapsulates e₂)
+  else if e₁.External ∧ e₂.WithoutCoherentPermissions s then (e₁.Ordered e₂ ∨ e₂.Ordered e₁ ∨ e₂.Encapsulates e₁)
+  else (e₁.Ordered e₂ ∨ e₂.Ordered e₁)
 
 -- def CoherentRead (r : Request) : Prop := r.coherent
 -- abbrev CoherentRead := {r : Request // r.coherent = true ∧ r.rw = .r}
