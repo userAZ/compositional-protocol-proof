@@ -141,3 +141,12 @@ abbrev ProtocolInterface := {vr : Set ValidRequest //
   (SCWrite ∈ vr → SCRead ∈ vr) ∧ ((RelWrite ∈ vr ∨ CoherentRelWrite ∈ vr) → AcqRead ∈ vr) ∧
   (AcqRead ∈ vr → NonCoherentWeakRead ∈ vr) ∧ (RelWrite ∈ vr → NonCoherentWeakWrite ∈ vr) ∧
   (CoherentRelWrite ∈ vr → (CoherentWeakWrite ∈ vr ∨ NonCoherentWeakWrite ∈ vr))}
+
+abbrev Request.toState : Request → State
+| ⟨rw, coherent, _⟩ => ⟨rw.toPerms, coherent⟩
+
+abbrev ValidRequest.toState : ValidRequest → State
+| ⟨req, _⟩ => req.toState
+
+abbrev ProtocolStates : ProtocolInterface → Set State
+| pi => pi.val.image (·.toState)
