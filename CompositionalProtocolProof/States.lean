@@ -165,6 +165,7 @@ instance State?.instDecidableLe (s₁? s₂? : State?) : Decidable (s₁? ≤ s�
 inductive CacheId
 | proxy : ℕ → CacheId
 | cache : ℕ → CacheId
+deriving DecidableEq
 
 abbrev Owner := CacheId
 abbrev Sharers := List CacheId
