@@ -47,11 +47,40 @@ def CoherentRead : Request := ⟨ .r, true, .SC ⟩
 def CoherentWrite : Request := ⟨ .w, true, .SC ⟩
 
 -- NOTE: this requires State LT (<) relation
-/-
-def CacheEvent.SucceedingState : CacheEvent → State → State
-| e, s => match e.r.coherent with
-  | true =>
-    if  then
-  | false =>
-    MR
--/
+def CacheEvent.SucceedingState : CacheEvent → State → Option State
+| e, s => match e.d with
+  | false => e.r.RequestState s
+  | true => e.r.DowngradeState s
+
+def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent → DirectoryState → Option DirectoryState
+| de, ds => match de.eReq.d with
+  | false => match de.r.val with
+    | ⟨.w, true, _⟩ => -- Coherent-Write
+      DirectoryState.SW ⟨SW, by simp⟩ de.eReq.rid
+    | ⟨.r, true, _⟩ => -- Coherent-Read
+      DirectoryState.MR ⟨MR, by simp⟩ (ds.CurrentSharers ∪ {de.eReq.rid})
+    | ⟨.w, false, _⟩ => -- Non-Coherent-Write
+      -- MR forbidden
+      DirectoryState.Vd ⟨Vd, by simp⟩
+    | ⟨.r, false, _⟩ => -- Non-Coherent-Read
+      match ds with
+      | .Vd vd => DirectoryState.Vd vd
+      -- MR forbidden
+      | _ => DirectoryState.Vc ⟨Vc, by simp⟩
+  | true => match de.r.val with
+    | ⟨.w, true, _⟩ => -- Coherent-Write Downgrade
+      match ds with
+      | .SW _ owner => -- Determined by the Protocol
+        if de.eReq.rid == owner then DirectoryState.I ⟨I, by simp⟩
+        else ds
+      | .MR mr sharers =>  DirectoryState.MR mr (sharers \ {de.eReq.rid})
+      | .Vd _ | .Vc _ | .I _ => DirectoryState.I ⟨I, by simp⟩
+    | ⟨.r, true, _⟩ => -- Coherent-Read Downgrade
+      match ds with
+      | .SW _ _ | .I _ => ds
+      | .MR mr sharers => DirectoryState.MR mr (sharers \ {de.eReq.rid})
+      | .Vd _ | .Vc _ => -- Not allowed
+        -- sorry
+        none -- NOTE: Can avoid `Option DirectoryState` if I choose something reasonable to return (MR state).
+    | ⟨.w, false, _⟩ => DirectoryState.Vc ⟨Vc, by simp⟩ -- Non-Coherent-Write downgrade
+    | ⟨.r, false, _⟩ => DirectoryState.I ⟨I, by simp⟩ -- Non-Coherent-Read downgrade
