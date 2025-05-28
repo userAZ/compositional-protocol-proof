@@ -176,3 +176,11 @@ inductive DirectoryState
 | Vd : StateVd → DirectoryState
 | Vc : StateVc → DirectoryState
 | I  : StateI  → DirectoryState
+
+def DirectoryState.CurrentSharers : DirectoryState → Sharers
+| ds => match ds with
+  | SW _ owner   => {owner}
+  | MR _ sharers => sharers
+  | Vd _ => {}
+  | Vc _ => {}
+  | I  _ => {}
