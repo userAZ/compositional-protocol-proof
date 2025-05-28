@@ -118,6 +118,21 @@ def ValidRequest.RequestState (vr : ValidRequest) : State → Option State
     unfold Request.ReadRelease
     simp[h]
 
+-- Placeholder for uncommitted code on another machine. (clobber this version)
+def ValidRequest.DowngradeState (vr : ValidRequest) : State → Option State
+| s => match vr.val.coherent with
+  | true  =>
+    if s ≤ vr.val.MRS then I
+    else vr.val.MRS
+  | false =>
+    if vr.val = NonCoherentWeakRead then
+      if s = Vc then I
+      else none
+    else if vr.val = NonCoherentWeakWrite then
+      if s = Vd then Vc
+      else none
+    else none
+
 -- NOTE: move protocol interface here.
 abbrev ContainsEitherSCOrRelOrCRel := λ vr : Set ValidRequest => (SCWrite ∈ vr ∨ RelWrite ∈ vr ∨ CoherentRelWrite ∈ vr)
 abbrev ContainsEitherSCOrAcq := λ vr : Set ValidRequest => (SCRead ∈ vr ∨ AcqRead ∈ vr)
