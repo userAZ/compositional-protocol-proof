@@ -11,8 +11,10 @@ def DirectoryEvent.Ordered (e₁ e₂ : DirectoryEvent) : Prop := e₁.oEnd < e�
 
 def Event.ProgramOrdered (e₁ e₂ : CacheEvent) : Prop := e₁.Ordered e₂ ∧ e₁.rid = e₂.rid
 
--- Axiom 1
-def OrderedDirectoryEvents (de₁ de₂ : DirectoryEvent) : Prop := de₁.a = de₂.a → de₁.Ordered de₂ ∨ de₂.Ordered de₁
+/-- Axiom 1
+Events at a Directory address are ordered.
+-/
+abbrev OrderedDirectoryEvents (de₁ de₂ : DirectoryEvent) : Prop := de₁.a = de₂.a → de₁.Ordered de₂ ∨ de₂.Ordered de₁
 
 -- def CacheEventOrdered (e₁ e₂ : CacheEvent) : Prop :=
 --   if e₁.requestEvent ∧ e₂.requestEvent ∧ e₁.sameAddress e₂
