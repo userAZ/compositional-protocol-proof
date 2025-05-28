@@ -82,7 +82,7 @@ def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent 
       | .MR mr sharers => DirectoryState.MR mr (sharers \ {de.eReq.rid})
       | .Vd _ | .Vc _ => -- Not allowed
         -- sorry
-        none -- NOTE: Can avoid `Option DirectoryState` if I choose something reasonable to return (MR state).
+        none -- NOTE: Can avoid `Option DirectoryState` if I choose something reasonable to return (Same state (Vd or Vc)).
     | ⟨.w, false, _⟩ => DirectoryState.Vc ⟨Vc, by simp⟩ -- Non-Coherent-Write downgrade
     | ⟨.r, false, _⟩ => DirectoryState.I ⟨I, by simp⟩ -- Non-Coherent-Read downgrade
 
@@ -94,8 +94,8 @@ inductive EventRelation
 /- take a field accessor function, and constraint on the field. -/
 | fieldMatch {α : Type} (e₁ : Event) (f : Event → α) (val : α) (e₁_field_match : f e₁ = val) : EventRelation
 /- a field accessor fn. check if fields of e₁ and e₂ are equal -/
-| noFieldMatch {α : Type} (e₁ : Event) (f : Event → α) (val : α) (e₁_field_match : f e₁ ≠ val) : EventRelation
+| noFieldMatch {α : Type} (e₁ : Event) (f : Event → α) (val : α) (e₁_no_field_match : f e₁ ≠ val) : EventRelation
 /- a field accessor fn. check if fields of e₁ and e₂ are equal -/
 | matchingFields {α : Type} (e₁ e₂ : Event) (f : Event → α) (e₁_e₂_field_match : f e₁ = f e₂) : EventRelation
 /- a field accessor fn. check if fields of e₁ and e₂ are equal -/
-| noMatchingFields {α : Type} (e₁ e₂ : Event) (f : Event → α) (e₁_e₂_field_match : f e₁ ≠ f e₂) : EventRelation
+| noMatchingFields {α : Type} (e₁ e₂ : Event) (f : Event → α) (e₁_e₂_no_field_match : f e₁ ≠ f e₂) : EventRelation
