@@ -168,7 +168,7 @@ inductive CacheId
 deriving DecidableEq
 
 abbrev Owner := CacheId
-abbrev Sharers := List CacheId
+abbrev Sharers := Set CacheId
 
 inductive DirectoryState
 | SW : StateSW → Owner → DirectoryState
