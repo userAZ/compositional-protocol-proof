@@ -165,9 +165,10 @@ instance State?.instDecidableLe (s₁? s₂? : State?) : Decidable (s₁? ≤ s�
 inductive CacheId
 | proxy : ℕ → CacheId
 | cache : ℕ → CacheId
+deriving DecidableEq
 
 abbrev Owner := CacheId
-abbrev Sharers := List CacheId
+abbrev Sharers := Set CacheId
 
 inductive DirectoryState
 | SW : StateSW → Owner → DirectoryState
@@ -175,3 +176,11 @@ inductive DirectoryState
 | Vd : StateVd → DirectoryState
 | Vc : StateVc → DirectoryState
 | I  : StateI  → DirectoryState
+
+def DirectoryState.CurrentSharers : DirectoryState → Sharers
+| ds => match ds with
+  | SW _ owner   => {owner}
+  | MR _ sharers => sharers
+  | Vd _ => {}
+  | Vc _ => {}
+  | I  _ => {}

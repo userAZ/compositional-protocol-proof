@@ -26,7 +26,7 @@ structure CacheEvent where
   oStart := o.oStart
   oEnd := o.oEnd
   wellFormed : oStart < oEnd
-  r : Request
+  r : ValidRequest
   rid : RequesterId
   cid : CacheId
   a : Addr
@@ -43,7 +43,7 @@ structure DirectoryEvent where
   oStart := o.oStart
   oEnd := o.oEnd
   wellFormed : oStart < oEnd
-  r : Request
+  r : ValidRequest
   dirS : DirectoryState
   did : DirectoryId
   a : Addr

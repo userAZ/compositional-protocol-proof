@@ -121,7 +121,7 @@ def ValidRequest.RequestState (vr : ValidRequest) : State → Option State
 def ValidRequest.DowngradeState (vr : ValidRequest) : State → Option State
 | s => match vr.val.coherent with
   | true =>
-    if some s ≤ vr.val.MRS then I
+    if s ≤ vr.val.MRS then I
     else vr.val.MRS
   | false =>
     if vr.val = NonCoherentWeakRead then
@@ -143,10 +143,13 @@ abbrev ProtocolInterface := {vr : Set ValidRequest //
 
 -- Want to find states a protocol interface has.
 abbrev Request.toState : Request → State
-| ⟨rw, coherence, _⟩ => ⟨rw.toPerms, coherence⟩
+| ⟨rw, coherent, _⟩ => ⟨rw.toPerms, coherent⟩
 
 abbrev ValidRequest.toState : ValidRequest → State
 | ⟨req, _⟩ => req.toState
 
 -- Allowable state -- want to say all the states a valid protocol inerface (allowed by ProtocolInterface) allows
-abbrev ProtocolStates := (p : ProtocolInterface) → {s : Set State // ∀ r ∈ p.val, r.toState ∈ s}
+-- Avoid using a subtype?
+-- abbrev ProtocolStates := (p : ProtocolInterface) → {s : Set State // ∀ r ∈ p.val, r.toState ∈ s}
+abbrev ProtocolStates : ProtocolInterface → Set State
+| pi => pi.val.image (·.toState)
