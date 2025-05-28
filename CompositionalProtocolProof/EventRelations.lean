@@ -53,7 +53,7 @@ def CacheEvent.SucceedingState : CacheEvent → State → Option State
   | true => e.r.DowngradeState s
 
 def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent → DirectoryState → Option DirectoryState
-| de, ds => match de.eReq.d with
+| de, ds => match de.d with
   | false => match de.r.val with
     | ⟨.w, true, _⟩ => -- Coherent-Write
       DirectoryState.SW ⟨SW, by simp⟩ de.eReq.rid
