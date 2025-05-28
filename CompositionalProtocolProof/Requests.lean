@@ -55,16 +55,22 @@ abbrev Request.ReadRelease := λ r : Request => r.rw = .r ∧ r.consistency = .R
 abbrev Request.NoSCNonCoherent := λ r : Request => ¬r.SCNonCoherent
 abbrev Request.NoWriteAcquire := λ r : Request => ¬r.WriteAcquire
 abbrev Request.NoReadRelease := λ r : Request => ¬r.ReadRelease
-abbrev ValidRequest := {r : Request // r.NoSCNonCoherent ∧ r.NoWriteAcquire ∧ r.NoReadRelease}
 
-abbrev SCWrite : ValidRequest := ⟨⟨.w, true, .SC⟩, by simp⟩
-abbrev SCRead : ValidRequest := ⟨⟨.r, true, .SC⟩, by simp⟩
-abbrev RelWrite : ValidRequest := ⟨⟨.w, false, .Rel⟩, by simp⟩
-abbrev CoherentRelWrite : ValidRequest := ⟨⟨.w, true, .Rel⟩, by simp⟩
-abbrev AcqRead : ValidRequest := ⟨⟨.r, false, .Acq⟩, by simp⟩
-abbrev NonCoherentWeakRead : ValidRequest := ⟨⟨.r, false, .Weak⟩, by simp⟩
-abbrev NonCoherentWeakWrite : ValidRequest := ⟨⟨.w, false, .Weak⟩, by simp⟩
-abbrev CoherentWeakWrite : ValidRequest := ⟨⟨.w, true, .Weak⟩, by simp⟩
+structure Request.IsValid (r : Request) where
+  non_coherent : r.NoSCNonCoherent := by simp
+  no_write_acq : r.NoWriteAcquire := by simp
+  no_read_rel : r.NoReadRelease := by simp
+
+abbrev ValidRequest := {r : Request // Request.IsValid r}
+
+abbrev SCWrite : ValidRequest := ⟨⟨.w, true, .SC⟩, {}⟩
+abbrev SCRead : ValidRequest := ⟨⟨.r, true, .SC⟩, {}⟩
+abbrev RelWrite : ValidRequest := ⟨⟨.w, false, .Rel⟩, {}⟩
+abbrev CoherentRelWrite : ValidRequest := ⟨⟨.w, true, .Rel⟩, {}⟩
+abbrev AcqRead : ValidRequest := ⟨⟨.r, false, .Acq⟩, {}⟩
+abbrev NonCoherentWeakRead : ValidRequest := ⟨⟨.r, false, .Weak⟩, {}⟩
+abbrev NonCoherentWeakWrite : ValidRequest := ⟨⟨.w, false, .Weak⟩, {}⟩
+abbrev CoherentWeakWrite : ValidRequest := ⟨⟨.w, true, .Weak⟩, {}⟩
 
 /-
 abbrev NonCoherentWeakRead : Request := ⟨.r, false, .Weak⟩
@@ -98,21 +104,21 @@ def ValidRequest.RequestState (vr : ValidRequest) : State → Option State
   | ⟨.r, false, .Acq⟩ => Vc
   | ⟨.w, false, .SC ⟩ | ⟨.r, false, .SC ⟩ => by
     let hrestrictions := vr.prop
-    let hno_nc_sc := hrestrictions.left
+    let hno_nc_sc := hrestrictions.non_coherent
     exfalso
     apply hno_nc_sc
     unfold Request.SCNonCoherent
     simp[h]
   | ⟨.w, false, .Acq⟩ => by
     let hrestrictions := vr.prop
-    let hno_nc_sc := hrestrictions.right.left
+    let hno_nc_sc := hrestrictions.no_write_acq
     exfalso
     apply hno_nc_sc
     unfold Request.WriteAcquire
     simp[h]
   | ⟨.r, false, .Rel⟩ => by
     let hrestrictions := vr.prop
-    let hno_nc_sc := hrestrictions.right.right
+    let hno_nc_sc := hrestrictions.no_read_rel
     exfalso
     apply hno_nc_sc
     unfold Request.ReadRelease
@@ -135,13 +141,18 @@ def ValidRequest.DowngradeState (vr : ValidRequest) : State → Option State
 -- NOTE: move protocol interface here.
 abbrev ContainsEitherSCOrRelOrCRel := λ vr : Set ValidRequest => (SCWrite ∈ vr ∨ RelWrite ∈ vr ∨ CoherentRelWrite ∈ vr)
 abbrev ContainsEitherSCOrAcq := λ vr : Set ValidRequest => (SCRead ∈ vr ∨ AcqRead ∈ vr)
-abbrev ProtocolInterface := {vr : Set ValidRequest //
-  ContainsEitherSCOrRelOrCRel vr ∧ ContainsEitherSCOrAcq vr ∧
-  (SCWrite ∈ vr → SCRead ∈ vr) ∧ ((RelWrite ∈ vr ∨ CoherentRelWrite ∈ vr) → AcqRead ∈ vr) ∧
-  (AcqRead ∈ vr → NonCoherentWeakRead ∈ vr) ∧ (RelWrite ∈ vr → NonCoherentWeakWrite ∈ vr) ∧
-  (CoherentRelWrite ∈ vr → (CoherentWeakWrite ∈ vr ∨ NonCoherentWeakWrite ∈ vr))}
 
--- Want to find states a protocol interface has.
+structure FollowsProtocolInterface (vr : Set ValidRequest) where
+  sc_rel_crel : ContainsEitherSCOrRelOrCRel vr
+  sc_or_acq : ContainsEitherSCOrAcq vr
+  write_read : SCWrite ∈ vr → SCRead ∈ vr
+  rel_write_acq : (RelWrite ∈ vr ∨ CoherentRelWrite ∈ vr) → AcqRead ∈ vr
+  acq_weak : AcqRead ∈ vr → NonCoherentWeakRead ∈ vr
+  real_weak : RelWrite ∈ vr → NonCoherentWeakWrite ∈ vr
+  rel_weak_coherent : CoherentRelWrite ∈ vr → (CoherentWeakWrite ∈ vr ∨ NonCoherentWeakWrite ∈ vr)
+
+abbrev ProtocolInterface := {vr : Set ValidRequest // FollowsProtocolInterface vr}
+  -- Want to find states a protocol interface has.
 abbrev Request.toState : Request → State
 | ⟨rw, coherent, _⟩ => ⟨rw.toPerms, coherent⟩
 
