@@ -9,7 +9,21 @@ def Event.Ordered (e₁ e₂ : Event) : Prop := e₁.oEnd < e₂.oStart
 def CacheEvent.Ordered (e₁ e₂ : CacheEvent) : Prop := e₁.oEnd < e₂.oStart
 def DirectoryEvent.Ordered (e₁ e₂ : DirectoryEvent) : Prop := e₁.oEnd < e₂.oStart
 
-def Event.ProgramOrdered (e₁ e₂ : CacheEvent) : Prop := e₁.Ordered e₂ ∧ e₁.rid = e₂.rid
+abbrev CacheEvent.SameRequester (e₁ e₂ : CacheEvent) : Prop := e₁.rid = e₂.rid
+-- abbrev CacheEvent.SameCache (e₁ e₂ : CacheEvent) : Prop := e₁.cid = e₂.cid
+
+structure CacheEvent.ProgramOrdered (e₁ e₂ : CacheEvent) where
+  ordered : e₁.Ordered e₂ := by simp
+  same_requester : e₁.SameRequester e₂ := by simp
+
+def Event.ProgramOrdered (e₁ e₂ : Event) : Prop :=
+  match e₁ with
+  | .cacheEvent ce₁ =>
+    match e₂ with
+    | .cacheEvent ce₂ =>
+      ce₁.ProgramOrdered ce₂
+    | .directoryEvent _ => true -- nothing happens
+  | .directoryEvent _ => true -- nothing happens
 
 /-- Axiom 1
 Events at a Directory address are ordered.
