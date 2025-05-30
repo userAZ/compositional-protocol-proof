@@ -10,6 +10,11 @@ def Behaviour.Events : Behaviour → Set Event
   let sets := b.rels.image EventRelation.Events;
   sorry
 
+def Behaviour.Predecessor : Behaviour → Event → Set Event
+| b, e =>
+  -- return the predecessor(s) to event. Look at all other Event Relations
+  sorry
+
 def Behaviour.ImmediatePredecessor : Behaviour → Event → Option Event
 | b, e => sorry
   /- find e', where
