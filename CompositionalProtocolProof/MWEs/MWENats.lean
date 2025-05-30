@@ -14,8 +14,14 @@ def Nats.before : Nats → Nat → Prop
   | order _ n₂ => n = n₂
   | one _ => false
 
-/- How does one express this in lean? -/
-def SetNats.before (x : SetNats) (n : Nat) : {y : SetNats // ∀ m ∈ y, m.before n ∧ m ∈ x} :=
+/- Approach 1 -/
+def SetNats.before (x : SetNats) (n : Nat) : SetNats := {nats ∈ x | nats.before n}
+
+lemma SetNats.mem_before (x : SetNats) (n : Nat) : ∀ m ∈ x.before n, m ∈ x ∧ m.before n := by
+  simp [SetNats.before]
+
+/- Approach 2 -/
+def SetNats.before' (x : SetNats) (n : Nat) : {y : SetNats // ∀ m ∈ y, m.before n ∧ m ∈ x} :=
 ⟨
   {nats ∈ x | nats.before n},
   by
