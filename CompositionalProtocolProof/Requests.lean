@@ -102,27 +102,9 @@ def ValidRequest.RequestState (vr : ValidRequest) : State → Option State
       none
     | _ => Vd
   | ⟨.r, false, .Acq⟩ => Vc
-  | ⟨.w, false, .SC ⟩ | ⟨.r, false, .SC ⟩ => by
-    let hrestrictions := vr.prop
-    let hno_nc_sc := hrestrictions.non_coherent
-    exfalso
-    apply hno_nc_sc
-    unfold Request.SCNonCoherent
-    simp[h]
-  | ⟨.w, false, .Acq⟩ => by
-    let hrestrictions := vr.prop
-    let hno_nc_sc := hrestrictions.no_write_acq
-    exfalso
-    apply hno_nc_sc
-    unfold Request.WriteAcquire
-    simp[h]
-  | ⟨.r, false, .Rel⟩ => by
-    let hrestrictions := vr.prop
-    let hno_nc_sc := hrestrictions.no_read_rel
-    exfalso
-    apply hno_nc_sc
-    unfold Request.ReadRelease
-    simp[h]
+  | ⟨.w, false, .SC ⟩ | ⟨.r, false, .SC ⟩ => absurd vr.prop.non_coherent (by simp [h])
+  | ⟨.w, false, .Acq⟩ => absurd vr.prop.no_write_acq (by simp [h])
+  | ⟨.r, false, .Rel⟩ => absurd vr.prop.no_read_rel (by simp [h])
 
 def ValidRequest.DowngradeState (vr : ValidRequest) : State → Option State
 | s => match vr.val.coherent with
