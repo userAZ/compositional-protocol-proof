@@ -49,13 +49,14 @@ lemma SetNats.mem_predecessor (x : SetNats) (n : Nat) : ∀ m ∈ x.predecessor 
   simp [Nats.pred]
   intro m hm_in_x hm_has_succ_n
 
+  -- after some guidance from aesop...
   /- Can this be simpler? -/
   apply Exists.intro
   apply And.intro
   . exact hm_in_x
   . split
     next nats m n₂ =>
-      subst hm_has_succ_n
+      subst hm_has_succ_n -- What does subst do in general?
       simp
     next nats n₁ n₂ =>
       simp [hm_in_x, hm_has_succ_n]
