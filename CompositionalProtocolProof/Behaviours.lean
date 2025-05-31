@@ -5,15 +5,33 @@ structure Behaviour where
   rels : Set EventRelation
 
 /- Think if i need this for defining immediate predecessor or not.-/
+/-
 def Behaviour.Events : Behaviour → Set Event
 | b =>
-  let sets := b.rels.image EventRelation.Events;
+  let y := {e ∈ Event | e ∈ b.rels.Events}
   sorry
+-/
+
+-- Continue this later.
+/-
+def EventRelation.PredOfEvent : EventRelation → Event → Event
+| er, e => match er with
+  | .encapsulates _ _ _ =>  --{e₁, e₂}
+  | .ordered e₁ e₂ _ => e_pred = e₁ ∧ e_succ = e₂ -- {e₁, e₂}
+  | .programOrdered e₁ e₂ _ => e_pred = e₁ ∧ e_succ = e₂ -- {e₁, e₂}
+  | .fieldMatch _ _ _ _ => false -- {e₁}
+  | .noFieldMatch _ _ _ _ => false -- {e₁}
+  | .matchingFields _ _ _ _ => false -- {e₁, e₂}
+  | .noMatchingFields _ _ _ _ => false -- {e₁, e₂}
+
+def Behaviour.PredOfEvent : Behaviour → Event → Prop
+| b, e_succ => b.rels.image
 
 def Behaviour.Predecessor : Behaviour → Event → Set Event
 | b, e =>
-  -- return the predecessor(s) to event. Look at all other Event Relations
+  let ex := {e ∈ Event | b.rels.PredOfEvent e}
   sorry
+-/
 
 def Behaviour.ImmediatePredecessor : Behaviour → Event → Option Event
 | b, e => sorry
