@@ -114,6 +114,7 @@ inductive EventRelation
 /- a field accessor fn. check if fields of e₁ and e₂ are equal -/
 | noMatchingFields {α : Type} (e₁ e₂ : Event) (f : Event → α) (e₁_e₂_no_field_match : f e₁ ≠ f e₂) : EventRelation
 
+/-
 abbrev EventRelation.Events : EventRelation → Set Event
 | .encapsulates e₁ e₂ _ => {e₁, e₂}
 | .ordered e₁ e₂ _ => {e₁, e₂}
@@ -122,3 +123,14 @@ abbrev EventRelation.Events : EventRelation → Set Event
 | .noFieldMatch e₁ _ _ _ => {e₁}
 | .matchingFields e₁ e₂ _ _ => {e₁, e₂}
 | .noMatchingFields e₁ e₂ _ _ => {e₁, e₂}
+-/
+
+abbrev EventRelation.Predecessor : EventRelation → Event → Prop
+| er, e_succ => match er with
+  | .encapsulates _ _ _ => false --{e₁, e₂}
+  | .ordered e₁ e₂ _ => e_succ = e₂ -- {e₁, e₂}
+  | .programOrdered e₁ e₂ _ => e_succ = e₂ -- {e₁, e₂}
+  | .fieldMatch _ _ _ _ => false -- {e₁}
+  | .noFieldMatch _ _ _ _ => false -- {e₁}
+  | .matchingFields _ _ _ _ => false -- {e₁, e₂}
+  | .noMatchingFields _ _ _ _ => false -- {e₁, e₂}
