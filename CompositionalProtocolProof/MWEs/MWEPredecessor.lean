@@ -4,7 +4,7 @@ namespace MWE
 
 inductive Nats
 | order : Nat → Nat → Nats
-| map : Nat → Nat → Nats
+| one : Nat → Nats
 
 abbrev SetNats := Set Nats
 
@@ -12,29 +12,34 @@ def Nats.before : Nats → Nat → Prop
 | ns, n =>
   match ns with
   | order _ n₂ => n = n₂
-  | map _ _ => false
+  | one _ => false
 
 def SetNats.before (x : SetNats) (n : Nat) : SetNats := {nats ∈ x | nats.before n}
 
 lemma SetNats.mem_before (x : SetNats) (n : Nat) : ∀ m ∈ x.before n, m ∈ x ∧ m.before n := by
   simp [SetNats.before]
 
-def Nats.natIsPred : Nats → Nat → Nat → Prop
-| nats, n_pred, n_succ => match nats with
-  | .order n₁ n₂ => n₁ = n_pred ∧ n₂ = n_succ
-  | .map _ _ => false
-
-def Nats.pred : Nats → Nat → Nat
-| nats, n => match nats with
+def Nats.pred (nats : Nats) (n : Nat) : (nats_is_order : nats.before n) → Nat
+| nats_is_order =>
+  match nats with
   | .order n₁ n₂ =>
-    if n₂ = n then n₁
-    /- Is using `panic!` the best approach here? Or is there a better approach to getting predecessors? -/
-    else panic! "Expected n to be the successor of n₁."
-  | .map _ _ => panic! "Expected nats to be an order."
+    if h : n₂ = n then n₁
+    /- Is this a good approach? Or is there a better approach, that will let lean eliminate
+    the other branch (else) automatically? -/
+    else absurd nats_is_order (by simp_all [Nats.before])
 
 def SetNats.predecessor (x : SetNats) (n : Nat) : Set Nat :=
   let ordered := x.before n
-  ordered.image (·.pred n)
+  /- Need to state variable `nats` is in `ordered` somehow?
+  Or is there a better approach? -/
+  ordered.image (λ nats => nats.pred n ((ordered.mem_before n) nats))
+
+------------------------------------------------
+
+def Nats.natIsPred : Nats → Nat → Nat → Prop
+| nats, n_pred, n_succ => match nats with
+  | .order n₁ n₂ => n₁ = n_pred ∧ n₂ = n_succ
+  | .one _ => false
 
 def SetNats.natIsPred (x : SetNats) (n_pred n_succ : Nat) : Prop :=
   ∃ nats ∈ x, nats.natIsPred n_pred n_succ
