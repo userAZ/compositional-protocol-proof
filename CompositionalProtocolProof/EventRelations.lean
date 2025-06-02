@@ -138,16 +138,6 @@ instance EventRelation.instDecidableLt (er₁ er₂ : EventRelation) : Decidable
   -- inferInstanceAs (Decidable (er₁ < er₂))
 
 /-
-abbrev EventRelation.Events : EventRelation → Set Event
-| .encapsulates e₁ e₂ _ => {e₁, e₂}
-| .ordered e₁ e₂ _ => {e₁, e₂}
-| .programOrdered e₁ e₂ _ => {e₁, e₂}
-| .fieldMatch e₁ _ _ _ => {e₁}
-| .noFieldMatch e₁ _ _ _ => {e₁}
-| .matchingFields e₁ e₂ _ _ => {e₁, e₂}
-| .noMatchingFields e₁ e₂ _ _ => {e₁, e₂}
--/
-
 abbrev EventRelation.Predecessor : EventRelation → Event → Prop
 | er, e_succ => match er with
   | .encapsulates _ _ _ => false --{e₁, e₂}
