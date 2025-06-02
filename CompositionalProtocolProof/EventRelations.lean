@@ -146,4 +146,17 @@ abbrev EventRelation.Predecessor : EventRelation → Event → Prop
   | .fieldMatch _ _ _ _ => false -- {e₁}
   | .noFieldMatch _ _ _ _ => false -- {e₁}
   | .matchingFields _ _ _ _ => false -- {e₁, e₂}
-  | .noMatchingFields _ _ _ _ => false -- {e₁, e₂}
+-/
+
+/-- Proposition: e_pred is a Direct Predecessor of Event e_succ in EventRelation er.
+If it is given that e_pred is ordered with e_succ, then it's a direct predecessor.
+-/
+def EventRelation.DirectPredOfEvent : EventRelation → Event → Event → Prop
+| er, e_pred, e_succ => match er with
+  | .encapsulates _ _ _ => false --{e₁, e₂}
+  | .ordered e₁ e₂ _ => e_pred = e₁ ∧ e_succ = e₂ -- {e₁, e₂}
+  | .programOrdered e₁ e₂ _ => e_pred = e₁ ∧ e_succ = e₂ -- {e₁, e₂}
+  | .fieldMatch _ _ _ _ => false -- {e₁}
+  | .noFieldMatch _ _ _ _ => false -- {e₁}
+  | .matchingFields _ _ _ _ => false -- {e₁, e₂}
+  | .noMatchingFields _ _ _ _ => false -- {e₁, e₂} | .noMatchingFields _ _ _ _ => false -- {e₁, e₂}
