@@ -42,8 +42,22 @@ lemma Event.order_encap_trans {e₁ e₂ e₃ : Event} : e₁ < e₂ → e₂.En
 
 instance Event.instTransOrderEncap : Trans Event.Ordered Event.Encapsulates Event.Ordered := {trans := Event.order_encap_trans}
 
-lemma Event.encap_order_trans {e₁ e₂ e₃ : Event} : e₁.Encapsulates e₂ → e₂ < e₃ → e₂ < e₃ := by
-  simp -- wow. why doesn't this work in the lemmas above?
+abbrev Event.EncapsulatedBy (e₁ e₂ : Event) : Prop := e₂.Encapsulates e₁
+
+lemma Event.encap_by_order_trans {e₁ e₂ e₃ : Event} : e₁.EncapsulatedBy e₂ → e₂ < e₃ → e₁ < e₃ := by
+  unfold LT.lt; unfold Ordered.instLT
+  simp
+  -- unfold BottomEncapsulates;
+  unfold EncapsulatedBy; unfold Encapsulates
+  unfold Ordered
+  simp
+  intro he₂_lt_e₁_start he₂_lt_e₁_end he₂_lt_e₃
+  calc
+    e₁.oEnd < e₂.oEnd := he₂_lt_e₁_end
+    _ < e₃.oStart := he₂_lt_e₃
+
+/- The shape of Trans's definition doesn't match to Event.encap_order_trans. Need to massage def. -/
+instance Event.instTransEncapByOrder : Trans Event.EncapsulatedBy Event.Ordered Event.Ordered := {trans := Event.encap_by_order_trans}
 
 abbrev CacheEvent.SameRequester (e₁ e₂ : CacheEvent) : Prop := e₁.rid = e₂.rid
 -- abbrev CacheEvent.SameCache (e₁ e₂ : CacheEvent) : Prop := e₁.cid = e₂.cid
