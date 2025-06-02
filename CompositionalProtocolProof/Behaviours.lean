@@ -12,21 +12,14 @@ def Behaviour.Events : Behaviour → Set Event
   sorry
 -/
 
--- Continue this later.
+-- TODO? define pred of event including transitivity from ordered and encapsulates relations.
+def Behaviour.PredOfEvent : Behaviour → Event → Event → Prop
+| b, e_pred, e_succ =>
+  /- Direct predecessor case. -/
+  ∃ er ∈ b.rels, er.DirectPredOfEvent e_pred e_succ
+  /- TODO: or, a predecessor e_pred could be a predecessor to e_succ by transitivity (through EventRelation .ordered or .encapsulates)-/
+
 /-
-def EventRelation.PredOfEvent : EventRelation → Event → Event
-| er, e => match er with
-  | .encapsulates _ _ _ =>  --{e₁, e₂}
-  | .ordered e₁ e₂ _ => e_pred = e₁ ∧ e_succ = e₂ -- {e₁, e₂}
-  | .programOrdered e₁ e₂ _ => e_pred = e₁ ∧ e_succ = e₂ -- {e₁, e₂}
-  | .fieldMatch _ _ _ _ => false -- {e₁}
-  | .noFieldMatch _ _ _ _ => false -- {e₁}
-  | .matchingFields _ _ _ _ => false -- {e₁, e₂}
-  | .noMatchingFields _ _ _ _ => false -- {e₁, e₂}
-
-def Behaviour.PredOfEvent : Behaviour → Event → Prop
-| b, e_succ => b.rels.image
-
 def Behaviour.Predecessor : Behaviour → Event → Set Event
 | b, e =>
   let ex := {e ∈ Event | b.rels.PredOfEvent e}
