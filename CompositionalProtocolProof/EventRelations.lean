@@ -59,6 +59,10 @@ lemma Event.encap_by_order_trans {e₁ e₂ e₃ : Event} : e₁.EncapsulatedBy 
 /- The shape of Trans's definition doesn't match to Event.encap_order_trans. Need to massage def. -/
 instance Event.instTransEncapByOrder : Trans Event.EncapsulatedBy Event.Ordered Event.Ordered := {trans := Event.encap_by_order_trans}
 
+structure Event.OrderedBetween (e e_pred e_succ : Event) where
+  pred : e_pred.Ordered e := by simp
+  succ : e.Ordered e_succ := by simp
+
 abbrev CacheEvent.SameRequester (e₁ e₂ : CacheEvent) : Prop := e₁.rid = e₂.rid
 -- abbrev CacheEvent.SameCache (e₁ e₂ : CacheEvent) : Prop := e₁.cid = e₂.cid
 
