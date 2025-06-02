@@ -18,7 +18,7 @@ structure Occurrence where
 deriving DecidableEq
 
 /-- Encapsulates relation on Occurrences. One event starts another event and waits for it to finish. -/
-def Occurrence.Encapsulates (o₁ o₂ : Occurrence) : Prop := o₁.oStart < o₂.oStart ∧ o₁.oEnd < o₂.oEnd
+def Occurrence.Encapsulates (o₁ o₂ : Occurrence) : Prop := o₁.oStart < o₂.oStart ∧ o₂.oEnd < o₁.oEnd
 /- Would be nice to have an Encapsulation class, with a nice infix symbol.
 /-- `ENCAP α` is the typeclass which supports the notation `x ??? y` where `x y : α`.-/
 class ENCAP (α : Type u) where
@@ -30,7 +30,7 @@ abbrev DecidableENCAP (α : Type u) [ENCAP α] := DecidableRel (ENCAP.encap : α
 -/
 
 instance Occurrence.instDecidableEncap (o₁ o₂ : Occurrence) : Decidable (o₁.Encapsulates o₂) :=
-  inferInstanceAs (Decidable (o₁.oStart < o₂.oStart ∧ o₁.oEnd < o₂.oEnd))
+  inferInstanceAs (Decidable (o₁.oStart < o₂.oStart ∧ o₂.oEnd < o₁.oEnd))
 
 /-- Less-than (lt) relation on Occurrences,
 i.e. two occurrences occur before one another in real-time -/
