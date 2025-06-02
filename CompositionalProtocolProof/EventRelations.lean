@@ -9,6 +9,42 @@ def Event.Ordered (e₁ e₂ : Event) : Prop := e₁.oEnd < e₂.oStart
 def CacheEvent.Ordered (e₁ e₂ : CacheEvent) : Prop := e₁.oEnd < e₂.oStart
 def DirectoryEvent.Ordered (e₁ e₂ : DirectoryEvent) : Prop := e₁.oEnd < e₂.oStart
 
+instance Event.Encapsulates.instDecidableEncap (e₁ e₂ : Event) : Decidable (e₁.Encapsulates e₂) :=
+  inferInstanceAs (Decidable (e₁.o.Encapsulates e₂.o))
+
+instance Event.Ordered.instLT : LT Event := {lt := Event.Ordered}
+
+instance Event.Ordered.instDecidableLT (e₁ e₂ : Event) : Decidable (e₁ < e₂) :=
+  inferInstanceAs (Decidable (e₁.o < e₂.o))
+
+lemma Event.ordered_trans {e₁ e₂ e₃ : Event} : e₁ < e₂ → e₂ < e₃ → e₁ < e₃ := by
+  unfold LT.lt; unfold Ordered.instLT
+  simp
+  unfold Event.Ordered;
+  intro he₁_lt_e₂ he₂_lt_e₃
+  have he₂_well_formed := e₂.o.wellFormed
+  calc
+    e₁.o.oEnd < e₂.o.oStart := he₁_lt_e₂
+    _ < e₂.oEnd := he₂_well_formed
+    _ < e₃.o.oStart := he₂_lt_e₃
+
+instance Event.instTransOrderOrder : Trans Event.Ordered Event.Ordered Event.Ordered := {trans := Event.ordered_trans}
+
+lemma Event.order_encap_trans {e₁ e₂ e₃ : Event} : e₁ < e₂ → e₂.Encapsulates e₃ → e₁ < e₃ := by
+  unfold LT.lt; unfold Ordered.instLT
+  simp
+  unfold Event.Ordered;
+  unfold Encapsulates
+  intro he₁_lt_e₂ he₂_encap_e₃
+  calc
+    e₁.o.oEnd < e₂.o.oStart := he₁_lt_e₂
+    _ < e₃.oStart := he₂_encap_e₃.left
+
+instance Event.instTransOrderEncap : Trans Event.Ordered Event.Encapsulates Event.Ordered := {trans := Event.order_encap_trans}
+
+lemma Event.encap_order_trans {e₁ e₂ e₃ : Event} : e₁.Encapsulates e₂ → e₂ < e₃ → e₂ < e₃ := by
+  simp -- wow. why doesn't this work in the lemmas above?
+
 abbrev CacheEvent.SameRequester (e₁ e₂ : CacheEvent) : Prop := e₁.rid = e₂.rid
 -- abbrev CacheEvent.SameCache (e₁ e₂ : CacheEvent) : Prop := e₁.cid = e₂.cid
 
