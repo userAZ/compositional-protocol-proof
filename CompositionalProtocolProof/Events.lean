@@ -15,6 +15,7 @@ structure Occurence where
   oStart : ℕ
   oEnd : ℕ
   wellFormed : oStart < oEnd
+deriving DecidableEq
 
 class TypeEvent (e : Type) where
   o : e → Occurence
@@ -33,6 +34,7 @@ structure CacheEvent where
   d : Downgrade
   deid? : Option DirectoryEventId
   eid : EventId
+deriving DecidableEq
 instance : TypeEvent CacheEvent where
   o := CacheEvent.o
   oStart := CacheEvent.oStart
@@ -50,6 +52,7 @@ structure DirectoryEvent where
   d : Downgrade
   eReq : CacheEvent
   deid : DirectoryEventId
+-- deriving DecidableEq
 instance : TypeEvent DirectoryEvent where
   o := DirectoryEvent.o
   oStart := DirectoryEvent.oStart
@@ -58,6 +61,7 @@ instance : TypeEvent DirectoryEvent where
 inductive Event
 | cacheEvent : CacheEvent → Event
 | directoryEvent : DirectoryEvent → Event
+-- deriving DecidableEq
 
 def Event.o (e : Event) : Occurence :=
   match e with
