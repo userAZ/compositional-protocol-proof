@@ -176,6 +176,7 @@ inductive DirectoryState
 | Vd : StateVd → DirectoryState
 | Vc : StateVc → DirectoryState
 | I  : StateI  → DirectoryState
+-- deriving DecidableEq -- There seem to be issues when deriving DecidableEq for `Set` CacheId?
 
 def DirectoryState.CurrentSharers : DirectoryState → Sharers
 | ds => match ds with
