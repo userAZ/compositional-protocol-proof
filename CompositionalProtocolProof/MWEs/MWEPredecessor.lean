@@ -63,7 +63,7 @@ lemma SetNats.mem_predecessor (x : SetNats) (n : Nat) : ∀ m ∈ x.predecessor 
     next nats m n₂ =>
       subst hm_has_succ_n -- What does subst do in general?
       simp
-    next nats n₁ n₂ =>
+    next nats n₁ =>
       simp [hm_in_x, hm_has_succ_n]
 
 -- def SetNats.predecessor' (x : SetNats) (n : Nat) : Set Nat := {y ∈ Set Nat | ∃ nats, nats ∈ x ∧ nats.natIsPred y n}
