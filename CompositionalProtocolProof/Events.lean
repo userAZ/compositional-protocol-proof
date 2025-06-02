@@ -17,6 +17,30 @@ structure Occurrence where
   wellFormed : oStart < oEnd
 deriving DecidableEq
 
+/-- Encapsulates relation on Occurrences. One event starts another event and waits for it to finish. -/
+def Occurrence.Encapsulates (o₁ o₂ : Occurrence) : Prop := o₁.oStart < o₂.oStart ∧ o₁.oEnd < o₂.oEnd
+/- Would be nice to have an Encapsulation class, with a nice infix symbol.
+/-- `ENCAP α` is the typeclass which supports the notation `x ??? y` where `x y : α`.-/
+class ENCAP (α : Type u) where
+  /-- The encapsulation relation: `x ??? y` -/
+  encap : α → α → Prop
+/-- Abbreviation for `DecidableRel (· ??? · : α → α → Prop)`. -/
+abbrev DecidableENCAP (α : Type u) [ENCAP α] := DecidableRel (ENCAP.encap : α → α → Prop)
+-- instance Occurrence.instEncap : ENCAP Occurrence := { lt := Occurrence.lt}
+-/
+
+instance Occurrence.instDecidableEncap (o₁ o₂ : Occurrence) : Decidable (o₁.Encapsulates o₂) :=
+  inferInstanceAs (Decidable (o₁.oStart < o₂.oStart ∧ o₁.oEnd < o₂.oEnd))
+
+/-- Less-than (lt) relation on Occurrences,
+i.e. two occurrences occur before one another in real-time -/
+def Occurrence.lt (o₁ o₂ : Occurrence) : Prop := o₁.oEnd < o₂.oStart
+
+instance Occurrence.instLT : LT Occurrence := { lt := Occurrence.lt}
+
+instance Occurrence.instDecidableLT (o₁ o₂ : Occurrence) : Decidable (o₁ < o₂) :=
+  inferInstanceAs (Decidable (o₁.oEnd < o₂.oStart))
+
 class TypeEvent (e : Type) where
   o : e → Occurrence
   oStart : e → TimeStart
