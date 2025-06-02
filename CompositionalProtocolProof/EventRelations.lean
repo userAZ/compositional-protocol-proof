@@ -100,7 +100,9 @@ def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent 
     | ⟨.w, false, _⟩ => DirectoryState.Vc ⟨Vc, by simp⟩ -- Non-Coherent-Write downgrade
     | ⟨.r, false, _⟩ => DirectoryState.I ⟨I, by simp⟩ -- Non-Coherent-Read downgrade
 
-/- Attempt 1 at Semantics of a Event Relation. -/
+/-
+ -- Try alternate approach to using Set of EventRelation as a Context Γ
+ -- Is there any benefit to using EventRelation as a Context Γ?
 inductive EventRelation
 | encapsulates (e₁ e₂ : Event) (e₁_encap_e₂ : e₁.Encapsulates e₂) : EventRelation
 | ordered (e₁ e₂ : Event) (e₁_ordered_e₂ : e₁.Ordered e₂) : EventRelation
@@ -114,49 +116,4 @@ inductive EventRelation
 /- a field accessor fn. check if fields of e₁ and e₂ are equal -/
 | noMatchingFields {α : Type} (e₁ e₂ : Event) (f : Event → α) (e₁_e₂_no_field_match : f e₁ ≠ f e₂) : EventRelation
 -- deriving DecidableEq
-
--- TOOD: Try defining as an instance of LT, LE, and Trans
-abbrev EventRelation.lt : EventRelation → EventRelation → Prop
-| er₁, er₂ => match er₁, er₂ with
-  | .ordered _ e₂ _, .ordered e₃ _ _ => e₂ = e₃
-  | .ordered _ e₂ _, .encapsulates e₃ _ _ => e₂ = e₃
-  | .encapsulates e₁ _ _, .ordered e₃ _ _ => e₁ = e₃
-  | .programOrdered _ e₂ _, .programOrdered e₃ _ _ => e₂ = e₃
-  | .programOrdered _ e₂ _, .encapsulates e₃ _ _ => e₂ = e₃
-  | .encapsulates e₁ _ _, .programOrdered e₃ _ _ => e₁ = e₃
-  | _, _ => false -- Other cases do not present a Less Than relation.
-
-instance EventRelation.instLT : (LT EventRelation) := {lt := EventRelation.lt}
-
-instance EventRelation.instDecidableLt (er₁ er₂ : EventRelation) : Decidable (er₁ < er₂) := by
-  dsimp [LT.lt]
-  dsimp [EventRelation.lt]
-  simp
-  -- infer_instance -- Need Event to derive DecidableEq. Not sure why it can't automatically derive it.
-  sorry
-
-  -- inferInstanceAs (Decidable (er₁ < er₂))
-
-/-
-abbrev EventRelation.Predecessor : EventRelation → Event → Prop
-| er, e_succ => match er with
-  | .encapsulates _ _ _ => false --{e₁, e₂}
-  | .ordered e₁ e₂ _ => e_succ = e₂ -- {e₁, e₂}
-  | .programOrdered e₁ e₂ _ => e_succ = e₂ -- {e₁, e₂}
-  | .fieldMatch _ _ _ _ => false -- {e₁}
-  | .noFieldMatch _ _ _ _ => false -- {e₁}
-  | .matchingFields _ _ _ _ => false -- {e₁, e₂}
 -/
-
-/-- Proposition: e_pred is a Direct Predecessor of Event e_succ in EventRelation er.
-If it is given that e_pred is ordered with e_succ, then it's a direct predecessor.
--/
-def EventRelation.DirectPredOfEvent : EventRelation → Event → Event → Prop
-| er, e_pred, e_succ => match er with
-  | .encapsulates _ _ _ => false --{e₁, e₂}
-  | .ordered e₁ e₂ _ => e_pred = e₁ ∧ e_succ = e₂ -- {e₁, e₂}
-  | .programOrdered e₁ e₂ _ => e_pred = e₁ ∧ e_succ = e₂ -- {e₁, e₂}
-  | .fieldMatch _ _ _ _ => false -- {e₁}
-  | .noFieldMatch _ _ _ _ => false -- {e₁}
-  | .matchingFields _ _ _ _ => false -- {e₁, e₂}
-  | .noMatchingFields _ _ _ _ => false -- {e₁, e₂} | .noMatchingFields _ _ _ _ => false -- {e₁, e₂}
