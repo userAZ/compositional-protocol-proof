@@ -113,6 +113,29 @@ inductive EventRelation
 | matchingFields {α : Type} (e₁ e₂ : Event) (f : Event → α) (e₁_e₂_field_match : f e₁ = f e₂) : EventRelation
 /- a field accessor fn. check if fields of e₁ and e₂ are equal -/
 | noMatchingFields {α : Type} (e₁ e₂ : Event) (f : Event → α) (e₁_e₂_no_field_match : f e₁ ≠ f e₂) : EventRelation
+-- deriving DecidableEq
+
+-- TOOD: Try defining as an instance of LT, LE, and Trans
+abbrev EventRelation.lt : EventRelation → EventRelation → Prop
+| er₁, er₂ => match er₁, er₂ with
+  | .ordered _ e₂ _, .ordered e₃ _ _ => e₂ = e₃
+  | .ordered _ e₂ _, .encapsulates e₃ _ _ => e₂ = e₃
+  | .encapsulates e₁ _ _, .ordered e₃ _ _ => e₁ = e₃
+  | .programOrdered _ e₂ _, .programOrdered e₃ _ _ => e₂ = e₃
+  | .programOrdered _ e₂ _, .encapsulates e₃ _ _ => e₂ = e₃
+  | .encapsulates e₁ _ _, .programOrdered e₃ _ _ => e₁ = e₃
+  | _, _ => false -- Other cases do not present a Less Than relation.
+
+instance EventRelation.instLT : (LT EventRelation) := {lt := EventRelation.lt}
+
+instance EventRelation.instDecidableLt (er₁ er₂ : EventRelation) : Decidable (er₁ < er₂) := by
+  dsimp [LT.lt]
+  dsimp [EventRelation.lt]
+  simp
+  -- infer_instance -- Need Event to derive DecidableEq. Not sure why it can't automatically derive it.
+  sorry
+
+  -- inferInstanceAs (Decidable (er₁ < er₂))
 
 /-
 abbrev EventRelation.Events : EventRelation → Set Event
