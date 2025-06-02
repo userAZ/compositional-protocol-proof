@@ -2,7 +2,7 @@ import CompositionalProtocolProof.EventRelations
 
 structure Behaviour where
   -- rels : Set Prop -- Prop a bad idea
-  rels : Set EventRelation
+  rels : Set Event
 
 /- Think if i need this for defining immediate predecessor or not.-/
 /-
@@ -16,7 +16,8 @@ def Behaviour.Events : Behaviour → Set Event
 def Behaviour.PredOfEvent : Behaviour → Event → Event → Prop
 | b, e_pred, e_succ =>
   /- Direct predecessor case. -/
-  ∃ er ∈ b.rels, er.DirectPredOfEvent e_pred e_succ
+  -- ∃ er ∈ b.rels, er.DirectPredOfEvent e_pred e_succ
+  sorry
   /- TODO: or, a predecessor e_pred could be a predecessor to e_succ by transitivity (through EventRelation .ordered or .encapsulates)-/
 
 /-
