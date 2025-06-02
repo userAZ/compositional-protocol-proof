@@ -9,6 +9,9 @@ def Event.Ordered (e₁ e₂ : Event) : Prop := e₁.oEnd < e₂.oStart
 def CacheEvent.Ordered (e₁ e₂ : CacheEvent) : Prop := e₁.oEnd < e₂.oStart
 def DirectoryEvent.Ordered (e₁ e₂ : DirectoryEvent) : Prop := e₁.oEnd < e₂.oStart
 
+abbrev Event.Predecessor : Event → Event → Prop
+| e_pred, e_succ => e_pred.Ordered e_succ
+
 instance Event.Encapsulates.instDecidableEncap (e₁ e₂ : Event) : Decidable (e₁.Encapsulates e₂) :=
   inferInstanceAs (Decidable (e₁.oStart < e₂.oStart ∧ e₂.oEnd < e₁.oEnd))
 
