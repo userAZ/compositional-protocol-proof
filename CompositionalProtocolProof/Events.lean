@@ -26,7 +26,6 @@ structure CacheEvent where
   o : Occurrence
   oStart := o.oStart
   oEnd := o.oEnd
-  wellFormed : oStart < oEnd
   r : ValidRequest
   rid : RequesterId
   cid : CacheId
@@ -44,7 +43,6 @@ structure DirectoryEvent where
   o : Occurrence
   oStart := o.oStart
   oEnd := o.oEnd
-  wellFormed : oStart < oEnd
   r : ValidRequest
   dirS : DirectoryState
   did : DirectoryId
