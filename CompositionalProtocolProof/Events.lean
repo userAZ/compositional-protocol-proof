@@ -11,19 +11,19 @@ abbrev DirectoryEventId := ℕ
 abbrev TimeStart := ℕ
 abbrev TimeEnd := ℕ
 
-structure Occurence where
+structure Occurrence where
   oStart : ℕ
   oEnd : ℕ
   wellFormed : oStart < oEnd
 deriving DecidableEq
 
 class TypeEvent (e : Type) where
-  o : e → Occurence
+  o : e → Occurrence
   oStart : e → TimeStart
   oEnd : e → TimeEnd
 
 structure CacheEvent where
-  o : Occurence
+  o : Occurrence
   oStart := o.oStart
   oEnd := o.oEnd
   wellFormed : oStart < oEnd
@@ -41,7 +41,7 @@ instance : TypeEvent CacheEvent where
   oEnd := CacheEvent.oEnd
 
 structure DirectoryEvent where
-  o : Occurence
+  o : Occurrence
   oStart := o.oStart
   oEnd := o.oEnd
   wellFormed : oStart < oEnd
@@ -63,7 +63,7 @@ inductive Event
 | directoryEvent : DirectoryEvent → Event
 -- deriving DecidableEq
 
-def Event.o (e : Event) : Occurence :=
+def Event.o (e : Event) : Occurrence :=
   match e with
   | cacheEvent ce => ce.o
   | directoryEvent de => de.o
