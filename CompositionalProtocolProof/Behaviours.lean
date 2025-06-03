@@ -39,7 +39,7 @@ def Set.IsSingleton {α : Type} (s : Set α) : Prop := ∃ e, {e} = s
 
 -- NOTE: Remember to use OrderedCacheEvents and OrderedDirectoryEvents at some point.
 lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (e_succ : Event) (hsucc_in_b : e_succ ∈ b.es)
-  (e_pred₁ e_pred₂ : Event) (he₁_b : b.IsImmediateBottomPred e_pred₁ e_succ) (he₂_b : b.IsImmediateBottomPred e_pred₁ e_succ) :
+  (e_pred₁ e_pred₂ : Event) (he₁_b : b.IsImmediateBottomPred e_pred₁ e_succ) (he₂_b : b.IsImmediateBottomPred e_pred₂ e_succ) :
   e_pred₁ = e_pred₂ := by
     sorry -- this is the "multiple" case in Lemma 1.
 
