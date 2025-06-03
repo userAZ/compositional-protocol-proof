@@ -75,5 +75,5 @@ lemma Behaviour.immediate_bottom_predecessor_empty_or_unique (b : Behaviour) (e_
       intro e₁ e₂ he₁ he₂
       apply Behaviour.immediate_bottom_predecessor_unique b e_succ hsucc_in_b e₁ e₂
       exact And.right he₁
-      exact And.right he₁
+      exact And.right he₂
     exact Or.inr (Set.nonempty_unique_is_singleton imm_bottom_preds h_nonempty' h_unique)
