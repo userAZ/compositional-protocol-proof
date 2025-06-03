@@ -37,7 +37,7 @@ def Behaviour.ImmBottomPredecessors : Behaviour → Event → Set Event
 
 def Set.IsSingleton {α : Type} (s : Set α) : Prop := ∃ e, {e} = s
 
-
+-- NOTE: Remember to use OrderedCacheEvents and OrderedDirectoryEvents at some point.
 lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (e_succ : Event) (hsucc_in_b : e_succ ∈ b.es)
   (e_pred₁ e_pred₂ : Event) (he₁_b : b.IsImmediateBottomPred e_pred₁ e_succ) (he₂_b : b.IsImmediateBottomPred e_pred₁ e_succ) :
   e_pred₁ = e_pred₂ := by
@@ -60,7 +60,6 @@ lemma Set.nonempty_unique_is_singleton {α} (s : Set α) (h_nonempty : Nonempty 
     intro hxs
     exact h_unique x a hxs ha
 
--- NOTE: Remember to use OrderedCacheEvents and OrderedDirectoryEvents at some point.
 /-- Lemma 1 from the Doc.
 The set of Immediate Bottom Predecessors is Empty or Unique. (without the φ on the predecessor yet.)
 -/
