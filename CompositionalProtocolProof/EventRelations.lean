@@ -121,7 +121,8 @@ abbrev CacheEvent.WithCoherentPermissions (e : CacheEvent) (s : State) : Prop :=
 abbrev CacheEvent.Downgrade (e : CacheEvent) : Prop := e.d = true
 abbrev CacheEvent.NoEncapSameAddressDowngrade (e : CacheEvent) (s : State) : Prop := (e.Weak ∨ e.WithCoherentPermissions s ∨ e.Downgrade)
 
-abbrev CacheEvent.External (e : CacheEvent) : Prop := ¬e.Local
+abbrev CacheEvent.Grant (e : CacheEvent) : Prop := e.deid? ≠ none
+abbrev CacheEvent.External (e : CacheEvent) : Prop := ¬e.Local ∨ e.Grant
 abbrev CacheEvent.WithoutCoherentPermissions (e : CacheEvent) (s : State) : Prop := (e.Local ∧ e.r.val.coherent = true ∧ s < e.r.val.MRS)
 
 -- NOTE: May need to use a different Prop other than External below. May need explicit field for Grant
