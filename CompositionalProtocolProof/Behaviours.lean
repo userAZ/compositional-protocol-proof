@@ -1,8 +1,7 @@
 import CompositionalProtocolProof.EventRelations
 
 structure Behaviour where
-  -- rels : Set Prop -- Prop a bad idea
-  rels : Set Event
+  es : Set Event
 
 /- Think if i need this for defining immediate predecessor or not.-/
 /-
