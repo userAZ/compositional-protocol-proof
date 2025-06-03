@@ -36,8 +36,13 @@ def Behaviour.ImmBottomPredecessors : Behaviour → Event → Set Event
 
 def Set.IsSingleton {α : Type} (s : Set α) : Prop := ∃ e, {e} = s
 
+-- NOTE: Remember to use OrderedCacheEvents and OrderedDirectoryEvents at some point.
 lemma Behaviour.immediate_bottom_predecessor_empty_or_unique (b : Behaviour) (e_succ : Event) :
-  (b.ImmBottomPredecessors e_succ) = ∅ ∨ (b.ImmBottomPredecessors e_succ).IsSingleton := by
-  -- unfold Behaviour.ImmBottomPredecessors
-  have test := OrderedCacheEvents
+  let imm_bottom_preds := b.ImmBottomPredecessors e_succ; imm_bottom_preds = ∅ ∨ imm_bottom_preds.IsSingleton := by
+  intro imm_bottom_preds
+  -- unfold ImmBottomPredecessors at imm_bottom_preds
+  cases b
+  case mk es =>
+    -- cases es
+    -- unfold ImmBottomPredecessors at imm_bottom_preds
   sorry
