@@ -3,35 +3,41 @@ import CompositionalProtocolProof.EventRelations
 structure Behaviour where
   es : Set Event
 
-/- Think if i need this for defining immediate predecessor or not.-/
-/-
-def Behaviour.Events : Behaviour → Set Event
-| b =>
-  let y := {e ∈ Event | e ∈ b.rels.Events}
-  sorry
--/
+def Behaviour.OrderedBetween : Behaviour → Event → Event → Set Event
+| b, e_pred, e_succ => {e ∈ b.es | e.OrderedBetween e_pred e_succ}
 
--- TODO? define pred of event including transitivity from ordered and encapsulates relations.
-def Behaviour.PredOfEvent : Behaviour → Event → Event → Prop
-| b, e_pred, e_succ =>
-  /- Direct predecessor case. -/
-  -- ∃ er ∈ b.rels, er.DirectPredOfEvent e_pred e_succ
-  sorry
-  /- TODO: or, a predecessor e_pred could be a predecessor to e_succ by transitivity (through EventRelation .ordered or .encapsulates)-/
+def Behaviour.NoIntermediatePredecessor (b : Behaviour) (e_pred e_succ : Event) : Prop :=
+  b.OrderedBetween e_pred e_succ = ∅
 
-/-
-def Behaviour.Predecessor : Behaviour → Event → Set Event
-| b, e =>
-  let ex := {e ∈ Event | b.rels.PredOfEvent e}
-  sorry
--/
+structure Behaviour.ImmediatePredecessorConstraint (b : Behaviour) (e_pred e_succ : Event) where
+  isPred : e_pred.Predecessor e_succ
+  noIntermediate : b.NoIntermediatePredecessor e_pred e_succ
+  sameAddress : e_pred.SameAddress e_succ
+  sameStructure : e_pred.SameStructure e_succ
 
-def Behaviour.ImmediatePredecessor : Behaviour → Event → Option Event
-| b, e => sorry
-  /- find e', where
-    1. e' is Ordered with e.
-    2. there is no e'' where e' is Ordered with e'', and e'' is Ordered with e.
-  -/
-  -- start with defining all events in b
-  -- then define all events in b that are Ordered with e (can be related transitively (indirectly) through encapsulates, or ordered)
-  -- not sure how to proceed
+def Behaviour.ImmediatePredecessor : Behaviour → Event → Event → Prop
+| b, e_pred, e_succ => b.ImmediatePredecessorConstraint e_pred e_succ
+
+abbrev Behaviour.IsNotEncapByEvent (b : Behaviour) (e : Event) : Prop := {e' ∈ b.es | e'.Encapsulates e} = ∅
+
+def Behaviour.IsBottomEvent (b : Behaviour) (e : Event) : Prop := b.IsNotEncapByEvent e
+
+structure Behaviour.IsImmediateBottomPred (b : Behaviour) (e_pred e_succ : Event) where
+  isImmPred : b.ImmediatePredecessorConstraint e_pred e_succ
+  isBottom : b.IsBottomEvent e_pred
+
+-- TODO: also write a version with a constraint φ on e_pred.
+/-- Define what is an event that's the immediate predecessor of another event. -/
+def Behaviour.ImmediateBottomPredecessor : Behaviour → Event → Event → Prop
+| b, e_pred, e_succ => b.IsImmediateBottomPred e_pred e_succ
+
+def Behaviour.ImmBottomPredecessors : Behaviour → Event → Set Event
+| b, e_succ => {e_pred ∈ b.es | b.ImmediateBottomPredecessor e_pred e_succ}
+
+def Set.IsSingleton {α : Type} (s : Set α) : Prop := ∃ e, {e} = s
+
+lemma Behaviour.immediate_bottom_predecessor_empty_or_unique (b : Behaviour) (e_succ : Event) :
+  (b.ImmBottomPredecessors e_succ) = ∅ ∨ (b.ImmBottomPredecessors e_succ).IsSingleton := by
+  -- unfold Behaviour.ImmBottomPredecessors
+  have test := OrderedCacheEvents
+  sorry
