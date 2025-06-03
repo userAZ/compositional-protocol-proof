@@ -6,6 +6,10 @@ defaultTargets = ["compositional-protocol-proof"]
 name = "mathlib"
 scope = "leanprover-community"
 
+[[require]]
+name = "Canonical"
+scope = "chasenorman"
+
 [[lean_lib]]
 name = "CompositionalProtocolProof"
 
