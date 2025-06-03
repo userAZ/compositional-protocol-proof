@@ -14,7 +14,7 @@ abbrev TimeEnd := ℕ
 structure Occurrence where
   oStart : ℕ
   oEnd : ℕ
-  wellFormed : oStart < oEnd
+  oWellFormed : oStart < oEnd
 deriving DecidableEq
 
 /-- Encapsulates relation on Occurrences. One event starts another event and waits for it to finish. -/
@@ -45,11 +45,13 @@ class TypeEvent (e : Type) where
   o : e → Occurrence
   oStart : e → TimeStart
   oEnd : e → TimeEnd
+  oWellFormed : (self : e) → (oStart self < oEnd self)
 
 structure CacheEvent where
   o : Occurrence
   oStart := o.oStart
   oEnd := o.oEnd
+  oWellFormed : oStart < oEnd
   r : ValidRequest
   rid : RequesterId
   cid : CacheId
@@ -62,11 +64,13 @@ instance : TypeEvent CacheEvent where
   o := CacheEvent.o
   oStart := CacheEvent.oStart
   oEnd := CacheEvent.oEnd
+  oWellFormed := CacheEvent.oWellFormed
 
 structure DirectoryEvent where
   o : Occurrence
   oStart := o.oStart
   oEnd := o.oEnd
+  oWellFormed : oStart < oEnd
   r : ValidRequest
   dirS : DirectoryState
   did : DirectoryId
@@ -79,23 +83,34 @@ instance : TypeEvent DirectoryEvent where
   o := DirectoryEvent.o
   oStart := DirectoryEvent.oStart
   oEnd := DirectoryEvent.oEnd
+  oWellFormed := DirectoryEvent.oWellFormed
 
 inductive Event
 | cacheEvent : CacheEvent → Event
 | directoryEvent : DirectoryEvent → Event
 -- deriving DecidableEq
 
-def Event.o (e : Event) : Occurrence :=
-  match e with
+def Event.o (e : Event) : Occurrence := match e with
   | cacheEvent ce => ce.o
   | directoryEvent de => de.o
-def Event.oStart (e : Event) : TimeStart := e.o.oStart
-def Event.oEnd (e : Event) : TimeStart := e.o.oEnd
+
+def Event.oStart (e : Event) : TimeStart := match e with
+  | cacheEvent ce => ce.oStart
+  | directoryEvent de => de.oStart
+
+def Event.oEnd (e : Event) : TimeEnd := match e with
+  | cacheEvent ce => ce.oEnd
+  | directoryEvent de => de.oEnd
+
+def Event.oWellFormed (e : Event) : e.oStart < e.oEnd := match e with
+  | cacheEvent ce => ce.oWellFormed
+  | directoryEvent de => de.oWellFormed
 
 instance : TypeEvent Event where
   o := Event.o
   oStart := Event.oStart
   oEnd := Event.oEnd
+  oWellFormed := Event.oWellFormed
 
 -- def CacheEvent.requestEvent (e : CacheEvent) : Prop := e.cid = e.rid
 -- def CacheEvent.sameAddress (e : CacheEvent) : Prop := e.cid = e.rid

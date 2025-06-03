@@ -18,18 +18,18 @@ instance Event.Encapsulates.instDecidableEncap (e₁ e₂ : Event) : Decidable (
 instance Event.Ordered.instLT : LT Event := {lt := Event.Ordered}
 
 instance Event.Ordered.instDecidableLT (e₁ e₂ : Event) : Decidable (e₁ < e₂) :=
-  inferInstanceAs (Decidable (e₁.o < e₂.o))
+  inferInstanceAs (Decidable (e₁.oEnd < e₂.oStart))
 
 lemma Event.ordered_trans {e₁ e₂ e₃ : Event} : e₁ < e₂ → e₂ < e₃ → e₁ < e₃ := by
   unfold LT.lt; unfold Ordered.instLT
   simp
   unfold Event.Ordered;
   intro he₁_lt_e₂ he₂_lt_e₃
-  have he₂_well_formed := e₂.o.wellFormed
+  have he₂_well_formed := e₂.oWellFormed
   calc
-    e₁.o.oEnd < e₂.o.oStart := he₁_lt_e₂
+    e₁.oEnd < e₂.oStart := he₁_lt_e₂
     _ < e₂.oEnd := he₂_well_formed
-    _ < e₃.o.oStart := he₂_lt_e₃
+    _ < e₃.oStart := he₂_lt_e₃
 
 instance Event.instTransOrderOrder : Trans Event.Ordered Event.Ordered Event.Ordered := {trans := Event.ordered_trans}
 
@@ -40,7 +40,7 @@ lemma Event.order_encap_trans {e₁ e₂ e₃ : Event} : e₁ < e₂ → e₂.En
   unfold Encapsulates
   intro he₁_lt_e₂ he₂_encap_e₃
   calc
-    e₁.o.oEnd < e₂.o.oStart := he₁_lt_e₂
+    e₁.oEnd < e₂.oStart := he₁_lt_e₂
     _ < e₃.oStart := he₂_encap_e₃.left
 
 instance Event.instTransOrderEncap : Trans Event.Ordered Event.Encapsulates Event.Ordered := {trans := Event.order_encap_trans}
