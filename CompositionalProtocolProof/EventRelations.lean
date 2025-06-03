@@ -125,7 +125,6 @@ abbrev CacheEvent.Grant (e : CacheEvent) : Prop := e.deid? ≠ none
 abbrev CacheEvent.External (e : CacheEvent) : Prop := ¬e.Local ∨ e.Grant
 abbrev CacheEvent.WithoutCoherentPermissions (e : CacheEvent) (s : State) : Prop := (e.Local ∧ e.r.val.coherent = true ∧ s < e.r.val.MRS)
 
--- NOTE: May need to use a different Prop other than External below. May need explicit field for Grant
 /-- Axiom 2
 Events at the same address at a cache are ordered, or may encapsulate an external event to the same address.
 -/
