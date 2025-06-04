@@ -127,28 +127,42 @@ def Event.ProgramOrdered (e₁ e₂ : Event) : Prop := e₁.CacheRelation e₂ (
 /-- Axiom 1
 Events at a Directory address are ordered.
 -/
-abbrev OrderedDirectoryEvents (de₁ de₂ : DirectoryEvent) : Prop := de₁.a = de₂.a → de₁.Ordered de₂ ∨ de₂.Ordered de₁
+def OrderedDirectoryEvents (de₁ de₂ : DirectoryEvent) : Prop := de₁.a = de₂.a → de₁.Ordered de₂ ∨ de₂.Ordered de₁
+/-
+def OrderedDirectoryEvents' (e₁ e₂ : Event) : Prop :=
+  e₁.isDirectoryEvent → e₂.isDirectoryEvent → e₁.SameAddress e₂ → e₁.Ordered e₂ ∨ e₂.Ordered e₁
+-/
 
 /-- Definition 2.18. Directory Event ID.
 Ordered Directory Events.
 -/
-abbrev MonotonicDirectoryEventIds (de₁ de₂ : DirectoryEvent) : Prop := de₁.Ordered de₂ → (de₁.deid + 1) = de₂.deid
+def MonotonicDirectoryEventIds (de₁ de₂ : DirectoryEvent) : Prop := de₁.Ordered de₂ → (de₁.deid + 1) = de₂.deid
 
+/- Lean can't synthesize decidability in OrderedCacheEvents if these aren't `abbrev`s -/
 abbrev CacheEvent.Local (e : CacheEvent) : Prop := e.cid = e.rid
+abbrev CacheEvent.NonCoherent (e : CacheEvent) : Prop := e.r.val.coherent = false
+abbrev CacheEvent.WeakConsistency (e : CacheEvent) : Prop := e.r.val.consistency = .Weak
 
-abbrev CacheEvent.Weak (e : CacheEvent) : Prop := (e.Local ∧ e.r.val.coherent = false ∧ e.r.val.consistency = .Weak)
-abbrev CacheEvent.WithCoherentPermissions (e : CacheEvent) (s : State) : Prop := (e.Local ∧ e.r.val.coherent = true ∧ e.r.val.MRS ≤ s)
+abbrev CacheEvent.Weak (e : CacheEvent) : Prop := e.Local ∧ e.NonCoherent ∧ e.WeakConsistency
+
+abbrev CacheEvent.RequestHasPermissions (e : CacheEvent) (s : State) : Prop := e.r.val.MRS ≤ s
+abbrev CacheEvent.Coherent (e : CacheEvent) : Prop := e.r.val.coherent = true
+
+abbrev CacheEvent.WithCoherentPermissions (e : CacheEvent) (s : State) : Prop := e.Local ∧ e.Coherent ∧ e.RequestHasPermissions s
+
 abbrev CacheEvent.Downgrade (e : CacheEvent) : Prop := e.d = true
-abbrev CacheEvent.NoEncapSameAddressDowngrade (e : CacheEvent) (s : State) : Prop := (e.Weak ∨ e.WithCoherentPermissions s ∨ e.Downgrade)
+abbrev CacheEvent.NoEncapSameAddressDowngrade (e : CacheEvent) (s : State) : Prop := e.Weak ∨ e.WithCoherentPermissions s ∨ e.Downgrade
 
 abbrev CacheEvent.Grant (e : CacheEvent) : Prop := e.deid? ≠ none
 abbrev CacheEvent.External (e : CacheEvent) : Prop := ¬e.Local ∨ e.Grant
-abbrev CacheEvent.WithoutCoherentPermissions (e : CacheEvent) (s : State) : Prop := (e.Local ∧ e.r.val.coherent = true ∧ s < e.r.val.MRS)
+abbrev CacheEvent.NoRequestPermissions (e : CacheEvent) (s : State) : Prop := s < e.r.val.MRS
+
+abbrev CacheEvent.WithoutCoherentPermissions (e : CacheEvent) (s : State) : Prop := e.Local ∧ e.Coherent ∧ e.NoRequestPermissions s
 
 /-- Axiom 2
 Events at the same address at a cache are ordered, or may encapsulate an external event to the same address.
 -/
-abbrev OrderedCacheEvents (e₁ e₂ : CacheEvent) (s₁ s₂ : State) : Prop :=
+def OrderedCacheEvents (e₁ e₂ : CacheEvent) (s₁ s₂ : State) : Prop :=
   e₁.cid = e₂.cid ∧ e₁.a = e₂.a ∧
   if e₁.NoEncapSameAddressDowngrade s₁ ∧ e₂.NoEncapSameAddressDowngrade s₂ then (e₁.Ordered e₂ ∨ e₂.Ordered e₁)
   else if e₁.WithoutCoherentPermissions s₁ ∧ e₂.External then (e₁.Ordered e₂ ∨ e₂.Ordered e₁ ∨ e₁.Encapsulates e₂)
