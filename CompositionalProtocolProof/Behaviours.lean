@@ -103,8 +103,24 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (e_succ : Ev
         have e₁_o_e₂ := DirectoryEvent.ordered_events he₁_is_de₁ he₂_is_de₂ h_de₁_o_de₂
         /- Now use the definition of he₁_b and he₂_b to state that there is no intermediately ordered
         event e₃. But we have e₁ and e₂ (pred) ordered, and both are ordered before e_succ → Contradiction -/
-        -- NOTE: when able to, clean up proof.
-        sorry
+        -- NOTE: Surely there must be a way to clean up this proof.
+        have he₁_no_intermediate_to_e_suc := he₁_b.isImmPred.noIntermediate
+        unfold Behaviour.ImmediatePredecessorConstraint at he₁_no_intermediate_to_e_suc
+        unfold Behaviour.NoIntermediatePredecessor at he₁_no_intermediate_to_e_suc
+        unfold Behaviour.OrderedBetween at he₁_no_intermediate_to_e_suc
+        simp at he₁_no_intermediate_to_e_suc
+        have e₂_o_e_succ := he₂_b.isImmPred.isPred
+        unfold Event.Predecessor at e₂_o_e_succ
+        simp at e₂_o_e_succ
+        rw [← h_pred₂] at e₂_o_e_succ
+
+        apply he₁_no_intermediate_to_e_suc
+        apply he₂_b.isImmPred.predInB
+
+        have e₂_between_e₁_e_succ : e_pred₂.OrderedBetween e_pred₁ e_succ := {pred := e₁_o_e₂, succ := e₂_o_e_succ}
+        rw [h_pred₁] at e₂_between_e₁_e_succ
+        rw [h_pred₂] at e₂_between_e₁_e_succ
+        exact e₂_between_e₁_e_succ
       . case inr h_de₂_o_de₁ =>
         have he₁_is_de₁ : e_pred₁.fromDirectoryEvent de₁ := by
           unfold Event.fromDirectoryEvent
