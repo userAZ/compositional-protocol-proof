@@ -157,7 +157,12 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (e_succ : Ev
           simp at e₁_o_e_succ
           rw [← h_pred₁] at e₁_o_e_succ
           exact e₁_o_e_succ
-    | .cacheEvent ce₁, .cacheEvent ce₂ => sorry
+    | .cacheEvent ce₁, .cacheEvent ce₂ =>
+      /- Part 1. Use OrderedCacheEvents to show that ce₁ and ce₂ (which are bottom predecessors to e_succ)
+      are always ordered. Part 2. This is a contradiction with ImmediateBottomPred's NoIntermediatePred. -/
+      -- Part 1. ce₁ and ce₂ are OrderedCacheEvents
+      have hce₁_o_ce₂ := haddress_ordered.cache_ordered ce₁ ce₂ -- need state s₁ s₂ that ce₁ and ce₂ are made on.
+      sorry
     | .directoryEvent de, .cacheEvent ce =>
       have h_e_succ_is_dir   := he₁_b.isImmPred.sameStructure
       have h_e_succ_is_cache := he₂_b.isImmPred.sameStructure
