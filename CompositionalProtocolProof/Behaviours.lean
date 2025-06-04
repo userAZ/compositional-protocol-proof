@@ -159,7 +159,8 @@ lemma Set.nonempty_unique_is_singleton {α} (s : Set α) (h_nonempty : Nonempty 
 /-- Lemma 1 from the Doc.
 The set of Immediate Bottom Predecessors is Empty or Unique. (without the φ on the predecessor yet.)
 -/
-lemma Behaviour.immediate_bottom_predecessor_empty_or_unique (b : Behaviour) (e_succ : Event) (hsucc_in_b : e_succ ∈ b.es) :
+lemma Behaviour.immediate_bottom_predecessor_empty_or_unique (b : Behaviour) (e_succ : Event)
+ (hsucc_in_b : e_succ ∈ b.es) (haddress_ordered : OrderedAddressEvents) :
   let imm_bottom_preds := b.ImmBottomPredecessors e_succ; imm_bottom_preds = ∅ ∨ imm_bottom_preds.IsSingleton := by
   intro imm_bottom_preds
   -- unfold ImmBottomPredecessors at imm_bottom_preds
