@@ -129,7 +129,34 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (e_succ : Ev
           unfold Event.fromDirectoryEvent
           simp [h_pred₂]
         have e₂_o_e₁ := DirectoryEvent.ordered_events he₂_is_de₂ he₁_is_de₁ h_de₂_o_de₁
-        sorry
+
+        /- Now we have the hypothesis that e₂ is ordered with e₁. Show there's a contradiction in e_pred₂'s property NoIntermediatePred. -/
+        have he₂_no_intermediate_to_e_suc := he₂_b.isImmPred.noIntermediate
+        unfold Behaviour.ImmediatePredecessorConstraint at he₂_no_intermediate_to_e_suc
+        unfold Behaviour.NoIntermediatePredecessor at he₂_no_intermediate_to_e_suc
+        unfold Behaviour.OrderedBetween at he₂_no_intermediate_to_e_suc
+        simp at he₂_no_intermediate_to_e_suc
+        have e₂_o_e_succ := he₂_b.isImmPred.isPred
+        unfold Event.Predecessor at e₂_o_e_succ
+        simp at e₂_o_e_succ
+        rw [← h_pred₂] at e₂_o_e_succ
+
+        apply he₂_no_intermediate_to_e_suc
+        apply he₁_b.isImmPred.predInB
+        constructor
+        unfold autoParam
+        . case a.pred =>
+          rw [← h_pred₁, ← h_pred₂]
+          exact e₂_o_e₁
+        . case a.succ =>
+          unfold autoParam
+          rw [← h_pred₁]
+
+          have e₁_o_e_succ := he₁_b.isImmPred.isPred
+          unfold Event.Predecessor at e₁_o_e_succ
+          simp at e₁_o_e_succ
+          rw [← h_pred₁] at e₁_o_e_succ
+          exact e₁_o_e_succ
     | .cacheEvent ce₁, .cacheEvent ce₂ => sorry
     | .directoryEvent de, .cacheEvent ce =>
       have h_e_succ_is_dir   := he₁_b.isImmPred.sameStructure
