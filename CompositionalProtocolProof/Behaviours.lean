@@ -37,9 +37,15 @@ def Behaviour.ImmBottomPredecessors : Behaviour → Event → Set Event
 
 def Set.IsSingleton {α : Type} (s : Set α) : Prop := ∃ e, {e} = s
 
+
+structure OrderedAddressEvents where
+  dir_ordered : ∀ (e₁ e₂ : DirectoryEvent), OrderedDirectoryEvents e₁ e₂
+  cache_ordered : ∀ (e₁ e₂ : CacheEvent), ∀ (s₁ s₂ : State), OrderedCacheEvents e₁ e₂ s₁ s₂
+
 -- NOTE: Remember to use OrderedCacheEvents and OrderedDirectoryEvents at some point.
 lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (e_succ : Event) (hsucc_in_b : e_succ ∈ b.es)
-  (e_pred₁ e_pred₂ : Event) (he₁_b : b.IsImmediateBottomPred e_pred₁ e_succ) (he₂_b : b.IsImmediateBottomPred e_pred₂ e_succ) :
+  (e_pred₁ e_pred₂ : Event) (haddress_ordered : OrderedAddressEvents)
+  (he₁_b : b.IsImmediateBottomPred e_pred₁ e_succ) (he₂_b : b.IsImmediateBottomPred e_pred₂ e_succ) :
   e_pred₁ = e_pred₂ := by
     sorry -- this is the "multiple" case in Lemma 1.
 
@@ -74,6 +80,7 @@ lemma Behaviour.immediate_bottom_predecessor_empty_or_unique (b : Behaviour) (e_
     have h_unique : ∀ (e₁ e₂ : Event), e₁ ∈ imm_bottom_preds → e₂ ∈ imm_bottom_preds → e₁ = e₂ := by
       intro e₁ e₂ he₁ he₂
       apply Behaviour.immediate_bottom_predecessor_unique b e_succ hsucc_in_b e₁ e₂
+      exact haddress_ordered
       exact And.right he₁
       exact And.right he₂
     exact Or.inr (Set.nonempty_unique_is_singleton imm_bottom_preds h_nonempty' h_unique)
