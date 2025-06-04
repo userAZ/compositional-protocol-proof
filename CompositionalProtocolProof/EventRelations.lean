@@ -9,6 +9,26 @@ def Event.Ordered (e₁ e₂ : Event) : Prop := e₁.oEnd < e₂.oStart
 def CacheEvent.Ordered (e₁ e₂ : CacheEvent) : Prop := e₁.oEnd < e₂.oStart
 def DirectoryEvent.Ordered (e₁ e₂ : DirectoryEvent) : Prop := e₁.oEnd < e₂.oStart
 
+def Event.fromDirectoryEvent (de : DirectoryEvent) (e : Event) : Prop :=
+  match e with
+  | .directoryEvent de' => de = de'
+  | .cacheEvent _ => false
+
+lemma DirectoryEvent.ordered_events (de₁ de₂ : DirectoryEvent) (e₁ e₂ : Event)
+  (he₁_is_de₁ : e₁.fromDirectoryEvent de₁) (he₂_is_de₂ : e₂.fromDirectoryEvent de₂) : de₁.Ordered de₂ → e₁.Ordered e₂ := by
+  unfold DirectoryEvent.Ordered; unfold Event.Ordered
+  -- unfold DirectoryEvent.oEnd; unfold DirectoryEvent.oStart
+  unfold Event.oEnd; unfold Event.oStart
+  match he₁ : e₁, he₂ : e₂ with
+  | .directoryEvent de₁', .directoryEvent de₂' =>
+    subst he₁_is_de₁ he₂_is_de₂
+    intro h_de₁_lt_de₂
+    simp [Event.o]
+    exact h_de₁_lt_de₂
+  | .directoryEvent _, .cacheEvent _ => contradiction
+  | .cacheEvent _, .directoryEvent _ => contradiction
+  | .cacheEvent _, .cacheEvent _ => contradiction
+
 abbrev Event.Predecessor : Event → Event → Prop
 | e_pred, e_succ => e_pred.Ordered e_succ
 
