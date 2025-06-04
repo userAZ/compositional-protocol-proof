@@ -86,37 +86,37 @@ structure Event.OrderedBetween (e e_pred e_succ : Event) where
   pred : e_pred.Ordered e := by simp
   succ : e.Ordered e_succ := by simp
 
-abbrev CacheEvent.SameRequester (e₁ e₂ : CacheEvent) : Prop := e₁.rid = e₂.rid
-abbrev CacheEvent.SameCache (e₁ e₂ : CacheEvent) : Prop := e₁.cid = e₂.cid
-abbrev CacheEvent.SameAddress (e₁ e₂ : CacheEvent) : Prop := e₁.a = e₂.a
+def CacheEvent.SameRequester (e₁ e₂ : CacheEvent) : Prop := e₁.rid = e₂.rid
+def CacheEvent.SameCache (e₁ e₂ : CacheEvent) : Prop := e₁.cid = e₂.cid
+def CacheEvent.SameAddress (e₁ e₂ : CacheEvent) : Prop := e₁.a = e₂.a
 
-abbrev Event.CacheRelation (e₁ e₂ : Event) : (CacheEvent → CacheEvent → Prop) → Prop
+def Event.CacheRelation (e₁ e₂ : Event) : (CacheEvent → CacheEvent → Prop) → Prop
 | p => match e₁ with
   | .cacheEvent ce₁ =>
     match e₂ with
     | .cacheEvent ce₂ => p ce₁ ce₂
-    | .directoryEvent _ => true -- nothing happens
-  | .directoryEvent _ => true -- nothing happens
+    | .directoryEvent _ => false -- nothing happens
+  | .directoryEvent _ => false -- nothing happens
 
-abbrev Event.StructureRelation (e₁ e₂ : Event) :
+def Event.SameStructureRelation (e₁ e₂ : Event) :
   (CacheEvent → CacheEvent → Prop) → (DirectoryEvent → DirectoryEvent → Prop) → Prop
 | cp, dp => match e₁ with
   | .cacheEvent ce₁ =>
     match e₂ with
     | .cacheEvent ce₂ => cp ce₁ ce₂
-    | .directoryEvent _ => true -- nothing happens
+    | .directoryEvent _ => false -- nothing happens
   | .directoryEvent de₁ =>
     match e₂ with
-    | .cacheEvent _ => true -- nothing happens
+    | .cacheEvent _ => false -- nothing happens
     | .directoryEvent de₂ => dp de₁ de₂
 
 -- abbrev CacheEvent.SameRequester (e₁ e₂ : CacheEvent) : Prop := e₁.rid = e₂.rid
-abbrev DirectoryEvent.SameStructure (_ _ : DirectoryEvent) : Prop := true
-abbrev DirectoryEvent.SameAddress (e₁ e₂ : DirectoryEvent) : Prop := e₁.a = e₂.a
+def DirectoryEvent.SameStructure (_ _ : DirectoryEvent) : Prop := true
+def DirectoryEvent.SameAddress (e₁ e₂ : DirectoryEvent) : Prop := e₁.a = e₂.a
 
-abbrev Event.CacheSameRequester (e₁ e₂ : Event) : Prop := e₁.CacheRelation e₂ (·.SameRequester ·)
-abbrev Event.SameStructure (e₁ e₂ : Event) : Prop := e₁.StructureRelation e₂ (·.SameCache ·) (·.SameStructure ·)
-abbrev Event.SameAddress (e₁ e₂ : Event) : Prop := e₁.StructureRelation e₂ (·.SameAddress ·) (·.SameAddress ·)
+def Event.CacheSameRequester (e₁ e₂ : Event) : Prop := e₁.CacheRelation e₂ (·.SameRequester ·)
+def Event.SameStructure (e₁ e₂ : Event) : Prop := e₁.SameStructureRelation e₂ (·.SameCache ·) (·.SameStructure ·)
+def Event.SameAddress (e₁ e₂ : Event) : Prop := e₁.SameStructureRelation e₂ (·.SameAddress ·) (·.SameAddress ·)
 
 structure CacheEvent.ProgramOrdered (e₁ e₂ : CacheEvent) where
   ordered : e₁.Ordered e₂ := by simp
