@@ -14,7 +14,7 @@ def Event.fromDirectoryEvent (de : DirectoryEvent) (e : Event) : Prop :=
   | .directoryEvent de' => de = de'
   | .cacheEvent _ => false
 
-lemma DirectoryEvent.ordered_events (de₁ de₂ : DirectoryEvent) (e₁ e₂ : Event)
+lemma DirectoryEvent.ordered_events {de₁ de₂ : DirectoryEvent} {e₁ e₂ : Event}
   (he₁_is_de₁ : e₁.fromDirectoryEvent de₁) (he₂_is_de₂ : e₂.fromDirectoryEvent de₂) : de₁.Ordered de₂ → e₁.Ordered e₂ := by
   unfold DirectoryEvent.Ordered; unfold Event.Ordered
   -- unfold DirectoryEvent.oEnd; unfold DirectoryEvent.oStart
