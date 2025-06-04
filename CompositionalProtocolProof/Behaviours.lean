@@ -4,11 +4,16 @@ import Canonical
 structure Behaviour where
   es : Set Event
 
+instance : Membership Event Behaviour := ⟨fun b e => e ∈ b.es⟩
+
 def Behaviour.OrderedBetween : Behaviour → Event → Event → Set Event
 | b, e_pred, e_succ => {e ∈ b.es | e.OrderedBetween e_pred e_succ}
 
 def Behaviour.NoIntermediatePredecessor (b : Behaviour) (e_pred e_succ : Event) : Prop :=
   b.OrderedBetween e_pred e_succ = ∅
+
+def Behaviour.NoIntermediatePredecessor' (b : Behaviour) (e_pred e_succ : Event) : Prop :=
+  ∀ e ∈ b, ¬ (e.OrderedBetween e_pred e_succ)
 
 structure Behaviour.ImmediatePredecessorConstraint (b : Behaviour) (e_pred e_succ : Event) where
   isPred : e_pred.Predecessor e_succ
