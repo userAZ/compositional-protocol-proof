@@ -38,20 +38,6 @@ def Behaviour.ImmBottomPredecessors : Behaviour → Event → Set Event
 
 def Set.IsSingleton {α : Type} (s : Set α) : Prop := ∃ e, {e} = s
 
-/-
-lemma Set.e_in_s_nonempty {α : Type} (s : Set α) (e : α) (he_in_s : e ∈ s) : Nonempty s := by
-  exists e
-
-lemma Set.nonempty_is_not_empty {α : Type} (s : Set α) : Nonempty s → ¬s = ∅ := by
-  intro h_nonempty
-  apply Set.nonempty_iff_ne_empty'.mp
-  exact h_nonempty
--/
-
-  -- | .directoryEvent de, .cacheEvent ce,  => sorry
-  -- | .cacheEvent ce, .directoryEvent de => sorry
-
-
 structure OrderedAddressEvents where
   dir_ordered : ∀ (e₁ e₂ : DirectoryEvent), OrderedDirectoryEvents e₁ e₂
   cache_ordered : ∀ (e₁ e₂ : CacheEvent), ∀ (s₁ s₂ : State), OrderedCacheEvents e₁ e₂ s₁ s₂
