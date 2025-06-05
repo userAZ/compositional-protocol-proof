@@ -393,3 +393,52 @@ lemma Behaviour.immediate_bottom_predecessor_empty_or_unique (b : Behaviour) (es
       exact And.right he₁
       exact And.right he₂
     exact Or.inr (Set.nonempty_unique_is_singleton imm_bottom_preds h_nonempty' h_unique)
+
+/- Add constraint `p` on predecessor -/
+
+def Event.PropOnEvent (e : Event) (p : Event → Prop) : Prop := p e
+def EventState.PropOnEvent (es : EventState) (p : Event → Prop) : Prop := p es.e
+
+structure Behaviour.IsImmediateBottomPredSatisfyingProp (b : Behaviour) (e_pred e_succ : EventState) (p : Event → Prop) where
+  isImmPred : b.ImmediatePredecessorConstraint e_pred e_succ
+  isBottom : b.IsBottomEvent e_pred
+  satisfyP : e_pred.PropOnEvent p
+
+def Behaviour.ImmediateBottomPredSatisfyingProp : Behaviour → EventState → EventState → (Event → Prop) → Prop
+| b, e_pred, e_succ, p => b.IsImmediateBottomPredSatisfyingProp e_pred e_succ p
+
+def Behaviour.ImmBottomPredecessorsSatisfyingP : Behaviour → EventState → (Event → Prop) → Set EventState
+| b, e_succ, p => {e_pred ∈ b.es | b.ImmediateBottomPredSatisfyingProp e_pred e_succ p}
+
+lemma Behaviour.immediate_bottom_predecessor_satisfying_p_unique (b : Behaviour) (es_succ : EventState)
+  (es_pred₁ es_pred₂ : EventState) (p : Event → Prop) (haddress_ordered : OrderedAddressEvents)
+  (he₁_b : b.IsImmediateBottomPredSatisfyingProp es_pred₁ es_succ p) (he₂_b : b.IsImmediateBottomPredSatisfyingProp es_pred₂ es_succ p) :
+  es_pred₁ = es_pred₂ := by
+    have he₁_b' : b.IsImmediateBottomPred es_pred₁ es_succ := by
+      constructor
+      exact he₁_b.isImmPred
+      exact he₁_b.isBottom
+    have he₂_b' : b.IsImmediateBottomPred es_pred₂ es_succ := by
+      constructor
+      exact he₂_b.isImmPred
+      exact he₂_b.isBottom
+
+    apply Behaviour.immediate_bottom_predecessor_unique b es_succ es_pred₁ es_pred₂ haddress_ordered he₁_b' he₂_b'
+
+/-- Lemma 1, with a Prop `p` on predecessors. -/
+lemma Behaviour.immediate_bottom_predecessor_satisfying_p_empty_or_unique (b : Behaviour) (es_succ : EventState) (p : Event → Prop)
+  (haddress_ordered : OrderedAddressEvents) :
+  let imm_bottom_preds := b.ImmBottomPredecessorsSatisfyingP es_succ p; imm_bottom_preds = ∅ ∨ imm_bottom_preds.IsSingleton := by
+  intro imm_bottom_preds
+  -- unfold ImmBottomPredecessors at imm_bottom_preds
+  by_cases (imm_bottom_preds = ∅)
+  · case pos h_empty => exact Or.inl h_empty
+  · case neg h_nonempty =>
+    have h_nonempty' := Set.nonempty_iff_ne_empty'.mpr h_nonempty
+    have h_unique : ∀ (e₁ e₂ : EventState), e₁ ∈ imm_bottom_preds → e₂ ∈ imm_bottom_preds → e₁ = e₂ := by
+      intro e₁ e₂ he₁ he₂
+      apply Behaviour.immediate_bottom_predecessor_satisfying_p_unique b es_succ e₁ e₂ p
+      exact haddress_ordered
+      exact And.right he₁
+      exact And.right he₂
+    exact Or.inr (Set.nonempty_unique_is_singleton imm_bottom_preds h_nonempty' h_unique)
