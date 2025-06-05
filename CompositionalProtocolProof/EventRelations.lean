@@ -200,7 +200,7 @@ abbrev CacheEvent.WithoutCoherentPermissions (e : CacheEvent) (s : State) : Prop
 Events at the same address at a cache are ordered, or may encapsulate an external event to the same address.
 -/
 def OrderedCacheEvents (e₁ e₂ : CacheEvent) (s₁ s₂ : State) : Prop :=
-  e₁.cid = e₂.cid ∧ e₁.a = e₂.a ∧
+  e₁.cid = e₂.cid → e₁.a = e₂.a →
   if e₁.NoEncapSameAddressDowngrade s₁ ∧ e₂.NoEncapSameAddressDowngrade s₂ then (e₁.Ordered e₂ ∨ e₂.Ordered e₁)
   else if e₁.WithoutCoherentPermissions s₁ ∧ e₂.External then (e₁.Ordered e₂ ∨ e₂.Ordered e₁ ∨ e₁.Encapsulates e₂)
   else if e₁.External ∧ e₂.WithoutCoherentPermissions s₂ then (e₁.Ordered e₂ ∨ e₂.Ordered e₁ ∨ e₂.Encapsulates e₁)
