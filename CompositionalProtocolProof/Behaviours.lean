@@ -37,6 +37,7 @@ structure Behaviour.ImmediatePredecessorConstraint (b : Behaviour) (e_pred e_suc
   sameAddress : e_pred.SameAddress e_succ
   sameStructure : e_pred.SameStructure e_succ
   predInB : e_pred ∈ b.es
+  succInB : e_succ ∈ b.es
 
 def Behaviour.ImmediatePredecessor : Behaviour → EventState → EventState → Prop
 | b, e_pred, e_succ => b.ImmediatePredecessorConstraint e_pred e_succ
