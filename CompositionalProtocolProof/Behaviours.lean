@@ -151,10 +151,10 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : E
       /- Part 1. Use OrderedCacheEvents to show that ce₁ and ce₂ (which are bottom predecessors to e_succ)
       are always ordered. Part 2. This is a contradiction with ImmediateBottomPred's NoIntermediatePred. -/
       -- Part 1. ce₁ and ce₂ are OrderedCacheEvents
-      cases es_pred₁.s
-      . case inl s₁ =>
-        cases es_pred₂.s
-        . case inl s₂ =>
+      match he₁_s : es_pred₁.s with
+      | .inl s₁ =>
+        match he₂_s : es_pred₂.s with
+        | .inl s₂ =>
           have hce₁_o_ce₂ := haddress_ordered.cache_ordered ce₁ ce₂ s₁ s₂  -- need state s₁ s₂ that ce₁ and ce₂ are made on.
           -- Same cid, e_pred₁ e_pred₂
           have hce₁_cid_csucc := he₁_b.isImmPred.sameStructure
@@ -205,12 +205,12 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : E
 
             apply Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction he₁_b he₂_b es_pred₁_ordered_es_pred₂
           . case neg ce₁₂_encap =>
-            simp [ce₁₂_encap] at ordered_ite
-            sorry
-        .case inr _ =>
-          sorry -- Show false by EventState.stateWellFormed. Need to include it in the premise of this Lemma.
-      . case inr _ =>
-        sorry
+        | .inr _ =>
+          have e₂_well_formed := es_pred₂.sWellFormed
+          simp[h_pred₂, he₂_s] at e₂_well_formed
+      | .inr _ =>
+        have e₁_well_formed := es_pred₁.sWellFormed
+        simp[h_pred₁, he₁_s] at e₁_well_formed
     | .directoryEvent de, .cacheEvent ce =>
       have h_e_succ_is_dir   := he₁_b.isImmPred.sameStructure
       have h_e_succ_is_cache := he₂_b.isImmPred.sameStructure
