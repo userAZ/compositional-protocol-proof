@@ -39,9 +39,6 @@ structure Behaviour.ImmediatePredecessorConstraint (b : Behaviour) (e_pred e_suc
   predInB : e_pred ∈ b.es
   succInB : e_succ ∈ b.es
 
-def Behaviour.ImmediatePredecessor : Behaviour → EventState → EventState → Prop
-| b, e_pred, e_succ => b.ImmediatePredecessorConstraint e_pred e_succ
-
 def EventState.Encapsulates : EventState → EventState → Prop
 | ⟨e₁, _, _⟩, ⟨e₂, _, _⟩ => e₁.Encapsulates e₂
 
