@@ -120,7 +120,7 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction {es_pred₁ es
       exact e₁_o_e_succ
 
 -- NOTE: Remember to use OrderedCacheEvents and OrderedDirectoryEvents at some point.
-lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : EventState) (hsucc_in_b : e_succ ∈ b.es)
+lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : EventState)
   (es_pred₁ es_pred₂ : EventState) (haddress_ordered : OrderedAddressEvents)
   (he₁_b : b.IsImmediateBottomPred es_pred₁ es_succ) (he₂_b : b.IsImmediateBottomPred es_pred₂ es_succ) :
   es_pred₁ = es_pred₂ := by
@@ -190,7 +190,7 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : E
             1. ordered (contradiction with NoIntermediatePred)
             2. one encapsulates another (contradiction with isBottom)
           -/
-          by_cases ce₁.NoEncapSameAddressDowngrade s₁ ∧ ce₂.NoEncapSameAddressDowngrade s₂ = true
+          by_cases (ce₁.NoEncapSameAddressDowngrade s₁ ∧ ce₂.NoEncapSameAddressDowngrade s₂) = true
           . case pos ce₁₂_no_encap =>
             simp [ce₁₂_no_encap] at ordered_ite
 
@@ -377,7 +377,7 @@ lemma Set.nonempty_unique_is_singleton {α} (s : Set α) (h_nonempty : Nonempty 
 The set of Immediate Bottom Predecessors is Empty or Unique. (without the φ on the predecessor yet.)
 -/
 lemma Behaviour.immediate_bottom_predecessor_empty_or_unique (b : Behaviour) (es_succ : EventState)
- (hsucc_in_b : es_succ ∈ b.es) (haddress_ordered : OrderedAddressEvents) :
+  (haddress_ordered : OrderedAddressEvents) :
   let imm_bottom_preds := b.ImmBottomPredecessors es_succ; imm_bottom_preds = ∅ ∨ imm_bottom_preds.IsSingleton := by
   intro imm_bottom_preds
   -- unfold ImmBottomPredecessors at imm_bottom_preds
@@ -387,7 +387,7 @@ lemma Behaviour.immediate_bottom_predecessor_empty_or_unique (b : Behaviour) (es
     have h_nonempty' := Set.nonempty_iff_ne_empty'.mpr h_nonempty
     have h_unique : ∀ (e₁ e₂ : EventState), e₁ ∈ imm_bottom_preds → e₂ ∈ imm_bottom_preds → e₁ = e₂ := by
       intro e₁ e₂ he₁ he₂
-      apply Behaviour.immediate_bottom_predecessor_unique b es_succ hsucc_in_b e₁ e₂
+      apply Behaviour.immediate_bottom_predecessor_unique b es_succ e₁ e₂
       exact haddress_ordered
       exact And.right he₁
       exact And.right he₂
