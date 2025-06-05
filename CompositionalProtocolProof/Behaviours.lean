@@ -439,3 +439,55 @@ lemma Behaviour.immediate_bottom_predecessor_satisfying_p_empty_or_unique (b : B
       exact And.right he₁
       exact And.right he₂
     exact Or.inr (Set.nonempty_unique_is_singleton imm_bottom_preds h_nonempty' h_unique)
+
+/- Now define the immediate bottom successor. -/
+
+def EventState.Successor : EventState → EventState → Prop
+| ⟨e₁, _, _⟩, ⟨e₂, _, _⟩ => e₁.Successor e₂
+
+structure Behaviour.ImmediateSuccessorConstraint (b : Behaviour) (e_pred e_succ : EventState) where
+  isSucc : e_pred.Successor e_succ
+  noIntermediate : b.NoIntermediateEvent e_pred e_succ
+  sameAddress : e_pred.SameAddress e_succ
+  sameStructure : e_pred.SameStructure e_succ
+  predInB : e_pred ∈ b.es
+  succInB : e_succ ∈ b.es
+
+structure Behaviour.IsImmediateBottomSucc (b : Behaviour) (e_pred e_succ : EventState) where
+  isImmPred : b.ImmediateSuccessorConstraint e_pred e_succ
+  isBottom : b.IsBottomEvent e_pred
+
+def Behaviour.ImmediateBottomSuccessor : Behaviour → EventState → EventState → Prop
+| b, e_pred, e_succ => b.IsImmediateBottomSucc e_pred e_succ
+
+def Behaviour.ImmBottomSuccessors : Behaviour → EventState → Set EventState
+| b, e_pred => {e_succ ∈ b.es | b.ImmediateBottomSuccessor e_pred e_succ}
+
+lemma Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction {es_pred es_succ₁ es_succ₂ : EventState} {b : Behaviour}
+(he₁_b : b.IsImmediateBottomSucc es_pred es_succ₁) (he₂_b : b.IsImmediateBottomSucc es_pred es_succ₂)
+(hes₁_ordered_es₂ : es_succ₁.Ordered es_succ₂ ∨ es_succ₂.Ordered es_succ₁)
+: False := by
+  sorry
+
+lemma Behaviour.immediate_bottom_successor_unique (b : Behaviour) (es_pred : EventState)
+  (es_succ₁ es_succ₂ : EventState) (haddress_ordered : OrderedAddressEvents)
+  (he₁_b : b.IsImmediateBottomSucc es_pred es_succ₁) (he₂_b : b.IsImmediateBottomSucc es_pred es_succ₂) :
+  es_succ₁ = es_succ₂ := by
+  sorry
+
+lemma Behaviour.immediate_bottom_successor_empty_or_unique (b : Behaviour) (es_pred : EventState)
+  (haddress_ordered : OrderedAddressEvents) :
+  let imm_bottom_succs := b.ImmBottomSuccessors es_pred; imm_bottom_succs = ∅ ∨ imm_bottom_succs.IsSingleton := by
+  intro imm_bottom_succs
+  -- unfold ImmBottomPredecessors at imm_bottom_preds
+  by_cases (imm_bottom_succs = ∅)
+  · case pos h_empty => exact Or.inl h_empty
+  · case neg h_nonempty =>
+    have h_nonempty' := Set.nonempty_iff_ne_empty'.mpr h_nonempty
+    have h_unique : ∀ (e₁ e₂ : EventState), e₁ ∈ imm_bottom_succs → e₂ ∈ imm_bottom_succs → e₁ = e₂ := by
+      intro e₁ e₂ he₁ he₂
+      apply Behaviour.immediate_bottom_successor_unique b es_pred e₁ e₂
+      exact haddress_ordered
+      exact And.right he₁
+      exact And.right he₂
+    exact Or.inr (Set.nonempty_unique_is_singleton imm_bottom_succs h_nonempty' h_unique)
