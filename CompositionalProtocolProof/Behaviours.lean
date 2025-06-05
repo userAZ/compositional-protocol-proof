@@ -21,7 +21,7 @@ structure EventState.OrderedBetween (e e_pred e_succ : EventState) where
 def Behaviour.OrderedBetween : Behaviour → EventState → EventState → Set EventState
 | b, e_pred, e_succ => {e ∈ b.es | e.OrderedBetween e_pred e_succ}
 
-def Behaviour.NoIntermediatePredecessor (b : Behaviour) (e_pred e_succ : EventState) : Prop :=
+def Behaviour.NoIntermediateEvent (b : Behaviour) (e_pred e_succ : EventState) : Prop :=
   b.OrderedBetween e_pred e_succ = ∅
 
 def EventState.Predecessor : EventState → EventState → Prop
@@ -33,7 +33,7 @@ def EventState.SameStructure : EventState → EventState → Prop
 
 structure Behaviour.ImmediatePredecessorConstraint (b : Behaviour) (e_pred e_succ : EventState) where
   isPred : e_pred.Predecessor e_succ
-  noIntermediate : b.NoIntermediatePredecessor e_pred e_succ
+  noIntermediate : b.NoIntermediateEvent e_pred e_succ
   sameAddress : e_pred.SameAddress e_succ
   sameStructure : e_pred.SameStructure e_succ
   predInB : e_pred ∈ b.es
@@ -76,7 +76,7 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction {es_pred₁ es
   . case inl es₁_ordered_es₂ =>
     have he₁_no_intermediate_to_e_suc := he₁_b.isImmPred.noIntermediate
     unfold Behaviour.ImmediatePredecessorConstraint at he₁_no_intermediate_to_e_suc
-    unfold Behaviour.NoIntermediatePredecessor at he₁_no_intermediate_to_e_suc
+    unfold Behaviour.NoIntermediateEvent at he₁_no_intermediate_to_e_suc
     unfold Behaviour.OrderedBetween at he₁_no_intermediate_to_e_suc
     simp at he₁_no_intermediate_to_e_suc
     have e₁_o_e_succ := he₁_b.isImmPred.isPred
@@ -99,7 +99,7 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction {es_pred₁ es
   . case inr es₂_ordered_es₁ =>
     have he₂_no_intermediate_to_e_suc := he₂_b.isImmPred.noIntermediate
     unfold Behaviour.ImmediatePredecessorConstraint at he₂_no_intermediate_to_e_suc
-    unfold Behaviour.NoIntermediatePredecessor at he₂_no_intermediate_to_e_suc
+    unfold Behaviour.NoIntermediateEvent at he₂_no_intermediate_to_e_suc
     unfold Behaviour.OrderedBetween at he₂_no_intermediate_to_e_suc
     simp at he₂_no_intermediate_to_e_suc
     have e₂_o_e_succ := he₂_b.isImmPred.isPred
