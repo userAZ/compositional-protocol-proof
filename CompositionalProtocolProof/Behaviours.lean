@@ -48,23 +48,6 @@ lemma Set.nonempty_is_not_empty {α : Type} (s : Set α) : Nonempty s → ¬s = 
   exact h_nonempty
 -/
 
-lemma Event.same_address_reflexive {e₁ e₂ e₃ : Event} : e₁.SameAddress e₃ → e₂.SameAddress e₃ → e₁.SameAddress e₂ := by
-  unfold SameAddress
-  unfold CacheEvent.SameAddress; unfold DirectoryEvent.SameAddress
-  unfold SameStructureRelation
-  simp
-  intro he₁_sa_e₃ he₂_sa_e₃
-  match he₁ : e₁, he₂ : e₂, he₃ : e₃ with
-  | .cacheEvent ce₁, .cacheEvent ce₂, .cacheEvent ce₃ => simp_all
-  | .directoryEvent de₁, .directoryEvent de₂, .directoryEvent de₃ => simp_all
-  | .cacheEvent ce₁, .cacheEvent ce₂, .directoryEvent de => contradiction
-  | .cacheEvent ce₁, .directoryEvent de, .cacheEvent ce₃ => contradiction
-  | .directoryEvent de, .cacheEvent ce₂, .cacheEvent ce => contradiction
-  | .directoryEvent de₁, .directoryEvent de₂, .cacheEvent ce => contradiction
-  | .directoryEvent de₁, .cacheEvent ce, .directoryEvent de₃ => contradiction
-  | .cacheEvent ce, .directoryEvent de₂, .directoryEvent de₃ => contradiction
-
-
   -- | .directoryEvent de, .cacheEvent ce,  => sorry
   -- | .cacheEvent ce, .directoryEvent de => sorry
 
