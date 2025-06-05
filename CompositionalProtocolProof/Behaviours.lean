@@ -4,16 +4,15 @@ import Canonical
 structure EventState where
   e : Event
   s : State ⊕ DirectoryState
-
-def EventState.stateWellFormed : EventState → Prop
-| ⟨.cacheEvent _, s⟩ => match s with | .inl _ => true | .inr _ => false
-| ⟨.directoryEvent _, s⟩ => match s with | .inl _ => false | .inr _ => true
+  sWellFormed : match e with
+    | .cacheEvent _ => match s with | .inl _ => true | .inr _ => false
+    | .directoryEvent _ => match s with | .inl _ => false | .inr _ => true
 
 structure Behaviour where
   es : Set EventState
 
 def EventState.Ordered : EventState → EventState → Prop
-| ⟨e₁, _⟩, ⟨e₂, _⟩ => e₁.Ordered e₂
+| ⟨e₁, _, _⟩, ⟨e₂, _, _⟩ => e₁.Ordered e₂
 
 structure EventState.OrderedBetween (e e_pred e_succ : EventState) where
   pred : e_pred.Ordered e := by simp
@@ -26,11 +25,11 @@ def Behaviour.NoIntermediatePredecessor (b : Behaviour) (e_pred e_succ : EventSt
   b.OrderedBetween e_pred e_succ = ∅
 
 def EventState.Predecessor : EventState → EventState → Prop
-| ⟨e₁, _⟩, ⟨e₂, _⟩ => e₁.Predecessor e₂
+| ⟨e₁, _, _⟩, ⟨e₂, _, _⟩ => e₁.Predecessor e₂
 def EventState.SameAddress : EventState → EventState → Prop
-| ⟨e₁, _⟩, ⟨e₂, _⟩ => e₁.SameAddress e₂
+| ⟨e₁, _, _⟩, ⟨e₂, _, _⟩ => e₁.SameAddress e₂
 def EventState.SameStructure : EventState → EventState → Prop
-| ⟨e₁, _⟩, ⟨e₂, _⟩ => e₁.SameStructure e₂
+| ⟨e₁, _, _⟩, ⟨e₂, _, _⟩ => e₁.SameStructure e₂
 
 structure Behaviour.ImmediatePredecessorConstraint (b : Behaviour) (e_pred e_succ : EventState) where
   isPred : e_pred.Predecessor e_succ
@@ -43,7 +42,7 @@ def Behaviour.ImmediatePredecessor : Behaviour → EventState → EventState →
 | b, e_pred, e_succ => b.ImmediatePredecessorConstraint e_pred e_succ
 
 def EventState.Encapsulates : EventState → EventState → Prop
-| ⟨e₁, _⟩, ⟨e₂, _⟩ => e₁.Encapsulates e₂
+| ⟨e₁, _, _⟩, ⟨e₂, _, _⟩ => e₁.Encapsulates e₂
 
 abbrev Behaviour.IsNotEncapByEvent (b : Behaviour) (e : EventState) : Prop := {e' ∈ b.es | e'.Encapsulates e} = ∅
 
