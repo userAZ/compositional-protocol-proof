@@ -67,6 +67,59 @@ structure OrderedAddressEvents where
   dir_ordered : ∀ (e₁ e₂ : DirectoryEvent), OrderedDirectoryEvents e₁ e₂
   cache_ordered : ∀ (e₁ e₂ : CacheEvent), ∀ (s₁ s₂ : State), OrderedCacheEvents e₁ e₂ s₁ s₂
 
+lemma Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction {es_pred₁ es_pred₂ es_succ : EventState} {b : Behaviour}
+(he₁_b : b.IsImmediateBottomPred es_pred₁ es_succ) (he₂_b : b.IsImmediateBottomPred es_pred₂ es_succ)
+(hes₁_ordered_es₂ : es_pred₁.Ordered es_pred₂ ∨ es_pred₂.Ordered es_pred₁)
+: False := by
+  /- Show contradiction from ce₁ and ce₂ ordered -/
+  cases hes₁_ordered_es₂
+  . case inl es₁_ordered_es₂ =>
+    have he₁_no_intermediate_to_e_suc := he₁_b.isImmPred.noIntermediate
+    unfold Behaviour.ImmediatePredecessorConstraint at he₁_no_intermediate_to_e_suc
+    unfold Behaviour.NoIntermediatePredecessor at he₁_no_intermediate_to_e_suc
+    unfold Behaviour.OrderedBetween at he₁_no_intermediate_to_e_suc
+    simp at he₁_no_intermediate_to_e_suc
+    have e₁_o_e_succ := he₁_b.isImmPred.isPred
+    unfold Event.Predecessor at e₁_o_e_succ
+    unfold EventState.Predecessor at e₁_o_e_succ
+    simp at e₁_o_e_succ
+
+    apply he₁_no_intermediate_to_e_suc
+    apply he₂_b.isImmPred.predInB
+    constructor
+    unfold autoParam
+    . case a.pred =>
+      exact es₁_ordered_es₂
+    . case a.succ =>
+      unfold autoParam
+
+      have e₂_o_e_succ := he₂_b.isImmPred.isPred
+      unfold Event.Predecessor at e₂_o_e_succ
+      exact e₂_o_e_succ
+  . case inr es₂_ordered_es₁ =>
+    have he₂_no_intermediate_to_e_suc := he₂_b.isImmPred.noIntermediate
+    unfold Behaviour.ImmediatePredecessorConstraint at he₂_no_intermediate_to_e_suc
+    unfold Behaviour.NoIntermediatePredecessor at he₂_no_intermediate_to_e_suc
+    unfold Behaviour.OrderedBetween at he₂_no_intermediate_to_e_suc
+    simp at he₂_no_intermediate_to_e_suc
+    have e₂_o_e_succ := he₂_b.isImmPred.isPred
+    unfold Event.Predecessor at e₂_o_e_succ
+    unfold EventState.Predecessor at e₂_o_e_succ
+    simp at e₂_o_e_succ
+
+    apply he₂_no_intermediate_to_e_suc
+    apply he₁_b.isImmPred.predInB
+    constructor
+    unfold autoParam
+    . case a.pred =>
+      exact es₂_ordered_es₁
+    . case a.succ =>
+      unfold autoParam
+
+      have e₁_o_e_succ := he₁_b.isImmPred.isPred
+      unfold Event.Predecessor at e₁_o_e_succ
+      exact e₁_o_e_succ
+
 -- NOTE: Remember to use OrderedCacheEvents and OrderedDirectoryEvents at some point.
 lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : EventState) (hsucc_in_b : e_succ ∈ b.es)
   (es_pred₁ es_pred₂ : EventState) (haddress_ordered : OrderedAddressEvents)
@@ -87,65 +140,14 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : E
       rw [h_pred₁, h_pred₂] at es₁_same_addr_es₂
       have de₁_de₂_ordered := de₁_de₂_ordered_prop es₁_same_addr_es₂
 
-      cases de₁_de₂_ordered
-      . case inl h_de₁_o_de₂ =>
-        have he₁_is_de₁ : es_pred₁.e.fromDirectoryEvent de₁ := by
-          unfold Event.fromDirectoryEvent
-          simp [h_pred₁]
-        have he₂_is_de₂ : es_pred₂.e.fromDirectoryEvent de₂ := by
-          unfold Event.fromDirectoryEvent
-          simp [h_pred₂]
-        have e₁_o_e₂ := DirectoryEvent.ordered_events he₁_is_de₁ he₂_is_de₂ h_de₁_o_de₂
-        /- Now use the definition of he₁_b and he₂_b to state that there is no intermediately ordered
-        event e₃. But we have e₁ and e₂ (pred) ordered, and both are ordered before e_succ → Contradiction -/
-        -- NOTE: Surely there must be a way to clean up this proof.
-        have he₁_no_intermediate_to_e_suc := he₁_b.isImmPred.noIntermediate
-        unfold Behaviour.ImmediatePredecessorConstraint at he₁_no_intermediate_to_e_suc
-        unfold Behaviour.NoIntermediatePredecessor at he₁_no_intermediate_to_e_suc
-        unfold Behaviour.OrderedBetween at he₁_no_intermediate_to_e_suc
-        simp at he₁_no_intermediate_to_e_suc
-        have e₂_o_e_succ := he₂_b.isImmPred.isPred
-        unfold Event.Predecessor at e₂_o_e_succ
-        unfold EventState.Predecessor at e₂_o_e_succ
-        simp at e₂_o_e_succ
+      have es_pred₁_ordered_es_pred₂ : es_pred₁.Ordered es_pred₂ ∨ es_pred₂.Ordered es_pred₁ := by
+        unfold EventState.Ordered; simp
+        simp[h_pred₁, h_pred₂]
+        simp[Event.Ordered, Event.oEnd, Event.oStart]
+        simp[DirectoryEvent.Ordered] at de₁_de₂_ordered
+        exact de₁_de₂_ordered
 
-        apply he₁_no_intermediate_to_e_suc
-        apply he₂_b.isImmPred.predInB
-
-        have e₂_between_e₁_e_succ : es_pred₂.OrderedBetween es_pred₁ es_succ := {pred := e₁_o_e₂, succ := e₂_o_e_succ}
-        exact e₂_between_e₁_e_succ
-      . case inr h_de₂_o_de₁ =>
-        have he₁_is_de₁ : es_pred₁.e.fromDirectoryEvent de₁ := by
-          unfold Event.fromDirectoryEvent
-          simp [h_pred₁]
-        have he₂_is_de₂ : es_pred₂.e.fromDirectoryEvent de₂ := by
-          unfold Event.fromDirectoryEvent
-          simp [h_pred₂]
-        have e₂_o_e₁ := DirectoryEvent.ordered_events he₂_is_de₂ he₁_is_de₁ h_de₂_o_de₁
-
-        /- Now we have the hypothesis that e₂ is ordered with e₁. Show there's a contradiction in e_pred₂'s property NoIntermediatePred. -/
-        have he₂_no_intermediate_to_e_suc := he₂_b.isImmPred.noIntermediate
-        unfold Behaviour.ImmediatePredecessorConstraint at he₂_no_intermediate_to_e_suc
-        unfold Behaviour.NoIntermediatePredecessor at he₂_no_intermediate_to_e_suc
-        unfold Behaviour.OrderedBetween at he₂_no_intermediate_to_e_suc
-        simp at he₂_no_intermediate_to_e_suc
-        have e₂_o_e_succ := he₂_b.isImmPred.isPred
-        unfold Event.Predecessor at e₂_o_e_succ
-        unfold EventState.Predecessor at e₂_o_e_succ
-        simp at e₂_o_e_succ
-
-        apply he₂_no_intermediate_to_e_suc
-        apply he₁_b.isImmPred.predInB
-        constructor
-        unfold autoParam
-        . case a.pred =>
-          exact e₂_o_e₁
-        . case a.succ =>
-          unfold autoParam
-
-          have e₁_o_e_succ := he₁_b.isImmPred.isPred
-          unfold Event.Predecessor at e₁_o_e_succ
-          exact e₁_o_e_succ
+      apply Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction he₁_b he₂_b es_pred₁_ordered_es_pred₂
     | .cacheEvent ce₁, .cacheEvent ce₂ =>
       /- Part 1. Use OrderedCacheEvents to show that ce₁ and ce₂ (which are bottom predecessors to e_succ)
       are always ordered. Part 2. This is a contradiction with ImmediateBottomPred's NoIntermediatePred. -/
@@ -189,7 +191,23 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : E
             1. ordered (contradiction with NoIntermediatePred)
             2. one encapsulates another (contradiction with isBottom)
           -/
-          sorry
+          by_cases ce₁.NoEncapSameAddressDowngrade s₁ ∧ ce₂.NoEncapSameAddressDowngrade s₂ = true
+          . case pos ce₁₂_no_encap =>
+            simp [ce₁₂_no_encap] at ordered_ite
+
+            have es_pred₁_ordered_es_pred₂ : es_pred₁.Ordered es_pred₂ ∨ es_pred₂.Ordered es_pred₁ := by
+              unfold EventState.Ordered
+              simp
+              simp [h_pred₁, h_pred₂]
+              simp [Event.Ordered, ordered_ite]
+              simp [Event.oEnd, Event.oStart]
+              simp [CacheEvent.Ordered] at ordered_ite
+              exact ordered_ite
+
+            apply Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction he₁_b he₂_b es_pred₁_ordered_es_pred₂
+          . case neg ce₁₂_encap =>
+            simp [ce₁₂_encap] at ordered_ite
+            sorry
         .case inr _ =>
           sorry -- Show false by EventState.stateWellFormed. Need to include it in the premise of this Lemma.
       . case inr _ =>
