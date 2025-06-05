@@ -205,6 +205,108 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : E
 
             apply Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction he₁_b he₂_b es_pred₁_ordered_es_pred₂
           . case neg ce₁₂_encap =>
+            have ce₁₂_no_encap_false : (ce₁.NoEncapSameAddressDowngrade s₁ ∧ ce₂.NoEncapSameAddressDowngrade s₂) = false := by
+              simp at ce₁₂_encap
+              simp [ce₁₂_encap]
+              exact ce₁₂_encap
+            simp [ce₁₂_no_encap_false] at ordered_ite
+            by_cases (ce₁.WithoutCoherentPermissions s₁ ∧ ce₂.External) = true
+            . case pos ce₁_encap_ext =>
+              simp [ce₁_encap_ext] at ordered_ite
+
+              have h_encap_ordered : ce₁.Encapsulates ce₂ ∨ ce₁.Ordered ce₂ ∨ ce₂.Ordered ce₁ := by
+                apply Or.rotate
+                apply Or.rotate
+                exact ordered_ite
+
+              cases h_encap_ordered
+              . case inl ce₁_encap_ce₂ =>
+                have es₁_encap_es₂ : es_pred₁.Encapsulates es_pred₂ := by
+                  unfold EventState.Encapsulates; simp
+                  unfold Event.Encapsulates
+                  simp [h_pred₁, h_pred₂]
+                  simp [Event.oStart, Event.oEnd]
+                  unfold CacheEvent.Encapsulates at ce₁_encap_ce₂
+                  exact ce₁_encap_ce₂
+
+                have es₂_no_encap := he₂_b.isBottom
+                unfold Behaviour.IsBottomEvent at es₂_no_encap
+                unfold Behaviour.IsNotEncapByEvent at es₂_no_encap
+                simp at es₂_no_encap
+
+                apply es₂_no_encap
+                apply he₁_b.isImmPred.predInB
+                exact es₁_encap_es₂
+              . case inr ce₁_ordered_ce₂ =>
+                have es₁_ordered_es₂ : es_pred₁.Ordered es_pred₂ ∨ es_pred₂.Ordered es_pred₁ := by
+                  unfold EventState.Ordered; simp
+                  simp[h_pred₁, h_pred₂]
+                  unfold Event.Ordered
+                  simp [Event.oEnd, Event.oStart]
+                  simp [CacheEvent.Ordered, Event.oEnd, Event.oStart] at ce₁_ordered_ce₂
+                  exact ce₁_ordered_ce₂
+
+                apply Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction he₁_b he₂_b es₁_ordered_es₂
+            . case neg ce₁_no_encap_ext =>
+              have ce₁₂_encap_ext_false : (ce₁.WithoutCoherentPermissions s₁ ∧ ce₂.External) = false := by
+                simp at ce₁_no_encap_ext
+                simp [ce₁_no_encap_ext]
+                exact ce₁_no_encap_ext
+              simp[ce₁₂_encap_ext_false] at ordered_ite
+
+              by_cases (ce₁.External ∧ ce₂.WithoutCoherentPermissions s₂) = true
+              . case pos ce₂_encap_ext =>
+                simp[ce₂_encap_ext] at ordered_ite
+                have h_encap_ordered : ce₂.Encapsulates ce₁ ∨ ce₁.Ordered ce₂ ∨ ce₂.Ordered ce₁ := by
+                  apply Or.rotate
+                  apply Or.rotate
+                  exact ordered_ite
+
+                cases h_encap_ordered
+                . case inl ce₂_encap_ce₁ =>
+
+                  have es₂_encap_es₁ : es_pred₂.Encapsulates es_pred₁ := by
+                    unfold EventState.Encapsulates; simp
+                    unfold Event.Encapsulates
+                    simp [h_pred₁, h_pred₂]
+                    simp [Event.oStart, Event.oEnd]
+                    unfold CacheEvent.Encapsulates at ce₂_encap_ce₁
+                    exact ce₂_encap_ce₁
+
+                  have es₁_no_encap := he₁_b.isBottom
+                  unfold Behaviour.IsBottomEvent at es₁_no_encap
+                  unfold Behaviour.IsNotEncapByEvent at es₁_no_encap
+                  simp at es₁_no_encap
+
+                  apply es₁_no_encap
+                  apply he₂_b.isImmPred.predInB
+                  exact es₂_encap_es₁
+                . case inr ce₁_ordered_ce₂ =>
+                  have es₁_ordered_es₂ : es_pred₁.Ordered es_pred₂ ∨ es_pred₂.Ordered es_pred₁ := by
+                    unfold EventState.Ordered; simp
+                    simp[h_pred₁, h_pred₂]
+                    unfold Event.Ordered
+                    simp [Event.oEnd, Event.oStart]
+                    simp [CacheEvent.Ordered, Event.oEnd, Event.oStart] at ce₁_ordered_ce₂
+                    exact ce₁_ordered_ce₂
+
+                  apply Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction he₁_b he₂_b es₁_ordered_es₂
+              . case neg ce₂_no_encap_ext =>
+                have ce₂₁_encap_ext_false : (ce₁.External ∧ ce₂.WithoutCoherentPermissions s₂) = false := by
+                  simp at ce₂_no_encap_ext
+                  simp [ce₂_no_encap_ext]
+                  exact ce₂_no_encap_ext
+                simp[ce₂₁_encap_ext_false] at ordered_ite
+
+                have es₁_ordered_es₂ : es_pred₁.Ordered es_pred₂ ∨ es_pred₂.Ordered es_pred₁ := by
+                  unfold EventState.Ordered; simp
+                  simp[h_pred₁, h_pred₂]
+                  unfold Event.Ordered
+                  simp [Event.oEnd, Event.oStart]
+                  simp [CacheEvent.Ordered, Event.oEnd, Event.oStart] at ordered_ite
+                  exact ordered_ite
+
+                apply Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction he₁_b he₂_b es₁_ordered_es₂
         | .inr _ =>
           have e₂_well_formed := es_pred₂.sWellFormed
           simp[h_pred₂, he₂_s] at e₂_well_formed
