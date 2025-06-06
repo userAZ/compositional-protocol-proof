@@ -812,3 +812,5 @@ lemma Behaviour.immediate_bottom_successor (b : Behaviour) (es_pred : EventState
       exact And.right he₁
       exact And.right he₂
     exact Or.inr (Set.nonempty_unique_is_singleton imm_bottom_succs h_nonempty' h_unique)
+
+/- TODO: Define the State of a Directory Event is made on (Def. 2.31) (take an initial state) -/
