@@ -397,8 +397,7 @@ def Event.PropOnEvent (e : Event) (p : Event → Prop) : Prop := p e
 def EventState.PropOnEvent (es : EventState) (p : Event → Prop) : Prop := p es.e
 
 structure Behaviour.IsImmediateBottomPredSatisfyingProp (b : Behaviour) (e_pred e_succ : EventState) (p : Event → Prop) where
-  isImmPred : b.ImmediatePredecessorConstraint e_pred e_succ
-  isBottom : b.IsBottomEvent e_pred
+  isImmBottomPred : b.IsImmediateBottomPred e_pred e_succ
   satisfyP : e_pred.PropOnEvent p
 
 def Behaviour.ImmediateBottomPredSatisfyingProp : Behaviour → EventState → EventState → (Event → Prop) → Prop
@@ -413,12 +412,12 @@ lemma Behaviour.immediate_bottom_predecessor_satisfying_p_unique (b : Behaviour)
   es_pred₁ = es_pred₂ := by
     have he₁_b' : b.IsImmediateBottomPred es_pred₁ es_succ := by
       constructor
-      exact he₁_b.isImmPred
-      exact he₁_b.isBottom
+      exact he₁_b.isImmBottomPred.isImmPred
+      exact he₁_b.isImmBottomPred.isBottom
     have he₂_b' : b.IsImmediateBottomPred es_pred₂ es_succ := by
       constructor
-      exact he₂_b.isImmPred
-      exact he₂_b.isBottom
+      exact he₂_b.isImmBottomPred.isImmPred
+      exact he₂_b.isImmBottomPred.isBottom
 
     apply Behaviour.immediate_bottom_predecessor_unique b es_succ es_pred₁ es_pred₂ haddress_ordered he₁_b' he₂_b'
 
@@ -454,8 +453,8 @@ structure Behaviour.ImmediateSuccessorConstraint (b : Behaviour) (e_pred e_succ 
   succInB : e_succ ∈ b.es
 
 structure Behaviour.IsImmediateBottomSucc (b : Behaviour) (e_pred e_succ : EventState) where
-  isImmPred : b.ImmediateSuccessorConstraint e_pred e_succ
-  isBottom : b.IsBottomEvent e_pred
+  isImmSucc : b.ImmediateSuccessorConstraint e_pred e_succ
+  isBottom : b.IsBottomEvent e_succ
 
 def Behaviour.ImmediateBottomSuccessor : Behaviour → EventState → EventState → Prop
 | b, e_pred, e_succ => b.IsImmediateBottomSucc e_pred e_succ
@@ -467,13 +466,290 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction {es_pred es_su
 (he₁_b : b.IsImmediateBottomSucc es_pred es_succ₁) (he₂_b : b.IsImmediateBottomSucc es_pred es_succ₂)
 (hes₁_ordered_es₂ : es_succ₁.Ordered es_succ₂ ∨ es_succ₂.Ordered es_succ₁)
 : False := by
-  sorry
+  /- Show contradiction from ce₁ and ce₂ ordered -/
+  cases hes₁_ordered_es₂
+  . case inl es₁_ordered_es₂ =>
+    have he_no_intermediate_to_e_suc₂ := he₂_b.isImmSucc.noIntermediate
+    unfold Behaviour.ImmediatePredecessorConstraint at he_no_intermediate_to_e_suc₂
+    unfold Behaviour.NoIntermediateEvent at he_no_intermediate_to_e_suc₂
+    unfold Behaviour.OrderedBetween at he_no_intermediate_to_e_suc₂
+    simp at he_no_intermediate_to_e_suc₂
+    have e_pred_o_e_succ₁ := he₁_b.isImmSucc.isSucc
+    unfold Event.Predecessor at e_pred_o_e_succ₁
+    unfold EventState.Successor at e_pred_o_e_succ₁
+    simp at e_pred_o_e_succ₁
+
+    apply he_no_intermediate_to_e_suc₂
+    apply he₁_b.isImmSucc.succInB
+    constructor
+    unfold autoParam
+    . case a.pred =>
+      unfold Event.Successor at e_pred_o_e_succ₁
+      unfold Event.Predecessor at e_pred_o_e_succ₁
+      simp at e_pred_o_e_succ₁
+      unfold EventState.Ordered
+      simp
+      exact e_pred_o_e_succ₁
+    . case a.succ =>
+      unfold autoParam
+      exact es₁_ordered_es₂
+  . case inr es₂_ordered_es₁ =>
+    have he₁_no_intermediate_to_e_suc := he₁_b.isImmSucc.noIntermediate
+    unfold Behaviour.ImmediatePredecessorConstraint at he₁_no_intermediate_to_e_suc
+    unfold Behaviour.NoIntermediateEvent at he₁_no_intermediate_to_e_suc
+    unfold Behaviour.OrderedBetween at he₁_no_intermediate_to_e_suc
+    simp at he₁_no_intermediate_to_e_suc
+    have e_pred_o_e_succ₂ := he₂_b.isImmSucc.isSucc
+    unfold Event.Successor at e_pred_o_e_succ₂
+    unfold EventState.Successor at e_pred_o_e_succ₂
+    simp at e_pred_o_e_succ₂
+
+    apply he₁_no_intermediate_to_e_suc
+    apply he₂_b.isImmSucc.succInB
+    constructor
+    unfold autoParam
+    . case a.pred =>
+      unfold Event.Successor at e_pred_o_e_succ₂
+      unfold Event.Predecessor at e_pred_o_e_succ₂
+      simp at e_pred_o_e_succ₂
+      unfold EventState.Ordered
+      simp
+      exact e_pred_o_e_succ₂
+    . case a.succ =>
+      unfold autoParam
+      exact es₂_ordered_es₁
 
 lemma Behaviour.immediate_bottom_successor_unique (b : Behaviour) (es_pred : EventState)
   (es_succ₁ es_succ₂ : EventState) (haddress_ordered : OrderedAddressEvents)
   (he₁_b : b.IsImmediateBottomSucc es_pred es_succ₁) (he₂_b : b.IsImmediateBottomSucc es_pred es_succ₂) :
   es_succ₁ = es_succ₂ := by
-  sorry
+    by_contra h_e_pred_diff
+    match h_succ₁ : es_succ₁.e, h_succ₂ : es_succ₂.e with
+    | .directoryEvent de₁, .directoryEvent de₂ =>
+      -- Use OrderedDirectoryEvents to show de₁ and de₂ are ordered → Contradiction.
+      have de₁_de₂_ordered_prop := haddress_ordered.dir_ordered de₁ de₂
+      have hepred_sa_succ₁ := he₁_b.isImmSucc.sameAddress
+      have hepred_sa_succ₂ := he₂_b.isImmSucc.sameAddress
+      have es₁_same_addr_es₂ := Event.same_address_reflexive' he₁_b.isImmSucc.sameAddress he₂_b.isImmSucc.sameAddress
+      rw [h_succ₁, h_succ₂] at es₁_same_addr_es₂
+      have de₁_de₂_ordered := de₁_de₂_ordered_prop es₁_same_addr_es₂
+
+      have es_succ₁_ordered_es_succ₂ : es_succ₁.Ordered es_succ₂ ∨ es_succ₂.Ordered es_succ₁ := by
+        unfold EventState.Ordered; simp
+        simp[h_succ₁, h_succ₂]
+        simp[Event.Ordered, Event.oEnd, Event.oStart]
+        simp[DirectoryEvent.Ordered] at de₁_de₂_ordered
+        exact de₁_de₂_ordered
+
+      apply Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction he₁_b he₂_b es_succ₁_ordered_es_succ₂
+    | .cacheEvent ce₁, .cacheEvent ce₂ =>
+      /- Part 1. Use OrderedCacheEvents to show that ce₁ and ce₂ (which are bottom predecessors to e_succ)
+      are always ordered. Part 2. This is a contradiction with ImmediateBottomPred's NoIntermediatePred. -/
+      -- Part 1. ce₁ and ce₂ are OrderedCacheEvents
+      match he₁_s : es_succ₁.s with
+      | .inl s₁ =>
+        match he₂_s : es_succ₂.s with
+        | .inl s₂ =>
+          have hce₁_o_ce₂ := haddress_ordered.cache_ordered ce₁ ce₂ s₁ s₂  -- need state s₁ s₂ that ce₁ and ce₂ are made on.
+          -- Same cid, e_pred₁ e_pred₂
+          have hce₁_cid_csucc := he₁_b.isImmSucc.sameStructure
+          have hce₂_cid_csucc := he₂_b.isImmSucc.sameStructure
+          have es₁_same_structure_es₂ := Event.same_structure_reflexive' hce₁_cid_csucc hce₂_cid_csucc
+          unfold EventState.SameStructure at es₁_same_structure_es₂
+          unfold Event.SameStructure at es₁_same_structure_es₂
+          rw [h_succ₁] at es₁_same_structure_es₂
+          unfold CacheEvent.SameCache at es₁_same_structure_es₂
+          unfold DirectoryEvent.SameStructure at es₁_same_structure_es₂
+          simp at es₁_same_structure_es₂
+          unfold Event.SameStructureRelation at es₁_same_structure_es₂
+          simp at es₁_same_structure_es₂
+          -- Same Address, e_pred₁ e_pred₂
+          have hce₁_a_csucc := he₁_b.isImmSucc.sameAddress
+          have hce₂_a_csucc := he₂_b.isImmSucc.sameAddress
+          have es₁_same_addr_es₂ := Event.same_address_reflexive' hce₁_a_csucc hce₂_a_csucc
+          unfold EventState.SameAddress at es₁_same_addr_es₂
+          unfold Event.SameAddress at es₁_same_addr_es₂
+          rw [h_succ₁] at es₁_same_addr_es₂
+          unfold CacheEvent.SameAddress at es₁_same_addr_es₂
+          unfold DirectoryEvent.SameAddress at es₁_same_addr_es₂
+          unfold Event.SameStructureRelation at es₁_same_addr_es₂
+          simp at es₁_same_addr_es₂
+
+          rw [h_succ₂] at es₁_same_structure_es₂ es₁_same_addr_es₂
+          simp at es₁_same_structure_es₂ es₁_same_addr_es₂
+
+          -- have the big if then else from OrderedCacheEvents:
+          have ordered_ite := hce₁_o_ce₂ es₁_same_structure_es₂ es₁_same_addr_es₂
+
+          /- Show for all cases of ce₁ ce₂ s₁ s₂, ce₁ and ce₂ are either:
+            1. ordered (contradiction with NoIntermediatePred)
+            2. one encapsulates another (contradiction with isBottom)
+          -/
+          by_cases (ce₁.NoEncapSameAddressDowngrade s₁ ∧ ce₂.NoEncapSameAddressDowngrade s₂) = true
+          . case pos ce₁₂_no_encap =>
+            simp [ce₁₂_no_encap] at ordered_ite
+
+            have es_succ₁_ordered_es_succ₂ : es_succ₁.Ordered es_succ₂ ∨ es_succ₂.Ordered es_succ₁ := by
+              unfold EventState.Ordered
+              simp
+              simp [h_succ₁, h_succ₂]
+              simp [Event.Ordered, ordered_ite]
+              simp [Event.oEnd, Event.oStart]
+              simp [CacheEvent.Ordered] at ordered_ite
+              exact ordered_ite
+
+            apply Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction he₁_b he₂_b es_succ₁_ordered_es_succ₂
+          . case neg ce₁₂_encap =>
+            have ce₁₂_no_encap_false : (ce₁.NoEncapSameAddressDowngrade s₁ ∧ ce₂.NoEncapSameAddressDowngrade s₂) = false := by
+              simp at ce₁₂_encap
+              simp [ce₁₂_encap]
+              exact ce₁₂_encap
+            simp [ce₁₂_no_encap_false] at ordered_ite
+            by_cases (ce₁.WithoutCoherentPermissions s₁ ∧ ce₂.External) = true
+            . case pos ce₁_encap_ext =>
+              simp [ce₁_encap_ext] at ordered_ite
+
+              have h_encap_ordered : ce₁.Encapsulates ce₂ ∨ ce₁.Ordered ce₂ ∨ ce₂.Ordered ce₁ := by
+                apply Or.rotate
+                apply Or.rotate
+                exact ordered_ite
+
+              cases h_encap_ordered
+              . case inl ce₁_encap_ce₂ =>
+                have es₁_encap_es₂ : es_succ₁.Encapsulates es_succ₂ := by
+                  unfold EventState.Encapsulates; simp
+                  unfold Event.Encapsulates
+                  simp [h_succ₁, h_succ₂]
+                  simp [Event.oStart, Event.oEnd]
+                  unfold CacheEvent.Encapsulates at ce₁_encap_ce₂
+                  exact ce₁_encap_ce₂
+
+                have es₂_no_encap := he₂_b.isBottom
+                unfold Behaviour.IsBottomEvent at es₂_no_encap
+                unfold Behaviour.IsNotEncapByEvent at es₂_no_encap
+                simp at es₂_no_encap
+
+                apply es₂_no_encap
+                apply he₁_b.isImmSucc.succInB
+                exact es₁_encap_es₂
+              . case inr ce₁_ordered_ce₂ =>
+                have es₁_ordered_es₂ : es_succ₁.Ordered es_succ₂ ∨ es_succ₂.Ordered es_succ₁ := by
+                  unfold EventState.Ordered; simp
+                  simp[h_succ₁, h_succ₂]
+                  unfold Event.Ordered
+                  simp [Event.oEnd, Event.oStart]
+                  simp [CacheEvent.Ordered, Event.oEnd, Event.oStart] at ce₁_ordered_ce₂
+                  exact ce₁_ordered_ce₂
+
+                apply Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction he₁_b he₂_b es₁_ordered_es₂
+            . case neg ce₁_no_encap_ext =>
+              have ce₁₂_encap_ext_false : (ce₁.WithoutCoherentPermissions s₁ ∧ ce₂.External) = false := by
+                simp at ce₁_no_encap_ext
+                simp [ce₁_no_encap_ext]
+                exact ce₁_no_encap_ext
+              simp[ce₁₂_encap_ext_false] at ordered_ite
+
+              by_cases (ce₁.External ∧ ce₂.WithoutCoherentPermissions s₂) = true
+              . case pos ce₂_encap_ext =>
+                simp[ce₂_encap_ext] at ordered_ite
+                have h_encap_ordered : ce₂.Encapsulates ce₁ ∨ ce₁.Ordered ce₂ ∨ ce₂.Ordered ce₁ := by
+                  apply Or.rotate
+                  apply Or.rotate
+                  exact ordered_ite
+
+                cases h_encap_ordered
+                . case inl ce₂_encap_ce₁ =>
+
+                  have es₂_encap_es₁ : es_succ₂.Encapsulates es_succ₁ := by
+                    unfold EventState.Encapsulates; simp
+                    unfold Event.Encapsulates
+                    simp [h_succ₁, h_succ₂]
+                    simp [Event.oStart, Event.oEnd]
+                    unfold CacheEvent.Encapsulates at ce₂_encap_ce₁
+                    exact ce₂_encap_ce₁
+
+                  have es₁_no_encap := he₁_b.isBottom
+                  unfold Behaviour.IsBottomEvent at es₁_no_encap
+                  unfold Behaviour.IsNotEncapByEvent at es₁_no_encap
+                  simp at es₁_no_encap
+
+                  apply es₁_no_encap
+                  apply he₂_b.isImmSucc.succInB
+                  exact es₂_encap_es₁
+                . case inr ce₁_ordered_ce₂ =>
+                  have es₁_ordered_es₂ : es_succ₁.Ordered es_succ₂ ∨ es_succ₂.Ordered es_succ₁ := by
+                    unfold EventState.Ordered; simp
+                    simp[h_succ₁, h_succ₂]
+                    unfold Event.Ordered
+                    simp [Event.oEnd, Event.oStart]
+                    simp [CacheEvent.Ordered, Event.oEnd, Event.oStart] at ce₁_ordered_ce₂
+                    exact ce₁_ordered_ce₂
+
+                  apply Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction he₁_b he₂_b es₁_ordered_es₂
+              . case neg ce₂_no_encap_ext =>
+                have ce₂₁_encap_ext_false : (ce₁.External ∧ ce₂.WithoutCoherentPermissions s₂) = false := by
+                  simp at ce₂_no_encap_ext
+                  simp [ce₂_no_encap_ext]
+                  exact ce₂_no_encap_ext
+                simp[ce₂₁_encap_ext_false] at ordered_ite
+
+                have es₁_ordered_es₂ : es_succ₁.Ordered es_succ₂ ∨ es_succ₂.Ordered es_succ₁ := by
+                  unfold EventState.Ordered; simp
+                  simp[h_succ₁, h_succ₂]
+                  unfold Event.Ordered
+                  simp [Event.oEnd, Event.oStart]
+                  simp [CacheEvent.Ordered, Event.oEnd, Event.oStart] at ordered_ite
+                  exact ordered_ite
+
+                apply Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction he₁_b he₂_b es₁_ordered_es₂
+        | .inr _ =>
+          have e₂_well_formed := es_succ₂.sWellFormed
+          simp[h_succ₂, he₂_s] at e₂_well_formed
+      | .inr _ =>
+        have e₁_well_formed := es_succ₁.sWellFormed
+        simp[h_succ₁, he₁_s] at e₁_well_formed
+    | .directoryEvent de, .cacheEvent ce =>
+      have h_e_succ_is_dir   := he₁_b.isImmSucc.sameStructure
+      have h_e_succ_is_cache := he₂_b.isImmSucc.sameStructure
+
+      unfold EventState.SameStructure at h_e_succ_is_dir h_e_succ_is_cache
+      unfold Event.SameStructure at h_e_succ_is_dir h_e_succ_is_cache
+      unfold Event.SameStructureRelation at h_e_succ_is_dir h_e_succ_is_cache
+      simp at h_e_succ_is_dir h_e_succ_is_cache
+      unfold CacheEvent.SameCache at h_e_succ_is_cache
+
+      match hsucc : es_pred.e with
+      | .directoryEvent de_succ =>
+        rw [hsucc] at h_e_succ_is_cache
+        simp at h_e_succ_is_cache
+        rw [h_succ₂] at h_e_succ_is_cache
+        simp at h_e_succ_is_cache
+      | .cacheEvent ce_succ =>
+        rw [hsucc] at h_e_succ_is_dir
+        simp at h_e_succ_is_dir
+        rw [h_succ₁] at h_e_succ_is_dir
+        simp at h_e_succ_is_dir
+    | .cacheEvent ce, .directoryEvent de =>
+      have h_e_succ_is_cache := he₁_b.isImmSucc.sameStructure
+      have h_e_succ_is_dir   := he₂_b.isImmSucc.sameStructure
+
+      unfold EventState.SameStructure at h_e_succ_is_dir h_e_succ_is_cache
+      unfold Event.SameStructure at h_e_succ_is_dir h_e_succ_is_cache
+      unfold Event.SameStructureRelation at h_e_succ_is_dir h_e_succ_is_cache
+      simp at h_e_succ_is_dir h_e_succ_is_cache
+      unfold CacheEvent.SameCache at h_e_succ_is_cache
+
+      match hsucc : es_pred.e with
+      | .directoryEvent de_succ =>
+        rw [hsucc] at h_e_succ_is_cache
+        simp at h_e_succ_is_cache
+        rw [h_succ₁] at h_e_succ_is_cache
+        simp at h_e_succ_is_cache
+      | .cacheEvent ce_succ =>
+        rw [hsucc] at h_e_succ_is_dir
+        simp at h_e_succ_is_dir
+        rw [h_succ₂] at h_e_succ_is_dir
+        simp at h_e_succ_is_dir
 
 lemma Behaviour.immediate_bottom_successor_empty_or_unique (b : Behaviour) (es_pred : EventState)
   (haddress_ordered : OrderedAddressEvents) :
@@ -487,6 +763,51 @@ lemma Behaviour.immediate_bottom_successor_empty_or_unique (b : Behaviour) (es_p
     have h_unique : ∀ (e₁ e₂ : EventState), e₁ ∈ imm_bottom_succs → e₂ ∈ imm_bottom_succs → e₁ = e₂ := by
       intro e₁ e₂ he₁ he₂
       apply Behaviour.immediate_bottom_successor_unique b es_pred e₁ e₂
+      exact haddress_ordered
+      exact And.right he₁
+      exact And.right he₂
+    exact Or.inr (Set.nonempty_unique_is_singleton imm_bottom_succs h_nonempty' h_unique)
+
+/- Verision of Immediate Bottom Successor that also satisfies Prop `p`. -/
+
+structure Behaviour.IsImmediateBottomSuccSatisfyingProp (b : Behaviour) (e_pred e_succ : EventState) (p : Event → Prop) where
+  isImmBottomSucc : b.IsImmediateBottomSucc e_pred e_succ
+  satisfyP : e_succ.PropOnEvent p
+
+def Behaviour.ImmediateBottomSuccSatisfyingProp : Behaviour → EventState → EventState → (Event → Prop) → Prop
+| b, e_pred, e_succ, p => b.IsImmediateBottomSuccSatisfyingProp e_pred e_succ p
+
+def Behaviour.ImmBottomSuccessorsSatisfyingP : Behaviour → EventState → (Event → Prop) → Set EventState
+| b, e_pred, p => {e_succ ∈ b.es | b.ImmediateBottomSuccSatisfyingProp e_pred e_succ p}
+
+lemma Behaviour.immediate_bottom_successor_satisfying_p_unique (b : Behaviour) (es_pred : EventState)
+  (es_succ₁ es_succ₂ : EventState) (p : Event → Prop) (haddress_ordered : OrderedAddressEvents)
+  (he₁_b : b.IsImmediateBottomSuccSatisfyingProp es_pred es_succ₁ p) (he₂_b : b.IsImmediateBottomSuccSatisfyingProp es_pred es_succ₂ p) :
+  es_succ₁ = es_succ₂ := by
+    have he₁_b' : b.IsImmediateBottomSucc es_pred es_succ₁ := by
+      constructor
+      exact he₁_b.isImmBottomSucc.isImmSucc
+      exact he₁_b.isImmBottomSucc.isBottom
+    have he₂_b' : b.IsImmediateBottomSucc es_pred es_succ₂ := by
+      constructor
+      exact he₂_b.isImmBottomSucc.isImmSucc
+      exact he₂_b.isImmBottomSucc.isBottom
+
+    apply Behaviour.immediate_bottom_successor_unique b es_pred es_succ₁ es_succ₂ haddress_ordered he₁_b' he₂_b'
+
+/-- Lemma 2, with a Prop `p` on predecessors. -/
+lemma Behaviour.immediate_bottom_successor (b : Behaviour) (es_pred : EventState) (p : Event → Prop)
+  (haddress_ordered : OrderedAddressEvents) :
+  let imm_bottom_succs := b.ImmBottomSuccessorsSatisfyingP es_pred p; imm_bottom_succs = ∅ ∨ imm_bottom_succs.IsSingleton := by
+  intro imm_bottom_succs
+  -- unfold ImmBottomPredecessors at imm_bottom_preds
+  by_cases (imm_bottom_succs = ∅)
+  · case pos h_empty => exact Or.inl h_empty
+  · case neg h_nonempty =>
+    have h_nonempty' := Set.nonempty_iff_ne_empty'.mpr h_nonempty
+    have h_unique : ∀ (e₁ e₂ : EventState), e₁ ∈ imm_bottom_succs → e₂ ∈ imm_bottom_succs → e₁ = e₂ := by
+      intro e₁ e₂ he₁ he₂
+      apply Behaviour.immediate_bottom_successor_satisfying_p_unique b es_pred e₁ e₂ p
       exact haddress_ordered
       exact And.right he₁
       exact And.right he₂
