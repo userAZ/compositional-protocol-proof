@@ -33,7 +33,7 @@ def Event.Predecessor : Event → Event → Prop
 | e_pred, e_succ => e_pred.Ordered e_succ
 
 def Event.Successor : Event → Event → Prop
-| e_pred, e_succ => e_pred.Ordered e_succ
+| e_pred, e_succ => e_pred.Predecessor e_succ
 
 instance Event.Encapsulates.instDecidableEncap (e₁ e₂ : Event) : Decidable (e₁.Encapsulates e₂) :=
   inferInstanceAs (Decidable (e₁.oStart < e₂.oStart ∧ e₂.oEnd < e₁.oEnd))
@@ -137,6 +137,22 @@ lemma Event.same_address_reflexive {e₁ e₂ e₃ : Event} : e₁.SameAddress e
   | .directoryEvent de₁, .cacheEvent ce, .directoryEvent de₃ => contradiction
   | .cacheEvent ce, .directoryEvent de₂, .directoryEvent de₃ => contradiction
 
+lemma Event.same_address_reflexive' {e₁ e₂ e₃ : Event} : e₁.SameAddress e₂ → e₁.SameAddress e₃ → e₂.SameAddress e₃ := by
+  unfold SameAddress
+  unfold CacheEvent.SameAddress; unfold DirectoryEvent.SameAddress
+  unfold SameStructureRelation
+  simp
+  intro he₁_sa_e₂ he₁_sa_e₃
+  match he₁ : e₁, he₂ : e₂, he₃ : e₃ with
+  | .cacheEvent ce₁, .cacheEvent ce₂, .cacheEvent ce₃ => simp_all
+  | .directoryEvent de₁, .directoryEvent de₂, .directoryEvent de₃ => simp_all
+  | .cacheEvent ce₁, .cacheEvent ce₂, .directoryEvent de => contradiction
+  | .cacheEvent ce₁, .directoryEvent de, .cacheEvent ce₃ => contradiction
+  | .directoryEvent de, .cacheEvent ce₂, .cacheEvent ce => contradiction
+  | .directoryEvent de₁, .directoryEvent de₂, .cacheEvent ce => contradiction
+  | .directoryEvent de₁, .cacheEvent ce, .directoryEvent de₃ => contradiction
+  | .cacheEvent ce, .directoryEvent de₂, .directoryEvent de₃ => contradiction
+
 lemma Event.same_structure_reflexive {e₁ e₂ e₃ : Event} : e₁.SameStructure e₃ → e₂.SameStructure e₃ → e₁.SameStructure e₂ := by
   unfold SameStructure
   unfold CacheEvent.SameCache; unfold DirectoryEvent.SameStructure
@@ -153,7 +169,21 @@ lemma Event.same_structure_reflexive {e₁ e₂ e₃ : Event} : e₁.SameStructu
   | .directoryEvent de₁, .cacheEvent ce, .directoryEvent de₃ => contradiction
   | .cacheEvent ce, .directoryEvent de₂, .directoryEvent de₃ => contradiction
 
-
+lemma Event.same_structure_reflexive' {e₁ e₂ e₃ : Event} : e₁.SameStructure e₂ → e₁.SameStructure e₃ → e₂.SameStructure e₃ := by
+  unfold SameStructure
+  unfold CacheEvent.SameCache; unfold DirectoryEvent.SameStructure
+  unfold SameStructureRelation
+  simp
+  intro he₁_ss_e₂ he₁_ss_e₃
+  match he₁ : e₁, he₂ : e₂, he₃ : e₃ with
+  | .cacheEvent ce₁, .cacheEvent ce₂, .cacheEvent ce₃ => simp_all
+  | .directoryEvent de₁, .directoryEvent de₂, .directoryEvent de₃ => simp_all
+  | .cacheEvent ce₁, .cacheEvent ce₂, .directoryEvent de => contradiction
+  | .cacheEvent ce₁, .directoryEvent de, .cacheEvent ce₃ => contradiction
+  | .directoryEvent de, .cacheEvent ce₂, .cacheEvent ce => contradiction
+  | .directoryEvent de₁, .directoryEvent de₂, .cacheEvent ce => contradiction
+  | .directoryEvent de₁, .cacheEvent ce, .directoryEvent de₃ => contradiction
+  | .cacheEvent ce, .directoryEvent de₂, .directoryEvent de₃ => contradiction
 
 structure CacheEvent.ProgramOrdered (e₁ e₂ : CacheEvent) where
   ordered : e₁.Ordered e₂ := by simp
