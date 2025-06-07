@@ -85,21 +85,90 @@ abbrev NonCoherentAcquire : Request := ⟨.r, false, .Acq⟩
 /- 1. Want to specify that request is a request allowed by the family of interfaces -/
 /- 2. Can I remove the "Option" from Option State? -/
 /- 3. Likely need to constrain state to allowable states a request can be on -/
+
+-- NOTE: move protocol interface here.
+structure ContainsSCNotRel (vr : Set ValidRequest) : Prop where
+  scInVr : SCWrite ∈ vr
+  relNotInVr : RelWrite ∉ vr
+  cRelNotinVr : CoherentRelWrite ∉ vr
+structure ContainsNCRelNotSC (vr : Set ValidRequest) : Prop where
+  scNotInVr : SCWrite ∉ vr
+  relInVr : RelWrite ∈ vr
+  cRelNotInVr : CoherentRelWrite ∉ vr
+structure ContainsCRelNotSCOrRel (vr : Set ValidRequest) : Prop where
+  scNotInVr : SCWrite ∉ vr
+  relNotInVr : RelWrite ∉ vr
+  cRelInVr : CoherentRelWrite ∈ vr
+def ContainsEitherSCOrRelOrCRel (vr : Set ValidRequest) : Prop := ContainsSCNotRel vr ∨ ContainsNCRelNotSC vr ∨ ContainsCRelNotSCOrRel vr
+
+structure ContainsSCNotAcq (vr : Set ValidRequest) : Prop where
+  scInVr : SCRead ∈ vr
+  acqNotInVr : AcqRead ∉ vr
+structure ContainsAcqNotSC (vr : Set ValidRequest) : Prop where
+  scNotInVr : SCRead ∉ vr
+  acqInVr : AcqRead ∈ vr
+def ContainsEitherSCOrAcq (vr : Set ValidRequest) : Prop := ContainsSCNotAcq vr ∨ ContainsAcqNotSC vr
+
+structure FollowsProtocolInterface (vr : Set ValidRequest) where
+  sc_rel_crel : ContainsEitherSCOrRelOrCRel vr
+  sc_or_acq : ContainsEitherSCOrAcq vr
+  write_read : SCWrite ∈ vr → SCRead ∈ vr
+  rel_write_acq : (RelWrite ∈ vr ∨ CoherentRelWrite ∈ vr) → AcqRead ∈ vr
+  acq_weak : AcqRead ∈ vr → NonCoherentWeakRead ∈ vr
+  real_weak : RelWrite ∈ vr → NonCoherentWeakWrite ∈ vr
+  rel_weak_coherent : CoherentRelWrite ∈ vr → (CoherentWeakWrite ∈ vr ∨ NonCoherentWeakWrite ∈ vr)
+  /- no mixing SC and Weak -/
+  write_no_weak_write : SCWrite ∈ vr → NonCoherentWeakWrite ∉ vr
+  write_no_weak_read : SCWrite ∈ vr → NonCoherentWeakRead ∉ vr
+  weak_write_no_sc_write : NonCoherentWeakWrite ∈ vr → SCWrite ∉ vr
+  weak_read_no_sc_write : NonCoherentWeakRead ∈ vr → SCRead ∉ vr
+  rel_no_sc_write : RelWrite ∈ vr → SCRead ∉ vr
+
+def ProtocolInterface := {vr : Set ValidRequest // FollowsProtocolInterface vr}
+  -- Want to find states a protocol interface has.
+def Request.toState : Request → State
+| ⟨rw, coherent, _⟩ => ⟨rw.toPerms, coherent⟩
+
+def ValidRequest.toState : ValidRequest → State
+| ⟨req, _⟩ => req.toState
+
+def ProtocolInterface.ProtocolStates : ProtocolInterface → Set State
+| pi => pi.val.image (·.toState)
+
+def AllowedState (pi : ProtocolInterface) := {s : State // s ∈ pi.ProtocolStates}
+
+structure ValidProtocolRequest' (pi : ProtocolInterface) (vr : ValidRequest) : Prop where
+  vrInPI : vr ∈ pi.val
+
+lemma mr_in_pi_impl_sc_read_in_pi {pi : ProtocolInterface} (s : AllowedState pi) (hs_mr : s.val = ⟨some .r, true⟩) : SCRead ∈ pi.val := by
+  sorry
+
 /--
 What is the state a request leaves a cache entry in.
 -/
-def ValidRequest.RequestState (vr : ValidRequest) : State → Option State
-| s =>
+def ValidRequest.RequestState {pi : ProtocolInterface} (vr : ValidRequest) (s : AllowedState pi) (vr_in_pi : vr ∈ pi.val) : Option State :=
+-- | s =>
   match h : vr.val with
   | ⟨_, true, _⟩ | ⟨.r, false, .Weak⟩ =>
-    if some s ≤ vr.val.MRS then s
+    if some s.val ≤ vr.val.MRS then s.val
     else vr.val.MRS -- Must be a way to state this does not produce an Option Type?
   | ⟨.w, false, .Weak⟩ | ⟨.w, false, .Rel⟩ =>
-    match hs : s with
-    | ⟨some .wr, true⟩ => s
-    | ⟨some .r, false⟩ =>
-      -- by sorry -- Not allowed by Family of Protocols
+    match hs : s.val with
+    | ⟨some .wr, true⟩ => s.val
+    | ⟨some .r,  true⟩ =>
       none
+      /-
+      by
+      /- Show a contradiction; MR (read, coherent) means coherent read request is in Protocol Interface.
+      But if a noncoherent write (vr) is in pi, then a coherent read can't also be in the protocol interface! -/
+      unfold ProtocolInterface at pi
+      have h_s_from_pi := s.prop
+      have h_pi_no_sc_read_and_weak := pi.prop.rel_no_sc_write
+      have h_pi_has_sc_read : SCRead ∈ pi.val := by
+        -- `s` is MR, and can only get MR state ∈ pi.val if SCRead ∈ pi.val. -- Hard to show this?
+        sorry
+      sorry
+      -/
     | _ => Vd
   | ⟨.r, false, .Acq⟩ => Vc
   | ⟨.w, false, .SC ⟩ | ⟨.r, false, .SC ⟩ => absurd vr.prop.non_coherent (by simp [h])
@@ -119,30 +188,3 @@ def ValidRequest.DowngradeState (vr : ValidRequest) : State → Option State
       if s = Vd then Vc
       else none
     else none
-
--- NOTE: move protocol interface here.
-abbrev ContainsEitherSCOrRelOrCRel := λ vr : Set ValidRequest => (SCWrite ∈ vr ∨ RelWrite ∈ vr ∨ CoherentRelWrite ∈ vr)
-abbrev ContainsEitherSCOrAcq := λ vr : Set ValidRequest => (SCRead ∈ vr ∨ AcqRead ∈ vr)
-
-structure FollowsProtocolInterface (vr : Set ValidRequest) where
-  sc_rel_crel : ContainsEitherSCOrRelOrCRel vr
-  sc_or_acq : ContainsEitherSCOrAcq vr
-  write_read : SCWrite ∈ vr → SCRead ∈ vr
-  rel_write_acq : (RelWrite ∈ vr ∨ CoherentRelWrite ∈ vr) → AcqRead ∈ vr
-  acq_weak : AcqRead ∈ vr → NonCoherentWeakRead ∈ vr
-  real_weak : RelWrite ∈ vr → NonCoherentWeakWrite ∈ vr
-  rel_weak_coherent : CoherentRelWrite ∈ vr → (CoherentWeakWrite ∈ vr ∨ NonCoherentWeakWrite ∈ vr)
-
-abbrev ProtocolInterface := {vr : Set ValidRequest // FollowsProtocolInterface vr}
-  -- Want to find states a protocol interface has.
-abbrev Request.toState : Request → State
-| ⟨rw, coherent, _⟩ => ⟨rw.toPerms, coherent⟩
-
-abbrev ValidRequest.toState : ValidRequest → State
-| ⟨req, _⟩ => req.toState
-
--- Allowable state -- want to say all the states a valid protocol inerface (allowed by ProtocolInterface) allows
--- Avoid using a subtype?
--- abbrev ProtocolStates := (p : ProtocolInterface) → {s : Set State // ∀ r ∈ p.val, r.toState ∈ s}
-abbrev ProtocolStates : ProtocolInterface → Set State
-| pi => pi.val.image (·.toState)
