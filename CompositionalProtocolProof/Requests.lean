@@ -135,26 +135,24 @@ def ValidRequest.toState : ValidRequest → State
 def ProtocolInterface.ProtocolStates : ProtocolInterface → Set State
 | pi => pi.val.image (·.toState)
 
-def AllowedState (pi : ProtocolInterface) := {s : State // s ∈ pi.ProtocolStates}
-
 structure ValidProtocolRequest' (pi : ProtocolInterface) (vr : ValidRequest) : Prop where
   vrInPI : vr ∈ pi.val
 
-lemma mr_in_pi_impl_sc_read_in_pi {pi : ProtocolInterface} (s : AllowedState pi) (hs_mr : s.val = ⟨some .r, true⟩) : SCRead ∈ pi.val := by
+lemma mr_in_pi_impl_sc_read_in_pi {pi : ProtocolInterface} (s : State) (hs_of_pi : s ∈ pi.ProtocolStates) (hs_mr : s = ⟨some .r, true⟩) : SCRead ∈ pi.val := by
   sorry
 
 /--
 What is the state a request leaves a cache entry in.
 -/
-def ValidRequest.RequestState {pi : ProtocolInterface} (vr : ValidRequest) (s : AllowedState pi) (vr_in_pi : vr ∈ pi.val) : Option State :=
+def ValidRequest.RequestState {pi : ProtocolInterface} (vr : ValidRequest) (s : State) (vr_in_pi : vr ∈ pi.val) (s_of_pi : s ∈ pi.ProtocolStates) : Option State :=
 -- | s =>
   match h : vr.val with
   | ⟨_, true, _⟩ | ⟨.r, false, .Weak⟩ =>
-    if some s.val ≤ vr.val.MRS then s.val
+    if some s ≤ vr.val.MRS then s
     else vr.val.MRS -- Must be a way to state this does not produce an Option Type?
   | ⟨.w, false, .Weak⟩ | ⟨.w, false, .Rel⟩ =>
-    match hs : s.val with
-    | ⟨some .wr, true⟩ => s.val
+    match hs : s with
+    | ⟨some .wr, true⟩ => s
     | ⟨some .r,  true⟩ =>
       none
       /-
