@@ -144,7 +144,7 @@ lemma mr_in_pi_impl_sc_read_in_pi {pi : ProtocolInterface} (s : State) (hs_of_pi
 /--
 What is the state a request leaves a cache entry in.
 -/
-def ValidRequest.RequestState {pi : ProtocolInterface} (vr : ValidRequest) (s : State) (vr_in_pi : vr ∈ pi.val) (s_of_pi : s ∈ pi.ProtocolStates) : Option State :=
+def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (s : State) /- (vr_in_pi : vr ∈ pi.val) (s_of_pi : s ∈ pi.ProtocolStates) -/ : Option State :=
 -- | s =>
   match h : vr.val with
   | ⟨_, true, _⟩ | ⟨.r, false, .Weak⟩ =>
