@@ -813,4 +813,8 @@ lemma Behaviour.immediate_bottom_successor (b : Behaviour) (es_pred : EventState
       exact And.right he₂
     exact Or.inr (Set.nonempty_unique_is_singleton imm_bottom_succs h_nonempty' h_unique)
 
-/- TODO: Define the State of a Directory Event is made on (Def. 2.31) (take an initial state) -/
+/- Def 2.32 Behaviour.PreviousEvent -/
+def Behaviour.PreviousEvent (b : Behaviour) (e : EventState) (haddress_ordered : OrderedAddressEvents) : Option EventState :=
+  -- Not clear how to open up `preds_empty_or_singleton` and use the `empty or singleton` statement inside?
+  let preds_empty_or_singleton := b.immediate_bottom_predecessor_empty_or_unique e haddress_ordered
+  sorry
