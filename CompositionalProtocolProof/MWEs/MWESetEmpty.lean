@@ -15,3 +15,18 @@ noncomputable def GetNat (sn : SetNat) (h_e_or_s : empty_or_singleton sn) : Opti
   else
     -- Here, I want to use h_e_or_s to get the unique nat out of sn. How do I do this?
     (h_e_or_s.resolve_left h).choose
+
+---------- Illustration to deal with a let in the Prop def -- you don't need to directly. -----------
+
+def empty_or_singleton' (sn : SetNat) : Prop := let sn' : SetNat := sn\{0}; sn' = ∅ ∨ sn'.isSingleton
+
+/- Either return none or the single element from a set -/
+open scoped Classical in
+noncomputable def GetNat' (sn : SetNat) (h_e_or_s : empty_or_singleton' sn) : Option Nat :=
+  let sn' := sn\{0}
+  by classical exact
+  if h : sn' = ∅ then -- How do I state this case without a `failed to synthesize` message?
+    none
+  else
+    -- Here, I want to use h_e_or_s to get the unique nat out of sn. How do I do this?
+    (h_e_or_s.resolve_left h).choose
