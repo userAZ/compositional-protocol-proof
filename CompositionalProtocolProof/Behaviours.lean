@@ -824,3 +824,8 @@ noncomputable def Behaviour.PreviousEvent (b : Behaviour) (e : EventState) (hadd
     none
   else
     (h_empty_or_unique.resolve_left he).choose
+
+/- Def 2.33 Behaviour.StateBefore -/
+def Behaviour.StateBefore (b : Behaviour) (e : EventState) (s_i : State ⊕ DirectoryState) : State ⊕ DirectoryState :=
+  let e_pred := b.PreviousEvent e
+  sorry
