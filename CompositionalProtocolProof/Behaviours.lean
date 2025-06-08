@@ -814,13 +814,13 @@ lemma Behaviour.immediate_bottom_successor (b : Behaviour) (es_pred : EventState
     exact Or.inr (Set.nonempty_unique_is_singleton imm_bottom_succs h_nonempty' h_unique)
 
 /- Def 2.32 Behaviour.PreviousEvent -/
-def Behaviour.PreviousEvent (b : Behaviour) (e : EventState) (haddress_ordered : OrderedAddressEvents) : Option EventState :=
+open scoped Classical in
+noncomputable def Behaviour.PreviousEvent (b : Behaviour) (e : EventState) (haddress_ordered : OrderedAddressEvents) : Option EventState :=
+  by classical exact
   -- Not clear how to open up `preds_empty_or_singleton` and use the `empty or singleton` statement inside?
   let preds_empty_or_singleton := b.ImmBottomPredecessors e -- haddress_ordered
-  -- let empty_or_unique := b.immediate_bottom_predecessor_empty_or_unique e haddress_ordered
+  have h_empty_or_unique := b.immediate_bottom_predecessor_empty_or_unique e haddress_ordered
   if he : preds_empty_or_singleton = ∅ then -- Can't synthesize?
     none
-  else if hs : preds_empty_or_singleton then
-    sorry
   else
-    sorry
+    (h_empty_or_unique.resolve_left he).choose
