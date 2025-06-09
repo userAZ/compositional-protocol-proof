@@ -285,11 +285,26 @@ def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (
   | ⟨_, true, _⟩ | ⟨.r, false, .Weak⟩ =>
     if s ≤ vr.MRS then s
     else vr.MRS -- Must be a way to state this does not produce an Option Type?
-  | ⟨.w, false, .Weak⟩ | ⟨.w, false, .Rel⟩ =>
+  | ⟨.w, false, .Weak⟩ =>
     match hs : s with
     | ⟨some .wr, true⟩ => s
     | ⟨some .r,  true⟩ => none -- can avoid `none` by using contradiction from commented-out input arg `h_pi_has_s` and Lemma `ncw_impl_no_mr`.
+      /- Can use this proof instead to state this case isn't possible
+      by
+      have h_s_is_mr : s = MR := by simp[hs]
+      have h_vr_is_ncw : vr.val = RelWrite ∨ vr.val = NonCoherentWeakWrite := by simp [h]
+      have h_s_not_mr := ncw_impl_no_mr vr s h_vr_in_pi (by subst hs; exact h_pi_has_s) h_vr_is_ncw h_s_is_mr
+
+      subst hs
+      absurd h_s_not_mr h_pi_has_s
+      contradiction
+      -/
     | _ => Vd
+  | ⟨.w, false, .Rel⟩ =>
+    match hs : s with
+    | ⟨some .wr, true⟩ => s
+    | ⟨some .r,  true⟩ => none -- can avoid `none` by using contradiction from commented-out input arg `h_pi_has_s` and Lemma `ncw_impl_no_mr`.
+    | _ => Vc
   | ⟨.r, false, .Acq⟩ => Vc
   | ⟨.w, false, .SC ⟩ | ⟨.r, false, .SC ⟩ => absurd vr.prop.non_coherent (by simp [h])
   | ⟨.w, false, .Acq⟩ => absurd vr.prop.no_write_acq (by simp [h])
