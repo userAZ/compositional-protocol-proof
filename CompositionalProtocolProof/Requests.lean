@@ -279,7 +279,7 @@ lemma pi_ncw_on_mr_contradiction {pi : ProtocolInterface} (vr : ValidRequest) (s
   contradiction
 
 /-- What is the state a request leaves a cache entry in.  -/
-def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (s : State) /- (h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s) -/ : Option State :=
+def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (s : State) /-(h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s)-/ : Option State :=
 -- | s =>
   match h : vr.val with
   | ⟨_, true, _⟩ | ⟨.r, false, .Weak⟩ =>
