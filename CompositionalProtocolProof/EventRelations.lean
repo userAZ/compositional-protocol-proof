@@ -215,7 +215,7 @@ abbrev CacheEvent.WeakConsistency (e : CacheEvent) : Prop := e.r.val.consistency
 
 abbrev CacheEvent.Weak (e : CacheEvent) : Prop := e.Local ∧ e.NonCoherent ∧ e.WeakConsistency
 
-abbrev CacheEvent.RequestHasPermissions (e : CacheEvent) (s : State) : Prop := e.r.val.MRS ≤ s
+abbrev CacheEvent.RequestHasPermissions (e : CacheEvent) (s : State) : Prop := e.r.MRS ≤ s
 abbrev CacheEvent.Coherent (e : CacheEvent) : Prop := e.r.val.coherent = true
 
 abbrev CacheEvent.WithCoherentPermissions (e : CacheEvent) (s : State) : Prop := e.Local ∧ e.Coherent ∧ e.RequestHasPermissions s
@@ -225,7 +225,7 @@ abbrev CacheEvent.NoEncapSameAddressDowngrade (e : CacheEvent) (s : State) : Pro
 
 abbrev CacheEvent.Grant (e : CacheEvent) : Prop := e.deid? ≠ none
 abbrev CacheEvent.External (e : CacheEvent) : Prop := ¬e.Local ∨ e.Grant
-abbrev CacheEvent.NoRequestPermissions (e : CacheEvent) (s : State) : Prop := s < e.r.val.MRS
+abbrev CacheEvent.NoRequestPermissions (e : CacheEvent) (s : State) : Prop := s < e.r.MRS
 
 abbrev CacheEvent.WithoutCoherentPermissions (e : CacheEvent) (s : State) : Prop := e.Local ∧ e.Coherent ∧ e.NoRequestPermissions s
 
