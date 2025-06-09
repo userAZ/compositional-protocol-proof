@@ -149,9 +149,6 @@ def ProtocolInterface.ProtocolStates : ProtocolInterface → Set State
 structure ValidProtocolRequest' (pi : ProtocolInterface) (vr : ValidRequest) : Prop where
   vrInPI : vr ∈ pi.val
 
-lemma mr_in_pi_impl_sc_read_in_pi {pi : ProtocolInterface} (s : State) (hs_of_pi : s ∈ pi.ProtocolStates) (hs_mr : s = ⟨some .r, true⟩) : SCRead ∈ pi.val := by
-  sorry
-
 def ProtocolInterface.HasState : ProtocolInterface → State → Prop
 | pi, s => ∃ vr ∈ pi.val, vr.toState = s
 
