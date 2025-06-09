@@ -825,7 +825,26 @@ noncomputable def Behaviour.PreviousEvent (b : Behaviour) (e : EventState) (hadd
   else
     (h_empty_or_unique.resolve_left he).choose
 
+def EventState.r : EventState → ValidRequest
+| ⟨e, _, _⟩ => e.r
+def EventState.SucceedingState : EventState → (EntryState → EntryState)
+| ⟨e, _, _⟩ => e.SucceedingState
+
+/-
+def EventState.a : EventState → Addr
+| ⟨e, _, _⟩ => e.a
+
+def Behaviour.eventsAtCacheEntry (b : Behaviour) (es : b.es) (a : Addr) (cid : CacheId) : List b.es :=
+  let e_at_centry := {e ∈ es | e.a = a ∧ e.cid = cid}
+  sorry -- ...
+-/
+
 /- Def 2.33 Behaviour.StateBefore -/
-def Behaviour.StateBefore (b : Behaviour) (e : EventState) (s_i : State ⊕ DirectoryState) : State ⊕ DirectoryState :=
-  let e_pred := b.PreviousEvent e
-  sorry
+noncomputable def Behaviour.StateBefore (b : Behaviour) (e : EventState) (haddress_ordered : OrderedAddressEvents) (s_i : EntryState)
+: EntryState :=
+  let e_pred? := b.PreviousEvent e haddress_ordered
+  match e_pred? with
+  | .none => s_i
+  | .some e_pred =>
+    let entry_state_pred_pred := b.StateBefore e_pred haddress_ordered s_i
+    e_pred.SucceedingState entry_state_pred_pred
