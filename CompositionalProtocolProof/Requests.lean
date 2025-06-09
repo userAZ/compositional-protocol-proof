@@ -276,8 +276,7 @@ lemma ncw_impl_no_mr {pi : ProtocolInterface} (vr : ValidRequest) (s : State) (h
     simp[Request] at hreq_no_rrel
 
 lemma pi_ncw_on_mr_contradiction {pi : ProtocolInterface} (vr : ValidRequest) (s : State) (h_vr_in_pi : vr ∈ pi.val) (h_s_in_pi : pi.HasState s)
-(h_vr_is_ncw : vr.val = RelWrite /-∨ vr.val = NonCoherentWeakWrite ;; for now, consider just one at a time-/) (h_s_mr : s = MR) : False := by
-
+(h_vr_is_ncw : vr.val = RelWrite ∨ vr.val = NonCoherentWeakWrite) (h_s_mr : s = MR) : False := by
   sorry
 
 /-- What is the state a request leaves a cache entry in.  -/
@@ -290,25 +289,46 @@ def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (
   | ⟨.w, false, .Weak⟩ | ⟨.w, false, .Rel⟩ =>
     match hs : s with
     | ⟨some .wr, true⟩ => s
-    | ⟨some .r,  true⟩ =>
-      none
-      /-
-      by
-      /- Show a contradiction; MR (read, coherent) means coherent read request is in Protocol Interface.
-      But if a noncoherent write (vr) is in pi, then a coherent read can't also be in the protocol interface! -/
-      unfold ProtocolInterface at pi
-      have h_s_from_pi := s.prop
-      have h_pi_no_sc_read_and_weak := pi.prop.rel_no_sc_write
-      have h_pi_has_sc_read : SCRead ∈ pi.val := by
-        -- `s` is MR, and can only get MR state ∈ pi.val if SCRead ∈ pi.val. -- Hard to show this?
-        sorry
-      sorry
-      -/
+    | ⟨some .r,  true⟩ => none -- can avoid `none` by using contradiction from commented-out input arg `h_pi_has_s` and Lemma `ncw_impl_no_mr`.
     | _ => Vd
   | ⟨.r, false, .Acq⟩ => Vc
   | ⟨.w, false, .SC ⟩ | ⟨.r, false, .SC ⟩ => absurd vr.prop.non_coherent (by simp [h])
   | ⟨.w, false, .Acq⟩ => absurd vr.prop.no_write_acq (by simp [h])
   | ⟨.r, false, .Rel⟩ => absurd vr.prop.no_read_rel (by simp [h])
+
+lemma ValidRequest.RequestState_never_none {pi : ProtocolInterface} (vr : ValidRequest) (s : State) (h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s) : ValidRequest.RequestState vr s ≠ none := by
+  unfold ValidRequest.RequestState
+  simp
+  unfold ValidRequest.MRS
+  simp
+
+  match hvr_req : vr with
+  | ⟨⟨_, true, _⟩, _⟩
+  | ⟨⟨.r, false, .Weak⟩, _⟩ =>
+    simp
+    subst hvr_req
+    -- aesop?
+    apply Aesop.BuiltinRules.not_intro
+    intro a
+    split at a
+    next h => simp_all only [reduceCtorEq]
+    next h => simp_all only [reduceCtorEq]
+  | ⟨⟨.w, false, .Weak⟩, _⟩
+  | ⟨⟨.w, false, .Rel⟩, _⟩ =>
+    match hs : s with
+    | ⟨some .wr, true⟩ => simp
+    | ⟨some .r, true⟩ =>
+      have h_s_is_mr : s = MR := by simp[hs]
+      have h_vr_is_ncw : vr.val = RelWrite ∨ vr.val = NonCoherentWeakWrite := by simp [hvr_req]
+      have h_s_not_mr := ncw_impl_no_mr vr s (by subst hvr_req; exact h_vr_in_pi) (by subst hs; exact h_pi_has_s) h_vr_is_ncw h_s_is_mr
+
+      subst hs
+      absurd h_s_not_mr h_pi_has_s
+      contradiction
+    | ⟨some .r, false⟩ | ⟨some .wr, false⟩ | ⟨none, false⟩ =>
+      subst hs
+      simp
+  | ⟨⟨.r, false, .Acq⟩, _⟩ => simp
 
 def ValidRequest.DowngradeState (vr : ValidRequest) : State → State
 | s => match vr.val.coherent with
