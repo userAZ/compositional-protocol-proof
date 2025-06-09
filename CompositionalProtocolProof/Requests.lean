@@ -274,7 +274,9 @@ lemma ncw_impl_no_mr {pi : ProtocolInterface} (vr : ValidRequest) (s : State) (h
 
 lemma pi_ncw_on_mr_contradiction {pi : ProtocolInterface} (vr : ValidRequest) (s : State) (h_vr_in_pi : vr ∈ pi.val) (h_s_in_pi : pi.HasState s)
 (h_vr_is_ncw : vr.val = RelWrite ∨ vr.val = NonCoherentWeakWrite) (h_s_mr : s = MR) : False := by
-  sorry
+  have h_s_not_mr := ncw_impl_no_mr vr s h_vr_in_pi h_s_in_pi h_vr_is_ncw h_s_mr
+  absurd h_s_not_mr h_s_in_pi
+  contradiction
 
 /-- What is the state a request leaves a cache entry in.  -/
 def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (s : State) /- (h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s) -/ : Option State :=
