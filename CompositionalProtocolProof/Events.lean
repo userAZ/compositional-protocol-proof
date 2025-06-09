@@ -112,6 +112,10 @@ instance : TypeEvent Event where
   oEnd := Event.oEnd
   oWellFormed := Event.oWellFormed
 
+def Event.r : Event → ValidRequest
+| .cacheEvent ce => ce.r
+| .directoryEvent de => de.r
+
 -- def CacheEvent.requestEvent (e : CacheEvent) : Prop := e.cid = e.rid
 -- def CacheEvent.sameAddress (e : CacheEvent) : Prop := e.cid = e.rid
 
