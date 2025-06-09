@@ -152,6 +152,15 @@ structure ValidProtocolRequest' (pi : ProtocolInterface) (vr : ValidRequest) : P
 def ProtocolInterface.HasState : ProtocolInterface → State → Prop
 | pi, s => ∃ vr ∈ pi.val, vr.toState = s
 
+/- Not worth trying to prove right now.
+def ProtocolInterface.HasDirState : ProtocolInterface → DirectoryState → Prop
+| pi, ds => ∃ vr ∈ pi.val, vr.toState = ds.toState
+
+/- Be careful using this one, if not intending to use Directory state. -/
+def ProtocolInterface.HasEntryState : ProtocolInterface → EntryState → Prop
+| pi, entry_s => pi.HasState entry_s.cache ∧ pi.HasDirState entry_s.directory
+-/
+
 lemma vr_rel_write_in_pi_impl_rel_write_in_pi {pi : ProtocolInterface} (vr : ValidRequest) (h_vr_in_pi : vr ∈ pi.val)
 (h_vr_is_ncw : vr.val = RelWrite) : RelWrite ∈ pi.val := by
   simp_all only
@@ -279,8 +288,7 @@ lemma pi_ncw_on_mr_contradiction {pi : ProtocolInterface} (vr : ValidRequest) (s
   contradiction
 
 /-- What is the state a request leaves a cache entry in.  -/
-def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (s : State) /-(h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s)-/ : Option State :=
--- | s =>
+def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (s : State) /-(h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s)-/ : State :=
   match h : vr.val with
   | ⟨_, true, _⟩ | ⟨.r, false, .Weak⟩ =>
     if s ≤ vr.MRS then s
@@ -288,7 +296,7 @@ def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (
   | ⟨.w, false, .Weak⟩ =>
     match hs : s with
     | ⟨some .wr, true⟩ => s
-    | ⟨some .r,  true⟩ => none -- can avoid `none` by using contradiction from commented-out input arg `h_pi_has_s` and Lemma `ncw_impl_no_mr`.
+    | ⟨some .r,  true⟩ => Vd -- none -- can avoid `none` by using contradiction from commented-out input arg `h_pi_has_s` and Lemma `ncw_impl_no_mr`.
       /- Can use this proof instead to state this case isn't possible
       by
       have h_s_is_mr : s = MR := by simp[hs]
@@ -303,13 +311,65 @@ def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (
   | ⟨.w, false, .Rel⟩ =>
     match hs : s with
     | ⟨some .wr, true⟩ => s
-    | ⟨some .r,  true⟩ => none -- can avoid `none` by using contradiction from commented-out input arg `h_pi_has_s` and Lemma `ncw_impl_no_mr`.
+    | ⟨some .r,  true⟩ => Vc -- none -- can avoid `none` by using contradiction from commented-out input arg `h_pi_has_s` and Lemma `ncw_impl_no_mr`.
     | _ => Vc
   | ⟨.r, false, .Acq⟩ => Vc
   | ⟨.w, false, .SC ⟩ | ⟨.r, false, .SC ⟩ => absurd vr.prop.non_coherent (by simp [h])
   | ⟨.w, false, .Acq⟩ => absurd vr.prop.no_write_acq (by simp [h])
   | ⟨.r, false, .Rel⟩ => absurd vr.prop.no_read_rel (by simp [h])
 
+/- Not worth trying to prove right now.
+lemma ValidRequest.RequestState_in_pi {pi : ProtocolInterface} (vr : ValidRequest) (s : State)
+(h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s) : let next_state := ValidRequest.RequestState vr s h_vr_in_pi h_pi_has_s; pi.HasState next_state := by
+  -- intro next_state
+  -- unfold next_state
+  -- unfold RequestState
+  -- simp
+  unfold ProtocolInterface.HasState
+  simp
+  apply Exists.intro
+  . case h =>
+    cases vr
+  match hvr : vr.val with
+  | ⟨_, true, _⟩ | ⟨.r, false, .Weak⟩ =>
+    if s ≤ vr.MRS then s
+    else vr.MRS -- Must be a way to state this does not produce a
+  | ⟨.w, false, .Weak⟩ =>
+    match hs : s with
+    | ⟨some .wr, true⟩ => s
+    | ⟨some .r,  true⟩ => -- none -- can avoid `none` by using co
+      -- /- Can use this proof instead to state this case isn't p
+      by
+      have h_s_is_mr : s = MR := by simp[hs]
+      have h_vr_is_ncw : vr.val = RelWrite ∨ vr.val = NonCoherent
+      have h_s_not_mr := ncw_impl_no_mr vr s h_vr_in_pi (by subst
+
+      subst hs
+      absurd h_s_not_mr h_pi_has_s
+      contradiction
+      -- -/
+    | _ => Vd
+  | ⟨.w, false, .Rel⟩ =>
+    match hs : s with
+    | ⟨some .wr, true⟩ => s
+    | ⟨some .r,  true⟩ => -- none -- can avoid `none` by using co
+      by
+      have h_s_is_mr : s = MR := by simp[hs]
+      have h_vr_is_ncw : vr.val = RelWrite ∨ vr.val = NonCoherent
+      have h_s_not_mr := ncw_impl_no_mr vr s h_vr_in_pi (by subst
+
+      subst hs
+      absurd h_s_not_mr h_pi_has_s
+      contradiction
+    | _ => Vc
+  | ⟨.r, false, .Acq⟩ => Vc
+  | ⟨.w, false, .SC ⟩ | ⟨.r, false, .SC ⟩ => absurd vr.prop.non_c
+  | ⟨.w, false, .Acq⟩ => absurd vr.prop.no_write_acq (by simp [h]
+  | ⟨.r, false, .Rel⟩ => absurd vr.prop.no_read_rel (by simp [h])
+  sorry
+-/
+
+/-
 lemma ValidRequest.RequestState_never_none {pi : ProtocolInterface} (vr : ValidRequest) (s : State) (h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s) : ValidRequest.RequestState vr s ≠ none := by
   unfold ValidRequest.RequestState
   simp
@@ -343,6 +403,7 @@ lemma ValidRequest.RequestState_never_none {pi : ProtocolInterface} (vr : ValidR
       subst hs
       simp
   | ⟨⟨.r, false, .Acq⟩, _⟩ => simp
+-/
 
 def ValidRequest.DowngradeState (vr : ValidRequest) : State → State
 | s => match vr.val.coherent with
