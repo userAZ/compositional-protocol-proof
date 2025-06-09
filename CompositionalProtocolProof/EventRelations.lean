@@ -284,13 +284,12 @@ def OrderedCacheEvents' (e₁ e₂ : Event) (s₁ s₂ : State) : Prop :=
 def CoherentRead : Request := ⟨ .r, true, .SC ⟩
 def CoherentWrite : Request := ⟨ .w, true, .SC ⟩
 
--- NOTE: this requires State LT (<) relation
-def CacheEvent.SucceedingState : CacheEvent → State → Option State
-| e, s => match e.d with
+def CacheEvent.SucceedingState (e : CacheEvent) (s : State) : State :=
+  match e.d with
   | false => e.r.RequestState s
   | true => e.r.DowngradeState s
 
-def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent → DirectoryState → Option DirectoryState
+def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent → DirectoryState → DirectoryState
 | de, ds => match de.d with
   | false => match de.r.val with
     | ⟨.w, true, _⟩ => -- Coherent-Write
@@ -317,18 +316,16 @@ def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent 
       match ds with
       | .SW _ _ | .I _ => ds
       | .MR mr sharers => DirectoryState.MR mr (sharers \ {de.eReq.rid})
-      | .Vd _ | .Vc _ => -- Not allowed
-        -- sorry
-        none -- NOTE: Can avoid `Option DirectoryState` if I choose something reasonable to return (Same state (Vd or Vc)).
+      /- These two cases .Vd .Vc, can be proven absurd by adding a hypothesis that the DirectoryState is an `Allowed` Directory State. -/
+      | .Vd _ => DirectoryState.Vd ⟨Vd, by simp⟩
+      | .Vc _ => DirectoryState.Vc ⟨Vc, by simp⟩
     | ⟨.w, false, _⟩ => DirectoryState.Vc ⟨Vc, by simp⟩ -- Non-Coherent-Write downgrade
     | ⟨.r, false, _⟩ => DirectoryState.I ⟨I, by simp⟩ -- Non-Coherent-Read downgrade
 
-/- Need to either prove a lemma to state the succeeding state is not `none` under `allowed input state` and `interface requests`,
+/- Can either prove a lemma to state the succeeding state is not `none` under `allowed input state` and `interface requests`,
    OR build in the input state and interface requests into the types.
 -/
-def Event.SucceedingState (e : Event) (s : match e with | .cacheEvent _ => State | .directoryEvent _ => DirectoryState) : State ⊕ DirectoryState :=
-  match he : e with
-  | .cacheEvent ce => -- ce.SucceedingState s
-    sorry
-  | .directoryEvent de => --de.SucceedingState s
-    sorry
+
+def Event.SucceedingState (e : Event) (s : EntryState) : EntryState := match e with
+  | .cacheEvent ce => ⟨ce.SucceedingState s.cache, s.directory⟩
+  | .directoryEvent de => ⟨s.cache, de.SucceedingState s.directory⟩
