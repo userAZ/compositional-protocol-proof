@@ -33,35 +33,43 @@ def ReadWrite.toRWPerms : ReadWrite → ReadWritePermissions
 def ReadWrite.toPerms : ReadWrite → Permissions
 | rw => some rw.toRWPerms
 
-/-- Definition 2.12 Minimum Required State of a request.
-How to specify a request that's allowed by the Family Interface?
--/
-def Request.MRS : Request → Option State
-| r => match r.coherent with
-  | true => some ⟨r.rw.toPerms, r.coherent⟩
-  | false => match r.consistency with
-    | .Weak => some Vc
-    | .Rel | .Acq => none
-    | .SC => none -- Non-Coherent SC request not allowed by interface family
-
 def Request.isCoherent (r : Request) : Prop := r.coherent = true
 def Request.nonCoherent (r : Request) : Prop := r.coherent = false
 
+abbrev Request.SC := λ r : Request => r.rw = .r ∧ r.consistency = .SC
+
+abbrev Request.ReadAcquire := λ r : Request => r.rw = .r ∧ r.consistency = .Acq
+abbrev Request.WeakRead := λ r : Request => r.rw = .r ∧ r.consistency = .Weak
 -- Disallowed Requests
 abbrev Request.SCNonCoherent := λ r : Request => r.consistency = .SC ∧ r.coherent = false
 abbrev Request.WriteAcquire := λ r : Request => r.rw = .w ∧ r.consistency = .Acq
 abbrev Request.ReadRelease := λ r : Request => r.rw = .r ∧ r.consistency = .Rel
+abbrev Request.CoherentAcquire := λ r : Request => r.ReadAcquire ∧ r.coherent = true
+abbrev Request.CoherentWeakRead := λ r : Request => r.WeakRead ∧ r.coherent = true
 -- Valid Request does not contain disallowed requests.
 abbrev Request.NoSCNonCoherent := λ r : Request => ¬r.SCNonCoherent
 abbrev Request.NoWriteAcquire := λ r : Request => ¬r.WriteAcquire
 abbrev Request.NoReadRelease := λ r : Request => ¬r.ReadRelease
+abbrev Request.NoCoherentAcquire := λ r : Request => ¬r.CoherentAcquire
+abbrev Request.NoCoherentWeakRead := λ r : Request => ¬r.CoherentWeakRead
 
 structure Request.IsValid (r : Request) where
   non_coherent : r.NoSCNonCoherent := by simp
   no_write_acq : r.NoWriteAcquire := by simp
   no_read_rel : r.NoReadRelease := by simp
+  no_cacq : r.NoCoherentAcquire := by simp
+  no_cwr : r.NoCoherentWeakRead := by simp
 
 abbrev ValidRequest := {r : Request // Request.IsValid r}
+
+/-- Definition 2.12 Minimum Required State of a request. -/
+def ValidRequest.MRS : ValidRequest → State
+| vr => match hcoh : vr.val.coherent with
+  | true => ⟨vr.val.rw.toPerms, vr.val.coherent⟩
+  | false => match hcons : vr.val.consistency with
+    | .Weak => Vc
+    | .Rel | .Acq => I -- Release and Acquire don't have a MRS. They always need to go to directory.
+    | .SC => absurd vr.prop.non_coherent (by simp[hcoh, hcons]) -- none -- Non-Coherent SC request not allowed by interface family
 
 abbrev SCWrite : ValidRequest := ⟨⟨.w, true, .SC⟩, {}⟩
 abbrev SCRead : ValidRequest := ⟨⟨.r, true, .SC⟩, {}⟩
@@ -71,6 +79,9 @@ abbrev AcqRead : ValidRequest := ⟨⟨.r, false, .Acq⟩, {}⟩
 abbrev NonCoherentWeakRead : ValidRequest := ⟨⟨.r, false, .Weak⟩, {}⟩
 abbrev NonCoherentWeakWrite : ValidRequest := ⟨⟨.w, false, .Weak⟩, {}⟩
 abbrev CoherentWeakWrite : ValidRequest := ⟨⟨.w, true, .Weak⟩, {}⟩
+
+abbrev ValidRequest.NonCoherent (vr : ValidRequest) : Prop := vr.val.nonCoherent
+abbrev ValidRequest.SC (vr : ValidRequest) : Prop := vr.val.SC
 
 /-
 abbrev NonCoherentWeakRead : Request := ⟨.r, false, .Weak⟩
@@ -109,21 +120,21 @@ structure ContainsAcqNotSC (vr : Set ValidRequest) : Prop where
   acqInVr : AcqRead ∈ vr
 def ContainsEitherSCOrAcq (vr : Set ValidRequest) : Prop := ContainsSCNotAcq vr ∨ ContainsAcqNotSC vr
 
-structure FollowsProtocolInterface (vr : Set ValidRequest) where
-  sc_rel_crel : ContainsEitherSCOrRelOrCRel vr
-  sc_or_acq : ContainsEitherSCOrAcq vr
-  write_read : SCWrite ∈ vr → SCRead ∈ vr
-  rel_write_acq : (RelWrite ∈ vr ∨ CoherentRelWrite ∈ vr) → AcqRead ∈ vr
-  acq_weak : AcqRead ∈ vr → NonCoherentWeakRead ∈ vr
-  real_weak : RelWrite ∈ vr → NonCoherentWeakWrite ∈ vr
-  rel_weak_coherent : CoherentRelWrite ∈ vr → (CoherentWeakWrite ∈ vr ∨ NonCoherentWeakWrite ∈ vr)
+structure FollowsProtocolInterface (vrs : Set ValidRequest) where
+  sc_rel_crel : ContainsEitherSCOrRelOrCRel vrs
+  sc_or_acq : ContainsEitherSCOrAcq vrs
+  write_read : SCWrite ∈ vrs → SCRead ∈ vrs
+  rel_write_acq : (RelWrite ∈ vrs ∨ CoherentRelWrite ∈ vrs) → AcqRead ∈ vrs
+  acq_weak : AcqRead ∈ vrs → NonCoherentWeakRead ∈ vrs
+  real_weak : RelWrite ∈ vrs → NonCoherentWeakWrite ∈ vrs
+  rel_weak_coherent : CoherentRelWrite ∈ vrs → (CoherentWeakWrite ∈ vrs ∨ NonCoherentWeakWrite ∈ vrs)
   /- no mixing SC and Weak -/
-  write_no_weak_write : SCWrite ∈ vr → NonCoherentWeakWrite ∉ vr
-  write_no_weak_read : SCWrite ∈ vr → NonCoherentWeakRead ∉ vr
-  weak_write_no_sc_write : NonCoherentWeakWrite ∈ vr → SCWrite ∉ vr
-  weak_read_no_sc_write : NonCoherentWeakRead ∈ vr → SCRead ∉ vr
-  rel_no_sc_write : RelWrite ∈ vr → SCRead ∉ vr
-
+  nc_no_sc {vr : ValidRequest} (hvr_in_pi : vr ∈ vrs) (hvr_nc : vr.NonCoherent) : SCWrite ∉ vrs ∧ SCRead ∉ vrs
+  /- TODO: lazily convert these to a nice compact field like `nc_no_sc` above.
+  write_no_weak_write : SCWrite ∈ vrs → NonCoherentWeakWrite ∉ vrs
+  write_no_weak_read : SCWrite ∈ vrs → NonCoherentWeakRead ∉ vrs
+  rel_no_sc_write : RelWrite ∈ vrs → SCRead ∉ vrs
+  -/
 def ProtocolInterface := {vr : Set ValidRequest // FollowsProtocolInterface vr}
   -- Want to find states a protocol interface has.
 def Request.toState : Request → State
@@ -141,15 +152,141 @@ structure ValidProtocolRequest' (pi : ProtocolInterface) (vr : ValidRequest) : P
 lemma mr_in_pi_impl_sc_read_in_pi {pi : ProtocolInterface} (s : State) (hs_of_pi : s ∈ pi.ProtocolStates) (hs_mr : s = ⟨some .r, true⟩) : SCRead ∈ pi.val := by
   sorry
 
-/--
-What is the state a request leaves a cache entry in.
--/
-def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (s : State) /- (vr_in_pi : vr ∈ pi.val) (s_of_pi : s ∈ pi.ProtocolStates) -/ : Option State :=
+def ProtocolInterface.HasState : ProtocolInterface → State → Prop
+| pi, s => ∃ vr ∈ pi.val, vr.toState = s
+
+lemma vr_rel_write_in_pi_impl_rel_write_in_pi {pi : ProtocolInterface} (vr : ValidRequest) (h_vr_in_pi : vr ∈ pi.val)
+(h_vr_is_ncw : vr.val = RelWrite) : RelWrite ∈ pi.val := by
+  simp_all only
+  obtain ⟨val, prop⟩ := vr
+  subst h_vr_is_ncw
+  simp_all only
+
+lemma non_coherent_in_pi_impl_no_sc_read  {pi : ProtocolInterface} (vr : ValidRequest) (h_vr_in_pi : vr ∈ pi.val)
+(h_vr_is_ncw : vr.NonCoherent) : SCRead ∉ pi.val := by
+  have h_nc_no_sc := pi.prop.nc_no_sc h_vr_in_pi h_vr_is_ncw
+  exact h_nc_no_sc.right
+
+lemma ncw_impl_no_mr {pi : ProtocolInterface} (vr : ValidRequest) (s : State) (h_vr_in_pi : vr ∈ pi.val) (h_s_in_pi : pi.HasState s)
+(h_vr_is_ncw : vr.val = RelWrite ∨ vr.val = NonCoherentWeakWrite) (h_s_mr : s = MR) : ¬ pi.HasState s := by
+  /- Use PI and h_vr_is_ncw to constrain which VRs are in PI.
+  No VR by the constraints of PI produce state MR. -/
+  unfold ProtocolInterface.HasState
+  subst h_s_mr
+  simp
+
+  /- Show no request in pi produces MR state. -/
+  intro req hreq_valid hreq_in_pi
+  match hreq : req with
+    /- Main case: Coherent Read isn't allowed -/
+  | ⟨.r, true, .SC⟩ =>
+    cases h_vr_is_ncw
+    . case inl h_vr_relw =>
+      have h_vr_noncoherent : vr.NonCoherent := by
+        unfold NonCoherentWeakWrite at h_vr_relw
+        unfold ValidRequest.NonCoherent
+        unfold Request.nonCoherent
+        simp[h_vr_relw]
+      have h_no_sc_write_read := pi.prop.nc_no_sc h_vr_in_pi h_vr_noncoherent
+      have h_no_sc_read := h_no_sc_write_read.right
+      unfold SCRead at h_no_sc_read
+      contradiction
+    . case inr h_vr_ncww =>
+      have h_vr_noncoherent : vr.NonCoherent := by
+        unfold NonCoherentWeakWrite at h_vr_ncww
+        unfold ValidRequest.NonCoherent
+        unfold Request.nonCoherent
+        simp[h_vr_ncww]
+      have h_no_sc_write_read := pi.prop.nc_no_sc h_vr_in_pi h_vr_noncoherent
+      have h_no_sc_read := h_no_sc_write_read.right
+      unfold SCRead at h_no_sc_read
+      contradiction
+    -- absurd h_no_scread_in_pi (by simp [hreq_in_pi]) -- Odd, using absurd leaves this case with a red underline..?
+    /- Cases where Request does not map to MR state. -/
+  | ⟨.w, false, .Rel⟩ =>
+    unfold ValidRequest.toState
+    unfold Request.toState
+    simp
+  | ⟨.w, true, .Rel⟩ =>
+    unfold ValidRequest.toState
+    unfold Request.toState
+    unfold ReadWrite.toPerms
+    unfold ReadWrite.toRWPerms
+    simp
+  | ⟨.w, true, .SC⟩ =>
+    /- Also can't have SC Write `req` with with Release Write `vr`, but this is easier. -/
+    unfold ValidRequest.toState
+    unfold Request.toState
+    unfold ReadWrite.toPerms
+    unfold ReadWrite.toRWPerms
+    simp
+  | ⟨.w, true, .Weak⟩ =>
+    unfold ValidRequest.toState
+    unfold Request.toState
+    unfold ReadWrite.toPerms
+    unfold ReadWrite.toRWPerms
+    simp
+  | ⟨.w, false, .Weak⟩ =>
+    unfold ValidRequest.toState
+    unfold Request.toState
+    unfold ReadWrite.toPerms
+    unfold ReadWrite.toRWPerms
+    simp
+  | ⟨.r, false, .Acq⟩ =>
+    unfold ValidRequest.toState
+    unfold Request.toState
+    unfold ReadWrite.toPerms
+    unfold ReadWrite.toRWPerms
+    simp
+  | ⟨.r, false, .Weak⟩ =>
+    unfold ValidRequest.toState
+    unfold Request.toState
+    unfold ReadWrite.toPerms
+    unfold ReadWrite.toRWPerms
+    simp
+    /- Cases of Disallowed Requests below. -/
+  | ⟨.r, false, .SC⟩ =>
+    subst hreq
+    have hreq_no_noncoherent := hreq_valid.non_coherent
+    simp[Request] at hreq_no_noncoherent
+    /-
+    unfold Request.NoSCNonCoherent at hreq_no_noncoherent
+    unfold Request.SCNonCoherent at hreq_no_noncoherent
+    simp at hreq_no_noncoherent
+    -/
+  | ⟨.r, true, .Weak⟩ =>
+    subst hreq
+    have hreq_no_cwr := hreq_valid.no_cwr
+    simp[Request] at hreq_no_cwr
+  | ⟨.w, false, .SC⟩ =>
+    subst hreq
+    have hreq_no_noncoherent := hreq_valid.non_coherent
+    simp[Request] at hreq_no_noncoherent
+  | ⟨.r, true, .Acq⟩ =>
+    subst hreq
+    have hreq_no_cacq := hreq_valid.no_cacq
+    simp[Request] at hreq_no_cacq
+  | ⟨.w, false, .Acq⟩ =>
+    subst hreq
+    have hreq_no_wacq := hreq_valid.no_write_acq
+    simp[Request] at hreq_no_wacq
+  | ⟨.r, false, .Rel⟩ =>
+    subst hreq
+    have hreq_no_rrel := hreq_valid.no_read_rel
+    simp[Request] at hreq_no_rrel
+
+lemma pi_ncw_on_mr_contradiction {pi : ProtocolInterface} (vr : ValidRequest) (s : State) (h_vr_in_pi : vr ∈ pi.val) (h_s_in_pi : pi.HasState s)
+(h_vr_is_ncw : vr.val = RelWrite /-∨ vr.val = NonCoherentWeakWrite ;; for now, consider just one at a time-/) (h_s_mr : s = MR) : False := by
+
+  sorry
+
+/-- What is the state a request leaves a cache entry in.  -/
+def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (s : State) /- (h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s) -/ : Option State :=
 -- | s =>
   match h : vr.val with
   | ⟨_, true, _⟩ | ⟨.r, false, .Weak⟩ =>
-    if some s ≤ vr.val.MRS then s
-    else vr.val.MRS -- Must be a way to state this does not produce an Option Type?
+    if s ≤ vr.MRS then s
+    else vr.MRS -- Must be a way to state this does not produce an Option Type?
   | ⟨.w, false, .Weak⟩ | ⟨.w, false, .Rel⟩ =>
     match hs : s with
     | ⟨some .wr, true⟩ => s
@@ -176,8 +313,8 @@ def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (
 def ValidRequest.DowngradeState (vr : ValidRequest) : State → Option State
 | s => match vr.val.coherent with
   | true =>
-    if s ≤ vr.val.MRS then I
-    else vr.val.MRS
+    if s ≤ vr.MRS then I
+    else vr.MRS
   | false =>
     if vr.val = NonCoherentWeakRead then
       if s = Vc then I
