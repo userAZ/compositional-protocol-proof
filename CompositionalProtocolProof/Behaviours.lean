@@ -5,8 +5,8 @@ import Canonical
 
 structure Behaviour where
   es : Set Event
-  finite : Finite es
   -- es : Finset Event
+  finite : Finite es
 
 instance : Membership Event Behaviour := ⟨fun b e => e ∈ b.es⟩
 
@@ -56,9 +56,9 @@ structure Event.AtEntryOrdered where
   dir_ordered : ∀ (e₁ e₂ : DirectoryEvent), DirectoryEvent.AreOrdered e₁ e₂
   cache_ordered : ∀ (e₁ e₂ : CacheEvent), ∀ (b : Behaviour), CacheEvent.BottomAreOrdered e₁ e₂ b
 
-lemma Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction {es_pred₁ es_pred₂ es_succ : Event} {b : Behaviour}
-(he₁_b : b.IsImmediateBottomPred es_pred₁ es_succ) (he₂_b : b.IsImmediateBottomPred es_pred₂ es_succ)
-(hes₁_ordered_es₂ : es_pred₁.Ordered es_pred₂)
+lemma Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction {e_pred₁ e_pred₂ e_succ : Event} {b : Behaviour}
+(he₁_b : b.IsImmediateBottomPred e_pred₁ e_succ) (he₂_b : b.IsImmediateBottomPred e_pred₂ e_succ)
+(hes₁_ordered_es₂ : e_pred₁.Ordered e_pred₂)
 : False := by
   /- Show contradiction from ce₁ and ce₂ ordered -/
   cases hes₁_ordered_es₂
@@ -103,16 +103,16 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction {es_pred₁ es
       unfold Event.Predecessor at e₁_o_e_succ
       exact e₁_o_e_succ
 
-lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : Event)
-  (es_pred₁ es_pred₂ : Event) (haddress_ordered : Event.AtEntryOrdered)
-  (he₁_b : b.IsImmediateBottomPred es_pred₁ es_succ) (he₂_b : b.IsImmediateBottomPred es_pred₂ es_succ) :
-  es_pred₁ = es_pred₂ := by
+lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (e_succ : Event)
+  (e_pred₁ e_pred₂ : Event) (haddress_ordered : Event.AtEntryOrdered)
+  (he₁_b : b.IsImmediateBottomPred e_pred₁ e_succ) (he₂_b : b.IsImmediateBottomPred e_pred₂ e_succ) :
+  e_pred₁ = e_pred₂ := by
     -- this is the "multiple" case in Lemma 1.
     /- By Ordered Cache Events and Ordered Directory Events,
     if e_pred₁ and e_pred₂ are different events, then they are ordered, and contradict he₁_b or he₂_b's NoIntermediatePredecessor.
     By contradiction, e_pred₁ and e_pred₂ are the same event. -/
     by_contra h_e_pred_diff
-    match h_pred₁ : es_pred₁, h_pred₂ : es_pred₂ with
+    match h_pred₁ : e_pred₁, h_pred₂ : e_pred₂ with
     | .directoryEvent de₁, .directoryEvent de₂ => -- Use dir_ordered to show de₁ and de₂ are ordered → Contradiction.
       have de₁_de₂_ordered_prop := haddress_ordered.dir_ordered de₁ de₂
       apply Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction he₁_b he₂_b de₁_de₂_ordered_prop.ordered
@@ -130,7 +130,7 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : E
       simp at h_e_succ_is_dir h_e_succ_is_cache
       unfold CacheEvent.SameCache at h_e_succ_is_cache
 
-      match hsucc : es_succ with
+      match hsucc : e_succ with
       | .directoryEvent de_succ => simp at h_e_succ_is_cache
       | .cacheEvent ce_succ => simp at h_e_succ_is_dir
     | .cacheEvent ce, .directoryEvent de =>
@@ -142,7 +142,7 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : E
       simp at h_e_succ_is_dir h_e_succ_is_cache
       unfold CacheEvent.SameCache at h_e_succ_is_cache
 
-      match hsucc : es_succ with
+      match hsucc : e_succ with
       | .directoryEvent de_succ => simp at h_e_succ_is_cache
       | .cacheEvent ce_succ => simp at h_e_succ_is_dir
 
@@ -166,9 +166,9 @@ lemma Set.nonempty_unique_is_singleton {α} (s : Set α) (h_nonempty : Nonempty 
 /-- Lemma 1 from the Doc.
 The set of Immediate Bottom Predecessors is Empty or Unique. (without the φ on the predecessor yet.)
 -/
-lemma Behaviour.immediate_bottom_predecessor_empty_or_unique (b : Behaviour) (es_succ : Event)
+lemma Behaviour.immediate_bottom_predecessor_empty_or_unique (b : Behaviour) (e_succ : Event)
   (haddress_ordered : Event.AtEntryOrdered) :
-  let imm_bottom_preds := b.ImmBottomPredecessors es_succ; imm_bottom_preds = ∅ ∨ imm_bottom_preds.IsSingleton := by
+  let imm_bottom_preds := b.ImmBottomPredecessors e_succ; imm_bottom_preds = ∅ ∨ imm_bottom_preds.IsSingleton := by
   intro imm_bottom_preds
   by_cases (imm_bottom_preds = ∅)
   · case pos h_empty => exact Or.inl h_empty
@@ -176,7 +176,7 @@ lemma Behaviour.immediate_bottom_predecessor_empty_or_unique (b : Behaviour) (es
     have h_nonempty' := Set.nonempty_iff_ne_empty'.mpr h_nonempty
     have h_unique : ∀ (e₁ e₂ : Event), e₁ ∈ imm_bottom_preds → e₂ ∈ imm_bottom_preds → e₁ = e₂ := by
       intro e₁ e₂ he₁ he₂
-      apply Behaviour.immediate_bottom_predecessor_unique b es_succ e₁ e₂
+      apply Behaviour.immediate_bottom_predecessor_unique b e_succ e₁ e₂
       exact haddress_ordered
       exact And.right he₁
       exact And.right he₂
@@ -196,25 +196,25 @@ def Behaviour.ImmediateBottomPredSatisfyingProp : Behaviour → Event → Event 
 def Behaviour.ImmBottomPredecessorsSatisfyingP : Behaviour → Event → (Event → Prop) → Set Event
 | b, e_succ, p => {e_pred ∈ b.es | b.ImmediateBottomPredSatisfyingProp e_pred e_succ p}
 
-lemma Behaviour.immediate_bottom_predecessor_satisfying_p_unique (b : Behaviour) (es_succ : Event)
-  (es_pred₁ es_pred₂ : Event) (p : Event → Prop) (haddress_ordered : Event.AtEntryOrdered)
-  (he₁_b : b.IsImmediateBottomPredSatisfyingProp es_pred₁ es_succ p) (he₂_b : b.IsImmediateBottomPredSatisfyingProp es_pred₂ es_succ p) :
-  es_pred₁ = es_pred₂ := by
-    have he₁_b' : b.IsImmediateBottomPred es_pred₁ es_succ := by
+lemma Behaviour.immediate_bottom_predecessor_satisfying_p_unique (b : Behaviour) (e_succ : Event)
+  (e_pred₁ e_pred₂ : Event) (p : Event → Prop) (haddress_ordered : Event.AtEntryOrdered)
+  (he₁_b : b.IsImmediateBottomPredSatisfyingProp e_pred₁ e_succ p) (he₂_b : b.IsImmediateBottomPredSatisfyingProp e_pred₂ e_succ p) :
+  e_pred₁ = e_pred₂ := by
+    have he₁_b' : b.IsImmediateBottomPred e_pred₁ e_succ := by
       constructor
       exact he₁_b.isImmBottomPred.isImmPred
       exact he₁_b.isImmBottomPred.isBottom
-    have he₂_b' : b.IsImmediateBottomPred es_pred₂ es_succ := by
+    have he₂_b' : b.IsImmediateBottomPred e_pred₂ e_succ := by
       constructor
       exact he₂_b.isImmBottomPred.isImmPred
       exact he₂_b.isImmBottomPred.isBottom
 
-    apply Behaviour.immediate_bottom_predecessor_unique b es_succ es_pred₁ es_pred₂ haddress_ordered he₁_b' he₂_b'
+    apply Behaviour.immediate_bottom_predecessor_unique b e_succ e_pred₁ e_pred₂ haddress_ordered he₁_b' he₂_b'
 
 /-- Lemma 1, with a Prop `p` on predecessors. -/
-lemma Behaviour.immediate_bottom_predecessor_satisfying_p_empty_or_unique (b : Behaviour) (es_succ : Event) (p : Event → Prop)
+lemma Behaviour.immediate_bottom_predecessor_satisfying_p_empty_or_unique (b : Behaviour) (e_succ : Event) (p : Event → Prop)
   (haddress_ordered : Event.AtEntryOrdered) :
-  let imm_bottom_preds := b.ImmBottomPredecessorsSatisfyingP es_succ p; imm_bottom_preds = ∅ ∨ imm_bottom_preds.IsSingleton := by
+  let imm_bottom_preds := b.ImmBottomPredecessorsSatisfyingP e_succ p; imm_bottom_preds = ∅ ∨ imm_bottom_preds.IsSingleton := by
   intro imm_bottom_preds
   -- unfold ImmBottomPredecessors at imm_bottom_preds
   by_cases (imm_bottom_preds = ∅)
@@ -223,7 +223,7 @@ lemma Behaviour.immediate_bottom_predecessor_satisfying_p_empty_or_unique (b : B
     have h_nonempty' := Set.nonempty_iff_ne_empty'.mpr h_nonempty
     have h_unique : ∀ (e₁ e₂ : Event), e₁ ∈ imm_bottom_preds → e₂ ∈ imm_bottom_preds → e₁ = e₂ := by
       intro e₁ e₂ he₁ he₂
-      apply Behaviour.immediate_bottom_predecessor_satisfying_p_unique b es_succ e₁ e₂ p
+      apply Behaviour.immediate_bottom_predecessor_satisfying_p_unique b e_succ e₁ e₂ p
       exact haddress_ordered
       exact And.right he₁
       exact And.right he₂
@@ -249,9 +249,9 @@ def Behaviour.ImmediateBottomSuccessor : Behaviour → Event → Event → Prop
 def Behaviour.ImmBottomSuccessors : Behaviour → Event → Set Event
 | b, e_pred => {e_succ ∈ b.es | b.ImmediateBottomSuccessor e_pred e_succ}
 
-lemma Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction {es_pred es_succ₁ es_succ₂ : Event} {b : Behaviour}
-(he₁_b : b.IsImmediateBottomSucc es_pred es_succ₁) (he₂_b : b.IsImmediateBottomSucc es_pred es_succ₂)
-(hes₁_ordered_es₂ : es_succ₁.OrderedBefore es_succ₂ ∨ es_succ₂.OrderedBefore es_succ₁)
+lemma Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction {e_pred e_succ₁ e_succ₂ : Event} {b : Behaviour}
+(he₁_b : b.IsImmediateBottomSucc e_pred e_succ₁) (he₂_b : b.IsImmediateBottomSucc e_pred e_succ₂)
+(hes₁_ordered_es₂ : e_succ₁.OrderedBefore e_succ₂ ∨ e_succ₂.OrderedBefore e_succ₁)
 : False := by
   /- Show contradiction from ce₁ and ce₂ ordered -/
   cases hes₁_ordered_es₂
@@ -297,12 +297,12 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction {es_pred es_su
       unfold autoParam
       exact es₂_ordered_es₁
 
-lemma Behaviour.immediate_bottom_successor_unique (b : Behaviour) (es_pred : Event)
-  (es_succ₁ es_succ₂ : Event) (haddress_ordered : Event.AtEntryOrdered)
-  (he₁_b : b.IsImmediateBottomSucc es_pred es_succ₁) (he₂_b : b.IsImmediateBottomSucc es_pred es_succ₂) :
-  es_succ₁ = es_succ₂ := by
+lemma Behaviour.immediate_bottom_successor_unique (b : Behaviour) (e_pred : Event)
+  (e_succ₁ e_succ₂ : Event) (haddress_ordered : Event.AtEntryOrdered)
+  (he₁_b : b.IsImmediateBottomSucc e_pred e_succ₁) (he₂_b : b.IsImmediateBottomSucc e_pred e_succ₂) :
+  e_succ₁ = e_succ₂ := by
     by_contra h_e_pred_diff
-    match h_succ₁ : es_succ₁, h_succ₂ : es_succ₂ with
+    match h_succ₁ : e_succ₁, h_succ₂ : e_succ₂ with
     | .directoryEvent de₁, .directoryEvent de₂ =>
       have de₁_de₂_ordered_prop := haddress_ordered.dir_ordered de₁ de₂
       apply Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction he₁_b he₂_b de₁_de₂_ordered_prop.ordered
@@ -320,7 +320,7 @@ lemma Behaviour.immediate_bottom_successor_unique (b : Behaviour) (es_pred : Eve
       simp at h_e_succ_is_dir h_e_succ_is_cache
       unfold CacheEvent.SameCache at h_e_succ_is_cache
 
-      match hsucc : es_pred with
+      match hsucc : e_pred with
       | .directoryEvent de_succ => simp at h_e_succ_is_cache
       | .cacheEvent ce_succ => simp at h_e_succ_is_dir
     | .cacheEvent ce, .directoryEvent de =>
@@ -332,13 +332,13 @@ lemma Behaviour.immediate_bottom_successor_unique (b : Behaviour) (es_pred : Eve
       simp at h_e_succ_is_dir h_e_succ_is_cache
       unfold CacheEvent.SameCache at h_e_succ_is_cache
 
-      match hsucc : es_pred with
+      match hsucc : e_pred with
       | .directoryEvent de_succ => simp at h_e_succ_is_cache
       | .cacheEvent ce_succ => simp at h_e_succ_is_dir
 
-lemma Behaviour.immediate_bottom_successor_empty_or_unique (b : Behaviour) (es_pred : Event)
+lemma Behaviour.immediate_bottom_successor_empty_or_unique (b : Behaviour) (e_pred : Event)
   (haddress_ordered : Event.AtEntryOrdered) :
-  let imm_bottom_succs := b.ImmBottomSuccessors es_pred; imm_bottom_succs = ∅ ∨ imm_bottom_succs.IsSingleton := by
+  let imm_bottom_succs := b.ImmBottomSuccessors e_pred; imm_bottom_succs = ∅ ∨ imm_bottom_succs.IsSingleton := by
   intro imm_bottom_succs
   by_cases (imm_bottom_succs = ∅)
   · case pos h_empty => exact Or.inl h_empty
@@ -346,7 +346,7 @@ lemma Behaviour.immediate_bottom_successor_empty_or_unique (b : Behaviour) (es_p
     have h_nonempty' := Set.nonempty_iff_ne_empty'.mpr h_nonempty
     have h_unique : ∀ (e₁ e₂ : Event), e₁ ∈ imm_bottom_succs → e₂ ∈ imm_bottom_succs → e₁ = e₂ := by
       intro e₁ e₂ he₁ he₂
-      apply Behaviour.immediate_bottom_successor_unique b es_pred e₁ e₂
+      apply Behaviour.immediate_bottom_successor_unique b e_pred e₁ e₂
       exact haddress_ordered
       exact And.right he₁
       exact And.right he₂
@@ -364,25 +364,25 @@ def Behaviour.ImmediateBottomSuccSatisfyingProp : Behaviour → Event → Event 
 def Behaviour.ImmBottomSuccessorsSatisfyingP : Behaviour → Event → (Event → Prop) → Set Event
 | b, e_pred, p => {e_succ ∈ b.es | b.ImmediateBottomSuccSatisfyingProp e_pred e_succ p}
 
-lemma Behaviour.immediate_bottom_successor_satisfying_p_unique (b : Behaviour) (es_pred : Event)
-  (es_succ₁ es_succ₂ : Event) (p : Event → Prop) (haddress_ordered : Event.AtEntryOrdered)
-  (he₁_b : b.IsImmediateBottomSuccSatisfyingProp es_pred es_succ₁ p) (he₂_b : b.IsImmediateBottomSuccSatisfyingProp es_pred es_succ₂ p) :
-  es_succ₁ = es_succ₂ := by
-    have he₁_b' : b.IsImmediateBottomSucc es_pred es_succ₁ := by
+lemma Behaviour.immediate_bottom_successor_satisfying_p_unique (b : Behaviour) (e_pred : Event)
+  (e_succ₁ e_succ₂ : Event) (p : Event → Prop) (haddress_ordered : Event.AtEntryOrdered)
+  (he₁_b : b.IsImmediateBottomSuccSatisfyingProp e_pred e_succ₁ p) (he₂_b : b.IsImmediateBottomSuccSatisfyingProp e_pred e_succ₂ p) :
+  e_succ₁ = e_succ₂ := by
+    have he₁_b' : b.IsImmediateBottomSucc e_pred e_succ₁ := by
       constructor
       exact he₁_b.isImmBottomSucc.isImmSucc
       exact he₁_b.isImmBottomSucc.isBottom
-    have he₂_b' : b.IsImmediateBottomSucc es_pred es_succ₂ := by
+    have he₂_b' : b.IsImmediateBottomSucc e_pred e_succ₂ := by
       constructor
       exact he₂_b.isImmBottomSucc.isImmSucc
       exact he₂_b.isImmBottomSucc.isBottom
 
-    apply Behaviour.immediate_bottom_successor_unique b es_pred es_succ₁ es_succ₂ haddress_ordered he₁_b' he₂_b'
+    apply Behaviour.immediate_bottom_successor_unique b e_pred e_succ₁ e_succ₂ haddress_ordered he₁_b' he₂_b'
 
 /-- Lemma 2, with a Prop `p` on predecessors. -/
-lemma Behaviour.immediate_bottom_successor (b : Behaviour) (es_pred : Event) (p : Event → Prop)
+lemma Behaviour.immediate_bottom_successor (b : Behaviour) (e_pred : Event) (p : Event → Prop)
   (haddress_ordered : Event.AtEntryOrdered) :
-  let imm_bottom_succs := b.ImmBottomSuccessorsSatisfyingP es_pred p; imm_bottom_succs = ∅ ∨ imm_bottom_succs.IsSingleton := by
+  let imm_bottom_succs := b.ImmBottomSuccessorsSatisfyingP e_pred p; imm_bottom_succs = ∅ ∨ imm_bottom_succs.IsSingleton := by
   intro imm_bottom_succs
   by_cases (imm_bottom_succs = ∅)
   · case pos h_empty => exact Or.inl h_empty
@@ -390,7 +390,7 @@ lemma Behaviour.immediate_bottom_successor (b : Behaviour) (es_pred : Event) (p 
     have h_nonempty' := Set.nonempty_iff_ne_empty'.mpr h_nonempty
     have h_unique : ∀ (e₁ e₂ : Event), e₁ ∈ imm_bottom_succs → e₂ ∈ imm_bottom_succs → e₁ = e₂ := by
       intro e₁ e₂ he₁ he₂
-      apply Behaviour.immediate_bottom_successor_satisfying_p_unique b es_pred e₁ e₂ p
+      apply Behaviour.immediate_bottom_successor_satisfying_p_unique b e_pred e₁ e₂ p
       exact haddress_ordered
       exact And.right he₁
       exact And.right he₂
