@@ -238,15 +238,6 @@ abbrev CacheEvent.WithoutCoherentPermissions (e : CacheEvent) (s : State) : Prop
 structure CacheEvent.sameCacheEntry (e₁ e₂ : CacheEvent) : Prop where
   sameCache : e₁.cid = e₂.cid
   sameAddr : e₁.a = e₂.a
-  orderOrEncap : CacheEvent.OrderedOrEncapsulates e₁ e₂
-
-def OrderedCacheEvents' (e₁ e₂ : CacheEvent) (s₁ s₂ : State) : Prop :=
-  e₁.cid = e₂.cid → e₁.a = e₂.a →
-  if e₁.NoEncapSameAddressDowngrade s₁ ∧ e₂.NoEncapSameAddressDowngrade s₂ then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁)
-  else if e₁.WithoutCoherentPermissions s₁ ∧ e₂.External then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁ ∨ e₁.Encapsulates e₂)
-  else if e₁.External ∧ e₂.WithoutCoherentPermissions s₂ then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁ ∨ e₂.Encapsulates e₁)
-  else (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁)
--/
 
 def CoherentRead : Request := ⟨ .r, true, .SC ⟩
 def CoherentWrite : Request := ⟨ .w, true, .SC ⟩

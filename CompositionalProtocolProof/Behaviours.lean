@@ -813,6 +813,38 @@ lemma Behaviour.immediate_bottom_successor (b : Behaviour) (es_pred : EventState
       exact And.right he₂
     exact Or.inr (Set.nonempty_unique_is_singleton imm_bottom_succs h_nonempty' h_unique)
 
+/- TODO: Define encapsulate after defining event.
+structure CacheEvent.EncapAnother (e₁ e₂ : CacheEvent) : Prop where
+  sameCacheEntry : e₁.sameEntry e₂
+-/
+
+-- defs that'll be useful for defining when Cache Events encapsulate external not-bottom events
+/- Comment out OrderedCacheEvents / CacheEvent.AreOrderedOrEncap
+-- OrderedCacheEvents / CacheEvent.AreOrderedOrEncap are best defined in Behaviours.lean
+def CacheEvent.stateUpgradeMayEncapsulate (e₁ e₂ : CacheEvent) (s₁ : State) : Prop :=
+  e₁.WithoutCoherentPermissions s₁ ∧ e₂.External → (e₁.Ordered e₂ ∨ e₁.Encapsulates e₂)
+
+inductive CacheEvent.OrderedOrEncapsulates (e₁ e₂ : CacheEvent) : Prop
+| orderedOrEncapsulates (s₁ s₂ : State) : e₁.stateUpgradeMayEncapsulate e₂ s₁ ∨ e₂.stateUpgradeMayEncapsulate e₁ s₂ → CacheEvent.OrderedOrEncapsulates e₁ e₂
+| ordered : e₁.Ordered e₂ → CacheEvent.OrderedOrEncapsulates e₁ e₂
+
+/-- Axiom 2
+Events at the same address at a cache are ordered, or may encapsulate an external event to the same address.
+-/
+structure CacheEvent.AreOrderedOrEncap (e₁ e₂ : CacheEvent) (s₁ s₂ : State) : Prop where
+  sameCache : e₁.cid = e₂.cid
+  sameAddr : e₁.a = e₂.a
+  orderOrEncap : CacheEvent.OrderedOrEncapsulates e₁ e₂
+
+def OrderedCacheEvents' (e₁ e₂ : CacheEvent) (s₁ s₂ : State) : Prop :=
+  e₁.cid = e₂.cid → e₁.a = e₂.a →
+  if e₁.NoEncapSameAddressDowngrade s₁ ∧ e₂.NoEncapSameAddressDowngrade s₂ then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁)
+  else if e₁.WithoutCoherentPermissions s₁ ∧ e₂.External then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁ ∨ e₁.Encapsulates e₂)
+  else if e₁.External ∧ e₂.WithoutCoherentPermissions s₂ then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁ ∨ e₂.Encapsulates e₁)
+  else (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁)
+-/
+
+
 /- Def 2.32 Behaviour.PreviousEvent -/
 open scoped Classical in
 noncomputable def Behaviour.PreviousEvent (b : Behaviour) (e : EventState) (haddress_ordered : OrderedAddressEvents) : Option EventState :=
