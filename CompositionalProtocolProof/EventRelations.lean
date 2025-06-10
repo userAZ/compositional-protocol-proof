@@ -95,7 +95,7 @@ structure Event.OrderedBetween (e e_pred e_succ : Event) where
 
 def CacheEvent.SameRequester (e₁ e₂ : CacheEvent) : Prop := e₁.rid = e₂.rid
 def CacheEvent.SameCache (e₁ e₂ : CacheEvent) : Prop := e₁.cid = e₂.cid
-def CacheEvent.SameAddress (e₁ e₂ : CacheEvent) : Prop := e₁.a = e₂.a
+def CacheEvent.SameAddress (e₁ e₂ : CacheEvent) : Prop := e₁.addr = e₂.addr
 
 def Event.CacheRelation (e₁ e₂ : Event) : (CacheEvent → CacheEvent → Prop) → Prop
 | p => match e₁ with
@@ -119,7 +119,7 @@ def Event.SameStructureRelation (e₁ e₂ : Event) :
 
 -- abbrev CacheEvent.SameRequester (e₁ e₂ : CacheEvent) : Prop := e₁.rid = e₂.rid
 def DirectoryEvent.SameStructure (_ _ : DirectoryEvent) : Prop := true
-def DirectoryEvent.SameAddress (e₁ e₂ : DirectoryEvent) : Prop := e₁.a = e₂.a
+def DirectoryEvent.SameAddress (e₁ e₂ : DirectoryEvent) : Prop := e₁.addr = e₂.addr
 
 def Event.CacheSameRequester (e₁ e₂ : Event) : Prop := e₁.CacheRelation e₂ (·.SameRequester ·)
 def Event.SameStructure (e₁ e₂ : Event) : Prop := e₁.SameStructureRelation e₂ (·.SameCache ·) (·.SameStructure ·)
@@ -199,7 +199,7 @@ def Event.ProgramOrdered (e₁ e₂ : Event) : Prop := e₁.CacheRelation e₂ (
 Events at a Directory address are ordered.
 -/
 structure DirectoryEvent.AreOrdered (de₁ de₂ : DirectoryEvent) : Prop where
-  sameDirectoryEntry : de₁.a = de₂.a
+  sameDirectoryEntry : de₁.addr = de₂.addr
   ordered : de₁.Ordered de₂
 /-
 def Event.isDirectoryEvent : Event → Prop
@@ -216,40 +216,40 @@ def MonotonicDirectoryEventIds (de₁ de₂ : DirectoryEvent) : Prop := de₁.Or
 
 /- Lean can't synthesize decidability in OrderedCacheEvents if these aren't `abbrev`s -/
 abbrev CacheEvent.Local (e : CacheEvent) : Prop := e.cid = e.rid
-abbrev CacheEvent.NonCoherent (e : CacheEvent) : Prop := e.r.val.coherent = false
-abbrev CacheEvent.WeakConsistency (e : CacheEvent) : Prop := e.r.val.consistency = .Weak
+abbrev CacheEvent.NonCoherent (e : CacheEvent) : Prop := e.req.val.coherent = false
+abbrev CacheEvent.WeakConsistency (e : CacheEvent) : Prop := e.req.val.consistency = .Weak
 
 abbrev CacheEvent.Weak (e : CacheEvent) : Prop := e.Local ∧ e.NonCoherent ∧ e.WeakConsistency
 
-abbrev CacheEvent.RequestHasPermissions (e : CacheEvent) (s : State) : Prop := e.r.MRS ≤ s
-abbrev CacheEvent.Coherent (e : CacheEvent) : Prop := e.r.val.coherent = true
+abbrev CacheEvent.RequestHasPermissions (e : CacheEvent) (s : State) : Prop := e.req.MRS ≤ s
+abbrev CacheEvent.Coherent (e : CacheEvent) : Prop := e.req.val.coherent = true
 
 abbrev CacheEvent.WithCoherentPermissions (e : CacheEvent) (s : State) : Prop := e.Local ∧ e.Coherent ∧ e.RequestHasPermissions s
 
-abbrev CacheEvent.Downgrade (e : CacheEvent) : Prop := e.d = true
+abbrev CacheEvent.Downgrade (e : CacheEvent) : Prop := e.down = true
 abbrev CacheEvent.NoEncapSameAddressDowngrade (e : CacheEvent) (s : State) : Prop := e.Weak ∨ e.WithCoherentPermissions s ∨ e.Downgrade
 
 abbrev CacheEvent.Grant (e : CacheEvent) : Prop := e.deid? ≠ none
 abbrev CacheEvent.External (e : CacheEvent) : Prop := ¬e.Local ∨ e.Grant
-abbrev CacheEvent.NoRequestPermissions (e : CacheEvent) (s : State) : Prop := s < e.r.MRS ∧ s ≠ I
+abbrev CacheEvent.NoRequestPermissions (e : CacheEvent) (s : State) : Prop := s < e.req.MRS ∧ s ≠ I
 
 abbrev CacheEvent.WithoutCoherentPermissions (e : CacheEvent) (s : State) : Prop := e.Local ∧ e.Coherent ∧ e.NoRequestPermissions s
 
 structure CacheEvent.sameCacheEntry (e₁ e₂ : CacheEvent) : Prop where
   sameCache : e₁.cid = e₂.cid
-  sameAddr : e₁.a = e₂.a
+  sameAddr : e₁.addr = e₂.addr
 
 def CoherentRead : Request := ⟨ .r, true, .SC ⟩
 def CoherentWrite : Request := ⟨ .w, true, .SC ⟩
 
 def CacheEvent.SucceedingState (e : CacheEvent) (s : State) : State :=
-  match e.d with
-  | false => e.r.RequestState s
-  | true => e.r.DowngradeState s
+  match e.down with
+  | false => e.req.RequestState s
+  | true => e.req.DowngradeState s
 
 def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent → DirectoryState → DirectoryState
-| de, ds => match de.d with
-  | false => match de.r.val with
+| de, ds => match de.down with
+  | false => match de.req.val with
     | ⟨.w, true, _⟩ => -- Coherent-Write
       DirectoryState.SW ⟨SW, by simp⟩ de.eReq.rid
     | ⟨.r, true, _⟩ => -- Coherent-Read
@@ -262,7 +262,7 @@ def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent 
       | .Vd vd => DirectoryState.Vd vd
       -- MR forbidden
       | _ => DirectoryState.Vc ⟨Vc, by simp⟩
-  | true => match de.r.val with
+  | true => match de.req.val with
     | ⟨.w, true, _⟩ => -- Coherent-Write Downgrade
       match ds with
       | .SW _ owner => -- Determined by the Protocol
