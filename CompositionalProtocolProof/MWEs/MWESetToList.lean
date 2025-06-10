@@ -38,14 +38,17 @@ def Nat.irrelevantRelation (n₁ n₂ : Nat) : Nat := n₁/n₂ + n₂/n₁
 /- How do I show lean this terminates? -/
 noncomputable def SetNat.predPred (sn : SetNat) (n : Nat) (hsn_sub : SetNat.predSubSingleton) : Option Nat :=
   let pred? := sn.pred n hsn_sub
-  match pred? with
+  match h : pred? with
   | .none => none
   | .some n_pred =>
+    have n_pred_of_n : n_pred < n := by
+      simp_all [SetNat.pred]
+      sorry
     let pred_pred? := sn.predPred n_pred hsn_sub
     match pred_pred? with
     | .none => n_pred
     | .some n_pred_pred => n_pred.irrelevantRelation n_pred_pred
-termination_by sizeOf (sn.predecessors n)
+-- termination_by sizeOf (sn.predecessors n)
 
 /- Is it easier to convert SetNat to a list where each element is ordered by SetNat.pred?
 Is there a way to convert a Set to a List given an ordering `Prop` such as Nat.predecessor or something like SetNat.immediatePredecessors? -/
