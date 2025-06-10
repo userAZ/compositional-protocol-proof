@@ -5,9 +5,9 @@ def Event.Encapsulates (e₁ e₂ : Event) : Prop := e₁.oStart < e₂.oStart �
 def CacheEvent.Encapsulates (e₁ e₂ : CacheEvent) : Prop := e₁.oStart < e₂.oStart ∧ e₂.oEnd < e₁.oEnd
 def DirectoryEvent.Encapsulates (e₁ e₂ : DirectoryEvent) : Prop := e₁.oStart < e₂.oStart ∧ e₂.oEnd < e₁.oEnd
 
-def Event.Ordered (e₁ e₂ : Event) : Prop := e₁.oEnd < e₂.oStart
-def CacheEvent.Ordered (e₁ e₂ : CacheEvent) : Prop := e₁.oEnd < e₂.oStart
-def DirectoryEvent.Ordered (e₁ e₂ : DirectoryEvent) : Prop := e₁.oEnd < e₂.oStart
+def Event.OrderedBefore (e₁ e₂ : Event) : Prop := e₁.oEnd < e₂.oStart
+def CacheEvent.OrderedBefore (e₁ e₂ : CacheEvent) : Prop := e₁.oEnd < e₂.oStart
+def DirectoryEvent.OrderedBefore (e₁ e₂ : DirectoryEvent) : Prop := e₁.oEnd < e₂.oStart
 
 def Event.fromDirectoryEvent (de : DirectoryEvent) (e : Event) : Prop :=
   match e with
@@ -15,8 +15,8 @@ def Event.fromDirectoryEvent (de : DirectoryEvent) (e : Event) : Prop :=
   | .cacheEvent _ => false
 
 lemma DirectoryEvent.ordered_events {de₁ de₂ : DirectoryEvent} {e₁ e₂ : Event}
-  (he₁_is_de₁ : e₁.fromDirectoryEvent de₁) (he₂_is_de₂ : e₂.fromDirectoryEvent de₂) : de₁.Ordered de₂ → e₁.Ordered e₂ := by
-  unfold DirectoryEvent.Ordered; unfold Event.Ordered
+  (he₁_is_de₁ : e₁.fromDirectoryEvent de₁) (he₂_is_de₂ : e₂.fromDirectoryEvent de₂) : de₁.OrderedBefore de₂ → e₁.OrderedBefore e₂ := by
+  unfold DirectoryEvent.OrderedBefore; unfold Event.OrderedBefore
   -- unfold DirectoryEvent.oEnd; unfold DirectoryEvent.oStart
   unfold Event.oEnd; unfold Event.oStart
   match he₁ : e₁, he₂ : e₂ with
@@ -30,7 +30,7 @@ lemma DirectoryEvent.ordered_events {de₁ de₂ : DirectoryEvent} {e₁ e₂ : 
   | .cacheEvent _, .cacheEvent _ => contradiction
 
 def Event.Predecessor : Event → Event → Prop
-| e_pred, e_succ => e_pred.Ordered e_succ
+| e_pred, e_succ => e_pred.OrderedBefore e_succ
 
 def Event.Successor : Event → Event → Prop
 | e_pred, e_succ => e_pred.Predecessor e_succ
@@ -38,15 +38,15 @@ def Event.Successor : Event → Event → Prop
 instance Event.Encapsulates.instDecidableEncap (e₁ e₂ : Event) : Decidable (e₁.Encapsulates e₂) :=
   inferInstanceAs (Decidable (e₁.oStart < e₂.oStart ∧ e₂.oEnd < e₁.oEnd))
 
-instance Event.Ordered.instLT : LT Event := {lt := Event.Ordered}
+instance Event.OrderedBefore.instLT : LT Event := {lt := Event.OrderedBefore}
 
-instance Event.Ordered.instDecidableLT (e₁ e₂ : Event) : Decidable (e₁ < e₂) :=
+instance Event.OrderedBefore.instDecidableLT (e₁ e₂ : Event) : Decidable (e₁ < e₂) :=
   inferInstanceAs (Decidable (e₁.oEnd < e₂.oStart))
 
 lemma Event.ordered_trans {e₁ e₂ e₃ : Event} : e₁ < e₂ → e₂ < e₃ → e₁ < e₃ := by
-  unfold LT.lt; unfold Ordered.instLT
+  unfold LT.lt; unfold OrderedBefore.instLT
   simp
-  unfold Event.Ordered;
+  unfold Event.OrderedBefore;
   intro he₁_lt_e₂ he₂_lt_e₃
   have he₂_well_formed := e₂.oWellFormed
   calc
@@ -54,28 +54,28 @@ lemma Event.ordered_trans {e₁ e₂ e₃ : Event} : e₁ < e₂ → e₂ < e₃
     _ < e₂.oEnd := he₂_well_formed
     _ < e₃.oStart := he₂_lt_e₃
 
-instance Event.instTransOrderOrder : Trans Event.Ordered Event.Ordered Event.Ordered := {trans := Event.ordered_trans}
+instance Event.instTransOrderOrder : Trans Event.OrderedBefore Event.OrderedBefore Event.OrderedBefore := {trans := Event.ordered_trans}
 
 lemma Event.order_encap_trans {e₁ e₂ e₃ : Event} : e₁ < e₂ → e₂.Encapsulates e₃ → e₁ < e₃ := by
-  unfold LT.lt; unfold Ordered.instLT
+  unfold LT.lt; unfold OrderedBefore.instLT
   simp
-  unfold Event.Ordered;
+  unfold Event.OrderedBefore;
   unfold Encapsulates
   intro he₁_lt_e₂ he₂_encap_e₃
   calc
     e₁.oEnd < e₂.oStart := he₁_lt_e₂
     _ < e₃.oStart := he₂_encap_e₃.left
 
-instance Event.instTransOrderEncap : Trans Event.Ordered Event.Encapsulates Event.Ordered := {trans := Event.order_encap_trans}
+instance Event.instTransOrderEncap : Trans Event.OrderedBefore Event.Encapsulates Event.OrderedBefore := {trans := Event.order_encap_trans}
 
 abbrev Event.EncapsulatedBy (e₁ e₂ : Event) : Prop := e₂.Encapsulates e₁
 
 lemma Event.encap_by_order_trans {e₁ e₂ e₃ : Event} : e₁.EncapsulatedBy e₂ → e₂ < e₃ → e₁ < e₃ := by
-  unfold LT.lt; unfold Ordered.instLT
+  unfold LT.lt; unfold OrderedBefore.instLT
   simp
   -- unfold BottomEncapsulates;
   unfold EncapsulatedBy; unfold Encapsulates
-  unfold Ordered
+  unfold OrderedBefore
   simp
   intro he₂_lt_e₁_start he₂_lt_e₁_end he₂_lt_e₃
   calc
@@ -83,11 +83,11 @@ lemma Event.encap_by_order_trans {e₁ e₂ e₃ : Event} : e₁.EncapsulatedBy 
     _ < e₃.oStart := he₂_lt_e₃
 
 /- The shape of Trans's definition doesn't match to Event.encap_order_trans. Need to massage def. -/
-instance Event.instTransEncapByOrder : Trans Event.EncapsulatedBy Event.Ordered Event.Ordered := {trans := Event.encap_by_order_trans}
+instance Event.instTransEncapByOrder : Trans Event.EncapsulatedBy Event.OrderedBefore Event.OrderedBefore := {trans := Event.encap_by_order_trans}
 
 structure Event.OrderedBetween (e e_pred e_succ : Event) where
-  pred : e_pred.Ordered e := by simp
-  succ : e.Ordered e_succ := by simp
+  pred : e_pred.OrderedBefore e := by simp
+  succ : e.OrderedBefore e_succ := by simp
 
 def CacheEvent.SameRequester (e₁ e₂ : CacheEvent) : Prop := e₁.rid = e₂.rid
 def CacheEvent.SameCache (e₁ e₂ : CacheEvent) : Prop := e₁.cid = e₂.cid
@@ -186,7 +186,7 @@ lemma Event.same_structure_reflexive' {e₁ e₂ e₃ : Event} : e₁.SameStruct
   | .cacheEvent ce, .directoryEvent de₂, .directoryEvent de₃ => contradiction
 
 structure CacheEvent.ProgramOrdered (e₁ e₂ : CacheEvent) where
-  ordered : e₁.Ordered e₂ := by simp
+  ordered : e₁.OrderedBefore e₂ := by simp
   same_requester : e₁.SameRequester e₂ := by simp
 
 def Event.ProgramOrdered (e₁ e₂ : Event) : Prop := e₁.CacheRelation e₂ (·.ProgramOrdered ·)
@@ -194,19 +194,19 @@ def Event.ProgramOrdered (e₁ e₂ : Event) : Prop := e₁.CacheRelation e₂ (
 /-- Axiom 1
 Events at a Directory address are ordered.
 -/
-def OrderedDirectoryEvents (de₁ de₂ : DirectoryEvent) : Prop := de₁.a = de₂.a → de₁.Ordered de₂ ∨ de₂.Ordered de₁
+def OrderedDirectoryEvents (de₁ de₂ : DirectoryEvent) : Prop := de₁.a = de₂.a → de₁.OrderedBefore de₂ ∨ de₂.OrderedBefore de₁
 /-
 def Event.isDirectoryEvent : Event → Prop
 | .directoryEvent _ => true
 | .cacheEvent _ => false
 def OrderedDirectoryEvents' (e₁ e₂ : Event) : Prop :=
-  e₁.isDirectoryEvent → e₂.isDirectoryEvent → e₁.SameAddress e₂ → e₁.Ordered e₂ ∨ e₂.Ordered e₁
+  e₁.isDirectoryEvent → e₂.isDirectoryEvent → e₁.SameAddress e₂ → e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁
 -/
 
 /-- Definition 2.18. Directory Event ID.
 Ordered Directory Events.
 -/
-def MonotonicDirectoryEventIds (de₁ de₂ : DirectoryEvent) : Prop := de₁.Ordered de₂ → (de₁.deid + 1) = de₂.deid
+def MonotonicDirectoryEventIds (de₁ de₂ : DirectoryEvent) : Prop := de₁.OrderedBefore de₂ → (de₁.deid + 1) = de₂.deid
 
 /- Lean can't synthesize decidability in OrderedCacheEvents if these aren't `abbrev`s -/
 abbrev CacheEvent.Local (e : CacheEvent) : Prop := e.cid = e.rid
@@ -234,10 +234,10 @@ Events at the same address at a cache are ordered, or may encapsulate an externa
 -/
 def OrderedCacheEvents (e₁ e₂ : CacheEvent) (s₁ s₂ : State) : Prop :=
   e₁.cid = e₂.cid → e₁.a = e₂.a →
-  if e₁.NoEncapSameAddressDowngrade s₁ ∧ e₂.NoEncapSameAddressDowngrade s₂ then (e₁.Ordered e₂ ∨ e₂.Ordered e₁)
-  else if e₁.WithoutCoherentPermissions s₁ ∧ e₂.External then (e₁.Ordered e₂ ∨ e₂.Ordered e₁ ∨ e₁.Encapsulates e₂)
-  else if e₁.External ∧ e₂.WithoutCoherentPermissions s₂ then (e₁.Ordered e₂ ∨ e₂.Ordered e₁ ∨ e₂.Encapsulates e₁)
-  else (e₁.Ordered e₂ ∨ e₂.Ordered e₁)
+  if e₁.NoEncapSameAddressDowngrade s₁ ∧ e₂.NoEncapSameAddressDowngrade s₂ then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁)
+  else if e₁.WithoutCoherentPermissions s₁ ∧ e₂.External then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁ ∨ e₁.Encapsulates e₂)
+  else if e₁.External ∧ e₂.WithoutCoherentPermissions s₂ then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁ ∨ e₂.Encapsulates e₁)
+  else (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁)
 
 /- -- Lean can't synthesize decidablability in OrderedCacheEvents'?
 def Event.isCacheEvent : Event → Prop
@@ -273,10 +273,10 @@ abbrev Event.CacheWithoutCoherentPermissions (e : Event) (s : State) : Prop := e
 def OrderedCacheEvents' (e₁ e₂ : Event) (s₁ s₂ : State) : Prop :=
   e₁.isCacheEvent → e₂.isCacheEvent →
   e₁.SameStructure e₂ → e₁.SameAddress e₂ →
-  if e₁.CacheNoEncapSameAddressDowngrade s₁ ∧ e₂.CacheNoEncapSameAddressDowngrade s₂ then (e₁.Ordered e₂ ∨ e₂.Ordered e₁)
-  else if e₁.CacheWithoutCoherentPermissions s₁ ∧ e₂.CacheExternal then (e₁.Ordered e₂ ∨ e₂.Ordered e₁ ∨ e₁.Encapsulates e₂)
-  else if e₁.CacheExternal ∧ e₂.CacheWithoutCoherentPermissions s₂ then (e₁.Ordered e₂ ∨ e₂.Ordered e₁ ∨ e₂.Encapsulates e₁)
-  else (e₁.Ordered e₂ ∨ e₂.Ordered e₁)
+  if e₁.CacheNoEncapSameAddressDowngrade s₁ ∧ e₂.CacheNoEncapSameAddressDowngrade s₂ then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁)
+  else if e₁.CacheWithoutCoherentPermissions s₁ ∧ e₂.CacheExternal then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁ ∨ e₁.Encapsulates e₂)
+  else if e₁.CacheExternal ∧ e₂.CacheWithoutCoherentPermissions s₂ then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁ ∨ e₂.Encapsulates e₁)
+  else (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁)
 -/
 
 -- def CoherentRead (r : Request) : Prop := r.coherent
