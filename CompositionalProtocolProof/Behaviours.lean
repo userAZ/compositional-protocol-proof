@@ -830,14 +830,15 @@ def EventState.r : EventState → ValidRequest
 def EventState.SucceedingState : EventState → (EntryState → EntryState)
 | ⟨e, _, _⟩ => e.SucceedingState
 
-/-
 def EventState.a : EventState → Addr
 | ⟨e, _, _⟩ => e.a
+def EventState.atCid : EventState → CacheId → Prop
+| ⟨e, _, _⟩, cid => e.atCid cid
 
-def Behaviour.eventsAtCacheEntry (b : Behaviour) (es : b.es) (a : Addr) (cid : CacheId) : List b.es :=
-  let e_at_centry := {e ∈ es | e.a = a ∧ e.cid = cid}
-  sorry -- ...
--/
+def Behaviour.eventsAtCacheEntry (b : Behaviour) (a : Addr) (cid : CacheId) (haddress_ordered : OrderedAddressEvents) : List EventState :=
+  let e_at_centry := {e ∈ b.es | e.a = a ∧ e.atCid cid}
+  /- Don't know how to use e_at_centry and produce an ordered list? -/
+  sorry
 
 /- Def 2.33 Behaviour.StateBefore -/
 noncomputable def Behaviour.StateBefore (b : Behaviour) (e : EventState) (haddress_ordered : OrderedAddressEvents) (s_i : EntryState)
@@ -848,3 +849,5 @@ noncomputable def Behaviour.StateBefore (b : Behaviour) (e : EventState) (haddre
   | .some e_pred =>
     let entry_state_pred_pred := b.StateBefore e_pred haddress_ordered s_i
     e_pred.SucceedingState entry_state_pred_pred
+termination_by sizeOf (b.ImmBottomPredecessors e)
+-- decreasing_by sizeOf (b.ImmBottomPredecessors e)
