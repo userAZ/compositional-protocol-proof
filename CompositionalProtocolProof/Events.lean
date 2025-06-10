@@ -52,11 +52,11 @@ structure CacheEvent where
   oStart := o.oStart
   oEnd := o.oEnd
   oWellFormed : oStart < oEnd
-  r : ValidRequest
+  req : ValidRequest
   rid : RequesterId
   cid : CacheId
-  a : Addr
-  d : Downgrade
+  addr : Addr
+  down : Downgrade
   deid? : Option DirectoryEventId
   eid : EventId
 deriving DecidableEq
@@ -71,11 +71,11 @@ structure DirectoryEvent where
   oStart := o.oStart
   oEnd := o.oEnd
   oWellFormed : oStart < oEnd
-  r : ValidRequest
+  req : ValidRequest
   dirS : DirectoryState
   did : DirectoryId
-  a : Addr
-  d : Downgrade
+  addr : Addr
+  down : Downgrade
   eReq : CacheEvent
   deid : DirectoryEventId
 -- deriving DecidableEq
@@ -111,6 +111,16 @@ instance : TypeEvent Event where
   oStart := Event.oStart
   oEnd := Event.oEnd
   oWellFormed := Event.oWellFormed
+
+def Event.req : Event → ValidRequest
+| .cacheEvent ce => ce.req
+| .directoryEvent de => de.req
+def Event.addr : Event → Addr
+| .cacheEvent ce => ce.addr
+| .directoryEvent de => de.addr
+def Event.atCid : Event → CacheId → Prop
+| .cacheEvent ce, cid => ce.cid = cid
+| .directoryEvent _, _ => false
 
 -- def CacheEvent.requestEvent (e : CacheEvent) : Prop := e.cid = e.rid
 -- def CacheEvent.sameAddress (e : CacheEvent) : Prop := e.cid = e.rid
