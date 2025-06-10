@@ -9,6 +9,10 @@ def Event.OrderedBefore (e₁ e₂ : Event) : Prop := e₁.oEnd < e₂.oStart
 def CacheEvent.OrderedBefore (e₁ e₂ : CacheEvent) : Prop := e₁.oEnd < e₂.oStart
 def DirectoryEvent.OrderedBefore (e₁ e₂ : DirectoryEvent) : Prop := e₁.oEnd < e₂.oStart
 
+def Event.Ordered (e₁ e₂ : Event) : Prop := e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁
+def CacheEvent.Ordered (e₁ e₂ : CacheEvent) : Prop := e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁
+def DirectoryEvent.Ordered (e₁ e₂ : DirectoryEvent) : Prop := e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁
+
 def Event.fromDirectoryEvent (de : DirectoryEvent) (e : Event) : Prop :=
   match e with
   | .directoryEvent de' => de = de'
