@@ -115,6 +115,12 @@ instance : TypeEvent Event where
 def Event.r : Event → ValidRequest
 | .cacheEvent ce => ce.r
 | .directoryEvent de => de.r
+def Event.a : Event → Addr
+| .cacheEvent ce => ce.a
+| .directoryEvent de => de.a
+def Event.atCid : Event → CacheId → Prop
+| .cacheEvent ce, cid => ce.cid = cid
+| .directoryEvent _, _ => false
 
 -- def CacheEvent.requestEvent (e : CacheEvent) : Prop := e.cid = e.rid
 -- def CacheEvent.sameAddress (e : CacheEvent) : Prop := e.cid = e.rid
