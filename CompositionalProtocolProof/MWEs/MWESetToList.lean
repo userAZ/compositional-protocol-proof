@@ -42,7 +42,7 @@ noncomputable def SetNat.predPred (sn : SetNat) (n : Nat) (hsn_sub : SetNat.pred
   | .none => none
   | .some n_pred =>
     have n_pred_of_n : n_pred < n := by
-      simp_all [SetNat.pred]
+      simp_all [SetNat.pred] -- can't unfold `pred?`, that specifies `n_pred < n` in it's `predecessor` def.
       sorry
     let pred_pred? := sn.predPred n_pred hsn_sub
     match pred_pred? with
