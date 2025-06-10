@@ -11,12 +11,12 @@ structure EventState where
 structure Behaviour where
   es : Set EventState
 
-def EventState.Ordered : EventState → EventState → Prop
-| ⟨e₁, _, _⟩, ⟨e₂, _, _⟩ => e₁.Ordered e₂
+def EventState.OrderedBefore : EventState → EventState → Prop
+| ⟨e₁, _, _⟩, ⟨e₂, _, _⟩ => e₁.OrderedBefore e₂
 
 structure EventState.OrderedBetween (e e_pred e_succ : EventState) where
-  pred : e_pred.Ordered e := by simp
-  succ : e.Ordered e_succ := by simp
+  pred : e_pred.OrderedBefore e := by simp
+  succ : e.OrderedBefore e_succ := by simp
 
 def Behaviour.OrderedBetween : Behaviour → EventState → EventState → Set EventState
 | b, e_pred, e_succ => {e ∈ b.es | e.OrderedBetween e_pred e_succ}
@@ -66,7 +66,7 @@ structure OrderedAddressEvents where
 
 lemma Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction {es_pred₁ es_pred₂ es_succ : EventState} {b : Behaviour}
 (he₁_b : b.IsImmediateBottomPred es_pred₁ es_succ) (he₂_b : b.IsImmediateBottomPred es_pred₂ es_succ)
-(hes₁_ordered_es₂ : es_pred₁.Ordered es_pred₂ ∨ es_pred₂.Ordered es_pred₁)
+(hes₁_ordered_es₂ : es_pred₁.OrderedBefore es_pred₂ ∨ es_pred₂.OrderedBefore es_pred₁)
 : False := by
   /- Show contradiction from ce₁ and ce₂ ordered -/
   cases hes₁_ordered_es₂
@@ -137,11 +137,11 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : E
       rw [h_pred₁, h_pred₂] at es₁_same_addr_es₂
       have de₁_de₂_ordered := de₁_de₂_ordered_prop es₁_same_addr_es₂
 
-      have es_pred₁_ordered_es_pred₂ : es_pred₁.Ordered es_pred₂ ∨ es_pred₂.Ordered es_pred₁ := by
-        unfold EventState.Ordered; simp
+      have es_pred₁_ordered_es_pred₂ : es_pred₁.OrderedBefore es_pred₂ ∨ es_pred₂.OrderedBefore es_pred₁ := by
+        unfold EventState.OrderedBefore; simp
         simp[h_pred₁, h_pred₂]
-        simp[Event.Ordered, Event.oEnd, Event.oStart]
-        simp[DirectoryEvent.Ordered] at de₁_de₂_ordered
+        simp[Event.OrderedBefore, Event.oEnd, Event.oStart]
+        simp[DirectoryEvent.OrderedBefore] at de₁_de₂_ordered
         exact de₁_de₂_ordered
 
       apply Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction he₁_b he₂_b es_pred₁_ordered_es_pred₂
@@ -192,13 +192,13 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : E
           . case pos ce₁₂_no_encap =>
             simp [ce₁₂_no_encap] at ordered_ite
 
-            have es_pred₁_ordered_es_pred₂ : es_pred₁.Ordered es_pred₂ ∨ es_pred₂.Ordered es_pred₁ := by
-              unfold EventState.Ordered
+            have es_pred₁_ordered_es_pred₂ : es_pred₁.OrderedBefore es_pred₂ ∨ es_pred₂.OrderedBefore es_pred₁ := by
+              unfold EventState.OrderedBefore
               simp
               simp [h_pred₁, h_pred₂]
-              simp [Event.Ordered, ordered_ite]
+              simp [Event.OrderedBefore, ordered_ite]
               simp [Event.oEnd, Event.oStart]
-              simp [CacheEvent.Ordered] at ordered_ite
+              simp [CacheEvent.OrderedBefore] at ordered_ite
               exact ordered_ite
 
             apply Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction he₁_b he₂_b es_pred₁_ordered_es_pred₂
@@ -212,7 +212,7 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : E
             . case pos ce₁_encap_ext =>
               simp [ce₁_encap_ext] at ordered_ite
 
-              have h_encap_ordered : ce₁.Encapsulates ce₂ ∨ ce₁.Ordered ce₂ ∨ ce₂.Ordered ce₁ := by
+              have h_encap_ordered : ce₁.Encapsulates ce₂ ∨ ce₁.OrderedBefore ce₂ ∨ ce₂.OrderedBefore ce₁ := by
                 apply Or.rotate
                 apply Or.rotate
                 exact ordered_ite
@@ -236,12 +236,12 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : E
                 apply he₁_b.isImmPred.predInB
                 exact es₁_encap_es₂
               . case inr ce₁_ordered_ce₂ =>
-                have es₁_ordered_es₂ : es_pred₁.Ordered es_pred₂ ∨ es_pred₂.Ordered es_pred₁ := by
-                  unfold EventState.Ordered; simp
+                have es₁_ordered_es₂ : es_pred₁.OrderedBefore es_pred₂ ∨ es_pred₂.OrderedBefore es_pred₁ := by
+                  unfold EventState.OrderedBefore; simp
                   simp[h_pred₁, h_pred₂]
-                  unfold Event.Ordered
+                  unfold Event.OrderedBefore
                   simp [Event.oEnd, Event.oStart]
-                  simp [CacheEvent.Ordered, Event.oEnd, Event.oStart] at ce₁_ordered_ce₂
+                  simp [CacheEvent.OrderedBefore, Event.oEnd, Event.oStart] at ce₁_ordered_ce₂
                   exact ce₁_ordered_ce₂
 
                 apply Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction he₁_b he₂_b es₁_ordered_es₂
@@ -255,7 +255,7 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : E
               by_cases (ce₁.External ∧ ce₂.WithoutCoherentPermissions s₂) = true
               . case pos ce₂_encap_ext =>
                 simp[ce₂_encap_ext] at ordered_ite
-                have h_encap_ordered : ce₂.Encapsulates ce₁ ∨ ce₁.Ordered ce₂ ∨ ce₂.Ordered ce₁ := by
+                have h_encap_ordered : ce₂.Encapsulates ce₁ ∨ ce₁.OrderedBefore ce₂ ∨ ce₂.OrderedBefore ce₁ := by
                   apply Or.rotate
                   apply Or.rotate
                   exact ordered_ite
@@ -280,12 +280,12 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : E
                   apply he₂_b.isImmPred.predInB
                   exact es₂_encap_es₁
                 . case inr ce₁_ordered_ce₂ =>
-                  have es₁_ordered_es₂ : es_pred₁.Ordered es_pred₂ ∨ es_pred₂.Ordered es_pred₁ := by
-                    unfold EventState.Ordered; simp
+                  have es₁_ordered_es₂ : es_pred₁.OrderedBefore es_pred₂ ∨ es_pred₂.OrderedBefore es_pred₁ := by
+                    unfold EventState.OrderedBefore; simp
                     simp[h_pred₁, h_pred₂]
-                    unfold Event.Ordered
+                    unfold Event.OrderedBefore
                     simp [Event.oEnd, Event.oStart]
-                    simp [CacheEvent.Ordered, Event.oEnd, Event.oStart] at ce₁_ordered_ce₂
+                    simp [CacheEvent.OrderedBefore, Event.oEnd, Event.oStart] at ce₁_ordered_ce₂
                     exact ce₁_ordered_ce₂
 
                   apply Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction he₁_b he₂_b es₁_ordered_es₂
@@ -296,12 +296,12 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (es_succ : E
                   exact ce₂_no_encap_ext
                 simp[ce₂₁_encap_ext_false] at ordered_ite
 
-                have es₁_ordered_es₂ : es_pred₁.Ordered es_pred₂ ∨ es_pred₂.Ordered es_pred₁ := by
-                  unfold EventState.Ordered; simp
+                have es₁_ordered_es₂ : es_pred₁.OrderedBefore es_pred₂ ∨ es_pred₂.OrderedBefore es_pred₁ := by
+                  unfold EventState.OrderedBefore; simp
                   simp[h_pred₁, h_pred₂]
-                  unfold Event.Ordered
+                  unfold Event.OrderedBefore
                   simp [Event.oEnd, Event.oStart]
-                  simp [CacheEvent.Ordered, Event.oEnd, Event.oStart] at ordered_ite
+                  simp [CacheEvent.OrderedBefore, Event.oEnd, Event.oStart] at ordered_ite
                   exact ordered_ite
 
                 apply Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction he₁_b he₂_b es₁_ordered_es₂
@@ -464,7 +464,7 @@ def Behaviour.ImmBottomSuccessors : Behaviour → EventState → Set EventState
 
 lemma Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction {es_pred es_succ₁ es_succ₂ : EventState} {b : Behaviour}
 (he₁_b : b.IsImmediateBottomSucc es_pred es_succ₁) (he₂_b : b.IsImmediateBottomSucc es_pred es_succ₂)
-(hes₁_ordered_es₂ : es_succ₁.Ordered es_succ₂ ∨ es_succ₂.Ordered es_succ₁)
+(hes₁_ordered_es₂ : es_succ₁.OrderedBefore es_succ₂ ∨ es_succ₂.OrderedBefore es_succ₁)
 : False := by
   /- Show contradiction from ce₁ and ce₂ ordered -/
   cases hes₁_ordered_es₂
@@ -487,7 +487,7 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction {es_pred es_su
       unfold Event.Successor at e_pred_o_e_succ₁
       unfold Event.Predecessor at e_pred_o_e_succ₁
       simp at e_pred_o_e_succ₁
-      unfold EventState.Ordered
+      unfold EventState.OrderedBefore
       simp
       exact e_pred_o_e_succ₁
     . case a.succ =>
@@ -512,7 +512,7 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction {es_pred es_su
       unfold Event.Successor at e_pred_o_e_succ₂
       unfold Event.Predecessor at e_pred_o_e_succ₂
       simp at e_pred_o_e_succ₂
-      unfold EventState.Ordered
+      unfold EventState.OrderedBefore
       simp
       exact e_pred_o_e_succ₂
     . case a.succ =>
@@ -534,11 +534,11 @@ lemma Behaviour.immediate_bottom_successor_unique (b : Behaviour) (es_pred : Eve
       rw [h_succ₁, h_succ₂] at es₁_same_addr_es₂
       have de₁_de₂_ordered := de₁_de₂_ordered_prop es₁_same_addr_es₂
 
-      have es_succ₁_ordered_es_succ₂ : es_succ₁.Ordered es_succ₂ ∨ es_succ₂.Ordered es_succ₁ := by
-        unfold EventState.Ordered; simp
+      have es_succ₁_ordered_es_succ₂ : es_succ₁.OrderedBefore es_succ₂ ∨ es_succ₂.OrderedBefore es_succ₁ := by
+        unfold EventState.OrderedBefore; simp
         simp[h_succ₁, h_succ₂]
-        simp[Event.Ordered, Event.oEnd, Event.oStart]
-        simp[DirectoryEvent.Ordered] at de₁_de₂_ordered
+        simp[Event.OrderedBefore, Event.oEnd, Event.oStart]
+        simp[DirectoryEvent.OrderedBefore] at de₁_de₂_ordered
         exact de₁_de₂_ordered
 
       apply Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction he₁_b he₂_b es_succ₁_ordered_es_succ₂
@@ -589,13 +589,13 @@ lemma Behaviour.immediate_bottom_successor_unique (b : Behaviour) (es_pred : Eve
           . case pos ce₁₂_no_encap =>
             simp [ce₁₂_no_encap] at ordered_ite
 
-            have es_succ₁_ordered_es_succ₂ : es_succ₁.Ordered es_succ₂ ∨ es_succ₂.Ordered es_succ₁ := by
-              unfold EventState.Ordered
+            have es_succ₁_ordered_es_succ₂ : es_succ₁.OrderedBefore es_succ₂ ∨ es_succ₂.OrderedBefore es_succ₁ := by
+              unfold EventState.OrderedBefore
               simp
               simp [h_succ₁, h_succ₂]
-              simp [Event.Ordered, ordered_ite]
+              simp [Event.OrderedBefore, ordered_ite]
               simp [Event.oEnd, Event.oStart]
-              simp [CacheEvent.Ordered] at ordered_ite
+              simp [CacheEvent.OrderedBefore] at ordered_ite
               exact ordered_ite
 
             apply Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction he₁_b he₂_b es_succ₁_ordered_es_succ₂
@@ -609,7 +609,7 @@ lemma Behaviour.immediate_bottom_successor_unique (b : Behaviour) (es_pred : Eve
             . case pos ce₁_encap_ext =>
               simp [ce₁_encap_ext] at ordered_ite
 
-              have h_encap_ordered : ce₁.Encapsulates ce₂ ∨ ce₁.Ordered ce₂ ∨ ce₂.Ordered ce₁ := by
+              have h_encap_ordered : ce₁.Encapsulates ce₂ ∨ ce₁.OrderedBefore ce₂ ∨ ce₂.OrderedBefore ce₁ := by
                 apply Or.rotate
                 apply Or.rotate
                 exact ordered_ite
@@ -633,12 +633,12 @@ lemma Behaviour.immediate_bottom_successor_unique (b : Behaviour) (es_pred : Eve
                 apply he₁_b.isImmSucc.succInB
                 exact es₁_encap_es₂
               . case inr ce₁_ordered_ce₂ =>
-                have es₁_ordered_es₂ : es_succ₁.Ordered es_succ₂ ∨ es_succ₂.Ordered es_succ₁ := by
-                  unfold EventState.Ordered; simp
+                have es₁_ordered_es₂ : es_succ₁.OrderedBefore es_succ₂ ∨ es_succ₂.OrderedBefore es_succ₁ := by
+                  unfold EventState.OrderedBefore; simp
                   simp[h_succ₁, h_succ₂]
-                  unfold Event.Ordered
+                  unfold Event.OrderedBefore
                   simp [Event.oEnd, Event.oStart]
-                  simp [CacheEvent.Ordered, Event.oEnd, Event.oStart] at ce₁_ordered_ce₂
+                  simp [CacheEvent.OrderedBefore, Event.oEnd, Event.oStart] at ce₁_ordered_ce₂
                   exact ce₁_ordered_ce₂
 
                 apply Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction he₁_b he₂_b es₁_ordered_es₂
@@ -652,7 +652,7 @@ lemma Behaviour.immediate_bottom_successor_unique (b : Behaviour) (es_pred : Eve
               by_cases (ce₁.External ∧ ce₂.WithoutCoherentPermissions s₂) = true
               . case pos ce₂_encap_ext =>
                 simp[ce₂_encap_ext] at ordered_ite
-                have h_encap_ordered : ce₂.Encapsulates ce₁ ∨ ce₁.Ordered ce₂ ∨ ce₂.Ordered ce₁ := by
+                have h_encap_ordered : ce₂.Encapsulates ce₁ ∨ ce₁.OrderedBefore ce₂ ∨ ce₂.OrderedBefore ce₁ := by
                   apply Or.rotate
                   apply Or.rotate
                   exact ordered_ite
@@ -677,12 +677,12 @@ lemma Behaviour.immediate_bottom_successor_unique (b : Behaviour) (es_pred : Eve
                   apply he₂_b.isImmSucc.succInB
                   exact es₂_encap_es₁
                 . case inr ce₁_ordered_ce₂ =>
-                  have es₁_ordered_es₂ : es_succ₁.Ordered es_succ₂ ∨ es_succ₂.Ordered es_succ₁ := by
-                    unfold EventState.Ordered; simp
+                  have es₁_ordered_es₂ : es_succ₁.OrderedBefore es_succ₂ ∨ es_succ₂.OrderedBefore es_succ₁ := by
+                    unfold EventState.OrderedBefore; simp
                     simp[h_succ₁, h_succ₂]
-                    unfold Event.Ordered
+                    unfold Event.OrderedBefore
                     simp [Event.oEnd, Event.oStart]
-                    simp [CacheEvent.Ordered, Event.oEnd, Event.oStart] at ce₁_ordered_ce₂
+                    simp [CacheEvent.OrderedBefore, Event.oEnd, Event.oStart] at ce₁_ordered_ce₂
                     exact ce₁_ordered_ce₂
 
                   apply Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction he₁_b he₂_b es₁_ordered_es₂
@@ -693,12 +693,12 @@ lemma Behaviour.immediate_bottom_successor_unique (b : Behaviour) (es_pred : Eve
                   exact ce₂_no_encap_ext
                 simp[ce₂₁_encap_ext_false] at ordered_ite
 
-                have es₁_ordered_es₂ : es_succ₁.Ordered es_succ₂ ∨ es_succ₂.Ordered es_succ₁ := by
-                  unfold EventState.Ordered; simp
+                have es₁_ordered_es₂ : es_succ₁.OrderedBefore es_succ₂ ∨ es_succ₂.OrderedBefore es_succ₁ := by
+                  unfold EventState.OrderedBefore; simp
                   simp[h_succ₁, h_succ₂]
-                  unfold Event.Ordered
+                  unfold Event.OrderedBefore
                   simp [Event.oEnd, Event.oStart]
-                  simp [CacheEvent.Ordered, Event.oEnd, Event.oStart] at ordered_ite
+                  simp [CacheEvent.OrderedBefore, Event.oEnd, Event.oStart] at ordered_ite
                   exact ordered_ite
 
                 apply Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction he₁_b he₂_b es₁_ordered_es₂
