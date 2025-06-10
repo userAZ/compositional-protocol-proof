@@ -1,8 +1,12 @@
 import CompositionalProtocolProof.EventRelations
+import Mathlib.Data.Finite.Defs
+import Mathlib.Data.Set.Finite.Basic
 import Canonical
 
 structure Behaviour where
   es : Set Event
+  finite : Finite es
+  -- es : Finset Event
 
 def Behaviour.OrderedBetween : Behaviour → Event → Event → Set Event
 | b, e_pred, e_succ => {e ∈ b.es | e.OrderedBetween e_pred e_succ}
@@ -424,6 +428,10 @@ def OrderedCacheEvents' (e₁ e₂ : CacheEvent) (s₁ s₂ : State) : Prop :=
   else (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁)
 -/
 
+/-- Consider finite behaviours. -/
+noncomputable def Behaviour.finSetEvents (b : Behaviour) : Finset Event := Set.Finite.toFinset b.finite
+
+-- def Behaviour.eventsAtEntry (b : Behaviour)
 
 /- Def 2.32 Behaviour.PreviousEvent -/
 open scoped Classical in
