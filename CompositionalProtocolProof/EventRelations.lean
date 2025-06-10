@@ -256,49 +256,8 @@ def OrderedCacheEvents' (e₁ e₂ : CacheEvent) (s₁ s₂ : State) : Prop :=
   else if e₁.WithoutCoherentPermissions s₁ ∧ e₂.External then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁ ∨ e₁.Encapsulates e₂)
   else if e₁.External ∧ e₂.WithoutCoherentPermissions s₂ then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁ ∨ e₂.Encapsulates e₁)
   else (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁)
-
-/- -- Lean can't synthesize decidablability in OrderedCacheEvents'?
-def Event.isCacheEvent : Event → Prop
-| .directoryEvent _ => false
-| .cacheEvent _ => true
-
-def Event.CacheConstraint (e : Event) (constraint : CacheEvent → Prop) : Prop := match e with
-  | .cacheEvent ce => constraint ce
-  | .directoryEvent _ => false
-
-abbrev Event.CacheLocal (e : Event) : Prop := e.CacheConstraint (·.Local)
-
-abbrev Event.CacheNonCoherent (e : Event) : Prop := e.CacheConstraint (·.NonCoherent)
-abbrev Event.CacheWeakConsistency (e : Event) : Prop := e.CacheConstraint (·.WeakConsistency)
-
-abbrev Event.CacheWeak (e : Event) : Prop := e.CacheLocal ∧ e.CacheNonCoherent ∧ e.CacheWeakConsistency
-
-abbrev Event.CacheRequestHasPermissions (e : Event) (s : State) : Prop := e.CacheConstraint (·.RequestHasPermissions s)
-
-abbrev Event.CacheCoherent (e : Event) : Prop := e.CacheConstraint (·.Coherent)
-
-abbrev Event.CacheWithCoherentPermissions (e : Event) (s : State) : Prop := e.CacheLocal ∧ e.CacheCoherent ∧ e.CacheRequestHasPermissions s
-
-abbrev Event.CacheDowngrade (e : Event) : Prop := e.CacheConstraint (·.Downgrade)
-abbrev Event.CacheNoEncapSameAddressDowngrade (e : Event) (s : State) : Prop := (e.CacheWeak ∨ e.CacheWithCoherentPermissions s ∨ e.CacheDowngrade)
-
-abbrev Event.CacheGrant (e : Event) : Prop := e.CacheConstraint (·.Grant)
-abbrev Event.CacheExternal (e : Event) : Prop := ¬e.CacheLocal ∨ e.CacheGrant
-abbrev Event.CacheNoRequestPermissions (e : Event) (s : State) : Prop := e.CacheConstraint (·.NoRequestPermissions s)
-
-abbrev Event.CacheWithoutCoherentPermissions (e : Event) (s : State) : Prop := e.CacheLocal ∧ e.CacheCoherent ∧ e.CacheNoRequestPermissions s
-
-def OrderedCacheEvents' (e₁ e₂ : Event) (s₁ s₂ : State) : Prop :=
-  e₁.isCacheEvent → e₂.isCacheEvent →
-  e₁.SameStructure e₂ → e₁.SameAddress e₂ →
-  if e₁.CacheNoEncapSameAddressDowngrade s₁ ∧ e₂.CacheNoEncapSameAddressDowngrade s₂ then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁)
-  else if e₁.CacheWithoutCoherentPermissions s₁ ∧ e₂.CacheExternal then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁ ∨ e₁.Encapsulates e₂)
-  else if e₁.CacheExternal ∧ e₂.CacheWithoutCoherentPermissions s₂ then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁ ∨ e₂.Encapsulates e₁)
-  else (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁)
 -/
 
--- def CoherentRead (r : Request) : Prop := r.coherent
--- abbrev CoherentRead := {r : Request // r.coherent = true ∧ r.rw = .r}
 def CoherentRead : Request := ⟨ .r, true, .SC ⟩
 def CoherentWrite : Request := ⟨ .w, true, .SC ⟩
 
