@@ -115,7 +115,7 @@ instance : TypeEvent Event where
 def Event.req : Event → ValidRequest
 | .cacheEvent ce => ce.req
 | .directoryEvent de => de.req
-def Event.a : Event → Addr
+def Event.addr : Event → Addr
 | .cacheEvent ce => ce.addr
 | .directoryEvent de => de.addr
 def Event.atCid : Event → CacheId → Prop
