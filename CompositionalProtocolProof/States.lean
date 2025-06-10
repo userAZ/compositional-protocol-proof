@@ -185,3 +185,23 @@ def DirectoryState.CurrentSharers : DirectoryState → Sharers
   | Vd _ => {}
   | Vc _ => {}
   | I  _ => {}
+
+/-
+abbrev SW : State := ⟨some .wr, true⟩
+abbrev MR : State := ⟨some .r , true⟩
+abbrev Vd : State := ⟨some .wr, false⟩
+abbrev Vc : State := ⟨some .r , false⟩
+abbrev I  : State := ⟨none    , false⟩
+-/
+def DirectoryState.toState : DirectoryState → State
+| ds => match ds with
+  | .SW _ _ => ⟨some .wr, true⟩ -- SW state
+  | .MR _ _ => ⟨some .r , true⟩ -- MR state
+  | .Vd _ => ⟨some .wr, false⟩  -- Vd state
+  | .Vc _ => ⟨some .r, false⟩   -- Vc State
+  | .I  _ => ⟨none, false⟩      -- I State
+
+/-- State of an address entry at a structure. -/
+structure EntryState where
+  cache : State
+  directory : DirectoryState
