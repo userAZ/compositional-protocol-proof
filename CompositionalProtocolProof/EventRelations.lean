@@ -225,14 +225,28 @@ abbrev CacheEvent.NoEncapSameAddressDowngrade (e : CacheEvent) (s : State) : Pro
 
 abbrev CacheEvent.Grant (e : CacheEvent) : Prop := e.deid? ≠ none
 abbrev CacheEvent.External (e : CacheEvent) : Prop := ¬e.Local ∨ e.Grant
-abbrev CacheEvent.NoRequestPermissions (e : CacheEvent) (s : State) : Prop := s < e.r.MRS
+abbrev CacheEvent.NoRequestPermissions (e : CacheEvent) (s : State) : Prop := s < e.r.MRS ∧ s ≠ I
 
 abbrev CacheEvent.WithoutCoherentPermissions (e : CacheEvent) (s : State) : Prop := e.Local ∧ e.Coherent ∧ e.NoRequestPermissions s
+
+def CacheEvent.Ordered (e₁ e₂ : CacheEvent) : Prop := e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁
+
+def CacheEvent.stateUpgradeMayEncapsulate (e₁ e₂ : CacheEvent) (s₁ : State) : Prop :=
+  e₁.WithoutCoherentPermissions s₁ ∧ e₂.External → (e₁.Ordered e₂ ∨ e₁.Encapsulates e₂)
+
+inductive CacheEvent.OrderedOrEncapsulates (e₁ e₂ : CacheEvent) : Prop
+| orderedOrEncapsulates (s₁ s₂ : State) : e₁.stateUpgradeMayEncapsulate e₂ s₁ ∨ e₂.stateUpgradeMayEncapsulate e₁ s₂ → CacheEvent.OrderedOrEncapsulates e₁ e₂
+| ordered : e₁.Ordered e₂ → CacheEvent.OrderedOrEncapsulates e₁ e₂
 
 /-- Axiom 2
 Events at the same address at a cache are ordered, or may encapsulate an external event to the same address.
 -/
-def OrderedCacheEvents (e₁ e₂ : CacheEvent) (s₁ s₂ : State) : Prop :=
+structure CacheEvent.AreOrderedOrEncap (e₁ e₂ : CacheEvent) (s₁ s₂ : State) : Prop where
+  sameCache : e₁.cid = e₂.cid
+  sameAddr : e₁.a = e₂.a
+  orderOrEncap : CacheEvent.OrderedOrEncapsulates e₁ e₂
+
+def OrderedCacheEvents' (e₁ e₂ : CacheEvent) (s₁ s₂ : State) : Prop :=
   e₁.cid = e₂.cid → e₁.a = e₂.a →
   if e₁.NoEncapSameAddressDowngrade s₁ ∧ e₂.NoEncapSameAddressDowngrade s₂ then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁)
   else if e₁.WithoutCoherentPermissions s₁ ∧ e₂.External then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁ ∨ e₁.Encapsulates e₂)
