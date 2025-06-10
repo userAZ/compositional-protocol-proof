@@ -198,7 +198,9 @@ def Event.ProgramOrdered (e₁ e₂ : Event) : Prop := e₁.CacheRelation e₂ (
 /-- Axiom 1
 Events at a Directory address are ordered.
 -/
-def OrderedDirectoryEvents (de₁ de₂ : DirectoryEvent) : Prop := de₁.a = de₂.a → de₁.OrderedBefore de₂ ∨ de₂.OrderedBefore de₁
+structure DirectoryEvent.AreOrdered (de₁ de₂ : DirectoryEvent) : Prop where
+  sameDirectoryEntry : de₁.a = de₂.a
+  ordered : de₁.Ordered de₂
 /-
 def Event.isDirectoryEvent : Event → Prop
 | .directoryEvent _ => true
@@ -233,19 +235,7 @@ abbrev CacheEvent.NoRequestPermissions (e : CacheEvent) (s : State) : Prop := s 
 
 abbrev CacheEvent.WithoutCoherentPermissions (e : CacheEvent) (s : State) : Prop := e.Local ∧ e.Coherent ∧ e.NoRequestPermissions s
 
-def CacheEvent.Ordered (e₁ e₂ : CacheEvent) : Prop := e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁
-
-def CacheEvent.stateUpgradeMayEncapsulate (e₁ e₂ : CacheEvent) (s₁ : State) : Prop :=
-  e₁.WithoutCoherentPermissions s₁ ∧ e₂.External → (e₁.Ordered e₂ ∨ e₁.Encapsulates e₂)
-
-inductive CacheEvent.OrderedOrEncapsulates (e₁ e₂ : CacheEvent) : Prop
-| orderedOrEncapsulates (s₁ s₂ : State) : e₁.stateUpgradeMayEncapsulate e₂ s₁ ∨ e₂.stateUpgradeMayEncapsulate e₁ s₂ → CacheEvent.OrderedOrEncapsulates e₁ e₂
-| ordered : e₁.Ordered e₂ → CacheEvent.OrderedOrEncapsulates e₁ e₂
-
-/-- Axiom 2
-Events at the same address at a cache are ordered, or may encapsulate an external event to the same address.
--/
-structure CacheEvent.AreOrderedOrEncap (e₁ e₂ : CacheEvent) (s₁ s₂ : State) : Prop where
+structure CacheEvent.sameCacheEntry (e₁ e₂ : CacheEvent) : Prop where
   sameCache : e₁.cid = e₂.cid
   sameAddr : e₁.a = e₂.a
   orderOrEncap : CacheEvent.OrderedOrEncapsulates e₁ e₂
