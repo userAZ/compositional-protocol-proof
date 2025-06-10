@@ -437,8 +437,8 @@ noncomputable def Behaviour.PreviousEvent (b : Behaviour) (e : Event) (haddress_
   else
     (h_empty_or_unique.resolve_left he).choose
 
-def Behaviour.eventsAtCacheEntry (b : Behaviour) (a : Addr) (cid : CacheId) (haddress_ordered : Event.AtEntryOrdered) : List Event :=
-  let e_at_centry := {e ∈ b.es | e.a = a ∧ e.atCid cid}
+def Behaviour.eventsAtCacheEntry (b : Behaviour) (addr : Addr) (cid : CacheId) (haddress_ordered : Event.AtEntryOrdered) : List Event :=
+  let e_at_centry := {e ∈ b.es | e.addr = addr ∧ e.atCid cid}
   /- Don't know how to use e_at_centry and produce an ordered list? -/
   sorry
 
