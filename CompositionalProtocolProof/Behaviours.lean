@@ -443,31 +443,56 @@ noncomputable def Behaviour.PreviousEvent (b : Behaviour) (e : Event) (haddress_
   else
     (h_empty_or_unique.resolve_left he).choose
 
-structure Set.isFinite : Prop where
-  fin (es : Set Event) : Set.Finite es
-noncomputable def Set.finSetEvents (es : Set Event) (hes_fin : Set.isFinite) : Finset Event := Set.Finite.toFinset (hes_fin.fin es)
+noncomputable def Set.finSetEvents (es : Set Event) (hes_fin : Finite es) : Finset Event := Set.Finite.toFinset hes_fin
 
-def Behaviour.eventsAtEntry (b : Behaviour) (addr : Addr) (st : Struct) : Set Event := match st with
-  | .directory => {e ∈ b.es | e.addr = addr ∧ e.isDirectoryEvent}
-  | .cache cid => {e ∈ b.es | e.addr = addr ∧ e.isCacheEventAtCid cid}
+def Event.atStruct (e : Event) (st : Struct) : Prop :=
+  match st with
+  | .directory => e.isDirectoryEvent
+  | .cache cid => e.isCacheEventAtCid cid
 
-noncomputable def Behaviour.listEventsAtEntry (b : Behaviour) (addr : Addr) (st : Struct) (hset_is_finite : Set.isFinite) : List Event :=
+structure Event.isAtEntry (addr : Addr) (st : Struct) (e : Event) where
+  addr : e.addr = addr
+  atStruct : e.atStruct st
+
+def Behaviour.eventsAtEntry (b : Behaviour) (addr : Addr) (st : Struct) : Set Event :=
+  {e ∈ b.es | e.isAtEntry addr st}
+
+theorem Behaviour.eventsAtEntry_finite (b : Behaviour) (addr : Addr) (st : Struct) : Finite (b.eventsAtEntry addr st) := by
+  cases st <;> simp [Behaviour.eventsAtEntry]
+  · case directory =>
+      have _ : Finite b.es := b.finite
+      apply Finite.Set.finite_inter_of_left
+  · case cache _ =>
+      have _ : Finite b.es := b.finite
+      apply Finite.Set.finite_inter_of_left
+
+lemma Behaviour.eventsAtEntry_complete (b : Behaviour) (addr : Addr) (st : Struct) :
+  ∀ {e : Event}, (e ∈ b.eventsAtEntry addr st) ↔ (e ∈ b.es ∧ e.isAtEntry addr st) := by
+    intro e; constructor <;> exact fun a ↦ a
+
+noncomputable def Behaviour.listEventsAtEntry (b : Behaviour) (addr : Addr) (st : Struct) : List Event :=
   /- If b.es is defined as a Finset Event (instead of Set Event),
   Lean complains about not being able to synthesize DecidablePred on e.atCid cid. Why? -/
   let e_at_centry := b.eventsAtEntry addr st
-  Set.finSetEvents e_at_centry hset_is_finite |>.toList
+  Set.finSetEvents e_at_centry (b.eventsAtEntry_finite addr st) |>.toList
 
-/- TODO: show the List of Events from Behaviour.es at a CacheEntry is totally ordered -/
-lemma Behaviour.eventsAtCacheEntry_total_order (b : Behaviour) (addr : Addr) (st : Struct) (hset_is_finite : Set.isFinite) (hentry_ordered : Event.AtEntryOrdered) :
-let list := b.listEventsAtEntry addr st hset_is_finite;
-let entry_es := b.eventsAtEntry addr st;
--- ∀ e_set ∈ entry_es, ∃ e_list ∈ list, b.PreviousEvent e_set hentry_ordered ≃ pred_of e_list list
-sorry
+lemma Behaviour.listEventsAtEntry_complete (b : Behaviour) (addr : Addr) (st : Struct) :
+  ∀ {e : Event}, (e ∈ b.listEventsAtEntry addr st) ↔ (e ∈ b.es ∧ e.isAtEntry addr st) := by
+  simp [listEventsAtEntry, Event.isAtEntry, Set.finSetEvents]
+  intro e; constructor <;> exact fun a ↦ a
+
+def List.isOrdered {α} (l : List α) (r : α → α → Prop): Prop :=
+  ∀ i : Fin (l.length), ∀ j : Fin (l.length), i < j ↔ r l[i] l[j]
+
+lemma Behaviour.eventsAtCacheEntry_total_order (b : Behaviour) (addr : Addr) (st : Struct)
+  (hentry_ordered : Event.AtEntryOrdered) :
+  b.listEventsAtEntry addr st |>.isOrdered Event.OrderedBefore
+  -- probably `Event.OrderedBefore` is not the right order though! or is it? not sure you've define the order on events that these are ordered by?
 := by
   sorry
 
-def Behaviour.stateBefore' (b : Behaviour) (e : Event) (hset_is_finite : Set.isFinite) : EntryState :=
-  let es := b.listEventsAtEntry e.addr e.struct hset_is_finite
+def Behaviour.stateBefore' (b : Behaviour) (e : Event) : EntryState :=
+  let es := b.listEventsAtEntry e.addr e.struct
   sorry
 
 /- Def 2.33 Behaviour.StateBefore -/
