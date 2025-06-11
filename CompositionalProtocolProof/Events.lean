@@ -122,6 +122,24 @@ def Event.atCid : Event → CacheId → Prop
 | .cacheEvent ce, cid => ce.cid = cid
 | .directoryEvent _, _ => false
 
+inductive Struct
+| directory : Struct
+| cache : CacheId → Struct
+
+def Event.struct : Event → Struct
+| .directoryEvent _ => .directory
+| .cacheEvent ce => .cache ce.cid
+
+def Event.isDirectoryEvent : Event → Prop
+| .directoryEvent _ => true
+| .cacheEvent _ => false
+
+def Event.isCacheEventAtCid : Event → CacheId → Prop
+| e, cid => match e with
+  | .directoryEvent _ => false
+  | .cacheEvent ce => ce.cid = cid
+
+
 -- def CacheEvent.requestEvent (e : CacheEvent) : Prop := e.cid = e.rid
 -- def CacheEvent.sameAddress (e : CacheEvent) : Prop := e.cid = e.rid
 
