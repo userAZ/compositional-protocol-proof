@@ -21,14 +21,27 @@ def Behaviour.NoIntermediatePredecessor' (b : Behaviour) (e_pred e_succ : Event)
 def Behaviour.NoIntermediatePredecessor (b : Behaviour) (e_pred e_succ : Event) : Prop :=
   ∀ e ∈ b, ¬ (e.OrderedBetween e_pred e_succ)
 
-structure Behaviour.ImmediatePredecessorConstraint (b : Behaviour) (e_pred e_succ : Event) where
+structure Behaviour.Predecessor (b : Behaviour) (e_pred e_succ : Event) where
+  sameEntry : e_pred.sameEntry e_succ
   isPred : e_pred.Predecessor e_succ
-  noIntermediate : b.NoIntermediatePredecessor e_pred e_succ
-  sameAddress : e_pred.SameAddress e_succ
-  sameStructure : e_pred.SameStructure e_succ
   predInB : e_pred ∈ b.es
-  -- succInB : e_succ ∈ b.es
+  succInB : e_succ ∈ b.es
 
+structure Behaviour.EntryPredecessor (b : Behaviour) (e_pred e_succ : Event) where
+  sameEntry : e_pred.sameEntry e_succ
+  behavePred : b.Predecessor e_pred e_succ
+
+structure Behaviour.ImmediatePredecessor (b : Behaviour) (e_pred e_succ : Event) where
+  isSameEntryPred : b.EntryPredecessor e_pred e_succ
+  noIntermediate : b.NoIntermediatePredecessor e_pred e_succ
+
+/- Access properties nested deeper in Behaviour.ImmediatePredecessor -/
+def Behaviour.ImmediatePredecessor.isPred {b : Behaviour} {e_pred e_succ : Event} (hb_imm_pred : Behaviour.ImmediatePredecessor b e_pred e_succ)
+: e_pred.Predecessor e_succ := hb_imm_pred.isSameEntryPred.behavePred.isPred
+def Behaviour.ImmediatePredecessor.predInB {b : Behaviour} {e_pred e_succ : Event} (hb_imm_pred : Behaviour.ImmediatePredecessor b e_pred e_succ)
+: e_pred ∈ b.es := hb_imm_pred.isSameEntryPred.behavePred.predInB
+def Behaviour.ImmediatePredecessor.sameStructure {b : Behaviour} {e_pred e_succ : Event} (hb_imm_pred : Behaviour.ImmediatePredecessor b e_pred e_succ)
+: e_pred.sameStructure e_succ := hb_imm_pred.isSameEntryPred.behavePred.sameEntry.sameStruct
 structure Event.EncapAtSameStructure (e_bottom e : Event) : Prop where
   encap : e_bottom.Encapsulates e
   sameEntry : e_bottom.sameEntry e
@@ -44,7 +57,7 @@ structure CacheEvent.BottomAreOrdered (e₁ e₂ : CacheEvent) (b : Behaviour) :
   ordered : e₁.Ordered e₂
 
 structure Behaviour.IsImmediateBottomPred (b : Behaviour) (e_pred e_succ : Event) where
-  isImmPred : b.ImmediatePredecessorConstraint e_pred e_succ
+  isImmPred : b.ImmediatePredecessor e_pred e_succ
   isBottom : b.IsBottomEvent e_pred
 
 /-- Define what is an event that's the immediate predecessor of another event. -/
@@ -68,7 +81,7 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction {e_pred₁ e_p
   cases hes₁_ordered_es₂
   . case inl es₁_ordered_es₂ =>
     have he₁_no_intermediate_to_e_suc := he₁_b.isImmPred.noIntermediate
-    unfold Behaviour.ImmediatePredecessorConstraint at he₁_no_intermediate_to_e_suc
+    unfold Behaviour.ImmediatePredecessor at he₁_no_intermediate_to_e_suc
     unfold Behaviour.NoIntermediatePredecessor at he₁_no_intermediate_to_e_suc
     have e₁_o_e_succ := he₁_b.isImmPred.isPred
     unfold Event.Predecessor at e₁_o_e_succ
@@ -88,7 +101,7 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction {e_pred₁ e_p
       exact e₂_o_e_succ
   . case inr es₂_ordered_es₁ =>
     have he₂_no_intermediate_to_e_suc := he₂_b.isImmPred.noIntermediate
-    unfold Behaviour.ImmediatePredecessorConstraint at he₂_no_intermediate_to_e_suc
+    unfold Behaviour.ImmediatePredecessor at he₂_no_intermediate_to_e_suc
     unfold Behaviour.NoIntermediatePredecessor at he₂_no_intermediate_to_e_suc
     have e₂_o_e_succ := he₂_b.isImmPred.isPred
     unfold Event.Predecessor at e₂_o_e_succ
@@ -128,27 +141,31 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour) (e_succ : Ev
     | .directoryEvent de, .cacheEvent ce =>
       have h_e_succ_is_dir   := he₁_b.isImmPred.sameStructure
       have h_e_succ_is_cache := he₂_b.isImmPred.sameStructure
-
-      unfold Event.SameStructure at h_e_succ_is_dir h_e_succ_is_cache
-      unfold Event.SameStructureRelation at h_e_succ_is_dir h_e_succ_is_cache
-      simp at h_e_succ_is_dir h_e_succ_is_cache
-      unfold CacheEvent.SameCache at h_e_succ_is_cache
-
       match hsucc : e_succ with
-      | .directoryEvent de_succ => simp at h_e_succ_is_cache
-      | .cacheEvent ce_succ => simp at h_e_succ_is_dir
+      | .directoryEvent de_succ =>
+        subst hsucc
+        have e₂_same_struct_e_succ := h_e_succ_is_cache.sameStruct
+        unfold Event.struct at e₂_same_struct_e_succ
+        simp at e₂_same_struct_e_succ
+      | .cacheEvent ce_succ =>
+        subst hsucc
+        have e₁_same_struct_e_succ := h_e_succ_is_dir.sameStruct
+        unfold Event.struct at e₁_same_struct_e_succ
+        simp at e₁_same_struct_e_succ
     | .cacheEvent ce, .directoryEvent de =>
       have h_e_succ_is_cache := he₁_b.isImmPred.sameStructure
       have h_e_succ_is_dir   := he₂_b.isImmPred.sameStructure
-
-      unfold Event.SameStructure at h_e_succ_is_dir h_e_succ_is_cache
-      unfold Event.SameStructureRelation at h_e_succ_is_dir h_e_succ_is_cache
-      simp at h_e_succ_is_dir h_e_succ_is_cache
-      unfold CacheEvent.SameCache at h_e_succ_is_cache
-
       match hsucc : e_succ with
-      | .directoryEvent de_succ => simp at h_e_succ_is_cache
-      | .cacheEvent ce_succ => simp at h_e_succ_is_dir
+      | .directoryEvent de_succ =>
+        subst hsucc
+        have e₁_same_struct_e_succ := h_e_succ_is_cache.sameStruct
+        unfold Event.struct at e₁_same_struct_e_succ
+        simp at e₁_same_struct_e_succ
+      | .cacheEvent ce_succ =>
+        subst hsucc
+        have e₂_same_struct_e_succ := h_e_succ_is_dir.sameStruct
+        unfold Event.struct at e₂_same_struct_e_succ
+        simp at e₂_same_struct_e_succ
 
 lemma Set.nonempty_unique_is_singleton {α} (s : Set α) (h_nonempty : Nonempty s)
   (h_unique : ∀ (a b : α),  a ∈ s → b ∈ s → a = b) : s.IsSingleton := by
@@ -261,7 +278,7 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction {e_pred e_succ
   cases hes₁_ordered_es₂
   . case inl es₁_ordered_es₂ =>
     have he_no_intermediate_to_e_suc₂ := he₂_b.isImmSucc.noIntermediate
-    unfold Behaviour.ImmediatePredecessorConstraint at he_no_intermediate_to_e_suc₂
+    unfold Behaviour.ImmediatePredecessor at he_no_intermediate_to_e_suc₂
     unfold Behaviour.NoIntermediatePredecessor at he_no_intermediate_to_e_suc₂
     have e_pred_o_e_succ₁ := he₁_b.isImmSucc.isSucc
     unfold Event.Predecessor at e_pred_o_e_succ₁
@@ -282,7 +299,7 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction {e_pred e_succ
       exact es₁_ordered_es₂
   . case inr es₂_ordered_es₁ =>
     have he₁_no_intermediate_to_e_suc := he₁_b.isImmSucc.noIntermediate
-    unfold Behaviour.ImmediatePredecessorConstraint at he₁_no_intermediate_to_e_suc
+    unfold Behaviour.ImmediatePredecessor at he₁_no_intermediate_to_e_suc
     unfold Behaviour.NoIntermediatePredecessor at he₁_no_intermediate_to_e_suc
     have e_pred_o_e_succ₂ := he₂_b.isImmSucc.isSucc
     unfold Event.Successor at e_pred_o_e_succ₂
