@@ -498,9 +498,15 @@ lemma Behaviour.listEventsAtEntry_complete (b : Behaviour) (addr : Addr) (st : S
 def List.isOrdered {α} (l : List α) (r : α → α → Prop): Prop :=
   ∀ i : Fin (l.length), ∀ j : Fin (l.length), i < j ↔ r l[i] l[j]
 
+structure Behaviour.BottomPredecessor (b : Behaviour) (e_pred e_succ : Event) : Prop where
+  sameEntry : e_pred.sameEntry e_succ
+  behavePred : b.Predecessor e_pred e_succ
+  predBottom : b.IsBottomEvent e_pred
+  succBottom : b.IsBottomEvent e_succ
+
 lemma Behaviour.eventsAtCacheEntry_total_order (b : Behaviour) (addr : Addr) (st : Struct)
   (hentry_ordered : Event.AtEntryOrdered) :
-  b.listEventsAtEntry addr st |>.isOrdered Event.OrderedBefore
+  b.listEventsAtEntry addr st |>.isOrdered (b.BottomPredecessor)
   -- probably `Event.OrderedBefore` is not the right order though! or is it? not sure you've define the order on events that these are ordered by?
 := by
   sorry
