@@ -239,9 +239,12 @@ structure CacheEvent.sameCacheEntry (e₁ e₂ : CacheEvent) : Prop where
   sameCache : e₁.cid = e₂.cid
   sameAddr : e₁.addr = e₂.addr
 
+structure Event.sameStructure (e₁ e₂ : Event) : Prop where
+  sameStruct : e₁.struct = e₂.struct
+
 structure Event.sameEntry (e₁ e₂ : Event) : Prop where
-  sameStruct : e₁.struct = e₁.struct
-  sameAddr : e₁.addr = e₂.addr
+  sameStruct : e₁.sameStructure e₂
+  sameAddr : e₁.SameAddress e₂
 
 def CoherentRead : Request := ⟨ .r, true, .SC ⟩
 def CoherentWrite : Request := ⟨ .w, true, .SC ⟩
