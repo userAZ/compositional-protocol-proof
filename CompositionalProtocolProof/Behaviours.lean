@@ -29,9 +29,13 @@ structure Behaviour.ImmediatePredecessorConstraint (b : Behaviour) (e_pred e_suc
   predInB : e_pred ∈ b.es
   -- succInB : e_succ ∈ b.es
 
-abbrev Behaviour.IsNotEncapByEvent (b : Behaviour) (e : Event) : Prop := {e' ∈ b.es | e'.Encapsulates e} = ∅
+structure Event.EncapAtSameStructure (e_bottom e : Event) : Prop where
+  encap : e_bottom.Encapsulates e
+  sameEntry : e_bottom.sameEntry e
 
-def Behaviour.IsBottomEvent (b : Behaviour) (e : Event) : Prop := b.IsNotEncapByEvent e
+abbrev Behaviour.IsNotEncapAtSameStruct (b : Behaviour) (e : Event) : Prop := ∀ e' ∈ b.es, ¬ e'.EncapAtSameStructure e
+
+def Behaviour.IsBottomEvent (b : Behaviour) (e : Event) : Prop := b.IsNotEncapAtSameStruct e
 
 structure CacheEvent.BottomAreOrdered (e₁ e₂ : CacheEvent) (b : Behaviour) : Prop where
   sameCacheEntry : e₁.sameCacheEntry e₂
@@ -427,11 +431,6 @@ def OrderedCacheEvents' (e₁ e₂ : CacheEvent) (s₁ s₂ : State) : Prop :=
   else (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁)
 -/
 
-/-- Consider finite behaviours. -/
-noncomputable def Behaviour.finSetEvents (b : Behaviour) : Finset Event := Set.Finite.toFinset b.finite
-
--- def Behaviour.eventsAtEntry (b : Behaviour)
-
 /- Def 2.32 Behaviour.PreviousEvent -/
 open scoped Classical in
 noncomputable def Behaviour.PreviousEvent (b : Behaviour) (e : Event) (haddress_ordered : Event.AtEntryOrdered) : Option Event :=
@@ -444,9 +443,31 @@ noncomputable def Behaviour.PreviousEvent (b : Behaviour) (e : Event) (haddress_
   else
     (h_empty_or_unique.resolve_left he).choose
 
-def Behaviour.eventsAtCacheEntry (b : Behaviour) (addr : Addr) (cid : CacheId) (haddress_ordered : Event.AtEntryOrdered) : List Event :=
-  let e_at_centry := {e ∈ b.es | e.addr = addr ∧ e.atCid cid}
-  /- Don't know how to use e_at_centry and produce an ordered list? -/
+structure Set.isFinite : Prop where
+  fin (es : Set Event) : Set.Finite es
+noncomputable def Set.finSetEvents (es : Set Event) (hes_fin : Set.isFinite) : Finset Event := Set.Finite.toFinset (hes_fin.fin es)
+
+def Behaviour.eventsAtEntry (b : Behaviour) (addr : Addr) (st : Struct) : Set Event := match st with
+  | .directory => {e ∈ b.es | e.addr = addr ∧ e.isDirectoryEvent}
+  | .cache cid => {e ∈ b.es | e.addr = addr ∧ e.isCacheEventAtCid cid}
+
+noncomputable def Behaviour.listEventsAtEntry (b : Behaviour) (addr : Addr) (st : Struct) (hset_is_finite : Set.isFinite) : List Event :=
+  /- If b.es is defined as a Finset Event (instead of Set Event),
+  Lean complains about not being able to synthesize DecidablePred on e.atCid cid. Why? -/
+  let e_at_centry := b.eventsAtEntry addr st
+  Set.finSetEvents e_at_centry hset_is_finite |>.toList
+
+/- TODO: show the List of Events from Behaviour.es at a CacheEntry is totally ordered -/
+lemma Behaviour.eventsAtCacheEntry_total_order (b : Behaviour) (addr : Addr) (st : Struct) (hset_is_finite : Set.isFinite) (hentry_ordered : Event.AtEntryOrdered) :
+let list := b.listEventsAtEntry addr st hset_is_finite;
+let entry_es := b.eventsAtEntry addr st;
+-- ∀ e_set ∈ entry_es, ∃ e_list ∈ list, b.PreviousEvent e_set hentry_ordered ≃ pred_of e_list list
+sorry
+:= by
+  sorry
+
+def Behaviour.stateBefore' (b : Behaviour) (e : Event) (hset_is_finite : Set.isFinite) : EntryState :=
+  let es := b.listEventsAtEntry e.addr e.struct hset_is_finite
   sorry
 
 /- Def 2.33 Behaviour.StateBefore -/
