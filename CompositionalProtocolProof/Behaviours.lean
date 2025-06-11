@@ -27,21 +27,18 @@ structure Behaviour.Predecessor (b : Behaviour) (e_pred e_succ : Event) where
   predInB : e_pred ∈ b.es
   succInB : e_succ ∈ b.es
 
-structure Behaviour.EntryPredecessor (b : Behaviour) (e_pred e_succ : Event) where
+structure Behaviour.EntryImmediatePredecessor (b : Behaviour) (e_pred e_succ : Event) where
   sameEntry : e_pred.sameEntry e_succ
   behavePred : b.Predecessor e_pred e_succ
-
-structure Behaviour.ImmediatePredecessor (b : Behaviour) (e_pred e_succ : Event) where
-  isSameEntryPred : b.EntryPredecessor e_pred e_succ
   noIntermediate : b.NoIntermediatePredecessor e_pred e_succ
 
 /- Access properties nested deeper in Behaviour.ImmediatePredecessor -/
-def Behaviour.ImmediatePredecessor.isPred {b : Behaviour} {e_pred e_succ : Event} (hb_imm_pred : Behaviour.ImmediatePredecessor b e_pred e_succ)
-: e_pred.Predecessor e_succ := hb_imm_pred.isSameEntryPred.behavePred.isPred
-def Behaviour.ImmediatePredecessor.predInB {b : Behaviour} {e_pred e_succ : Event} (hb_imm_pred : Behaviour.ImmediatePredecessor b e_pred e_succ)
-: e_pred ∈ b.es := hb_imm_pred.isSameEntryPred.behavePred.predInB
-def Behaviour.ImmediatePredecessor.sameStructure {b : Behaviour} {e_pred e_succ : Event} (hb_imm_pred : Behaviour.ImmediatePredecessor b e_pred e_succ)
-: e_pred.sameStructure e_succ := hb_imm_pred.isSameEntryPred.behavePred.sameEntry.sameStruct
+def Behaviour.EntryImmediatePredecessor.isPred {b : Behaviour} {e_pred e_succ : Event} (hb_imm_pred : Behaviour.EntryImmediatePredecessor b e_pred e_succ)
+: e_pred.Predecessor e_succ := hb_imm_pred.behavePred.isPred
+def Behaviour.EntryImmediatePredecessor.predInB {b : Behaviour} {e_pred e_succ : Event} (hb_imm_pred : Behaviour.EntryImmediatePredecessor b e_pred e_succ)
+: e_pred ∈ b.es := hb_imm_pred.behavePred.predInB
+def Behaviour.EntryImmediatePredecessor.sameStructure {b : Behaviour} {e_pred e_succ : Event} (hb_imm_pred : Behaviour.EntryImmediatePredecessor b e_pred e_succ)
+: e_pred.sameStructure e_succ := hb_imm_pred.behavePred.sameEntry.sameStruct
 structure Event.EncapAtSameStructure (e_bottom e : Event) : Prop where
   encap : e_bottom.Encapsulates e
   sameEntry : e_bottom.sameEntry e
