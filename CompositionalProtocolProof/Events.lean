@@ -125,6 +125,7 @@ def Event.atCid : Event → CacheId → Prop
 inductive Struct
 | directory : Struct
 | cache : CacheId → Struct
+deriving DecidableEq
 
 def Event.struct : Event → Struct
 | .directoryEvent _ => .directory
