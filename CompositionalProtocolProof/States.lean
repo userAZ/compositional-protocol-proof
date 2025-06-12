@@ -1,5 +1,7 @@
 import CompositionalProtocolProof.Common
 import Mathlib.Order.Category.PartOrd
+import Mathlib.Data.Finset.Defs
+import Mathlib.Data.Finset.Basic
 
 /--
 ReadWritePermissions.
@@ -168,7 +170,7 @@ inductive CacheId
 deriving DecidableEq
 
 abbrev Owner := CacheId
-abbrev Sharers := Set CacheId
+abbrev Sharers := Finset CacheId
 
 inductive DirectoryState
 | SW : StateSW → Owner → DirectoryState
@@ -176,15 +178,15 @@ inductive DirectoryState
 | Vd : StateVd → DirectoryState
 | Vc : StateVc → DirectoryState
 | I  : StateI  → DirectoryState
--- deriving DecidableEq -- There seem to be issues when deriving DecidableEq for `Set` CacheId?
+deriving DecidableEq, BEq
 
 def DirectoryState.CurrentSharers : DirectoryState → Sharers
 | ds => match ds with
-  | SW _ owner   => {owner}
+  | SW _ owner   => Finset.mk (Multiset.ofList [owner]) (by simp)
   | MR _ sharers => sharers
-  | Vd _ => {}
-  | Vc _ => {}
-  | I  _ => {}
+  | Vd _ => Finset.mk (Multiset.ofList []) (by simp)
+  | Vc _ => Finset.mk (Multiset.ofList []) (by simp)
+  | I  _ => Finset.mk (Multiset.ofList []) (by simp)
 
 /-
 abbrev SW : State := ⟨some .wr, true⟩
