@@ -47,6 +47,12 @@ instance Event.OrderedBefore.instLT : LT Event := {lt := Event.OrderedBefore}
 instance Event.OrderedBefore.instDecidableLT (e₁ e₂ : Event) : Decidable (e₁ < e₂) :=
   inferInstanceAs (Decidable (e₁.oEnd < e₂.oStart))
 
+instance Event.OrderedBefore.instDecidableRel : DecidableRel Event.OrderedBefore := by
+  unfold DecidableRel
+  intro e₁ e₂
+  unfold Event.OrderedBefore
+  infer_instance
+
 lemma Event.ordered_trans {e₁ e₂ e₃ : Event} : e₁ < e₂ → e₂ < e₃ → e₁ < e₃ := by
   unfold LT.lt; unfold OrderedBefore.instLT
   simp
