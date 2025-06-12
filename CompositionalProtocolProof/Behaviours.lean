@@ -54,7 +54,7 @@ structure CacheEvent.BottomAreOrdered (e₁ e₂ : CacheEvent) (b : Behaviour) :
   ordered : e₁.Ordered e₂
 
 structure Behaviour.IsImmediateBottomPred (b : Behaviour) (e_pred e_succ : Event) where
-  isImmPred : b.ImmediatePredecessor e_pred e_succ
+  isImmPred : b.EntryImmediatePredecessor e_pred e_succ
   isBottom : b.IsBottomEvent e_pred
 
 /-- Define what is an event that's the immediate predecessor of another event. -/
@@ -78,7 +78,7 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction {e_pred₁ e_p
   cases hes₁_ordered_es₂
   . case inl es₁_ordered_es₂ =>
     have he₁_no_intermediate_to_e_suc := he₁_b.isImmPred.noIntermediate
-    unfold Behaviour.ImmediatePredecessor at he₁_no_intermediate_to_e_suc
+    unfold Behaviour.EntryImmediatePredecessor at he₁_no_intermediate_to_e_suc
     unfold Behaviour.NoIntermediatePredecessor at he₁_no_intermediate_to_e_suc
     have e₁_o_e_succ := he₁_b.isImmPred.isPred
     unfold Event.Predecessor at e₁_o_e_succ
@@ -98,7 +98,7 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction {e_pred₁ e_p
       exact e₂_o_e_succ
   . case inr es₂_ordered_es₁ =>
     have he₂_no_intermediate_to_e_suc := he₂_b.isImmPred.noIntermediate
-    unfold Behaviour.ImmediatePredecessor at he₂_no_intermediate_to_e_suc
+    unfold Behaviour.EntryImmediatePredecessor at he₂_no_intermediate_to_e_suc
     unfold Behaviour.NoIntermediatePredecessor at he₂_no_intermediate_to_e_suc
     have e₂_o_e_succ := he₂_b.isImmPred.isPred
     unfold Event.Predecessor at e₂_o_e_succ
@@ -275,7 +275,7 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction {e_pred e_succ
   cases hes₁_ordered_es₂
   . case inl es₁_ordered_es₂ =>
     have he_no_intermediate_to_e_suc₂ := he₂_b.isImmSucc.noIntermediate
-    unfold Behaviour.ImmediatePredecessor at he_no_intermediate_to_e_suc₂
+    unfold Behaviour.EntryImmediatePredecessor at he_no_intermediate_to_e_suc₂
     unfold Behaviour.NoIntermediatePredecessor at he_no_intermediate_to_e_suc₂
     have e_pred_o_e_succ₁ := he₁_b.isImmSucc.isSucc
     unfold Event.Predecessor at e_pred_o_e_succ₁
@@ -296,7 +296,7 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction {e_pred e_succ
       exact es₁_ordered_es₂
   . case inr es₂_ordered_es₁ =>
     have he₁_no_intermediate_to_e_suc := he₁_b.isImmSucc.noIntermediate
-    unfold Behaviour.ImmediatePredecessor at he₁_no_intermediate_to_e_suc
+    unfold Behaviour.EntryImmediatePredecessor at he₁_no_intermediate_to_e_suc
     unfold Behaviour.NoIntermediatePredecessor at he₁_no_intermediate_to_e_suc
     have e_pred_o_e_succ₂ := he₂_b.isImmSucc.isSucc
     unfold Event.Successor at e_pred_o_e_succ₂
@@ -464,15 +464,16 @@ def Event.atStruct (e : Event) (st : Struct) : Prop :=
   | .directory => e.isDirectoryEvent
   | .cache cid => e.isCacheEventAtCid cid
 
-structure Event.isAtEntry (addr : Addr) (st : Struct) (e : Event) where
+structure Event.isBottomAtEntry (addr : Addr) (st : Struct) (e : Event) (b : Behaviour) where
   addr : e.addr = addr
   atStruct : e.atStruct st
+  isBottom : b.IsBottomEvent e
 
-def Behaviour.eventsAtEntry (b : Behaviour) (addr : Addr) (st : Struct) : Set Event :=
-  {e ∈ b.es | e.isAtEntry addr st}
+def Behaviour.bottomEventsAtEntry (b : Behaviour) (addr : Addr) (st : Struct) : Set Event :=
+  {e ∈ b.es | e.isBottomAtEntry addr st b}
 
-theorem Behaviour.eventsAtEntry_finite (b : Behaviour) (addr : Addr) (st : Struct) : Finite (b.eventsAtEntry addr st) := by
-  cases st <;> simp [Behaviour.eventsAtEntry]
+theorem Behaviour.bottomEventsAtEntry_finite (b : Behaviour) (addr : Addr) (st : Struct) : Finite (b.bottomEventsAtEntry addr st) := by
+  cases st <;> simp [Behaviour.bottomEventsAtEntry]
   · case directory =>
       have _ : Finite b.es := b.finite
       apply Finite.Set.finite_inter_of_left
@@ -480,19 +481,19 @@ theorem Behaviour.eventsAtEntry_finite (b : Behaviour) (addr : Addr) (st : Struc
       have _ : Finite b.es := b.finite
       apply Finite.Set.finite_inter_of_left
 
-lemma Behaviour.eventsAtEntry_complete (b : Behaviour) (addr : Addr) (st : Struct) :
-  ∀ {e : Event}, (e ∈ b.eventsAtEntry addr st) ↔ (e ∈ b.es ∧ e.isAtEntry addr st) := by
+lemma Behaviour.bottomEventsAtEntry_complete (b : Behaviour) (addr : Addr) (st : Struct) :
+  ∀ {e : Event}, (e ∈ b.bottomEventsAtEntry addr st) ↔ (e ∈ b.es ∧ e.isBottomAtEntry addr st b) := by
     intro e; constructor <;> exact fun a ↦ a
 
-noncomputable def Behaviour.listEventsAtEntry (b : Behaviour) (addr : Addr) (st : Struct) : List Event :=
+noncomputable def Behaviour.listBottomEventsAtEntry (b : Behaviour) (addr : Addr) (st : Struct) : List Event :=
   /- If b.es is defined as a Finset Event (instead of Set Event),
   Lean complains about not being able to synthesize DecidablePred on e.atCid cid. Why? -/
-  let e_at_centry := b.eventsAtEntry addr st
-  Set.finSetEvents e_at_centry (b.eventsAtEntry_finite addr st) |>.toList
+  let e_at_centry := b.bottomEventsAtEntry addr st
+  Set.finSetEvents e_at_centry (b.bottomEventsAtEntry_finite addr st) |>.toList
 
-lemma Behaviour.listEventsAtEntry_complete (b : Behaviour) (addr : Addr) (st : Struct) :
-  ∀ {e : Event}, (e ∈ b.listEventsAtEntry addr st) ↔ (e ∈ b.es ∧ e.isAtEntry addr st) := by
-  simp [listEventsAtEntry, Event.isAtEntry, Set.finSetEvents]
+lemma Behaviour.listBottomEventsAtEntry_complete (b : Behaviour) (addr : Addr) (st : Struct) :
+  ∀ {e : Event}, (e ∈ b.listBottomEventsAtEntry addr st) ↔ (e ∈ b.es ∧ e.isBottomAtEntry addr st b) := by
+  simp [listBottomEventsAtEntry, Event.isBottomAtEntry, Set.finSetEvents]
   intro e; constructor <;> exact fun a ↦ a
 
 def List.isOrdered {α} (l : List α) (r : α → α → Prop): Prop :=
@@ -504,16 +505,215 @@ structure Behaviour.BottomPredecessor (b : Behaviour) (e_pred e_succ : Event) : 
   predBottom : b.IsBottomEvent e_pred
   succBottom : b.IsBottomEvent e_succ
 
+-- I also know that the events in b's list are at the same address, and entry
+
+lemma Behaviour.eventsAtCacheEntry_at_st (b : Behaviour) (addr : Addr) (st : Struct) : let es := b.listBottomEventsAtEntry addr st;
+∀ e ∈ es, e.atStruct st := by
+  intro es e he_in_es
+  unfold Event.atStruct
+  split
+  . case h_1 st =>
+    unfold Event.isDirectoryEvent
+    simp
+    match e with
+    | .directoryEvent de => simp
+    | .cacheEvent ce =>
+      simp
+      simp [es] at he_in_es
+      unfold listBottomEventsAtEntry at he_in_es
+      unfold bottomEventsAtEntry at he_in_es
+      simp at he_in_es
+      sorry
+  . case h_2 st cid =>
+    sorry
+
+lemma Behaviour.eventsAtCacheEntry_at_st' (b : Behaviour) (addr : Addr) (st : Struct) : let es := b.listBottomEventsAtEntry addr st;
+∀ e ∈ es, e.struct = st := by
+  intro es e he_in_es
+  unfold Event.struct
+  simp [es] at he_in_es
+  unfold listBottomEventsAtEntry at he_in_es
+  unfold bottomEventsAtEntry at he_in_es
+  simp at he_in_es
+  unfold Set.finSetEvents at he_in_es
+  simp at he_in_es
+  have e_at_struct := he_in_es.right.atStruct
+  simp at e_at_struct
+  unfold Event.atStruct at e_at_struct
+  unfold Event.isCacheEventAtCid at e_at_struct
+  simp at e_at_struct
+  split
+  . case h_1 e de =>
+    match e with
+    | .directoryEvent de' =>
+      match st with
+      | .directory => rfl
+      | .cache cid => simp [e_at_struct]
+    | .cacheEvent ce =>
+      match st with
+      | .directory => rfl
+      | .cache cid => simp [e_at_struct]
+  . case h_2 e cid =>
+    match e with
+    | .directoryEvent de' =>
+      match st with
+      | .directory =>
+        simp at e_at_struct
+        unfold Event.isDirectoryEvent at e_at_struct
+        simp at e_at_struct
+      | .cache cid => simp [e_at_struct]
+    | .cacheEvent ce =>
+      match st with
+      | .directory =>
+        simp at e_at_struct
+        unfold Event.isDirectoryEvent at e_at_struct
+        simp at e_at_struct
+      | .cache cid => simp [e_at_struct]
+
+lemma Behaviour.eventsAtCacheEntry_at_addr (b : Behaviour) (addr : Addr) (st : Struct) : let es := b.listBottomEventsAtEntry addr st;
+∀ e ∈ es, e.addr = addr := by
+  intro es e he_in_es
+  simp [es] at he_in_es
+  unfold listBottomEventsAtEntry at he_in_es
+  unfold bottomEventsAtEntry at he_in_es
+  simp at he_in_es
+  unfold Set.finSetEvents at he_in_es
+  simp at he_in_es
+  exact he_in_es.right.addr
+
+lemma Behaviour.eventsAtCacheEntry_same_entry (b : Behaviour) (addr : Addr) (st : Struct) : let es := b.listBottomEventsAtEntry addr st;
+  ∀ e₁ ∈ es, ∀ e₂ ∈ es, e₁.sameEntry e₂ := by
+  intro es e₁ he₁_in_es e₂ he₂_in_es
+  constructor
+  . case sameStruct =>
+    constructor
+    . case sameStruct =>
+      have he₁_struct : e₁.struct = st := b.eventsAtCacheEntry_at_st' addr st e₁ he₁_in_es
+      have he₂_struct : e₂.struct = st := b.eventsAtCacheEntry_at_st' addr st e₂ he₂_in_es
+      have he₁_struct_e₂ : e₁.struct = e₂.struct := by simp [he₁_struct, he₂_struct]
+      exact he₁_struct_e₂
+  . case sameAddr =>
+    have he₁_addr : e₁.addr = addr := b.eventsAtCacheEntry_at_addr addr st e₁ he₁_in_es
+    have he₂_addr : e₂.addr = addr := b.eventsAtCacheEntry_at_addr addr st e₂ he₂_in_es
+    have he₁_addr_e₂ : e₁.addr = e₂.addr := by simp [he₁_addr, he₂_addr]
+    constructor
+    . case sameStruct => exact he₁_addr_e₂
+
 lemma Behaviour.eventsAtCacheEntry_total_order (b : Behaviour) (addr : Addr) (st : Struct)
   (hentry_ordered : Event.AtEntryOrdered) :
-  b.listEventsAtEntry addr st |>.isOrdered (b.BottomPredecessor)
+  b.listBottomEventsAtEntry addr st |>.isOrdered (b.BottomPredecessor)
   -- probably `Event.OrderedBefore` is not the right order though! or is it? not sure you've define the order on events that these are ordered by?
 := by
+  unfold List.isOrdered
+  unfold Behaviour.listBottomEventsAtEntry
+  simp
+  unfold Behaviour.bottomEventsAtEntry
+  intro i j
+  apply Iff.intro
+  . case mp =>
+    intro hi_lt_j
+    unfold Set.finSetEvents
+    constructor
+    . case sameEntry =>
+      constructor
+      . case sameStruct =>
+        constructor
+        . case sameStruct =>
+          unfold Event.struct
+          split
+          . case h_1 e₁ de₁ heq₁ =>
+            split
+            . case h_1 e₂ de₂ heq₂ => rfl
+            . case h_2 e₂ ce₂ heq₂ =>
+              -- i and j are at Address addr and Structure st. but the goal says they're not (directory vs. cache). show contradiction.
+              unfold Set.finSetEvents at i j
+              unfold Set.Finite.toFinset at i j
+              simp at i j
+
+              unfold Set.Finite.toFinset at heq₁ heq₂
+              unfold Set.toFinset at heq₁ heq₂
+              simp at heq₁ heq₂
+              unfold Finset.map at heq₁ heq₂
+              simp at heq₁ heq₂
+              unfold Multiset.map at heq₁ heq₂
+              simp at heq₁ heq₂
+              unfold Finset.toList at heq₁ heq₂
+              simp at heq₁ heq₂
+              unfold Multiset.toList at heq₁ heq₂
+              unfold Quot.liftOn at heq₁ heq₂
+              unfold Quotient.out at heq₁ heq₂
+              unfold Finset.univ at heq₁ heq₂
+              unfold Fintype.elems at heq₁ heq₂
+              unfold Set.Finite.fintype at heq₁ heq₂
+              simp at heq₁ heq₂
+
+              unfold Fintype.card at i j
+              unfold Finset.univ at i j
+              unfold Fintype.elems at i j
+              sorry
+          . case h_2 e₁ ce₁ heq₁ =>
+            -- unfold Event.isBottomAtEntry at i j
+            sorry
+      . case sameAddr =>
+        sorry
+    . case behavePred =>
+      constructor
+      . case sameEntry =>
+        sorry
+      . case isPred =>
+        sorry
+      . case predInB =>
+        sorry
+      . case succInB =>
+        sorry
+    . case predBottom =>
+      sorry
+    . case succBottom =>
+      sorry
+  . case mpr =>
+    sorry
+
+def List.stateAtE (es : List Event) (e : Event) (init : EntryState) (he_in_es : e ∈ es) : EntryState := match es with
+  | [] => by simp at he_in_es
+  | [e'] =>
+    if h : e' = e then init
+    else by
+      simp [h] at he_in_es
+      rw [Eq.comm] at he_in_es
+      absurd h he_in_es
+      contradiction
+  | e' :: t =>
+    if h : e' = e then init
+    else
+      have he_in_t : e ∈ t := by
+        simp at he_in_es
+        rw [Eq.comm] at h
+        exact he_in_es.resolve_left h
+      t.stateAtE e (e'.SucceedingState init) he_in_t
+
+lemma Behaviour.listBottomEventsAtEntry_e_in_b_es_in_list (b : Behaviour) (e : Event) : let es := b.listBottomEventsAtEntry e.addr e.struct;
+  e ∈ b.es → e ∈ es := by
+  intro es he_in_bes
+  simp[es]
+  unfold listBottomEventsAtEntry
+  unfold Set.finSetEvents
+  unfold Finset.toList
+  unfold Multiset.toList
+  unfold Set.Finite.toFinset
+  unfold Set.toFinset
+  simp
+  unfold Quotient.out
+  unfold Quot.out
+  unfold Classical.choose
+  unfold Classical.indefiniteDescription
+  simp
+  -- Don't know how to proceed here?
   sorry
 
-def Behaviour.stateBefore' (b : Behaviour) (e : Event) : EntryState :=
-  let es := b.listEventsAtEntry e.addr e.struct
-  sorry
+noncomputable def Behaviour.stateBefore' (b : Behaviour) (e : Event) (he_in_bes : e ∈ b.es) (init : EntryState): EntryState :=
+  let es := b.listBottomEventsAtEntry e.addr e.struct
+  have he_in_es : e ∈ es := b.listBottomEventsAtEntry_e_in_b_es_in_list e he_in_bes
+  es.stateAtE e init he_in_es
 
 /- Def 2.33 Behaviour.StateBefore -/
 noncomputable def Behaviour.StateBefore (b : Behaviour) (e : Event) (haddress_ordered : Event.AtEntryOrdered) (s_i : EntryState)
