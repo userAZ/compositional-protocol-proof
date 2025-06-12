@@ -673,47 +673,15 @@ lemma Behaviour.eventsAtCacheEntry_total_order (b : Behaviour) (addr : Addr) (st
   . case mpr =>
     sorry
 
-def List.stateAtE (es : List Event) (e : Event) (init : EntryState) (he_in_es : e ∈ es) : EntryState := match es with
-  | [] => by simp at he_in_es
-  | [e'] =>
-    if h : e' = e then init
-    else by
-      simp [h] at he_in_es
-      rw [Eq.comm] at he_in_es
-      absurd h he_in_es
-      contradiction
-  | e' :: t =>
-    if h : e' = e then init
-    else
-      have he_in_t : e ∈ t := by
-        simp at he_in_es
-        rw [Eq.comm] at h
-        exact he_in_es.resolve_left h
-      t.stateAtE e (e'.SucceedingState init) he_in_t
+def List.stateAfter (es : List Event) (init : EntryState) : EntryState := match es with
+  | [] => init
+  | e :: es' => es'.stateAfter (e.SucceedingState init)
 
-lemma Behaviour.listBottomEventsAtEntry_e_in_b_es_in_list (b : Behaviour) (e : Event) : let es := b.listBottomEventsAtEntry e.addr e.struct;
-  e ∈ b.es → e ∈ es := by
-  intro es he_in_bes
-  simp[es]
-  unfold listBottomEventsAtEntry
-  unfold Set.finSetEvents
-  unfold Finset.toList
-  unfold Multiset.toList
-  unfold Set.Finite.toFinset
-  unfold Set.toFinset
-  simp
-  unfold Quotient.out
-  unfold Quot.out
-  unfold Classical.choose
-  unfold Classical.indefiniteDescription
-  simp
-  -- Don't know how to proceed here?
-  sorry
+def List.stateAtE (es : List Event) (e : Event) (init : EntryState) : EntryState :=
+  List.stateAfter (es.splitAt (es.indexesOf e).head!).1 init
 
-noncomputable def Behaviour.stateBefore' (b : Behaviour) (e : Event) (he_in_bes : e ∈ b.es) (init : EntryState): EntryState :=
-  let es := b.listBottomEventsAtEntry e.addr e.struct
-  have he_in_es : e ∈ es := b.listBottomEventsAtEntry_e_in_b_es_in_list e he_in_bes
-  es.stateAtE e init he_in_es
+noncomputable def Behaviour.stateBefore' (b : Behaviour) (e : Event) (init : EntryState): EntryState :=
+  b.listBottomEventsAtEntry e.addr e.struct |>.insertionSort Event.OrderedBefore |>.stateAtE e init
 
 /- Def 2.33 Behaviour.StateBefore -/
 noncomputable def Behaviour.StateBefore (b : Behaviour) (e : Event) (haddress_ordered : Event.AtEntryOrdered) (s_i : EntryState)
