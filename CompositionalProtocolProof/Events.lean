@@ -59,7 +59,7 @@ structure CacheEvent where
   down : Downgrade
   deid? : Option DirectoryEventId
   eid : EventId
-deriving DecidableEq
+deriving DecidableEq, BEq
 instance : TypeEvent CacheEvent where
   o := CacheEvent.o
   oStart := CacheEvent.oStart
@@ -78,7 +78,7 @@ structure DirectoryEvent where
   down : Downgrade
   eReq : CacheEvent
   deid : DirectoryEventId
--- deriving DecidableEq
+deriving DecidableEq, BEq
 instance : TypeEvent DirectoryEvent where
   o := DirectoryEvent.o
   oStart := DirectoryEvent.oStart
@@ -88,7 +88,7 @@ instance : TypeEvent DirectoryEvent where
 inductive Event
 | cacheEvent : CacheEvent → Event
 | directoryEvent : DirectoryEvent → Event
--- deriving DecidableEq
+deriving DecidableEq, BEq
 
 def Event.o (e : Event) : Occurrence := match e with
   | cacheEvent ce => ce.o
