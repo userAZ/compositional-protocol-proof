@@ -182,11 +182,11 @@ deriving DecidableEq, BEq
 
 def DirectoryState.CurrentSharers : DirectoryState → Sharers
 | ds => match ds with
-  | SW _ owner   => Finset.mk (Multiset.ofList [owner]) (by simp)
+  | SW _ owner   => {owner}
   | MR _ sharers => sharers
-  | Vd _ => Finset.mk (Multiset.ofList []) (by simp)
-  | Vc _ => Finset.mk (Multiset.ofList []) (by simp)
-  | I  _ => Finset.mk (Multiset.ofList []) (by simp)
+  | Vd _ => {}
+  | Vc _ => {}
+  | I  _ => {}
 
 /-
 abbrev SW : State := ⟨some .wr, true⟩
