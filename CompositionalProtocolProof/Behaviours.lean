@@ -683,6 +683,9 @@ def List.stateAtE (es : List Event) (e : Event) (init : EntryState) : EntryState
 noncomputable def Behaviour.stateBefore' (b : Behaviour) (e : Event) (init : EntryState): EntryState :=
   b.listBottomEventsAtEntry e.addr e.struct |>.insertionSort Event.OrderedBefore |>.stateAtE e init
 
+noncomputable def Behaviour.stateAfter (b : Behaviour) (e : Event) (init : EntryState): EntryState :=
+  e.SucceedingState (b.stateBefore' e init)
+
 /- Def 2.33 Behaviour.StateBefore -/
 noncomputable def Behaviour.StateBefore (b : Behaviour) (e : Event) (haddress_ordered : Event.AtEntryOrdered) (s_i : EntryState)
 : EntryState :=
