@@ -140,6 +140,9 @@ def Event.isCacheEventAtCid : Event → CacheId → Prop
   | .directoryEvent _ => false
   | .cacheEvent ce => ce.cid = cid
 
+def Event.isCacheEventDowngrade : Event → Prop
+| .directoryEvent _ => false
+| .cacheEvent ce => ce.down
 
 -- def CacheEvent.requestEvent (e : CacheEvent) : Prop := e.cid = e.rid
 -- def CacheEvent.sameAddress (e : CacheEvent) : Prop := e.cid = e.rid
