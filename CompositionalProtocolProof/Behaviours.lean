@@ -648,3 +648,18 @@ noncomputable def Behaviour.StateBefore (b : Behaviour) (e : Event) (haddress_or
     e_pred.SucceedingState entry_state_pred_pred
 termination_by sizeOf (b.ImmBottomPredecessors e)
 -- decreasing_by sizeOf (b.ImmBottomPredecessors e)
+
+def CacheEvent.stateUpgradeMayEncapsulate (e₁ e₂ : CacheEvent) (s₁ : State) : Prop :=
+  e₁.WithoutCoherentPermissions s₁ ∧ e₂.External → (e₁.Ordered e₂ ∨ e₁.Encapsulates e₂)
+
+inductive CacheEvent.OrderedOrEncapsulates (e₁ e₂ : CacheEvent) (b : Behaviour) (init : EntryState) : Prop
+| orderedOrEncapsulates (s₁ s₂ : State) :
+  e₁.stateUpgradeMayEncapsulate e₂ (b.stateBefore' (Event.cacheEvent e₁) init).cache ∨
+  e₂.stateUpgradeMayEncapsulate e₁ (b.stateBefore' (Event.cacheEvent e₂) init).cache →
+  CacheEvent.OrderedOrEncapsulates e₁ e₂ b init
+| ordered : e₁.Ordered e₂ → CacheEvent.OrderedOrEncapsulates e₁ e₂ b init
+
+/-- Axiom 2 (Second half) Certain Request Events may encapusulate External Events. -/
+structure CacheEvent.EncapAnother (e₁ e₂ : CacheEvent) (b : Behaviour) (init : EntryState) : Prop where
+  sameCacheEntry : e₁.sameCacheEntry e₂
+  orderOrEncap : CacheEvent.OrderedOrEncapsulates e₁ e₂ b init
