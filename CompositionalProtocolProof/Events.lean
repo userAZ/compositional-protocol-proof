@@ -144,6 +144,11 @@ def Event.isCacheEventDowngrade : Event → Prop
 | .directoryEvent _ => false
 | .cacheEvent ce => ce.down
 
+def Event.isDirEventOfDirState : Event → DirectoryState → Prop
+| e_dir, dir_state => match e_dir with
+  | .directoryEvent de => de.dirS = dir_state
+  | .cacheEvent _ => false
+
 -- def CacheEvent.requestEvent (e : CacheEvent) : Prop := e.cid = e.rid
 -- def CacheEvent.sameAddress (e : CacheEvent) : Prop := e.cid = e.rid
 
