@@ -165,6 +165,10 @@ def Event.isVcInval : Event → Prop
 | .cacheEvent ce => ce.vcInval
 | .directoryEvent _ => false
 
+def Event.isVdWriteBack : Event → Prop
+| .cacheEvent ce => ce.vdWriteBack
+| .directoryEvent _ => false
+
 -- def CacheEvent.requestEvent (e : CacheEvent) : Prop := e.cid = e.rid
 -- def CacheEvent.sameAddress (e : CacheEvent) : Prop := e.cid = e.rid
 
