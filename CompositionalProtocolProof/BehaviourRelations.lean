@@ -22,3 +22,19 @@ structure Behaviour.requestDirectoryEvent (b : Behaviour) (e_req e_dir : Event) 
   sameAddr : e_req.addr = e_dir.addr
   dirReq :  e_dir.req = b.reqToDirOfRequestEvent e_req init -- from analysis on e_req and the state it's made on
   dirState : e_dir.isDirEventOfDirState (b.stateAfter e_dir init).directory
+
+structure Behaviour.reqEncapsulatesDirEvent' (b : Behaviour) (e_req e_dir : Event) (init : EntryState) : Prop where
+  reqEncapDir : e_req.Encapsulates e_dir
+  dirCorresponds : b.requestDirectoryEvent e_req e_dir init
+  dirInB : e_dir ∈ b.es
+  reqInB : e_req ∈ b.es
+
+structure Behaviour.reqEncapCorrespondingDirEvent (b : Behaviour) (e_req : Event) (init : EntryState) : Prop where
+  reqEncapCorrDir : ∃ e_dir ∈ b.es, b.reqEncapsulatesDirEvent' e_req e_dir init
+
+/-- Axiom 4. Acquire invalidates other Vc cache entries. -/
+structure Behaviour.acquireInvalidates (b : Behaviour) (e_req e_dir : Event) : Prop where
+  isAcquire : e_req.isAcquire
+  encapDirEvent : ∀ init : EntryState, b.reqEncapCorrespondingDirEvent e_req init
+  invalOther : ∀ addr ≠ e_req.addr, ∃ e_inval ∈ b.es, e_dir.OrderedBefore e_inval ∧ e_inval.isVcInval
+  -- writeBackOther : ∀ addr ≠ e_req.addr, ∃ e_wb ∈ b.es, e_dir.OrderedBefore e_wb ∧ e_wb.isVdWriteBack
