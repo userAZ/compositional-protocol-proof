@@ -251,9 +251,9 @@ structure Event.sameStructure (e₁ e₂ : Event) : Prop where
 structure Event.sameAddr (e₁ e₂ : Event) : Prop where
   sameStruct : e₁.addr = e₂.addr
 
-structure Event.sameEntry (e₁ e₂ : Event) : Prop where
-  sameStruct : e₁.sameStructure e₂
-  sameAddr : e₁.sameAddr e₂
+structure Event.sameEntry : Prop where
+  sameStruct : ∀ e₁ e₂ : Event, e₁.sameStructure e₂
+  sameAddr : ∀ e₁ e₂ : Event, e₁.sameAddr e₂
 
 def CoherentRead : Request := ⟨ .r, true, .SC ⟩
 def CoherentWrite : Request := ⟨ .w, true, .SC ⟩
