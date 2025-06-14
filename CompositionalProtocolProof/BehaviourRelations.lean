@@ -32,9 +32,14 @@ structure Behaviour.reqEncapsulatesDirEvent' (b : Behaviour) (e_req e_dir : Even
 structure Behaviour.reqEncapCorrespondingDirEvent (b : Behaviour) (e_req : Event) (init : EntryState) : Prop where
   reqEncapCorrDir : ∃ e_dir ∈ b.es, b.reqEncapsulatesDirEvent' e_req e_dir init
 
-/-- Axiom 4. Acquire invalidates other Vc cache entries. -/
+/-- Axiom 4. Acquire invalidates other Vc cache entries after it's directory access. -/
 structure Behaviour.acquireInvalidates (b : Behaviour) (e_req e_dir : Event) : Prop where
   isAcquire : e_req.isAcquire
   encapDirEvent : ∀ init : EntryState, b.reqEncapCorrespondingDirEvent e_req init
   invalOther : ∀ addr ≠ e_req.addr, ∃ e_inval ∈ b.es, e_dir.OrderedBefore e_inval ∧ e_inval.isVcInval
-  -- writeBackOther : ∀ addr ≠ e_req.addr, ∃ e_wb ∈ b.es, e_dir.OrderedBefore e_wb ∧ e_wb.isVdWriteBack
+
+/-- Axiom 5. Non Coherent Release writes back other Vd cache entries before it's directory access. -/
+structure Behaviour.ncReleaseWritesBack (b : Behaviour) (e_req e_dir : Event) : Prop where
+  isRelease : e_req.isNCRelease
+  encapDirEvent : ∀ init : EntryState, b.reqEncapCorrespondingDirEvent e_req init
+  writeBackOther : ∀ addr ≠ e_req.addr, ∃ e_wb ∈ b.es, e_wb.OrderedBefore e_dir ∧ e_wb.isVdWriteBack
