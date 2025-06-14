@@ -149,6 +149,22 @@ def Event.isDirEventOfDirState : Event → DirectoryState → Prop
   | .directoryEvent de => de.dirS = dir_state
   | .cacheEvent _ => false
 
+def Event.isAcquire : Event → Prop
+| .cacheEvent ce => ce.req.val = ⟨.r, false, .Acq⟩
+| .directoryEvent _ => false
+
+structure CacheEvent.vcInval (e : CacheEvent) : Prop where
+  isDown : e.down
+  isWeakRead : e.req.val = ⟨.r, false, .Weak⟩
+
+structure CacheEvent.vdWriteBack (e : CacheEvent) : Prop where
+  isDown : e.down
+  isWeakWrite : e.req.val = ⟨.w, false, .Weak⟩
+
+def Event.isVcInval : Event → Prop
+| .cacheEvent ce => ce.vcInval
+| .directoryEvent _ => false
+
 -- def CacheEvent.requestEvent (e : CacheEvent) : Prop := e.cid = e.rid
 -- def CacheEvent.sameAddress (e : CacheEvent) : Prop := e.cid = e.rid
 
