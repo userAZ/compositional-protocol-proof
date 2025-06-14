@@ -1,0 +1,24 @@
+import CompositionalProtocolProof.Behaviours
+
+/-
+structure Request.IsValid (r : Request) where
+  non_coherent : r.NoSCNonCoherent := by simp
+  no_write_acq : r.NoWriteAcquire := by simp
+  no_read_rel : r.NoReadRelease := by simp
+  no_cacq : r.NoCoherentAcquire := by simp
+  no_cwr : r.NoCoherentWeakRead := by simp
+-/
+
+noncomputable def Behaviour.reqToDirOfRequestEvent (b : Behaviour) (e_req : Event) (init : EntryState) : ValidRequest :=
+  let state_before := b.stateBefore e_req init
+  match e_req.req.val, state_before.cache with
+  | ⟨.w, false, _⟩, I => ⟨⟨.r, false, .Weak⟩, {non_coherent := by simp, no_write_acq := by simp, no_read_rel := by simp, no_cacq := by simp, no_cwr := by simp}⟩
+  | ⟨.r, false, .Acq⟩, Vd => ⟨⟨.w, false, .Weak⟩, {non_coherent := by simp, no_write_acq := by simp, no_read_rel := by simp, no_cacq := by simp, no_cwr := by simp}⟩
+  | _, _ => e_req.req
+
+/-- Axiom 3. The Request field of a Directory Event corresponding to a Request Event (Cache Event). -/
+structure Behaviour.requestDirectoryEvent (b : Behaviour) (e_req e_dir : Event) (init : EntryState) : Prop where
+  reqEvent : e_dir.isDirEventOfReqEvent e_req
+  sameAddr : e_req.addr = e_dir.addr
+  dirReq :  e_dir.req = b.reqToDirOfRequestEvent e_req init -- from analysis on e_req and the state it's made on
+  dirState : e_dir.isDirEventOfDirState (b.stateAfter e_dir init).directory
