@@ -22,31 +22,33 @@ def Behaviour.NoIntermediatePredecessor' (b : Behaviour) (e_pred e_succ : Event)
 def Behaviour.NoIntermediatePredecessor (b : Behaviour) (e_pred e_succ : Event) : Prop :=
   ∀ e ∈ b, ¬ (e.OrderedBetween e_pred e_succ)
 
-structure Behaviour.Predecessor (b : Behaviour) (e_pred e_succ : Event) where
-  sameEntry : e_pred.sameEntry e_succ
-  isPred : e_pred.Predecessor e_succ
-  predInB : e_pred ∈ b.es
-  succInB : e_succ ∈ b.es
+structure Behaviour.Predecessor where
+  sameEntry : Event.sameEntry
+  isPred : ∀ e_pred e_succ : Event, e_pred.Predecessor e_succ
+  predInB : ∀ b : Behaviour, ∀ e_pred : Event, e_pred ∈ b.es
+  succInB : ∀ b : Behaviour, ∀ e_succ : Event, e_succ ∈ b.es
 
 structure Behaviour.EntryImmediatePredecessor (b : Behaviour) (e_pred e_succ : Event) where
-  sameEntry : e_pred.sameEntry e_succ
-  behavePred : b.Predecessor e_pred e_succ
+  sameEntry : Event.sameEntry
+  behavePred : Behaviour.Predecessor
   noIntermediate : b.NoIntermediatePredecessor e_pred e_succ
 
 /- Access properties nested deeper in Behaviour.ImmediatePredecessor -/
 def Behaviour.EntryImmediatePredecessor.isPred {b : Behaviour} {e_pred e_succ : Event} (hb_imm_pred : Behaviour.EntryImmediatePredecessor b e_pred e_succ)
-: e_pred.Predecessor e_succ := hb_imm_pred.behavePred.isPred
+: e_pred.Predecessor e_succ := hb_imm_pred.behavePred.isPred e_pred e_succ
 def Behaviour.EntryImmediatePredecessor.predInB {b : Behaviour} {e_pred e_succ : Event} (hb_imm_pred : Behaviour.EntryImmediatePredecessor b e_pred e_succ)
-: e_pred ∈ b.es := hb_imm_pred.behavePred.predInB
+: e_pred ∈ b.es := hb_imm_pred.behavePred.predInB b e_pred
 def Behaviour.EntryImmediatePredecessor.sameStructure {b : Behaviour} {e_pred e_succ : Event} (hb_imm_pred : Behaviour.EntryImmediatePredecessor b e_pred e_succ)
-: e_pred.sameStructure e_succ := hb_imm_pred.behavePred.sameEntry.sameStruct
+: e_pred.sameStructure e_succ := hb_imm_pred.behavePred.sameEntry.sameStruct e_pred e_succ
 structure Event.EncapAtSameStructure (e_bottom e : Event) : Prop where
   encap : e_bottom.Encapsulates e
-  sameEntry : e_bottom.sameEntry e
+  sameEntry : Event.sameEntry
 
 abbrev Behaviour.IsNotEncapAtSameStruct (b : Behaviour) (e : Event) : Prop := ∀ e' ∈ b.es, ¬ e'.EncapAtSameStructure e
 
 def Behaviour.IsBottomEvent (b : Behaviour) (e : Event) : Prop := b.IsNotEncapAtSameStruct e
+structure Behaviour.bottomEvent : Prop where
+  isBottom : ∀ b : Behaviour, ∀ e : Event, b.IsBottomEvent e
 
 structure CacheEvent.BottomAreOrdered (e₁ e₂ : CacheEvent) (b : Behaviour) : Prop where
   sameCacheEntry : e₁.sameCacheEntry e₂
@@ -415,37 +417,6 @@ lemma Behaviour.immediate_bottom_successor (b : Behaviour) (e_pred : Event) (p :
       exact And.right he₂
     exact Or.inr (Set.nonempty_unique_is_singleton imm_bottom_succs h_nonempty' h_unique)
 
-/- TODO: Define encapsulate after defining event.
-structure CacheEvent.EncapAnother (e₁ e₂ : CacheEvent) : Prop where
-  sameCacheEntry : e₁.sameEntry e₂
--/
-
--- defs that'll be useful for defining when Cache Events encapsulate external not-bottom events
-/- Comment out OrderedCacheEvents / CacheEvent.AreOrderedOrEncap
--- OrderedCacheEvents / CacheEvent.AreOrderedOrEncap are best defined in Behaviours.lean
-def CacheEvent.stateUpgradeMayEncapsulate (e₁ e₂ : CacheEvent) (s₁ : State) : Prop :=
-  e₁.WithoutCoherentPermissions s₁ ∧ e₂.External → (e₁.Ordered e₂ ∨ e₁.Encapsulates e₂)
-
-inductive CacheEvent.OrderedOrEncapsulates (e₁ e₂ : CacheEvent) : Prop
-| orderedOrEncapsulates (s₁ s₂ : State) : e₁.stateUpgradeMayEncapsulate e₂ s₁ ∨ e₂.stateUpgradeMayEncapsulate e₁ s₂ → CacheEvent.OrderedOrEncapsulates e₁ e₂
-| ordered : e₁.Ordered e₂ → CacheEvent.OrderedOrEncapsulates e₁ e₂
-
-/-- Axiom 2
-Events at the same address at a cache are ordered, or may encapsulate an external event to the same address.
--/
-structure CacheEvent.AreOrderedOrEncap (e₁ e₂ : CacheEvent) (s₁ s₂ : State) : Prop where
-  sameCache : e₁.cid = e₂.cid
-  sameAddr : e₁.a = e₂.a
-  orderOrEncap : CacheEvent.OrderedOrEncapsulates e₁ e₂
-
-def OrderedCacheEvents' (e₁ e₂ : CacheEvent) (s₁ s₂ : State) : Prop :=
-  e₁.cid = e₂.cid → e₁.a = e₂.a →
-  if e₁.NoEncapSameAddressDowngrade s₁ ∧ e₂.NoEncapSameAddressDowngrade s₂ then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁)
-  else if e₁.WithoutCoherentPermissions s₁ ∧ e₂.External then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁ ∨ e₁.Encapsulates e₂)
-  else if e₁.External ∧ e₂.WithoutCoherentPermissions s₂ then (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁ ∨ e₂.Encapsulates e₁)
-  else (e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁)
--/
-
 /- Def 2.32 Behaviour.PreviousEvent -/
 open scoped Classical in
 noncomputable def Behaviour.PreviousEvent (b : Behaviour) (e : Event) (haddress_ordered : Event.AtEntryOrdered) : Option Event :=
@@ -543,10 +514,70 @@ def List.isOrdered {α} (l : List α) (r : α → α → Prop): Prop :=
   ∀ i : Fin (l.length), ∀ j : Fin (l.length), i < j ↔ r l[i] l[j]
 
 structure Behaviour.BottomPredecessor (b : Behaviour) (e_pred e_succ : Event) : Prop where
-  sameEntry : e_pred.sameEntry e_succ
-  behavePred : b.Predecessor e_pred e_succ
+  sameEntry : Event.sameEntry
+  behavePred : Behaviour.Predecessor
   predBottom : b.IsBottomEvent e_pred
   succBottom : b.IsBottomEvent e_succ
+
+/-
+def Event.isBottomEvent (e : Event) : Prop := ¬ ∃ e' : Event, e'.Encapsulates e
+
+structure Event.BottomPredecessor (e_pred e_succ : Event) : Prop where
+  sameEntry : Event.sameEntry
+  behavePred : e_pred.Predecessor e_succ
+  predBottom : e_pred.isBottomEvent
+  succBottom : e_succ.isBottomEvent
+-/
+
+instance : DecidableRel Event.OrderedBefore := by
+  unfold Event.OrderedBefore
+  infer_instance
+
+/- NOTE: This requires assumptions (b, hsame_entry, and so on..) that means instance isn't used by IsTotal Event Event.OrderedBefore. -/
+instance Event.OrderedBefore.instIsTotal (b : Behaviour) (hsame_entry : Event.sameEntry) (hentry_ordered : Event.AtEntryOrdered) : IsTotal Event Event.OrderedBefore := by
+  unfold Event.OrderedBefore
+  constructor
+  intro e₁ e₂
+  . case total =>
+    have h := hsame_entry.sameStruct e₁ e₂
+    -- simp[Event.sameStructure] at h
+    have hsame_struct := h.sameStruct
+    match he₁ : e₁, he₂ : e₂ with
+    | .cacheEvent ce₁ , .cacheEvent ce₂ =>
+      apply hentry_ordered.cache_ordered ce₁ ce₂ b |>.ordered
+    | .directoryEvent de₁ , .directoryEvent de₂ =>
+      apply hentry_ordered.dir_ordered de₁ de₂ |>.ordered
+    | .cacheEvent ce₁ , .directoryEvent de₂ =>
+      simp[Event.struct, he₁, he₂] at hsame_struct
+    | .directoryEvent de₁ , .cacheEvent ce₂ =>
+      simp[Event.struct, he₁, he₂] at hsame_struct
+
+/- NOTE: To be an instance of IsTotal, there can't be any assumptions, like the following below. -/
+instance Event.OrderedBefore.instIsTotal' : IsTotal Event Event.OrderedBefore := by sorry
+
+/- NOTE: Likewise, this is also not a valid instance of IsTotal. -/
+instance Behaviour.BottomPredecessor.instIsTotal (b : Behaviour) (hbottom : Behaviour.bottomEvent) (hpred : Behaviour.Predecessor) (hsame_entry : Event.sameEntry) : IsTotal Event (b.BottomPredecessor) := by
+  constructor
+  intro e₁ e₂
+  . case total =>
+    constructor
+    . case h =>
+      constructor
+      . case sameEntry =>
+        exact hsame_entry
+      . case behavePred =>
+        exact hpred
+      . case predBottom =>
+        exact hbottom.isBottom b e₁
+      . case succBottom =>
+        exact hbottom.isBottom b e₂
+
+/- NOTE: BottomPredecessor is a structure, so can't be a DecidableRel. -/
+instance Behaviour.BottomPredecessor.instDecidableRel (b : Behaviour) : DecidableRel (b.BottomPredecessor) := by
+  unfold DecidableRel
+  intro e₁ e₂
+  -- infer_instance
+  sorry
 
 def Behaviour.sortedListBottomEventsAtEntry (b : Behaviour) (addr : Addr) (st : Struct) : Prop := b.listBottomEventsAtEntry addr st |>.Sorted b.BottomPredecessor
 
@@ -572,8 +603,8 @@ lemma Behaviour.eventsAtCacheEntry_total_order (b : Behaviour) (addr : Addr) (st
   intro bes es i j
   apply Iff.intro
   . case mp =>
-    --
     intro hi_lt_j
+    -- have h := List.sorted_insertionSort b.BottomPredecessor es
     constructor
     . case sameEntry =>
       -- unfold sortedListEventsAtEntry at hlist_sorted
@@ -611,7 +642,8 @@ lemma Behaviour.eventsAtCacheEntry_total_order' (b : Behaviour) (addr : Addr) (s
   intro bes es i j
   apply Iff.intro
   . case mp =>
-    --
+    simp[List.sorted_insertionSort Event.OrderedBefore bes] -- at es
+    have h := List.sorted_insertionSort Event.OrderedBefore es
     intro hi_lt_j
     -- unfold Event.OrderedBefore
     have hlist_sorted := hbottom_sorted.bottom_sorted b addr st
@@ -631,13 +663,14 @@ def List.stateAfter (es : List Event) (init : EntryState) : EntryState := match 
 def List.stateAtE (es : List Event) (e : Event) (init : EntryState) : EntryState :=
   List.stateAfter (es.splitAt (es.indexesOf e).head!).1 init
 
-noncomputable def Behaviour.stateBefore' (b : Behaviour) (e : Event) (init : EntryState): EntryState :=
+/- Def 2.33 Behaviour.StateBefore -/
+noncomputable def Behaviour.stateBefore (b : Behaviour) (e : Event) (init : EntryState): EntryState :=
   b.listBottomEventsAtEntry e.addr e.struct |>.insertionSort Event.OrderedBefore |>.stateAtE e init
 
 noncomputable def Behaviour.stateAfter (b : Behaviour) (e : Event) (init : EntryState): EntryState :=
-  e.SucceedingState (b.stateBefore' e init)
+  e.SucceedingState (b.stateBefore e init)
 
-/- Def 2.33 Behaviour.StateBefore -/
+/-
 noncomputable def Behaviour.StateBefore (b : Behaviour) (e : Event) (haddress_ordered : Event.AtEntryOrdered) (s_i : EntryState)
 : EntryState :=
   let e_pred? := b.PreviousEvent e haddress_ordered
@@ -646,16 +679,15 @@ noncomputable def Behaviour.StateBefore (b : Behaviour) (e : Event) (haddress_or
   | .some e_pred =>
     let entry_state_pred_pred := b.StateBefore e_pred haddress_ordered s_i
     e_pred.SucceedingState entry_state_pred_pred
-termination_by sizeOf (b.ImmBottomPredecessors e)
--- decreasing_by sizeOf (b.ImmBottomPredecessors e)
+-/
 
 def CacheEvent.stateUpgradeMayEncapsulate (e₁ e₂ : CacheEvent) (s₁ : State) : Prop :=
   e₁.WithoutCoherentPermissions s₁ ∧ e₂.External → (e₁.Ordered e₂ ∨ e₁.Encapsulates e₂)
 
 inductive CacheEvent.OrderedOrEncapsulates (e₁ e₂ : CacheEvent) (b : Behaviour) (init : EntryState) : Prop
 | orderedOrEncapsulates (s₁ s₂ : State) :
-  e₁.stateUpgradeMayEncapsulate e₂ (b.stateBefore' (Event.cacheEvent e₁) init).cache ∨
-  e₂.stateUpgradeMayEncapsulate e₁ (b.stateBefore' (Event.cacheEvent e₂) init).cache →
+  e₁.stateUpgradeMayEncapsulate e₂ (b.stateBefore (Event.cacheEvent e₁) init).cache ∨
+  e₂.stateUpgradeMayEncapsulate e₁ (b.stateBefore (Event.cacheEvent e₂) init).cache →
   CacheEvent.OrderedOrEncapsulates e₁ e₂ b init
 | ordered : e₁.Ordered e₂ → CacheEvent.OrderedOrEncapsulates e₁ e₂ b init
 
