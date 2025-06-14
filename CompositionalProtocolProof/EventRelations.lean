@@ -314,3 +314,10 @@ structure Event.downgradeOfRequestToOthers : Prop where
   atCid   : ∀ e_down : Event, ∀ cid : CacheId, e_down.isCacheEventAtCid cid
   isDown  : ∀ e_down : Event, e_down.isCacheEventDowngrade
   isFwded : ∀ e_req e_down : Event, e_req.fwdRequest e_down
+
+def Event.isDirEventOfReqEvent : Event → Event → Prop
+| e_dir, e_req => match e_dir with
+  | .directoryEvent de => match e_req with
+    | .cacheEvent ce => de.eReq = ce
+    | .directoryEvent _ => false
+  | .cacheEvent _ => false
