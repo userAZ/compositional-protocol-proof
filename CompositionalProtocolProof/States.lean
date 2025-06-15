@@ -172,35 +172,51 @@ deriving DecidableEq
 
 variable (n : Nat)
 
-inductive ProtocolCacheInstance
-| globalP : Fin n → ProtocolCacheInstance
-| cluster1 : Fin n → ProtocolCacheInstance
-| cluster2 : Fin n → ProtocolCacheInstance
+inductive ProtocolCacheInstance'
+| globalP : Fin n → ProtocolCacheInstance'
+| cluster1 : Fin n → ProtocolCacheInstance'
+| cluster2 : Fin n → ProtocolCacheInstance'
 deriving DecidableEq
 
-inductive CacheId
-| proxy : ProtocolInstance → CacheId
-| cache : ProtocolCacheInstance n → CacheId
+-- this will capture whatever in the context is called `n`
+set_option quotPrecheck false in
+notation "ProtocolCacheInstance" => ProtocolCacheInstance' n
+
+inductive CacheId'
+| proxy : ProtocolInstance → CacheId'
+| cache : ProtocolCacheInstance → CacheId'
 deriving DecidableEq
 
-abbrev Owner := CacheId n
-abbrev Sharers := Finset (CacheId n)
+set_option quotPrecheck false in
+notation "CacheId" => CacheId' n
 
-inductive DirectoryState
-| SW : StateSW → Owner n → DirectoryState
-| MR : StateMR → Sharers n → DirectoryState
-| Vd : StateVd → DirectoryState
-| Vc : StateVc → DirectoryState
-| I  : StateI  → DirectoryState
+abbrev Owner' := CacheId
+abbrev Sharers' := Finset CacheId
+
+set_option quotPrecheck false in
+notation "Owner" => Owner' n
+
+set_option quotPrecheck false in
+notation "Sharers" => Sharers' n
+
+inductive DirectoryState'
+| SW : StateSW → Owner → DirectoryState'
+| MR : StateMR → Sharers → DirectoryState'
+| Vd : StateVd → DirectoryState'
+| Vc : StateVc → DirectoryState'
+| I  : StateI  → DirectoryState'
 deriving DecidableEq, BEq
 
-def DirectoryState.CurrentSharers : DirectoryState n → Sharers n
+set_option quotPrecheck false in
+notation "DirectoryState" => DirectoryState' n
+
+def DirectoryState.CurrentSharers : DirectoryState → Sharers
 | ds => match ds with
-  | SW _ owner   => {owner}
-  | MR _ sharers => sharers
-  | Vd _ => {}
-  | Vc _ => {}
-  | I  _ => {}
+  | .SW _ owner   => {owner}
+  | .MR _ sharers => sharers
+  | .Vd _ => {}
+  | .Vc _ => {}
+  | .I  _ => {}
 
 /-
 abbrev SW : State := ⟨some .wr, true⟩
@@ -209,7 +225,7 @@ abbrev Vd : State := ⟨some .wr, false⟩
 abbrev Vc : State := ⟨some .r , false⟩
 abbrev I  : State := ⟨none    , false⟩
 -/
-def DirectoryState.toState : DirectoryState n → State
+def DirectoryState.toState : DirectoryState → State
 | ds => match ds with
   | .SW _ _ => ⟨some .wr, true⟩ -- SW state
   | .MR _ _ => ⟨some .r , true⟩ -- MR state
@@ -220,14 +236,20 @@ def DirectoryState.toState : DirectoryState n → State
 /-- State of an address entry at a structure. -/
 structure EntryState where
   cache : State
-  directory : DirectoryState n
+  directory : DirectoryState
 
-def System.Cache := CacheId n → State
-def System.Directory := ProtocolInstance → DirectoryState n
+def System.Cache' := CacheId → State
+def System.Directory' := ProtocolInstance → DirectoryState
+
+set_option quotPrecheck false in
+notation "System.Cache" => System.Cache' n
+
+set_option quotPrecheck false in
+notation "System.Directory" => System.Directory' n
 
 /- Initial System State -/
 structure InitialSystemState where
-  caches : Finset (CacheId n)
-  cacheStates : System.Cache n
+  caches : Finset (CacheId)
+  cacheStates : System.Cache
   directories : ProtocolInstance
-  directoryStates : System.Directory n
+  directoryStates : System.Directory
