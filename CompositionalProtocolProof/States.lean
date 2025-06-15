@@ -164,23 +164,37 @@ instance State?.instDecidableLe (s₁? s₂? : State?) : Decidable (s₁? ≤ s�
   | some s₁, some s₂ =>
     apply State.instDecidableLe
 
-inductive CacheId
-| proxy : ℕ → CacheId
-| cache : ℕ → CacheId
+inductive ProtocolInstance
+| global : ProtocolInstance
+| cluster1 : ProtocolInstance
+| cluster2 : ProtocolInstance
 deriving DecidableEq
 
-abbrev Owner := CacheId
-abbrev Sharers := Finset CacheId
+variable (n : Nat)
+
+inductive ProtocolCacheInstance
+| globalP : Fin n → ProtocolCacheInstance
+| cluster1 : Fin n → ProtocolCacheInstance
+| cluster2 : Fin n → ProtocolCacheInstance
+deriving DecidableEq
+
+inductive CacheId
+| proxy : ProtocolInstance → CacheId
+| cache : ProtocolCacheInstance n → CacheId
+deriving DecidableEq
+
+abbrev Owner := CacheId n
+abbrev Sharers := Finset (CacheId n)
 
 inductive DirectoryState
-| SW : StateSW → Owner → DirectoryState
-| MR : StateMR → Sharers → DirectoryState
+| SW : StateSW → Owner n → DirectoryState
+| MR : StateMR → Sharers n → DirectoryState
 | Vd : StateVd → DirectoryState
 | Vc : StateVc → DirectoryState
 | I  : StateI  → DirectoryState
 deriving DecidableEq, BEq
 
-def DirectoryState.CurrentSharers : DirectoryState → Sharers
+def DirectoryState.CurrentSharers : DirectoryState n → Sharers n
 | ds => match ds with
   | SW _ owner   => {owner}
   | MR _ sharers => sharers
@@ -195,7 +209,7 @@ abbrev Vd : State := ⟨some .wr, false⟩
 abbrev Vc : State := ⟨some .r , false⟩
 abbrev I  : State := ⟨none    , false⟩
 -/
-def DirectoryState.toState : DirectoryState → State
+def DirectoryState.toState : DirectoryState n → State
 | ds => match ds with
   | .SW _ _ => ⟨some .wr, true⟩ -- SW state
   | .MR _ _ => ⟨some .r , true⟩ -- MR state
@@ -206,4 +220,14 @@ def DirectoryState.toState : DirectoryState → State
 /-- State of an address entry at a structure. -/
 structure EntryState where
   cache : State
-  directory : DirectoryState
+  directory : DirectoryState n
+
+def System.Cache := CacheId n → State
+def System.Directory := ProtocolInstance → DirectoryState n
+
+/- Initial System State -/
+structure InitialSystemState where
+  caches : Finset (CacheId n)
+  cacheStates : System.Cache n
+  directories : ProtocolInstance
+  directoryStates : System.Directory n
