@@ -2,13 +2,19 @@ import Mathlib
 
 variable (n : Nat)
 
-inductive FinNat
-| fn : Fin n → FinNat
-| none : FinNat
+inductive FinNat'
+| fn : Fin n → FinNat'
+| none : FinNat'
 
-structure UseFinNat where
-  haveFn : FinNat n -- Is there a way to say just use a specified `n`, so I don't need to provide an `n` each time?
+set_option quotPrecheck false in
+notation "FinNat" => FinNat' n
 
--- Same as above, can I specify a specific `n`, and avoid having to pass an `n` each time?
-def UseFinNatDef : FinNat n → FinNat n → FinNat n
-| n₁, n₂ => sorry
+inductive NewFinNat'
+| fnfn : FinNat → NewFinNat'
+
+set_option quotPrecheck false in
+notation "NewFinNat" => NewFinNat' n
+
+-- Every type that uses FinNat needs a new notation added.
+abbrev FinSetFN' := Finset NewFinNat -- lean accepts this
+abbrev FinSetFN'' := Finset NewFinNat' -- lean requires a Nat
