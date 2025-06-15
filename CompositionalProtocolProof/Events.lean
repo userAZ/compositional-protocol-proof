@@ -1,6 +1,8 @@
 import CompositionalProtocolProof.Requests
 import CompositionalProtocolProof.States
 
+variable (n : Nat)
+
 abbrev RequesterId := CacheId
 abbrev DirectoryId := ℕ
 abbrev Addr := ℕ
@@ -74,11 +76,11 @@ structure DirectoryEvent where
   oEnd := o.oEnd
   oWellFormed : oStart < oEnd
   req : ValidRequest
-  dirS : DirectoryState n
+  dirS : (DirectoryState n)
   did : DirectoryId
   addr : Addr
   down : Downgrade
-  eReq : CacheEvent n
+  eReq : (CacheEvent n)
   deid : DirectoryEventId
 deriving DecidableEq, BEq
 instance : TypeEvent (DirectoryEvent n) where
@@ -88,8 +90,8 @@ instance : TypeEvent (DirectoryEvent n) where
   oWellFormed := DirectoryEvent.oWellFormed
 
 inductive Event
-| cacheEvent : CacheEvent n → Event
-| directoryEvent : DirectoryEvent n → Event
+| cacheEvent : (CacheEvent n) → Event
+| directoryEvent : (DirectoryEvent n) → Event
 deriving DecidableEq, BEq
 
 def Event.o (e : Event n) : Occurrence := match e with
