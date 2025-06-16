@@ -82,6 +82,7 @@ structure DirectoryEvent where
   down : Downgrade
   eReq : (CacheEvent n)
   deid : DirectoryEventId
+  pInst : ProtocolInstance
 deriving DecidableEq, BEq
 instance : TypeEvent (DirectoryEvent n) where
   o := DirectoryEvent.o
