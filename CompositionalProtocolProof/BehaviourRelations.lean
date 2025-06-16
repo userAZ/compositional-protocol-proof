@@ -40,6 +40,8 @@ structure Behaviour.acquireInvalidates (b : Behaviour n) (e_req e_dir : Event n)
   encapDirEvent : ∀ init : EntryState n, b.reqEncapCorrespondingDirEvent n e_req init
   invalOther : ∀ addr ≠ e_req.addr, ∃ e_inval ∈ b.es, e_dir.OrderedBefore n e_inval ∧ e_inval.isVcInval
 
+/-- Axiom 5. Non Coherent Release writes back other Vd cache entries before it's directory access. -/
+structure Behaviour.ncReleaseWritesBack (b : Behaviour n) (e_req e_dir : Event n) : Prop where
   isRelease : e_req.isNCRelease
-  encapDirEvent : ∀ init : EntryState n, b.reqEncapCorrespondingDirEvent e_req init
+  encapDirEvent : ∀ init : EntryState n, b.reqEncapCorrespondingDirEvent n e_req init
   writeBackOther : ∀ addr ≠ e_req.addr, ∃ e_wb ∈ b.es, e_wb.OrderedBefore n e_dir ∧ e_wb.isVdWriteBack
