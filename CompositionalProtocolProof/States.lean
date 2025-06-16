@@ -170,12 +170,15 @@ inductive ProtocolInstance
 | cluster2 : ProtocolInstance
 deriving DecidableEq
 
-variable (n : Nat)
+/- Consider letting there be different numbers of caches in cluster1 (`i`) and cluster2 (`j`) instead of
+a fixed number (`n`) between both -/
+-- variable (i j : Nat) -- number of caches for cluster1 and cluster2
+variable (n : Nat) -- generic number of caches.
 
 inductive ProtocolCacheInstance
-| globalP : Fin n → ProtocolCacheInstance
-| cluster1 : Fin n → ProtocolCacheInstance
-| cluster2 : Fin n → ProtocolCacheInstance
+| globalP : Fin 2 → Vector State 2 → ProtocolCacheInstance -- Fin 2 because there are 2 clusters
+| cluster1 : Fin n → Vector State n → ProtocolCacheInstance
+| cluster2 : Fin n → Vector State n → ProtocolCacheInstance
 deriving DecidableEq
 
 /-
@@ -240,7 +243,7 @@ def DirectoryState.toState : DirectoryState n → State
   | .Vc _ => ⟨some .r, false⟩   -- Vc State
   | .I  _ => ⟨none, false⟩      -- I State
 
-/-- State of an address entry at a structure. -/
+/-
 structure EntryState where
   cache : State
   directory : DirectoryState n
