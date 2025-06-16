@@ -45,3 +45,24 @@ structure Behaviour.ncReleaseWritesBack (b : Behaviour n) (e_req e_dir : Event n
   isRelease : e_req.isNCRelease
   encapDirEvent : ∀ init : EntryState n, b.reqEncapCorrespondingDirEvent n e_req init
   writeBackOther : ∀ addr ≠ e_req.addr, ∃ e_wb ∈ b.es, e_wb.OrderedBefore n e_dir ∧ e_wb.isVdWriteBack
+
+-- NOTE: see if this can be broken down into a struct with fields.
+-- def Behaviour.coherentRequestAccessDirectory (b : Behaviour)
+def Behaviour.requestAccessesDirectory (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) : Prop :=
+  match e_req with
+  | .cacheEvent ce => match ce.down with
+    | false =>
+      match ce.req.val.coherent with
+      | true =>
+        let state_req_is_made_on := b.stateBefore n e_req (init.stateAt n e_req) |>.cache
+        let mrs_of_req := ce.req.MRS
+        if state_req_is_made_on < mrs_of_req then
+          sorry
+        else
+          sorry
+      | false => sorry
+    | true => sorry
+  | .directoryEvent _ => false
+
+/-- Axiom 6. -/
+structure Behaviour.requestAccessesDirectoryProps where
