@@ -303,8 +303,8 @@ def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent 
 -/
 
 def Event.SucceedingState (e : Event n) (s : EntryState n) : EntryState n := match e with
-  | .cacheEvent ce => ⟨ce.SucceedingState n s.cache, s.directory⟩
-  | .directoryEvent de => ⟨s.cache, de.SucceedingState n s.directory⟩
+  | .cacheEvent ce => Sum.inl <| ce.SucceedingState n s.cache
+  | .directoryEvent de => Sum.inr <| de.SucceedingState n s.directory
 
 structure Event.fwdRequest (e_req e_fwd : Event n) : Prop where
   sameRequest : e_req.req = e_fwd.req
