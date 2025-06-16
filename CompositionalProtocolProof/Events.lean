@@ -185,3 +185,8 @@ def Event.isVdWriteBack : Event n → Prop
 -- abbrev NonCoherentRequest := {e : CacheEvent // e.r.coherent = false}
 
 def UniqueCacheEventIds (ce₁ ce₂ : CacheEvent n) : Prop := ce₁.eid ≠ ce₂.eid
+
+-- NOTE: TODO: Update this to use a Vector for CacheIds, and Addresses.
+def InitialSystemState.stateAt (init : InitialSystemState n) (e : Event n) : EntryState n := match e with
+  | .cacheEvent ce => Sum.inl <| init.cacheStates (ce.cid)
+  | .directoryEvent de => Sum.inr <| init.directoryStates de.pInst
