@@ -89,7 +89,7 @@ instance Permissions.instDecidableLe (p₁ p₂ : Permissions) : Decidable (p₁
 structure State where
   p : Permissions
   c : Coherent
-deriving DecidableEq
+deriving DecidableEq, Inhabited
 
 abbrev SW : State := ⟨some .wr, true⟩
 abbrev MR : State := ⟨some .r , true⟩
@@ -213,7 +213,7 @@ inductive DirectoryState
 | Vd : StateVd → DirectoryState
 | Vc : StateVc → DirectoryState
 | I  : StateI  → DirectoryState
-deriving DecidableEq, BEq
+deriving DecidableEq, BEq, Inhabited
 
 /-
 set_option quotPrecheck false in
@@ -247,6 +247,19 @@ def DirectoryState.toState : DirectoryState n → State
 structure EntryState where
   cache : State
   directory : DirectoryState n
+-/
+/-- State of an address entry at a structure. -/
+abbrev EntryState := State ⊕ DirectoryState n
+
+def EntryState.cache (entry_state : EntryState n) : State :=
+  match entry_state with
+  | .inl cache_state => cache_state
+  | .inr _ => panic! "EntryState expected to be cache state (State), but got (DirectoryState) instead!"
+
+def EntryState.directory (entry_state : EntryState n) : DirectoryState n :=
+  match entry_state with
+  | .inl _ => panic! "EntryState expected to be cache state (DirectoryState), but got (State) instead!"
+  | .inr directory_state => directory_state
 
 def System.Cache := CacheId n → State
 def System.Directory := ProtocolInstance → DirectoryState n
