@@ -237,7 +237,7 @@ abbrev CacheEvent.WithCoherentPermissions (e : CacheEvent n) (s : State) : Prop 
 abbrev CacheEvent.Downgrade (e : CacheEvent n) : Prop := e.down = true
 abbrev CacheEvent.NoEncapSameAddressDowngrade (e : CacheEvent n) (s : State) : Prop := e.Weak ∨ e.WithCoherentPermissions n s ∨ e.Downgrade
 
-abbrev CacheEvent.Grant (e : CacheEvent n) : Prop := e.deid? ≠ none
+abbrev CacheEvent.Grant (e : CacheEvent n) : Prop := e.deid? ≠ none ∧ ¬ e.Downgrade
 abbrev CacheEvent.External (e : CacheEvent n) : Prop := ¬e.Local ∨ e.Grant
 abbrev CacheEvent.NoRequestPermissions (e : CacheEvent n) (s : State) : Prop := s < e.req.MRS ∧ s ≠ I
 
@@ -301,7 +301,7 @@ def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent 
 /-- Axiom. Directory state is the state after the Directory Event, this captures a Coherent Read's requester getting added to sharers. -/
 def DirectoryEvent.directoryState (de : DirectoryEvent n) (s : EntryState n) : Prop := de.SucceedingState n s.directory = de.dirS
 
-def Event.DirectoryState (e : Event n) (s : EntryState n) : Prop := match e with
+def Event.directoryState (e : Event n) (s : EntryState n) : Prop := match e with
   | .directoryEvent de => de.directoryState n s
   | .cacheEvent _ => false
 
@@ -334,3 +334,51 @@ def Event.isDirEventOfReqEvent : Event n → Event n → Prop
 def Event.deidOrderBefore (e₁ e₂ : Event n) : Prop := match e₁, e₂ with
 | .cacheEvent ce₁, .cacheEvent ce₂ => ce₁.deid? < ce₂.deid?
 | _, _ => false
+
+/- Event Relations for Axioms 9 and 10, downgrades as a result of Coherent Requests accessing the Directory -/
+/-- Def. Constraints/Props on the downgrade caused by a request -/
+structure CacheEvent.downgradeOfReq (e_req e_down : CacheEvent n) : Prop where
+  sameReq : e_req.req = e_down.req
+  isDown : e_down.down
+  downFromRequester : e_req.rid = e_down.rid
+
+def Event.downgradeCorrespondingToRequest (e_req e_down : Event n) : Prop := match e_req, e_down with
+  | .cacheEvent ce_req, .cacheEvent ce_down => ce_req.downgradeOfReq n ce_down
+  | _, _ => false
+
+/-- Def. Event is sent from the Directory, so carries the Directory's deid. -/
+def Event.fromDirectory (e_from_dir e_dir : Event n) : Prop := match e_from_dir, e_dir with
+  | .cacheEvent ce, .directoryEvent de => ce.deid? = de.deid
+  | _, _ => false
+
+/-- Def. A (downgrade) event is sent to the prev owner of a Directory Event's state. -/
+def Event.downgradeAtPrevOwner (e_down : Event n) (dir_state : DirectoryState n) : Prop := match dir_state with
+  | .SW _ owner => match e_down with
+    | .cacheEvent ce => ce.cid = owner
+    | .directoryEvent _ => false
+  | _ => false
+
+/-- Abbreviation 25. Grant Event of a Request Event. -/
+structure CacheEvent.grantOfRequest (e_grant e_req: CacheEvent n) : Prop where
+  sameReq : e_grant.req = e_req.req
+  sameAddr : e_grant.addr = e_req.addr
+  sameCache : e_grant.cid = e_req.cid
+  sameRequester : e_grant.rid = e_req.rid
+  sameDown : e_grant.down = e_req.down
+  notDown : ¬ e_grant.down
+
+/-- Event.Wrapper for Abbreviation 25. Grant Event of a Request Event. -/
+def Event.grantToRequester (e_dir e_req e_grant : Event n) : Prop := match e_dir, e_req, e_grant with
+  | .directoryEvent de, .cacheEvent req, .cacheEvent grant => de.deid = grant.deid? ∧ grant.grantOfRequest n req
+  | _, _, _ => false
+
+structure CacheEvent.downgradeOfReqToCache (e_req e_down : CacheEvent n) (destination_cid : CacheId n) : Prop where
+  downgradeOfReq : e_req.downgradeOfReq n e_down
+  atCache : e_down.cid = destination_cid
+
+structure Event.fwdMRDowngradeEventOrdering (e_req e_dir e_down e_grant : Event n) : Prop where
+  dirEncapDowngrade : e_dir.Encapsulates n e_down
+  requestEncapGrant : e_req.Encapsulates n e_grant
+  grantOfRequest : e_dir.grantToRequester n e_req e_grant
+  grantEndsRequest : e_grant.oEnd = (e_req.oEnd + 1)
+  dirBeforeGrant : e_dir.OrderedBefore n e_grant
