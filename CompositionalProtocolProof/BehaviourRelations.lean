@@ -11,12 +11,15 @@ structure Request.IsValid (r : Request) where
   no_cwr : r.NoCoherentWeakRead := by simp
 -/
 
+def Event.reqToDirOfRequestEvent (e_req : Event n) (state_before : State) : ValidRequest :=
+  match e_req.req, state_before, e_req.down with
+  | ⟨⟨.w, false, _⟩, _⟩, I, false => ⟨⟨.r, false, .Weak⟩, {}⟩
+  | ⟨⟨.r, false, .Acq⟩, {}⟩, Vd, _ => ⟨⟨.w, false, .Weak⟩, {}⟩
+  | _, _, _ => e_req.req
+
 noncomputable def Behaviour.reqToDirOfRequestEvent (b : Behaviour n) (e_req : Event n) (init : EntryState n) : ValidRequest :=
   let state_before := b.stateBefore n e_req init
-  match e_req.req.val, state_before.cache with
-  | ⟨.w, false, _⟩, I => ⟨⟨.r, false, .Weak⟩, {non_coherent := by simp, no_write_acq := by simp, no_read_rel := by simp, no_cacq := by simp, no_cwr := by simp}⟩
-  | ⟨.r, false, .Acq⟩, Vd => ⟨⟨.w, false, .Weak⟩, {non_coherent := by simp, no_write_acq := by simp, no_read_rel := by simp, no_cacq := by simp, no_cwr := by simp}⟩
-  | _, _ => e_req.req
+  e_req.reqToDirOfRequestEvent n state_before.cache
 
 /-- Axiom 3. The Request field of a Directory Event corresponding to a Request Event (Cache Event). -/
 structure Behaviour.requestDirectoryEvent (b : Behaviour n) (e_req e_dir : Event n) (init : EntryState n) : Prop where
