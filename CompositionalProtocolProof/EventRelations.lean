@@ -298,6 +298,13 @@ def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent 
     | ⟨.w, false, _⟩ => DirectoryState.Vc ⟨Vc, by simp⟩ -- Non-Coherent-Write downgrade
     | ⟨.r, false, _⟩ => DirectoryState.I ⟨I, by simp⟩ -- Non-Coherent-Read downgrade
 
+/-- Axiom. Directory state is the state after the Directory Event, this captures a Coherent Read's requester getting added to sharers. -/
+def DirectoryEvent.directoryState (de : DirectoryEvent n) (s : EntryState n) : Prop := de.SucceedingState n s.directory = de.dirS
+
+def Event.DirectoryState (e : Event n) (s : EntryState n) : Prop := match e with
+  | .directoryEvent de => de.directoryState n s
+  | .cacheEvent _ => false
+
 /- Can either prove a lemma to state the succeeding state is not `none` under `allowed input state` and `interface requests`,
    OR build in the input state and interface requests into the types.
 -/
