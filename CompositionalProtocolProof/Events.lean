@@ -178,6 +178,10 @@ def Event.isVdWriteBack : Event n → Prop
 | .cacheEvent ce => ce.vdWriteBack
 | .directoryEvent _ => false
 
+def Event.down : Event n → Bool
+| .cacheEvent ce => ce.down
+| .directoryEvent de => de.down
+
 -- def CacheEvent.requestEvent (e : CacheEvent) : Prop := e.cid = e.rid
 -- def CacheEvent.sameAddress (e : CacheEvent) : Prop := e.cid = e.rid
 
