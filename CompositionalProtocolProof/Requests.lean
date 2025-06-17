@@ -87,6 +87,10 @@ def Request.isWrite (r : Request) : Prop := r.rw = .w
 def Request.isCoherentWrite (r : Request) : Prop := r.isCoherent ∧ r.isWrite
 def ValidRequest.isCoherentWrite (vr : ValidRequest) : Prop := vr.val.isCoherentWrite
 
+def Request.isRead (r : Request) : Prop := r.rw = .r
+def Request.isCoherentRead (r : Request) : Prop := r.isCoherent ∧ r.isRead
+def ValidRequest.isCoherentRead (vr : ValidRequest) : Prop := vr.val.isCoherentRead
+
 /-
 abbrev NonCoherentWeakRead : Request := ⟨.r, false, .Weak⟩
 abbrev NonCoherentWeakWrite : Request := ⟨.w, false, .Weak⟩
