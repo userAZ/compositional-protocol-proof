@@ -261,6 +261,13 @@ def EntryState.directory (entry_state : EntryState n) : DirectoryState n :=
   | .inl _ => panic! "EntryState expected to be cache state (DirectoryState), but got (State) instead!"
   | .inr directory_state => directory_state
 
+/- Define a few concrete cache entry states for convenience -/
+abbrev SWEntry : EntryState n := Sum.inl SW
+abbrev MREntry : EntryState n := Sum.inl MR
+abbrev VdEntry : EntryState n := Sum.inl Vd
+abbrev VcEntry : EntryState n := Sum.inl Vc
+abbrev IEntry : EntryState n := Sum.inl I
+
 def System.Cache := CacheId n → State
 def System.Directory := ProtocolInstance → DirectoryState n
 
