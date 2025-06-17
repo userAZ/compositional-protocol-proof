@@ -203,3 +203,13 @@ structure Behaviour.coherentReadDowngradeOthers (b : Behaviour n) (e_req e_dir :
 /-- Axiom 10. Coherent-Read request to Directory results in Downgrade at other caches axiom. -/
 structure Behaviour.coherentReadDirDowngradeOthers : Prop where
   encapDowngrade : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es, b.coherentReadDowngradeOthers n e_req e_dir init
+
+/-- Prop Structure Helper for Axiom 11. Coherent Evict at Directory encapsulates a Grant OrderedAfter the Directory Event. -/
+structure Behaviour.coherentEvictDirGrantOrdering (b : Behaviour n) (e_req e_dir e_grant : Event n) : Prop where
+  isEvict : e_req.isEvict
+  reqEncapDir : e_req.Encapsulates n e_dir
+  reqDirGrantOrderings : e_req.encapGrantAfterDirEvent n e_dir e_grant
+
+/-- Axiom 11. Coherent Evict at Directory encapsulates a Grant OrderedAfter the Directory Event. -/
+structure Behaviour.coherentEvictGetsGrant : Prop where
+  evictGetsGrant : ∀ b : Behaviour n, ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es, ∃ e_grant ∈ b.es, b.coherentEvictDirGrantOrdering n e_req e_dir e_grant
