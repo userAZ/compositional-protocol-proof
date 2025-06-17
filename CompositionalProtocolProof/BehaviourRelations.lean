@@ -131,3 +131,13 @@ inductive Behaviour.requestCoherentAccessesDirectory (b : Behaviour n) (ce : Cac
 structure Behaviour.vdCacheEntryWriteBackLater (b : Behaviour n) (ce : CacheEvent n) (vd_wb_e : Event n) (init : InitialSystemState n) : Prop where
   vdStateAfterEvent : b.stateAfter n (Event.cacheEvent ce) (init.stateAt n (Event.cacheEvent ce)) = VdEntry n
   wbImmPred : ∃ vd_wb_e ∈ b.es, b.ImmediateBottomPredecessor n (Event.cacheEvent ce) vd_wb_e
+
+def Event.deidOrderBefore (e₁ e₂ : Event n) : Prop := match e₁, e₂ with
+| .cacheEvent ce₁, .cacheEvent ce₂ => ce₁.deid? < ce₂.deid?
+| _, _ => false
+
+/-- Axiom 8, messages from the directory are ordered by Cache Event `deid?` field. -/
+structure Behaviour.deidOrdered : Prop where
+  orderedDeid : ∀ e₁ e₂ : Event n, e₁.deidOrderBefore n e₂
+  orderedEvents : ∀ e₁ e₂ : Event n, e₁.OrderedBefore n e₂
+  inB : ∀ e : Event n, ∀ b : Behaviour n, e ∈ b.es
