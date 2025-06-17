@@ -126,3 +126,8 @@ inductive Behaviour.requestCoherentAccessesDirectory (b : Behaviour n) (ce : Cac
 | evictVdWB : b.evictVdWBEncapsulatesDirEvent n ce init → Behaviour.requestCoherentAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
 | evictSCPutM : b.evictSCPutMEncapsulatesDirEvent n ce init → Behaviour.requestCoherentAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
 | evictSCPutS : b.evictSCPutSEncapsulatesDirEvent n ce init → Behaviour.requestCoherentAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
+
+/-- Axiom 7, a Cache Entry in Vd State may writeback -/
+structure Behaviour.vdCacheEntryWriteBackLater (b : Behaviour n) (ce : CacheEvent n) (vd_wb_e : Event n) (init : InitialSystemState n) : Prop where
+  vdStateAfterEvent : b.stateAfter n (Event.cacheEvent ce) (init.stateAt n (Event.cacheEvent ce)) = VdEntry n
+  wbImmPred : ∃ vd_wb_e ∈ b.es, b.ImmediateBottomPredecessor n (Event.cacheEvent ce) vd_wb_e
