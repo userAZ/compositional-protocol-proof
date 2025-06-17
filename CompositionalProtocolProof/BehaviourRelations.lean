@@ -132,12 +132,19 @@ structure Behaviour.vdCacheEntryWriteBackLater (b : Behaviour n) (ce : CacheEven
   vdStateAfterEvent : b.stateAfter n (Event.cacheEvent ce) (init.stateAt n (Event.cacheEvent ce)) = VdEntry n
   wbImmPred : ∃ vd_wb_e ∈ b.es, b.ImmediateBottomPredecessor n (Event.cacheEvent ce) vd_wb_e
 
-def Event.deidOrderBefore (e₁ e₂ : Event n) : Prop := match e₁, e₂ with
-| .cacheEvent ce₁, .cacheEvent ce₂ => ce₁.deid? < ce₂.deid?
-| _, _ => false
-
 /-- Axiom 8, messages from the directory are ordered by Cache Event `deid?` field. -/
 structure Behaviour.deidOrdered : Prop where
   orderedDeid : ∀ e₁ e₂ : Event n, e₁.deidOrderBefore n e₂
   orderedEvents : ∀ e₁ e₂ : Event n, e₁.OrderedBefore n e₂
   inB : ∀ e : Event n, ∀ b : Behaviour n, e ∈ b.es
+
+-- inductive Behaviour.coherentWriteAtDirectoryEncapDowngrades (b : Behaviour n) (e_dir : Event n)
+
+structure Behaviour.coherentWriteDowngradeOthers (b : Behaviour n) (e_dir : Event n) : Prop where
+  isDirEvent : e_dir.isDirectoryEvent
+  coherentWrite : e_dir.req.isCoherentWrite
+  -- TODO: Write an inductive: based on the state of the directory that e_dir occurs in, exists downgrades at other caches
+
+/-- Axiom 9, Coherent-Write request to Directory results in Downgrade at other caches axiom. -/
+structure Behaviour.coherentWriteDirDowngradeOthers : Prop where
+  encapDowngrades : ∀ b : Behaviour n, ∃ e ∈ b.es, b.coherentWriteDowngradeOthers n e
