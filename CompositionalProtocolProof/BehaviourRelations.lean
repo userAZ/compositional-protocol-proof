@@ -138,13 +138,68 @@ structure Behaviour.deidOrdered : Prop where
   orderedEvents : ∀ e₁ e₂ : Event n, e₁.OrderedBefore n e₂
   inB : ∀ e : Event n, ∀ b : Behaviour n, e ∈ b.es
 
--- inductive Behaviour.coherentWriteAtDirectoryEncapDowngrades (b : Behaviour n) (e_dir : Event n)
+/- Def. Constraints on fields of Forwarded Downgrade events, and Grant Events. -/
+structure Behaviour.downgradeAtPrevOwner (b : Behaviour n) (e_req e_dir e_fwd_down e_grant : Event n) (init : InitialSystemState n) : Prop where
+  -- Constraints on fields of Forwarded Downgrade, and Grant events.
+  atPrevOwner : e_fwd_down.downgradeAtPrevOwner n (b.stateBefore n e_dir (init.stateAt n e_dir)).directory
+  fwdFromRequester : e_req.downgradeCorrespondingToRequest n e_fwd_down
+  idCorrespondDir : e_fwd_down.fromDirectory n e_dir
+  grantOfRequest : e_dir.grantToRequester n e_req e_grant
+  -- Encapsulation and Ordering between Request, Directory, Fwd'd Downgrade, and Grant Events.
+  reqEncapDir : e_req.Encapsulates n e_dir
+  dirEncapDowngrade : e_dir.Encapsulates n e_fwd_down -- already have from Request Encaps Directory Event
+  requestEncapGrant : e_req.Encapsulates n e_grant
+  grantEndsRequest : e_grant.oEnd = (e_req.oEnd + 1)
+  dirBeforeGrant : e_dir.OrderedBefore n e_grant
 
-structure Behaviour.coherentWriteDowngradeOthers (b : Behaviour n) (e_dir : Event n) : Prop where
+/- Def. When a Coherent Request causes a Forwarded Downgrade to the previous owner at the Directory. (and a Grant Event) -/
+structure Behaviour.fwdCoherentRequestToOwner (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+  reqDirOnSW   : b.stateBefore n e_dir (init.stateAt n e_dir) = SWEntry n
+  fwdPrevOwner : ∃ e_down ∈ b.es, ∃ e_grant ∈ b.es, b.downgradeAtPrevOwner n e_req e_dir e_down e_grant init
+/-- Def. Downgrade to sharers -/
+def Behaviour.downgradeAtSharers (b : Behaviour n) (dir_state : DirectoryState n) (e_req e_dir : Event n) : Prop := match dir_state with
+  | .MR _ sharers => ∃ e_grant ∈ b.es, ∀ s ∈ sharers, ∃ e_down ∈ b.es, match e_req, e_down with
+    | .cacheEvent request, .cacheEvent downgrade =>
+      request.downgradeOfReqToCache n downgrade s ∧ e_req.fwdMRDowngradeEventOrdering n e_dir e_down e_grant
+    | _, _ => false
+  | _ => false
+
+/-- Def. fwd coherent-/
+structure Behaviour.fwdCoherentRequestToSharers (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+  cWriteOnMR : b.stateBefore n e_dir (init.stateAt n e_dir) = MREntry n
+  fwdSharers : b.downgradeAtSharers n (b.stateBefore n e_dir (init.stateAt n e_dir)).directory e_req e_dir
+
+/- Def. Which directory states will a Coherent Write Request cause downgrades at other caches. Includes Props on Downgrade Events to
+other caches. -/
+inductive Behaviour.coherentWriteAtDirectoryEncapDowngrades (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop
+| cWriteOnSW : b.fwdCoherentRequestToOwner n e_req e_dir init → Behaviour.coherentWriteAtDirectoryEncapDowngrades b e_req e_dir init
+| cWriteOnMR : b.fwdCoherentRequestToSharers n e_req e_dir init → Behaviour.coherentWriteAtDirectoryEncapDowngrades b e_req e_dir init
+
+/-- Def. When a coherent write to the Directory downgrades other caches. -/
+structure Behaviour.coherentWriteDowngradeOthers (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
   isDirEvent : e_dir.isDirectoryEvent
-  coherentWrite : e_dir.req.isCoherentWrite
-  -- TODO: Write an inductive: based on the state of the directory that e_dir occurs in, exists downgrades at other caches
+  dirCoherentWrite : e_dir.req.isCoherentWrite
+  isCacheEvent : e_req.isCacheEvent
+  reqCoherentWrite : e_req.req.isCoherentWrite
+  downgradeOtherCaches : b.coherentWriteAtDirectoryEncapDowngrades n e_req e_dir init
 
 /-- Axiom 9, Coherent-Write request to Directory results in Downgrade at other caches axiom. -/
 structure Behaviour.coherentWriteDirDowngradeOthers : Prop where
-  encapDowngrades : ∀ b : Behaviour n, ∃ e ∈ b.es, b.coherentWriteDowngradeOthers n e
+  encapDowngrades : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es, b.coherentWriteDowngradeOthers n e_req e_dir init
+
+/- Def. Which directory states will a Coherent Read Request cause downgrades at other caches. Includes Props on Downgrade Events to
+other caches. -/
+inductive Behaviour.coherentReadAtDirectoryEncapDowngrades (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop
+| cReadOnSW : b.fwdCoherentRequestToOwner n e_req e_dir init → Behaviour.coherentReadAtDirectoryEncapDowngrades b e_req e_dir init
+
+/-- Def. Props on Coherent Read Request event accessing the directory -/
+structure Behaviour.coherentReadDowngradeOthers (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+  isDirEvent : e_dir.isDirectoryEvent
+  dirCoherentRead : e_dir.req.isCoherentRead
+  isCacheEvent : e_req.isCacheEvent
+  reqCoherentRead : e_req.req.isCoherentRead
+  downgradeOtherCaches : b.coherentReadAtDirectoryEncapDowngrades n e_req e_dir init
+
+/-- Axiom 10. Coherent-Read request to Directory results in Downgrade at other caches axiom. -/
+structure Behaviour.coherentReadDirDowngradeOthers : Prop where
+  encapDowngrade : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es, b.coherentReadDowngradeOthers n e_req e_dir init
