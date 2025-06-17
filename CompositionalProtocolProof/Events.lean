@@ -136,6 +136,10 @@ def Event.struct : Event n → Struct n
 | .directoryEvent _ => .directory
 | .cacheEvent ce => .cache ce.cid
 
+def Event.isCacheEvent : Event n → Prop
+| .directoryEvent _ => true
+| .cacheEvent _ => false
+
 def Event.isDirectoryEvent : Event n → Prop
 | .directoryEvent _ => true
 | .cacheEvent _ => false
