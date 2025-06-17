@@ -28,14 +28,25 @@ structure Behaviour.requestDirectoryEvent (b : Behaviour n) (e_req e_dir : Event
   dirReq :  e_dir.req = b.reqToDirOfRequestEvent n e_req init -- from analysis on e_req and the state it's made on
   dirState : e_dir.isDirEventOfDirState n (b.stateAfter n e_dir init).directory
 
-structure Behaviour.reqEncapsulatesDirEvent' (b : Behaviour n) (e_req e_dir : Event n) (init : EntryState n) : Prop where
+structure Behaviour.cacheEncapsulatesCorrespondingDirEvent (b : Behaviour n) (e_req e_dir : Event n) (init : EntryState n) : Prop where
   reqEncapDir : e_req.Encapsulates n e_dir
   dirCorresponds : b.requestDirectoryEvent n e_req e_dir init
   dirInB : e_dir ∈ b.es
   reqInB : e_req ∈ b.es
 
+structure Behaviour.reqEncapsulatesDirEvent (b : Behaviour n) (e_req e_dir : Event n) (init : EntryState n) : Prop where
+  reqEncapCorrespondingDirEvent : b.cacheEncapsulatesCorrespondingDirEvent n e_req e_dir init
+  notDowngrade : ¬ e_dir.down
+
 structure Behaviour.reqEncapCorrespondingDirEvent (b : Behaviour n) (e_req : Event n) (init : EntryState n) : Prop where
-  reqEncapCorrDir : ∃ e_dir ∈ b.es, b.reqEncapsulatesDirEvent' n e_req e_dir init
+  reqEncapCorrDir : ∃ e_dir ∈ b.es, b.reqEncapsulatesDirEvent n e_req e_dir init
+
+structure Behaviour.evictEncapsulatesCorrespondingDirEvent (b : Behaviour n) (e_req e_dir : Event n) (init : EntryState n) : Prop where
+  reqEncapCorrespondingDirEvent : b.cacheEncapsulatesCorrespondingDirEvent n e_req e_dir init
+  isDowngrade : e_dir.down
+
+structure Behaviour.evictEncapCorrespondingDirEvent (b : Behaviour n) (e_req : Event n) (init : EntryState n) : Prop where
+  evictEncapCorrDir : ∃ e_dir ∈ b.es, b.evictEncapsulatesCorrespondingDirEvent n e_req e_dir init
 
 /--Axiom 4. Acquire invalidates other Vc cache entries after it's directory access. -/
 structure Behaviour.acquireInvalidates (b : Behaviour n) (e_req e_dir : Event n) : Prop where
@@ -112,6 +123,6 @@ inductive Behaviour.requestCoherentAccessesDirectory (b : Behaviour n) (ce : Cac
 | acquire : b.acquireEncapDirEvent n ce init → Behaviour.requestCoherentAccessesDirectory b ce init -- TODO: struct field : Not on MR
 | weakWrite : b.ncWeakRequestEncapDirEvent n ce init → Behaviour.requestCoherentAccessesDirectory b ce init -- TODO: struct field : On I
 | weakRead : b.ncWeakRequestEncapDirEvent n ce init → Behaviour.requestCoherentAccessesDirectory b ce init -- TODO: struct field : On I
-| evictVdWB : b.evictEncapCorrespondingDirEvent n (Event.cacheEvent ce) (init.stateAt n (Event.cacheEvent ce)) → Behaviour.requestCoherentAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
-| evictSCPutM : b.evictEncapCorrespondingDirEvent n (Event.cacheEvent ce) (init.stateAt n (Event.cacheEvent ce)) → Behaviour.requestCoherentAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
-| evictSCPutS : b.evictEncapCorrespondingDirEvent n (Event.cacheEvent ce) (init.stateAt n (Event.cacheEvent ce)) → Behaviour.requestCoherentAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
+| evictVdWB : b.evictVdWBEncapsulatesDirEvent n ce init → Behaviour.requestCoherentAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
+| evictSCPutM : b.evictSCPutMEncapsulatesDirEvent n ce init → Behaviour.requestCoherentAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
+| evictSCPutS : b.evictSCPutSEncapsulatesDirEvent n ce init → Behaviour.requestCoherentAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
