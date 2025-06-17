@@ -136,6 +136,16 @@ def Event.struct : Event n → Struct n
 | .directoryEvent _ => .directory
 | .cacheEvent ce => .cache ce.cid
 
+def CacheEvent.isFromSelf : CacheEvent n → Prop
+| ce => ce.cid = ce.rid
+
+def CacheEvent.isEvict : CacheEvent n → Prop
+| ce => ce.isFromSelf ∧ ce.down
+
+def Event.isEvict : Event n → Prop
+| .cacheEvent ce => ce.isEvict
+| .directoryEvent _ => true
+
 def Event.isCacheEvent : Event n → Prop
 | .directoryEvent _ => true
 | .cacheEvent _ => false
