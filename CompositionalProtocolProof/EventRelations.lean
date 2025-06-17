@@ -323,3 +323,7 @@ def Event.isDirEventOfReqEvent : Event n → Event n → Prop
     | .cacheEvent ce => de.eReq = ce
     | .directoryEvent _ => false
   | .cacheEvent _ => false
+
+def Event.deidOrderBefore (e₁ e₂ : Event n) : Prop := match e₁, e₂ with
+| .cacheEvent ce₁, .cacheEvent ce₂ => ce₁.deid? < ce₂.deid?
+| _, _ => false
