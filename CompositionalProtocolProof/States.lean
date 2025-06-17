@@ -279,9 +279,41 @@ set_option quotPrecheck false in
 notation "System.Directory" => System.Directory' n
 -/
 
+variable (m : Nat) -- Number of address
+
+def Cache := Vector State m
+def Caches := Vector (Cache m) n
+inductive ProtocolCaches
+| globalP : Caches m 2 → ProtocolCaches
+| cluster1 : Caches m n → ProtocolCaches
+| cluster2 : Caches m n → ProtocolCaches
+
+def ProxyCache := Cache m
+inductive ProtocolProxyCaches
+| globalP : ProxyCache m → ProtocolProxyCaches
+| cluster1 : ProxyCache m → ProtocolProxyCaches
+| cluster2 : ProxyCache m → ProtocolProxyCaches
+
+def GlobalDirectory := Vector (DirectoryState 2) m
+def ClusterDirectory := Vector (DirectoryState n) m
+
+inductive ProtocolDirectory
+| globalP : GlobalDirectory m → ProtocolDirectory
+| cluster1 : ClusterDirectory m n → ProtocolDirectory
+| cluster2 : ClusterDirectory m n → ProtocolDirectory
+
 /- Initial System State -/
 structure InitialSystemState where
-  caches : Finset (CacheId n)
-  cacheStates : System.Cache n
-  directories : ProtocolInstance
-  directoryStates : System.Directory n
+  -- caches : Finset (CacheId n)
+  -- proxyCache : ProtocolProxyCaches m
+  proxyCacheC1 : Cache m
+  proxyCacheC2 : Cache m
+  cachesG : Caches m n
+  cachesC1 : Caches m n
+  cachesC2 : Caches m n
+  -- cacheStates : System.Cache n
+  -- directories : ProtocolInstance
+  directoriesG : GlobalDirectory m
+  directoriesC1 : ClusterDirectory m n
+  directoriesC2 : ClusterDirectory m n
+  -- directoryStates : System.Directory n

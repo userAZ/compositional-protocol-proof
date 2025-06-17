@@ -190,7 +190,22 @@ def Event.down : Event n → Bool
 
 def UniqueCacheEventIds (ce₁ ce₂ : CacheEvent n) : Prop := ce₁.eid ≠ ce₂.eid
 
+-- TODO: will need to ask on zulip about Vectors?
+variable (m : Nat) -- m number of Addresses
+
 -- NOTE: TODO: Update this to use a Vector for CacheIds, and Addresses.
-def InitialSystemState.stateAt (init : InitialSystemState n) (e : Event n) : EntryState n := match e with
-  | .cacheEvent ce => Sum.inl <| init.cacheStates (ce.cid)
-  | .directoryEvent de => Sum.inr <| init.directoryStates de.pInst
+def InitialSystemState.stateAt (init : InitialSystemState m n) (e : Event n) : EntryState n := match e with
+  | .cacheEvent ce => match ce.cid with
+    | .proxy proto_inst =>
+      match proto_inst with
+      | .global => panic! "The global protocol doesn't have a proxy cache."
+      | .cluster1 => Sum.inl <| init.proxyCacheC1[ce.cid][ce.addr]
+      | .cluster2 => Sum.inl <| init.proxyCacheC2[ce.cid][ce.addr]
+    | .cache proto_cache_inst => match proto_cache_inst with
+      | .globalP cid _ => Sum.inl <| init.cachesG[cid][ce.addr]
+      | .cluster1 cid _ => Sum.inl <| init.cachesC1[cid][ce.addr]
+      | .cluster2 cid _ => Sum.inl <| init.cachesC2[cid][ce.addr]
+  | .directoryEvent de => match de.pInst with
+    | .global => Sum.inr <| init.directoriesG[ce.addr]
+    | .cluster1 => Sum.inr <| init.directoriesC1[ce.addr]
+    | .cluster2 => Sum.inr <| init.directoriesC2[ce.addr]
