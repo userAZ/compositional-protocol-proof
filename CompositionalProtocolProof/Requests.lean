@@ -298,34 +298,21 @@ lemma pi_ncw_on_mr_contradiction {pi : ProtocolInterface} (vr : ValidRequest) (s
 
 /-- What is the state a request leaves a cache entry in.  -/
 def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (s : State) /-(h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s)-/ : State :=
-  match h : vr.val with
-  | ⟨_, true, _⟩ | ⟨.r, false, .Weak⟩ =>
+  match vr with
+  | ⟨⟨_, true, _⟩, _⟩ | ⟨⟨.r, false, .Weak⟩, {}⟩ =>
     if s ≤ vr.MRS then s
     else vr.MRS -- Must be a way to state this does not produce an Option Type?
-  | ⟨.w, false, .Weak⟩ =>
-    match hs : s with
+  | ⟨⟨.w, false, .Weak⟩, {}⟩ =>
+    match s with
     | ⟨some .wr, true⟩ => s
     | ⟨some .r,  true⟩ => Vd -- none -- can avoid `none` by using contradiction from commented-out input arg `h_pi_has_s` and Lemma `ncw_impl_no_mr`.
-      /- Can use this proof instead to state this case isn't possible
-      by
-      have h_s_is_mr : s = MR := by simp[hs]
-      have h_vr_is_ncw : vr.val = RelWrite ∨ vr.val = NonCoherentWeakWrite := by simp [h]
-      have h_s_not_mr := ncw_impl_no_mr vr s h_vr_in_pi (by subst hs; exact h_pi_has_s) h_vr_is_ncw h_s_is_mr
-
-      subst hs
-      absurd h_s_not_mr h_pi_has_s
-      contradiction
-      -/
     | _ => Vd
-  | ⟨.w, false, .Rel⟩ =>
-    match hs : s with
+  | ⟨⟨.w, false, .Rel⟩, {}⟩ =>
+    match s with
     | ⟨some .wr, true⟩ => s
     | ⟨some .r,  true⟩ => Vc -- none -- can avoid `none` by using contradiction from commented-out input arg `h_pi_has_s` and Lemma `ncw_impl_no_mr`.
     | _ => Vc
-  | ⟨.r, false, .Acq⟩ => Vc
-  | ⟨.w, false, .SC ⟩ | ⟨.r, false, .SC ⟩ => absurd vr.prop.non_coherent (by simp [h])
-  | ⟨.w, false, .Acq⟩ => absurd vr.prop.no_write_acq (by simp [h])
-  | ⟨.r, false, .Rel⟩ => absurd vr.prop.no_read_rel (by simp [h])
+  | ⟨⟨.r, false, .Acq⟩, {}⟩ => Vc
 
 /- Not worth trying to prove right now.
 lemma ValidRequest.RequestState_in_pi {pi : ProtocolInterface} (vr : ValidRequest) (s : State)
