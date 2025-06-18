@@ -402,7 +402,17 @@ def Event.copyOfForCasting (e_original e_cast_copy : Event n) : Prop := match e_
   | _, _ => false
 
 /-- Def. Copy an `e_original`, to a `e_cast_copy` at an Addr `other_addr`, where `e_cast_copy` is encapsulated by `e_base`. -/
-structure Event.baseEncapBroadcastCopies (other_addr : Addr) (e_base e_original e_cast_copy : Event n) : Prop where
+structure Event.baseEncapBroadcast (other_addr : Addr) (e_base e_original e_cast_copy : Event n) : Prop where
   castOriginal : e_original.copyOfForCasting n e_cast_copy
   toOtherAddr : e_cast_copy.addr = other_addr
   baseEncapCast : e_base.Encapsulates n e_cast_copy
+
+/-- Def. (broadcast ordered before e_dir) Copy an `e_original`, to a `e_cast_copy` at an Addr `other_addr`, where `e_cast_copy` is encapsulated by `e_base`. -/
+structure Event.baseEncapBroadcastBefore (other_addr : Addr) (e_base e_original e_cast_copy e_dir : Event n) : Prop where
+  broadcastEncapInBase : e_base.baseEncapBroadcast n other_addr e_original e_cast_copy
+  beforeDir : e_cast_copy.OrderedBefore n e_dir
+
+/-- Def. (broadcast ordered after e_dir) Copy an `e_original`, to a `e_cast_copy` at an Addr `other_addr`, where `e_cast_copy` is encapsulated by `e_base`. -/
+structure Event.baseEncapBroadcastAfter (other_addr : Addr) (e_base e_original e_cast_copy e_dir : Event n) : Prop where
+  broadcastEncapInBase : e_base.baseEncapBroadcast n other_addr e_original e_cast_copy
+  afterDir : e_dir.OrderedBefore n e_cast_copy
