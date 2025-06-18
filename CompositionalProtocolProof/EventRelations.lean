@@ -385,3 +385,24 @@ structure Event.encapGrantAfterDirEvent (e_req e_dir e_grant : Event n) : Prop w
 structure Event.fwdMRDowngradeEventOrdering (e_req e_dir e_down e_grant : Event n) : Prop where
   dirEncapDowngrade : e_dir.Encapsulates n e_down
   reqDirGrantOrderings : e_req.encapGrantAfterDirEvent n e_dir e_grant
+
+/- Defs for Def 2.36: Broadcast an event `e` to other entry addresses at a cache. -/
+
+/-- Def. State that `e_original` and `e_cast_copy` have the same key fields {Requester, CacheId, Req, Down}. -/
+structure CacheEvent.copyOfForCasting (e_original e_cast : CacheEvent n) : Prop where
+  sameRequester : e_cast.rid = e_original.rid
+  sameCache : e_cast.cid = e_original.cid
+  sameReq : e_cast.req = e_original.req
+  sameDown : e_cast.down = e_original.down
+
+/-- Def. Open up Events `e_original` and `e_cast_copy`, to state they have the same key fields {Requester, CacheId, Req, Down}.
+This is an events Wrapper for `CacheEvent.copyOfForCasting`. -/
+def Event.copyOfForCasting (e_original e_cast_copy : Event n) : Prop := match e_original, e_cast_copy with
+  | .cacheEvent original, .cacheEvent cast_copy => original.copyOfForCasting n cast_copy
+  | _, _ => false
+
+/-- Def. Copy an `e_original`, to a `e_cast_copy` at an Addr `other_addr`, where `e_cast_copy` is encapsulated by `e_base`. -/
+structure Event.baseEncapBroadcastCopies (other_addr : Addr) (e_base e_original e_cast_copy : Event n) : Prop where
+  castOriginal : e_original.copyOfForCasting n e_cast_copy
+  toOtherAddr : e_cast_copy.addr = other_addr
+  baseEncapCast : e_base.Encapsulates n e_cast_copy
