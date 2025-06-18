@@ -132,11 +132,16 @@ structure Behaviour.vdCacheEntryWriteBackLater (b : Behaviour n) (ce : CacheEven
   vdStateAfterEvent : b.stateAfter n (Event.cacheEvent ce) (init.stateAt n (Event.cacheEvent ce)) = VdEntry n
   wbImmPred : ∃ vd_wb_e ∈ b.es, b.ImmediateBottomPredecessor n (Event.cacheEvent ce) vd_wb_e
 
+/-- Def. state that two events `e₁` `e₂` are orderedBefore if their Deid fields are orderedBefore. -/
+structure Behaviour.orderedDeidEvents (b : Behaviour n) (e₁ e₂ : Event n) : Prop where
+  orderedDeid : e₁.deidOrderBefore n e₂
+  orderedEvents : e₁.OrderedBefore n e₂
+  e₁InB : e₁ ∈ b.es
+  e₂InB : e₂ ∈ b.es
+
 /-- Axiom 8, messages from the directory are ordered by Cache Event `deid?` field. -/
 structure Behaviour.deidOrdered : Prop where
-  orderedDeid : ∀ e₁ e₂ : Event n, e₁.deidOrderBefore n e₂
-  orderedEvents : ∀ e₁ e₂ : Event n, e₁.OrderedBefore n e₂
-  inB : ∀ e : Event n, ∀ b : Behaviour n, e ∈ b.es
+  orderedDeidEvents : ∀ b : Behaviour n, ∀ e₁ e₂ : Event n, b.orderedDeidEvents n e₁ e₂
 
 /-- Def. Constraints on fields of Forwarded Downgrade. -/
 structure Behaviour.requestDowngradePrevOwner (b : Behaviour n) (e_req e_dir e_fwd_down : Event n) (init : InitialSystemState n) : Prop where
