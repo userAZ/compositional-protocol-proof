@@ -300,8 +300,8 @@ lemma pi_ncw_on_mr_contradiction {pi : ProtocolInterface} (vr : ValidRequest) (s
 def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (s : State) /-(h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s)-/ : State :=
   match vr with
   | ⟨⟨_, true, _⟩, _⟩ | ⟨⟨.r, false, .Weak⟩, {}⟩ =>
-    if s ≤ vr.MRS then s
-    else vr.MRS -- Must be a way to state this does not produce an Option Type?
+    if vr.MRS ≤ s then s
+    else vr.MRS
   | ⟨⟨.w, false, .Weak⟩, {}⟩ =>
     match s with
     | ⟨some .wr, true⟩ => s
