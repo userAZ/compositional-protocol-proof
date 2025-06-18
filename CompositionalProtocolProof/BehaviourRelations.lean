@@ -232,3 +232,7 @@ structure Behaviour.broadcastEvent (b : Behaviour n) (addr : Addr) (e_base e_ori
 /-- Def 2.36. Broadcast Event `e` to Other Cache Entries. -/
 structure Behaviour.broadcastEventToOtherEntries : Prop where
   broadcast : ∀ b : Behaviour n, ∀ e_base e_original : Event n, b.broadcastEvent n e_base.addr e_base e_original
+
+-- NOTE: use vcInval and vdWriteBack to state an event is a vcInval or vdWriteBack
+/-- Axiom 13. Release and Acquire Broadcast WriteBacks and Invalidations to other cache entries Axiom. -/
+structure Behaviour.relAcqBroadcast : Prop where
