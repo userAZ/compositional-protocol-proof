@@ -427,3 +427,9 @@ def ValidRequest.DowngradeState (vr : ValidRequest) : State → State
       if s = Vd then Vc
       else I -- Junk. This is a write-back to directory
     else I -- Junk. There are no other downgrade events we consider
+
+/-- Interface of each protocol "cluster" -/
+structure Protocol.interface where
+  global_pi : ProtocolInterface
+  cluster1_pi : ProtocolInterface
+  cluster2_pi : ProtocolInterface
