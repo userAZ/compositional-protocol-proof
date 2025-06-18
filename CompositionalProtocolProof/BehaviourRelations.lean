@@ -224,3 +224,11 @@ structure Behaviour.nonCoherentReqOnSWDowngradeOthers (b : Behaviour n) (e_req e
 structure Behaviour.nonCoherentRequestDowngradeOthers : Prop where
   ncReqDowngradeSWOwner : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es,
     b.nonCoherentReqOnSWDowngradeOthers n e_req e_dir init
+
+/-- Def. For all other entry addresses, an event `e_original` is copied and broadcast to other entries. -/
+structure Behaviour.broadcastEvent (b : Behaviour n) (addr : Addr) (e_base e_original : Event n) : Prop where
+  broadcastToEntries : ∀ addr' ≠ addr, ∃ e_cast_copy ∈ b.es, e_base.baseEncapBroadcastCopies n addr' e_original e_cast_copy
+
+/-- Def 2.36. Broadcast Event `e` to Other Cache Entries. -/
+structure Behaviour.broadcastEventToOtherEntries : Prop where
+  broadcast : ∀ b : Behaviour n, ∀ e_base e_original : Event n, b.broadcastEvent n e_base.addr e_base e_original
