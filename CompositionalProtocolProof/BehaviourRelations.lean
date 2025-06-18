@@ -188,8 +188,8 @@ structure Behaviour.coherentWriteDirDowngradeOthers : Prop where
 
 /- Def. Which directory states will a Coherent Read Request cause downgrades at other caches. Includes Props on Downgrade Events to
 other caches. -/
-inductive Behaviour.coherentReadAtDirectoryEncapDowngrades (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop
-| cReadOnSW : b.fwdCoherentRequestToOwner n e_req e_dir init → Behaviour.coherentReadAtDirectoryEncapDowngrades b e_req e_dir init
+inductive Behaviour.coherentRequestAtDirectoryEncapDowngrades (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop
+| cReadOnSW : b.fwdCoherentRequestToOwner n e_req e_dir init → Behaviour.coherentRequestAtDirectoryEncapDowngrades b e_req e_dir init
 
 /-- Def. Props on Coherent Read Request event accessing the directory -/
 structure Behaviour.coherentReadDowngradeOthers (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
@@ -197,7 +197,7 @@ structure Behaviour.coherentReadDowngradeOthers (b : Behaviour n) (e_req e_dir :
   dirCoherentRead : e_dir.req.isCoherentRead
   isCacheEvent : e_req.isCacheEvent
   reqCoherentRead : e_req.req.isCoherentRead
-  downgradeOtherCaches : b.coherentReadAtDirectoryEncapDowngrades n e_req e_dir init
+  downgradeOtherCaches : b.coherentRequestAtDirectoryEncapDowngrades n e_req e_dir init
 
 /-- Axiom 10. Coherent-Read request to Directory results in Downgrade at other caches axiom. -/
 structure Behaviour.coherentReadDirDowngradeOthers : Prop where
