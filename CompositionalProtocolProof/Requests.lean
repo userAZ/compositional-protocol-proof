@@ -422,7 +422,7 @@ def ValidRequest.DowngradeState (vr : ValidRequest) : State → State
     if vr.val = NonCoherentWeakRead then
       if s = Vc then I
       else I -- Junk. This is a self-invalidate
-    else if vr.val = NonCoherentWeakWrite then
+    else if vr.val = NonCoherentWeakWrite ∨ vr.val = RelWrite then
       if s = Vd then Vc
       else I -- Junk. This is a write-back to directory
     else I -- Junk. There are no other downgrade events we consider
