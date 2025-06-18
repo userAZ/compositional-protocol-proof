@@ -138,19 +138,18 @@ structure Behaviour.deidOrdered : Prop where
   orderedEvents : ∀ e₁ e₂ : Event n, e₁.OrderedBefore n e₂
   inB : ∀ e : Event n, ∀ b : Behaviour n, e ∈ b.es
 
-/- Def. Constraints on fields of Forwarded Downgrade events, and Grant Events. -/
-structure Behaviour.downgradeAtPrevOwner (b : Behaviour n) (e_req e_dir e_fwd_down e_grant : Event n) (init : InitialSystemState n) : Prop where
-  -- Constraints on fields of Forwarded Downgrade, and Grant events.
+/-- Def. Constraints on fields of Forwarded Downgrade. -/
+structure Behaviour.requestDowngradePrevOwner (b : Behaviour n) (e_req e_dir e_fwd_down : Event n) (init : InitialSystemState n) : Prop where
   atPrevOwner : e_fwd_down.downgradeAtPrevOwner n (b.stateBefore n e_dir (init.stateAt n e_dir)).directory
   fwdFromRequester : e_req.downgradeCorrespondingToRequest n e_fwd_down
   idCorrespondDir : e_fwd_down.fromDirectory n e_dir
-  grantOfRequest : e_dir.grantToRequester n e_req e_grant
-  -- Encapsulation and Ordering between Request, Directory, Fwd'd Downgrade, and Grant Events.
-  reqEncapDir : e_req.Encapsulates n e_dir
   dirEncapDowngrade : e_dir.Encapsulates n e_fwd_down -- already have from Request Encaps Directory Event
-  requestEncapGrant : e_req.Encapsulates n e_grant
-  grantEndsRequest : e_grant.oEnd = (e_req.oEnd + 1)
-  dirBeforeGrant : e_dir.OrderedBefore n e_grant
+  reqEncapDir : e_req.Encapsulates n e_dir
+
+/- Def. Constraints on fields of Forwarded Downgrade events, and Grant Events. -/
+structure Behaviour.downgradeAtPrevOwner (b : Behaviour n) (e_req e_dir e_fwd_down e_grant : Event n) (init : InitialSystemState n) : Prop where
+  downgradePrevOwner : b.requestDowngradePrevOwner n e_req e_dir e_fwd_down init
+  grantRels : e_req.encapGrantAfterDirEvent n e_dir e_grant
 
 /- Def. When a Coherent Request causes a Forwarded Downgrade to the previous owner at the Directory. (and a Grant Event) -/
 structure Behaviour.fwdCoherentRequestToOwner (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
@@ -164,7 +163,7 @@ def Behaviour.downgradeAtSharers (b : Behaviour n) (dir_state : DirectoryState n
     | _, _ => false
   | _ => false
 
-/-- Def. fwd coherent-/
+/-- Def. fwd coherent request to other Sharer caches -/
 structure Behaviour.fwdCoherentRequestToSharers (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
   cWriteOnMR : b.stateBefore n e_dir (init.stateAt n e_dir) = MREntry n
   fwdSharers : b.downgradeAtSharers n (b.stateBefore n e_dir (init.stateAt n e_dir)).directory e_req e_dir
