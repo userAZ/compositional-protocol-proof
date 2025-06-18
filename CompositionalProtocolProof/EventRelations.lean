@@ -257,9 +257,6 @@ structure Event.sameEntry : Prop where
   sameStruct : ∀ e₁ e₂ : Event n, e₁.sameStructure n e₂
   sameAddr : ∀ e₁ e₂ : Event n, e₁.sameAddr n e₂
 
-def CoherentRead : Request := ⟨ .r, true, .SC ⟩
-def CoherentWrite : Request := ⟨ .w, true, .SC ⟩
-
 def CacheEvent.SucceedingState (e : CacheEvent n) (s : State) : State :=
   match e.down with
   | false => e.req.RequestState s
