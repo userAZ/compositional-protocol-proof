@@ -249,6 +249,34 @@ structure Behaviour.broadcastToOtherEntriesAfterDir (b : Behaviour n) (e_base e_
 structure Behaviour.broadcastToOtherEntries (b : Behaviour n) (e_base e_original : Event n) : Prop where
   broadcast : b.broadcastEvent n e_base.addr e_base e_original
 
--- NOTE: use vcInval and vdWriteBack to state an event is a vcInval or vdWriteBack
+/-- Def. Acquire Invalidates Other Entries in Vc after accessing the Directory -/
+structure Behaviour.acqInvalOtherEntries (b : Behaviour n) (e_req e_inval e_dir : Event n) : Prop where
+  isAcq : e_req.isAcquire
+  isDir : e_dir.isDirectoryEvent
+  isVcInval : e_inval.isVcInval
+  acqEncapDir : e_req.Encapsulates n e_dir
+  broadcastInval : b.broadcastToOtherEntriesAfterDir n e_req e_inval e_dir
+
+/-- Def. Non-Coherent Release WritesBack Other Entries in Vd before accessing the Directory -/
+structure Behaviour.relWriteBackOtherEntries (b : Behaviour n) (e_req e_wb e_dir : Event n) : Prop where
+  isNCRel : e_req.isNCRelease
+  isDir : e_dir.isDirectoryEvent
+  isVdWriteBack : e_wb.isVdWriteBack
+  relEncapDir : e_req.Encapsulates n e_dir
+  broadcastWB : b.broadcastToOtherEntriesBeforeDir n e_req e_wb e_dir
+
+/-- Def. (Lazy) Coherent Release WritesBack Other Entries in Vd when receiving a downgrade.
+We assume it to be Lazy if it's Protocol Interface contains a Non-Coherent Weak Write. -/
+structure Behaviour.coherentRelDowngradeWriteBackOthers (b : Behaviour n) (e_down e_wb : Event n) (p_i : Protocol.interface) : Prop where
+  isVdWriteBack : e_wb.isVdWriteBack
+  broadcastWB : b.broadcastToOtherEntries n e_down e_wb
+  gotDowngrade : e_down.down -- Assume it arrives on SW state.
+  -- Coherent Release is Lazy, because we have a Non-Coherent WeakWrite in the Protocol Interface
+  cRelInPI : CoherentRelease ∈ (e_down.interfaceMatchingProtocol n p_i).val
+  ncWeakWriteInPI : NonCoherentWeakWrite ∈ (e_down.interfaceMatchingProtocol n p_i).val
+
 /-- Axiom 13. Release and Acquire Broadcast WriteBacks and Invalidations to other cache entries Axiom. -/
 structure Behaviour.relAcqBroadcast : Prop where
+  acquireInvals : ∀ b : Behaviour n, ∀ e_req ∈ b.es, ∀ e_inval ∈ b.es, ∀ e_dir ∈ b.es, b.acqInvalOtherEntries n e_req e_inval e_dir
+  ncReleaseWBs : ∀ b : Behaviour n, ∀ e_req ∈ b.es, ∀ e_wb ∈ b.es, ∀ e_dir ∈ b.es, b.relWriteBackOtherEntries n e_req e_wb e_dir
+  downgradeWB : ∀ b : Behaviour n, ∀ e_down ∈ b.es, ∀ e_wb ∈ b.es, ∀ p_i : Protocol.interface, b.coherentRelDowngradeWriteBackOthers n e_down e_wb p_i
