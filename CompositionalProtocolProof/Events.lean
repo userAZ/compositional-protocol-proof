@@ -212,3 +212,19 @@ def UniqueCacheEventIds (ce₁ ce₂ : CacheEvent n) : Prop := ce₁.eid ≠ ce�
 def InitialSystemState.stateAt (init : InitialSystemState n) (e : Event n) : EntryState n := match e with
   | .cacheEvent ce => Sum.inl <| init.cacheStates (ce.cid)
   | .directoryEvent de => Sum.inr <| init.directoryStates de.pInst
+
+def Event.interfaceMatchingProtocol (e : Event n) (p_i : Protocol.interface) : ProtocolInterface :=
+  match e with
+  | .cacheEvent ce => match ce.cid with
+    | .proxy pi => match pi with
+      | .global => p_i.global_pi -- panic! "We do not consider proxy caches in the global protocol."
+      | .cluster1 => p_i.cluster1_pi
+      | .cluster2 => p_i.cluster2_pi
+    | .cache pci => match pci with
+      | .globalP _ _ => p_i.global_pi
+      | .cluster1 _ _ => p_i.cluster1_pi
+      | .cluster2 _ _ => p_i.cluster2_pi
+  | .directoryEvent de => match de.pInst with
+    | .global => p_i.global_pi
+    | .cluster1 => p_i.cluster1_pi
+    | .cluster2 => p_i.cluster2_pi
