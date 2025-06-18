@@ -225,13 +225,29 @@ structure Behaviour.nonCoherentRequestDowngradeOthers : Prop where
   ncReqDowngradeSWOwner : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es,
     b.nonCoherentReqOnSWDowngradeOthers n e_req e_dir init
 
-/-- Def. For all other entry addresses, an event `e_original` is copied and broadcast to other entries. -/
-structure Behaviour.broadcastEvent (b : Behaviour n) (addr : Addr) (e_base e_original : Event n) : Prop where
-  broadcastToEntries : ∀ addr' ≠ addr, ∃ e_cast_copy ∈ b.es, e_base.baseEncapBroadcastCopies n addr' e_original e_cast_copy
+/-- Def.a (broadcast before e_dir) For all other entry addresses, an event `e_original` is copied and broadcast to other entries. -/
+structure Behaviour.broadcastEventBefore (b : Behaviour n) (addr : Addr) (e_base e_original e_dir: Event n) : Prop where
+  broadcastToEntries : ∀ addr' ≠ addr, ∃ e_cast_copy ∈ b.es, e_base.baseEncapBroadcastBefore n addr' e_original e_cast_copy e_dir
 
-/-- Def 2.36. Broadcast Event `e` to Other Cache Entries. -/
-structure Behaviour.broadcastEventToOtherEntries : Prop where
-  broadcast : ∀ b : Behaviour n, ∀ e_base e_original : Event n, b.broadcastEvent n e_base.addr e_base e_original
+/-- Def.b (broadcast after e_dir) For all other entry addresses, an event `e_original` is copied and broadcast to other entries. -/
+structure Behaviour.broadcastEventAfter (b : Behaviour n) (addr : Addr) (e_base e_original e_dir : Event n) : Prop where
+  broadcastToEntries : ∀ addr' ≠ addr, ∃ e_cast_copy ∈ b.es, e_base.baseEncapBroadcastAfter n addr' e_original e_cast_copy e_dir
+
+/-- Def.c (broadcast after e_dir) For all other entry addresses, an event `e_original` is copied and broadcast to other entries. -/
+structure Behaviour.broadcastEvent (b : Behaviour n) (addr : Addr) (e_base e_original : Event n) : Prop where
+  broadcastToEntries : ∀ addr' ≠ addr, ∃ e_cast_copy ∈ b.es, e_base.baseEncapBroadcast n addr' e_original e_cast_copy
+
+/-- Def 2.36.a Broadcast Event `e` to Other Cache Entries, Ordered Before an encapsulated Directory Event. -/
+structure Behaviour.broadcastToOtherEntriesBeforeDir (b : Behaviour n) (e_base e_original e_dir : Event n) : Prop where
+  broadcast : b.broadcastEventBefore n e_base.addr e_base e_original e_dir
+
+/-- Def 2.36.b Broadcast Event `e` to Other Cache Entries, Ordered After an encapsulated Directory Event. -/
+structure Behaviour.broadcastToOtherEntriesAfterDir (b : Behaviour n) (e_base e_original e_dir : Event n) : Prop where
+  broadcast : b.broadcastEventAfter n e_base.addr e_base e_original e_dir
+
+/-- Def 2.36.c Broadcast Event `e` to Other Cache Entries. -/
+structure Behaviour.broadcastToOtherEntries (b : Behaviour n) (e_base e_original : Event n) : Prop where
+  broadcast : b.broadcastEvent n e_base.addr e_base e_original
 
 -- NOTE: use vcInval and vdWriteBack to state an event is a vcInval or vdWriteBack
 /-- Axiom 13. Release and Acquire Broadcast WriteBacks and Invalidations to other cache entries Axiom. -/
