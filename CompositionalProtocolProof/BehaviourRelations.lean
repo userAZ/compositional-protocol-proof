@@ -213,3 +213,15 @@ structure Behaviour.coherentEvictDirGrantOrdering (b : Behaviour n) (e_req e_dir
 /-- Axiom 11. Coherent Evict at Directory encapsulates a Grant OrderedAfter the Directory Event. -/
 structure Behaviour.coherentEvictGetsGrant : Prop where
   evictGetsGrant : ∀ b : Behaviour n, ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es, ∃ e_grant ∈ b.es, b.coherentEvictDirGrantOrdering n e_req e_dir e_grant
+
+structure Behaviour.nonCoherentReqOnSWDowngradeOthers (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+  dirNCReq : e_dir.req.NonCoherent
+  isDir : e_dir.isDirectoryEvent
+  isCache : e_req.isCacheEvent
+  reqDirOnSW : b.stateBefore n e_dir (init.stateAt n e_dir) = SWEntry n
+  fwdPrevOwner : ∃ e_down ∈ b.es, b.requestDowngradePrevOwner n e_req e_dir e_down init
+
+/-- Axiom 12. Non-Coherent Write/Read on SW Directory State results in Downgrades. -/
+structure Behaviour.nonCoherentRequestDowngradeOthers : Prop where
+  ncReqDowngradeSWOwner : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es,
+    b.nonCoherentReqOnSWDowngradeOthers n e_req e_dir init
