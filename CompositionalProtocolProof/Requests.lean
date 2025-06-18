@@ -79,6 +79,7 @@ abbrev AcqRead : ValidRequest := ⟨⟨.r, false, .Acq⟩, {}⟩
 abbrev NonCoherentWeakRead : ValidRequest := ⟨⟨.r, false, .Weak⟩, {}⟩
 abbrev NonCoherentWeakWrite : ValidRequest := ⟨⟨.w, false, .Weak⟩, {}⟩
 abbrev CoherentWeakWrite : ValidRequest := ⟨⟨.w, true, .Weak⟩, {}⟩
+abbrev CoherentRelease : ValidRequest := ⟨⟨.w, true, .Rel⟩, {}⟩
 
 abbrev ValidRequest.NonCoherent (vr : ValidRequest) : Prop := vr.val.nonCoherent
 abbrev ValidRequest.SC (vr : ValidRequest) : Prop := vr.val.SC
