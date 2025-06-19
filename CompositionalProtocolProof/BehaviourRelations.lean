@@ -263,17 +263,19 @@ structure Behaviour.broadcastToOtherEntries (b : Behaviour n) (e_base e_original
   broadcast : b.broadcastEvent n e_base.addr e_base e_original
 
 /-- Def. Acquire Invalidates Other Entries in Vc after accessing the Directory -/
-structure Behaviour.acqInvalOtherEntries (b : Behaviour n) (e_req e_inval e_dir : Event n) : Prop where
+structure Behaviour.acqInvalOtherEntries (b : Behaviour n) (e_req e_inval e_dir : Event n) (init : InitialSystemState n) : Prop where
   isAcq : e_req.isAcquire
   isDir : e_dir.isDirectoryEvent
+  dirCorresponds : b.cacheEncapsulatesCorrespondingDirEvent n e_dir e_req (init.stateAt n e_req)
   isVcInval : e_inval.isVcInval
   acqEncapDir : e_req.Encapsulates n e_dir
   broadcastInval : b.broadcastToOtherEntriesAfterDir n e_req e_inval e_dir
 
 /-- Def. Non-Coherent Release WritesBack Other Entries in Vd before accessing the Directory -/
-structure Behaviour.relWriteBackOtherEntries (b : Behaviour n) (e_req e_wb e_dir : Event n) : Prop where
+structure Behaviour.relWriteBackOtherEntries (b : Behaviour n) (e_req e_wb e_dir : Event n) (init : InitialSystemState n) : Prop where
   isNCRel : e_req.isNCRelease
   isDir : e_dir.isDirectoryEvent
+  dirCorresponds : b.cacheEncapsulatesCorrespondingDirEvent n e_dir e_req (init.stateAt n e_req)
   isVdWriteBack : e_wb.isVdWriteBack
   relEncapDir : e_req.Encapsulates n e_dir
   broadcastWB : b.broadcastToOtherEntriesBeforeDir n e_req e_wb e_dir
@@ -290,6 +292,6 @@ structure Behaviour.coherentRelDowngradeWriteBackOthers (b : Behaviour n) (e_dow
 
 /-- Axiom 13. Release and Acquire Broadcast WriteBacks and Invalidations to other cache entries Axiom. -/
 structure Behaviour.relAcqBroadcast : Prop where
-  acquireInvals : ∀ b : Behaviour n, ∀ e_req ∈ b.es, ∀ e_inval ∈ b.es, ∀ e_dir ∈ b.es, b.acqInvalOtherEntries n e_req e_inval e_dir
-  ncReleaseWBs : ∀ b : Behaviour n, ∀ e_req ∈ b.es, ∀ e_wb ∈ b.es, ∀ e_dir ∈ b.es, b.relWriteBackOtherEntries n e_req e_wb e_dir
+  acquireInvals : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∀ e_inval ∈ b.es, ∀ e_dir ∈ b.es, b.acqInvalOtherEntries n e_req e_inval e_dir init
+  ncReleaseWBs : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∀ e_wb ∈ b.es, ∀ e_dir ∈ b.es, b.relWriteBackOtherEntries n e_req e_wb e_dir init
   downgradeWB : ∀ b : Behaviour n, ∀ e_down ∈ b.es, ∀ e_wb ∈ b.es, ∀ p_i : Protocol.interface, b.coherentRelDowngradeWriteBackOthers n e_down e_wb p_i
