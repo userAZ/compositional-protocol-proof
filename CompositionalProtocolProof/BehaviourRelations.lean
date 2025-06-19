@@ -342,14 +342,32 @@ def Event.relates (e₁ e₂ : Event n) : Prop := e₁.Encapsulates n e₂ ∨ e
 
 /-- Lemma 3. For each Cache Request Event `e_req`, there exists a unique event `e_dir` relating `e_req` to the total order of events at
 `e_req`'s corresonponding Directory entry. -/
-lemma Behaviour.exists_e_dir_relating_e_req (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) :
+lemma Behaviour.exists_e_dir_relating_e_req (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n)
+(he_req_in_b : e_req ∈ b.es)
+(hreq_encap_dir : Behaviour.axRequestAccessesDirectory n)
+:
 ∃ e_dir ∈ b.es, e_req.relates n e_dir := by
   match e_req.req with
   | ⟨⟨_,true,_⟩, _⟩ =>
     by_cases (b.stateBefore n e_req (init.stateAt n e_req)).cache < e_req.req.MRS
     . case pos rw consistency he_req hno_perms =>
       -- Apply Axiom 6 `Behaviour.axRequestAccessesDirectory` here. Move it's input args into it's def.
-      sorry
+      have ax6 := hreq_encap_dir.reqAccessDir b e_req he_req_in_b init
+      unfold Behaviour.requestAccessesDirectoryWrapper at ax6
+      cases e_req
+      . case cacheEvent ce =>
+        simp at ax6
+        -- unfold requestAccessesDirectory at ax6
+        cases ax6
+        . case coherentRequest hcoherent_no_perms => sorry
+        . case nonCoherentRelease _ => sorry
+        . case acquire _ => sorry
+        . case weakWrite _ => sorry
+        . case weakRead _ => sorry
+        . case evictVdWB _ => sorry
+        . case evictSCPutM _ => sorry
+        . case evictSCPutS _ => sorry
+      . case directoryEvent _ => simp at ax6
     . case neg =>
       sorry
   | ⟨⟨.r,false,.Weak⟩, {}⟩ => sorry
