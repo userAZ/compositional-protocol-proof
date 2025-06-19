@@ -135,6 +135,15 @@ inductive Behaviour.requestAccessesDirectory (b : Behaviour n) (ce : CacheEvent 
 | evictSCPutM : b.evictSCPutMEncapsulatesDirEvent n ce init → Behaviour.requestAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
 | evictSCPutS : b.evictSCPutSEncapsulatesDirEvent n ce init → Behaviour.requestAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
 
+/-- Axiom 6 Event → CacheEvent Wrapper. -/
+def Behaviour.requestAccessesDirectoryWrapper (b : Behaviour n) (e : Event n) (init : InitialSystemState n) : Prop := match e with
+  | .cacheEvent ce => b.requestAccessesDirectory n ce init
+  | .directoryEvent _ => false
+
+/-- Axiom 6 Structure Wrapper for use in Lemmas. -/
+structure Behaviour.axRequestAccessesDirectory : Prop where
+  reqAccessDir : ∀ b : Behaviour n, ∀ e ∈ b.es, ∀ init : InitialSystemState n, b.requestAccessesDirectoryWrapper n e init
+
 /-- Axiom 7, a Cache Entry in Vd State may writeback -/
 structure Behaviour.vdCacheEntryWriteBackLater (b : Behaviour n) (ce : CacheEvent n) (vd_wb_e : Event n) (init : InitialSystemState n) : Prop where
   vdStateAfterEvent : b.stateAfter n (Event.cacheEvent ce) (init.stateAt n (Event.cacheEvent ce)) = VdEntry n
@@ -339,7 +348,7 @@ lemma Behaviour.exists_e_dir_relating_e_req (b : Behaviour n) (e_req : Event n) 
   | ⟨⟨_,true,_⟩, _⟩ =>
     by_cases (b.stateBefore n e_req (init.stateAt n e_req)).cache < e_req.req.MRS
     . case pos rw consistency he_req hno_perms =>
-      -- Apply Axiom 6 `Behaviour.requestAccessesDirectory` here. Move it's input args into it's def.
+      -- Apply Axiom 6 `Behaviour.axRequestAccessesDirectory` here. Move it's input args into it's def.
       sorry
     . case neg =>
       sorry
