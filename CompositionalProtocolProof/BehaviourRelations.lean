@@ -334,7 +334,13 @@ def Event.relates (e₁ e₂ : Event n) : Prop := e₁.Encapsulates n e₂ ∨ e
 /-- Lemma 3. For each Cache Request Event `e_req`, there exists a unique event `e_dir` relating `e_req` to the total order of events at
 `e_req`'s corresonponding Directory entry. -/
 lemma Behaviour.exists_e_dir_relating_e_req (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) :
-∃ e_dir ∈ b.es, e_req.relates n e_dir := sorry
+∃ e_dir ∈ b.es, e_req.relates n e_dir :=
+  match e_req.req with
+  | ⟨⟨_,true,_⟩, _⟩ => sorry
+  | ⟨⟨.r,false,.Weak⟩, {}⟩ => sorry
+  | ⟨⟨.r,false,.Acq⟩, {}⟩ => sorry
+  | ⟨⟨.w,false,.Weak⟩, {}⟩ => sorry
+  | ⟨⟨.w,false,.Rel⟩, {}⟩ => sorry
 
 /-- Def. Prop constraints for Def 2.37 case where the request has coherent permissions and is then defined as it's own linearization event. -/
 structure Behaviour.requestWithCoherentPermsLinearizes (b : Behaviour n) (e_req e_lin : Event n) (init : InitialSystemState n) : Prop where
