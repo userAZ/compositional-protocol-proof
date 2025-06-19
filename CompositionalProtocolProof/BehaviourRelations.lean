@@ -334,9 +334,15 @@ def Event.relates (e₁ e₂ : Event n) : Prop := e₁.Encapsulates n e₂ ∨ e
 /-- Lemma 3. For each Cache Request Event `e_req`, there exists a unique event `e_dir` relating `e_req` to the total order of events at
 `e_req`'s corresonponding Directory entry. -/
 lemma Behaviour.exists_e_dir_relating_e_req (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) :
-∃ e_dir ∈ b.es, e_req.relates n e_dir :=
+∃ e_dir ∈ b.es, e_req.relates n e_dir := by
   match e_req.req with
-  | ⟨⟨_,true,_⟩, _⟩ => sorry
+  | ⟨⟨_,true,_⟩, _⟩ =>
+    by_cases (b.stateBefore n e_req (init.stateAt n e_req)).cache < e_req.req.MRS
+    . case pos rw consistency he_req hno_perms =>
+      -- Apply Axiom 6 `Behaviour.requestCoherentAccessesDirectory` here. Move it's input args into it's def.
+      sorry
+    . case neg =>
+      sorry
   | ⟨⟨.r,false,.Weak⟩, {}⟩ => sorry
   | ⟨⟨.r,false,.Acq⟩, {}⟩ => sorry
   | ⟨⟨.w,false,.Weak⟩, {}⟩ => sorry
