@@ -81,6 +81,8 @@ abbrev NonCoherentWeakWrite : ValidRequest := ⟨⟨.w, false, .Weak⟩, {}⟩
 abbrev CoherentWeakWrite : ValidRequest := ⟨⟨.w, true, .Weak⟩, {}⟩
 abbrev CoherentRelease : ValidRequest := ⟨⟨.w, true, .Rel⟩, {}⟩
 
+def ValidRequest.isCoherent (vr : ValidRequest) : Prop := vr.val.isCoherent = true
+
 abbrev ValidRequest.NonCoherent (vr : ValidRequest) : Prop := vr.val.nonCoherent
 abbrev ValidRequest.SC (vr : ValidRequest) : Prop := vr.val.SC
 
