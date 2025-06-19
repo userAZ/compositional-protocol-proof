@@ -28,11 +28,19 @@ structure Behaviour.requestDirectoryEvent (b : Behaviour n) (e_req e_dir : Event
   dirReq :  e_dir.req = b.reqToDirOfRequestEvent n e_req init -- from analysis on e_req and the state it's made on
   dirState : e_dir.isDirEventOfDirState n (b.stateAfter n e_dir init).directory
 
+def Event.dirEventOfReqEvent (e_dir e_req : Event n) : Prop := match e_dir, e_req with
+| .directoryEvent de, .cacheEvent ce => de.eReq = ce
+| _, _ => false
+
 structure Behaviour.cacheEncapsulatesCorrespondingDirEvent (b : Behaviour n) (e_req e_dir : Event n) (init : EntryState n) : Prop where
   reqEncapDir : e_req.Encapsulates n e_dir
   dirCorresponds : b.requestDirectoryEvent n e_req e_dir init
+  dirOfReq : e_dir.dirEventOfReqEvent n e_req
   dirInB : e_dir ∈ b.es
   reqInB : e_req ∈ b.es
+
+structure Behaviour.cacheEncapCorrespondingDirEvent (b : Behaviour n) (e_req : Event n) (init : EntryState n) : Prop where
+  cacheDirEvent : ∃ e_dir ∈ b.es, b.cacheEncapsulatesCorrespondingDirEvent n e_req e_dir init
 
 structure Behaviour.reqEncapsulatesDirEvent (b : Behaviour n) (e_req e_dir : Event n) (init : EntryState n) : Prop where
   reqEncapCorrespondingDirEvent : b.cacheEncapsulatesCorrespondingDirEvent n e_req e_dir init
