@@ -295,3 +295,59 @@ structure Behaviour.relAcqBroadcast : Prop where
   acquireInvals : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∀ e_inval ∈ b.es, ∀ e_dir ∈ b.es, b.acqInvalOtherEntries n e_req e_inval e_dir init
   ncReleaseWBs : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∀ e_wb ∈ b.es, ∀ e_dir ∈ b.es, b.relWriteBackOtherEntries n e_req e_wb e_dir init
   downgradeWB : ∀ b : Behaviour n, ∀ e_down ∈ b.es, ∀ e_wb ∈ b.es, ∀ p_i : Protocol.interface, b.coherentRelDowngradeWriteBackOthers n e_down e_wb p_i
+
+/- ------------- Work in progress for Lemma 3. May or may not need. ------------- -/
+def CacheEvent.isRequest (e : CacheEvent n) : Prop := e.cid = e.rid
+def Event.isRequest (e : Event n) : Prop := match e with
+| .cacheEvent ce => ce.cid = ce.rid
+| .directoryEvent _ => false
+structure Event.isReqNotDown (e : Event n) : Prop where
+  isReq : e.isRequest
+  notDowngrade : ¬e.down
+def RequestEvent := {e : Event n // e.isReqNotDown n}
+def DirEvent := {e : Event n // e.isDirectoryEvent n}
+
+def Behaviour.reqEncapCorrespondingDir (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) : Prop :=
+  ∃ e_dir ∈ b.es, b.cacheEncapCorrespondingDirEvent n e_req (init.stateAt n e_req)
+
+def Behaviour.reqLeavesStateAs (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) (state : State) : Prop :=
+  (b.stateAfter n e_req (init.stateAt n e_req)).cache = state
+
+structure Behaviour.reqWithCorrespondDirLeavesStateAs (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) (state : State) : Prop where
+  encapCorresponding : b.reqEncapCorrespondingDir n e_req init
+  stateAfterAs : b.reqLeavesStateAs n e_req init state
+
+-- [TODO] Add Lemma (or Def) to state there exists a previous event `e_pred` before Event `e`, that sets the state that `e` is made on.
+lemma Behaviour.exists_predecessor_setting_state (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) :
+  let state_req_is_made_on := b.stateBefore n e_req (init.stateAt n e_req) |>.cache;
+  ∃ e_pred ∈ b.es, b.ImmediateBottomPredSatisfyingProp n e_pred e_req (b.reqWithCorrespondDirLeavesStateAs n · init state_req_is_made_on) :=
+  sorry
+
+def Behaviour.eventOnCoherentStateAtLeastMRS (b : Behaviour n) (e : Event n) (init : InitialSystemState n) : Prop := match e with
+| .cacheEvent ce => let state_made_on := init.stateAt n e |>.cache n;
+  state_made_on.c ∧ ce.req.MRS ≤ (b.stateBefore n e (init.stateAt n e)).cache n
+| .directoryEvent _ => false
+
+/-- A Transitive Relation from a Request Event to a Directory Event. For Lemma 3. -/
+def Event.relates (e₁ e₂ : Event n) : Prop := e₁.Encapsulates n e₂ ∨ e₁.Ordered n e₂
+
+/-- Lemma 3. For each Cache Request Event `e_req`, there exists a unique event `e_dir` relating `e_req` to the total order of events at
+`e_req`'s corresonponding Directory entry. -/
+lemma Behaviour.exists_e_dir_relating_e_req (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) :
+∃ e_dir ∈ b.es, e_req.relates n e_dir := sorry
+
+/-- Def. Prop constraints for Def 2.37 case where the request has coherent permissions and is then defined as it's own linearization event. -/
+structure Behaviour.requestWithCoherentPermsLinearizes (b : Behaviour n) (e_req e_lin : Event n) (init : InitialSystemState n) : Prop where
+  reqHasCoherentPerms : b.eventOnCoherentStateAtLeastMRS n e_req init
+  reqIsLin : e_lin = e_req
+
+/-- Def. Wrapper structure : Prop. for Def 2.37-/
+structure Behaviour.requestWithCoherentPermLin : Prop where
+  linearizingRequest : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∃ e_lin : Event n, b.requestWithCoherentPermsLinearizes n e_req e_lin init
+
+/-- Def. 2.37. Linearization Event Corresponding to a Request Event. If a Request Event `e_req` is made on a `Coherent` state with sufficient
+permissions, the linearization event `e_lin` of `e_req` is `e_req`. Otherwise, `e_lin` is the Directory Event `e_dir` stated by Lemma 3. -/
+-- [TODO]: add structure defining what each case entails.
+inductive Behaviour.linearizationEventOfRequest
+| requestLin : Behaviour.requestWithCoherentPermLin n → Behaviour.linearizationEventOfRequest
+| dirLin : /- Structure with `Behaviour.exists_e_dir_relating_e_req` goes here when it's ready. -/ Behaviour.linearizationEventOfRequest
