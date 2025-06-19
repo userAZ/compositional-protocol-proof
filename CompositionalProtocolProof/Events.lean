@@ -168,6 +168,10 @@ def Event.isDirEventOfDirState : Event n → DirectoryState n → Prop
   | .directoryEvent de => de.dirS = dir_state
   | .cacheEvent _ => false
 
+def Event.isCoherent : Event n → Prop
+| .cacheEvent ce => ce.req.isCoherent
+| .directoryEvent _ => false
+
 def Event.isAcquire : Event n → Prop
 | .cacheEvent ce => ce.req.val = ⟨.r, false, .Acq⟩
 | .directoryEvent _ => false
