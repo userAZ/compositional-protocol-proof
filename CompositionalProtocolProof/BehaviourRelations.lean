@@ -341,6 +341,7 @@ def Behaviour.eventOnCoherentStateAtLeastMRS (b : Behaviour n) (e : Event n) (in
 /-- A Transitive Relation from a Request Event to a Directory Event. For Lemma 3. -/
 def Event.relates (e₁ e₂ : Event n) : Prop := e₁.Encapsulates n e₂ ∨ e₁.Ordered n e₂
 
+-- [TODO] expand relation (from Event.relates) to cover the current state.
 lemma Behaviour.coherent_req_exists_related_e_dir (b : Behaviour n) (init : InitialSystemState n)
 (hreq_encap_dir : Behaviour.axRequestAccessesDirectory n) (e_req : Event n) (he_req_in_b : e_req ∈ b.es)
 (rw : ReadWrite) (consistency : Consistency) (hvalid_req : ({ rw := rw, coherent := true, consistency := consistency } : Request).IsValid)
