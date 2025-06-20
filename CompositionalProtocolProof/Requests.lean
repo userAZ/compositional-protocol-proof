@@ -33,8 +33,8 @@ def ReadWrite.toRWPerms : ReadWrite → ReadWritePermissions
 def ReadWrite.toPerms : ReadWrite → Permissions
 | rw => some rw.toRWPerms
 
-def Request.isCoherent (r : Request) : Prop := r.coherent = true
-def Request.nonCoherent (r : Request) : Prop := r.coherent = false
+def Request.isCoherent (r : Request) : Prop := r.coherent
+def Request.nonCoherent (r : Request) : Prop := ¬ r.coherent
 
 abbrev Request.SC := λ r : Request => r.rw = .r ∧ r.consistency = .SC
 
@@ -50,7 +50,7 @@ abbrev Request.CoherentWeakRead := λ r : Request => r.WeakRead ∧ r.coherent =
 abbrev Request.NoSCNonCoherent := λ r : Request => ¬r.SCNonCoherent
 abbrev Request.NoWriteAcquire := λ r : Request => ¬r.WriteAcquire
 abbrev Request.NoReadRelease := λ r : Request => ¬r.ReadRelease
-abbrev Request.NoCoherentAcquire := λ r : Request => ¬r.CoherentAcquire
+abbrev Request.NoCoherentAcquire := λ r : Request => r.consistency = .Acq → ¬ r.coherent -- ¬r.CoherentAcquire
 abbrev Request.NoCoherentWeakRead := λ r : Request => ¬r.CoherentWeakRead
 
 structure Request.IsValid (r : Request) where
@@ -81,7 +81,7 @@ abbrev NonCoherentWeakWrite : ValidRequest := ⟨⟨.w, false, .Weak⟩, {}⟩
 abbrev CoherentWeakWrite : ValidRequest := ⟨⟨.w, true, .Weak⟩, {}⟩
 abbrev CoherentRelease : ValidRequest := ⟨⟨.w, true, .Rel⟩, {}⟩
 
-def ValidRequest.isCoherent (vr : ValidRequest) : Prop := vr.val.isCoherent = true
+def ValidRequest.isCoherent (vr : ValidRequest) : Prop := vr.val.isCoherent
 
 abbrev ValidRequest.NonCoherent (vr : ValidRequest) : Prop := vr.val.nonCoherent
 abbrev ValidRequest.SC (vr : ValidRequest) : Prop := vr.val.SC
