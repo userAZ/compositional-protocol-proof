@@ -1,4 +1,5 @@
 import CompositionalProtocolProof.Behaviours
+import Canonical
 
 variable (n : Nat)
 
@@ -340,40 +341,125 @@ def Behaviour.eventOnCoherentStateAtLeastMRS (b : Behaviour n) (e : Event n) (in
 /-- A Transitive Relation from a Request Event to a Directory Event. For Lemma 3. -/
 def Event.relates (e₁ e₂ : Event n) : Prop := e₁.Encapsulates n e₂ ∨ e₁.Ordered n e₂
 
+lemma Behaviour.coherent_req_exists_related_e_dir (b : Behaviour n) (init : InitialSystemState n)
+(hreq_encap_dir : Behaviour.axRequestAccessesDirectory n) (e_req : Event n) (he_req_in_b : e_req ∈ b.es)
+(rw : ReadWrite) (consistency : Consistency) (hvalid_req : ({ rw := rw, coherent := true, consistency := consistency } : Request).IsValid)
+(hreq : e_req.req = ⟨{ rw := rw, coherent := true, consistency := consistency }, hvalid_req⟩) :
+  ∃ e_dir ∈ b.es, Event.relates n e_req e_dir := by
+  -- Apply Axiom 6 `Behaviour.axRequestAccessesDirectory` here. Move it's input args into it's def.
+  have made_on_state := b.stateBefore n e_req (init.stateAt n e_req)
+
+  have ax6 := hreq_encap_dir.reqAccessDir b e_req he_req_in_b init
+  unfold Behaviour.requestAccessesDirectoryWrapper at ax6
+  simp at ax6
+  cases e_req
+  . case cacheEvent ce =>
+    simp[Event.req] at hreq
+    match ax6 with
+    | .coherentRequest hcoherent_no_perms =>
+      -- [TODO] match on the state `e_req` is made on as well!
+      have h := hcoherent_no_perms.reqEncapDir.reqEncapCorrDir
+      have hreq_encap_dir := h.choose_spec.right.reqEncapCorrespondingDirEvent.reqEncapDir
+      have hdir_in_b := h.choose_spec.right.reqEncapCorrespondingDirEvent.dirInB
+      apply Exists.intro
+      case w => exact h.choose
+      case h =>
+        apply And.intro
+        . case left => exact hdir_in_b
+        . case right =>
+          unfold Event.relates
+          apply Or.intro_left
+          exact hreq_encap_dir
+    | .nonCoherentRelease hnc_rel =>
+      have h := hnc_rel.choose_spec.right.notCoherent
+      unfold CacheEvent.Coherent at h
+      have hreq_coherent : ce.req.val.coherent = true := by
+        simp[hreq]
+      contradiction
+    | .acquire hacq =>
+      -- Cannot be a coherent acquire.
+      have hacq_constraint := hvalid_req.no_cacq
+      unfold Request.NoCoherentAcquire at hacq_constraint
+      simp at hacq_constraint
+      have hconsistency_acq := hacq.isAcquire
+      absurd hconsistency_acq
+      rw[hreq] at hconsistency_acq
+      simp at hconsistency_acq
+      contradiction
+      -- simp_all only [not_true_eq_false]
+    | .weakWrite hweak_w =>
+      have hnot_coherent := hweak_w.notCoherent
+      simp[CacheEvent.Coherent] at hnot_coherent
+      simp[hreq] at hnot_coherent
+    | .weakRead hweak_r =>
+      have hnot_coherent := hweak_r.notCoherent
+      simp[CacheEvent.Coherent] at hnot_coherent
+      simp[hreq] at hnot_coherent
+    | .evictVdWB hvd_wb =>
+      have his_vd_wb := hvd_wb.isVdWriteBack
+      simp[hreq] at his_vd_wb
+    | .evictSCPutM hputm =>
+      have hevict_encap_dir := hputm.encapPutMDirEvent.evictEncapCorrDir.choose_spec
+      have hencap_dir := hevict_encap_dir.right.evictEncapCorrespondingDirEvent.reqEncapDir
+      apply Exists.intro
+      case w =>
+        . exact hputm.encapPutMDirEvent.evictEncapCorrDir.choose
+      case h =>
+        apply And.intro
+        . case left => exact hevict_encap_dir.left
+        . case right =>
+          unfold Event.relates
+          apply Or.intro_left
+          exact hencap_dir
+    | .evictSCPutS hputs =>
+      have hevict_encap_dir := hputs.encapPutSDirEvent.evictEncapCorrDir.choose_spec
+      have hencap_dir := hevict_encap_dir.right.evictEncapCorrespondingDirEvent.reqEncapDir
+      apply Exists.intro
+      case w =>
+        . exact hputs.encapPutSDirEvent.evictEncapCorrDir.choose
+      case h =>
+        apply And.intro
+        . case left => exact hevict_encap_dir.left
+        . case right =>
+          unfold Event.relates
+          apply Or.intro_left
+          exact hencap_dir
+  . case directoryEvent _ => simp at ax6
+
+-- [TODO] constrain goal to say not just `e_req` relates `e_dir`, but either encapsulates if lacking permissions, or a previous one if have perms,
+-- of a future one if Weak Non-Coherent on Vd
 /-- Lemma 3. For each Cache Request Event `e_req`, there exists a unique event `e_dir` relating `e_req` to the total order of events at
 `e_req`'s corresonponding Directory entry. -/
-lemma Behaviour.exists_e_dir_relating_e_req (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n)
-(he_req_in_b : e_req ∈ b.es)
+lemma Behaviour.exists_e_dir_relating_e_req (b : Behaviour n) (init : InitialSystemState n)
+-- (e_req : Event n) (he_req_in_b : e_req ∈ b.es)
 (hreq_encap_dir : Behaviour.axRequestAccessesDirectory n)
-:
-∃ e_dir ∈ b.es, e_req.relates n e_dir := by
-  match e_req.req with
-  | ⟨⟨_,true,_⟩, _⟩ =>
-    by_cases (b.stateBefore n e_req (init.stateAt n e_req)).cache < e_req.req.MRS
-    . case pos rw consistency he_req hno_perms =>
-      -- Apply Axiom 6 `Behaviour.axRequestAccessesDirectory` here. Move it's input args into it's def.
-      have ax6 := hreq_encap_dir.reqAccessDir b e_req he_req_in_b init
-      unfold Behaviour.requestAccessesDirectoryWrapper at ax6
-      cases e_req
-      . case cacheEvent ce =>
-        simp at ax6
-        -- unfold requestAccessesDirectory at ax6
-        cases ax6
-        . case coherentRequest hcoherent_no_perms => sorry
-        . case nonCoherentRelease _ => sorry
-        . case acquire _ => sorry
-        . case weakWrite _ => sorry
-        . case weakRead _ => sorry
-        . case evictVdWB _ => sorry
-        . case evictSCPutM _ => sorry
-        . case evictSCPutS _ => sorry
-      . case directoryEvent _ => simp at ax6
-    . case neg =>
+: ∀ e_req ∈ b.es,
+  ∃ e_dir ∈ b.es, e_req.relates n e_dir := by
+  intro e_req he_req_in_b
+  have ax6 := hreq_encap_dir.reqAccessDir b e_req he_req_in_b init
+  unfold Behaviour.requestAccessesDirectoryWrapper at ax6
+  simp at ax6
+  cases e_req
+  . case cacheEvent ce =>
+    match hreq : ce.req with
+    | ⟨⟨rw,true,consistency⟩, hvalid_req⟩ =>
+      apply coherent_req_exists_related_e_dir n b init hreq_encap_dir (Event.cacheEvent ce) he_req_in_b rw consistency hvalid_req hreq
+    | ⟨⟨.r,false,.Weak⟩, {}⟩ =>
+      /-
+      match ax6 with
+      | .coherentRequest hcoherent_no_perms => sorry
+      | .nonCoherentRelease hnc_rel => sorry
+      | .acquire hacq => sorry
+      | .weakWrite hweak_w => sorry
+      | .weakRead hweak_r => sorry
+      | .evictVdWB hvd_wb => sorry
+      | .evictSCPutS hputs => sorry
+      -/
       sorry
-  | ⟨⟨.r,false,.Weak⟩, {}⟩ => sorry
-  | ⟨⟨.r,false,.Acq⟩, {}⟩ => sorry
-  | ⟨⟨.w,false,.Weak⟩, {}⟩ => sorry
-  | ⟨⟨.w,false,.Rel⟩, {}⟩ => sorry
+    | ⟨⟨.r,false,.Acq⟩, {}⟩ => sorry
+    | ⟨⟨.w,false,.Weak⟩, {}⟩ => sorry
+    | ⟨⟨.w,false,.Rel⟩, {}⟩ => sorry
+  . case directoryEvent _ => simp at ax6
 
 /-- Def. Prop constraints for Def 2.37 case where the request has coherent permissions and is then defined as it's own linearization event. -/
 structure Behaviour.requestWithCoherentPermsLinearizes (b : Behaviour n) (e_req e_lin : Event n) (init : InitialSystemState n) : Prop where
