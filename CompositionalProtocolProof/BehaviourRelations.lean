@@ -356,75 +356,82 @@ lemma Behaviour.coherent_req_exists_related_e_dir (b : Behaviour n) (init : Init
   cases e_req
   . case cacheEvent ce =>
     simp[Event.req] at hreq
-    match ax6 with
-    | .coherentRequest hcoherent_no_perms =>
-      -- [TODO] match on the state `e_req` is made on as well!
-      have h := hcoherent_no_perms.reqEncapDir.reqEncapCorrDir
-      have hreq_encap_dir := h.choose_spec.right.reqEncapCorrespondingDirEvent.reqEncapDir
-      have hdir_in_b := h.choose_spec.right.reqEncapCorrespondingDirEvent.dirInB
-      apply Exists.intro
-      case w => exact h.choose
-      case h =>
-        apply And.intro
-        . case left => exact hdir_in_b
-        . case right =>
-          unfold Event.relates
-          apply Or.intro_left
-          exact hreq_encap_dir
-    | .nonCoherentRelease hnc_rel =>
-      have h := hnc_rel.choose_spec.right.notCoherent
-      unfold CacheEvent.Coherent at h
-      have hreq_coherent : ce.req.val.coherent = true := by
-        simp[hreq]
-      contradiction
-    | .acquire hacq =>
-      -- Cannot be a coherent acquire.
-      have hacq_constraint := hvalid_req.no_cacq
-      unfold Request.NoCoherentAcquire at hacq_constraint
-      simp at hacq_constraint
-      have hconsistency_acq := hacq.isAcquire
-      absurd hconsistency_acq
-      rw[hreq] at hconsistency_acq
-      simp at hconsistency_acq
-      contradiction
-      -- simp_all only [not_true_eq_false]
-    | .weakWrite hweak_w =>
-      have hnot_coherent := hweak_w.notCoherent
-      simp[CacheEvent.Coherent] at hnot_coherent
-      simp[hreq] at hnot_coherent
-    | .weakRead hweak_r =>
-      have hnot_coherent := hweak_r.notCoherent
-      simp[CacheEvent.Coherent] at hnot_coherent
-      simp[hreq] at hnot_coherent
-    | .evictVdWB hvd_wb =>
-      have his_vd_wb := hvd_wb.isVdWriteBack
-      simp[hreq] at his_vd_wb
-    | .evictSCPutM hputm =>
-      have hevict_encap_dir := hputm.encapPutMDirEvent.evictEncapCorrDir.choose_spec
-      have hencap_dir := hevict_encap_dir.right.evictEncapCorrespondingDirEvent.reqEncapDir
-      apply Exists.intro
-      case w =>
-        . exact hputm.encapPutMDirEvent.evictEncapCorrDir.choose
-      case h =>
-        apply And.intro
-        . case left => exact hevict_encap_dir.left
-        . case right =>
-          unfold Event.relates
-          apply Or.intro_left
-          exact hencap_dir
-    | .evictSCPutS hputs =>
-      have hevict_encap_dir := hputs.encapPutSDirEvent.evictEncapCorrDir.choose_spec
-      have hencap_dir := hevict_encap_dir.right.evictEncapCorrespondingDirEvent.reqEncapDir
-      apply Exists.intro
-      case w =>
-        . exact hputs.encapPutSDirEvent.evictEncapCorrDir.choose
-      case h =>
-        apply And.intro
-        . case left => exact hevict_encap_dir.left
-        . case right =>
-          unfold Event.relates
-          apply Or.intro_left
-          exact hencap_dir
+    -- do we have enough perms on this state.
+    by_cases (made_on_state.cache < ce.req.MRS)
+    . case pos hno_perms =>
+      match ax6 with
+      | .coherentRequest hcoherent_no_perms =>
+        -- [TODO] match on the state `e_req` is made on as well!
+        have h := hcoherent_no_perms.reqEncapDir.reqEncapCorrDir
+        have hreq_encap_dir := h.choose_spec.right.reqEncapCorrespondingDirEvent.reqEncapDir
+        have hdir_in_b := h.choose_spec.right.reqEncapCorrespondingDirEvent.dirInB
+        apply Exists.intro
+        case w => exact h.choose
+        case h =>
+          apply And.intro
+          . case left => exact hdir_in_b
+          . case right =>
+            unfold Event.relates
+            apply Or.intro_left
+            exact hreq_encap_dir
+      | .nonCoherentRelease hnc_rel =>
+        have h := hnc_rel.choose_spec.right.notCoherent
+        unfold CacheEvent.Coherent at h
+        have hreq_coherent : ce.req.val.coherent = true := by
+          simp[hreq]
+        contradiction
+      | .acquire hacq =>
+        -- Cannot be a coherent acquire.
+        have hacq_constraint := hvalid_req.no_cacq
+        unfold Request.NoCoherentAcquire at hacq_constraint
+        simp at hacq_constraint
+        have hconsistency_acq := hacq.isAcquire
+        absurd hconsistency_acq
+        rw[hreq] at hconsistency_acq
+        simp at hconsistency_acq
+        contradiction
+        -- simp_all only [not_true_eq_false]
+      | .weakWrite hweak_w =>
+        have hnot_coherent := hweak_w.notCoherent
+        simp[CacheEvent.Coherent] at hnot_coherent
+        simp[hreq] at hnot_coherent
+      | .weakRead hweak_r =>
+        have hnot_coherent := hweak_r.notCoherent
+        simp[CacheEvent.Coherent] at hnot_coherent
+        simp[hreq] at hnot_coherent
+      | .evictVdWB hvd_wb =>
+        have his_vd_wb := hvd_wb.isVdWriteBack
+        simp[hreq] at his_vd_wb
+      | .evictSCPutM hputm =>
+        have hevict_encap_dir := hputm.encapPutMDirEvent.evictEncapCorrDir.choose_spec
+        have hencap_dir := hevict_encap_dir.right.evictEncapCorrespondingDirEvent.reqEncapDir
+        apply Exists.intro
+        case w =>
+          . exact hputm.encapPutMDirEvent.evictEncapCorrDir.choose
+        case h =>
+          apply And.intro
+          . case left => exact hevict_encap_dir.left
+          . case right =>
+            unfold Event.relates
+            apply Or.intro_left
+            exact hencap_dir
+      | .evictSCPutS hputs =>
+        have hevict_encap_dir := hputs.encapPutSDirEvent.evictEncapCorrDir.choose_spec
+        have hencap_dir := hevict_encap_dir.right.evictEncapCorrespondingDirEvent.reqEncapDir
+        apply Exists.intro
+        case w =>
+          . exact hputs.encapPutSDirEvent.evictEncapCorrDir.choose
+        case h =>
+          apply And.intro
+          . case left => exact hevict_encap_dir.left
+          . case right =>
+            unfold Event.relates
+            apply Or.intro_left
+            exact hencap_dir
+    . case neg hhas_perms =>
+      /- Use some reasoning like `Behaviour.exists_predecessor_setting_state` to state there's
+      a directory event encapsulated by a previous cache event. -/
+      sorry
   . case directoryEvent _ => simp at ax6
 
 -- [TODO] constrain goal to say not just `e_req` relates `e_dir`, but either encapsulates if lacking permissions, or a previous one if have perms,
