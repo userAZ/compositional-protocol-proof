@@ -328,19 +328,149 @@ structure Behaviour.reqWithCorrespondDirLeavesStateAs (b : Behaviour n) (e_req :
   stateAfterAs : b.reqLeavesStateAs n e_req init state
 
 -- [TODO] Add Lemma (or Def) to state there exists a previous event `e_pred` before Event `e`, that sets the state that `e` is made on.
-lemma Behaviour.exists_predecessor_setting_state (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) :
-  let state_req_is_made_on := b.stateBefore n e_req (init.stateAt n e_req) |>.cache;
-  ∃ e_pred ∈ b.es, b.ImmediateBottomPredSatisfyingProp n e_pred e_req (b.reqWithCorrespondDirLeavesStateAs n · init state_req_is_made_on) :=
-  sorry
+lemma Behaviour.exists_predecessor_setting_state (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) (hreq_encap_dir : Behaviour.axRequestAccessesDirectory n) :
+  -- let state_req_is_made_on := b.stateBefore n e_req (init.stateAt n e_req) |>.cache;
+  ∃ e_pred ∈ b.es, b.ImmediateBottomPredSatisfyingProp n e_pred e_req (b.reqWithCorrespondDirLeavesStateAs n · init (b.stateBefore n e_req (init.stateAt n e_req) |>.cache)) := by
+  by_cases (∃ e_pred ∈ b.es, b.reqLeavesStateAs n e_pred init (init.stateAt n e_req).cache)
+  . case pos hpred_leaves_state =>
+    apply Exists.intro
+    case w => exact hpred_leaves_state.choose
+    case h =>
+      apply And.intro
+      . case left =>
+        exact hpred_leaves_state.choose_spec.left
+      . case right =>
+        have h := hpred_leaves_state.choose_spec.right
+        unfold reqLeavesStateAs at h
+        sorry
+  . case neg hpred_not_leave_state =>
+    apply Exists.intro
+    sorry
+
+def Behaviour.exists_predecessor_setting_state' (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) : Prop :=
+  ∃ e_pred ∈ b.es, b.ImmediateBottomPredSatisfyingProp n e_pred e_req (b.reqWithCorrespondDirLeavesStateAs n · init (b.stateBefore n e_req (init.stateAt n e_req) |>.cache))
 
 def Behaviour.eventOnCoherentStateAtLeastMRS (b : Behaviour n) (e : Event n) (init : InitialSystemState n) : Prop := match e with
 | .cacheEvent ce => let state_made_on := init.stateAt n e |>.cache n;
   state_made_on.c ∧ ce.req.MRS ≤ (b.stateBefore n e (init.stateAt n e)).cache n
 | .directoryEvent _ => false
 
-/-- A Transitive Relation from a Request Event to a Directory Event. For Lemma 3. -/
+/-- (Old. Don't use.) A Transitive Relation from a Request Event to a Directory Event. For Lemma 3. -/
 def Event.relates (e₁ e₂ : Event n) : Prop := e₁.Encapsulates n e₂ ∨ e₁.Ordered n e₂
 
+/- Defs describing where a Coherent Request's Directory Event that links the Request's data to the total order of Directory Entry Events. -/
+
+/-- Def. Prop on a Request Event `e_req`. The state it's made on is lower than it's `Minimum Required State (MRS)`. -/
+def Behaviour.missingPerms (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) : Prop :=
+  (b.stateBefore n e_req (init.stateAt n e_req)).cache < e_req.req.MRS
+
+/-- Wrapper structure Def. Prop on a Request Event `e_req`. `e_req` is made on a state where it doesn't have it's `MRS`.-/
+structure Behaviour.insufficientReqPerms (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) : Prop where
+  noPerms : b.missingPerms n e_req init
+
+/-- Def. Prop on a Request Event `e_req`. The state it's made on is at least it's `Minimum Required State (MRS)`. -/
+def Behaviour.hasPerms (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) : Prop :=
+  e_req.req.MRS ≤ (b.stateBefore n e_req (init.stateAt n e_req)).cache
+
+/-- Wrapper structure Def. Prop on a Request Event `e_req`. The state it's made on is at least it's `Minimum Required State (MRS)`. -/
+structure Behaviour.sufficientReqPerms (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) : Prop where
+  hasPerms : b.hasPerms n e_req init
+
+/-- Def. Structure stating a request event `e_req` has insufficient permissions, so it encapsulates directory event. -/
+structure Behaviour.insufficientReqPermsSoEncapDir (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+  noPerms : b.missingPerms n e_req init
+  reqEncapDir : e_req.Encapsulates n e_dir
+
+def Behaviour.predWithCorrespondingDirLeavesStateMatchingReq (b : Behaviour n) (e_pred e_req : Event n) (init : InitialSystemState n) : Prop :=
+  (b.reqWithCorrespondDirLeavesStateAs n e_pred init (b.stateBefore n e_req (init.stateAt n e_req) |>.cache))
+
+def Behaviour.immBottomPredEncapCorrDirLeavesStateMatchingReq (b : Behaviour n) (e_pred e_req : Event n) (init : InitialSystemState n) : Prop :=
+  b.ImmediateBottomPredSatisfyingProp n e_pred e_req (b.predWithCorrespondingDirLeavesStateMatchingReq n · e_req init)
+
+structure Behaviour.reqHasPermsSoDirPred (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+  hasPerms : b.sufficientReqPerms n e_req init
+  immPredEncapDir : ∃ e_pred ∈ b.es, b.immBottomPredEncapCorrDirLeavesStateMatchingReq n e_pred e_req init
+
+/-- Inductive Prop. State where is the directory event that obtains permissions for a Coherent Request. -/
+inductive Behaviour.dirEventOfCoherentReq (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop
+| encapDir : b.insufficientReqPermsSoEncapDir n e_req e_dir init → Behaviour.dirEventOfCoherentReq b e_req e_dir init
+| orderBeforeDir : b.reqHasPermsSoDirPred n e_req e_dir init → Behaviour.dirEventOfCoherentReq b e_req e_dir init -- [NOTE]: not technically necessary
+
+/-- Top Level Def. Prop on a Coherent Request `e_coh_req`, and where will the directory event that gave it cache permissions for `e_coh_req`'s access is. -/
+structure Behaviour.coherentReqDirEvent (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+  coherentReq : e_req.isCoherent
+  dirOfReq : b.dirEventOfCoherentReq n e_req e_dir init
+
+/- Defs describing where a Non-Coherent Weak Read's Directory Event that links the Read's data to the total order of Directory Entry Events. -/
+
+/-- Def. Prop Non-Coherent Weak Read on Vc or SW must have had an immediate bottom predecessor request event that brought the entry state to Vc or SW. -/
+structure Behaviour.ncWeakReadVcOrSWDirBefore (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+  reqOnVcOrSw : b.stateBefore n e_req (init.stateAt n e_req) = VcEntry n ∨ b.stateBefore n e_req (init.stateAt n e_req) = SWEntry n
+  immPredEncapDir : b.reqHasPermsSoDirPred n e_req e_dir init
+
+structure Behaviour.reqOnVdWithCorrespondingDir (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) : Prop where
+  stateBeforeAsVd : b.stateBefore n e_req (init.stateAt n e_req) = VdEntry n
+  encapCorresponding : b.reqEncapCorrespondingDir n e_req init
+
+def Behaviour.succOnVdWithCorrespondingDir (b : Behaviour n) (e_succ : Event n) (init : InitialSystemState n) : Prop :=
+  (b.reqOnVdWithCorrespondingDir n e_succ init)
+
+/-- Def. Prop. there exists an immediate bottom successor on Vd State, encapsulating a corresponding directory event. -/
+def Behaviour.immBottomSuccOnVdEncapCorrDir (b : Behaviour n) (e_req e_succ : Event n) (init : InitialSystemState n) : Prop :=
+  b.ImmediateBottomSuccSatisfyingProp n e_req e_succ (b.succOnVdWithCorrespondingDir n · init)
+
+/-- Wrapper Def there exists an immediate bottom successor on Vd State, encapsulating a corresponding directory event. -/
+structure Behaviour.weakReqOnVdSoDirSucc (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+  immSuccEncapDir : ∃ e_succ ∈ b.es, b.immBottomSuccOnVdEncapCorrDir n e_req e_succ init
+
+/-- Def. Prop Non-Coherent Weak Read on Vd must have an immediate bottom successor request event that will write back the entry to directory or get SW permissions. -/
+structure Behaviour.ncWeakReadOrWriteVdDirBefore (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+  reqOnVd : b.stateBefore n e_req (init.stateAt n e_req) = VdEntry n
+  immSuccEncapDir : b.weakReqOnVdSoDirSucc n e_req e_dir init
+
+/-- Def. Inductive Prop on Non-Coherent Weak Read and where is it's directory event that ties it to the directory entry's total order. -/
+inductive Behaviour.dirEventOfNCWeakRead (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop
+| encapDir : b.insufficientReqPermsSoEncapDir n e_req e_dir init → Behaviour.dirEventOfNCWeakRead b e_req e_dir init
+| orderBeforeDir : b.ncWeakReadVcOrSWDirBefore n e_req e_dir init → Behaviour.dirEventOfNCWeakRead b e_req e_dir init
+| orderAfterDir : b.ncWeakReadOrWriteVdDirBefore n e_req e_dir init → Behaviour.dirEventOfNCWeakRead b e_req e_dir init
+
+/-- Top level def for a Non-Coherent Weak Read's Directory Event relation. -/
+structure Behaviour.ncWeakRead (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+  reqNcWeakRead : e_req.isNcWeakRead
+  dirOfNCWR : b.dirEventOfNCWeakRead n e_req e_dir init
+
+/-- Def. a Request is made on a state that has coherent permissions, so the directory event linking it to the total order of events at the dir entry is predecessor the request. -/
+structure Behaviour.reqHasCoherentPermsSoDirPred (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+  hasPerms : b.sufficientReqPerms n e_req init
+  isCoherent : (b.stateBefore n e_req (init.stateAt n e_req)).cache.c
+  immPredEncapDir : ∃ e_pred ∈ b.es, b.immBottomPredEncapCorrDirLeavesStateMatchingReq n e_pred e_req init
+
+/- Defs describing where a Non-Coherent Weak Write's Directory Event that links the Write's data to the total order of Directory Entry Events. -/
+inductive Behaviour.dirEventOfNCWeakWrite (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop
+| orderBeforeDir : b.reqHasCoherentPermsSoDirPred n e_req e_dir init → Behaviour.dirEventOfNCWeakWrite b e_req e_dir init -- [NOTE]: not technically necessary
+| orderAfterDir : b.ncWeakReadOrWriteVdDirBefore n e_req e_dir init → Behaviour.dirEventOfNCWeakWrite b e_req e_dir init
+
+/-- Top level def for a Non-Coherent Weak Write's Directory Event relation. -/
+structure Behaviour.ncWeakWrite (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+  reqNcWeakWrite : e_req.isNcWeakWrite
+  dirOfNCWWOrderAfter : b.dirEventOfNCWeakWrite n e_req e_dir init
+
+inductive Behaviour.reqDirOrdering (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop
+| coherentReq : b.coherentReqDirEvent n e_req e_dir init → Behaviour.reqDirOrdering b e_req e_dir init
+| ncWeakRead : b.ncWeakRead n e_req e_dir init → Behaviour.reqDirOrdering b e_req e_dir init
+| ncAcq : → Behaviour.reqDirOrdering b e_req e_dir init
+| ncWeakWrite : b.ncWeakWrite e_req e_dir init → Behaviour.reqDirOrdering b e_req e_dir init
+| ncRel : → Behaviour.reqDirOrdering b e_req e_dir init
+
+-- Ok, this is better off as an inductive.
+/-
+def Behaviour.link_to_dir (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop :=
+  match e_req.req with
+  | ⟨⟨_,true,_⟩,_⟩ =>
+    match (b.stateBefore n e_req (init.stateAt n e_req)).cache with
+    | ⟨_,true⟩ => sorry
+  -- e₁.Encapsulates n e₂ ∨ e₁.Ordered n e₂
+-/
 -- [TODO] expand relation (from Event.relates) to cover the current state.
 lemma Behaviour.coherent_req_exists_related_e_dir (b : Behaviour n) (init : InitialSystemState n)
 (hreq_encap_dir : Behaviour.axRequestAccessesDirectory n) (e_req : Event n) (he_req_in_b : e_req ∈ b.es)
@@ -431,8 +561,45 @@ lemma Behaviour.coherent_req_exists_related_e_dir (b : Behaviour n) (init : Init
     . case neg hhas_perms =>
       /- Use some reasoning like `Behaviour.exists_predecessor_setting_state` to state there's
       a directory event encapsulated by a previous cache event. -/
-      sorry
+      let hpred_encap_dir := Behaviour.exists_predecessor_setting_state n b (Event.cacheEvent ce) init hreq_encap_dir;
+      let h := hpred_encap_dir.choose_spec.right
+      let h_choose := hpred_encap_dir.choose
+      simp at h
+      obtain ⟨hpred, himm_pred_same_succ_state⟩ := h
+      unfold Event.PropOnEvent at himm_pred_same_succ_state
+      simp at himm_pred_same_succ_state
+      have h1 := himm_pred_same_succ_state.encapCorresponding.choose_spec.right
+      obtain ⟨e_dir, hedir_in_b, hce_encap_dir⟩ := h1
+      have h2 := hce_encap_dir.reqEncapDir
+
+      have hdir_encap_by_pred : e_dir.EncapsulatedBy n hpred_encap_dir.choose := by simp [h2]
+      have hpred_before_req : hpred_encap_dir.choose < Event.cacheEvent ce := by
+        exact hpred.isImmPred.isPred
+
+      apply Exists.intro
+      case mk.mk.intro.intro.w => exact e_dir
+      case mk.mk.intro.intro.h =>
+        apply And.intro
+        . case left => exact hedir_in_b
+        . case right =>
+          unfold Event.relates
+          apply Or.intro_right
+          unfold Event.Ordered
+          apply Or.intro_right
+          calc (e_dir.EncapsulatedBy n) hpred_encap_dir.choose := hdir_encap_by_pred
+            (Event.OrderedBefore n) _ (Event.cacheEvent ce) := hpred_before_req
   . case directoryEvent _ => simp at ax6
+    /-
+      let h_choose := hpred_encap_dir.choose
+      simp at h
+      obtain ⟨himm_bott_pred, hpred, himm_pred_same_succ_state⟩ := h
+      -- unfold Event.PropOnEvent at himm_pred_same_succ_state
+      -- simp at himm_pred_same_succ_state
+      -- have h1 := hpred. --.encapCorresponding.choose_spec.right
+      obtain ⟨e_dir, hedir_in_b, hce_encap_dir⟩ := hpred
+      have h2 := hce_encap_dir.cacheDirEvent --.reqEncapDir
+      obtain ⟨e_dir2, hedir2_in_b, hce_encap_dir2⟩ := h2
+      have h3 := hce_encap_dir2.reqEncapDir-/
 
 -- [TODO] constrain goal to say not just `e_req` relates `e_dir`, but either encapsulates if lacking permissions, or a previous one if have perms,
 -- of a future one if Weak Non-Coherent on Vd
