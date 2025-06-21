@@ -455,12 +455,24 @@ structure Behaviour.ncWeakWrite (b : Behaviour n) (e_req e_dir : Event n) (init 
   reqNcWeakWrite : e_req.isNcWeakWrite
   dirOfNCWWOrderAfter : b.dirEventOfNCWeakWrite n e_req e_dir init
 
-inductive Behaviour.reqDirOrdering (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop
-| coherentReq : b.coherentReqDirEvent n e_req e_dir init → Behaviour.reqDirOrdering b e_req e_dir init
-| ncWeakRead : b.ncWeakRead n e_req e_dir init → Behaviour.reqDirOrdering b e_req e_dir init
-| ncAcq : → Behaviour.reqDirOrdering b e_req e_dir init
-| ncWeakWrite : b.ncWeakWrite e_req e_dir init → Behaviour.reqDirOrdering b e_req e_dir init
-| ncRel : → Behaviour.reqDirOrdering b e_req e_dir init
+/-- Top level def for a Non-Coherent Acquire's Directory Event relation. An Acquire always encapsulates a directory event. -/
+structure Behaviour.ncAcquire (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+  reqNcAcquire : e_req.isAcquire
+  reqEncapDir : e_req.Encapsulates n e_dir
+
+/-- Top level def for a Non-Coherent Release's Directory Event relation. -/
+structure Behaviour.ncRelease (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+  reqNcRelease : e_req.isNCRelease
+  dirWrite : e_dir.isWrite
+  reqEncapDir : e_req.Encapsulates n e_dir
+
+/-- Lemma 3 Goal. -/
+inductive Behaviour.reqDirRelation (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop
+| coherentReq : b.coherentReqDirEvent n e_req e_dir init → Behaviour.reqDirRelation b e_req e_dir init
+| ncWeakRead : b.ncWeakRead n e_req e_dir init → Behaviour.reqDirRelation b e_req e_dir init
+| ncAcq : b.ncAcquire n e_req e_dir init → Behaviour.reqDirRelation b e_req e_dir init
+| ncWeakWrite : b.ncWeakWrite n e_req e_dir init → Behaviour.reqDirRelation b e_req e_dir init
+| ncRel : b.ncRelease n e_req e_dir init → Behaviour.reqDirRelation b e_req e_dir init
 
 -- Ok, this is better off as an inductive.
 /-
