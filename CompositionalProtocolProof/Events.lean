@@ -192,6 +192,10 @@ def Event.isCRelease : Event n → Prop
 | .cacheEvent ce => ce.req.val = ⟨.w, true, .Rel⟩
 | .directoryEvent _ => false
 
+def Event.isWrite : Event n → Prop
+| .cacheEvent ce => ce.req.val.isWrite
+| .directoryEvent _ => false
+
 structure CacheEvent.vcInval (e : CacheEvent n) : Prop where
   isDown : e.down
   isWeakRead : e.req.val = ⟨.r, false, .Weak⟩
