@@ -474,15 +474,6 @@ inductive Behaviour.reqDirRelation (b : Behaviour n) (e_req e_dir : Event n) (in
 | ncWeakWrite : b.ncWeakWrite n e_req e_dir init → Behaviour.reqDirRelation b e_req e_dir init
 | ncRel : b.ncRelease n e_req e_dir init → Behaviour.reqDirRelation b e_req e_dir init
 
--- Ok, this is better off as an inductive.
-/-
-def Behaviour.link_to_dir (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop :=
-  match e_req.req with
-  | ⟨⟨_,true,_⟩,_⟩ =>
-    match (b.stateBefore n e_req (init.stateAt n e_req)).cache with
-    | ⟨_,true⟩ => sorry
-  -- e₁.Encapsulates n e₂ ∨ e₁.Ordered n e₂
--/
 -- [TODO] expand relation (from Event.relates) to cover the current state.
 lemma Behaviour.coherent_req_exists_related_e_dir (b : Behaviour n) (init : InitialSystemState n)
 (hreq_encap_dir : Behaviour.axRequestAccessesDirectory n) (e_req : Event n) (he_req_in_b : e_req ∈ b.es)
