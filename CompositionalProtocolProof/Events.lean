@@ -176,6 +176,14 @@ def Event.isAcquire : Event n → Prop
 | .cacheEvent ce => ce.req.val = ⟨.r, false, .Acq⟩
 | .directoryEvent _ => false
 
+def Event.isNcWeakRead : Event n → Prop
+| .cacheEvent ce => ce.req.val = ⟨.r, false, .Weak⟩
+| .directoryEvent _ => false
+
+def Event.isNcWeakWrite : Event n → Prop
+| .cacheEvent ce => ce.req.val = ⟨.w, false, .Weak⟩
+| .directoryEvent _ => false
+
 def Event.isNCRelease : Event n → Prop
 | .cacheEvent ce => ce.req.val = ⟨.w, false, .Rel⟩
 | .directoryEvent _ => false
