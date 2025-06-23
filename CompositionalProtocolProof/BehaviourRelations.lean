@@ -684,7 +684,21 @@ lemma Behaviour.nc_rel_req_exists_related_e_dir (b : Behaviour n) (init : Initia
       . case h.right =>
         simp[Event.relates]
         simp[Or.intro_left, h]
-    | _ => sorry
+    | .coherentRequest hcoh_req =>
+      have hcoh := hcoh_req.isCoherent
+      simp[Event.req] at hcoh
+      have h_not_coh : ¬ ce.req.val.coherent := by simp[hreq]
+      contradiction
+    | .acquire hacq =>
+      have hcoh := hacq.isAcquire
+      simp[Event.req] at hcoh
+      have h_not_acq : ¬ ce.req.val.consistency = .Acq := by simp[hreq]
+      contradiction
+    | .weakWrite hww => sorry
+    | .weakRead hwr => sorry
+    | .evictVdWB he_vd_wb => sorry
+    | .evictSCPutM hsc_putm => sorry
+    | .evictSCPutS hsc_puts => sorry
   . case directoryEvent _ => simp at ax6
 
 -- [TODO] constrain goal to say not just `e_req` relates `e_dir`, but either encapsulates if lacking permissions, or a previous one if have perms,
