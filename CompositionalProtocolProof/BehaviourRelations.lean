@@ -680,9 +680,11 @@ lemma Behaviour.coherent_req_exists_related_e_dir (b : Behaviour n) (init : Init
 lemma Behaviour.nc_weak_read_req_exists_related_e_dir' (b : Behaviour n) (init : InitialSystemState n)
 (hreq_encap_dir : Behaviour.axRequestAccessesDirectory n) (e_req : Event n) (he_req_in_b : e_req ∈ b.es)
 (rw : ReadWrite) (consistency : Consistency) (hvalid_req : ({ rw := rw, coherent := true, consistency := consistency } : Request).IsValid)
-(hreq : e_req.req = ⟨{ rw := rw, coherent := true, consistency := consistency }, hvalid_req⟩) :
+(hreq : e_req.req = ⟨{ rw := rw, coherent := true, consistency := consistency }, hvalid_req⟩)
+(he_req_coh : Event.isCoherent n e_req)
+(he_req_not_down : ¬Event.down n e_req = true) :
   -- b.reqDirRelation n e_req init
-  ∃ e_dir ∈ b.es, Event.relates n e_req e_dir
+  ∃ e_dir ∈ b.es, dirEventOfCoherentReq n b e_req e_dir init
   := by
   sorry
 
@@ -747,7 +749,6 @@ lemma Behaviour.nc_rel_req_exists_related_e_dir (b : Behaviour n) (init : Initia
 
     match ax6 with
     | .nonCoherentRelease hnc_rel =>
-      -- have h := hnc_rel
       unfold nonCoherentRelease at hnc_rel
       obtain ⟨e_dir_wb, hrel_encap_dir⟩ := hnc_rel
       have h := hrel_encap_dir.right.encapsDirWB.reqEncapCorrespondingDirEvent.reqEncapDir
