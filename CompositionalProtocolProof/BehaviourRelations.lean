@@ -776,6 +776,67 @@ lemma Behaviour.nc_rel_req_exists_related_e_dir (b : Behaviour n) (init : Initia
     | .evictSCPutS hsc_puts => sorry
   . case directoryEvent _ => simp at ax6
 
+/-
+structure Behaviour.hasCoherentPerms (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) : Prop where
+  coherentState : (b.stateBefore n e_req (init.stateAt n e_req)).cache.c
+  mrsLeS : e_req.req.MRS ≤ (b.stateBefore n e_req (init.stateAt n e_req)).cache
+-/
+lemma Behaviour.exists_predecessor_setting_state'' (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n)
+  (hhave_perms : sufficientReqPerms n b e_req init)
+  (hinit_i : (init.stateAt n e_req).cache = I)
+  (hcoherent_perms : (b.stateBefore n e_req (init.stateAt n e_req)).cache ≠ Vd)
+  (hax6 : Behaviour.axRequestAccessesDirectory n)
+  (hreq_is_ce : e_req.isCacheEvent n)
+  :
+  ∃ e_pred ∈ b.es, b.immBottomPredEncapCorrDirLeavesStateAtLeastReq n e_pred e_req init := by
+  by_contra hno_imm_pred_getting_state
+  /- first show there's a predecessor `e_pred`, that produces state `s` that `e_req` is made on.
+  We know `s` is at least `e_req.MRS` -/
+  have hmrs_le_s := hhave_perms.hasPerms
+  simp[hasPerms] at hmrs_le_s
+  /- By cases on `e_req.MRS`, we know `s` is `≥` a State that isn't `I`. -/
+  match he : e_req with
+  | .cacheEvent ce =>
+    match hmrs : e_req.req.MRS with
+    | ⟨some .wr, true⟩ => sorry
+    | ⟨some .r, true⟩ => sorry
+    | ⟨some .wr, false⟩ => sorry
+    | ⟨some .r, false⟩ => sorry
+    | ⟨none, true⟩ => sorry
+    | ⟨none, false⟩ =>
+      match hreq : e_req.req with
+      | ⟨⟨rw,false,_⟩,_⟩ =>
+        match rw with
+        | .w => sorry
+        | .r =>
+          simp[Event.req] at hmrs hreq
+          simp[he] at hmrs hreq
+          simp[hreq] at hmrs
+          simp[ValidRequest.MRS] at hmrs
+          split at hmrs
+          case h_1 => simp at hmrs
+          case h_2 => simp at hmrs
+          case h_3 => simp at hmrs
+          case h_4 =>
+            -- simp[hmrs]
+            simp at hmrs
+      | _ => sorry
+  | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
+  -- cases (b.stateBefore n e_req (init.stateAt n e_req)).cache
+  /-
+  have h : ∃ e_pred ∈ b.es, b.immBottomPredEncapCorrDirLeavesStateAtLeastReq n e_pred e_req init := by
+    by_cases hexists_req_pred : ∃ e_pred' ∈ b.es, b.immBottomPredEncapCorrDirLeavesStateAtLeastReq n e_pred' e_req init
+    . case pos => exact hexists_req_pred
+    . case neg =>
+      --
+      sorry-/
+
+lemma Behaviour.exists_predecessor_setting_state_encap_dir_event'' (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n)
+  (hhave_perms : sufficientReqPerms n b e_req init)
+  :
+  ∃ e_pred ∈ b.es, b.immBottomPredEncapCorrDirLeavesStateAtLeastReq n e_pred e_req init := by
+  sorry
+
 -- [TODO] constrain goal to say not just `e_req` relates `e_dir`, but either encapsulates if lacking permissions, or a previous one if have perms,
 -- of a future one if Weak Non-Coherent on Vd
 /-- Lemma 3. For each Cache Request Event `e_req`, there exists a unique event `e_dir` relating `e_req` to the total order of events at
