@@ -353,6 +353,7 @@ def Behaviour.hasPerms (b : Behaviour n) (e_req : Event n) (init : InitialSystem
 /-- Wrapper structure Def. Prop on a Request Event `e_req`. The state it's made on is at least it's `Minimum Required State (MRS)`. -/
 structure Behaviour.sufficientReqPerms (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) : Prop where
   hasPerms : b.hasPerms n e_req init
+  acqRelHasCoherentPerms : e_req.isAcquire ∨ e_req.isNCRelease → (b.stateBefore n e_req (init.stateAt n e_req)).cache.c
 
 /-- Def. Structure stating a request event `e_req` has insufficient permissions, so it encapsulates directory event. -/
 structure Behaviour.insufficientReqPermsSoEncapDir (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
