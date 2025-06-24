@@ -532,7 +532,7 @@ structure Behaviour.reqDirRelation' (b : Behaviour n) (e_req : Event n) (init : 
 lemma Behaviour.exists_predecessor_setting_state (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) (hreq_encap_dir : Behaviour.axRequestAccessesDirectory n) :
   -- let state_req_is_made_on := b.stateBefore n e_req (init.stateAt n e_req) |>.cache;
   ∃ e_pred ∈ b.es, b.ImmediateBottomPredSatisfyingProp n e_pred e_req (b.reqWithCorrespondDirLeavesStateAtLeast n · init (b.stateBefore n e_req (init.stateAt n e_req) |>.cache)) := by
-  by_cases (∃ e_pred ∈ b.es, b.reqLeavesStateAs n e_pred init (init.stateAt n e_req).cache)
+  by_cases (∃ e_pred ∈ b.es, b.reqLeavesStateAtLeast n e_pred init (init.stateAt n e_req).cache)
   . case pos hpred_leaves_state =>
     apply Exists.intro
     case w => exact hpred_leaves_state.choose
