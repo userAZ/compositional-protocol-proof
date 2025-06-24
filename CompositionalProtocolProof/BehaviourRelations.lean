@@ -797,30 +797,21 @@ lemma Behaviour.exists_predecessor_setting_state'' (b : Behaviour n) (e_req : Ev
   /- By cases on `e_req.MRS`, we know `s` is `≥` a State that isn't `I`. -/
   match he : e_req with
   | .cacheEvent ce =>
-    match hmrs : e_req.req.MRS with
-    | ⟨some .wr, true⟩ => sorry
-    | ⟨some .r, true⟩ => sorry
-    | ⟨some .wr, false⟩ => sorry
-    | ⟨some .r, false⟩ => sorry
-    | ⟨none, true⟩ => sorry
-    | ⟨none, false⟩ =>
-      match hreq : e_req.req with
-      | ⟨⟨rw,false,_⟩,_⟩ =>
-        match rw with
-        | .w => sorry
-        | .r =>
-          simp[Event.req] at hmrs hreq
-          simp[he] at hmrs hreq
-          simp[hreq] at hmrs
-          simp[ValidRequest.MRS] at hmrs
-          split at hmrs
-          case h_1 => simp at hmrs
-          case h_2 => simp at hmrs
-          case h_3 => simp at hmrs
-          case h_4 =>
-            -- simp[hmrs]
-            simp at hmrs
-      | _ => sorry
+    by_cases hmrs : e_req.req.MRS.p = none
+    . case pos =>
+      simp[Event.req] at hmrs
+      simp[he] at hmrs
+      simp[ValidRequest.MRS] at hmrs
+      split at hmrs
+      case h_1 => simp[ReadWrite.toPerms] at hmrs
+      case h_2 => simp at hmrs
+      case h_3 => simp at hmrs
+      case h_4 => simp at hmrs
+    . case neg =>
+      /- MRS isn't I, and `MRS ≤ s`, so `s` is set by a corresponding `e_pred`.
+      Now `e_pred` either encapsulates a Directory Event `e_dir`, or doesn't.
+      If it doesn't, then `e_pred` has an `e_pred'`. -/
+      sorry
   | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
   -- cases (b.stateBefore n e_req (init.stateAt n e_req)).cache
   /-
@@ -839,7 +830,7 @@ lemma Behaviour.exists_predecessor_setting_state_encap_dir_event'' (b : Behaviou
 
 -- [TODO] constrain goal to say not just `e_req` relates `e_dir`, but either encapsulates if lacking permissions, or a previous one if have perms,
 -- of a future one if Weak Non-Coherent on Vd
-/-- Lemma 3. For each Cache Request Event `e_req`, there exists a unique event `e_dir` relating `e_req` to the total order of events at
+/-- `Lemma 3.` For each Cache Request Event `e_req`, there exists a unique event `e_dir` relating `e_req` to the total order of events at
 `e_req`'s corresonponding Directory entry. -/
 lemma Behaviour.exists_e_dir_relating_e_req (b : Behaviour n) (init : InitialSystemState n)
 (e_req : Event n) (he_req_in_b : e_req ∈ b.es)
