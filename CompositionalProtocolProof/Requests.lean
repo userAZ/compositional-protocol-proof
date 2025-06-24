@@ -64,12 +64,9 @@ abbrev ValidRequest := {r : Request // Request.IsValid r}
 
 /-- Definition 2.12 Minimum Required State of a request. -/
 def ValidRequest.MRS : ValidRequest → State
-| vr => match hcoh : vr.val.coherent with
-  | true => ⟨vr.val.rw.toPerms, vr.val.coherent⟩
-  | false => match hcons : vr.val.consistency with
-    | .Weak => Vc
-    | .Rel | .Acq => I -- Release and Acquire don't have a MRS. They always need to go to directory.
-    | .SC => absurd vr.prop.non_coherent (by simp[hcoh, hcons]) -- none -- Non-Coherent SC request not allowed by interface family
+| ⟨⟨rw,true,_⟩,_⟩ => ⟨rw.toPerms, true⟩
+| ⟨⟨_,false,.Weak⟩,_⟩ => Vc
+| ⟨⟨.w,false,.Rel⟩,_⟩ | ⟨⟨.r,false,.Acq⟩,_⟩ => Vc
 
 abbrev SCWrite : ValidRequest := ⟨⟨.w, true, .SC⟩, {}⟩
 abbrev SCRead : ValidRequest := ⟨⟨.r, true, .SC⟩, {}⟩
