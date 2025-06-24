@@ -147,8 +147,8 @@ def Event.isEvict : Event n → Prop
 | .directoryEvent _ => true
 
 def Event.isCacheEvent : Event n → Prop
-| .directoryEvent _ => true
-| .cacheEvent _ => false
+| .directoryEvent _ => false
+| .cacheEvent _ => true
 
 def Event.isDirectoryEvent : Event n → Prop
 | .directoryEvent _ => true
