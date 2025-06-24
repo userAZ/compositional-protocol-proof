@@ -845,8 +845,7 @@ lemma Behaviour.exists_e_dir_relating_e_req (b : Behaviour n) (init : InitialSys
 (e_req : Event n) (he_req_in_b : e_req ∈ b.es)
 (hreq_encap_dir : Behaviour.axRequestAccessesDirectory n)
 (hvd_wb_later : Behaviour.vdCacheEntryWriteBackLater n b e_req init) :
-  ∃ e_dir ∈ b.es, e_req.relates n e_dir
-  -- b.reqDirRelation n e_req init
+  b.reqDirRelation' n e_req init
   := by
   have ax6 := hreq_encap_dir.reqAccessDir b e_req he_req_in_b init
   unfold Behaviour.requestAccessesDirectoryWrapper at ax6
@@ -855,9 +854,52 @@ lemma Behaviour.exists_e_dir_relating_e_req (b : Behaviour n) (init : InitialSys
   . case cacheEvent ce =>
     match hreq : ce.req with
     | ⟨⟨rw,true,consistency⟩, hvalid_req⟩ =>
-      apply coherent_req_exists_related_e_dir n b init hreq_encap_dir (Event.cacheEvent ce) he_req_in_b rw consistency hvalid_req hreq
-      -- sorry
-      -- apply b.coherent_req_exists_related_e_dir' n init hreq_encap_dir (Event.cacheEvent ce) he_req_in_b rw consistency hvalid_req hreq
+      -- apply coherent_req_exists_related_e_dir n b init hreq_encap_dir (Event.cacheEvent ce) he_req_in_b rw consistency hvalid_req hreq
+      constructor
+      . case cohReqRelation =>
+        intro ax6' he_req_coh he_req_not_down
+
+        cases ax6
+        . case coherentRequest hcoh_req =>
+          --
+          constructor
+          . case encapDir =>
+            simp[insufficientReqPermsSoEncapDir']
+            intro hmissing_perms
+            use hcoh_req.reqEncapDir.reqEncapCorrDir.choose
+            apply And.intro
+            . case h.left => exact hcoh_req.reqEncapDir.reqEncapCorrDir.choose_spec.left
+            . case h.right => exact hcoh_req.reqEncapDir.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent.reqEncapDir
+          . case orderBeforeDir =>
+            simp[reqHasPermsSoDirPred']
+            intro hhave_perms
+            sorry
+        . case nonCoherentRelease hnc_rel =>
+          sorry
+        . case acquire hacq =>
+          sorry
+        . case weakWrite hww =>
+          sorry
+        . case weakRead hwr =>
+          sorry
+        . case evictVdWB hevd_wb=>
+          sorry
+        . case evictSCPutM he_putm =>
+          sorry
+        . case evictSCPutS he_puts =>
+          sorry
+      . case ncWeakReadDirRelation =>
+        intro ax6' he_req_weak_read he_req_not_down
+        sorry
+      . case ncWeakWriteDirRelation =>
+        intro ax6' he_req_weak_write he_req_not_down
+        sorry
+      . case ncRelDirRelation =>
+        intro ax6' he_req_rel he_req_not_down
+        sorry
+      . case ncAcqDirRelation =>
+        intro ax6' he_req_acq he_req_not_down
+        sorry
     | ⟨⟨.r,false,.Weak⟩, {}⟩ =>
       /-
       match ax6 with
