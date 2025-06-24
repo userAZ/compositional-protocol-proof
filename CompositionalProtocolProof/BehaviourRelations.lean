@@ -778,11 +778,7 @@ lemma Behaviour.nc_rel_req_exists_related_e_dir (b : Behaviour n) (init : Initia
     | .evictSCPutS hsc_puts => sorry
   . case directoryEvent _ => simp at ax6
 
-/-
-structure Behaviour.hasCoherentPerms (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) : Prop where
-  coherentState : (b.stateBefore n e_req (init.stateAt n e_req)).cache.c
-  mrsLeS : e_req.req.MRS ≤ (b.stateBefore n e_req (init.stateAt n e_req)).cache
--/
+/-- `Lemma 0.1` in Lemma 3's re-write -/
 lemma Behaviour.exists_predecessor_setting_state'' (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n)
   (hhave_perms : sufficientReqPerms n b e_req init)
   (hinit_i : (init.stateAt n e_req).cache = I)
@@ -813,6 +809,7 @@ lemma Behaviour.exists_predecessor_setting_state'' (b : Behaviour n) (e_req : Ev
       /- MRS isn't I, and `MRS ≤ s`, so `s` is set by a corresponding `e_pred`.
       Now `e_pred` either encapsulates a Directory Event `e_dir`, or doesn't.
       If it doesn't, then `e_pred` has an `e_pred'`. -/
+      /- show there's a predecessor somehow? use def of stateBefore? -/
       sorry
   | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
   -- cases (b.stateBefore n e_req (init.stateAt n e_req)).cache
