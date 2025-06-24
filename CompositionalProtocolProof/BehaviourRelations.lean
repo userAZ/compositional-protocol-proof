@@ -321,12 +321,12 @@ def DirEvent := {e : Event n // e.isDirectoryEvent n}
 def Behaviour.reqEncapCorrespondingDir (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) : Prop :=
   ∃ e_dir ∈ b.es, b.cacheEncapCorrespondingDirEvent n e_req (init.stateAt n e_req)
 
-def Behaviour.reqLeavesStateAs (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) (state : State) : Prop :=
-  (b.stateAfter n e_req (init.stateAt n e_req)).cache = state
+def Behaviour.reqLeavesStateAtLeast (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) (state : State) : Prop :=
+  state ≤ (b.stateAfter n e_req (init.stateAt n e_req)).cache
 
-structure Behaviour.reqWithCorrespondDirLeavesStateAs (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) (state : State) : Prop where
+structure Behaviour.reqWithCorrespondDirLeavesStateAtLeast (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) (state : State) : Prop where
   encapCorresponding : b.reqEncapCorrespondingDir n e_req init
-  stateAfterAs : b.reqLeavesStateAs n e_req init state
+  stateAfterAtLeast : b.reqLeavesStateAtLeast n e_req init state
 
 def Behaviour.eventOnCoherentStateAtLeastMRS (b : Behaviour n) (e : Event n) (init : InitialSystemState n) : Prop := match e with
 | .cacheEvent ce => let state_made_on := init.stateAt n e |>.cache n;
@@ -359,15 +359,15 @@ structure Behaviour.insufficientReqPermsSoEncapDir (b : Behaviour n) (e_req e_di
   noPerms : b.missingPerms n e_req init
   reqEncapDir : e_req.Encapsulates n e_dir
 
-def Behaviour.predWithCorrespondingDirLeavesStateMatchingReq (b : Behaviour n) (e_pred e_req : Event n) (init : InitialSystemState n) : Prop :=
-  (b.reqWithCorrespondDirLeavesStateAs n e_pred init (b.stateBefore n e_req (init.stateAt n e_req) |>.cache))
+def Behaviour.predWithCorrespondingDirLeavesStateAtLeastReq (b : Behaviour n) (e_pred e_req : Event n) (init : InitialSystemState n) : Prop :=
+  (b.reqWithCorrespondDirLeavesStateAtLeast n e_pred init (b.stateBefore n e_req (init.stateAt n e_req) |>.cache))
 
-def Behaviour.immBottomPredEncapCorrDirLeavesStateMatchingReq (b : Behaviour n) (e_pred e_req : Event n) (init : InitialSystemState n) : Prop :=
-  b.ImmediateBottomPredSatisfyingProp n e_pred e_req (b.predWithCorrespondingDirLeavesStateMatchingReq n · e_req init)
+def Behaviour.immBottomPredEncapCorrDirLeavesStateAtLeastReq (b : Behaviour n) (e_pred e_req : Event n) (init : InitialSystemState n) : Prop :=
+  b.ImmediateBottomPredSatisfyingProp n e_pred e_req (b.predWithCorrespondingDirLeavesStateAtLeastReq n · e_req init)
 
 structure Behaviour.reqHasPermsSoDirPred (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
   hasPerms : b.sufficientReqPerms n e_req init
-  immPredEncapDir : ∃ e_pred ∈ b.es, b.immBottomPredEncapCorrDirLeavesStateMatchingReq n e_pred e_req init
+  immPredEncapDir : ∃ e_pred ∈ b.es, b.immBottomPredEncapCorrDirLeavesStateAtLeastReq n e_pred e_req init
 
 /-- Inductive Prop. State where is the directory event that obtains permissions for a Coherent Request. -/
 inductive Behaviour.dirEventOfCoherentReq (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop
@@ -457,7 +457,7 @@ inductive Behaviour.reqDirRelation (b : Behaviour n) (e_req : Event n) (init : I
 -- [TODO] Add Lemma (or Def) to state there exists a previous event `e_pred` before Event `e`, that sets the state that `e` is made on.
 lemma Behaviour.exists_predecessor_setting_state (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) (hreq_encap_dir : Behaviour.axRequestAccessesDirectory n) :
   -- let state_req_is_made_on := b.stateBefore n e_req (init.stateAt n e_req) |>.cache;
-  ∃ e_pred ∈ b.es, b.ImmediateBottomPredSatisfyingProp n e_pred e_req (b.reqWithCorrespondDirLeavesStateAs n · init (b.stateBefore n e_req (init.stateAt n e_req) |>.cache)) := by
+  ∃ e_pred ∈ b.es, b.ImmediateBottomPredSatisfyingProp n e_pred e_req (b.reqWithCorrespondDirLeavesStateAtLeast n · init (b.stateBefore n e_req (init.stateAt n e_req) |>.cache)) := by
   by_cases (∃ e_pred ∈ b.es, b.reqLeavesStateAs n e_pred init (init.stateAt n e_req).cache)
   . case pos hpred_leaves_state =>
     apply Exists.intro
@@ -468,7 +468,7 @@ lemma Behaviour.exists_predecessor_setting_state (b : Behaviour n) (e_req : Even
         exact hpred_leaves_state.choose_spec.left
       . case right =>
         have h := hpred_leaves_state.choose_spec.right
-        unfold reqLeavesStateAs at h
+        unfold reqLeavesStateAtLeast at h
         sorry
   . case neg hpred_not_leave_state =>
     -- apply Exists.intro
@@ -480,7 +480,7 @@ def Behaviour.exists_predecessor_setting_state' (b : Behaviour n) (e_req : Event
 -/
 
 lemma Behaviour.exists_predecessor_setting_state' (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) (hreq_encap_dir : Behaviour.axRequestAccessesDirectory n) :
-  ∃ e_pred ∈ b.es, b.ImmediateBottomPredSatisfyingProp n e_pred e_req (b.reqLeavesStateAs n · init (b.stateBefore n e_req (init.stateAt n e_req)).cache) := by
+  ∃ e_pred ∈ b.es, b.ImmediateBottomPredSatisfyingProp n e_pred e_req (b.reqLeavesStateAtLeast n · init (b.stateBefore n e_req (init.stateAt n e_req)).cache) := by
   sorry
 
 -- [TODO] expand relation (from Event.relates) to cover the current state.
