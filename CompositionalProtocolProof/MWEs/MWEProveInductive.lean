@@ -7,6 +7,7 @@ inductive Nat.OddEven (n : Nat) : Prop
 lemma Nat.is_odd_or_even (n : Nat) : Nat.OddEven n := by
   cases n
   case zero =>
+    -- How do I choose a case of `Nat.OddEvent` such as `isEven`?
     sorry
   case succ n' =>
     sorry
