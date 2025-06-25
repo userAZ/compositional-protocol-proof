@@ -1,25 +1,27 @@
 import CompositionalProtocolProof.Events
 import CompositionalProtocolProof.Requests
 
-def Event.Encapsulates (e₁ e₂ : Event) : Prop := e₁.oStart < e₂.oStart ∧ e₂.oEnd < e₁.oEnd
-def CacheEvent.Encapsulates (e₁ e₂ : CacheEvent) : Prop := e₁.oStart < e₂.oStart ∧ e₂.oEnd < e₁.oEnd
-def DirectoryEvent.Encapsulates (e₁ e₂ : DirectoryEvent) : Prop := e₁.oStart < e₂.oStart ∧ e₂.oEnd < e₁.oEnd
+variable (n : Nat)
 
-def Event.OrderedBefore (e₁ e₂ : Event) : Prop := e₁.oEnd < e₂.oStart
-def CacheEvent.OrderedBefore (e₁ e₂ : CacheEvent) : Prop := e₁.oEnd < e₂.oStart
-def DirectoryEvent.OrderedBefore (e₁ e₂ : DirectoryEvent) : Prop := e₁.oEnd < e₂.oStart
+def Event.Encapsulates (e₁ e₂ : Event n) : Prop := e₁.oStart < e₂.oStart ∧ e₂.oEnd < e₁.oEnd
+def CacheEvent.Encapsulates (e₁ e₂ : CacheEvent n) : Prop := e₁.oStart < e₂.oStart ∧ e₂.oEnd < e₁.oEnd
+def DirectoryEvent.Encapsulates (e₁ e₂ : DirectoryEvent n) : Prop := e₁.oStart < e₂.oStart ∧ e₂.oEnd < e₁.oEnd
 
-def Event.Ordered (e₁ e₂ : Event) : Prop := e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁
-def CacheEvent.Ordered (e₁ e₂ : CacheEvent) : Prop := e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁
-def DirectoryEvent.Ordered (e₁ e₂ : DirectoryEvent) : Prop := e₁.OrderedBefore e₂ ∨ e₂.OrderedBefore e₁
+def Event.OrderedBefore (e₁ e₂ : Event n) : Prop := e₁.oEnd < e₂.oStart
+def CacheEvent.OrderedBefore (e₁ e₂ : CacheEvent n) : Prop := e₁.oEnd < e₂.oStart
+def DirectoryEvent.OrderedBefore (e₁ e₂ : DirectoryEvent n) : Prop := e₁.oEnd < e₂.oStart
 
-def Event.fromDirectoryEvent (de : DirectoryEvent) (e : Event) : Prop :=
+def Event.Ordered (e₁ e₂ : Event n) : Prop := e₁.OrderedBefore n e₂ ∨ e₂.OrderedBefore n e₁
+def CacheEvent.Ordered (e₁ e₂ : CacheEvent n) : Prop := e₁.OrderedBefore n e₂ ∨ e₂.OrderedBefore n e₁
+def DirectoryEvent.Ordered (e₁ e₂ : DirectoryEvent n) : Prop := e₁.OrderedBefore n e₂ ∨ e₂.OrderedBefore n e₁
+
+def Event.fromDirectoryEvent (de : DirectoryEvent n) (e : Event n) : Prop :=
   match e with
   | .directoryEvent de' => de = de'
   | .cacheEvent _ => false
 
-lemma DirectoryEvent.ordered_events {de₁ de₂ : DirectoryEvent} {e₁ e₂ : Event}
-  (he₁_is_de₁ : e₁.fromDirectoryEvent de₁) (he₂_is_de₂ : e₂.fromDirectoryEvent de₂) : de₁.OrderedBefore de₂ → e₁.OrderedBefore e₂ := by
+lemma DirectoryEvent.ordered_events {de₁ de₂ : DirectoryEvent n} {e₁ e₂ : Event n}
+  (he₁_is_de₁ : e₁.fromDirectoryEvent n de₁) (he₂_is_de₂ : e₂.fromDirectoryEvent n de₂) : de₁.OrderedBefore n de₂ → e₁.OrderedBefore n e₂ := by
   unfold DirectoryEvent.OrderedBefore; unfold Event.OrderedBefore
   -- unfold DirectoryEvent.oEnd; unfold DirectoryEvent.oStart
   unfold Event.oEnd; unfold Event.oStart
@@ -33,21 +35,27 @@ lemma DirectoryEvent.ordered_events {de₁ de₂ : DirectoryEvent} {e₁ e₂ : 
   | .cacheEvent _, .directoryEvent _ => contradiction
   | .cacheEvent _, .cacheEvent _ => contradiction
 
-def Event.Predecessor : Event → Event → Prop
-| e_pred, e_succ => e_pred.OrderedBefore e_succ
+def Event.Predecessor : Event n → Event n → Prop
+| e_pred, e_succ => e_pred.OrderedBefore n e_succ
 
-def Event.Successor : Event → Event → Prop
-| e_pred, e_succ => e_pred.Predecessor e_succ
+def Event.Successor : Event n → Event n → Prop
+| e_pred, e_succ => e_pred.Predecessor n e_succ
 
-instance Event.Encapsulates.instDecidableEncap (e₁ e₂ : Event) : Decidable (e₁.Encapsulates e₂) :=
+instance Event.Encapsulates.instDecidableEncap (e₁ e₂ : Event n) : Decidable (e₁.Encapsulates n e₂) :=
   inferInstanceAs (Decidable (e₁.oStart < e₂.oStart ∧ e₂.oEnd < e₁.oEnd))
 
-instance Event.OrderedBefore.instLT : LT Event := {lt := Event.OrderedBefore}
+instance Event.OrderedBefore.instLT : LT (Event n) := {lt := Event.OrderedBefore n}
 
-instance Event.OrderedBefore.instDecidableLT (e₁ e₂ : Event) : Decidable (e₁ < e₂) :=
+instance Event.OrderedBefore.instDecidableLT (e₁ e₂ : Event n) : Decidable (e₁ < e₂) :=
   inferInstanceAs (Decidable (e₁.oEnd < e₂.oStart))
 
-lemma Event.ordered_trans {e₁ e₂ e₃ : Event} : e₁ < e₂ → e₂ < e₃ → e₁ < e₃ := by
+instance Event.OrderedBefore.instDecidableRel : DecidableRel (Event.OrderedBefore n) := by
+  unfold DecidableRel
+  intro e₁ e₂
+  unfold Event.OrderedBefore
+  infer_instance
+
+lemma Event.ordered_trans {e₁ e₂ e₃ : Event n} : e₁ < e₂ → e₂ < e₃ → e₁ < e₃ := by
   unfold LT.lt; unfold OrderedBefore.instLT
   simp
   unfold Event.OrderedBefore;
@@ -58,9 +66,9 @@ lemma Event.ordered_trans {e₁ e₂ e₃ : Event} : e₁ < e₂ → e₂ < e₃
     _ < e₂.oEnd := he₂_well_formed
     _ < e₃.oStart := he₂_lt_e₃
 
-instance Event.instTransOrderOrder : Trans Event.OrderedBefore Event.OrderedBefore Event.OrderedBefore := {trans := Event.ordered_trans}
+instance Event.instTransOrderOrder : Trans (Event.OrderedBefore n) (Event.OrderedBefore n) (Event.OrderedBefore n) := {trans := Event.ordered_trans n}
 
-lemma Event.order_encap_trans {e₁ e₂ e₃ : Event} : e₁ < e₂ → e₂.Encapsulates e₃ → e₁ < e₃ := by
+lemma Event.order_encap_trans {e₁ e₂ e₃ : Event n} : e₁ < e₂ → e₂.Encapsulates n e₃ → e₁ < e₃ := by
   unfold LT.lt; unfold OrderedBefore.instLT
   simp
   unfold Event.OrderedBefore;
@@ -70,11 +78,11 @@ lemma Event.order_encap_trans {e₁ e₂ e₃ : Event} : e₁ < e₂ → e₂.En
     e₁.oEnd < e₂.oStart := he₁_lt_e₂
     _ < e₃.oStart := he₂_encap_e₃.left
 
-instance Event.instTransOrderEncap : Trans Event.OrderedBefore Event.Encapsulates Event.OrderedBefore := {trans := Event.order_encap_trans}
+instance Event.instTransOrderEncap : Trans (Event.OrderedBefore n) (Event.Encapsulates n) (Event.OrderedBefore n) := {trans := Event.order_encap_trans n}
 
-abbrev Event.EncapsulatedBy (e₁ e₂ : Event) : Prop := e₂.Encapsulates e₁
+abbrev Event.EncapsulatedBy (e₁ e₂ : Event n) : Prop := e₂.Encapsulates n e₁
 
-lemma Event.encap_by_order_trans {e₁ e₂ e₃ : Event} : e₁.EncapsulatedBy e₂ → e₂ < e₃ → e₁ < e₃ := by
+lemma Event.encap_by_order_trans {e₁ e₂ e₃ : Event n} : e₁.EncapsulatedBy n e₂ → e₂ < e₃ → e₁ < e₃ := by
   unfold LT.lt; unfold OrderedBefore.instLT
   simp
   -- unfold BottomEncapsulates;
@@ -87,17 +95,17 @@ lemma Event.encap_by_order_trans {e₁ e₂ e₃ : Event} : e₁.EncapsulatedBy 
     _ < e₃.oStart := he₂_lt_e₃
 
 /- The shape of Trans's definition doesn't match to Event.encap_order_trans. Need to massage def. -/
-instance Event.instTransEncapByOrder : Trans Event.EncapsulatedBy Event.OrderedBefore Event.OrderedBefore := {trans := Event.encap_by_order_trans}
+instance Event.instTransEncapByOrder : Trans (Event.EncapsulatedBy n) (Event.OrderedBefore n) (Event.OrderedBefore n) := {trans := Event.encap_by_order_trans n}
 
-structure Event.OrderedBetween (e e_pred e_succ : Event) where
-  pred : e_pred.OrderedBefore e := by simp
-  succ : e.OrderedBefore e_succ := by simp
+structure Event.OrderedBetween (e e_pred e_succ : Event n) where
+  pred : e_pred.OrderedBefore n e := by simp
+  succ : e.OrderedBefore n e_succ := by simp
 
-def CacheEvent.SameRequester (e₁ e₂ : CacheEvent) : Prop := e₁.rid = e₂.rid
-def CacheEvent.SameCache (e₁ e₂ : CacheEvent) : Prop := e₁.cid = e₂.cid
-def CacheEvent.SameAddress (e₁ e₂ : CacheEvent) : Prop := e₁.addr = e₂.addr
+def CacheEvent.SameRequester (e₁ e₂ : CacheEvent n) : Prop := e₁.rid = e₂.rid
+def CacheEvent.SameCache (e₁ e₂ : CacheEvent n) : Prop := e₁.cid = e₂.cid
+def CacheEvent.SameAddress (e₁ e₂ : CacheEvent n) : Prop := e₁.addr = e₂.addr
 
-def Event.CacheRelation (e₁ e₂ : Event) : (CacheEvent → CacheEvent → Prop) → Prop
+def Event.CacheRelation (e₁ e₂ : Event n) : (CacheEvent n → CacheEvent n → Prop) → Prop
 | p => match e₁ with
   | .cacheEvent ce₁ =>
     match e₂ with
@@ -105,8 +113,8 @@ def Event.CacheRelation (e₁ e₂ : Event) : (CacheEvent → CacheEvent → Pro
     | .directoryEvent _ => false -- nothing happens
   | .directoryEvent _ => false -- nothing happens
 
-def Event.SameStructureRelation (e₁ e₂ : Event) :
-  (CacheEvent → CacheEvent → Prop) → (DirectoryEvent → DirectoryEvent → Prop) → Prop
+def Event.SameStructureRelation (e₁ e₂ : Event n) :
+  (CacheEvent n → CacheEvent n → Prop) → (DirectoryEvent n → DirectoryEvent n → Prop) → Prop
 | cp, dp => match e₁ with
   | .cacheEvent ce₁ =>
     match e₂ with
@@ -118,14 +126,14 @@ def Event.SameStructureRelation (e₁ e₂ : Event) :
     | .directoryEvent de₂ => dp de₁ de₂
 
 -- abbrev CacheEvent.SameRequester (e₁ e₂ : CacheEvent) : Prop := e₁.rid = e₂.rid
-def DirectoryEvent.SameStructure (_ _ : DirectoryEvent) : Prop := true
-def DirectoryEvent.SameAddress (e₁ e₂ : DirectoryEvent) : Prop := e₁.addr = e₂.addr
+def DirectoryEvent.SameStructure (_ _ : DirectoryEvent n) : Prop := true
+def DirectoryEvent.SameAddress (e₁ e₂ : DirectoryEvent n) : Prop := e₁.addr = e₂.addr
 
-def Event.CacheSameRequester (e₁ e₂ : Event) : Prop := e₁.CacheRelation e₂ (·.SameRequester ·)
-def Event.SameStructure (e₁ e₂ : Event) : Prop := e₁.SameStructureRelation e₂ (·.SameCache ·) (·.SameStructure ·)
-def Event.SameAddress (e₁ e₂ : Event) : Prop := e₁.SameStructureRelation e₂ (·.SameAddress ·) (·.SameAddress ·)
+def Event.CacheSameRequester (e₁ e₂ : Event n) : Prop := e₁.CacheRelation n e₂ (·.SameRequester n ·)
+def Event.SameStructure (e₁ e₂ : Event n) : Prop := e₁.SameStructureRelation n e₂ (·.SameCache n ·) (·.SameStructure n ·)
+def Event.SameAddress (e₁ e₂ : Event n) : Prop := e₁.SameStructureRelation n e₂ (·.SameAddress n ·) (·.SameAddress n ·)
 
-lemma Event.same_address_reflexive {e₁ e₂ e₃ : Event} : e₁.SameAddress e₃ → e₂.SameAddress e₃ → e₁.SameAddress e₂ := by
+lemma Event.same_address_reflexive {e₁ e₂ e₃ : Event n} : e₁.SameAddress n e₃ → e₂.SameAddress n e₃ → e₁.SameAddress n e₂ := by
   unfold SameAddress
   unfold CacheEvent.SameAddress; unfold DirectoryEvent.SameAddress
   unfold SameStructureRelation
@@ -141,7 +149,7 @@ lemma Event.same_address_reflexive {e₁ e₂ e₃ : Event} : e₁.SameAddress e
   | .directoryEvent de₁, .cacheEvent ce, .directoryEvent de₃ => contradiction
   | .cacheEvent ce, .directoryEvent de₂, .directoryEvent de₃ => contradiction
 
-lemma Event.same_address_reflexive' {e₁ e₂ e₃ : Event} : e₁.SameAddress e₂ → e₁.SameAddress e₃ → e₂.SameAddress e₃ := by
+lemma Event.same_address_reflexive' {e₁ e₂ e₃ : Event n} : e₁.SameAddress n e₂ → e₁.SameAddress n e₃ → e₂.SameAddress n e₃ := by
   unfold SameAddress
   unfold CacheEvent.SameAddress; unfold DirectoryEvent.SameAddress
   unfold SameStructureRelation
@@ -157,7 +165,7 @@ lemma Event.same_address_reflexive' {e₁ e₂ e₃ : Event} : e₁.SameAddress 
   | .directoryEvent de₁, .cacheEvent ce, .directoryEvent de₃ => contradiction
   | .cacheEvent ce, .directoryEvent de₂, .directoryEvent de₃ => contradiction
 
-lemma Event.same_structure_reflexive {e₁ e₂ e₃ : Event} : e₁.SameStructure e₃ → e₂.SameStructure e₃ → e₁.SameStructure e₂ := by
+lemma Event.same_structure_reflexive {e₁ e₂ e₃ : Event n} : e₁.SameStructure n e₃ → e₂.SameStructure n e₃ → e₁.SameStructure n e₂ := by
   unfold SameStructure
   unfold CacheEvent.SameCache; unfold DirectoryEvent.SameStructure
   unfold SameStructureRelation
@@ -173,7 +181,7 @@ lemma Event.same_structure_reflexive {e₁ e₂ e₃ : Event} : e₁.SameStructu
   | .directoryEvent de₁, .cacheEvent ce, .directoryEvent de₃ => contradiction
   | .cacheEvent ce, .directoryEvent de₂, .directoryEvent de₃ => contradiction
 
-lemma Event.same_structure_reflexive' {e₁ e₂ e₃ : Event} : e₁.SameStructure e₂ → e₁.SameStructure e₃ → e₂.SameStructure e₃ := by
+lemma Event.same_structure_reflexive' {e₁ e₂ e₃ : Event n} : e₁.SameStructure n e₂ → e₁.SameStructure n e₃ → e₂.SameStructure n e₃ := by
   unfold SameStructure
   unfold CacheEvent.SameCache; unfold DirectoryEvent.SameStructure
   unfold SameStructureRelation
@@ -189,18 +197,18 @@ lemma Event.same_structure_reflexive' {e₁ e₂ e₃ : Event} : e₁.SameStruct
   | .directoryEvent de₁, .cacheEvent ce, .directoryEvent de₃ => contradiction
   | .cacheEvent ce, .directoryEvent de₂, .directoryEvent de₃ => contradiction
 
-structure CacheEvent.ProgramOrdered (e₁ e₂ : CacheEvent) where
-  ordered : e₁.OrderedBefore e₂ := by simp
-  same_requester : e₁.SameRequester e₂ := by simp
+structure CacheEvent.ProgramOrdered (e₁ e₂ : CacheEvent n) where
+  ordered : e₁.OrderedBefore n e₂ := by simp
+  same_requester : e₁.SameRequester n e₂ := by simp
 
-def Event.ProgramOrdered (e₁ e₂ : Event) : Prop := e₁.CacheRelation e₂ (·.ProgramOrdered ·)
+def Event.ProgramOrdered (e₁ e₂ : Event n) : Prop := e₁.CacheRelation n e₂ (·.ProgramOrdered n ·)
 
 /-- Axiom 1
 Events at a Directory address are ordered.
 -/
-structure DirectoryEvent.AreOrdered (de₁ de₂ : DirectoryEvent) : Prop where
+structure DirectoryEvent.AreOrdered (de₁ de₂ : DirectoryEvent n) : Prop where
   sameDirectoryEntry : de₁.addr = de₂.addr
-  ordered : de₁.Ordered de₂
+  ordered : de₁.Ordered n de₂
 /-
 def Event.isDirectoryEvent : Event → Prop
 | .directoryEvent _ => true
@@ -212,52 +220,49 @@ def OrderedDirectoryEvents' (e₁ e₂ : Event) : Prop :=
 /-- Definition 2.18. Directory Event ID.
 Ordered Directory Events.
 -/
-def MonotonicDirectoryEventIds (de₁ de₂ : DirectoryEvent) : Prop := de₁.OrderedBefore de₂ → (de₁.deid + 1) = de₂.deid
+def MonotonicDirectoryEventIds (de₁ de₂ : DirectoryEvent n) : Prop := de₁.OrderedBefore n de₂ → (de₁.deid + 1) = de₂.deid
 
 /- Lean can't synthesize decidability in OrderedCacheEvents if these aren't `abbrev`s -/
-abbrev CacheEvent.Local (e : CacheEvent) : Prop := e.cid = e.rid
-abbrev CacheEvent.NonCoherent (e : CacheEvent) : Prop := e.req.val.coherent = false
-abbrev CacheEvent.WeakConsistency (e : CacheEvent) : Prop := e.req.val.consistency = .Weak
+abbrev CacheEvent.Local (e : CacheEvent n) : Prop := e.cid = e.rid
+abbrev CacheEvent.NonCoherent (e : CacheEvent n) : Prop := e.req.val.coherent = false
+abbrev CacheEvent.WeakConsistency (e : CacheEvent n) : Prop := e.req.val.consistency = .Weak
 
-abbrev CacheEvent.Weak (e : CacheEvent) : Prop := e.Local ∧ e.NonCoherent ∧ e.WeakConsistency
+abbrev CacheEvent.Weak (e : CacheEvent n) : Prop := e.Local ∧ e.NonCoherent ∧ e.WeakConsistency
 
-abbrev CacheEvent.RequestHasPermissions (e : CacheEvent) (s : State) : Prop := e.req.MRS ≤ s
-abbrev CacheEvent.Coherent (e : CacheEvent) : Prop := e.req.val.coherent = true
+abbrev CacheEvent.RequestHasPermissions (e : CacheEvent n) (s : State) : Prop := e.req.MRS ≤ s
+abbrev CacheEvent.Coherent (e : CacheEvent n) : Prop := e.req.val.coherent = true
 
-abbrev CacheEvent.WithCoherentPermissions (e : CacheEvent) (s : State) : Prop := e.Local ∧ e.Coherent ∧ e.RequestHasPermissions s
+abbrev CacheEvent.WithCoherentPermissions (e : CacheEvent n) (s : State) : Prop := e.Local ∧ e.Coherent ∧ e.RequestHasPermissions n s
 
-abbrev CacheEvent.Downgrade (e : CacheEvent) : Prop := e.down = true
-abbrev CacheEvent.NoEncapSameAddressDowngrade (e : CacheEvent) (s : State) : Prop := e.Weak ∨ e.WithCoherentPermissions s ∨ e.Downgrade
+abbrev CacheEvent.Downgrade (e : CacheEvent n) : Prop := e.down = true
+abbrev CacheEvent.NoEncapSameAddressDowngrade (e : CacheEvent n) (s : State) : Prop := e.Weak ∨ e.WithCoherentPermissions n s ∨ e.Downgrade
 
-abbrev CacheEvent.Grant (e : CacheEvent) : Prop := e.deid? ≠ none
-abbrev CacheEvent.External (e : CacheEvent) : Prop := ¬e.Local ∨ e.Grant
-abbrev CacheEvent.NoRequestPermissions (e : CacheEvent) (s : State) : Prop := s < e.req.MRS ∧ s ≠ I
+abbrev CacheEvent.Grant (e : CacheEvent n) : Prop := e.deid? ≠ none ∧ ¬ e.Downgrade
+abbrev CacheEvent.External (e : CacheEvent n) : Prop := ¬e.Local ∨ e.Grant
+abbrev CacheEvent.NoRequestPermissions (e : CacheEvent n) (s : State) : Prop := s < e.req.MRS ∧ s ≠ I
 
-abbrev CacheEvent.WithoutCoherentPermissions (e : CacheEvent) (s : State) : Prop := e.Local ∧ e.Coherent ∧ e.NoRequestPermissions s
+abbrev CacheEvent.WithoutCoherentPermissions (e : CacheEvent n) (s : State) : Prop := e.Local ∧ e.Coherent ∧ e.NoRequestPermissions n s
 
-structure CacheEvent.sameCacheEntry (e₁ e₂ : CacheEvent) : Prop where
+structure CacheEvent.sameCacheEntry (e₁ e₂ : CacheEvent n) : Prop where
   sameCache : e₁.cid = e₂.cid
   sameAddr : e₁.addr = e₂.addr
 
-structure Event.sameStructure (e₁ e₂ : Event) : Prop where
+structure Event.sameStructure (e₁ e₂ : Event n) : Prop where
   sameStruct : e₁.struct = e₂.struct
 
-structure Event.sameAddr (e₁ e₂ : Event) : Prop where
+structure Event.sameAddr (e₁ e₂ : Event n) : Prop where
   sameStruct : e₁.addr = e₂.addr
 
-structure Event.sameEntry (e₁ e₂ : Event) : Prop where
-  sameStruct : e₁.sameStructure e₂
-  sameAddr : e₁.sameAddr e₂
+structure Event.sameEntry : Prop where
+  sameStruct : ∀ e₁ e₂ : Event n, e₁.sameStructure n e₂
+  sameAddr : ∀ e₁ e₂ : Event n, e₁.sameAddr n e₂
 
-def CoherentRead : Request := ⟨ .r, true, .SC ⟩
-def CoherentWrite : Request := ⟨ .w, true, .SC ⟩
-
-def CacheEvent.SucceedingState (e : CacheEvent) (s : State) : State :=
+def CacheEvent.SucceedingState (e : CacheEvent n) (s : State) : State :=
   match e.down with
   | false => e.req.RequestState s
   | true => e.req.DowngradeState s
 
-def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent → DirectoryState → DirectoryState
+def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent n → DirectoryState n → DirectoryState n
 | de, ds => match de.down with
   | false => match de.req.val with
     | ⟨.w, true, _⟩ => -- Coherent-Write
@@ -290,10 +295,121 @@ def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent 
     | ⟨.w, false, _⟩ => DirectoryState.Vc ⟨Vc, by simp⟩ -- Non-Coherent-Write downgrade
     | ⟨.r, false, _⟩ => DirectoryState.I ⟨I, by simp⟩ -- Non-Coherent-Read downgrade
 
+/-- Axiom. Directory state is the state after the Directory Event, this captures a Coherent Read's requester getting added to sharers. -/
+def DirectoryEvent.directoryState (de : DirectoryEvent n) (s : EntryState n) : Prop := de.SucceedingState n s.directory = de.dirS
+
+def Event.directoryState (e : Event n) (s : EntryState n) : Prop := match e with
+  | .directoryEvent de => de.directoryState n s
+  | .cacheEvent _ => false
+
 /- Can either prove a lemma to state the succeeding state is not `none` under `allowed input state` and `interface requests`,
    OR build in the input state and interface requests into the types.
 -/
 
-def Event.SucceedingState (e : Event) (s : EntryState) : EntryState := match e with
-  | .cacheEvent ce => ⟨ce.SucceedingState s.cache, s.directory⟩
-  | .directoryEvent de => ⟨s.cache, de.SucceedingState s.directory⟩
+def Event.SucceedingState (e : Event n) (s : EntryState n) : EntryState n := match e with
+  | .cacheEvent ce => Sum.inl <| ce.SucceedingState n s.cache
+  | .directoryEvent de => Sum.inr <| de.SucceedingState n s.directory
+
+structure Event.fwdRequest (e_req e_fwd : Event n) : Prop where
+  sameRequest : e_req.req = e_fwd.req
+  sameRequester : e_req.CacheSameRequester n e_fwd
+  sameAddr : e_req.sameAddr n e_fwd
+
+/-- Definition 2.35 -- A Downgrade Event generated by a corresponding to a Request Event -/
+structure Event.downgradeOfRequestToOthers : Prop where
+  atCid   : ∀ e_down : Event n, ∀ cid : CacheId n, e_down.isCacheEventAtCid n cid
+  isDown  : ∀ e_down : Event n, e_down.isCacheEventDowngrade
+  isFwded : ∀ e_req e_down : Event n, e_req.fwdRequest n e_down
+
+def Event.isDirEventOfReqEvent : Event n → Event n → Prop
+| e_dir, e_req => match e_dir with
+  | .directoryEvent de => match e_req with
+    | .cacheEvent ce => de.eReq = ce
+    | .directoryEvent _ => false
+  | .cacheEvent _ => false
+
+def Event.deidOrderBefore (e₁ e₂ : Event n) : Prop := match e₁, e₂ with
+| .cacheEvent ce₁, .cacheEvent ce₂ => ce₁.deid? < ce₂.deid?
+| _, _ => false
+
+/- Event Relations for Axioms 9 and 10, downgrades as a result of Coherent Requests accessing the Directory -/
+/-- Def. Constraints/Props on the downgrade caused by a request -/
+structure CacheEvent.downgradeOfReq (e_req e_down : CacheEvent n) : Prop where
+  sameReq : e_req.req = e_down.req
+  isDown : e_down.down
+  downFromRequester : e_req.rid = e_down.rid
+
+def Event.downgradeCorrespondingToRequest (e_req e_down : Event n) : Prop := match e_req, e_down with
+  | .cacheEvent ce_req, .cacheEvent ce_down => ce_req.downgradeOfReq n ce_down
+  | _, _ => false
+
+/-- Def. Event is sent from the Directory, so carries the Directory's deid. -/
+def Event.fromDirectory (e_from_dir e_dir : Event n) : Prop := match e_from_dir, e_dir with
+  | .cacheEvent ce, .directoryEvent de => ce.deid? = de.deid
+  | _, _ => false
+
+/-- Def. A (downgrade) event is sent to the prev owner of a Directory Event's state. -/
+def Event.downgradeAtPrevOwner (e_down : Event n) (dir_state : DirectoryState n) : Prop := match dir_state with
+  | .SW _ owner => match e_down with
+    | .cacheEvent ce => ce.cid = owner
+    | .directoryEvent _ => false
+  | _ => false
+
+/-- Abbreviation 25. Grant Event of a Request Event. -/
+structure CacheEvent.grantOfRequest (e_grant e_req: CacheEvent n) : Prop where
+  sameReq : e_grant.req = e_req.req
+  sameAddr : e_grant.addr = e_req.addr
+  sameCache : e_grant.cid = e_req.cid
+  sameRequester : e_grant.rid = e_req.rid
+  sameDown : e_grant.down = e_req.down
+  notDown : ¬ e_grant.down
+
+/-- Event.Wrapper for Abbreviation 25. Grant Event of a Request Event. -/
+def Event.grantToRequester (e_dir e_req e_grant : Event n) : Prop := match e_dir, e_req, e_grant with
+  | .directoryEvent de, .cacheEvent req, .cacheEvent grant => de.deid = grant.deid? ∧ grant.grantOfRequest n req
+  | _, _, _ => false
+
+structure CacheEvent.downgradeOfReqToCache (e_req e_down : CacheEvent n) (destination_cid : CacheId n) : Prop where
+  downgradeOfReq : e_req.downgradeOfReq n e_down
+  atCache : e_down.cid = destination_cid
+
+structure Event.encapGrantAfterDirEvent (e_req e_dir e_grant : Event n) : Prop where
+  requestEncapGrant : e_req.Encapsulates n e_grant
+  grantOfRequest : e_dir.grantToRequester n e_req e_grant
+  grantEndsRequest : e_grant.oEnd = (e_req.oEnd + 1)
+  dirBeforeGrant : e_dir.OrderedBefore n e_grant
+
+structure Event.fwdMRDowngradeEventOrdering (e_req e_dir e_down e_grant : Event n) : Prop where
+  dirEncapDowngrade : e_dir.Encapsulates n e_down
+  reqDirGrantOrderings : e_req.encapGrantAfterDirEvent n e_dir e_grant
+
+/- Defs for Def 2.36: Broadcast an event `e` to other entry addresses at a cache. -/
+
+/-- Def. State that `e_original` and `e_cast_copy` have the same key fields {Requester, CacheId, Req, Down}. -/
+structure CacheEvent.copyOfForCasting (e_original e_cast : CacheEvent n) : Prop where
+  sameRequester : e_cast.rid = e_original.rid
+  sameCache : e_cast.cid = e_original.cid
+  sameReq : e_cast.req = e_original.req
+  sameDown : e_cast.down = e_original.down
+
+/-- Def. Open up Events `e_original` and `e_cast_copy`, to state they have the same key fields {Requester, CacheId, Req, Down}.
+This is an events Wrapper for `CacheEvent.copyOfForCasting`. -/
+def Event.copyOfForCasting (e_original e_cast_copy : Event n) : Prop := match e_original, e_cast_copy with
+  | .cacheEvent original, .cacheEvent cast_copy => original.copyOfForCasting n cast_copy
+  | _, _ => false
+
+/-- Def. Copy an `e_original`, to a `e_cast_copy` at an Addr `other_addr`, where `e_cast_copy` is encapsulated by `e_base`. -/
+structure Event.baseEncapBroadcast (other_addr : Addr) (e_base e_original e_cast_copy : Event n) : Prop where
+  castOriginal : e_original.copyOfForCasting n e_cast_copy
+  toOtherAddr : e_cast_copy.addr = other_addr
+  baseEncapCast : e_base.Encapsulates n e_cast_copy
+
+/-- Def. (broadcast ordered before e_dir) Copy an `e_original`, to a `e_cast_copy` at an Addr `other_addr`, where `e_cast_copy` is encapsulated by `e_base`. -/
+structure Event.baseEncapBroadcastBefore (other_addr : Addr) (e_base e_original e_cast_copy e_dir : Event n) : Prop where
+  broadcastEncapInBase : e_base.baseEncapBroadcast n other_addr e_original e_cast_copy
+  beforeDir : e_cast_copy.OrderedBefore n e_dir
+
+/-- Def. (broadcast ordered after e_dir) Copy an `e_original`, to a `e_cast_copy` at an Addr `other_addr`, where `e_cast_copy` is encapsulated by `e_base`. -/
+structure Event.baseEncapBroadcastAfter (other_addr : Addr) (e_base e_original e_cast_copy e_dir : Event n) : Prop where
+  broadcastEncapInBase : e_base.baseEncapBroadcast n other_addr e_original e_cast_copy
+  afterDir : e_dir.OrderedBefore n e_cast_copy

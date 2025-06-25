@@ -33,8 +33,8 @@ def ReadWrite.toRWPerms : ReadWrite → ReadWritePermissions
 def ReadWrite.toPerms : ReadWrite → Permissions
 | rw => some rw.toRWPerms
 
-def Request.isCoherent (r : Request) : Prop := r.coherent = true
-def Request.nonCoherent (r : Request) : Prop := r.coherent = false
+def Request.isCoherent (r : Request) : Prop := r.coherent
+def Request.nonCoherent (r : Request) : Prop := ¬ r.coherent
 
 abbrev Request.SC := λ r : Request => r.rw = .r ∧ r.consistency = .SC
 
@@ -50,7 +50,7 @@ abbrev Request.CoherentWeakRead := λ r : Request => r.WeakRead ∧ r.coherent =
 abbrev Request.NoSCNonCoherent := λ r : Request => ¬r.SCNonCoherent
 abbrev Request.NoWriteAcquire := λ r : Request => ¬r.WriteAcquire
 abbrev Request.NoReadRelease := λ r : Request => ¬r.ReadRelease
-abbrev Request.NoCoherentAcquire := λ r : Request => ¬r.CoherentAcquire
+abbrev Request.NoCoherentAcquire := λ r : Request => r.consistency = .Acq → ¬ r.coherent -- ¬r.CoherentAcquire
 abbrev Request.NoCoherentWeakRead := λ r : Request => ¬r.CoherentWeakRead
 
 structure Request.IsValid (r : Request) where
@@ -64,12 +64,10 @@ abbrev ValidRequest := {r : Request // Request.IsValid r}
 
 /-- Definition 2.12 Minimum Required State of a request. -/
 def ValidRequest.MRS : ValidRequest → State
-| vr => match hcoh : vr.val.coherent with
-  | true => ⟨vr.val.rw.toPerms, vr.val.coherent⟩
-  | false => match hcons : vr.val.consistency with
-    | .Weak => Vc
-    | .Rel | .Acq => I -- Release and Acquire don't have a MRS. They always need to go to directory.
-    | .SC => absurd vr.prop.non_coherent (by simp[hcoh, hcons]) -- none -- Non-Coherent SC request not allowed by interface family
+| ⟨⟨rw,true,_⟩,_⟩ => ⟨rw.toPerms, true⟩
+| ⟨⟨_,false,.Weak⟩,_⟩ => Vc
+| ⟨⟨.w,false,.Rel⟩,_⟩ => Vd
+| ⟨⟨.r,false,.Acq⟩,_⟩ => Vc
 
 abbrev SCWrite : ValidRequest := ⟨⟨.w, true, .SC⟩, {}⟩
 abbrev SCRead : ValidRequest := ⟨⟨.r, true, .SC⟩, {}⟩
@@ -79,9 +77,20 @@ abbrev AcqRead : ValidRequest := ⟨⟨.r, false, .Acq⟩, {}⟩
 abbrev NonCoherentWeakRead : ValidRequest := ⟨⟨.r, false, .Weak⟩, {}⟩
 abbrev NonCoherentWeakWrite : ValidRequest := ⟨⟨.w, false, .Weak⟩, {}⟩
 abbrev CoherentWeakWrite : ValidRequest := ⟨⟨.w, true, .Weak⟩, {}⟩
+abbrev CoherentRelease : ValidRequest := ⟨⟨.w, true, .Rel⟩, {}⟩
+
+def ValidRequest.isCoherent (vr : ValidRequest) : Prop := vr.val.isCoherent
 
 abbrev ValidRequest.NonCoherent (vr : ValidRequest) : Prop := vr.val.nonCoherent
 abbrev ValidRequest.SC (vr : ValidRequest) : Prop := vr.val.SC
+
+def Request.isWrite (r : Request) : Prop := r.rw = .w
+def Request.isCoherentWrite (r : Request) : Prop := r.isCoherent ∧ r.isWrite
+def ValidRequest.isCoherentWrite (vr : ValidRequest) : Prop := vr.val.isCoherentWrite
+
+def Request.isRead (r : Request) : Prop := r.rw = .r
+def Request.isCoherentRead (r : Request) : Prop := r.isCoherent ∧ r.isRead
+def ValidRequest.isCoherentRead (vr : ValidRequest) : Prop := vr.val.isCoherentRead
 
 /-
 abbrev NonCoherentWeakRead : Request := ⟨.r, false, .Weak⟩
@@ -289,34 +298,21 @@ lemma pi_ncw_on_mr_contradiction {pi : ProtocolInterface} (vr : ValidRequest) (s
 
 /-- What is the state a request leaves a cache entry in.  -/
 def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (s : State) /-(h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s)-/ : State :=
-  match h : vr.val with
-  | ⟨_, true, _⟩ | ⟨.r, false, .Weak⟩ =>
-    if s ≤ vr.MRS then s
-    else vr.MRS -- Must be a way to state this does not produce an Option Type?
-  | ⟨.w, false, .Weak⟩ =>
-    match hs : s with
+  match vr with
+  | ⟨⟨_, true, _⟩, _⟩ | ⟨⟨.r, false, .Weak⟩, {}⟩ =>
+    if vr.MRS ≤ s then s
+    else vr.MRS
+  | ⟨⟨.w, false, .Weak⟩, {}⟩ =>
+    match s with
     | ⟨some .wr, true⟩ => s
     | ⟨some .r,  true⟩ => Vd -- none -- can avoid `none` by using contradiction from commented-out input arg `h_pi_has_s` and Lemma `ncw_impl_no_mr`.
-      /- Can use this proof instead to state this case isn't possible
-      by
-      have h_s_is_mr : s = MR := by simp[hs]
-      have h_vr_is_ncw : vr.val = RelWrite ∨ vr.val = NonCoherentWeakWrite := by simp [h]
-      have h_s_not_mr := ncw_impl_no_mr vr s h_vr_in_pi (by subst hs; exact h_pi_has_s) h_vr_is_ncw h_s_is_mr
-
-      subst hs
-      absurd h_s_not_mr h_pi_has_s
-      contradiction
-      -/
     | _ => Vd
-  | ⟨.w, false, .Rel⟩ =>
-    match hs : s with
+  | ⟨⟨.w, false, .Rel⟩, {}⟩ =>
+    match s with
     | ⟨some .wr, true⟩ => s
     | ⟨some .r,  true⟩ => Vc -- none -- can avoid `none` by using contradiction from commented-out input arg `h_pi_has_s` and Lemma `ncw_impl_no_mr`.
     | _ => Vc
-  | ⟨.r, false, .Acq⟩ => Vc
-  | ⟨.w, false, .SC ⟩ | ⟨.r, false, .SC ⟩ => absurd vr.prop.non_coherent (by simp [h])
-  | ⟨.w, false, .Acq⟩ => absurd vr.prop.no_write_acq (by simp [h])
-  | ⟨.r, false, .Rel⟩ => absurd vr.prop.no_read_rel (by simp [h])
+  | ⟨⟨.r, false, .Acq⟩, {}⟩ => Vc
 
 /- Not worth trying to prove right now.
 lemma ValidRequest.RequestState_in_pi {pi : ProtocolInterface} (vr : ValidRequest) (s : State)
@@ -414,7 +410,13 @@ def ValidRequest.DowngradeState (vr : ValidRequest) : State → State
     if vr.val = NonCoherentWeakRead then
       if s = Vc then I
       else I -- Junk. This is a self-invalidate
-    else if vr.val = NonCoherentWeakWrite then
+    else if vr.val = NonCoherentWeakWrite ∨ vr.val = RelWrite then
       if s = Vd then Vc
       else I -- Junk. This is a write-back to directory
     else I -- Junk. There are no other downgrade events we consider
+
+/-- Interface of each protocol "cluster" -/
+structure Protocol.interface where
+  global_pi : ProtocolInterface
+  cluster1_pi : ProtocolInterface
+  cluster2_pi : ProtocolInterface
