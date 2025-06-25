@@ -136,12 +136,6 @@ instance State.instDecidableLe (s₁ s₂ : State) : Decidable (s₁ ≤ s₂) :
   simp
   infer_instance
 
-lemma State.neg_le_lt {s₁ s₂ : State} (hn_le : ¬ s₁ ≤ s₂) : s₁ > s₂ := by
-  simp[LE.le, State.le, Option.le] at hn_le
-  simp[LT.lt, State.lt, LE.le, Permissions.le, Option.le,]
-  aesop?
-  sorry
-
 abbrev State? := Option State
 
 instance State?.instDecidableLt (s₁? s₂? : State?) : Decidable (s₁? < s₂?) := by
