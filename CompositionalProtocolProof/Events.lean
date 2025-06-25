@@ -1,6 +1,8 @@
 import CompositionalProtocolProof.Requests
 import CompositionalProtocolProof.States
 
+variable (n : Nat)
+
 abbrev RequesterId := CacheId
 abbrev DirectoryId := ℕ
 abbrev Addr := ℕ
@@ -47,20 +49,22 @@ class TypeEvent (e : Type) where
   oEnd : e → TimeEnd
   oWellFormed : (self : e) → (oStart self < oEnd self)
 
+variable (n : Nat)
+
 structure CacheEvent where
   o : Occurrence
   oStart := o.oStart
   oEnd := o.oEnd
   oWellFormed : oStart < oEnd
   req : ValidRequest
-  rid : RequesterId
-  cid : CacheId
+  rid : RequesterId n
+  cid : CacheId n
   addr : Addr
   down : Downgrade
   deid? : Option DirectoryEventId
   eid : EventId
-deriving DecidableEq
-instance : TypeEvent CacheEvent where
+deriving DecidableEq, BEq
+instance : TypeEvent (CacheEvent n) where
   o := CacheEvent.o
   oStart := CacheEvent.oStart
   oEnd := CacheEvent.oEnd
@@ -72,74 +76,156 @@ structure DirectoryEvent where
   oEnd := o.oEnd
   oWellFormed : oStart < oEnd
   req : ValidRequest
-  dirS : DirectoryState
+  dirS : (DirectoryState n)
   did : DirectoryId
   addr : Addr
   down : Downgrade
-  eReq : CacheEvent
+  eReq : (CacheEvent n)
   deid : DirectoryEventId
--- deriving DecidableEq
-instance : TypeEvent DirectoryEvent where
+  pInst : ProtocolInstance
+deriving DecidableEq, BEq
+instance : TypeEvent (DirectoryEvent n) where
   o := DirectoryEvent.o
   oStart := DirectoryEvent.oStart
   oEnd := DirectoryEvent.oEnd
   oWellFormed := DirectoryEvent.oWellFormed
 
 inductive Event
-| cacheEvent : CacheEvent → Event
-| directoryEvent : DirectoryEvent → Event
--- deriving DecidableEq
+| cacheEvent : (CacheEvent n) → Event
+| directoryEvent : (DirectoryEvent n) → Event
+deriving DecidableEq, BEq
 
-def Event.o (e : Event) : Occurrence := match e with
+def Event.o (e : Event n) : Occurrence := match e with
   | cacheEvent ce => ce.o
   | directoryEvent de => de.o
 
-def Event.oStart (e : Event) : TimeStart := match e with
+def Event.oStart (e : Event n) : TimeStart := match e with
   | cacheEvent ce => ce.oStart
   | directoryEvent de => de.oStart
 
-def Event.oEnd (e : Event) : TimeEnd := match e with
+def Event.oEnd (e : Event n) : TimeEnd := match e with
   | cacheEvent ce => ce.oEnd
   | directoryEvent de => de.oEnd
 
-def Event.oWellFormed (e : Event) : e.oStart < e.oEnd := match e with
+def Event.oWellFormed (e : Event n) : e.oStart < e.oEnd := match e with
   | cacheEvent ce => ce.oWellFormed
   | directoryEvent de => de.oWellFormed
 
-instance : TypeEvent Event where
-  o := Event.o
-  oStart := Event.oStart
-  oEnd := Event.oEnd
-  oWellFormed := Event.oWellFormed
+instance : TypeEvent (Event n) where
+  o := Event.o n
+  oStart := Event.oStart n
+  oEnd := Event.oEnd n
+  oWellFormed := Event.oWellFormed n
 
-def Event.req : Event → ValidRequest
+def Event.req : Event n → ValidRequest
 | .cacheEvent ce => ce.req
 | .directoryEvent de => de.req
-def Event.addr : Event → Addr
+def Event.addr : Event n → Addr
 | .cacheEvent ce => ce.addr
 | .directoryEvent de => de.addr
-def Event.atCid : Event → CacheId → Prop
+def Event.atCid : Event n → CacheId n → Prop
 | .cacheEvent ce, cid => ce.cid = cid
 | .directoryEvent _, _ => false
 
 inductive Struct
 | directory : Struct
-| cache : CacheId → Struct
+| cache : CacheId n → Struct
 deriving DecidableEq
 
-def Event.struct : Event → Struct
+def Event.struct : Event n → Struct n
 | .directoryEvent _ => .directory
 | .cacheEvent ce => .cache ce.cid
 
-def Event.isDirectoryEvent : Event → Prop
+def CacheEvent.isFromSelf : CacheEvent n → Prop
+| ce => ce.cid = ce.rid
+
+def CacheEvent.isEvict : CacheEvent n → Prop
+| ce => ce.isFromSelf ∧ ce.down
+
+def Event.isEvict : Event n → Prop
+| .cacheEvent ce => ce.isEvict
+| .directoryEvent _ => true
+
+def Event.isCacheEvent : Event n → Prop
+| .directoryEvent _ => false
+| .cacheEvent _ => true
+
+def Event.isDirectoryEvent : Event n → Prop
 | .directoryEvent _ => true
 | .cacheEvent _ => false
 
-def Event.isCacheEventAtCid : Event → CacheId → Prop
+def Event.isCacheEventAtCid : Event n → CacheId n → Prop
 | e, cid => match e with
   | .directoryEvent _ => false
   | .cacheEvent ce => ce.cid = cid
 
+def Event.isCacheEventDowngrade : Event n → Prop
+| .directoryEvent _ => false
+| .cacheEvent ce => ce.down
+
+def Event.isDirEventOfDirState : Event n → DirectoryState n → Prop
+| e_dir, dir_state => match e_dir with
+  | .directoryEvent de => de.dirS = dir_state
+  | .cacheEvent _ => false
+
+def Event.isCoherent : Event n → Prop
+| .cacheEvent ce => ce.req.isCoherent
+| .directoryEvent _ => false
+
+def Event.isAcquire : Event n → Prop
+| .cacheEvent ce => ce.req.val = ⟨.r, false, .Acq⟩
+| .directoryEvent _ => false
+
+def Event.isNonCoherent : Event n → Prop
+| .cacheEvent ce => ¬ ce.req.val.coherent
+| .directoryEvent _ => false
+
+def Event.isWeak : Event n → Prop
+| .cacheEvent ce => ce.req.val.consistency = .Weak
+| .directoryEvent _ => false
+
+def Event.isNcWeak : Event n → Prop
+| e => e.isNonCoherent ∧ e.isWeak
+
+def Event.isNcWeakRead : Event n → Prop
+| .cacheEvent ce => ce.req.val = ⟨.r, false, .Weak⟩
+| .directoryEvent _ => false
+
+def Event.isNcWeakWrite : Event n → Prop
+| .cacheEvent ce => ce.req.val = ⟨.w, false, .Weak⟩
+| .directoryEvent _ => false
+
+def Event.isNCRelease : Event n → Prop
+| .cacheEvent ce => ce.req.val = ⟨.w, false, .Rel⟩
+| .directoryEvent _ => false
+
+def Event.isCRelease : Event n → Prop
+| .cacheEvent ce => ce.req.val = ⟨.w, true, .Rel⟩
+| .directoryEvent _ => false
+
+def Event.isWrite : Event n → Prop
+| .cacheEvent ce => ce.req.val.isWrite
+| .directoryEvent _ => false
+
+structure CacheEvent.vcInval (e : CacheEvent n) : Prop where
+  isDown : e.down
+  isWeakRead : e.req.val = ⟨.r, false, .Weak⟩
+
+structure CacheEvent.vdWriteBack (e : CacheEvent n) : Prop where
+  isDown : e.down
+  isWeakWrite : e.req.val = ⟨.w, false, .Weak⟩
+
+def Event.isVcInval : Event n → Prop
+| .cacheEvent ce => ce.vcInval
+| .directoryEvent _ => false
+
+def Event.isVdWriteBack : Event n → Prop
+| .cacheEvent ce => ce.vdWriteBack
+| .directoryEvent _ => false
+
+def Event.down : Event n → Bool
+| .cacheEvent ce => ce.down
+| .directoryEvent de => de.down
 
 -- def CacheEvent.requestEvent (e : CacheEvent) : Prop := e.cid = e.rid
 -- def CacheEvent.sameAddress (e : CacheEvent) : Prop := e.cid = e.rid
@@ -147,4 +233,25 @@ def Event.isCacheEventAtCid : Event → CacheId → Prop
 -- abbrev CoherentRequest := {e : CacheEvent // e.r.coherent = true}
 -- abbrev NonCoherentRequest := {e : CacheEvent // e.r.coherent = false}
 
-def UniqueCacheEventIds (ce₁ ce₂ : CacheEvent) : Prop := ce₁.eid ≠ ce₂.eid
+def UniqueCacheEventIds (ce₁ ce₂ : CacheEvent n) : Prop := ce₁.eid ≠ ce₂.eid
+
+-- NOTE: TODO: Update this to use a Vector for CacheIds, and Addresses.
+def InitialSystemState.stateAt (init : InitialSystemState n) (e : Event n) : EntryState n := match e with
+  | .cacheEvent ce => Sum.inl <| init.cacheStates (ce.cid)
+  | .directoryEvent de => Sum.inr <| init.directoryStates de.pInst
+
+def Event.interfaceMatchingProtocol (e : Event n) (p_i : Protocol.interface) : ProtocolInterface :=
+  match e with
+  | .cacheEvent ce => match ce.cid with
+    | .proxy pi => match pi with
+      | .global => p_i.global_pi -- panic! "We do not consider proxy caches in the global protocol."
+      | .cluster1 => p_i.cluster1_pi
+      | .cluster2 => p_i.cluster2_pi
+    | .cache pci => match pci with
+      | .globalP _ _ => p_i.global_pi
+      | .cluster1 _ _ => p_i.cluster1_pi
+      | .cluster2 _ _ => p_i.cluster2_pi
+  | .directoryEvent de => match de.pInst with
+    | .global => p_i.global_pi
+    | .cluster1 => p_i.cluster1_pi
+    | .cluster2 => p_i.cluster2_pi
