@@ -176,6 +176,17 @@ def Event.isAcquire : Event n → Prop
 | .cacheEvent ce => ce.req.val = ⟨.r, false, .Acq⟩
 | .directoryEvent _ => false
 
+def Event.isNonCoherent : Event n → Prop
+| .cacheEvent ce => ¬ ce.req.val.coherent
+| .directoryEvent _ => false
+
+def Event.isWeak : Event n → Prop
+| .cacheEvent ce => ce.req.val.consistency = .Weak
+| .directoryEvent _ => false
+
+def Event.isNcWeak : Event n → Prop
+| e => e.isNonCoherent ∧ e.isWeak
+
 def Event.isNcWeakRead : Event n → Prop
 | .cacheEvent ce => ce.req.val = ⟨.r, false, .Weak⟩
 | .directoryEvent _ => false
