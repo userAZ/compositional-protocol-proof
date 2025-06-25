@@ -372,8 +372,9 @@ def Event.notNcRelAcqWeakWriteRead : Event n → Prop
 def Behaviour.eventOnMRSState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
   (b.stateBefore n (init.stateAt n e_req) e_req).cache = e_req.req.MRS
 
-def Behaviour.eventOnStateLtMRS (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
-  (b.stateBefore n (init.stateAt n e_req) e_req).cache < e_req.req.MRS
+/-- Key Definition: A request does not have permissions if the negation of it's MRS is less than the state it's made on is true. -/
+def Behaviour.eventOnStateNoPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
+  ¬ (e_req.req.MRS ≤ (b.stateBefore n (init.stateAt n e_req) e_req).cache)
 
 def Behaviour.eventOnNonCoherentState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
   ¬ (b.stateBefore n (init.stateAt n e_req) e_req).cache.c
@@ -382,7 +383,7 @@ def Behaviour.eventOnNonCoherentState (b : Behaviour n) (init : InitialSystemSta
 /-- Def. Prop on a Request Event `e_req`. The state it's made on is lower than it's `Minimum Required State (MRS)`. -/
 inductive Behaviour.reqMissingPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop
 | downgrade : e_req.down → b.eventOnMRSState n init e_req → Behaviour.reqMissingPerms b init e_req
-| noPermsForNonNcRelAcqWeakWrite : ¬ e_req.down → e_req.notNcRelAcqWeakWrite n → b.eventOnStateLtMRS n init e_req → Behaviour.reqMissingPerms b init e_req
+| noPermsForNonNcRelAcqWeakWrite : ¬ e_req.down → e_req.notNcRelAcqWeakWrite n → b.eventOnStateNoPerms n init e_req → Behaviour.reqMissingPerms b init e_req
 | ncRelAcqWeakWriteNotOnCoherentState : ¬ e_req.down → e_req.isNcRelAcqWeakWrite → b.eventOnNonCoherentState n init e_req → Behaviour.reqMissingPerms b init e_req
 
 structure Behaviour.reqEncapDirHasNoPermsLeavesStateAtLeast (b : Behaviour n) (init : InitialSystemState n) (state : State) (e_req e_dir : Event n) : Prop where
