@@ -674,11 +674,11 @@ def List.stateAtE (es : List (Event n)) (e : Event n) (init : EntryState n) : En
   List.stateAfter n (es.splitAt (es.indexesOf e).head!).1 init
 
 /- Def 2.33 Behaviour.StateBefore -/
-noncomputable def Behaviour.stateBefore (b : Behaviour n) (e : Event n) (init : EntryState n): EntryState n :=
+noncomputable def Behaviour.stateBefore (b : Behaviour n) (init : EntryState n) (e : Event n) : EntryState n :=
   b.listBottomEventsAtEntry n e.addr e.struct |>.insertionSort (Event.OrderedBefore n) |>.stateAtE n e init
 
-noncomputable def Behaviour.stateAfter (b : Behaviour n) (e : Event n) (init : EntryState n) : EntryState n :=
-  e.SucceedingState n (b.stateBefore n e init)
+noncomputable def Behaviour.stateAfter (b : Behaviour n) (init : EntryState n) (e : Event n) : EntryState n :=
+  e.SucceedingState n (b.stateBefore n init e)
 
 /-
 noncomputable def Behaviour.StateBefore (b : Behaviour) (e : Event) (haddress_ordered : Event.AtEntryOrdered) (s_i : EntryState)
@@ -696,8 +696,8 @@ def CacheEvent.stateUpgradeMayEncapsulate (e₁ e₂ : CacheEvent n) (s₁ : Sta
 
 inductive CacheEvent.OrderedOrEncapsulates (e₁ e₂ : CacheEvent n) (b : Behaviour n) (init : EntryState n) : Prop
 | orderedOrEncapsulates (s₁ s₂ : State) :
-  e₁.stateUpgradeMayEncapsulate n e₂ (b.stateBefore n (Event.cacheEvent e₁) init).cache ∨
-  e₂.stateUpgradeMayEncapsulate n e₁ (b.stateBefore n (Event.cacheEvent e₂) init).cache →
+  e₁.stateUpgradeMayEncapsulate n e₂ (b.stateBefore n init (Event.cacheEvent e₁)).cache ∨
+  e₂.stateUpgradeMayEncapsulate n e₁ (b.stateBefore n init (Event.cacheEvent e₂)).cache →
   CacheEvent.OrderedOrEncapsulates e₁ e₂ b init
 | ordered : e₁.Ordered n e₂ → CacheEvent.OrderedOrEncapsulates e₁ e₂ b init
 
