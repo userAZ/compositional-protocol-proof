@@ -766,8 +766,16 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
                 constructor
                 simp_all only [Bool.not_eq_true]
                 have h := hcoh_req.notDowngrade
-                sorry
-                sorry
+                refine .noPermsForNonNcRelAcqWeakWrite ?_ ?_ ?_
+                . case a.refine_1 =>
+                  exact hcoh_req.notDowngrade
+                . case a.refine_2 =>
+                  simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite,
+                    Event.isAcquire, Event.isNCRelease, Event.isNcWeakWrite, hreq]
+                . case a.refine_3 =>
+                  simp[Behaviour.eventOnStateLtMRS]
+                  simp [hreq_has_perms]
+                  sorry
                 /-
                 simp[h]
                 simp[reqMissingPerms]
