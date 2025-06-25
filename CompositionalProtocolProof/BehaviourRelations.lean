@@ -747,8 +747,8 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
     | false =>
       match hreq : ce.req with
       | ⟨⟨rw,true,consistency⟩, hvalid_req⟩ =>
-        have event_req := (Event.cacheEvent ce)
-        have state_req_made_on := b.stateBefore n (init.stateAt n event_req) event_req |>.cache
+        let event_req := (Event.cacheEvent ce)
+        let state_req_made_on := b.stateBefore n (init.stateAt n event_req) event_req |>.cache
         by_cases hreq_has_perms : ce.req.MRS ≤ state_req_made_on
         . case pos =>
           /- Request has permissions, must exist predecessor that obtained permissions previously. -/
@@ -764,24 +764,25 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
               apply And.intro
               . case left => exact hcoh_req.reqEncapDir.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent.isDir
               . case right =>
-                constructor
+                apply dirAccessOfRequest.encapDir
                 simp_all only [Bool.not_eq_true]
                 have h := hcoh_req.notDowngrade
-                refine .noPermsForNonNcRelAcqWeakWrite ?_ ?_ ?_
-                . case a.refine_1 =>
+                apply reqMissingPerms.noPermsForNonNcRelAcqWeakWrite
+                -- refine .noPermsForNonNcRelAcqWeakWrite ?_ ?_ ?_
+                . case a.a =>
                   exact hcoh_req.notDowngrade
-                . case a.refine_2 =>
+                . case a.a =>
                   simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite,
                     Event.isAcquire, Event.isNCRelease, Event.isNcWeakWrite, hreq]
-                . case a.refine_3 =>
-                  simp[Behaviour.eventOnStateLtMRS]
+                . case a.a =>
+                  simp[Behaviour.eventOnStateNoPerms]
+                  simp[Event.req]
+                  rw [hreq]
+                  subst state_req_made_on
+                  subst event_req
                   simp [hreq_has_perms]
-                  sorry
-                /-
-                simp[h]
-                simp[reqMissingPerms]
-                exact hcoh_req.reqEncapDir.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent
-                -/
+                . case a =>
+                  exact hcoh_req.reqEncapDir.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent
           | .nonCoherentRelease hnc_rel =>
             sorry
           | .acquire _ => sorry
