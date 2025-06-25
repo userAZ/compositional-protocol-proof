@@ -557,6 +557,14 @@ instance Event.OrderedBefore.instIsTotal (b : Behaviour n) (hsame_entry : Event.
 /- NOTE: To be an instance of IsTotal, there can't be any assumptions, like the following below. -/
 instance Event.OrderedBefore.instIsTotal' : IsTotal (Event n) (Event.OrderedBefore n) := by sorry
 
+-- [TODO] Use EventAtEntry to define a total order.
+structure Behaviour.eventAtEntry (b : Behaviour n) (e : Event n) (st : Struct n) (addr : Addr) : Prop where
+  eInB : e ∈ b.es
+  eAtStruct : e.struct = st
+  eAtAddr : e.addr = addr
+
+def EventAtEntry := {e : Event n // ∀ b : Behaviour n, ∀ st : Struct n, ∀ addr : Addr, b.eventAtEntry n e st addr }
+
 /- NOTE: Likewise, this is also not a valid instance of IsTotal. -/
 instance Behaviour.BottomPredecessor.instIsTotal (b : Behaviour n) (hbottom : Behaviour.bottomEvent n) (hpred : Behaviour.Predecessor n) (hsame_entry : (Event.sameEntry n)) : IsTotal (Event n) (b.BottomPredecessor n) := by
   constructor
