@@ -979,82 +979,254 @@ lemma Behaviour.exists_predecessor_setting_state_encap_dir_event'' (b : Behaviou
 -- of a future one if Weak Non-Coherent on Vd
 /-- `Lemma 3.` For each Cache Request Event `e_req`, there exists a unique event `e_dir` relating `e_req` to the total order of events at
 `e_req`'s corresonponding Directory entry. -/
-lemma Behaviour.exists_e_dir_relating_e_req (b : Behaviour n) (init : InitialSystemState n)
-(e_req : Event n) (he_req_in_b : e_req ∈ b.es)
+lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSystemState n)
+(e_req : Event n) (he_req_in_b : e_req ∈ b.es) (hreq_not_down : ¬ e_req.down)
 (hreq_encap_dir : Behaviour.axRequestAccessesDirectory n)
 (hvd_wb_later : Behaviour.vdCacheEntryWriteBackLater n b e_req init) :
-  b.reqDirRelation' n e_req init
+  ∃ e_dir ∈ b.es, e_dir.isDirectoryEvent ∧ b.dirAccessOfRequest n init e_req e_dir
   := by
   have ax6 := hreq_encap_dir.reqAccessDir b e_req he_req_in_b init
   unfold Behaviour.requestAccessesDirectoryWrapper at ax6
   simp at ax6
   cases e_req
   . case cacheEvent ce =>
+match hdown : ce.down with
+    | false =>
     match hreq : ce.req with
     | ⟨⟨rw,true,consistency⟩, hvalid_req⟩ =>
-      -- apply coherent_req_exists_related_e_dir n b init hreq_encap_dir (Event.cacheEvent ce) he_req_in_b rw consistency hvalid_req hreq
-      constructor
-      . case cohReqRelation =>
-        intro ax6' he_req_coh he_req_not_down
-
-        cases ax6
-        . case coherentRequest hcoh_req =>
-          --
-          constructor
-          . case encapDir =>
-            simp[insufficientReqPermsSoEncapDir']
-            intro hmissing_perms
+      have event_req := (Event.cacheEvent ce)
+        have state_req_made_on := b.stateBefore n (init.stateAt n event_req) event_req |>.cache
+        by_cases hreq_has_perms : ce.req.MRS ≤ state_req_made_on
+        . case pos =>
+          /- Request has permissions, must exist predecessor that obtained permissions previously. -/
+          sorry
+        . case neg =>
+          /- Request has no permissions, so encapsulates a directory event to access the Directory. -/
+          match ax6 with
+          | .coherentRequest hcoh_req =>
             use hcoh_req.reqEncapDir.reqEncapCorrDir.choose
             apply And.intro
             . case h.left => exact hcoh_req.reqEncapDir.reqEncapCorrDir.choose_spec.left
-            . case h.right => exact hcoh_req.reqEncapDir.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent.reqEncapDir
-          . case orderBeforeDir =>
-            simp[reqHasPermsSoDirPred']
-            intro hhave_perms
+            . case h.right =>
+              apply And.intro
+              . case left => exact hcoh_req.reqEncapDir.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent.isDir
+              . case right =>
+                constructor
+                intro hmissing_perms
+                exact hcoh_req.reqEncapDir.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent
+          | .nonCoherentRelease hnc_rel =>
             sorry
-        . case nonCoherentRelease hnc_rel =>
+        | .acquire _ => sorry
+          | .weakWrite _ => sorry
+          | .weakRead _ => sorry
+          | .evictVdWB _ => sorry
+          | .evictSCPutM _ => sorry
+          | .evictSCPutS _ => sorry
+      | ⟨⟨.r,false,.Weak⟩, {}⟩ =>
+        have event_req := (Event.cacheEvent ce)
+        have state_req_made_on := b.stateBefore n (init.stateAt n event_req) event_req |>.cache
+        by_cases hreq_has_perms : ce.req.MRS ≤ state_req_made_on
+        . case pos =>
+          /- Request has permissions, must exist predecessor that obtained permissions previously. -/
+          by_cases hnot_on_vd : state_req_made_on ≠ Vd
+          . case pos => sorry
+          . case neg =>
+            /- [NOTE] Use Behaviour.hasPermsNotVd .ncWeakReadHasPermsNotVd
+            in Behaviour.dirAccessOfRequest from the Goal to show this case isn't true. -/
           sorry
-        . case acquire hacq =>
+        . case neg =>
+          /- Request has no permissions, so encapsulates a directory event to access the Directory. -/
+          match ax6 with
+          | .weakRead hweak_r =>
+            use hweak_r.encapDirEvent.reqEncapCorrDir.choose
+            apply And.intro
+            . case h.left => exact hweak_r.encapDirEvent.reqEncapCorrDir.choose_spec.left
+            . case h.right =>
+              apply And.intro
+              . case left => exact hweak_r.encapDirEvent.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent.isDir
+              . case right =>
+                constructor
+                intro hmissing_perms
+                exact hweak_r.encapDirEvent.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent
+          | .coherentRequest hcoh_req => sorry
+          | .nonCoherentRelease hnc_rel => sorry
+          | .acquire _ => sorry
+          | .weakWrite _ => sorry
+          | .evictVdWB _ => sorry
+          | .evictSCPutM _ => sorry
+          | .evictSCPutS _ => sorry
+      | ⟨⟨.r,false,.Acq⟩, {}⟩ =>
+        have event_req := (Event.cacheEvent ce)
+        have state_req_made_on := b.stateBefore n (init.stateAt n event_req) event_req |>.cache
+        by_cases hreq_has_perms : ce.req.MRS ≤ state_req_made_on
+        . case pos =>
+          /- Request has permissions, must exist predecessor that obtained permissions previously. -/
           sorry
-        . case weakWrite hww =>
+        . case neg =>
+          /- Request has no permissions, so encapsulates a directory event to access the Directory. -/
+          match ax6 with
+          | .acquire hacq =>
+            use hacq.encapDirEvent.reqEncapCorrDir.choose
+            apply And.intro
+            . case h.left => exact hacq.encapDirEvent.reqEncapCorrDir.choose_spec.left
+            . case h.right =>
+              apply And.intro
+              . case left => exact hacq.encapDirEvent.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent.isDir
+              . case right =>
+                constructor
+                intro hmissing_perms
+                exact hacq.encapDirEvent.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent
+          | .weakWrite hweak_r => sorry
+          | .coherentRequest hcoh_req => sorry
+          | .nonCoherentRelease hnc_rel => sorry
+          | .weakRead _ => sorry
+          | .evictVdWB _ => sorry
+          | .evictSCPutM _ => sorry
+          | .evictSCPutS _ => sorry
+      | ⟨⟨.w,false,.Weak⟩, {}⟩ =>
+        let event_req := (Event.cacheEvent ce)
+        let state_req_made_on := b.stateBefore n (init.stateAt n event_req) event_req |>.cache
+        by_cases hreq_has_perms : state_req_made_on = SW
+        . case pos =>
+          /- Request has permissions, must exist predecessor that obtained permissions previously. -/
           sorry
-        . case weakRead hwr =>
+        . case neg =>
+/- Show a future event writes back. -/
           sorry
-        . case evictVdWB hevd_wb=>
-          sorry
-        . case evictSCPutM he_putm =>
-          sorry
-        . case evictSCPutS he_puts =>
-          sorry
-      . case ncWeakReadDirRelation =>
-        intro ax6' he_req_weak_read he_req_not_down
-        sorry
-      . case ncWeakWriteDirRelation =>
-        intro ax6' he_req_weak_write he_req_not_down
-        sorry
-      . case ncRelDirRelation =>
-        intro ax6' he_req_rel he_req_not_down
-        sorry
-      . case ncAcqDirRelation =>
-        intro ax6' he_req_acq he_req_not_down
-        sorry
-    | ⟨⟨.r,false,.Weak⟩, {}⟩ =>
-      /-
+              /-
       match ax6 with
-      | .coherentRequest hcoherent_no_perms => sorry
-      | .nonCoherentRelease hnc_rel => sorry
-      | .acquire hacq => sorry
-      | .weakWrite hweak_w => sorry
-      | .weakRead hweak_r => sorry
-      | .evictVdWB hvd_wb => sorry
-      | .evictSCPutS hputs => sorry
-      -/
-      sorry
-    | ⟨⟨.r,false,.Acq⟩, {}⟩ =>
-      sorry
-    | ⟨⟨.w,false,.Weak⟩, {}⟩ => sorry
+      | .weakWrite hweak_w =>
+            use hweak_w.ncWeakReq.encapDirEvent.reqEncapCorrDir.choose
+            apply And.intro
+            . case h.left => exact hweak_w.ncWeakReq.encapDirEvent.reqEncapCorrDir.choose_spec.left
+            . case h.right =>
+              apply And.intro
+              . case left => exact hweak_w.ncWeakReq.encapDirEvent.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent.isDir
+              . case right =>
+                constructor
+                intro hmissing_perms
+                exact hweak_w.ncWeakReq.encapDirEvent.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent
+          | .coherentRequest hcoh_req =>
+            have h := hcoh_req.isCoherent
+            simp[Event.req, hreq] at h
+      | .nonCoherentRelease hnc_rel =>
+            have h := hnc_rel.existsDirWb.choose_spec.right.isRelease
+            simp[hreq] at h
+          | .acquire hacq =>
+            have h := hacq.isAcquire
+            simp[hreq] at h
+          | .weakRead hweak_r =>
+            absurd hweak_r.isRead
+            simp[Request.isRead, hreq]
+          | .evictVdWB he_vd =>
+            have h := he_vd.isDowngrade
+            simp[hdown] at h
+          | .evictSCPutM hputm =>
+            have h := hputm.isPutM
+            simp[hreq] at h
+          | .evictSCPutS hputs =>
+            have h := hputs.isPutS
+            simp[hreq] at h
+          -/
     | ⟨⟨.w,false,.Rel⟩, {}⟩ =>
+have event_req := (Event.cacheEvent ce)
+        have state_req_made_on := b.stateBefore n (init.stateAt n event_req) event_req |>.cache
+        by_cases hreq_has_perms : state_req_made_on = SW -- state_req_made_on.c ∧ ce.req.MRS ≤ state_req_made_on
+        . case pos =>
+          /- Request has permissions, must exist predecessor that obtained permissions previously. -/
       sorry
+. case neg =>
+          /- Request has no permissions, so encapsulates a directory event to access the Directory. -/
+          match ax6 with
+          | .nonCoherentRelease hnc_rel =>
+            use hnc_rel.existsDirWb.choose
+            -- use hnc_rel.choose_spec.right.encapsDirWB.reqEncapCorrespondingDirEvent
+            apply And.intro
+            . case h.left => exact hnc_rel.existsDirWb.choose_spec.right.encapsDirWB.reqEncapCorrespondingDirEvent.dirInB
+            . case h.right =>
+              apply And.intro
+              . case left => exact hnc_rel.existsDirWb.choose_spec.right.encapsDirWB.reqEncapCorrespondingDirEvent.isDir
+              . case right =>
+                constructor
+                intro hmissing_perms
+                have h := hnc_rel.existsDirWb.choose_spec.right.encapsDirWB.reqEncapCorrespondingDirEvent
+                exact hnc_rel.existsDirWb.choose_spec.right.encapsDirWB.reqEncapCorrespondingDirEvent
+          | .weakWrite hweak_r =>
+            have h := hweak_r.ncWeakReq.isWeak; simp[hreq] at h
+          | .coherentRequest hcoh_req =>
+            have h := hcoh_req.isCoherent
+            simp[Event.req, hreq] at h
+          | .acquire hacq =>
+            have h := hacq.isAcquire
+            simp[hreq] at h
+          | .weakRead hweak_r =>
+            have h := hweak_r.ncWeakReq.isWeak
+            simp[hreq] at h
+          | .evictVdWB he_vd =>
+            have h := he_vd.isVdWriteBack
+            simp[hreq] at h
+          | .evictSCPutM hputm =>
+            have h := hputm.isPutM
+            simp[hreq] at h
+          | .evictSCPutS hputs =>
+            have h := hputs.isPutS
+            simp[hreq] at h
+    | true =>
+      match ax6 with
+      | .evictVdWB he_vd =>
+        use he_vd.encapWBDirEvent.evictEncapCorrDir.choose
+        apply And.intro
+        . case h.left =>
+          exact he_vd.encapWBDirEvent.evictEncapCorrDir.choose_spec.left
+        . case h.right =>
+          apply And.intro
+          . case left =>
+            exact he_vd.encapWBDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent.isDir
+          . case right =>
+            constructor
+            intro hmissing
+            exact he_vd.encapWBDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent
+      | .evictSCPutM hputm =>
+        use hputm.encapPutMDirEvent.evictEncapCorrDir.choose
+        apply And.intro
+        . case h.left =>
+          exact hputm.encapPutMDirEvent.evictEncapCorrDir.choose_spec.left
+        . case h.right =>
+          apply And.intro
+          . case left =>
+            exact hputm.encapPutMDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent.isDir
+          . case right =>
+            constructor
+            intro hmissing
+            exact hputm.encapPutMDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent
+      | .evictSCPutS hputs =>
+        use hputs.encapPutSDirEvent.evictEncapCorrDir.choose
+        apply And.intro
+        . case h.left =>
+          exact hputs.encapPutSDirEvent.evictEncapCorrDir.choose_spec.left
+        . case h.right =>
+          apply And.intro
+          . case left =>
+            exact hputs.encapPutSDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent.isDir
+          . case right =>
+            constructor
+            intro hmissing
+            exact hputs.encapPutSDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent
+      | .nonCoherentRelease hnc_rel =>
+        absurd hnc_rel.notDowngrade
+        simp[hdown]
+      | .weakWrite hweak_w =>
+        absurd hweak_w.ncWeakReq.notDowngrade
+        simp[hdown]
+      | .coherentRequest hcoh_req =>
+        absurd hcoh_req.notDowngrade
+        simp[Event.down, hdown]
+      | .acquire hacq =>
+        absurd hacq.notDowngrade
+        simp[Event.down, hdown]
+      | .weakRead hweak_r =>
+        absurd hweak_r.ncWeakReq.notDowngrade
+        simp[hdown]
   . case directoryEvent _ => simp at ax6
 
 /-- Def. Prop constraints for Def 2.37 case where the request has coherent permissions and is then defined as it's own linearization event. -/
