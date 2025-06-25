@@ -129,16 +129,19 @@ structure Behaviour.ncWeakWriteEncapDirEvent (b : Behaviour n) (init : InitialSy
 
 /-- Def Props stating when an Evicting Weak Non-Coherent Write accesses the Directory -/
 structure Behaviour.evictVdWBEncapsulatesDirEvent (b : Behaviour n) (e_req : CacheEvent n) (init : InitialSystemState n) : Prop where
+  isDowngrade : e_req.down
   isVdWriteBack : e_req.req.val = ⟨.w, false, .Weak⟩
   madeOnVdState : b.stateBefore n (init.stateAt n (Event.cacheEvent e_req)) (Event.cacheEvent e_req) = VdEntry n
   encapWBDirEvent : b.evictEncapCorrespondingDirEvent n (init.stateAt n (Event.cacheEvent e_req)) true (Event.cacheEvent e_req)
 
 structure Behaviour.evictSCPutMEncapsulatesDirEvent (b : Behaviour n) (e_req : CacheEvent n) (init : InitialSystemState n) : Prop where
+  isDowngrade : e_req.down
   isPutM : e_req.req.val = ⟨.w, true, .SC⟩
   madeOnSW : b.stateBefore n (init.stateAt n (Event.cacheEvent e_req)) (Event.cacheEvent e_req) = SWEntry n
   encapPutMDirEvent : b.evictEncapCorrespondingDirEvent n (init.stateAt n (Event.cacheEvent e_req)) true (Event.cacheEvent e_req)
 
 structure Behaviour.evictSCPutSEncapsulatesDirEvent (b : Behaviour n) (e_req : CacheEvent n) (init : InitialSystemState n) : Prop where
+  isDowngrade : e_req.down
   isPutS : e_req.req.val = ⟨.r, true, .SC⟩
   madeOnMR : b.stateBefore n (init.stateAt n (Event.cacheEvent e_req)) (Event.cacheEvent e_req) = MREntry n
   encapPutSDirEvent : b.evictEncapCorrespondingDirEvent n (Event.cacheEvent e_req) (init.stateAt n (Event.cacheEvent e_req))
