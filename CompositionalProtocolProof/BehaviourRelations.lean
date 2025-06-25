@@ -127,23 +127,29 @@ structure Behaviour.ncWeakWriteEncapDirEvent (b : Behaviour n) (init : InitialSy
   encapDirEvent : b.reqEncapCorrespondingDirEvent n (init.stateAt n (Event.cacheEvent e_req)) false (Event.cacheEvent e_req) -- [NOTE] One of two places where `rel_wb` is false
   isWrite : e_req.req.val.isWrite
 
+def Behaviour.eventOnMRSState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
+  (b.stateBefore n (init.stateAt n e_req) e_req).cache = e_req.req.MRS
+
 /-- Def Props stating when an Evicting Weak Non-Coherent Write accesses the Directory -/
 structure Behaviour.evictVdWBEncapsulatesDirEvent (b : Behaviour n) (e_req : CacheEvent n) (init : InitialSystemState n) : Prop where
   isDowngrade : e_req.down
   isVdWriteBack : e_req.req.val = ⟨.w, false, .Weak⟩
-  madeOnVdState : b.stateBefore n (init.stateAt n (Event.cacheEvent e_req)) (Event.cacheEvent e_req) = VdEntry n
+  mrsVdState : e_req.req.MRS = Vd
+  madeOnMrs : b.eventOnMRSState n init (Event.cacheEvent e_req)
   encapWBDirEvent : b.evictEncapCorrespondingDirEvent n (init.stateAt n (Event.cacheEvent e_req)) true (Event.cacheEvent e_req)
 
 structure Behaviour.evictSCPutMEncapsulatesDirEvent (b : Behaviour n) (e_req : CacheEvent n) (init : InitialSystemState n) : Prop where
   isDowngrade : e_req.down
   isPutM : e_req.req.val = ⟨.w, true, .SC⟩
-  madeOnSW : b.stateBefore n (init.stateAt n (Event.cacheEvent e_req)) (Event.cacheEvent e_req) = SWEntry n
+  mrsSWState : e_req.req.MRS = SW
+  madeOnMrs : b.eventOnMRSState n init (Event.cacheEvent e_req)
   encapPutMDirEvent : b.evictEncapCorrespondingDirEvent n (init.stateAt n (Event.cacheEvent e_req)) true (Event.cacheEvent e_req)
 
 structure Behaviour.evictSCPutSEncapsulatesDirEvent (b : Behaviour n) (e_req : CacheEvent n) (init : InitialSystemState n) : Prop where
   isDowngrade : e_req.down
   isPutS : e_req.req.val = ⟨.r, true, .SC⟩
-  madeOnMR : b.stateBefore n (init.stateAt n (Event.cacheEvent e_req)) (Event.cacheEvent e_req) = MREntry n
+  mrsMRState : e_req.req.MRS = MR
+  madeOnMrs : b.eventOnMRSState n init (Event.cacheEvent e_req)
   encapPutSDirEvent : b.evictEncapCorrespondingDirEvent n (init.stateAt n (Event.cacheEvent e_req)) true (Event.cacheEvent e_req)
 
 /-- Axiom 6: When a Request Event encapsulates Directory Events to access/request from the Directory. -/
@@ -369,22 +375,38 @@ def Event.isNcRelAcqWeakWriteRead : Event n → Prop
 def Event.notNcRelAcqWeakWriteRead : Event n → Prop
 | e => ¬ e.isNcRelAcqWeakWriteRead
 
+def Event.isNcRelAcq : Event n → Prop
+| e => e.isAcquire ∨ e.isNCRelease
+/-
 def Behaviour.eventOnMRSState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
   (b.stateBefore n (init.stateAt n e_req) e_req).cache = e_req.req.MRS
+-/
+
+/-- Key definition: (Not Acq, Rel, Weak Write). A request cache event has permissions if it's MRS is less than or equal the state it's made on. -/
+def Behaviour.eventOnStateHasPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
+  e_req.req.MRS ≤ (b.stateBefore n (init.stateAt n e_req) e_req).cache
 
 /-- Key Definition: A request does not have permissions if the negation of it's MRS is less than the state it's made on is true. -/
 def Behaviour.eventOnStateNoPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
-  ¬ (e_req.req.MRS ≤ (b.stateBefore n (init.stateAt n e_req) e_req).cache)
+  ¬ b.eventOnStateHasPerms n init e_req
 
+def Behaviour.eventOnCoherentState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
+  (b.stateBefore n (init.stateAt n e_req) e_req).cache.c
 def Behaviour.eventOnNonCoherentState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
   ¬ (b.stateBefore n (init.stateAt n e_req) e_req).cache.c
 
--- [TODO] change this into an inductive, want to show a specific case holds
-/-- Def. Prop on a Request Event `e_req`. The state it's made on is lower than it's `Minimum Required State (MRS)`. -/
+def Behaviour.acqRelWeakWriteNoPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
+  ¬ (b.eventOnCoherentState n init e_req ∧ b.eventOnStateHasPerms n init e_req)
+
+/-- Def. Prop on a Request Event `e_req`.
+The state `e_req` is made on is not sufficient to be able to complete the request in cache.
+For Acq, Non-Coherent Rel, and Weak Writes, this means the state it's made on is lower than it's `Minimum Required State (MRS)` AND is not coherent.
+For other requests, SC, Coherent, and Weak Reads, this means it's state it's made on is lower that it's `MRS`.
+In the case of Weak Reads, the state it's made on excludes `Vd`. -/
 inductive Behaviour.reqMissingPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop
 | downgrade : e_req.down → b.eventOnMRSState n init e_req → Behaviour.reqMissingPerms b init e_req
 | noPermsForNonNcRelAcqWeakWrite : ¬ e_req.down → e_req.notNcRelAcqWeakWrite n → b.eventOnStateNoPerms n init e_req → Behaviour.reqMissingPerms b init e_req
-| ncRelAcqWeakWriteNotOnCoherentState : ¬ e_req.down → e_req.isNcRelAcqWeakWrite → b.eventOnNonCoherentState n init e_req → Behaviour.reqMissingPerms b init e_req
+| ncRelAcqWeakWriteNotOnCoherentState : ¬ e_req.down → e_req.isNcRelAcq → b.acqRelWeakWriteNoPerms n init e_req → Behaviour.reqMissingPerms b init e_req
 
 structure Behaviour.reqEncapDirHasNoPermsLeavesStateAtLeast (b : Behaviour n) (init : InitialSystemState n) (state : State) (e_req e_dir : Event n) : Prop where
   missingPerms : b.reqMissingPerms n init e_req
@@ -775,7 +797,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
                   simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite,
                     Event.isAcquire, Event.isNCRelease, Event.isNcWeakWrite, hreq]
                 . case a.a =>
-                  simp[Behaviour.eventOnStateNoPerms]
+                  simp[Behaviour.eventOnStateNoPerms, eventOnStateHasPerms]
                   simp[Event.req]
                   rw [hreq]
                   subst state_req_made_on
@@ -792,8 +814,8 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
           | .evictSCPutM _ => sorry
           | .evictSCPutS _ => sorry
       | ⟨⟨.r,false,.Weak⟩, {}⟩ =>
-        have event_req := (Event.cacheEvent ce)
-        have state_req_made_on := b.stateBefore n (init.stateAt n event_req) event_req |>.cache
+        let event_req := (Event.cacheEvent ce)
+        let state_req_made_on := b.stateBefore n (init.stateAt n event_req) event_req |>.cache
         by_cases hreq_has_perms : ce.req.MRS ≤ state_req_made_on
         . case pos =>
           /- Request has permissions, must exist predecessor that obtained permissions previously. -/
@@ -814,13 +836,18 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
               apply And.intro
               . case left => exact hweak_r.encapDirEvent.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent.isDir
               . case right =>
-                constructor
-                sorry
-                sorry
-                /-
-                intro hmissing_perms
-                exact hweak_r.encapDirEvent.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent
-                -/
+                apply dirAccessOfRequest.encapDir
+                apply reqMissingPerms.noPermsForNonNcRelAcqWeakWrite
+                . case a.a =>
+                  exact hweak_r.ncWeakReq.notDowngrade
+                . case a.a =>
+                  simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite, Event.isAcquire,
+                    Event.isNCRelease, Event.isNcWeakWrite, hreq]
+                . case a.a =>
+                  simp[eventOnStateNoPerms]
+                  exact hreq_has_perms
+                . case a =>
+                  exact hweak_r.encapDirEvent.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent
           | .coherentRequest hcoh_req => sorry
           | .nonCoherentRelease hnc_rel => sorry
           | .acquire _ => sorry
@@ -829,9 +856,9 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
           | .evictSCPutM _ => sorry
           | .evictSCPutS _ => sorry
       | ⟨⟨.r,false,.Acq⟩, {}⟩ =>
-        have event_req := (Event.cacheEvent ce)
-        have state_req_made_on := b.stateBefore n (init.stateAt n event_req) event_req |>.cache
-        by_cases hreq_has_perms : ce.req.MRS ≤ state_req_made_on
+        let event_req := (Event.cacheEvent ce)
+        let state_req_made_on := b.stateBefore n (init.stateAt n event_req) event_req |>.cache
+        by_cases hreq_has_perms : state_req_made_on.c ∧ ce.req.MRS ≤ state_req_made_on
         . case pos =>
           /- Request has permissions, must exist predecessor that obtained permissions previously. -/
           sorry
@@ -846,13 +873,18 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
               apply And.intro
               . case left => exact hacq.encapDirEvent.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent.isDir
               . case right =>
-                constructor
-                sorry
-                sorry
-                /-
-                intro hmissing_perms
-                exact hacq.encapDirEvent.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent
-                -/
+                apply dirAccessOfRequest.encapDir
+                apply reqMissingPerms.ncRelAcqWeakWriteNotOnCoherentState
+                . case a.a =>
+                  exact hacq.notDowngrade
+                . case a.a =>
+                  simp[Event.isNcRelAcq, Event.isAcquire]
+                  simp[hreq]
+                . case a.a =>
+                  dsimp[acqRelWeakWriteNoPerms, eventOnCoherentState, eventOnStateHasPerms]
+                  exact hreq_has_perms
+                . case a =>
+                  exact hacq.encapDirEvent.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent
           | .weakWrite hweak_r => sorry
           | .coherentRequest hcoh_req => sorry
           | .nonCoherentRelease hnc_rel => sorry
@@ -906,9 +938,9 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
             simp[hreq] at h
           -/
       | ⟨⟨.w,false,.Rel⟩, {}⟩ =>
-        have event_req := (Event.cacheEvent ce)
-        have state_req_made_on := b.stateBefore n (init.stateAt n event_req) event_req |>.cache
-        by_cases hreq_has_perms : state_req_made_on = SW -- state_req_made_on.c ∧ ce.req.MRS ≤ state_req_made_on
+        let event_req := (Event.cacheEvent ce)
+        let state_req_made_on := b.stateBefore n (init.stateAt n event_req) event_req |>.cache
+        by_cases hreq_has_perms : state_req_made_on.c ∧ ce.req.MRS ≤ state_req_made_on
         . case pos =>
           /- Request has permissions, must exist predecessor that obtained permissions previously. -/
           sorry
@@ -924,14 +956,17 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
               apply And.intro
               . case left => exact hnc_rel.existsDirWb.choose_spec.right.encapsDirWB.reqEncapCorrespondingDirEvent.isDir
               . case right =>
-                constructor
-                sorry
-                sorry
-                /-
-                intro hmissing_perms
-                have h := hnc_rel.existsDirWb.choose_spec.right.encapsDirWB.reqEncapCorrespondingDirEvent
-                exact hnc_rel.existsDirWb.choose_spec.right.encapsDirWB.reqEncapCorrespondingDirEvent
-                -/
+                apply dirAccessOfRequest.encapDir
+                apply reqMissingPerms.ncRelAcqWeakWriteNotOnCoherentState
+                . case a.a => exact hnc_rel.notDowngrade
+                . case a.a =>
+                  simp[Event.isNcRelAcq, Event.isNCRelease]
+                  simp[hreq]
+                . case a.a =>
+                  dsimp[acqRelWeakWriteNoPerms]
+                  exact hreq_has_perms
+                . case a =>
+                  exact hnc_rel.existsDirWb.choose_spec.right.encapsDirWB.reqEncapCorrespondingDirEvent
           | .weakWrite hweak_r =>
             have h := hweak_r.ncWeakReq.isWeak; simp[hreq] at h
           | .coherentRequest hcoh_req =>
@@ -964,13 +999,11 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
           . case left =>
             exact he_vd.encapWBDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent.isDir
           . case right =>
-            constructor
-            sorry
-            sorry
-            /-
-            intro hmissing
-            exact he_vd.encapWBDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent
-            -/
+            apply dirAccessOfRequest.encapDir
+            apply reqMissingPerms.downgrade
+            . case a.a => exact he_vd.isDowngrade
+            . case a.a => exact he_vd.madeOnMrs
+            . case a => exact he_vd.encapWBDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent
       | .evictSCPutM hputm =>
         use hputm.encapPutMDirEvent.evictEncapCorrDir.choose
         apply And.intro
@@ -981,13 +1014,11 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
           . case left =>
             exact hputm.encapPutMDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent.isDir
           . case right =>
-            constructor
-            sorry
-            sorry
-            /-
-            intro hmissing
-            exact hputm.encapPutMDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent
-            -/
+            apply dirAccessOfRequest.encapDir
+            apply reqMissingPerms.downgrade
+            . case a.a => exact hputm.isDowngrade
+            . case a.a => exact hputm.madeOnMrs
+            . case a => exact hputm.encapPutMDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent
       | .evictSCPutS hputs =>
         use hputs.encapPutSDirEvent.evictEncapCorrDir.choose
         apply And.intro
@@ -998,13 +1029,11 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
           . case left =>
             exact hputs.encapPutSDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent.isDir
           . case right =>
-            constructor
-            sorry
-            sorry
-            /-
-            intro hmissing
-            exact hputs.encapPutSDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent
-            -/
+            apply dirAccessOfRequest.encapDir
+            apply reqMissingPerms.downgrade
+            . case a.a => exact hputs.isDowngrade
+            . case a.a => exact hputs.madeOnMrs
+            . case a => exact hputs.encapPutSDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent
       | .nonCoherentRelease hnc_rel =>
         absurd hnc_rel.notDowngrade
         simp[hdown]
