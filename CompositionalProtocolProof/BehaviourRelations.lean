@@ -144,7 +144,7 @@ structure Behaviour.evictSCPutSEncapsulatesDirEvent (b : Behaviour n) (e_req : C
   isDowngrade : e_req.down
   isPutS : e_req.req.val = ⟨.r, true, .SC⟩
   madeOnMR : b.stateBefore n (init.stateAt n (Event.cacheEvent e_req)) (Event.cacheEvent e_req) = MREntry n
-  encapPutSDirEvent : b.evictEncapCorrespondingDirEvent n (Event.cacheEvent e_req) (init.stateAt n (Event.cacheEvent e_req))
+  encapPutSDirEvent : b.evictEncapCorrespondingDirEvent n (init.stateAt n (Event.cacheEvent e_req)) true (Event.cacheEvent e_req)
 
 /-- Axiom 6: When a Request Event encapsulates Directory Events to access/request from the Directory. -/
 inductive Behaviour.requestAccessesDirectory (b : Behaviour n) (ce : CacheEvent n) (init : InitialSystemState n) : Prop
@@ -152,7 +152,7 @@ inductive Behaviour.requestAccessesDirectory (b : Behaviour n) (ce : CacheEvent 
 | nonCoherentRelease : b.nonCoherentRelease n ce init → Behaviour.requestAccessesDirectory b ce init -- TODO: have a struct and fields for OnI and OnV
 | acquire : b.acquireEncapDirEvent n ce init → Behaviour.requestAccessesDirectory b ce init -- TODO: struct field : Not on MR
 | weakWrite : b.ncWeakWriteEncapDirEvent n init ce → Behaviour.requestAccessesDirectory b ce init -- TODO: struct field : On I
-| weakRead : b.ncWeakRequestEncapDirEvent n ce init → Behaviour.requestAccessesDirectory b ce init -- TODO: struct field : On I
+| weakRead : b.ncWeakReadEncapDirEvent n init ce → Behaviour.requestAccessesDirectory b ce init -- TODO: struct field : On I
 | evictVdWB : b.evictVdWBEncapsulatesDirEvent n ce init → Behaviour.requestAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
 | evictSCPutM : b.evictSCPutMEncapsulatesDirEvent n ce init → Behaviour.requestAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
 | evictSCPutS : b.evictSCPutSEncapsulatesDirEvent n ce init → Behaviour.requestAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
