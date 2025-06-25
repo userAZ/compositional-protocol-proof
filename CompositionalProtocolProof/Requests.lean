@@ -66,7 +66,8 @@ abbrev ValidRequest := {r : Request // Request.IsValid r}
 def ValidRequest.MRS : ValidRequest → State
 | ⟨⟨rw,true,_⟩,_⟩ => ⟨rw.toPerms, true⟩
 | ⟨⟨_,false,.Weak⟩,_⟩ => Vc
-| ⟨⟨.w,false,.Rel⟩,_⟩ | ⟨⟨.r,false,.Acq⟩,_⟩ => Vc
+| ⟨⟨.w,false,.Rel⟩,_⟩ => Vd
+| ⟨⟨.r,false,.Acq⟩,_⟩ => Vc
 
 abbrev SCWrite : ValidRequest := ⟨⟨.w, true, .SC⟩, {}⟩
 abbrev SCRead : ValidRequest := ⟨⟨.r, true, .SC⟩, {}⟩
