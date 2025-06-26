@@ -562,8 +562,20 @@ structure Behaviour.eventAtEntry (b : Behaviour n) (e : Event n) (st : Struct n)
   eInB : e ∈ b.es
   eAtStruct : e.struct = st
   eAtAddr : e.addr = addr
+  eBottom : b.IsBottomEvent n e
 
-def EventAtEntry := {e : Event n // ∀ b : Behaviour n, ∀ st : Struct n, ∀ addr : Addr, b.eventAtEntry n e st addr }
+def EventAtEntry (b : Behaviour n) (st : Struct n) (addr : Addr) : Type :=
+  {e : Event n // b.eventAtEntry n e st addr }
+
+def EventAtEntry.OrderedBefore (b : Behaviour n) (st : Struct n) (addr : Addr)
+  (e₁ e₂ : EventAtEntry n b st addr) : Prop := e₁.val < e₂.val
+
+instance EventAtEntry.instIsTotal {n} {b} {st} {addr} :
+   IsTotal (EventAtEntry n b st addr) (EventAtEntry.OrderedBefore n b st addr) := by
+  constructor
+  intro e₁ e₂
+  have h := e₁.prop
+  sorry
 
 /- NOTE: Likewise, this is also not a valid instance of IsTotal. -/
 instance Behaviour.BottomPredecessor.instIsTotal (b : Behaviour n) (hbottom : Behaviour.bottomEvent n) (hpred : Behaviour.Predecessor n) (hsame_entry : (Event.sameEntry n)) : IsTotal (Event n) (b.BottomPredecessor n) := by
