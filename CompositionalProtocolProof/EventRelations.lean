@@ -255,9 +255,9 @@ structure Event.sameStructure (e₁ e₂ : Event n) : Prop where
 structure Event.sameAddr (e₁ e₂ : Event n) : Prop where
   sameStruct : e₁.addr = e₂.addr
 
-structure Event.sameEntry : Prop where
-  sameStruct : ∀ e₁ e₂ : Event n, e₁.sameStructure n e₂
-  sameAddr : ∀ e₁ e₂ : Event n, e₁.sameAddr n e₂
+structure Event.sameEntry (e₁ e₂ : Event n) : Prop where
+  sameStruct : e₁.sameStructure n e₂
+  sameAddr : e₁.sameAddr n e₂
 
 def CacheEvent.SucceedingState (e : CacheEvent n) (s : State) : State :=
   match e.down with
