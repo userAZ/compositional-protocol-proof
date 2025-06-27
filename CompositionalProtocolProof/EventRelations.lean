@@ -7,6 +7,8 @@ def Event.Encapsulates (e₁ e₂ : Event n) : Prop := e₁.oStart < e₂.oStart
 def CacheEvent.Encapsulates (e₁ e₂ : CacheEvent n) : Prop := e₁.oStart < e₂.oStart ∧ e₂.oEnd < e₁.oEnd
 def DirectoryEvent.Encapsulates (e₁ e₂ : DirectoryEvent n) : Prop := e₁.oStart < e₂.oStart ∧ e₂.oEnd < e₁.oEnd
 
+abbrev CacheEvent.EncapsulatedBy (e₁ e₂ : CacheEvent n) : Prop := e₂.Encapsulates n e₁
+
 def Event.OrderedBefore (e₁ e₂ : Event n) : Prop := e₁.oEnd < e₂.oStart
 def CacheEvent.OrderedBefore (e₁ e₂ : CacheEvent n) : Prop := e₁.oEnd < e₂.oStart
 def DirectoryEvent.OrderedBefore (e₁ e₂ : DirectoryEvent n) : Prop := e₁.oEnd < e₂.oStart
@@ -203,12 +205,28 @@ structure CacheEvent.ProgramOrdered (e₁ e₂ : CacheEvent n) where
 
 def Event.ProgramOrdered (e₁ e₂ : Event n) : Prop := e₁.CacheRelation n e₂ (·.ProgramOrdered n ·)
 
+structure CacheEvent.sameCacheEntry (e₁ e₂ : CacheEvent n) : Prop where
+  sameCache : e₁.cid = e₂.cid
+  sameAddr : e₁.addr = e₂.addr
+
 /-- Axiom 1
 Events at a Directory address are ordered.
 -/
 structure DirectoryEvent.AreOrdered (de₁ de₂ : DirectoryEvent n) : Prop where
   sameDirectoryEntry : de₁.addr = de₂.addr
   ordered : de₁.Ordered n de₂
+
+def CacheEvent.encapsulatedOrBefore (e₁ e₂ : CacheEvent n) : Prop := e₁.EncapsulatedBy n e₂ ∨ e₁.OrderedBefore n e₂
+def CacheEvent.encapsulatedOrOrdered (e₁ e₂ : CacheEvent n) : Prop :=
+  e₁.encapsulatedOrBefore n e₂ ∨ e₂.encapsulatedOrBefore n e₁
+
+/-- Axiom 2.0: all cache events e₁ e₂ are ordered, either by:
+1. e₁ is encapsulated by e₂, or
+2. e₁ is ordered before e₂ -/
+structure CacheEvent.AreOrdered (e₁ e₂ : CacheEvent n) : Prop where
+  sameCacheEntry : e₁.sameCacheEntry n e₂
+  ordered: e₁.encapsulatedOrOrdered n e₂
+
 /-
 def Event.isDirectoryEvent : Event → Prop
 | .directoryEvent _ => true
@@ -243,19 +261,15 @@ abbrev CacheEvent.NoRequestPermissions (e : CacheEvent n) (s : State) : Prop := 
 
 abbrev CacheEvent.WithoutCoherentPermissions (e : CacheEvent n) (s : State) : Prop := e.Local ∧ e.Coherent ∧ e.NoRequestPermissions n s
 
-structure CacheEvent.sameCacheEntry (e₁ e₂ : CacheEvent n) : Prop where
-  sameCache : e₁.cid = e₂.cid
-  sameAddr : e₁.addr = e₂.addr
-
 structure Event.sameStructure (e₁ e₂ : Event n) : Prop where
   sameStruct : e₁.struct = e₂.struct
 
 structure Event.sameAddr (e₁ e₂ : Event n) : Prop where
   sameStruct : e₁.addr = e₂.addr
 
-structure Event.sameEntry : Prop where
-  sameStruct : ∀ e₁ e₂ : Event n, e₁.sameStructure n e₂
-  sameAddr : ∀ e₁ e₂ : Event n, e₁.sameAddr n e₂
+structure Event.sameEntry (e₁ e₂ : Event n) : Prop where
+  sameStruct : e₁.sameStructure n e₂
+  sameAddr : e₁.sameAddr n e₂
 
 def CacheEvent.SucceedingState (e : CacheEvent n) (s : State) : State :=
   match e.down with
