@@ -7,6 +7,8 @@ def Event.Encapsulates (e₁ e₂ : Event n) : Prop := e₁.oStart < e₂.oStart
 def CacheEvent.Encapsulates (e₁ e₂ : CacheEvent n) : Prop := e₁.oStart < e₂.oStart ∧ e₂.oEnd < e₁.oEnd
 def DirectoryEvent.Encapsulates (e₁ e₂ : DirectoryEvent n) : Prop := e₁.oStart < e₂.oStart ∧ e₂.oEnd < e₁.oEnd
 
+abbrev CacheEvent.EncapsulatedBy (e₁ e₂ : CacheEvent n) : Prop := e₂.Encapsulates n e₁
+
 def Event.OrderedBefore (e₁ e₂ : Event n) : Prop := e₁.oEnd < e₂.oStart
 def CacheEvent.OrderedBefore (e₁ e₂ : CacheEvent n) : Prop := e₁.oEnd < e₂.oStart
 def DirectoryEvent.OrderedBefore (e₁ e₂ : DirectoryEvent n) : Prop := e₁.oEnd < e₂.oStart
