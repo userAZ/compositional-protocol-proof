@@ -60,6 +60,9 @@ def Behaviour.IsBottomEvent (b : Behaviour n) (e : Event n) : Prop := b.IsNotEnc
 structure Behaviour.bottomEvent : Prop where
   isBottom : ∀ b : Behaviour n, ∀ e : Event n, b.IsBottomEvent n e
 
+/-- Old Axiom 2. Replaced by CacheEvent.AreOrdered.
+Use lemma `Behaviour.orderedBottomCacheEntries` to show two bottom cache events are
+Totally Ordered. -/
 structure CacheEvent.BottomAreOrdered (e₁ e₂ : CacheEvent n) (b : Behaviour n) : Prop where
   sameCacheEntry : e₁.sameCacheEntry n e₂
   e₁Bottom : b.IsBottomEvent n (Event.cacheEvent e₁)
