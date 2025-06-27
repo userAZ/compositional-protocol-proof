@@ -6,10 +6,18 @@ import Canonical
 
 variable (n : Nat)
 
+/-- New Axiom 2.
+Use lemma `Behaviour.orderedBottomCacheEntries` to show two bottom cache events are
+Totally Ordered. -/
+structure Event.AtEntryOrdered where
+  dir_ordered : ∀ (e₁ e₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n e₁ e₂
+  cache_ordered : ∀ (e₁ e₂ : CacheEvent n), CacheEvent.AreOrdered n e₁ e₂
+
 structure Behaviour where
   es : Set (Event n)
   -- es : Finset Event
   finite : Finite es
+  orderedAtEntry : Event.AtEntryOrdered n
 
 instance : Membership (Event n) (Behaviour n) := ⟨fun b e => e ∈ b.es⟩
 
