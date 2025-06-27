@@ -877,6 +877,10 @@ instance EventAtEntry.encapOrOrderedBefore.instDecidableRel {b st addr} : Decida
   simp[Event.EncapsulatedBy, Event.Encapsulates, Event.OrderedBefore]
   infer_instance
 
+    -- [TODO] implement is instance of: IsTrans (EventAtEntry n b st addr) (EventAtEntry.encapOrOrderedBefore n b st addr)
+instance EventAtEntry.encapOrOrderedBefore.instIsTrans {b st addr} : IsTrans (EventAtEntry n b st addr) (EventAtEntry.encapOrOrderedBefore n b st addr) := by
+  sorry
+
 lemma Behaviour.eventsAtCacheEntry_total_order'' (b : Behaviour n) (addr : Addr) (st : Struct n)
   -- (hbottom_sorted : Behaviour.sortedListEventsAtEntry n)
   :
@@ -890,9 +894,12 @@ lemma Behaviour.eventsAtCacheEntry_total_order'' (b : Behaviour n) (addr : Addr)
   intro bes es i j
   apply Iff.intro
   . case mp =>
-    intro hi_lt_j
+    -- intro hi_lt_j
     -- [TODO] implement is instance of: IsTrans (EventAtEntry n b st addr) (EventAtEntry.encapOrOrderedBefore n b st addr)
-    -- apply List.sorted_insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr)
+    have hsorted := List.sorted_insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr)
+    simp
+    simp[List.Sorted, List.Pairwise, List.insertionSort] at hsorted
+    -- simp[hsorted] -- How do I use `List.sorted_insertionSort` to close the goal? it should be very similar to the goal in theory?
     sorry
   . case mpr =>
     sorry
