@@ -215,6 +215,18 @@ Events at a Directory address are ordered.
 structure DirectoryEvent.AreOrdered (de₁ de₂ : DirectoryEvent n) : Prop where
   sameDirectoryEntry : de₁.addr = de₂.addr
   ordered : de₁.Ordered n de₂
+
+def CacheEvent.encapsulatedOrBefore (e₁ e₂ : CacheEvent n) : Prop := e₁.EncapsulatedBy n e₂ ∨ e₁.OrderedBefore n e₂
+def CacheEvent.encapsulatedOrOrdered (e₁ e₂ : CacheEvent n) : Prop :=
+  e₁.encapsulatedOrBefore n e₂ ∨ e₂.encapsulatedOrBefore n e₁
+
+/-- Axiom 2.0: all cache events e₁ e₂ are ordered, either by:
+1. e₁ is encapsulated by e₂, or
+2. e₁ is ordered before e₂ -/
+structure CacheEvent.AreOrdered (e₁ e₂ : CacheEvent n) : Prop where
+  sameCacheEntry : e₁.sameCacheEntry n e₂
+  ordered: e₁.encapsulatedOrOrdered n e₂
+
 /-
 def Event.isDirectoryEvent : Event → Prop
 | .directoryEvent _ => true
