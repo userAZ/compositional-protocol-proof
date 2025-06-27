@@ -588,6 +588,94 @@ lemma Behaviour.bottomEventsAtEntry_totally_ordered (b : Behaviour) (addr : Addr
       simp[Event.atStruct, Event.isCacheEventAtCid, hst] at he₁_at_st_dir
 -/
 
+-- [TODO] Use EventAtEntry to define a total order.
+structure Behaviour.eventAtEntry (b : Behaviour n) (e : Event n) (st : Struct n) (addr : Addr) : Prop where
+  eInB : e ∈ b.es
+  eAtStruct : e.struct = st
+  eAtAddr : e.addr = addr
+  -- eBottom : b.IsBottomEvent n e
+
+def EventAtEntry (b : Behaviour n) (st : Struct n) (addr : Addr) : Type :=
+  {e : Event n // b.eventAtEntry n e st addr }
+
+def EventAtEntry.OrderedBefore (b : Behaviour n) (st : Struct n) (addr : Addr)
+  (e₁ e₂ : EventAtEntry n b st addr) : Prop := e₁.val.OrderedBefore n e₂.val
+
+def EventAtEntry.encapOrOrderedBefore (b : Behaviour n) (st : Struct n) (addr : Addr)
+  (e₁ e₂ : EventAtEntry n b st addr) : Prop := e₁.val.EncapsulatedBy n e₂.val ∨ e₁.val.OrderedBefore n e₂.val
+
+lemma CacheEvent.encapsulate_or_ordered_lift_event {b : Behaviour n} {st : Struct n} {addr : Addr}
+  {ce₁ ce₂ : CacheEvent n} {e₁ e₂ : EventAtEntry n b st addr}
+  (he₁ : e₁.val = Event.cacheEvent ce₁) (he₂ : e₂.val = Event.cacheEvent ce₂)
+  (hce_encap_ordered : CacheEvent.encapsulatedOrOrdered n ce₁ ce₂)
+  : EventAtEntry.encapOrOrderedBefore n b st addr e₁ e₂ ∨ EventAtEntry.encapOrOrderedBefore n b st addr e₂ e₁ := by
+  dsimp[EventAtEntry.encapOrOrderedBefore]
+  rw[he₁, he₂]
+  dsimp[Event.EncapsulatedBy, Event.Encapsulates]
+  dsimp[Event.OrderedBefore, Event.oEnd, Event.oStart]
+
+  dsimp[encapsulatedOrOrdered, encapsulatedOrBefore] at hce_encap_ordered
+  dsimp[EncapsulatedBy, Encapsulates] at hce_encap_ordered
+  exact hce_encap_ordered
+
+lemma DirectoryEvent.encapsulate_or_ordered_lift_event {b : Behaviour n} {st : Struct n} {addr : Addr}
+  {de₁ de₂ : DirectoryEvent n} {e₁ e₂ : EventAtEntry n b st addr}
+  (he₁ : e₁.val = Event.directoryEvent de₁) (he₂ : e₂.val = Event.directoryEvent de₂)
+  (hde_ordered : DirectoryEvent.Ordered n de₁ de₂)
+  : EventAtEntry.encapOrOrderedBefore n b st addr e₁ e₂ ∨ EventAtEntry.encapOrOrderedBefore n b st addr e₂ e₁ := by
+
+  dsimp[Ordered] at hde_ordered
+  dsimp[OrderedBefore] at hde_ordered
+  cases hde_ordered
+  . case inl hde₁_ordered_de₂ =>
+    apply Or.intro_left
+    dsimp[EventAtEntry.encapOrOrderedBefore]
+    apply Or.intro_right
+    rw[he₁, he₂]
+    dsimp[Event.OrderedBefore, Event.oEnd, Event.oStart]
+    exact hde₁_ordered_de₂
+  . case inr hde₂_ordered_de₁ =>
+    apply Or.intro_right
+    dsimp[EventAtEntry.encapOrOrderedBefore]
+    apply Or.intro_right
+    rw[he₁, he₂]
+    dsimp[Event.OrderedBefore, Event.oEnd, Event.oStart]
+    exact hde₂_ordered_de₁
+
+instance EventAtEntry.instIsTotal {n} {b} {st} {addr} :
+  IsTotal (EventAtEntry n b st addr) (EventAtEntry.encapOrOrderedBefore n b st addr) := by
+  constructor
+  intro e₁ e₂
+  have h := e₁.val
+  match he₁ : e₁.val, he₂ : e₂.val with
+  | .cacheEvent ce₁, .cacheEvent ce₂ =>
+    have hordered_ce := b.orderedAtEntry.cache_ordered ce₁ ce₂
+    have h := hordered_ce.ordered
+    dsimp[encapOrOrderedBefore]
+    dsimp[CacheEvent.encapsulatedOrOrdered, CacheEvent.encapsulatedOrBefore] at h
+    apply CacheEvent.encapsulate_or_ordered_lift_event n he₁ he₂ h
+  | .directoryEvent de₁, .directoryEvent de₂ =>
+    have hordered_de := b.orderedAtEntry.dir_ordered de₁ de₂
+    have h := hordered_de.ordered
+    dsimp[encapOrOrderedBefore]
+    apply DirectoryEvent.encapsulate_or_ordered_lift_event n he₁ he₂ h
+  | .cacheEvent ce₁, .directoryEvent de₂ =>
+    have he₁_at_c := e₁.prop.eAtStruct
+    have he₂_at_d := e₂.prop.eAtStruct
+    rw[he₁] at he₁_at_c
+    rw[he₂] at he₂_at_d
+    absurd he₁_at_c
+    rw[← he₂_at_d]
+    simp[Event.struct]
+  | .directoryEvent de₁, .cacheEvent ce₂ =>
+    have he₁_at_d := e₁.prop.eAtStruct
+    have he₂_at_c := e₂.prop.eAtStruct
+    rw[he₁] at he₁_at_d
+    rw[he₂] at he₂_at_c
+    absurd he₁_at_d
+    rw[← he₂_at_c]
+    simp[Event.struct]
+
 noncomputable def Behaviour.listBottomEventsAtEntry (b : Behaviour n) (addr : Addr) (st : Struct n) : List (Event n) :=
   let e_at_centry := b.bottomEventsAtEntry n addr st
   Set.finSetEvents n e_at_centry (b.bottomEventsAtEntry_finite n addr st) |>.toList
@@ -644,25 +732,6 @@ instance Event.OrderedBefore.instIsTotal (b : Behaviour n) (hsame_entry : Event.
 /- NOTE: To be an instance of IsTotal, there can't be any assumptions, like the following below. -/
 instance Event.OrderedBefore.instIsTotal' : IsTotal (Event n) (Event.OrderedBefore n) := by sorry
 
--- [TODO] Use EventAtEntry to define a total order.
-structure Behaviour.eventAtEntry (b : Behaviour n) (e : Event n) (st : Struct n) (addr : Addr) : Prop where
-  eInB : e ∈ b.es
-  eAtStruct : e.struct = st
-  eAtAddr : e.addr = addr
-  eBottom : b.IsBottomEvent n e
-
-def EventAtEntry (b : Behaviour n) (st : Struct n) (addr : Addr) : Type :=
-  {e : Event n // b.eventAtEntry n e st addr }
-
-def EventAtEntry.OrderedBefore (b : Behaviour n) (st : Struct n) (addr : Addr)
-  (e₁ e₂ : EventAtEntry n b st addr) : Prop := e₁.val < e₂.val
-
-instance EventAtEntry.instIsTotal {n} {b} {st} {addr} :
-   IsTotal (EventAtEntry n b st addr) (EventAtEntry.OrderedBefore n b st addr) := by
-  constructor
-  intro e₁ e₂
-  have h := e₁.prop
-  sorry
 
 /- NOTE: Likewise, this is also not a valid instance of IsTotal. -/
 /-
