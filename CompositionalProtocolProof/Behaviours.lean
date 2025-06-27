@@ -589,6 +589,7 @@ lemma Behaviour.bottomEventsAtEntry_totally_ordered (b : Behaviour) (addr : Addr
 -/
 
 -- [TODO] Use EventAtEntry to define a total order.
+-- Note: because you put the event first it makes this hard to curry...
 structure Behaviour.eventAtEntry (b : Behaviour n) (e : Event n) (st : Struct n) (addr : Addr) : Prop where
   eInB : e ∈ b.es
   eAtStruct : e.struct = st
@@ -681,18 +682,27 @@ def Behaviour.bottomEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct 
 
 noncomputable def Set.finSetEvents' {b} {st} {addr} (es : Set (EventAtEntry n b st addr)) (hes_fin : Finite es) : Finset (EventAtEntry n b st addr) := Set.Finite.toFinset hes_fin
 
-#check Finite.Set.finite_inter_of_left
+lemma Subtype.equiv_fin_impl_equiv_fin' {α} {n} {p q : α → Prop} (himpl : ∀ x, q x → p x)
+  (f : { x // p x} ≃ Fin n) : ∃ m, m ≤ n ∧ Nonempty ({x // q x} ≃ Fin m) := by
+    sorry
+
+lemma Subtype.impl_finite {α} {p q : α → Prop} (himpl : ∀ x, q x → p x)
+  (hfinite : Finite {x // p x}) : Finite { x // q x} := by
+  cases hfinite
+  · case intro n fin_equiv =>
+    apply finite_iff_exists_equiv_fin.2
+    have ⟨m,⟨_, _⟩⟩ := Subtype.equiv_fin_impl_equiv_fin' himpl fin_equiv
+    exists m
+
 /-- state the Set of EventAtState from bottom events at an entry is a finite set. -/
 theorem Behaviour.bottomEventsAtEntry_finite' (b : Behaviour n) (addr : Addr) (st : Struct n) : Finite (b.bottomEventsAtEntry' n addr st) := by
-  cases st <;> simp [Behaviour.bottomEventsAtEntry']
-  · case directory =>
-      have _ : Finite b.es := b.finite
-      sorry
-      -- apply Finite.Set.finite_inter_of_left
-  · case cache _ =>
-      have _ : Finite b.es := b.finite
-      sorry
-      -- apply Finite.Set.finite_inter_of_left
+  have _ : Finite (EventAtEntry n b st addr) := by
+    simp [EventAtEntry]
+    apply Subtype.impl_finite (p:=fun e => e ∈ b.es) (q:= fun e => eventAtEntry n b e st addr)
+    · case himpl =>
+      intro e h; exact h.eInB
+    · case hfinite => exact b.finite
+  apply Subtype.finite
 
 /-- state the Set of EventAtState from bottom events at an entry is a finite set. -/
 theorem Behaviour.bottomEventsAtEntry_finite'' (b : Behaviour n) (addr : Addr) (st : Struct n) (fin_bots : Finite (b.bottomEventsAtEntry n addr st))
