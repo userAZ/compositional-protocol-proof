@@ -676,6 +676,42 @@ instance EventAtEntry.instIsTotal {n} {b} {st} {addr} :
     rw[← he₂_at_c]
     simp[Event.struct]
 
+def Behaviour.bottomEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct n) : Set (EventAtEntry n b st addr) :=
+  {e : EventAtEntry n b st addr | e.val ∈ b.es ∧ e.val.isBottomAtEntry n b st addr}
+
+noncomputable def Set.finSetEvents' {b} {st} {addr} (es : Set (EventAtEntry n b st addr)) (hes_fin : Finite es) : Finset (EventAtEntry n b st addr) := Set.Finite.toFinset hes_fin
+
+/-
+#check Finite.Set.finite_inter_of_left
+/-- state the Set of EventAtState from bottom events at an entry is a finite set. -/
+theorem Behaviour.bottomEventsAtEntry_finite' (b : Behaviour n) (addr : Addr) (st : Struct n) : Finite (b.bottomEventsAtEntry' n addr st) := by
+  cases st <;> simp [Behaviour.bottomEventsAtEntry']
+  · case directory =>
+      have _ : Finite b.es := b.finite
+      sorry
+      -- apply Finite.Set.finite_inter_of_left
+  · case cache _ =>
+      have _ : Finite b.es := b.finite
+      sorry
+      -- apply Finite.Set.finite_inter_of_left
+
+/-- state the Set of EventAtState from bottom events at an entry is a finite set. -/
+theorem Behaviour.bottomEventsAtEntry_finite'' (b : Behaviour n) (addr : Addr) (st : Struct n) (fin_bots : Finite (b.bottomEventsAtEntry n addr st))
+  : Finite (b.bottomEventsAtEntry' n addr st) := by
+  cases st <;> simp [Behaviour.bottomEventsAtEntry']
+  · case directory =>
+      have _ : Finite b.es := b.finite
+      have h := fin_bots.image -- can I map from the finite set of Events to EventAtEntry?
+      apply Finite.Set.finite_inter_of_left
+  · case cache _ =>
+      have _ : Finite b.es := b.finite
+      apply Finite.Set.finite_inter_of_left
+
+noncomputable def Behaviour.listBottomEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct n) : List (EventAtEntry n b st addr) :=
+  let e_at_centry := b.bottomEventsAtEntry' n addr st
+  Set.finSetEvents' n e_at_centry (b.bottomEventsAtEntry_finite n addr st) |>.toList
+-/
+
 noncomputable def Behaviour.listBottomEventsAtEntry (b : Behaviour n) (addr : Addr) (st : Struct n) : List (Event n) :=
   let e_at_centry := b.bottomEventsAtEntry n addr st
   Set.finSetEvents n e_at_centry (b.bottomEventsAtEntry_finite n addr st) |>.toList
@@ -835,6 +871,26 @@ lemma Behaviour.eventsAtCacheEntry_total_order' (b : Behaviour n) (addr : Addr) 
   . case mpr =>
     intro hi_bottom_pred_j
     sorry
+
+instance EventAtEntry.encapOrOrderedBefore.instDecidableRel {b st addr} : DecidableRel (EventAtEntry.encapOrOrderedBefore n b st addr) := by
+  simp[DecidableRel]
+  intro e₁ e₂
+  simp[encapOrOrderedBefore]
+  simp[Event.EncapsulatedBy, Event.Encapsulates, Event.OrderedBefore]
+  infer_instance
+
+/-
+lemma Behaviour.eventsAtCacheEntry_total_order'' (b : Behaviour n) (addr : Addr) (st : Struct n)
+  -- (hbottom_sorted : Behaviour.sortedListEventsAtEntry n)
+  :
+  let bes := b.listBottomEventsAtEntry' n addr st
+  let es := bes.insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr)
+  es |>.isOrdered (EventAtEntry.encapOrOrderedBefore n b st addr)
+  -- b.listBottomEventsAtEntry addr st |>.isOrdered (b.BottomPredecessor)
+  -- probably `Event.OrderedBefore` is not the right order though! or is it? not sure you've define the order on events that these are ordered by?
+:= by
+  sorry
+-/
 
 def List.stateAfter (es : List (Event n)) (init : (EntryState n)) : EntryState n := match es with
   | [] => init
