@@ -541,7 +541,7 @@ theorem Behaviour.bottomEventsAtEntry_finite (b : Behaviour n) (addr : Addr) (st
       apply Finite.Set.finite_inter_of_left
 
 lemma Behaviour.bottomEventsAtEntry_complete (b : Behaviour n) (addr : Addr) (st : Struct n) :
-  ∀ {e : Event n}, (e ∈ b.bottomEventsAtEntry n addr st) ↔ (e ∈ b.es ∧ e.isBottomAtEntry n addr st b) := by
+  ∀ {e : Event n}, (e ∈ b.bottomEventsAtEntry n addr st) ↔ (e ∈ b.es ∧ e.isBottomAtEntry n b st addr) := by
     intro e; constructor <;> exact fun a ↦ a
 
 /- Behaviour bottom events at an entry are totally ordered
