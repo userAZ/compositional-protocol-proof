@@ -205,6 +205,10 @@ structure CacheEvent.ProgramOrdered (e₁ e₂ : CacheEvent n) where
 
 def Event.ProgramOrdered (e₁ e₂ : Event n) : Prop := e₁.CacheRelation n e₂ (·.ProgramOrdered n ·)
 
+structure CacheEvent.sameCacheEntry (e₁ e₂ : CacheEvent n) : Prop where
+  sameCache : e₁.cid = e₂.cid
+  sameAddr : e₁.addr = e₂.addr
+
 /-- Axiom 1
 Events at a Directory address are ordered.
 -/
@@ -244,10 +248,6 @@ abbrev CacheEvent.External (e : CacheEvent n) : Prop := ¬e.Local ∨ e.Grant
 abbrev CacheEvent.NoRequestPermissions (e : CacheEvent n) (s : State) : Prop := s < e.req.MRS ∧ s ≠ I
 
 abbrev CacheEvent.WithoutCoherentPermissions (e : CacheEvent n) (s : State) : Prop := e.Local ∧ e.Coherent ∧ e.NoRequestPermissions n s
-
-structure CacheEvent.sameCacheEntry (e₁ e₂ : CacheEvent n) : Prop where
-  sameCache : e₁.cid = e₂.cid
-  sameAddr : e₁.addr = e₂.addr
 
 structure Event.sameStructure (e₁ e₂ : Event n) : Prop where
   sameStruct : e₁.struct = e₂.struct
