@@ -525,7 +525,7 @@ def Event.atStruct (e : (Event n)) (st : (Struct n)) : Prop :=
 
 structure Event.isBottomAtEntry (b : Behaviour n) (st : Struct n) (addr : Addr) (e : Event n) where
   addr : e.addr = addr
-  atStruct : e.atStruct n st
+  atStruct : e.struct = st
   isBottom : b.IsBottomEvent n e
 
 def Behaviour.bottomEventsAtEntry (b : Behaviour n) (addr : Addr) (st : Struct n) : Set (Event n) :=
@@ -683,7 +683,8 @@ def Behaviour.bottomEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct 
 noncomputable def Set.finSetEvents' {b} {st} {addr} (es : Set (EventAtEntry n b st addr)) (hes_fin : Finite es) : Finset (EventAtEntry n b st addr) := Set.Finite.toFinset hes_fin
 
 lemma Subtype.equiv_fin_impl_equiv_fin' {α} {n} {p q : α → Prop} (himpl : ∀ x, q x → p x)
-  (f : { x // p x} ≃ Fin n) : ∃ m, m ≤ n ∧ Nonempty ({x // q x} ≃ Fin m) := by
+  (f : {x // p x} ≃ Fin n) : ∃ m, m ≤ n ∧ Nonempty ({x // q x} ≃ Fin m) := by
+
     sorry
 
 lemma Subtype.impl_finite {α} {p q : α → Prop} (himpl : ∀ x, q x → p x)
@@ -701,6 +702,29 @@ theorem Behaviour.bottomEventsAtEntry_finite' (b : Behaviour n) (addr : Addr) (s
     apply Subtype.impl_finite (p:=fun e => e ∈ b.es) (q:= fun e => eventAtEntry n b e st addr)
     · case himpl =>
       intro e h; exact h.eInB
+    · case hfinite => exact b.finite
+  apply Subtype.finite
+
+lemma Subtype.equiv_fin_impl_equiv_fin'' {α} {n} {p q : α → Prop} (himpl : ∀ x, p x → q x)
+  (f : {x // p x} ≃ Fin n) : ∃ m, m ≤ n ∧ Nonempty ({x // q x} ≃ Fin m) := by
+    sorry
+
+lemma Subtype.impl_finite' {α} {p q : α → Prop} (himpl : ∀ x, p x → q x)
+  (hfinite : Finite {x // p x}) : Finite { x // q x} := by
+  cases hfinite
+  · case intro n fin_equiv =>
+    apply finite_iff_exists_equiv_fin.2
+    have ⟨m,⟨_, _⟩⟩ := Subtype.equiv_fin_impl_equiv_fin'' himpl fin_equiv
+    exists m
+
+/-- state the Set of EventAtState from bottom events at an entry is a finite set. -/
+theorem Behaviour.bottomEventsAtEntry_finite'' (b : Behaviour n) (addr : Addr) (st : Struct n) : Finite (b.bottomEventsAtEntry' n addr st) := by
+  have _ : Finite (EventAtEntry n b st addr) := by
+    simp [EventAtEntry]
+    apply Subtype.impl_finite' (p:=fun e => e ∈ b.es ∧ e.isBottomAtEntry n b st addr) (q:= fun e => eventAtEntry n b e st addr)
+    · case himpl =>
+      intro e h; constructor; exact h.left;
+      exact h.right.atStruct; exact h.right.addr
     · case hfinite => exact b.finite
   apply Subtype.finite
 
