@@ -99,6 +99,20 @@ lemma Event.encap_by_order_trans {e₁ e₂ e₃ : Event n} : e₁.EncapsulatedB
 /- The shape of Trans's definition doesn't match to Event.encap_order_trans. Need to massage def. -/
 instance Event.instTransEncapByOrder : Trans (Event.EncapsulatedBy n) (Event.OrderedBefore n) (Event.OrderedBefore n) := {trans := Event.encap_by_order_trans n}
 
+lemma Event.encap_by_encap_by_trans {e₁ e₂ e₃ : Event n} : e₁.EncapsulatedBy n e₂ → e₂.EncapsulatedBy n e₃ → e₁.EncapsulatedBy n e₃ := by
+  simp[EncapsulatedBy, Encapsulates]
+  intro he₂_lt_e₁_start he₁_lt_e₂_end he₃_lt_e₂_start he₂_lt_e₃_end
+  apply And.intro
+  . case left =>
+    calc oStart n e₃ < oStart n e₂ := he₃_lt_e₂_start
+      _ < oStart n e₁ := he₂_lt_e₁_start
+  . case right =>
+    calc oEnd n e₁ < oEnd n e₂ := he₁_lt_e₂_end
+      _ < oEnd n e₃ := he₂_lt_e₃_end
+
+/- The shape of Trans's definition doesn't match to Event.encap_order_trans. Need to massage def. -/
+instance Event.instTransEncapByEncapBy : Trans (Event.EncapsulatedBy n) (Event.EncapsulatedBy n) (Event.EncapsulatedBy n) := {trans := Event.encap_by_encap_by_trans n}
+
 structure Event.OrderedBetween (e e_pred e_succ : Event n) where
   pred : e_pred.OrderedBefore n e := by simp
   succ : e.OrderedBefore n e_succ := by simp
