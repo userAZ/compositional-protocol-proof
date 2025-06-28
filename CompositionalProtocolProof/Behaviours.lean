@@ -887,6 +887,28 @@ instance EventAtEntry.encapOrOrderedBefore.instDecidableRel {b st addr} : Decida
   simp[Event.EncapsulatedBy, Event.Encapsulates, Event.OrderedBefore]
   infer_instance
 
+lemma DirectoryEvent.ordered_lift_event {b : Behaviour n} {st : Struct n} {addr : Addr}
+  {de₁ de₂ : DirectoryEvent n} {e₁ e₂ : EventAtEntry n b st addr}
+  (he₁ : e₁.val = Event.directoryEvent de₁) (he₂ : e₂.val = Event.directoryEvent de₂)
+  (hde_ordered : DirectoryEvent.Ordered n de₁ de₂)
+  : EventAtEntry.OrderedBefore n b st addr e₁ e₂ ∨ EventAtEntry.OrderedBefore n b st addr e₂ e₁ := by
+
+  dsimp[Ordered] at hde_ordered
+  dsimp[OrderedBefore] at hde_ordered
+  cases hde_ordered
+  . case inl hde₁_ordered_de₂ =>
+    apply Or.intro_left
+    dsimp[EventAtEntry.OrderedBefore, Event.OrderedBefore]
+    rw[he₁, he₂]
+    dsimp[Event.OrderedBefore, Event.oEnd, Event.oStart]
+    exact hde₁_ordered_de₂
+  . case inr hde₂_ordered_de₁ =>
+    apply Or.intro_right
+    dsimp[EventAtEntry.OrderedBefore, Event.OrderedBefore]
+    rw[he₁, he₂]
+    dsimp[Event.OrderedBefore, Event.oEnd, Event.oStart]
+    exact hde₂_ordered_de₁
+
     -- [TODO] implement is instance of: IsTrans (EventAtEntry n b st addr) (EventAtEntry.encapOrOrderedBefore n b st addr)
 instance EventAtEntry.encapOrOrderedBefore.instIsTrans {b st addr} : IsTrans (EventAtEntry n b st addr) (EventAtEntry.encapOrOrderedBefore n b st addr) := by
   constructor
