@@ -957,10 +957,10 @@ instance EventAtEntry.encapOrOrderedBefore.instIsTrans {b st addr} : IsTrans (Ev
               simp[he₁_eo_e₃]
             . case inr he₃_eo_e₁ =>
               simp[encapOrOrderedBefore] at he₃_eo_e₁
-                have he₁_lt_e₃_end : e₁.val.oEnd < e₃.val.oEnd := by
-                  calc e₁.val.oEnd < e₂.val.oStart := horder
-                    _ < e₂.val.oEnd := e₂.val.oWellFormed
-                    _ < e₃.val.oEnd := he₂_encap_by_e₃.right
+              have he₁_lt_e₃_end : e₁.val.oEnd < e₃.val.oEnd := by
+                calc e₁.val.oEnd < e₂.val.oStart := horder
+                  _ < e₂.val.oEnd := e₂.val.oWellFormed
+                  _ < e₃.val.oEnd := he₂_encap_by_e₃.right
               cases he₃_eo_e₁
               . case inl he₃_encap_by_e₁ =>
                 simp[Event.OrderedBefore] at horder
