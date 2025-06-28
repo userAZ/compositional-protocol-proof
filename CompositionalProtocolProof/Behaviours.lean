@@ -914,9 +914,7 @@ instance EventAtEntry.encapOrOrderedBefore.instIsTrans {b st addr} : IsTrans (Ev
   constructor
   intro e₁ e₂ e₃
   simp[encapOrOrderedBefore]
-  -- infer_instance
   intro he₁_eo_e₂ he₂_eo_e₃
-  -- infer_instance
   cases he₁_eo_e₂
   . case trans.inl hencap =>
     cases he₂_eo_e₃
@@ -931,7 +929,6 @@ instance EventAtEntry.encapOrOrderedBefore.instIsTrans {b st addr} : IsTrans (Ev
   . case trans.inr horder =>
     cases he₂_eo_e₃
     . case inl he₂_encap_by_e₃ =>
-      -- simp_all[Event.EncapsulatedBy, Event.Encapsulates, Event.OrderedBefore]
       by_cases e₁.val.oEnd < e₃.val.oStart
       . case pos he₁_o_e₃ =>
         apply Or.intro_right
@@ -950,7 +947,6 @@ instance EventAtEntry.encapOrOrderedBefore.instIsTrans {b st addr} : IsTrans (Ev
         . case neg he₁_overlap_e₃ =>
           match he₁ : e₁.val, he₃ : e₃.val with
           | .cacheEvent ce₁, .cacheEvent ce₃ =>
-            -- exact b.orderedAtEntry
             have hce_ordered := b.orderedAtEntry.cache_ordered ce₁ ce₃ |>.ordered
             simp[CacheEvent.AreOrdered] at hce_ordered
             have he_ordered := CacheEvent.encapsulate_or_ordered_lift_event n he₁ he₃ hce_ordered
@@ -961,26 +957,63 @@ instance EventAtEntry.encapOrOrderedBefore.instIsTrans {b st addr} : IsTrans (Ev
               simp[he₁_eo_e₃]
             . case inr he₃_eo_e₁ =>
               simp[encapOrOrderedBefore] at he₃_eo_e₁
-              cases he₃_eo_e₁
-              . case inl he₃_encap_by_e₁ =>
-                -- dsimp_all[Event.EncapsulatedBy, Event.Encapsulates, Event.OrderedBefore]
-                simp[Event.OrderedBefore] at horder
                 have he₁_lt_e₃_end : e₁.val.oEnd < e₃.val.oEnd := by
                   calc e₁.val.oEnd < e₂.val.oStart := horder
                     _ < e₂.val.oEnd := e₂.val.oWellFormed
                     _ < e₃.val.oEnd := he₂_encap_by_e₃.right
+              cases he₃_eo_e₁
+              . case inl he₃_encap_by_e₁ =>
+                simp[Event.OrderedBefore] at horder
                 simp[Event.EncapsulatedBy, Event.Encapsulates] at he₃_encap_by_e₁
                 have he₃_lt_e₁_end := he₃_encap_by_e₁.right
                 absurd he₃_encap_by_e₁.right
                 simp
-                -- simp at he₁_may_overlap_e₃
-                -- simp at he₁_overlap_e₃
-                sorry
+                rw[Nat.le_iff_lt_or_eq]
+                apply Or.intro_left
+                exact he₁_lt_e₃_end
               . case inr he₃_o_e₁ =>
-                sorry
-          | .directoryEvent de₁, .directoryEvent de₃ => sorry
-          | .directoryEvent de₁, .cacheEvent ce₃ => sorry
-          | .cacheEvent ce₁, .directoryEvent de₃ => sorry
+                absurd he₁_lt_e₃_end
+                simp
+                rw[Nat.le_iff_lt_or_eq]
+                apply Or.intro_left
+                simp[Event.OrderedBefore] at he₃_o_e₁
+                calc Event.oEnd n e₃.val < Event.oStart n e₁.val := he₃_o_e₁
+                  _ < Event.oEnd n e₁.val := e₁.val.oWellFormed
+          | .directoryEvent de₁, .directoryEvent de₃ =>
+            have hde_ordered := b.orderedAtEntry.dir_ordered de₁ de₃ |>.ordered
+            have he_ordered := DirectoryEvent.ordered_lift_event n he₁ he₃ hde_ordered
+            cases he_ordered
+            . case inl hde₁_o_de₃ =>
+              apply Or.intro_right
+              simp[EventAtEntry.OrderedBefore,] at hde₁_o_de₃
+              rw[← he₁,← he₃]
+              simp[hde₁_o_de₃]
+            . case inr hde₃_o_de₁ =>
+              have he₁_lt_e₃_end : e₁.val.oEnd < e₃.val.oEnd := by
+                calc e₁.val.oEnd < e₂.val.oStart := horder
+                  _ < e₂.val.oEnd := e₂.val.oWellFormed
+                  _ < e₃.val.oEnd := he₂_encap_by_e₃.right
+              absurd he₁_lt_e₃_end
+              simp
+              rw[Nat.le_iff_lt_or_eq]
+              apply Or.intro_left
+              simp[OrderedBefore] at hde₃_o_de₁
+              calc e₃.val.oEnd n < e₁.val.oStart n := hde₃_o_de₁
+                _ < e₁.val.oEnd n := e₁.val.oWellFormed
+          | .directoryEvent de₁, .cacheEvent ce₃ =>
+            have he₁_at_dir := e₁.prop.eAtStruct
+            rw[he₁] at he₁_at_dir
+            have he₃_at_cache := e₃.prop.eAtStruct
+            rw[he₃] at he₃_at_cache
+            rw[← he₃_at_cache] at he₁_at_dir
+            simp[Event.struct] at he₁_at_dir
+          | .cacheEvent ce₁, .directoryEvent de₃ =>
+            have he₁_at_cache := e₁.prop.eAtStruct
+            rw[he₁] at he₁_at_cache
+            have he₃_at_dir := e₃.prop.eAtStruct
+            rw[he₃] at he₃_at_dir
+            rw[← he₃_at_dir] at he₁_at_cache
+            simp[Event.struct] at he₁_at_cache
     . case inr he₂_order_e₃ =>
       apply Or.intro_right
       calc e₁.val.OrderedBefore n e₂.val := horder
