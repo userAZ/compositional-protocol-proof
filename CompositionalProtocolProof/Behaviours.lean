@@ -682,11 +682,23 @@ def Behaviour.bottomEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct 
 
 noncomputable def Set.finSetEvents' {b} {st} {addr} (es : Set (EventAtEntry n b st addr)) (hes_fin : Finite es) : Finset (EventAtEntry n b st addr) := Set.Finite.toFinset hes_fin
 
-lemma Subtype.equiv_fin_impl_equiv_fin' {α} {n} {p q : α → Prop} (himpl : ∀ x, q x → p x)
-  (f : { x // p x} ≃ Fin n) : ∃ m, m ≤ n ∧ Nonempty ({x // q x} ≃ Fin m) := by
-    sorry
+--https://leanprover.zulipchat.com/#narrow/channel/113489-new-members/topic/How.20to.20prove.20fin.20subtype.20with.20stricter.20restriction.20is.20fin/with/526216387
+lemma Subtype.equiv_fin_impl_equiv_fin' {α : Type*} {n} {p q : α → Prop} (himpl : ∀ x, q x → p x)
+  (f : {x // p x} ≃ Fin n) : ∃ m, m ≤ n ∧ Nonempty ({x // q x} ≃ Fin m) :=
+by
+  have := Cardinal.mk_subtype_mono himpl
+  rw [Cardinal.le_def] at this
+  obtain ⟨map, map_inj⟩ := this
+  have finite_p : Finite { x // p x } := Finite.of_equiv _ f.symm
+  have finite_q : Finite { x // q x } := Finite.of_injective map map_inj
+  rw [← Nat.card_eq_of_equiv_fin f]
+  exact ⟨
+    Nat.card {x // q x},
+    Nat.card_le_card_of_injective map map_inj,
+    ⟨Finite.equivFin {x // q x}⟩
+  ⟩
 
-lemma Subtype.impl_finite {α} {p q : α → Prop} (himpl : ∀ x, q x → p x)
+lemma Subtype.impl_finite {α : Type*} {p q : α → Prop} (himpl : ∀ x, q x → p x)
   (hfinite : Finite {x // p x}) : Finite { x // q x} := by
   cases hfinite
   · case intro n fin_equiv =>
