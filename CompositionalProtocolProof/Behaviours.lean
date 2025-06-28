@@ -889,7 +889,80 @@ instance EventAtEntry.encapOrOrderedBefore.instDecidableRel {b st addr} : Decida
 
     -- [TODO] implement is instance of: IsTrans (EventAtEntry n b st addr) (EventAtEntry.encapOrOrderedBefore n b st addr)
 instance EventAtEntry.encapOrOrderedBefore.instIsTrans {b st addr} : IsTrans (EventAtEntry n b st addr) (EventAtEntry.encapOrOrderedBefore n b st addr) := by
-  sorry
+  constructor
+  intro e₁ e₂ e₃
+  simp[encapOrOrderedBefore]
+  -- infer_instance
+  intro he₁_eo_e₂ he₂_eo_e₃
+  -- infer_instance
+  cases he₁_eo_e₂
+  . case trans.inl hencap =>
+    cases he₂_eo_e₃
+    . case inl hencap₂ =>
+      apply Or.intro_left
+      calc e₁.val.EncapsulatedBy n e₂.val := hencap
+        e₂.val.EncapsulatedBy n e₃.val := hencap₂
+    . case inr horder₂ =>
+      apply Or.intro_right
+      calc e₁.val.EncapsulatedBy n e₂.val := hencap
+        e₂.val.OrderedBefore n e₃.val := horder₂
+  . case trans.inr horder =>
+    cases he₂_eo_e₃
+    . case inl he₂_encap_by_e₃ =>
+      -- simp_all[Event.EncapsulatedBy, Event.Encapsulates, Event.OrderedBefore]
+      by_cases e₁.val.oEnd < e₃.val.oStart
+      . case pos he₁_o_e₃ =>
+        apply Or.intro_right
+        exact he₁_o_e₃
+      . case neg he₁_may_overlap_e₃ =>
+        by_cases e₃.val.oStart < e₁.val.oStart
+        . case pos he₃_encap_e₁ =>
+          apply Or.intro_left
+          apply And.intro
+          . case h.left =>
+            exact he₃_encap_e₁
+          . case h.right =>
+            calc e₁.val.oEnd n < e₂.val.oStart n := horder
+              _ < e₂.val.oEnd n := e₂.val.oWellFormed
+              _ < e₃.val.oEnd n := he₂_encap_by_e₃.right
+        . case neg he₁_overlap_e₃ =>
+          match he₁ : e₁.val, he₃ : e₃.val with
+          | .cacheEvent ce₁, .cacheEvent ce₃ =>
+            -- exact b.orderedAtEntry
+            have hce_ordered := b.orderedAtEntry.cache_ordered ce₁ ce₃ |>.ordered
+            simp[CacheEvent.AreOrdered] at hce_ordered
+            have he_ordered := CacheEvent.encapsulate_or_ordered_lift_event n he₁ he₃ hce_ordered
+            cases he_ordered
+            . case inl he₁_eo_e₃ =>
+              simp[encapOrOrderedBefore] at he₁_eo_e₃
+              rw[← he₁, ← he₃]
+              simp[he₁_eo_e₃]
+            . case inr he₃_eo_e₁ =>
+              simp[encapOrOrderedBefore] at he₃_eo_e₁
+              cases he₃_eo_e₁
+              . case inl he₃_encap_by_e₁ =>
+                -- dsimp_all[Event.EncapsulatedBy, Event.Encapsulates, Event.OrderedBefore]
+                simp[Event.OrderedBefore] at horder
+                have he₁_lt_e₃_end : e₁.val.oEnd < e₃.val.oEnd := by
+                  calc e₁.val.oEnd < e₂.val.oStart := horder
+                    _ < e₂.val.oEnd := e₂.val.oWellFormed
+                    _ < e₃.val.oEnd := he₂_encap_by_e₃.right
+                simp[Event.EncapsulatedBy, Event.Encapsulates] at he₃_encap_by_e₁
+                have he₃_lt_e₁_end := he₃_encap_by_e₁.right
+                absurd he₃_encap_by_e₁.right
+                simp
+                -- simp at he₁_may_overlap_e₃
+                -- simp at he₁_overlap_e₃
+                sorry
+              . case inr he₃_o_e₁ =>
+                sorry
+          | .directoryEvent de₁, .directoryEvent de₃ => sorry
+          | .directoryEvent de₁, .cacheEvent ce₃ => sorry
+          | .cacheEvent ce₁, .directoryEvent de₃ => sorry
+    . case inr he₂_order_e₃ =>
+      apply Or.intro_right
+      calc e₁.val.OrderedBefore n e₂.val := horder
+        e₂.val.OrderedBefore n e₃.val := he₂_order_e₃
 
 lemma Behaviour.eventsAtCacheEntry_total_order'' (b : Behaviour n) (addr : Addr) (st : Struct n)
   -- (hbottom_sorted : Behaviour.sortedListEventsAtEntry n)
