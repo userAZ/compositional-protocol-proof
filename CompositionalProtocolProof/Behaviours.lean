@@ -730,7 +730,7 @@ theorem Behaviour.bottomEventsAtEntry_finite'' (b : Behaviour n) (addr : Addr) (
 
 noncomputable def Behaviour.listBottomEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct n) : List (EventAtEntry n b st addr) :=
   let e_at_centry := b.bottomEventsAtEntry' n addr st
-  Set.finSetEvents' n e_at_centry (b.bottomEventsAtEntry_finite n addr st) |>.toList
+  Set.finSetEvents' n e_at_centry (b.bottomEventsAtEntry_finite' n addr st) |>.toList
 
 noncomputable def Behaviour.listBottomEventsAtEntry (b : Behaviour n) (addr : Addr) (st : Struct n) : List (Event n) :=
   let e_at_centry := b.bottomEventsAtEntry n addr st
