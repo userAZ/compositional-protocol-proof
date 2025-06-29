@@ -716,18 +716,6 @@ theorem Behaviour.bottomEventsAtEntry_finite' (b : Behaviour n) (addr : Addr) (s
     · case hfinite => exact b.finite
   apply Subtype.finite
 
-/-- state the Set of EventAtState from bottom events at an entry is a finite set. -/
-theorem Behaviour.bottomEventsAtEntry_finite'' (b : Behaviour n) (addr : Addr) (st : Struct n) (fin_bots : Finite (b.bottomEventsAtEntry n addr st))
-  : Finite (b.bottomEventsAtEntry' n addr st) := by
-  cases st <;> simp [Behaviour.bottomEventsAtEntry']
-  · case directory =>
-      have _ : Finite b.es := b.finite
-      have h := fin_bots.image -- can I map from the finite set of Events to EventAtEntry?
-      apply Finite.Set.finite_inter_of_left
-  · case cache _ =>
-      have _ : Finite b.es := b.finite
-      apply Finite.Set.finite_inter_of_left
-
 noncomputable def Behaviour.listBottomEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct n) : List (EventAtEntry n b st addr) :=
   let e_at_centry := b.bottomEventsAtEntry' n addr st
   Set.finSetEvents' n e_at_centry (b.bottomEventsAtEntry_finite' n addr st) |>.toList
@@ -1031,16 +1019,13 @@ instance EventAtEntry.encapOrOrderedBefore.instIsTrans {b st addr} : IsTrans (Ev
       calc e₁.val.OrderedBefore n e₂.val := horder
         e₂.val.OrderedBefore n e₃.val := he₂_order_e₃
 
-lemma Behaviour.eventsAtCacheEntry_total_order'' (b : Behaviour n) (addr : Addr) (st : Struct n)
-  -- (hbottom_sorted : Behaviour.sortedListEventsAtEntry n)
-  :
+lemma Behaviour.eventsAtCacheEntry_total_order'' (b : Behaviour n) (addr : Addr) (st : Struct n) :
   let bes := b.listBottomEventsAtEntry' n addr st
   let es := bes.insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr)
   es |>.isOrdered (EventAtEntry.encapOrOrderedBefore n b st addr)
   -- b.listBottomEventsAtEntry addr st |>.isOrdered (b.BottomPredecessor)
   -- probably `Event.OrderedBefore` is not the right order though! or is it? not sure you've define the order on events that these are ordered by?
   := by
-  --
   intro bes es i j
   apply Iff.intro
   . case mp =>
