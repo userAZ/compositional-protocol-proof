@@ -650,106 +650,123 @@ structure Behaviour.reqDirRelation' (b : Behaviour n) (init : InitialSystemState
 
 -- [NOTE] use `Behaviour.vdCacheEntryWriteBackLater` in the Vd succeeding Dir Events case
 
--- [TODO] Add Lemma (or Def) to state there exists a previous event `e_pred` before Event `e`, that sets the state that `e` is made on.
-lemma State.lt_coherence_true_false_is_false (s₁ s₂ : State)
-(hs₁_coh : s₁.c) (hs₂_coh : ¬ s₂.c) : ¬ s₁ ≤ s₂ := by
-  match hs₁ : s₁, hs₂ : s₂ with
-  | ⟨perm₁, true⟩, ⟨perm₂, false⟩ =>
-    match perm₁, perm₂ with
-    | some .wr, some .wr => decide
-    | some .r, some .wr => decide
-    | some .wr, some .r => decide
-    | some .r, some .r => decide
-    | none, some .r => decide
-    | some .r, none => decide
-    | none, some .wr => decide
-    | some .wr, none => decide
-    | none, none => decide
-  | ⟨perm₁, false⟩, _ => simp at hs₁_coh
-  | _, ⟨perm₂, true⟩ => simp at hs₂_coh
-
 /-- `Helper Lemma 1` in Lemma 3's re-write -/
 lemma Behaviour.exists_predecessor_setting_state''
   (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
   (hreq_not_downgrade : ¬ e_req.down)
   (hhave_perms : reqHasPerms n b init e_req)
-  (hinit_i : (init.stateAt n e_req).cache = I)
+  (hinit_i : init.stateAt n e_req = IEntry n)
   (hcoherent_perms : (b.stateBefore n (init.stateAt n e_req) e_req).cache ≠ Vd)
   (hax6 : Behaviour.axRequestAccessesDirectory n)
   (hreq_is_ce : e_req.isCacheEvent n)
   :
   ∃ e_dir ∈ b.es, e_dir.isDirectoryEvent ∧ b.dirAccessOfRequest n init e_req e_dir
   := by
-  -- by_contra hno_imm_pred_getting_state
-  /- first show there's a predecessor `e_pred`, that produces state `s` that `e_req` is made on.
-  We know `s` is at least `e_req.MRS` -/
-  -- have hmrs_le_s := hhave_perms.hasPerms
-  -- simp[hasPerms] at hmrs_le_s
-  /- By cases on `e_req.MRS`, we know `s` is `≥` a State that isn't `I`. -/
-  match he : e_req with
-  | .cacheEvent ce =>
-    by_cases hcoherent : (Event.cacheEvent ce).isCoherent
-    . case pos =>
-      -- have hreq_has_perms := hhave_perms.hasPerms hcoherent
+  /- identify the predecessor event `e_pred` such that `e_pred` has a succeeding state of `s'` such that `s'` is greater than or equal
+  to the state `e_req` is made on, and `e_pred` encapsulates an e_dir by Axiom 6.
+  Perform `backwards induction` on the list `l_preds` of events before `e_req`.
+  -/
+  let l_preds := b.eventsUpToEvent n e_req
+  induction hpreds_list : l_preds using List.reverseRecOn with
+  | nil =>
+    /- First, state the state e_req is made on. With an empty pred list, it's I. -/
+    let state_made_on := b.stateBefore n (init.stateAt n e_req) e_req |>.cache
+    have h_made_on : state_made_on = (stateBefore n b (InitialSystemState.stateAt n init e_req) e_req).cache := by
+      subst state_made_on; rfl
+    rw[hinit_i] at h_made_on
+    unfold stateBefore at h_made_on
 
-      let state_req_made_on := b.stateBefore n (init.stateAt n e_req) e_req |>.cache
-
+    have h_preds : l_preds = b.eventsUpToEvent n e_req := by
+      subst l_preds; rfl
+    rw[← h_preds] at h_made_on
+    rw[hpreds_list] at h_made_on
+    dsimp[List.stateAfter, EntryState.cache] at h_made_on
+    /- Second, show the state `e_req` is made on. With `hhave_perms`, it's not I, a contradiction. -/
+    match he : e_req with
+    | .cacheEvent ce =>
       /- For any request, the state it was made on is greater or equal to it's MRS. -/
       match hreq : ce.req with
       | ⟨⟨rw,true,_⟩,_⟩ =>
-        match hstate : b.stateBefore n (init.stateAt n e_req) e_req |>.cache with
-        | ⟨_,true⟩ =>
-          -- simp[hasPerms, Event.req, ValidRequest.MRS, hreq, hstate] at hreq_has_perms
-          -- simp[stateBefore] at hreq_has_perms
-          -- simp[List.stateAtE] at hreq_has_perms
-          sorry
-        | ⟨_,false⟩ =>
-          -- not possible
-          rw[he] at hstate
-          -- simp[hasPerms, Event.req, ValidRequest.MRS, hreq, hstate] at hreq_has_perms
-          have hmade_on_state_non_coherent : ¬ (b.stateBefore n (init.stateAt n (Event.cacheEvent ce)) (Event.cacheEvent ce) |>.cache.c) := by
-            simp
-            rw[hstate]
-          have hreq_mrs_coherent : ce.req.MRS.c := by simp[ValidRequest.MRS, hreq]
-          exfalso
-          apply State.lt_coherence_true_false_is_false
-            ce.req.MRS (b.stateBefore n (init.stateAt n (Event.cacheEvent ce)) (Event.cacheEvent ce) |>.cache)
-            hreq_mrs_coherent hmade_on_state_non_coherent
-          -- simp[hasPerms, Event.req] at hreq_has_perms
-          -- exact hreq_has_perms
-          sorry
+        cases hhave_perms
+        . case hasPerms h_is_coherent h_has_perms =>
+          dsimp[hasPerms] at h_has_perms
+          dsimp[Event.req] at h_has_perms
 
-      | ⟨⟨.r,false,.Weak⟩,{}⟩ => simp[Event.isCoherent, ValidRequest.isCoherent, Request.isCoherent, hreq] at hcoherent
-      | ⟨⟨.w,false,.Weak⟩,{}⟩ => simp[Event.isCoherent, ValidRequest.isCoherent, Request.isCoherent, hreq] at hcoherent
-      | ⟨⟨.w,false,.Rel⟩,{}⟩ =>  simp[Event.isCoherent, ValidRequest.isCoherent, Request.isCoherent, hreq] at hcoherent
-      | ⟨⟨.r,false,.Acq⟩,{}⟩ =>  simp[Event.isCoherent, ValidRequest.isCoherent, Request.isCoherent, hreq] at hcoherent
-      /-
-      -- By reqHasPerms, we know what S is.
-      by_cases hmrs : e_req.req.MRS.p = none
-      . case pos =>
-        simp[Event.req] at hmrs
-        simp[he] at hmrs
-        simp[ValidRequest.MRS] at hmrs
-        split at hmrs
-        case h_1 => simp[ReadWrite.toPerms] at hmrs
-        case h_2 => simp at hmrs
-        case h_3 => simp at hmrs
-        case h_4 => simp at hmrs
-      . case neg =>-/
-        /- MRS isn't I, and `MRS ≤ s`, so `s` is set by a corresponding `e_pred`.
-        Now `e_pred` either encapsulates a Directory Event `e_dir`, or doesn't.
-        If it doesn't, then `e_pred` has an `e_pred'`. -/
-        /- show there's a predecessor somehow? use def of stateBefore? -/
-    . case neg => sorry
-  | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
-  -- cases (b.stateBefore n e_req (init.stateAt n e_req)).cache
-  /-
-  have h : ∃ e_pred ∈ b.es, b.immBottomPredEncapCorrDirLeavesStateAtLeastReq n e_pred e_req init := by
-    by_cases hexists_req_pred : ∃ e_pred' ∈ b.es, b.immBottomPredEncapCorrDirLeavesStateAtLeastReq n e_pred' e_req init
-    . case pos => exact hexists_req_pred
-    . case neg =>
-      --
-      sorry-/
+          subst state_made_on
+          rw[he] at h_made_on
+          rw[h_made_on] at h_has_perms
+
+          /- Contradiction! -/
+          cases h_has_perms
+          . case intro hmrs_p_lt_i hmrs_c_lt_i => simp[ValidRequest.MRS, hreq, LE.le] at hmrs_c_lt_i
+        . case ncRelAcqWeakWriteHasCoherentPerms h_is_rel_acq_ww h_has_perms =>
+          simp[Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNCRelease, Event.isNcWeakWrite, hreq] at h_is_rel_acq_ww
+        . case ncWeakReadHasPermsNotVd h_is_weak_read h_has_perms_not_vd =>
+          simp[Event.isNcWeakRead, hreq] at h_is_weak_read
+      | ⟨⟨.r,false,.Weak⟩,{}⟩ =>
+        cases hhave_perms
+        . case hasPerms h_is_coherent h_has_perms =>
+          simp[Event.isCoherent, ValidRequest.isCoherent, Request.isCoherent, hreq] at h_is_coherent
+        . case ncRelAcqWeakWriteHasCoherentPerms h_is_rel_acq_ww h_has_perms =>
+          simp[Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNCRelease, Event.isNcWeakWrite, hreq] at h_is_rel_acq_ww
+        . case ncWeakReadHasPermsNotVd h_is_weak_read h_has_perms_not_vd =>
+          have h_has_coherent_perms := h_has_perms_not_vd.coherentState
+          simp[isReqMadeOnCoherentState, stateReqMadeOn] at h_has_coherent_perms
+
+          subst state_made_on
+          rw[he] at h_made_on
+          rw[h_made_on] at h_has_coherent_perms
+          /- Contradiction! -/
+          simp at h_has_coherent_perms
+      | ⟨⟨.w,false,.Weak⟩,{}⟩ =>
+        cases hhave_perms
+        . case hasPerms h_is_coherent h_has_perms =>
+          simp[Event.isCoherent, ValidRequest.isCoherent, Request.isCoherent, hreq] at h_is_coherent
+        . case ncRelAcqWeakWriteHasCoherentPerms h_is_rel_acq_ww h_has_perms =>
+          have h_has_coherent_perms := h_has_perms.onCoherentState
+          simp[isReqMadeOnCoherentState, stateReqMadeOn] at h_has_coherent_perms
+
+          subst state_made_on
+          rw[he] at h_made_on
+          rw[h_made_on] at h_has_coherent_perms
+          /- Contradiction! -/
+          simp at h_has_coherent_perms
+        . case ncWeakReadHasPermsNotVd h_is_weak_read h_has_perms_not_vd =>
+          simp[Event.isNcWeakRead, hreq] at h_is_weak_read
+      | ⟨⟨.w,false,.Rel⟩,{}⟩ =>
+        cases hhave_perms
+        . case hasPerms h_is_coherent h_has_perms =>
+          simp[Event.isCoherent, ValidRequest.isCoherent, Request.isCoherent, hreq] at h_is_coherent
+        . case ncRelAcqWeakWriteHasCoherentPerms h_is_rel_acq_ww h_has_perms =>
+          have h_has_coherent_perms := h_has_perms.onCoherentState
+          simp[isReqMadeOnCoherentState, stateReqMadeOn] at h_has_coherent_perms
+
+          subst state_made_on
+          rw[he] at h_made_on
+          rw[h_made_on] at h_has_coherent_perms
+          /- Contradiction! -/
+          simp at h_has_coherent_perms
+        . case ncWeakReadHasPermsNotVd h_is_weak_read h_has_perms_not_vd =>
+          simp[Event.isNcWeakRead, hreq] at h_is_weak_read
+      | ⟨⟨.r,false,.Acq⟩,{}⟩ =>
+        cases hhave_perms
+        . case hasPerms h_is_coherent h_has_perms =>
+          simp[Event.isCoherent, ValidRequest.isCoherent, Request.isCoherent, hreq] at h_is_coherent
+        . case ncRelAcqWeakWriteHasCoherentPerms h_is_rel_acq_ww h_has_perms =>
+          have h_has_coherent_perms := h_has_perms.onCoherentState
+          simp[isReqMadeOnCoherentState, stateReqMadeOn] at h_has_coherent_perms
+
+          subst state_made_on
+          rw[he] at h_made_on
+          rw[h_made_on] at h_has_coherent_perms
+          /- Contradiction! -/
+          simp at h_has_coherent_perms
+        . case ncWeakReadHasPermsNotVd h_is_weak_read h_has_perms_not_vd =>
+          simp[Event.isNcWeakRead, hreq] at h_is_weak_read
+    | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
+  | append_singleton l_head e_pred ih =>
+    -- exact ih
+    sorry
 
 -- [TODO] constrain goal to say not just `e_req` relates `e_dir`, but either encapsulates if lacking permissions, or a previous one if have perms,
 -- of a future one if Weak Non-Coherent on Vd
