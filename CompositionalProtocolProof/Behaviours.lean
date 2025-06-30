@@ -1088,12 +1088,19 @@ def List.stateAfter (es : List (Event n)) (init : (EntryState n)) : EntryState n
   | [] => init
   | e :: es' => es'.stateAfter (e.SucceedingState n init)
 
-def List.stateAtE (es : List (Event n)) (e : Event n) (init : EntryState n) : EntryState n :=
-  List.stateAfter n (es.splitAt (es.indexesOf e).head!).1 init
+/-- Get the list of events from the head upto (excluding) e. -/
+def List.upToEvent (es : List (Event n)) (e : Event n) :=
+  (es.splitAt (es.indexesOf e).head!).1
+
+def List.stateAtEvent (es : List (Event n)) (e : Event n) (init : EntryState n) : EntryState n :=
+  List.stateAfter n (es.upToEvent n e) init
+
+noncomputable def Behaviour.eventsUpToEvent (b : Behaviour n) (e : Event n) : List (Event n) :=
+  b.listBottomEventsAtEntry n e.addr e.struct |>.insertionSort (Event.OrderedBefore n) |>.upToEvent n e
 
 /- Def 2.33 Behaviour.StateBefore -/
 noncomputable def Behaviour.stateBefore (b : Behaviour n) (init : EntryState n) (e : Event n) : EntryState n :=
-  b.listBottomEventsAtEntry n e.addr e.struct |>.insertionSort (Event.OrderedBefore n) |>.stateAtE n e init
+  b.eventsUpToEvent n e |>.stateAfter n init
 
 noncomputable def Behaviour.stateAfter (b : Behaviour n) (init : EntryState n) (e : Event n) : EntryState n :=
   e.SucceedingState n (b.stateBefore n init e)
