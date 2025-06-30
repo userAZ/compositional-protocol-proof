@@ -909,7 +909,6 @@ lemma DirectoryEvent.ordered_lift_event {b : Behaviour n} {st : Struct n} {addr 
     dsimp[Event.OrderedBefore, Event.oEnd, Event.oStart]
     exact hde₂_ordered_de₁
 
-    -- [TODO] implement is instance of: IsTrans (EventAtEntry n b st addr) (EventAtEntry.encapOrOrderedBefore n b st addr)
 instance EventAtEntry.encapOrOrderedBefore.instIsTrans {b st addr} : IsTrans (EventAtEntry n b st addr) (EventAtEntry.encapOrOrderedBefore n b st addr) := by
   constructor
   intro e₁ e₂ e₃
@@ -1023,21 +1022,67 @@ lemma Behaviour.eventsAtCacheEntry_total_order'' (b : Behaviour n) (addr : Addr)
   let bes := b.listBottomEventsAtEntry' n addr st
   let es := bes.insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr)
   es |>.isOrdered (EventAtEntry.encapOrOrderedBefore n b st addr)
-  -- b.listBottomEventsAtEntry addr st |>.isOrdered (b.BottomPredecessor)
-  -- probably `Event.OrderedBefore` is not the right order though! or is it? not sure you've define the order on events that these are ordered by?
   := by
   intro bes es i j
   apply Iff.intro
   . case mp =>
-    -- intro hi_lt_j
-    -- [TODO] implement is instance of: IsTrans (EventAtEntry n b st addr) (EventAtEntry.encapOrOrderedBefore n b st addr)
-    have hsorted := List.sorted_insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr)
+    intro hi_lt_j
     simp
-    simp[List.Sorted, List.Pairwise, List.insertionSort] at hsorted
-    -- simp[hsorted] -- How do I use `List.sorted_insertionSort` to close the goal? it should be very similar to the goal in theory?
-    sorry
+    apply List.Sorted.rel_get_of_le
+    . case h =>
+      exact bes.sorted_insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr)
+    . case hab =>
+      simp
+      apply Fin.le_of_lt
+      exact hi_lt_j
   . case mpr =>
-    sorry
+    intro hi_eo_j
+    by_contra hneg_i_lt_j
+    simp at hneg_i_lt_j
+    have hgetj_eo_geti := List.Sorted.rel_get_of_le (bes.sorted_insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr)) hneg_i_lt_j
+    simp at hgetj_eo_geti
+    subst es
+    -- hi_eo_j contradict eachother hgetj_eo_geti
+    absurd hi_eo_j
+    simp
+    simp[EventAtEntry.encapOrOrderedBefore, Event.EncapsulatedBy]
+    cases hgetj_eo_geti
+    . case inl hj_encap_by_i =>
+      simp[Event.EncapsulatedBy] at hj_encap_by_i
+      apply And.intro
+      . case left =>
+        dsimp[Event.Encapsulates]
+        rw[not_and_or]
+        apply Or.intro_left
+        have hgeti_lt_getj_start := hj_encap_by_i.left
+        simp
+        simp[TimeStart]
+        rw[Nat.le_iff_lt_or_eq]
+        apply Or.intro_left
+        exact hgeti_lt_getj_start
+      . case right =>
+        simp[Event.OrderedBefore]
+        rw[Nat.le_iff_lt_or_eq]
+        apply Or.intro_left
+        have hjstart_lt_jend := (List.insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr) bes)[j.val].val.oWellFormed
+        have hj_lt_i_end := hj_encap_by_i.right
+        exact Nat.lt_trans hjstart_lt_jend hj_lt_i_end
+    . case inr hj_order_before_i =>
+      apply And.intro
+      . case left =>
+        dsimp[Event.Encapsulates]
+        rw[not_and_or]
+        apply Or.intro_right
+        simp
+        rw[Nat.le_iff_lt_or_eq]
+        apply Or.intro_left
+        exact Nat.lt_trans hj_order_before_i (List.insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr) bes)[i.val].val.oWellFormed
+      . case right =>
+        simp[Event.OrderedBefore]
+        rw[Nat.le_iff_lt_or_eq]
+        apply Or.intro_left
+        have hj_start_lt_i_start := Nat.lt_trans (List.insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr) bes)[j.val].val.oWellFormed (hj_order_before_i)
+        exact Nat.lt_trans hj_start_lt_i_start (List.insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr) bes)[i.val].val.oWellFormed
 
 def List.stateAfter (es : List (Event n)) (init : (EntryState n)) : EntryState n := match es with
   | [] => init
