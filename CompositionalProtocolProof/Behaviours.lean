@@ -589,6 +589,7 @@ lemma Behaviour.bottomEventsAtEntry_totally_ordered (b : Behaviour) (addr : Addr
 -/
 
 -- [TODO] Use EventAtEntry to define a total order.
+-- Note: because you put the event first it makes this hard to curry...
 structure Behaviour.eventAtEntry (b : Behaviour n) (e : Event n) (st : Struct n) (addr : Addr) : Prop where
   eInB : e ∈ b.es
   eAtStruct : e.struct = st
@@ -675,6 +676,49 @@ instance EventAtEntry.instIsTotal {n} {b} {st} {addr} :
     absurd he₁_at_d
     rw[← he₂_at_c]
     simp[Event.struct]
+
+def Behaviour.bottomEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct n) : Set (EventAtEntry n b st addr) :=
+  {e : EventAtEntry n b st addr | e.val ∈ b.es ∧ e.val.isBottomAtEntry n b st addr}
+
+noncomputable def Set.finSetEvents' {b} {st} {addr} (es : Set (EventAtEntry n b st addr)) (hes_fin : Finite es) : Finset (EventAtEntry n b st addr) := Set.Finite.toFinset hes_fin
+
+--https://leanprover.zulipchat.com/#narrow/channel/113489-new-members/topic/How.20to.20prove.20fin.20subtype.20with.20stricter.20restriction.20is.20fin/with/526216387
+lemma Subtype.equiv_fin_impl_equiv_fin' {α : Type*} {n} {p q : α → Prop} (himpl : ∀ x, q x → p x)
+  (f : {x // p x} ≃ Fin n) : ∃ m, m ≤ n ∧ Nonempty ({x // q x} ≃ Fin m) :=
+by
+  have := Cardinal.mk_subtype_mono himpl
+  rw [Cardinal.le_def] at this
+  obtain ⟨map, map_inj⟩ := this
+  have finite_p : Finite { x // p x } := Finite.of_equiv _ f.symm
+  have finite_q : Finite { x // q x } := Finite.of_injective map map_inj
+  rw [← Nat.card_eq_of_equiv_fin f]
+  exact ⟨
+    Nat.card {x // q x},
+    Nat.card_le_card_of_injective map map_inj,
+    ⟨Finite.equivFin {x // q x}⟩
+  ⟩
+
+lemma Subtype.impl_finite {α : Type*} {p q : α → Prop} (himpl : ∀ x, q x → p x)
+  (hfinite : Finite {x // p x}) : Finite { x // q x} := by
+  cases hfinite
+  · case intro n fin_equiv =>
+    apply finite_iff_exists_equiv_fin.2
+    have ⟨m,⟨_, _⟩⟩ := Subtype.equiv_fin_impl_equiv_fin' himpl fin_equiv
+    exists m
+
+/-- state the Set of EventAtState from bottom events at an entry is a finite set. -/
+theorem Behaviour.bottomEventsAtEntry_finite' (b : Behaviour n) (addr : Addr) (st : Struct n) : Finite (b.bottomEventsAtEntry' n addr st) := by
+  have _ : Finite (EventAtEntry n b st addr) := by
+    simp [EventAtEntry]
+    apply Subtype.impl_finite (p:=fun e => e ∈ b.es) (q:= fun e => eventAtEntry n b e st addr)
+    · case himpl =>
+      intro e h; exact h.eInB
+    · case hfinite => exact b.finite
+  apply Subtype.finite
+
+noncomputable def Behaviour.listBottomEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct n) : List (EventAtEntry n b st addr) :=
+  let e_at_centry := b.bottomEventsAtEntry' n addr st
+  Set.finSetEvents' n e_at_centry (b.bottomEventsAtEntry_finite' n addr st) |>.toList
 
 noncomputable def Behaviour.listBottomEventsAtEntry (b : Behaviour n) (addr : Addr) (st : Struct n) : List (Event n) :=
   let e_at_centry := b.bottomEventsAtEntry n addr st
@@ -835,6 +879,210 @@ lemma Behaviour.eventsAtCacheEntry_total_order' (b : Behaviour n) (addr : Addr) 
   . case mpr =>
     intro hi_bottom_pred_j
     sorry
+
+instance EventAtEntry.encapOrOrderedBefore.instDecidableRel {b st addr} : DecidableRel (EventAtEntry.encapOrOrderedBefore n b st addr) := by
+  simp[DecidableRel]
+  intro e₁ e₂
+  simp[encapOrOrderedBefore]
+  simp[Event.EncapsulatedBy, Event.Encapsulates, Event.OrderedBefore]
+  infer_instance
+
+lemma DirectoryEvent.ordered_lift_event {b : Behaviour n} {st : Struct n} {addr : Addr}
+  {de₁ de₂ : DirectoryEvent n} {e₁ e₂ : EventAtEntry n b st addr}
+  (he₁ : e₁.val = Event.directoryEvent de₁) (he₂ : e₂.val = Event.directoryEvent de₂)
+  (hde_ordered : DirectoryEvent.Ordered n de₁ de₂)
+  : EventAtEntry.OrderedBefore n b st addr e₁ e₂ ∨ EventAtEntry.OrderedBefore n b st addr e₂ e₁ := by
+
+  dsimp[Ordered] at hde_ordered
+  dsimp[OrderedBefore] at hde_ordered
+  cases hde_ordered
+  . case inl hde₁_ordered_de₂ =>
+    apply Or.intro_left
+    dsimp[EventAtEntry.OrderedBefore, Event.OrderedBefore]
+    rw[he₁, he₂]
+    dsimp[Event.OrderedBefore, Event.oEnd, Event.oStart]
+    exact hde₁_ordered_de₂
+  . case inr hde₂_ordered_de₁ =>
+    apply Or.intro_right
+    dsimp[EventAtEntry.OrderedBefore, Event.OrderedBefore]
+    rw[he₁, he₂]
+    dsimp[Event.OrderedBefore, Event.oEnd, Event.oStart]
+    exact hde₂_ordered_de₁
+
+instance EventAtEntry.encapOrOrderedBefore.instIsTrans {b st addr} : IsTrans (EventAtEntry n b st addr) (EventAtEntry.encapOrOrderedBefore n b st addr) := by
+  constructor
+  intro e₁ e₂ e₃
+  simp[encapOrOrderedBefore]
+  intro he₁_eo_e₂ he₂_eo_e₃
+  cases he₁_eo_e₂
+  . case trans.inl hencap =>
+    cases he₂_eo_e₃
+    . case inl hencap₂ =>
+      apply Or.intro_left
+      calc e₁.val.EncapsulatedBy n e₂.val := hencap
+        e₂.val.EncapsulatedBy n e₃.val := hencap₂
+    . case inr horder₂ =>
+      apply Or.intro_right
+      calc e₁.val.EncapsulatedBy n e₂.val := hencap
+        e₂.val.OrderedBefore n e₃.val := horder₂
+  . case trans.inr horder =>
+    cases he₂_eo_e₃
+    . case inl he₂_encap_by_e₃ =>
+      by_cases e₁.val.oEnd < e₃.val.oStart
+      . case pos he₁_o_e₃ =>
+        apply Or.intro_right
+        exact he₁_o_e₃
+      . case neg he₁_may_overlap_e₃ =>
+        by_cases e₃.val.oStart < e₁.val.oStart
+        . case pos he₃_encap_e₁ =>
+          apply Or.intro_left
+          apply And.intro
+          . case h.left =>
+            exact he₃_encap_e₁
+          . case h.right =>
+            calc e₁.val.oEnd n < e₂.val.oStart n := horder
+              _ < e₂.val.oEnd n := e₂.val.oWellFormed
+              _ < e₃.val.oEnd n := he₂_encap_by_e₃.right
+        . case neg he₁_overlap_e₃ =>
+          match he₁ : e₁.val, he₃ : e₃.val with
+          | .cacheEvent ce₁, .cacheEvent ce₃ =>
+            have hce_ordered := b.orderedAtEntry.cache_ordered ce₁ ce₃ |>.ordered
+            simp[CacheEvent.AreOrdered] at hce_ordered
+            have he_ordered := CacheEvent.encapsulate_or_ordered_lift_event n he₁ he₃ hce_ordered
+            cases he_ordered
+            . case inl he₁_eo_e₃ =>
+              simp[encapOrOrderedBefore] at he₁_eo_e₃
+              rw[← he₁, ← he₃]
+              simp[he₁_eo_e₃]
+            . case inr he₃_eo_e₁ =>
+              simp[encapOrOrderedBefore] at he₃_eo_e₁
+              have he₁_lt_e₃_end : e₁.val.oEnd < e₃.val.oEnd := by
+                calc e₁.val.oEnd < e₂.val.oStart := horder
+                  _ < e₂.val.oEnd := e₂.val.oWellFormed
+                  _ < e₃.val.oEnd := he₂_encap_by_e₃.right
+              cases he₃_eo_e₁
+              . case inl he₃_encap_by_e₁ =>
+                simp[Event.OrderedBefore] at horder
+                simp[Event.EncapsulatedBy, Event.Encapsulates] at he₃_encap_by_e₁
+                have he₃_lt_e₁_end := he₃_encap_by_e₁.right
+                absurd he₃_encap_by_e₁.right
+                simp
+                rw[Nat.le_iff_lt_or_eq]
+                apply Or.intro_left
+                exact he₁_lt_e₃_end
+              . case inr he₃_o_e₁ =>
+                absurd he₁_lt_e₃_end
+                simp
+                rw[Nat.le_iff_lt_or_eq]
+                apply Or.intro_left
+                simp[Event.OrderedBefore] at he₃_o_e₁
+                calc Event.oEnd n e₃.val < Event.oStart n e₁.val := he₃_o_e₁
+                  _ < Event.oEnd n e₁.val := e₁.val.oWellFormed
+          | .directoryEvent de₁, .directoryEvent de₃ =>
+            have hde_ordered := b.orderedAtEntry.dir_ordered de₁ de₃ |>.ordered
+            have he_ordered := DirectoryEvent.ordered_lift_event n he₁ he₃ hde_ordered
+            cases he_ordered
+            . case inl hde₁_o_de₃ =>
+              apply Or.intro_right
+              simp[EventAtEntry.OrderedBefore,] at hde₁_o_de₃
+              rw[← he₁,← he₃]
+              simp[hde₁_o_de₃]
+            . case inr hde₃_o_de₁ =>
+              have he₁_lt_e₃_end : e₁.val.oEnd < e₃.val.oEnd := by
+                calc e₁.val.oEnd < e₂.val.oStart := horder
+                  _ < e₂.val.oEnd := e₂.val.oWellFormed
+                  _ < e₃.val.oEnd := he₂_encap_by_e₃.right
+              absurd he₁_lt_e₃_end
+              simp
+              rw[Nat.le_iff_lt_or_eq]
+              apply Or.intro_left
+              simp[OrderedBefore] at hde₃_o_de₁
+              calc e₃.val.oEnd n < e₁.val.oStart n := hde₃_o_de₁
+                _ < e₁.val.oEnd n := e₁.val.oWellFormed
+          | .directoryEvent de₁, .cacheEvent ce₃ =>
+            have he₁_at_dir := e₁.prop.eAtStruct
+            rw[he₁] at he₁_at_dir
+            have he₃_at_cache := e₃.prop.eAtStruct
+            rw[he₃] at he₃_at_cache
+            rw[← he₃_at_cache] at he₁_at_dir
+            simp[Event.struct] at he₁_at_dir
+          | .cacheEvent ce₁, .directoryEvent de₃ =>
+            have he₁_at_cache := e₁.prop.eAtStruct
+            rw[he₁] at he₁_at_cache
+            have he₃_at_dir := e₃.prop.eAtStruct
+            rw[he₃] at he₃_at_dir
+            rw[← he₃_at_dir] at he₁_at_cache
+            simp[Event.struct] at he₁_at_cache
+    . case inr he₂_order_e₃ =>
+      apply Or.intro_right
+      calc e₁.val.OrderedBefore n e₂.val := horder
+        e₂.val.OrderedBefore n e₃.val := he₂_order_e₃
+
+lemma Behaviour.eventsAtCacheEntry_total_order'' (b : Behaviour n) (addr : Addr) (st : Struct n) :
+  let bes := b.listBottomEventsAtEntry' n addr st
+  let es := bes.insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr)
+  es |>.isOrdered (EventAtEntry.encapOrOrderedBefore n b st addr)
+  := by
+  intro bes es i j
+  apply Iff.intro
+  . case mp =>
+    intro hi_lt_j
+    simp
+    apply List.Sorted.rel_get_of_le
+    . case h =>
+      exact bes.sorted_insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr)
+    . case hab =>
+      simp
+      apply Fin.le_of_lt
+      exact hi_lt_j
+  . case mpr =>
+    intro hi_eo_j
+    by_contra hneg_i_lt_j
+    simp at hneg_i_lt_j
+    have hgetj_eo_geti := List.Sorted.rel_get_of_le (bes.sorted_insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr)) hneg_i_lt_j
+    simp at hgetj_eo_geti
+    subst es
+    -- hi_eo_j contradict eachother hgetj_eo_geti
+    absurd hi_eo_j
+    simp
+    simp[EventAtEntry.encapOrOrderedBefore, Event.EncapsulatedBy]
+    cases hgetj_eo_geti
+    . case inl hj_encap_by_i =>
+      simp[Event.EncapsulatedBy] at hj_encap_by_i
+      apply And.intro
+      . case left =>
+        dsimp[Event.Encapsulates]
+        rw[not_and_or]
+        apply Or.intro_left
+        have hgeti_lt_getj_start := hj_encap_by_i.left
+        simp
+        simp[TimeStart]
+        rw[Nat.le_iff_lt_or_eq]
+        apply Or.intro_left
+        exact hgeti_lt_getj_start
+      . case right =>
+        simp[Event.OrderedBefore]
+        rw[Nat.le_iff_lt_or_eq]
+        apply Or.intro_left
+        have hjstart_lt_jend := (List.insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr) bes)[j.val].val.oWellFormed
+        have hj_lt_i_end := hj_encap_by_i.right
+        exact Nat.lt_trans hjstart_lt_jend hj_lt_i_end
+    . case inr hj_order_before_i =>
+      apply And.intro
+      . case left =>
+        dsimp[Event.Encapsulates]
+        rw[not_and_or]
+        apply Or.intro_right
+        simp
+        rw[Nat.le_iff_lt_or_eq]
+        apply Or.intro_left
+        exact Nat.lt_trans hj_order_before_i (List.insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr) bes)[i.val].val.oWellFormed
+      . case right =>
+        simp[Event.OrderedBefore]
+        rw[Nat.le_iff_lt_or_eq]
+        apply Or.intro_left
+        have hj_start_lt_i_start := Nat.lt_trans (List.insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr) bes)[j.val].val.oWellFormed (hj_order_before_i)
+        exact Nat.lt_trans hj_start_lt_i_start (List.insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr) bes)[i.val].val.oWellFormed
 
 def List.stateAfter (es : List (Event n)) (init : (EntryState n)) : EntryState n := match es with
   | [] => init
