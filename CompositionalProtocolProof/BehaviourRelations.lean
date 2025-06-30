@@ -667,7 +667,7 @@ lemma State.lt_coherence_true_false_is_false (s₁ s₂ : State)
   | ⟨perm₁, false⟩, _ => simp at hs₁_coh
   | _, ⟨perm₂, true⟩ => simp at hs₂_coh
 
-/-- `Lemma 0.1` in Lemma 3's re-write -/
+/-- `Helper Lemma 1` in Lemma 3's re-write -/
 lemma Behaviour.exists_predecessor_setting_state''
   (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
   (hreq_not_downgrade : ¬ e_req.down)
