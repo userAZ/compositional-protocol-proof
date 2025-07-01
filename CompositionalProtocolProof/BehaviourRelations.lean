@@ -764,8 +764,9 @@ lemma Behaviour.exists_predecessor_setting_state''
         . case ncWeakReadHasPermsNotVd h_is_weak_read h_has_perms_not_vd =>
           simp[Event.isNcWeakRead, hreq] at h_is_weak_read
     | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
-  | append_singleton l_head e_pred ih =>
-    -- exact ih
+  | append_singleton l_head e_pred _ =>
+    /- Show that there must be a predecessor that accesses the directory, and it is the immediate predecessor that accesses the directory.
+    Use the contrapositive. -/
     sorry
 
 -- [TODO] constrain goal to say not just `e_req` relates `e_dir`, but either encapsulates if lacking permissions, or a previous one if have perms,
