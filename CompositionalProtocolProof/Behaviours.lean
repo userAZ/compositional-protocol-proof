@@ -1008,6 +1008,7 @@ lemma Behaviour.eventsUpToEvent_at_e_entry (b : Behaviour n) (e : Event n) :
     rw[ hind] at he'_in_es
     simp[List.upToEvent] at he'_in_es
   | cons head l_tail ih =>
+    rw[hind] at he'_in_es
     simp
     by_cases he'_is_head : e' = head
     . case pos =>
@@ -1015,7 +1016,39 @@ lemma Behaviour.eventsUpToEvent_at_e_entry (b : Behaviour n) (e : Event n) :
       exact he'_is_head
     . case neg =>
       apply Or.intro_right
-      sorry
+      simp[List.upToEvent] at he'_in_es
+      rw[List.take_cons] at he'_in_es
+      rw[List.idxOf_cons] at he'_in_es
+      simp at he'_in_es
+      by_cases hhead_is_e : head = e
+      . case pos =>
+        have he'_in_rest := Or.resolve_left he'_in_es he'_is_head
+        simp[hhead_is_e] at he'_in_rest
+      . case neg =>
+        have he'_in_rest := Or.resolve_left he'_in_es he'_is_head
+        -- rw[BEq.beq, eventInstBEq, ] at he'_in_rest
+        simp at he'_in_rest
+        simp[hhead_is_e] at he'_in_rest
+
+        have he'_in_tail := List.mem_of_mem_take he'_in_rest
+        exact he'_in_tail
+
+      . case h =>
+        by_cases hhead_is_e : head = e
+        . case pos =>
+          rw[List.idxOf_cons] at he'_in_es
+          simp[BEq.beq] at he'_in_es
+          rw[hhead_is_e] at he'_in_es
+          simp[BEq.rfl] at he'_in_es
+        . case neg =>
+          simp[List.idxOf_cons]
+          simp[hhead_is_e]
+
+lemma Behaviour.eventsUpToEvent_are_at_entry (b : Behaviour n) (e :Event n) :
+  ∀ e' ∈ b.eventsUpToEvent n e, b.eventAtEntry n e' e.struct e.addr := by
+  intro e' he'_in_up_to
+  apply Behaviour.eventsAtEventEntry_at_e_entry n b e
+  apply Behaviour.eventsUpToEvent_at_e_entry n b e e' he'_in_up_to
 
 def CacheEvent.stateUpgradeMayEncapsulate (e₁ e₂ : CacheEvent n) (s₁ : State) : Prop :=
   e₁.WithoutCoherentPermissions n s₁ ∧ e₂.External → (e₁.Ordered n e₂ ∨ e₁.Encapsulates n e₂)
