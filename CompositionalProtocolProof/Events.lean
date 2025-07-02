@@ -17,7 +17,7 @@ structure Occurrence where
   oStart : ℕ
   oEnd : ℕ
   oWellFormed : oStart < oEnd
-deriving DecidableEq
+deriving DecidableEq, BEq
 
 /-- Encapsulates relation on Occurrences. One event starts another event and waits for it to finish. -/
 def Occurrence.Encapsulates (o₁ o₂ : Occurrence) : Prop := o₁.oStart < o₂.oStart ∧ o₂.oEnd < o₁.oEnd
@@ -70,6 +70,13 @@ instance : TypeEvent (CacheEvent n) where
   oEnd := CacheEvent.oEnd
   oWellFormed := CacheEvent.oWellFormed
 
+instance cacheEventInstBEq : BEq (CacheEvent n) where
+  beq a b := a = b
+
+instance cacheEventInstLawfulBEq : LawfulBEq (CacheEvent n) where
+  eq_of_beq := by simp
+  rfl := by simp
+
 structure DirectoryEvent where
   o : Occurrence
   oStart := o.oStart
@@ -90,10 +97,26 @@ instance : TypeEvent (DirectoryEvent n) where
   oEnd := DirectoryEvent.oEnd
   oWellFormed := DirectoryEvent.oWellFormed
 
+instance dirEventInstBEq : BEq (DirectoryEvent n) where
+  beq a b := a = b
+
+instance dirEventInstLawfulBEq : LawfulBEq (DirectoryEvent n) where
+  eq_of_beq := by simp
+  rfl := by simp
+
 inductive Event
 | cacheEvent : (CacheEvent n) → Event
 | directoryEvent : (DirectoryEvent n) → Event
 deriving DecidableEq, BEq
+
+@[simp]
+instance eventInstBEq : BEq (Event n) where
+  beq a b := a = b
+
+@[simp]
+instance eventInstLawfulBEq : LawfulBEq (Event n) where
+  eq_of_beq := by simp
+  rfl := by simp
 
 def Event.o (e : Event n) : Occurrence := match e with
   | cacheEvent ce => ce.o
