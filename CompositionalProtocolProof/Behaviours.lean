@@ -738,70 +738,9 @@ structure Behaviour.BottomPredecessor (b : Behaviour n) (e_pred e_succ : Event n
   predBottom : b.IsBottomEvent n e_pred
   succBottom : b.IsBottomEvent n e_succ
 
-/-
-def Event.isBottomEvent (e : Event) : Prop := ¬ ∃ e' : Event, e'.Encapsulates e
-
-structure Event.BottomPredecessor (e_pred e_succ : Event) : Prop where
-  sameEntry : Event.sameEntry
-  behavePred : e_pred.Predecessor e_succ
-  predBottom : e_pred.isBottomEvent
-  succBottom : e_succ.isBottomEvent
--/
-
 instance : DecidableRel (Event.OrderedBefore n) := by
   unfold Event.OrderedBefore
   infer_instance
-
-/- NOTE: This requires assumptions (b, hsame_entry, and so on..) that means instance isn't used by IsTotal Event Event.OrderedBefore. -/
-/-
-instance Event.OrderedBefore.instIsTotal (b : Behaviour n) (hsame_entry : Event.sameEntry n) (hentry_ordered : Event.AtEntryOrdered n) : IsTotal (Event n) (Event.OrderedBefore n) := by
-  unfold Event.OrderedBefore
-  constructor
-  intro e₁ e₂
-  . case total =>
-    have h := hsame_entry.sameStruct e₁ e₂
-    -- simp[Event.sameStructure] at h
-    have hsame_struct := h.sameStruct
-    match he₁ : e₁, he₂ : e₂ with
-    | .cacheEvent ce₁ , .cacheEvent ce₂ =>
-      apply hentry_ordered.cache_ordered ce₁ ce₂ b |>.ordered
-    | .directoryEvent de₁ , .directoryEvent de₂ =>
-      apply hentry_ordered.dir_ordered de₁ de₂ |>.ordered
-    | .cacheEvent ce₁ , .directoryEvent de₂ =>
-      simp[Event.struct, he₁, he₂] at hsame_struct
-    | .directoryEvent de₁ , .cacheEvent ce₂ =>
-      simp[Event.struct, he₁, he₂] at hsame_struct
--/
-
-/- NOTE: To be an instance of IsTotal, there can't be any assumptions, like the following below. -/
-instance Event.OrderedBefore.instIsTotal' : IsTotal (Event n) (Event.OrderedBefore n) := by sorry
-
-
-/- NOTE: Likewise, this is also not a valid instance of IsTotal. -/
-/-
-instance Behaviour.BottomPredecessor.instIsTotal (b : Behaviour n) (hbottom : Behaviour.bottomEvent n) (hpred : Behaviour.Predecessor n) (hsame_entry : (Event.sameEntry n)) : IsTotal (Event n) (b.BottomPredecessor n) := by
-  constructor
-  intro e₁ e₂
-  . case total =>
-    constructor
-    . case h =>
-      constructor
-      . case sameEntry =>
-        exact hsame_entry
-      . case behavePred =>
-        exact hpred
-      . case predBottom =>
-        exact hbottom.isBottom b e₁
-      . case succBottom =>
-        exact hbottom.isBottom b e₂
--/
-
-/- NOTE: BottomPredecessor is a structure, so can't be a DecidableRel. -/
-instance Behaviour.BottomPredecessor.instDecidableRel (b : Behaviour n) : DecidableRel (b.BottomPredecessor n) := by
-  unfold DecidableRel
-  intro e₁ e₂
-  -- infer_instance
-  sorry
 
 def Behaviour.sortedListBottomEventsAtEntry (b : Behaviour n) (addr : Addr) (st : Struct n) : Prop := b.listBottomEventsAtEntry n addr st |>.Sorted (b.BottomPredecessor n)
 
@@ -814,71 +753,6 @@ structure List.sortedListEventsAtEntry : Prop where
   bottom_sorted (l : List (Event n)) (b : Behaviour n) : l.sortedListBottomEventsAtEntry n b
 
 noncomputable def Behaviour.sortedEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct n) : List (Event n) := b.listBottomEventsAtEntry n addr st |>.insertionSort (Event.OrderedBefore n)
-
-lemma Behaviour.eventsAtCacheEntry_total_order (b : Behaviour n) (addr : Addr) (st : Struct n)
-  (hbottom_sorted : List.sortedListEventsAtEntry n) :
-  -- b.listBottomEventsAtEntry addr st |>.isOrdered (Event.OrderedBefore)
-  let bes := b.listBottomEventsAtEntry n addr st
-  let es := bes.insertionSort (Event.OrderedBefore n)
-  es |>.isOrdered (b.BottomPredecessor n)
-  -- probably `Event.OrderedBefore` is not the right order though! or is it? not sure you've define the order on events that these are ordered by?
-:= by
-  unfold List.isOrdered
-  intro bes es i j
-  apply Iff.intro
-  . case mp =>
-    intro hi_lt_j
-    -- have h := List.sorted_insertionSort b.BottomPredecessor es
-    constructor
-    . case sameEntry =>
-      -- unfold sortedListEventsAtEntry at hlist_sorted
-      sorry
-    . case behavePred =>
-      constructor
-      . case sameEntry =>
-        sorry
-      . case isPred =>
-        have hlist_sorted := hbottom_sorted.bottom_sorted es b
-        unfold sortedListBottomEventsAtEntry at hlist_sorted
-        simp[es] at hlist_sorted
-        sorry
-      . case predInB =>
-        sorry
-      . case succInB =>
-        sorry
-    . case predBottom =>
-      sorry
-    . case succBottom =>
-      sorry
-  . case mpr =>
-    intro hi_bottom_pred_j
-    sorry
-
-lemma Behaviour.eventsAtCacheEntry_total_order' (b : Behaviour n) (addr : Addr) (st : Struct n)
-  (hbottom_sorted : Behaviour.sortedListEventsAtEntry n) :
-  let bes := b.listBottomEventsAtEntry n addr st
-  let es := bes.insertionSort (Event.OrderedBefore n)
-  es |>.isOrdered (Event.OrderedBefore n)
-  -- b.listBottomEventsAtEntry addr st |>.isOrdered (b.BottomPredecessor)
-  -- probably `Event.OrderedBefore` is not the right order though! or is it? not sure you've define the order on events that these are ordered by?
-:= by
-  unfold List.isOrdered
-  intro bes es i j
-  apply Iff.intro
-  . case mp =>
-    simp[List.sorted_insertionSort (Event.OrderedBefore n) bes] -- at es
-    have h := List.sorted_insertionSort (Event.OrderedBefore n) es
-    intro hi_lt_j
-    -- unfold Event.OrderedBefore
-    have hlist_sorted := hbottom_sorted.bottom_sorted b addr st
-    unfold Behaviour.sortedListBottomEventsAtEntry at hlist_sorted
-    unfold List.Sorted at hlist_sorted
-    have t := hlist_sorted
-    -- unfold List.Pairwise at hlist_sorted
-    sorry
-  . case mpr =>
-    intro hi_bottom_pred_j
-    sorry
 
 instance EventAtEntry.encapOrOrderedBefore.instDecidableRel {b st addr} : DecidableRel (EventAtEntry.encapOrOrderedBefore n b st addr) := by
   simp[DecidableRel]
