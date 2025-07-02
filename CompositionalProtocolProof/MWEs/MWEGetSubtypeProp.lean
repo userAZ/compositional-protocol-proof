@@ -4,7 +4,7 @@ import Mathlib
 #eval List.indexesOf 2 [1,2,3]
 
 lemma List.in_tail_not_head (e m head : Nat) (l_tail : List Nat)
-  (hsorted : Sorted Nat.le (head :: l_tail))
+  -- (hsorted : Sorted Nat.le (head :: l_tail))
   (he_in_l : e ∈ take (idxOf m (head :: l_tail)) (head :: l_tail))
   (he_is_head : ¬e = head)
   : e ∈ take (idxOf m l_tail) l_tail := by
@@ -21,16 +21,22 @@ lemma List.in_tail_not_head (e m head : Nat) (l_tail : List Nat)
   have h3 := Or.resolve_left he_in_l he_is_head
   by_cases hhead_is_m : head == m
   . case pos =>
-    simp[hhead_is_m] at he_in_l
-    contradiction
+    have h4 := Or.resolve_left he_in_l he_is_head
+    simp only [hhead_is_m, cond_true, zero_tsub, take_zero, not_mem_nil] at h4
   . case neg =>
-    simp[hhead_is_m] at he_in_l
+    simp only [hhead_is_m, cond_false, add_tsub_cancel_right] at he_in_l
     have h3 := Or.resolve_left he_in_l he_is_head
     exact h3
+  rw[List.idxOf_cons]
 
-  -- rw[beq_iff_eq (a:=head) (b:=m)] at he_in_l
-
-  sorry
+  by_cases hhead_is_m : head = m
+  . case pos =>
+    simp[List.idxOf_cons] at he_in_l
+    rw[hhead_is_m] at he_in_l
+    simp only [BEq.rfl, cond_true, take_zero, not_mem_nil] at he_in_l
+  . case neg =>
+    simp[BEq.beq]
+    simp[hhead_is_m]
 
 lemma List.mem_fn_list (l : List Nat) (hsorted : l.Sorted Nat.le) (m : Nat) :
   ∀ e ∈ (l.take ((l.idxOf m))), e ∈ l := by
