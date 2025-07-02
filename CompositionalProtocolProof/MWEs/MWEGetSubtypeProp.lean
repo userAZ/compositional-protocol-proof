@@ -18,6 +18,15 @@ lemma List.in_tail_not_head (e m head : Nat) (l_tail : List Nat)
   rw[List.take_cons] at he_in_l
   rw[List.idxOf_cons] at he_in_l
   simp at he_in_l
+  have h3 := Or.resolve_left he_in_l he_is_head
+  by_cases hhead_is_m : head == m
+  . case pos =>
+    simp[hhead_is_m] at he_in_l
+    contradiction
+  . case neg =>
+    simp[hhead_is_m] at he_in_l
+    have h3 := Or.resolve_left he_in_l he_is_head
+    exact h3
 
   -- rw[beq_iff_eq (a:=head) (b:=m)] at he_in_l
 
