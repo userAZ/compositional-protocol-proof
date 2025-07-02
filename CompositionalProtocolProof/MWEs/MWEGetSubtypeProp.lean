@@ -60,7 +60,7 @@ lemma List.mem_fn_list (l : List Nat) (hsorted : l.Sorted Nat.le) (m : Nat) :
         have h := ihh
         /- With `he_is_head`, `e` isn't `head`,
         so we should be able to remove `head` from `he_in_l` -/
-        sorry
+        apply List.in_tail_not_head e m head l_tail he_in_l he_is_head
 
 def NatSubTen := {n : Nat // n < 10}
 
