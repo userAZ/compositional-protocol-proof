@@ -963,14 +963,18 @@ def List.stateAfter (es : List (Event n)) (init : (EntryState n)) : EntryState n
   | e :: es' => es'.stateAfter (e.SucceedingState n init)
 
 /-- Get the list of events from the head upto (excluding) e. -/
-def List.upToEvent (es : List (Event n)) (e : Event n) :=
-  (es.splitAt (es.indexesOf e).head!).1
+def List.upToEvent (es : List (Event n)) (e : Event n) := (es.take (es.idxOf e))
 
 def List.stateAtEvent (es : List (Event n)) (e : Event n) (init : EntryState n) : EntryState n :=
   List.stateAfter n (es.upToEvent n e) init
 
+noncomputable def Behaviour.eventsAtEventEntry (b : Behaviour n) (e : Event n) : List (EventAtEntry n b e.struct e.addr) :=
+  b.listBottomEventsAtEntry' n e.addr e.struct |>.insertionSort (EventAtEntry.encapOrOrderedBefore n b e.struct e.addr)
+noncomputable def Behaviour.eventsAtEventEntry' (b : Behaviour n) (e : Event n) : List (Event n) :=
+  b.eventsAtEventEntry n e |>.map (·.val)
+
 noncomputable def Behaviour.eventsUpToEvent (b : Behaviour n) (e : Event n) : List (Event n) :=
-  b.listBottomEventsAtEntry n e.addr e.struct |>.insertionSort (Event.OrderedBefore n) |>.upToEvent n e
+  b.eventsAtEventEntry' n e |>.upToEvent n e
 
 /- Def 2.33 Behaviour.StateBefore -/
 noncomputable def Behaviour.stateBefore (b : Behaviour n) (init : EntryState n) (e : Event n) : EntryState n :=
@@ -978,6 +982,40 @@ noncomputable def Behaviour.stateBefore (b : Behaviour n) (init : EntryState n) 
 
 noncomputable def Behaviour.stateAfter (b : Behaviour n) (init : EntryState n) (e : Event n) : EntryState n :=
   e.SucceedingState n (b.stateBefore n init e)
+
+lemma Behaviour.eventsAtEventEntry_at_e_entry (b : Behaviour n) (e : Event n) :
+  ∀ e' ∈ b.eventsAtEventEntry' n e, b.eventAtEntry n e' e.struct e.addr := by
+  intro e' he'_at_entry
+  simp[eventsAtEventEntry'] at he'_at_entry
+  obtain ⟨e_at_entry, hin_es_and_is_e'⟩ := he'_at_entry
+  obtain ⟨he_in_es, he_is_e'⟩ := hin_es_and_is_e'
+  subst he_is_e'
+  constructor
+  . case intro.intro.eInB =>
+    exact e_at_entry.prop.eInB
+  . case intro.intro.eAtStruct =>
+    exact e_at_entry.prop.eAtStruct
+  . case intro.intro.eAtAddr =>
+    exact e_at_entry.prop.eAtAddr
+
+lemma Behaviour.eventsUpToEvent_at_e_entry (b : Behaviour n) (e : Event n) :
+  ∀ e' ∈ b.eventsUpToEvent n e, e' ∈ b.eventsAtEventEntry' n e := by
+  let es := eventsAtEventEntry' n b e
+  intro e' he'_in_es
+  simp[eventsUpToEvent] at he'_in_es
+  induction hind : (eventsAtEventEntry' n b e) with
+  | nil =>
+    rw[ hind] at he'_in_es
+    simp[List.upToEvent] at he'_in_es
+  | cons head l_tail ih =>
+    simp
+    by_cases he'_is_head : e' = head
+    . case pos =>
+      apply Or.intro_left
+      exact he'_is_head
+    . case neg =>
+      apply Or.intro_right
+      sorry
 
 def CacheEvent.stateUpgradeMayEncapsulate (e₁ e₂ : CacheEvent n) (s₁ : State) : Prop :=
   e₁.WithoutCoherentPermissions n s₁ ∧ e₂.External → (e₁.Ordered n e₂ ∨ e₁.Encapsulates n e₂)
