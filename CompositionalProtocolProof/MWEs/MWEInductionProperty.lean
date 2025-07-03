@@ -13,10 +13,10 @@ def List.upToN (l : List Nat) (hle_m : l.leM m) (n' : Nat) :=
   ∀ n ∈ (l.take ((l.idxOf n'))), n ≤ m
 
 example (l : List Nat) (m : Nat) (hle_m : l.leM m) (hl_sorted : l.Sorted Nat.le) : sorry := by
-  induction H : l with
+  induction h_list : l with
   | nil =>
     sorry
   | cons h tail ih =>
-    /- Here, I know `h` and `tail` are in list `l`, but the induction hypothesis `ih` is unusable.
+    /- Here, I know from `h_list` that `h` and `tail` are in list `l`, but the induction hypothesis `ih` is unusable.
     `l = tail` is not a workable form. -/
     sorry
