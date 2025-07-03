@@ -770,17 +770,35 @@ lemma Behaviour.exists_predecessor_setting_state''
                   match e_pred.req with
                   | ⟨⟨.w, true,_⟩,_⟩ =>
                     -- if e_pred gets permissions (SW, or M), then it violates hno_pred
-                    have h := hno_pred e_pred
-                    simp[immBottomPredEncapDirAndHasNoPermsAndLeavesStateAtLeast] at h
-                    simp[predHasNoPermsAndEncapDirAndLeavesStateAtLeastReq] at h
-                    rw[hinit_i] at h
+                    have h_pred_cannot_get_perms_for_req := hno_pred e_pred
 
-                    have pred_encap_dir_leaves_perms := sorry
-                    have imm_bottom_pred_leave_perms :
-                      b.ImmediateBottomPredSatisfyingProp n e_pred (Event.cacheEvent ce_req)
-                        (b.predHasNoPermsAndEncapDirAndLeavesStateAtLeastReq n init · e_req)
-                        := sorry
-                    sorry
+                    absurd h_pred_cannot_get_perms_for_req
+                    have h_imm_bottom_pred_leave_perms :
+                      immBottomPredEncapDirAndHasNoPermsAndLeavesStateAtLeast n b init e_pred (Event.cacheEvent ce_req)
+                        := by
+                        simp[immBottomPredEncapDirAndHasNoPermsAndLeavesStateAtLeast]
+                        simp[ImmediateBottomPredSatisfyingProp]
+                        simp[predHasNoPermsAndEncapDirAndLeavesStateAtLeastReq]
+                        constructor
+                        . case isImmBottomPred =>
+                          constructor
+                          . case isImmPred =>
+                            constructor
+                            . case sameEntry =>
+                              /- Cannot complete this case, without referencing the fact that
+                              `e_pred` comes from `l_preds`, but using "induction `h : l_preds` with"
+                              makes the induction hypothesis unusable. -/
+                              sorry
+                            . case behavePred => sorry
+                            . case noIntermediate =>
+                              /- [TODO] Need a way to say "`e_pred` is the immediate predecessor to `e_req`" -/
+                              sorry
+                          . case isBottom => sorry
+                        . case satisfyP => sorry
+                    exact h_imm_bottom_pred_leave_perms
+                  | _ => sorry
+                | _ => sorry
+              | _ => sorry
               -- | ⟨⟨.r,true,_⟩,_⟩ =>
             | true =>
             sorry
