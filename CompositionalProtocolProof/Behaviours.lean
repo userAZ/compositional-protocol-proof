@@ -2,7 +2,6 @@ import CompositionalProtocolProof.EventRelations
 import Mathlib.Data.Finite.Defs
 import Mathlib.Data.Set.Finite.Basic
 import Mathlib
-import Canonical
 
 variable (n : Nat)
 
@@ -958,14 +957,14 @@ lemma Behaviour.eventsAtCacheEntry_total_order'' (b : Behaviour n) (addr : Addr)
         have hj_start_lt_i_start := Nat.lt_trans (List.insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr) bes)[j.val].val.oWellFormed (hj_order_before_i)
         exact Nat.lt_trans hj_start_lt_i_start (List.insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr) bes)[i.val].val.oWellFormed
 
-def List.stateAfter (es : List (Event n)) (init : (EntryState n)) : EntryState n := match es with
+noncomputable def List.stateAfter (es : List (Event n)) (init : (EntryState n)) : EntryState n := match es with
   | [] => init
   | e :: es' => es'.stateAfter (e.SucceedingState n init)
 
 /-- Get the list of events from the head upto (excluding) e. -/
 def List.upToEvent (es : List (Event n)) (e : Event n) := (es.take (es.idxOf e))
 
-def List.stateAtEvent (es : List (Event n)) (e : Event n) (init : EntryState n) : EntryState n :=
+noncomputable def List.stateAtEvent (es : List (Event n)) (e : Event n) (init : EntryState n) : EntryState n :=
   List.stateAfter n (es.upToEvent n e) init
 
 noncomputable def Behaviour.eventsAtEventEntry (b : Behaviour n) (e : Event n) : List (EventAtEntry n b e.struct e.addr) :=

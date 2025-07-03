@@ -63,7 +63,7 @@ structure Request.IsValid (r : Request) where
 abbrev ValidRequest := {r : Request // Request.IsValid r}
 
 /-- Definition 2.12 Minimum Required State of a request. -/
-def ValidRequest.MRS : ValidRequest → State
+noncomputable def ValidRequest.MRS : ValidRequest → State
 | ⟨⟨rw,true,_⟩,_⟩ => ⟨rw.toPerms, true⟩
 | ⟨⟨_,false,.Weak⟩,_⟩ => Vc
 | ⟨⟨.w,false,.Rel⟩,_⟩ => Vd
@@ -263,7 +263,7 @@ lemma ncw_impl_no_mr {pi : ProtocolInterface} (vr : ValidRequest) (s : State) (h
   | ⟨.r, false, .SC⟩ =>
     subst hreq
     have hreq_no_noncoherent := hreq_valid.non_coherent
-    simp[Request] at hreq_no_noncoherent
+    simp at hreq_no_noncoherent
     /-
     unfold Request.NoSCNonCoherent at hreq_no_noncoherent
     unfold Request.SCNonCoherent at hreq_no_noncoherent
@@ -272,23 +272,23 @@ lemma ncw_impl_no_mr {pi : ProtocolInterface} (vr : ValidRequest) (s : State) (h
   | ⟨.r, true, .Weak⟩ =>
     subst hreq
     have hreq_no_cwr := hreq_valid.no_cwr
-    simp[Request] at hreq_no_cwr
+    simp at hreq_no_cwr
   | ⟨.w, false, .SC⟩ =>
     subst hreq
     have hreq_no_noncoherent := hreq_valid.non_coherent
-    simp[Request] at hreq_no_noncoherent
+    simp at hreq_no_noncoherent
   | ⟨.r, true, .Acq⟩ =>
     subst hreq
     have hreq_no_cacq := hreq_valid.no_cacq
-    simp[Request] at hreq_no_cacq
+    simp at hreq_no_cacq
   | ⟨.w, false, .Acq⟩ =>
     subst hreq
     have hreq_no_wacq := hreq_valid.no_write_acq
-    simp[Request] at hreq_no_wacq
+    simp at hreq_no_wacq
   | ⟨.r, false, .Rel⟩ =>
     subst hreq
     have hreq_no_rrel := hreq_valid.no_read_rel
-    simp[Request] at hreq_no_rrel
+    simp at hreq_no_rrel
 
 lemma pi_ncw_on_mr_contradiction {pi : ProtocolInterface} (vr : ValidRequest) (s : State) (h_vr_in_pi : vr ∈ pi.val) (h_s_in_pi : pi.HasState s)
 (h_vr_is_ncw : vr.val = RelWrite ∨ vr.val = NonCoherentWeakWrite) (h_s_mr : s = MR) : False := by
@@ -297,7 +297,7 @@ lemma pi_ncw_on_mr_contradiction {pi : ProtocolInterface} (vr : ValidRequest) (s
   contradiction
 
 /-- What is the state a request leaves a cache entry in.  -/
-def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (s : State) /-(h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s)-/ : State :=
+noncomputable def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (s : State) /-(h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s)-/ : State :=
   match vr with
   | ⟨⟨_, true, _⟩, _⟩ | ⟨⟨.r, false, .Weak⟩, {}⟩ =>
     if vr.MRS ≤ s then s
@@ -401,7 +401,7 @@ lemma ValidRequest.RequestState_never_none {pi : ProtocolInterface} (vr : ValidR
   | ⟨⟨.r, false, .Acq⟩, _⟩ => simp
 -/
 
-def ValidRequest.DowngradeState (vr : ValidRequest) : State → State
+noncomputable def ValidRequest.DowngradeState (vr : ValidRequest) : State → State
 | s => match vr.val.coherent with
   | true =>
     if s ≤ vr.MRS then I
