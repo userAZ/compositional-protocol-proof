@@ -787,6 +787,8 @@ lemma Behaviour.exists_predecessor_setting_state''
                               /- Cannot complete this case, without referencing the fact that
                               `e_pred` comes from `l_preds`, but using "induction `h : l_preds` with"
                               makes the induction hypothesis unusable. -/
+                              /- Ideally, I could use `hpreds_at_same_entry : ∀ e ∈ l_preds, b.eventAtEntry n e e_req.struct e_req.addr`
+                              I have above, but I can't link `e_pred` to being in the events `l_preds` that are predecessor to `e_req` and at the same entry. -/
                               sorry
                             . case behavePred => sorry
                             . case noIntermediate =>
