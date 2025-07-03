@@ -951,13 +951,13 @@ def List.upToEvent (es : List (Event n)) (e : Event n) := (es.take (es.idxOf e))
 noncomputable def List.stateAtEvent (es : List (Event n)) (e : Event n) (init : EntryState n) : EntryState n :=
   List.stateAfter n (es.upToEvent n e) init
 
-noncomputable def Behaviour.eventsAtEventEntry (b : Behaviour n) (e : Event n) : List (EventAtEntry n b e.struct e.addr) :=
+noncomputable def Behaviour.eventsAtEntryOfListBottomEvents (b : Behaviour n) (e : Event n) : List (EventAtEntry n b e.struct e.addr) :=
   b.listBottomEventsAtEntry' n e.addr e.struct |>.insertionSort (EventAtEntry.encapOrOrderedBefore n b e.struct e.addr)
-noncomputable def Behaviour.eventsAtEventEntry' (b : Behaviour n) (e : Event n) : List (Event n) :=
-  b.eventsAtEventEntry n e |>.map (·.val)
+noncomputable def Behaviour.eventsAtEventEntry (b : Behaviour n) (e : Event n) : List (Event n) :=
+  b.eventsAtEntryOfListBottomEvents n e |>.map (·.val)
 
 noncomputable def Behaviour.eventsUpToEvent (b : Behaviour n) (e : Event n) : List (Event n) :=
-  b.eventsAtEventEntry' n e |>.upToEvent n e
+  b.eventsAtEventEntry n e |>.upToEvent n e
 
 /- Def 2.33 Behaviour.StateBefore -/
 noncomputable def Behaviour.stateBefore (b : Behaviour n) (init : EntryState n) (e : Event n) : EntryState n :=
@@ -967,9 +967,9 @@ noncomputable def Behaviour.stateAfter (b : Behaviour n) (init : EntryState n) (
   e.SucceedingState n (b.stateBefore n init e)
 
 lemma Behaviour.eventsAtEventEntry_at_e_entry (b : Behaviour n) (e : Event n) :
-  ∀ e' ∈ b.eventsAtEventEntry' n e, b.eventAtEntry n e' e.struct e.addr := by
+  ∀ e' ∈ b.eventsAtEventEntry n e, b.eventAtEntry n e' e.struct e.addr := by
   intro e' he'_at_entry
-  simp[eventsAtEventEntry'] at he'_at_entry
+  simp[eventsAtEventEntry] at he'_at_entry
   obtain ⟨e_at_entry, hin_es_and_is_e'⟩ := he'_at_entry
   obtain ⟨he_in_es, he_is_e'⟩ := hin_es_and_is_e'
   subst he_is_e'
@@ -982,11 +982,11 @@ lemma Behaviour.eventsAtEventEntry_at_e_entry (b : Behaviour n) (e : Event n) :
     exact e_at_entry.prop.eAtAddr
 
 lemma Behaviour.eventsUpToEvent_at_e_entry (b : Behaviour n) (e : Event n) :
-  ∀ e' ∈ b.eventsUpToEvent n e, e' ∈ b.eventsAtEventEntry' n e := by
-  let es := eventsAtEventEntry' n b e
+  ∀ e' ∈ b.eventsUpToEvent n e, e' ∈ b.eventsAtEventEntry n e := by
+  let es := eventsAtEventEntry n b e
   intro e' he'_in_es
   simp[eventsUpToEvent] at he'_in_es
-  induction hind : (eventsAtEventEntry' n b e) with
+  induction hind : (eventsAtEventEntry n b e) with
   | nil =>
     rw[ hind] at he'_in_es
     simp[List.upToEvent] at he'_in_es
