@@ -9,13 +9,17 @@ import Mathlib
 
 def List.leM (l : List Nat) (m : Nat) := ∀ n ∈ l, n < m
 
-def List.upToN (l : List Nat) (hle_m : l.leM m) (n' : Nat) :=
-  ∀ n ∈ (l.take ((l.idxOf n'))), n ≤ m
+/- Can make the goal harder with this: ∧ (l.upToN n).all (· < n).
+Would need to add this: (hle_m : l.leM m) to the premise on the left of the goal. -/
 
-example (l : List Nat) (m : Nat) (hle_m : l.leM m) (hl_sorted : l.Sorted Nat.le) : sorry := by
-  induction h_list : l with
+def List.upToN (l : List Nat) (n : Nat) :=
+  l.take ((l.idxOf n))
+
+example (l : List Nat) (n m : Nat) (hl_sorted : l.Sorted Nat.le) : (l.upToN n).Sorted Nat.le := by
+  let up_to_n := l.upToN n
+  induction l with
   | nil =>
-    sorry
+    constructor
   | cons h tail ih =>
     /- Here, I know from `h_list` that `h` and `tail` are in list `l`, but the induction hypothesis `ih` is unusable.
     `l = tail` is not a workable form. -/
