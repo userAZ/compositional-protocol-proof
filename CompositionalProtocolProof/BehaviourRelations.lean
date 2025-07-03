@@ -663,6 +663,9 @@ lemma Behaviour.contradiction_of_has_coherent_perms_no_event_gets_perms {b init 
 /-- `Helper Lemma 1` in Lemma 3's re-write -/
 lemma Behaviour.exists_predecessor_setting_state''
   (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
+  (l_preds : List (Event n))
+  -- (hl_preds : l_preds = b.eventsUpToEvent n e_req)
+  (hpreds_at_same_entry : ∀ e ∈ l_preds, b.eventAtEntry n e e_req.struct e_req.addr)
   (hreq_not_downgrade : ¬ e_req.down)
   (hhave_perms : reqHasPerms n b init e_req)
   (hinit_i : init.stateAt n e_req = IEntry n)
@@ -676,12 +679,11 @@ lemma Behaviour.exists_predecessor_setting_state''
   to the state `e_req` is made on, and `e_pred` encapsulates an e_dir by Axiom 6.
   Perform `backwards induction` on the list `l_preds` of events before `e_req`.
   -/
-  let l_preds := b.eventsUpToEvent n e_req
-
-  have hpreds_at_same_entry : ∀ e ∈ l_preds, b.eventAtEntry n e e_req.struct e_req.addr := by
-    subst l_preds
+  /-
+  have hpreds_at_same_entry : ∀ e ∈ b.eventsUpToEvent n e_req, b.eventAtEntry n e e_req.struct e_req.addr := by
+    -- subst l_preds
     apply Behaviour.eventsUpToEvent_are_at_entry
-
+  -/
   /- First, state the state e_req is made on. With an empty pred list, it's I. -/
   let state_made_on := b.stateBefore n (init.stateAt n e_req) e_req |>.cache
   have h_made_on : state_made_on = (stateBefore n b (InitialSystemState.stateAt n init e_req) e_req).cache := by
@@ -689,9 +691,7 @@ lemma Behaviour.exists_predecessor_setting_state''
   rw[hinit_i] at h_made_on
   unfold stateBefore at h_made_on
 
-  have h_preds : l_preds = b.eventsUpToEvent n e_req := by
-    subst l_preds; rfl
-  rw[← h_preds] at h_made_on
+  -- rw[← hl_preds] at h_made_on
   have hexists_e_pred : ∃ e_pred : Event n, b.immBottomPredEncapDirAndHasNoPermsAndLeavesStateAtLeast n init e_pred e_req :=
     by
     by_contra hno_pred
@@ -718,6 +718,8 @@ lemma Behaviour.exists_predecessor_setting_state''
       -- simp[List.stateAfter] at h_has_perms
       -- unfold List.stateAfter at h_has_perms
       -- simp at h_has_perms
+      -- let l_preds := eventsUpToEvent n b e_req
+      -- let hl_preds : l_preds = eventsUpToEvent n b e_req := by simp[l_preds]
       have hno_perms : ¬ (Event.req n e_req).MRS ≤ EntryState.cache n (List.stateAfter n (l_preds) (IEntry n)) :=
         by
         induction l_preds using List.reverseRecOn with
@@ -729,28 +731,15 @@ lemma Behaviour.exists_predecessor_setting_state''
           | .cacheEvent ce =>
             /- For any request, the state it was made on is greater or equal to it's MRS. -/
             match hreq : ce.req with
-            | ⟨⟨rw,true,_⟩,_⟩ =>
-              simp[List.stateAfter, EntryState.cache]
-              simp[ValidRequest.MRS, Event.req, hreq]
-              simp[LE.le, State.le]
-            | ⟨⟨.r,false,.Weak⟩,{}⟩ =>
-              simp[List.stateAfter, EntryState.cache]
-              simp[ValidRequest.MRS, Event.req, hreq]
-              simp[LE.le, State.le, Option.le]
-            | ⟨⟨.w,false,.Weak⟩,{}⟩ =>
-              simp[List.stateAfter, EntryState.cache]
-              simp[ValidRequest.MRS, Event.req, hreq]
-              simp[LE.le, State.le, Option.le]
-            | ⟨⟨.w,false,.Rel⟩,{}⟩ =>
-              simp[List.stateAfter, EntryState.cache]
-              simp[ValidRequest.MRS, Event.req, hreq]
-              simp[LE.le, State.le, Option.le]
+            | ⟨⟨rw,true,_⟩,_⟩
+            | ⟨⟨.r,false,.Weak⟩,{}⟩
+            | ⟨⟨.w,false,.Weak⟩,{}⟩
+            | ⟨⟨.w,false,.Rel⟩,{}⟩
             | ⟨⟨.r,false,.Acq⟩,{}⟩ =>
-              simp[List.stateAfter, EntryState.cache]
-              simp[ValidRequest.MRS, Event.req, hreq]
-              simp[LE.le, State.le, Option.le]
+              all_goals simp[List.stateAfter, EntryState.cache]; simp[ValidRequest.MRS, Event.req, hreq]; simp[LE.le, State.le, Option.le]
           | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
         | append_singleton l_head e_pred ih =>
+
           match hreq : e_req with
           | .cacheEvent ce_req =>
             match ce_req.down with
@@ -759,16 +748,32 @@ lemma Behaviour.exists_predecessor_setting_state''
               | ⟨⟨.w,true,_⟩,_⟩ => -- coherent write case
                 match h_l_head_state : EntryState.cache n (List.stateAfter n l_head (IEntry n)) with
                 | ⟨some .wr, true⟩ => -- Can't be SW (M) state
-                  rw[h_l_head_state] at ih
-                  simp[Event.req] at ih
-                  simp[hreq_req] at ih
-                  simp[ValidRequest.MRS] at ih
-                  simp[ReadWrite.toPerms, ReadWrite.toRWPerms] at ih
-                  simp[LE.le, State.le, Option.le] at ih
+                  have ih_precond : (∀ e ∈ l_head, eventAtEntry n b e (Event.struct n (Event.cacheEvent ce_req)) (Event.addr n (Event.cacheEvent ce_req))) := by
+                    intro e he_in_l_head
+                    -- have test := hpreds_at_same_entry e
+                    apply hpreds_at_same_entry
+                    . case a => simp[he_in_l_head]
+
+                  have ih_post := ih ih_precond
+
+                  rw[h_l_head_state] at ih_post
+                  simp[Event.req] at ih_post
+                  simp[hreq_req] at ih_post
+                  simp[ValidRequest.MRS] at ih_post
+                  simp[ReadWrite.toPerms, ReadWrite.toRWPerms] at ih_post
+                  simp[LE.le, State.le, Option.le] at ih_post
                 | ⟨some .r, true⟩ => -- Can be on MR (S) state, and e_pred can't be
                   match e_pred.req with
                   | ⟨⟨.w, true,_⟩,_⟩ =>
                     -- if e_pred gets permissions (SW, or M), then it violates hno_pred
+                    have ih_precond : (∀ e ∈ l_head, eventAtEntry n b e (Event.struct n (Event.cacheEvent ce_req)) (Event.addr n (Event.cacheEvent ce_req))) := by
+                      intro e he_in_l_head
+                      -- have test := hpreds_at_same_entry e
+                      apply hpreds_at_same_entry
+                      . case a => simp[he_in_l_head]
+
+                    have ih_post := ih ih_precond
+
                     have h_pred_cannot_get_perms_for_req := hno_pred e_pred
 
                     absurd h_pred_cannot_get_perms_for_req
@@ -784,13 +789,18 @@ lemma Behaviour.exists_predecessor_setting_state''
                           . case isImmPred =>
                             constructor
                             . case sameEntry =>
+                              have h_e_pred_at_e_req := hpreds_at_same_entry e_pred (by simp)
+                              constructor
+                              . case sameStruct => simp[Event.sameStructure, h_e_pred_at_e_req.eAtStruct]
+                              . case sameAddr => simp[Event.sameAddr, h_e_pred_at_e_req.eAtAddr]
                               /- Cannot complete this case, without referencing the fact that
                               `e_pred` comes from `l_preds`, but using "induction `h : l_preds` with"
                               makes the induction hypothesis unusable. -/
                               /- Ideally, I could use `hpreds_at_same_entry : ∀ e ∈ l_preds, b.eventAtEntry n e e_req.struct e_req.addr`
                               I have above, but I can't link `e_pred` to being in the events `l_preds` that are predecessor to `e_req` and at the same entry. -/
+                            . case behavePred =>
+                              constructor
                               sorry
-                            . case behavePred => sorry
                             . case noIntermediate =>
                               /- [TODO] Need a way to say "`e_pred` is the immediate predecessor to `e_req`" -/
                               sorry
