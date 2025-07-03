@@ -797,7 +797,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
 (e_req : Event n) (he_req_in_b : e_req ∈ b.es) (hreq_not_down : ¬ e_req.down)
 (hreq_encap_dir : Behaviour.axRequestAccessesDirectory n)
 (hvd_wb_later : Behaviour.vdCacheEntryWriteBackLater n b e_req init) :
-   b.dirAccessOfRequest n init e_req
+   ∃ e_dir ∈ b.es, e_dir.isDirectoryEvent ∧ b.dirAccessOfRequest n init e_req
   := by
   have ax6 := hreq_encap_dir.reqAccessDir b e_req he_req_in_b init
   unfold Behaviour.requestAccessesDirectoryWrapper at ax6
@@ -818,13 +818,13 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
           /- Request has no permissions, so encapsulates a directory event to access the Directory. -/
           match ax6 with
           | .coherentRequest hcoh_req =>
-            -- use hcoh_req.reqEncapDir.reqEncapCorrDir.choose
-            -- apply And.intro
-            -- . case h.left => exact hcoh_req.reqEncapDir.reqEncapCorrDir.choose_spec.left
-            -- . case h.right =>
-              -- apply And.intro
-              -- . case left => exact hcoh_req.reqEncapDir.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent.isDir
-              -- . case right =>
+            use hcoh_req.reqEncapDir.reqEncapCorrDir.choose
+            apply And.intro
+            . case h.left => exact hcoh_req.reqEncapDir.reqEncapCorrDir.choose_spec.left
+            . case h.right =>
+              apply And.intro
+              . case left => exact hcoh_req.reqEncapDir.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent.isDir
+              . case right =>
                 apply dirAccessOfRequest.encapDir
                 simp_all only [Bool.not_eq_true]
                 have h := hcoh_req.notDowngrade
