@@ -275,11 +275,9 @@ abbrev CacheEvent.NoRequestPermissions (e : CacheEvent n) (s : State) : Prop := 
 
 abbrev CacheEvent.WithoutCoherentPermissions (e : CacheEvent n) (s : State) : Prop := e.Local ∧ e.Coherent ∧ e.NoRequestPermissions n s
 
-structure Event.sameStructure (e₁ e₂ : Event n) : Prop where
-  sameStruct : e₁.struct = e₂.struct
+def Event.sameStructure (e₁ e₂ : Event n) : Prop := e₁.struct = e₂.struct
 
-structure Event.sameAddr (e₁ e₂ : Event n) : Prop where
-  sameStruct : e₁.addr = e₂.addr
+def Event.sameAddr (e₁ e₂ : Event n) : Prop := e₁.addr = e₂.addr
 
 structure Event.sameEntry (e₁ e₂ : Event n) : Prop where
   sameStruct : e₁.sameStructure n e₂

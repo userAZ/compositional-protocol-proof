@@ -131,11 +131,11 @@ lemma CacheEvent.encap_then_event_encap (ce₁ ce₂ : CacheEvent n) (hencap : c
 lemma Event.same_entry_symm (e₁ e₂ : Event n) (hsame_entry : e₁.sameEntry n e₂) : e₂.sameEntry n e₁ := by
   constructor
   . case sameStruct =>
-    constructor
-    simp[hsame_entry.sameStruct.sameStruct]
+    have hsame_struct := hsame_entry.sameStruct
+    simp_all[Event.sameStructure]
   . case sameAddr =>
-    constructor
-    simp[hsame_entry.sameAddr.sameStruct]
+    have hsame_addr := hsame_entry.sameAddr
+    simp_all[Event.sameAddr]
 
 lemma Behaviour.orderedBottomCacheEntries (b : Behaviour n) (ce₁ ce₂ : CacheEvent n)
   (he₁_in_b : Event.cacheEvent ce₁ ∈ b.es) (he₂_in_b : Event.cacheEvent ce₂ ∈ b.es)
@@ -187,33 +187,25 @@ lemma Event.same_entry_trans {e₁ e₂ e : Event n} (he₁_entry_e : e₁.sameE
   : e₁.sameEntry n e₂ := by
   constructor
   . case sameStruct =>
-    have he₁_struct_e := he₁_entry_e.sameStruct.sameStruct
-    have he₂_struct_e := he₂_entry_e.sameStruct.sameStruct
-    rw[← he₂_struct_e] at he₁_struct_e
-    constructor
-    exact he₁_struct_e
+    have he₁_struct_e := he₁_entry_e.sameStruct
+    have he₂_struct_e := he₂_entry_e.sameStruct
+    simp_all[sameStructure]
   . case sameAddr =>
-    have he₁_addr_e := he₁_entry_e.sameAddr.sameStruct
-    have he₂_addr_e := he₂_entry_e.sameAddr.sameStruct
-    constructor
-    rw[← he₂_addr_e] at he₁_addr_e
-    exact he₁_addr_e
+    have he₁_addr_e := he₁_entry_e.sameAddr
+    have he₂_addr_e := he₂_entry_e.sameAddr
+    simp_all[sameAddr]
 
 lemma Event.same_entry_trans' {e₁ e₂ e : Event n} (he_entry_e₁ : e.sameEntry n e₁) (he_entry_e₂ : e.sameEntry n e₂)
   : e₁.sameEntry n e₂ := by
   constructor
   . case sameStruct =>
-    have he_struct_e₁ := he_entry_e₁.sameStruct.sameStruct
-    have he_struct_e₂ := he_entry_e₂.sameStruct.sameStruct
-    rw[he_struct_e₁] at he_struct_e₂
-    constructor
-    exact he_struct_e₂
+    have he_struct_e₁ := he_entry_e₁.sameStruct
+    have he_struct_e₂ := he_entry_e₂.sameStruct
+    simp_all[sameStructure]
   . case sameAddr =>
-    have he_addr_e₁ := he_entry_e₁.sameAddr.sameStruct
-    have he_addr_e₂ := he_entry_e₂.sameAddr.sameStruct
-    constructor
-    rw[he_addr_e₁] at he_addr_e₂
-    exact he_addr_e₂
+    have he_addr_e₁ := he_entry_e₁.sameAddr
+    have he_addr_e₂ := he_entry_e₂.sameAddr
+    simp_all[sameAddr]
 
 lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour n) (e_succ : Event n)
   (e_pred₁ e_pred₂ : Event n)
@@ -240,28 +232,28 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour n) (e_succ : 
       match hsucc : e_succ with
       | .directoryEvent de_succ =>
         subst hsucc
-        have e₂_same_struct_e_succ := h_e_succ_is_cache.sameStruct
+        have e₂_same_struct_e_succ := h_e_succ_is_cache
         unfold Event.struct at e₂_same_struct_e_succ
-        simp at e₂_same_struct_e_succ
+        simp[Event.sameStructure, Event.struct] at e₂_same_struct_e_succ
       | .cacheEvent ce_succ =>
         subst hsucc
-        have e₁_same_struct_e_succ := h_e_succ_is_dir.sameStruct
+        have e₁_same_struct_e_succ := h_e_succ_is_dir
         unfold Event.struct at e₁_same_struct_e_succ
-        simp at e₁_same_struct_e_succ
+        simp[Event.sameStructure, Event.struct] at e₁_same_struct_e_succ
     | .cacheEvent ce, .directoryEvent de =>
       have h_e_succ_is_cache := he₁_b.isImmPred.sameStructure
       have h_e_succ_is_dir   := he₂_b.isImmPred.sameStructure
       match hsucc : e_succ with
       | .directoryEvent de_succ =>
         subst hsucc
-        have e₁_same_struct_e_succ := h_e_succ_is_cache.sameStruct
+        have e₁_same_struct_e_succ := h_e_succ_is_cache
         unfold Event.struct at e₁_same_struct_e_succ
-        simp at e₁_same_struct_e_succ
+        simp[Event.sameStructure, Event.struct] at e₁_same_struct_e_succ
       | .cacheEvent ce_succ =>
         subst hsucc
-        have e₂_same_struct_e_succ := h_e_succ_is_dir.sameStruct
+        have e₂_same_struct_e_succ := h_e_succ_is_dir
         unfold Event.struct at e₂_same_struct_e_succ
-        simp at e₂_same_struct_e_succ
+        simp[Event.sameStructure, Event.struct] at e₂_same_struct_e_succ
 
 lemma Set.nonempty_unique_is_singleton {α} (s : Set α) (h_nonempty : Nonempty s)
   (h_unique : ∀ (a b : α),  a ∈ s → b ∈ s → a = b) : s.IsSingleton := by
@@ -429,21 +421,13 @@ lemma Behaviour.immediate_bottom_successor_unique (b : Behaviour n) (e_pred : Ev
         he₁_b.isBottom he₂_b.isBottom hpred₁_pred₂_same_entry
       apply Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction n he₁_b he₂_b hce₁_ce₂_ordered
     | .directoryEvent de, .cacheEvent ce =>
-      have h_e_succ_is_dir   := he₁_b.isImmSucc.sameEntry.sameStruct.sameStruct
-      have h_e_succ_is_cache := he₂_b.isImmSucc.sameEntry.sameStruct.sameStruct
-      simp [Event.struct] at h_e_succ_is_dir h_e_succ_is_cache
-
-      match hsucc : e_pred with
-      | .directoryEvent de_succ => simp at h_e_succ_is_cache
-      | .cacheEvent ce_succ => simp at h_e_succ_is_dir
+      have h_e_succ_is_dir   := he₁_b.isImmSucc.sameEntry.sameStruct
+      have h_e_succ_is_cache := he₂_b.isImmSucc.sameEntry.sameStruct
+      simp_all[Event.sameStructure, Event.struct]
     | .cacheEvent ce, .directoryEvent de =>
-      have h_e_succ_is_cache := he₁_b.isImmSucc.sameEntry.sameStruct.sameStruct
-      have h_e_succ_is_dir   := he₂_b.isImmSucc.sameEntry.sameStruct.sameStruct
-      simp [Event.struct] at h_e_succ_is_dir h_e_succ_is_cache
-
-      match hsucc : e_pred with
-      | .directoryEvent de_succ => simp at h_e_succ_is_cache
-      | .cacheEvent ce_succ => simp at h_e_succ_is_dir
+      have h_e_succ_is_cache := he₁_b.isImmSucc.sameEntry.sameStruct
+      have h_e_succ_is_dir   := he₂_b.isImmSucc.sameEntry.sameStruct
+      simp_all[Event.sameStructure, Event.struct]
 
 lemma Behaviour.immediate_bottom_successor_empty_or_unique (b : Behaviour n) (e_pred : Event n)
   :
