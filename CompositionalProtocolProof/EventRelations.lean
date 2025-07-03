@@ -31,7 +31,7 @@ lemma DirectoryEvent.ordered_events {de₁ de₂ : DirectoryEvent n} {e₁ e₂ 
   | .directoryEvent de₁', .directoryEvent de₂' =>
     subst he₁_is_de₁ he₂_is_de₂
     intro h_de₁_lt_de₂
-    simp [Event.o]
+    simp
     exact h_de₁_lt_de₂
   | .directoryEvent _, .cacheEvent _ => contradiction
   | .cacheEvent _, .directoryEvent _ => contradiction
@@ -285,7 +285,7 @@ structure Event.sameEntry (e₁ e₂ : Event n) : Prop where
   sameStruct : e₁.sameStructure n e₂
   sameAddr : e₁.sameAddr n e₂
 
-def CacheEvent.SucceedingState (e : CacheEvent n) (s : State) : State :=
+noncomputable def CacheEvent.SucceedingState (e : CacheEvent n) (s : State) : State :=
   match e.down with
   | false => e.req.RequestState s
   | true => e.req.DowngradeState s
@@ -334,7 +334,7 @@ def Event.directoryState (e : Event n) (s : EntryState n) : Prop := match e with
    OR build in the input state and interface requests into the types.
 -/
 
-def Event.SucceedingState (e : Event n) (s : EntryState n) : EntryState n := match e with
+noncomputable def Event.SucceedingState (e : Event n) (s : EntryState n) : EntryState n := match e with
   | .cacheEvent ce => Sum.inl <| ce.SucceedingState n s.cache
   | .directoryEvent de => Sum.inr <| de.SucceedingState n s.directory
 

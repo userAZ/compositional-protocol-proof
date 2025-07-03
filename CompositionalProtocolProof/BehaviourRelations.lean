@@ -1,5 +1,4 @@
 import CompositionalProtocolProof.Behaviours
-import Canonical
 
 variable (n : Nat)
 
@@ -12,7 +11,7 @@ structure Request.IsValid (r : Request) where
   no_cwr : r.NoCoherentWeakRead := by simp
 -/
 
-def Event.reqToDirOfRequestEvent (e_req : Event n) (state_before : State) : ValidRequest :=
+noncomputable def Event.reqToDirOfRequestEvent (e_req : Event n) (state_before : State) : ValidRequest :=
   match e_req.req, state_before, e_req.down with
   | ⟨⟨.w, false, _⟩, _⟩, I, false => ⟨⟨.r, false, .Weak⟩, {}⟩
   | ⟨⟨.r, false, .Acq⟩, {}⟩, Vd, _ => ⟨⟨.w, false, .Weak⟩, {}⟩
