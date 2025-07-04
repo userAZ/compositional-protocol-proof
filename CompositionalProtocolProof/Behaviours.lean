@@ -663,7 +663,17 @@ instance EventAtEntry.instIsTotal {n} {b} {st} {addr} :
 def Behaviour.bottomEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct n) : Set (EventAtEntry n b st addr) :=
   {e : EventAtEntry n b st addr | e.val ∈ b.es ∧ e.val.isBottomAtEntry n b st addr}
 
+lemma Behaviour.bottomEventsAtEntry'_are_bottom (b : Behaviour n) (addr : Addr) (st : Struct n)
+  : ∀ e ∈ b.bottomEventsAtEntry' n addr st, e.val.isBottomAtEntry n b st addr := by
+  simp[bottomEventsAtEntry']
+
 noncomputable def Set.finSetEvents' {b} {st} {addr} (es : Set (EventAtEntry n b st addr)) (hes_fin : Finite es) : Finset (EventAtEntry n b st addr) := Set.Finite.toFinset hes_fin
+
+lemma Set.finSetEvents'_e_in_result  {b} {st} {addr} (es : Set (EventAtEntry n b st addr)) (hes_fin : Finite es)
+  : ∀ e ∈ Set.finSetEvents' n es hes_fin, e ∈ es := by
+  intro e he_in_finset_events
+  simp[finSetEvents'] at he_in_finset_events
+  exact he_in_finset_events
 
 --https://leanprover.zulipchat.com/#narrow/channel/113489-new-members/topic/How.20to.20prove.20fin.20subtype.20with.20stricter.20restriction.20is.20fin/with/526216387
 lemma Subtype.equiv_fin_impl_equiv_fin' {α : Type*} {n} {p q : α → Prop} (himpl : ∀ x, q x → p x)
@@ -702,6 +712,18 @@ theorem Behaviour.bottomEventsAtEntry_finite' (b : Behaviour n) (addr : Addr) (s
 noncomputable def Behaviour.listBottomEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct n) : List (EventAtEntry n b st addr) :=
   let e_at_centry := b.bottomEventsAtEntry' n addr st
   Set.finSetEvents' n e_at_centry (b.bottomEventsAtEntry_finite' n addr st) |>.toList
+
+lemma Behaviour.listBottomEventsAtEntry'_are_bottom (b : Behaviour n) (addr : Addr) (st : Struct n)
+  : ∀ e ∈ Behaviour.listBottomEventsAtEntry' n b addr st, e.val.isBottomAtEntry n b st addr := by
+  simp[listBottomEventsAtEntry']
+  have h := b.bottomEventsAtEntry'_are_bottom n addr st
+  intro e he_in_finsets
+  have he_in_bottom : e ∈ bottomEventsAtEntry' n b addr st :=
+    Set.finSetEvents'_e_in_result n (b.bottomEventsAtEntry' n addr st) (b.bottomEventsAtEntry_finite' n addr st)
+      e he_in_finsets
+  apply b.bottomEventsAtEntry'_are_bottom
+  . case a =>
+    exact he_in_bottom
 
 noncomputable def Behaviour.listBottomEventsAtEntry (b : Behaviour n) (addr : Addr) (st : Struct n) : List (Event n) :=
   let e_at_centry := b.bottomEventsAtEntry n addr st
