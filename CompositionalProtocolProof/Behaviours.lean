@@ -981,6 +981,13 @@ lemma Behaviour.eventsAtEntryOfListBottomEvents_sorted (b : Behaviour n) (e : Ev
   simp[eventsAtEntryOfListBottomEvents]
   simp[List.sorted_insertionSort]
 
+lemma Behaviour.eventsAtEntryOfListBottomEvents_are_bottom (b : Behaviour n) (e : Event n) :
+  ∀ e' ∈ b.eventsAtEntryOfListBottomEvents n e, e'.val.isBottomAtEntry n b e.struct e.addr := by
+  intro e' he'_in_bottom
+  simp[eventsAtEntryOfListBottomEvents] at he'_in_bottom
+  apply b.listBottomEventsAtEntry'_are_bottom
+  . case a =>
+    exact he'_in_bottom
 /-
 lemma Behaviour.eventsAtEntryOfListBottomEvents_map_sorted (b : Behaviour n) (e : Event n)
   (h : (b.eventsAtEntryOfListBottomEvents n e).Sorted (EventAtEntry.encapOrOrderedBefore n b e.struct e.addr))
