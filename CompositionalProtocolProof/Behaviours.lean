@@ -1024,35 +1024,97 @@ lemma Behaviour.bottomEventsAtEntry_sorted_ordered_before {st addr} (b : Behavio
     simp[EventAtEntry.OrderedBefore]
     exact he₁_ordered_before_e₂
 
-lemma Behaviour.eventsAtEntryOfListBottomEvents_map_sorted (b : Behaviour n) (e : Event n)
-  (h_encap_or_before_sorted : (b.eventsAtEntryOfListBottomEvents n e).Sorted (EventAtEntry.encapOrOrderedBefore n b e.struct e.addr))
+lemma Behaviour.eventsAtEntryOfListBottomEvents_map_ordered_before_sorted (b : Behaviour n) (e : Event n)
   : (b.eventsAtEntryOfListBottomEvents n e).Sorted (EventAtEntry.OrderedBefore n b e.struct e.addr) := by
   apply b.bottomEventsAtEntry_sorted_ordered_before
   . case h_all_bottom =>
     apply b.eventsAtEntryOfListBottomEvents_are_bottom n e
   . case hsorted =>
-    exact h_encap_or_before_sorted
-
-/-
-lemma Behaviour.eventsAtEntryOfListBottomEvents_map_sorted (b : Behaviour n) (e : Event n)
-  (h : (b.eventsAtEntryOfListBottomEvents n e).Sorted (EventAtEntry.encapOrOrderedBefore n b e.struct e.addr))
-  : ((b.eventsAtEntryOfListBottomEvents n e).map (·.val)).Sorted (Event.OrderedBefore n) := by
-  simp_all[eventsAtEntryOfListBottomEvents]
-  simp[List.sorted_insertionSort]
-  sorry
--/
+    exact b.eventsAtEntryOfListBottomEvents_sorted n e
 
 noncomputable def Behaviour.eventsAtEventEntry (b : Behaviour n) (e : Event n) : List (Event n) :=
   b.eventsAtEntryOfListBottomEvents n e |>.map (·.val)
 
-/-
-lemma Behaviour.eventsAtEventEntry_sorted (b : Behaviour n) (e : Event n) :
-  (b.eventsAtEventEntry n e).Sorted (Event.encapOrOrderedBefore n) := by
+lemma List.sublist_tail_mem {α} {x₁ x₂ : α} {l} : [x₁, x₂].Sublist l → x₂ ∈ l := by
+  intro hsublist_l
+  have hx₂_sublist_l : [x₂].Sublist l := List.sublist_of_cons_sublist hsublist_l
+  simp at hx₂_sublist_l
+  exact hx₂_sublist_l
+
+lemma Behaviour.eventsAtEventEntry_at_e_entry (b : Behaviour n) (e : Event n) :
+  ∀ e' ∈ b.eventsAtEventEntry n e, b.eventAtEntry n e' e.struct e.addr := by
+  intro e' he'_at_entry
+  simp[eventsAtEventEntry] at he'_at_entry
+  obtain ⟨e_at_entry, hin_es_and_is_e'⟩ := he'_at_entry
+  obtain ⟨he_in_es, he_is_e'⟩ := hin_es_and_is_e'
+  subst he_is_e'
+  constructor
+  . case intro.intro.eInB =>
+    exact e_at_entry.prop.eInB
+  . case intro.intro.eAtStruct =>
+    exact e_at_entry.prop.eAtStruct
+  . case intro.intro.eAtAddr =>
+    exact e_at_entry.prop.eAtAddr
+
+lemma Behaviour.eventsAtEventEntry_sublist_impl_eventsAtEntryOfListBottomEvents {b e}
+  {e₁ e₂ : Event n} (he₁_at_e : b.eventAtEntry n e₁ e.struct e.addr) (he₂_at_e : b.eventAtEntry n e₂ e.struct e.addr)
+  : [e₁, e₂].Sublist (eventsAtEventEntry n b e) → [⟨e₁, he₁_at_e⟩, ⟨e₂, he₂_at_e⟩].Sublist (eventsAtEntryOfListBottomEvents n b e) := by
   simp[eventsAtEventEntry]
-  simp[List.]
-  simp[eventsAtEntryOfListBottomEvents_sorted n b e]
-  sorry
--/
+  simp[List.sublist_map_iff]
+  intro he_at_entry he_at_entry_sublist he_is_sublist
+  cases he_at_entry
+  . case nil => simp at he_is_sublist
+  . case cons head tail =>
+    by_cases hhead_good : head = ⟨e₁, he₁_at_e⟩
+    . case pos =>
+      cases tail
+      . case nil => simp at he_is_sublist
+      . case cons head' tail' =>
+        by_cases hhead'_good : head' = ⟨e₂, he₂_at_e⟩
+        . case pos =>
+          subst head head'
+          cases tail'
+          . case nil => exact he_at_entry_sublist
+          . case cons head'' tail'' => simp at he_is_sublist
+        . case neg =>
+          subst head
+          simp at he_is_sublist
+          have he₂_not_head' : e₂ ≠ head'.val := by
+            simp [hhead'_good]
+            by_contra h_e₂_is_head
+            apply hhead'_good
+            subst h_e₂_is_head
+            simp
+          absurd he₂_not_head'
+          exact he_is_sublist.left
+    . case neg =>
+      simp at he_is_sublist
+      have he₁_not_head : e₁ ≠ head.val := by
+        simp [hhead_good]
+        by_contra h_e₁_is_head
+        apply hhead_good
+        subst h_e₁_is_head
+        simp
+      absurd he₁_not_head
+      exact he_is_sublist.left
+
+lemma Behaviour.eventsAtEventEntry_ordered_before_sorted (b : Behaviour n) (e : Event n)
+  : (b.eventsAtEventEntry n e).Sorted (Event.OrderedBefore n) := by
+  simp[List.Sorted]
+  rw[List.pairwise_iff_forall_sublist]
+  intro e₁ e₂ hsublist
+  have he₁_in_es_at_entry : e₁ ∈ eventsAtEventEntry n b e := List.mem_of_cons_sublist hsublist
+  have he₁_at_entry : b.eventAtEntry n e₁ e.struct e.addr := b.eventsAtEventEntry_at_e_entry n e e₁ he₁_in_es_at_entry
+  have he₂_in_es_at_entry : e₂ ∈ eventsAtEventEntry n b e := List.sublist_tail_mem hsublist
+  have he₂_at_entry : b.eventAtEntry n e₂ e.struct e.addr := b.eventsAtEventEntry_at_e_entry n e e₂ he₂_in_es_at_entry
+
+  have hbottom_sorted := b.eventsAtEntryOfListBottomEvents_map_ordered_before_sorted n e
+  simp[List.Sorted] at hbottom_sorted
+  simp[List.pairwise_iff_forall_sublist] at hbottom_sorted
+  have he_at_entry_sublist := b.eventsAtEventEntry_sublist_impl_eventsAtEntryOfListBottomEvents n he₁_at_entry he₂_at_entry hsublist
+  have he_at_entry_ordered_before := hbottom_sorted he_at_entry_sublist
+  simp[EventAtEntry.OrderedBefore] at he_at_entry_ordered_before
+  exact he_at_entry_ordered_before
 
 noncomputable def Behaviour.eventsUpToEvent (b : Behaviour n) (e : Event n) : List (Event n) :=
   b.eventsAtEventEntry n e |>.upToEvent n e
