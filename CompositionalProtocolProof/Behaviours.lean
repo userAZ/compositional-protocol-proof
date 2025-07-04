@@ -975,11 +975,57 @@ noncomputable def List.stateAtEvent (es : List (Event n)) (e : Event n) (init : 
 
 noncomputable def Behaviour.eventsAtEntryOfListBottomEvents (b : Behaviour n) (e : Event n) : List (EventAtEntry n b e.struct e.addr) :=
   b.listBottomEventsAtEntry' n e.addr e.struct |>.insertionSort (EventAtEntry.encapOrOrderedBefore n b e.struct e.addr)
+
+lemma Behaviour.eventsAtEntryOfListBottomEvents_sorted (b : Behaviour n) (e : Event n) :
+  (b.eventsAtEntryOfListBottomEvents n e).Sorted (EventAtEntry.encapOrOrderedBefore n b e.struct e.addr) := by
+  simp[eventsAtEntryOfListBottomEvents]
+  simp[List.sorted_insertionSort]
+
+/-
+lemma Behaviour.eventsAtEntryOfListBottomEvents_map_sorted (b : Behaviour n) (e : Event n)
+  (h : (b.eventsAtEntryOfListBottomEvents n e).Sorted (EventAtEntry.encapOrOrderedBefore n b e.struct e.addr))
+  : (b.eventsAtEntryOfListBottomEvents n e).Sorted (EventAtEntry.OrderedBefore n b e.struct e.addr) := by
+  simp_all[eventsAtEntryOfListBottomEvents]
+  simp[List.sorted_insertionSort]
+  sorry
+-/
+
+/-
+lemma Behaviour.eventsAtEntryOfListBottomEvents_map_sorted (b : Behaviour n) (e : Event n)
+  (h : (b.eventsAtEntryOfListBottomEvents n e).Sorted (EventAtEntry.encapOrOrderedBefore n b e.struct e.addr))
+  : ((b.eventsAtEntryOfListBottomEvents n e).map (·.val)).Sorted (Event.OrderedBefore n) := by
+  simp_all[eventsAtEntryOfListBottomEvents]
+  simp[List.sorted_insertionSort]
+  sorry
+-/
+
 noncomputable def Behaviour.eventsAtEventEntry (b : Behaviour n) (e : Event n) : List (Event n) :=
   b.eventsAtEntryOfListBottomEvents n e |>.map (·.val)
 
+/-
+lemma Behaviour.eventsAtEventEntry_sorted (b : Behaviour n) (e : Event n) :
+  (b.eventsAtEventEntry n e).Sorted (Event.encapOrOrderedBefore n) := by
+  simp[eventsAtEventEntry]
+  simp[List.]
+  simp[eventsAtEntryOfListBottomEvents_sorted n b e]
+  sorry
+-/
+
 noncomputable def Behaviour.eventsUpToEvent (b : Behaviour n) (e : Event n) : List (Event n) :=
   b.eventsAtEventEntry n e |>.upToEvent n e
+
+lemma Behaviour.eventsUpToEvent_are_pred_to_e (b : Behaviour n) (e : Event n) :
+  ∀ e' ∈ b.eventsUpToEvent n e, b.Predecessor n e' e := by
+  intro e' he'_up_to_e
+  simp[eventsUpToEvent] at he'_up_to_e
+  simp[eventsAtEventEntry] at he'_up_to_e
+  simp[eventsAtEntryOfListBottomEvents] at he'_up_to_e
+  /- [TODO]: show e' in b.eventsUpToEvent is sorted (from eventsAtEntryOfListBottomEvents), so they're all predecessors to `e`.
+  [NOTE] Will also need a way to say `e_pred` is the immediate pred to `e`.
+  -/
+
+  -- constructor
+  sorry
 
 /- Def 2.33 Behaviour.StateBefore -/
 noncomputable def Behaviour.stateBefore (b : Behaviour n) (init : EntryState n) (e : Event n) : EntryState n :=
