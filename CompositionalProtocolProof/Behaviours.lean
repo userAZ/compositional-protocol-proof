@@ -988,14 +988,50 @@ lemma Behaviour.eventsAtEntryOfListBottomEvents_are_bottom (b : Behaviour n) (e 
   apply b.listBottomEventsAtEntry'_are_bottom
   . case a =>
     exact he'_in_bottom
-/-
+
+lemma Behaviour.bottomEventsAtEntry_sorted_ordered_before {st addr} (b : Behaviour n) (l : List (EventAtEntry n b st addr))
+  (h_all_bottom : ∀ e ∈ l, e.val.isBottomAtEntry n b st addr)
+  (hsorted : l.Sorted (EventAtEntry.encapOrOrderedBefore n b st addr))
+  : l.Sorted (EventAtEntry.OrderedBefore n b st addr) := by
+  simp_all[List.Sorted,]
+  unfold EventAtEntry.encapOrOrderedBefore at hsorted
+  rw [List.pairwise_iff_forall_sublist] at hsorted
+  rw [List.pairwise_iff_forall_sublist]
+  intro e₁ e₂ h_sublist_l
+  cases hsorted h_sublist_l
+  . case inl he₁_encap_by_e₂ =>
+    -- not possible, since they're bottom events.
+    simp[Event.EncapsulatedBy] at he₁_encap_by_e₂
+    have he₁_in_l : e₁ ∈ l := List.mem_of_cons_sublist h_sublist_l
+    have he₁_bot := h_all_bottom e₁ he₁_in_l
+    have he₁_is_bot := he₁_bot.isBottom
+    simp[IsBottomEvent, IsNotEncapAtSameStruct,] at he₁_is_bot
+    have he₁e₂_encap_same_entry := he₁_is_bot e₂.val e₂.prop.eInB
+    exfalso
+    apply he₁e₂_encap_same_entry
+    constructor
+    . case encap =>
+      exact he₁_encap_by_e₂
+    . case sameEntry =>
+      constructor
+      . case sameStruct =>
+        simp [Event.sameStructure]
+        simp[e₁.prop.eAtStruct, e₂.prop.eAtStruct]
+      . case sameAddr =>
+        simp [Event.sameAddr]
+        simp[e₁.prop.eAtAddr, e₂.prop.eAtAddr]
+  . case inr he₁_ordered_before_e₂ =>
+    simp[EventAtEntry.OrderedBefore]
+    exact he₁_ordered_before_e₂
+
 lemma Behaviour.eventsAtEntryOfListBottomEvents_map_sorted (b : Behaviour n) (e : Event n)
-  (h : (b.eventsAtEntryOfListBottomEvents n e).Sorted (EventAtEntry.encapOrOrderedBefore n b e.struct e.addr))
+  (h_encap_or_before_sorted : (b.eventsAtEntryOfListBottomEvents n e).Sorted (EventAtEntry.encapOrOrderedBefore n b e.struct e.addr))
   : (b.eventsAtEntryOfListBottomEvents n e).Sorted (EventAtEntry.OrderedBefore n b e.struct e.addr) := by
-  simp_all[eventsAtEntryOfListBottomEvents]
-  simp[List.sorted_insertionSort]
-  sorry
--/
+  apply b.bottomEventsAtEntry_sorted_ordered_before
+  . case h_all_bottom =>
+    apply b.eventsAtEntryOfListBottomEvents_are_bottom n e
+  . case hsorted =>
+    exact h_encap_or_before_sorted
 
 /-
 lemma Behaviour.eventsAtEntryOfListBottomEvents_map_sorted (b : Behaviour n) (e : Event n)
