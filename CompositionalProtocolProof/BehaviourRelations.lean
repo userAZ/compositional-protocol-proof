@@ -816,8 +816,9 @@ lemma Behaviour.exists_predecessor_setting_state''
                               /- [TODO] Need a way to say "`e_pred` is the immediate predecessor to `e_req`" -/
                               intro an_event hevent_in_b hevent_btn_pred_and_req
                               sorry
-                          . case isBottom => sorry
-                        . case satisfyP => sorry
+                          . case isBottom => exact hpreds_are_bottom e_pred (by simp) |>.isBottom
+                        . case satisfyP =>
+                          sorry
                     exact h_imm_bottom_pred_leave_perms
                   | _ => sorry
                 | _ => sorry
