@@ -1198,8 +1198,9 @@ lemma Behaviour.eventsUpToEvent_no_dups (b : Behaviour n) (e : Event n)
   : b.eventsUpToEvent n e |>.Nodup := by
   simp[eventsUpToEvent]
   simp[List.upToEvent]
-  -- simp[List.Nodup.take_eq_filter_mem]
-  sorry
+  apply List.Nodup.sublist
+  . case a => exact List.take_sublist (List.idxOf e (eventsAtEventEntry n b e)) (eventsAtEventEntry n b e)
+  . case a => exact b.eventsAtEventEntry_no_dups n e
 
 lemma Behaviour.eventsUpToEntry_at_e_entry (b : Behaviour n) (e : Event n) :
   ∀ e' ∈ b.eventsUpToEvent n e, b.eventAtEntry n e' e.struct e.addr := by
