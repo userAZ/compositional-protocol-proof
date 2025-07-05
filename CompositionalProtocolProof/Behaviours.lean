@@ -663,6 +663,18 @@ instance EventAtEntry.instIsTotal {n} {b} {st} {addr} :
 def Behaviour.bottomEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct n) : Set (EventAtEntry n b st addr) :=
   {e : EventAtEntry n b st addr | e.val ∈ b.es ∧ e.val.isBottomAtEntry n b st addr}
 
+lemma Behaviour.bottom_e_in_b_impl_bottomEventsAtEntry' (b : Behaviour n) (e : Event n)
+  (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e)
+  : ⟨e, ⟨he_in_b, by simp, by simp⟩⟩ ∈ b.bottomEventsAtEntry' n e.addr e.struct := by
+  simp[bottomEventsAtEntry']
+  apply And.intro
+  . case left => exact he_in_b
+  . case right =>
+    constructor
+    . case addr => simp
+    . case atStruct => simp[Event.atStruct]
+    . case isBottom => exact he_bottom
+
 lemma Behaviour.bottomEventsAtEntry'_are_bottom (b : Behaviour n) (addr : Addr) (st : Struct n)
   : ∀ e ∈ b.bottomEventsAtEntry' n addr st, e.val.isBottomAtEntry n b st addr := by
   simp[bottomEventsAtEntry']
@@ -712,6 +724,21 @@ theorem Behaviour.bottomEventsAtEntry_finite' (b : Behaviour n) (addr : Addr) (s
 noncomputable def Behaviour.listBottomEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct n) : List (EventAtEntry n b st addr) :=
   let e_at_centry := b.bottomEventsAtEntry' n addr st
   Set.finSetEvents' n e_at_centry (b.bottomEventsAtEntry_finite' n addr st) |>.toList
+
+lemma Behaviour.bottom_e_in_bottomEventsAtEntry'_impl_in_listBottomEventsAtEntry' (b : Behaviour n) (e : Event n)
+  (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e)
+  : ⟨e, ⟨he_in_b, by simp, by simp⟩⟩ ∈ b.listBottomEventsAtEntry' n e.addr e.struct := by
+  simp[listBottomEventsAtEntry']
+  simp[Set.finSetEvents']
+  apply b.bottom_e_in_b_impl_bottomEventsAtEntry'
+  . case he_in_b => exact he_in_b
+  . case he_bottom => exact he_bottom
+
+def Behaviour.listBottomEventsAtEntry'_no_dups (b : Behaviour n) (addr : Addr) (st : Struct n)
+  : b.listBottomEventsAtEntry' n addr st |>.Nodup := by
+  simp [listBottomEventsAtEntry']
+  simp [Set.finSetEvents']
+  simp[Finset.nodup_toList]
 
 lemma Behaviour.listBottomEventsAtEntry'_are_bottom (b : Behaviour n) (addr : Addr) (st : Struct n)
   : ∀ e ∈ Behaviour.listBottomEventsAtEntry' n b addr st, e.val.isBottomAtEntry n b st addr := by
@@ -967,6 +994,7 @@ noncomputable def List.stateAfter (es : List (Event n)) (init : (EntryState n)) 
   | [] => init
   | e :: es' => es'.stateAfter (e.SucceedingState n init)
 
+-- def List.upToElement {α} [BEq α] (l : List α) (e : α) := (l.take (l.idxOf e))
 /-- Get the list of events from the head upto (excluding) e. -/
 def List.upToEvent (es : List (Event n)) (e : Event n) := (es.take (es.idxOf e))
 
@@ -980,6 +1008,37 @@ lemma Behaviour.eventsAtEntryOfListBottomEvents_sorted (b : Behaviour n) (e : Ev
   (b.eventsAtEntryOfListBottomEvents n e).Sorted (EventAtEntry.encapOrOrderedBefore n b e.struct e.addr) := by
   simp[eventsAtEntryOfListBottomEvents]
   simp[List.sorted_insertionSort]
+
+instance EventAtEntry.encapOrOrderedBefore.instIsIrrefl {b st addr} : IsIrrefl (EventAtEntry n b st addr) (EventAtEntry.encapOrOrderedBefore n b st addr) :=
+  by
+  constructor
+  . case irrefl =>
+    intro e hencap_or_order_before
+    simp[encapOrOrderedBefore] at hencap_or_order_before
+    cases hencap_or_order_before
+    . case inl hencap_by =>
+      simp[Event.EncapsulatedBy, Event.Encapsulates] at hencap_by
+    . case inr horder_before =>
+      simp[Event.OrderedBefore] at horder_before
+      have hstart_lt_end := e.val.oWellFormed
+      absurd hstart_lt_end
+      simp
+      rw[Nat.le_iff_lt_or_eq]
+      simp[horder_before]
+
+lemma Behaviour.eventsAtEntryOfListBottomEvents_no_dups (b : Behaviour n) (e : Event n)
+  : b.eventsAtEntryOfListBottomEvents n e |>.Nodup := by
+  have hsorted := b.eventsAtEntryOfListBottomEvents_sorted n e
+  apply List.Sorted.nodup hsorted
+
+lemma Behaviour.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents (b : Behaviour n) (e : Event n)
+  (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e)
+  -- (he_in_bottom_es : ⟨e, ⟨he_in_b, by simp, by simp⟩⟩ ∈ b.listBottomEventsAtEntry' n e.addr e.struct)
+  : ⟨e, ⟨he_in_b, by simp, by simp⟩⟩ ∈ b.eventsAtEntryOfListBottomEvents n e := by
+  simp[eventsAtEntryOfListBottomEvents]
+  apply b.bottom_e_in_bottomEventsAtEntry'_impl_in_listBottomEventsAtEntry'
+  . case he_in_b => exact he_in_b
+  . case he_bottom => exact he_bottom
 
 lemma Behaviour.eventsAtEntryOfListBottomEvents_are_bottom (b : Behaviour n) (e : Event n) :
   ∀ e' ∈ b.eventsAtEntryOfListBottomEvents n e, e'.val.isBottomAtEntry n b e.struct e.addr := by
@@ -1034,6 +1093,25 @@ lemma Behaviour.eventsAtEntryOfListBottomEvents_map_ordered_before_sorted (b : B
 
 noncomputable def Behaviour.eventsAtEventEntry (b : Behaviour n) (e : Event n) : List (Event n) :=
   b.eventsAtEntryOfListBottomEvents n e |>.map (·.val)
+
+lemma Behaviour.eventsAtEventEntry_no_dups (b : Behaviour n) (e : Event n)
+  : b.eventsAtEventEntry n e |>.Nodup := by
+  simp[eventsAtEventEntry]
+  -- [TODO] show (·.val) is an injective map?
+  -- simp[List.nodup_map_iff]
+  sorry
+
+lemma Behaviour.bottom_e_in_b_impl_in_eventsAtEventEntry (b : Behaviour n) (e : Event n)
+  (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e)
+  : e ∈ b.eventsAtEventEntry n e := by
+  simp[eventsAtEventEntry]
+  apply Exists.intro
+  apply And.intro
+  . case h.left =>
+    apply Behaviour.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents
+    . case he_in_b => exact he_in_b
+    . case he_bottom => exact he_bottom
+  . case h.right => simp
 
 lemma List.sublist_tail_mem {α} {x₁ x₂ : α} {l} : [x₁, x₂].Sublist l → x₂ ∈ l := by
   intro hsublist_l
@@ -1119,18 +1197,120 @@ lemma Behaviour.eventsAtEventEntry_ordered_before_sorted (b : Behaviour n) (e : 
 noncomputable def Behaviour.eventsUpToEvent (b : Behaviour n) (e : Event n) : List (Event n) :=
   b.eventsAtEventEntry n e |>.upToEvent n e
 
-lemma Behaviour.eventsUpToEvent_are_pred_to_e (b : Behaviour n) (e : Event n) :
-  ∀ e' ∈ b.eventsUpToEvent n e, b.Predecessor n e' e := by
-  intro e' he'_up_to_e
-  simp[eventsUpToEvent] at he'_up_to_e
-  simp[eventsAtEventEntry] at he'_up_to_e
-  simp[eventsAtEntryOfListBottomEvents] at he'_up_to_e
-  /- [TODO]: show e' in b.eventsUpToEvent is sorted (from eventsAtEntryOfListBottomEvents), so they're all predecessors to `e`.
-  [NOTE] Will also need a way to say `e_pred` is the immediate pred to `e`.
-  -/
-
-  -- constructor
+lemma Behaviour.eventsUpToEvent_no_dups (b : Behaviour n) (e : Event n)
+  : b.eventsUpToEvent n e |>.Nodup := by
+  simp[eventsUpToEvent]
+  simp[List.upToEvent]
+  -- simp[List.Nodup.take_eq_filter_mem]
   sorry
+
+lemma Behaviour.eventsUpToEntry_at_e_entry (b : Behaviour n) (e : Event n) :
+  ∀ e' ∈ b.eventsUpToEvent n e, b.eventAtEntry n e' e.struct e.addr := by
+  intro e' he'_in_up_to
+  apply eventsAtEventEntry_at_e_entry
+  . case a =>
+    simp[eventsUpToEvent] at he'_in_up_to
+    simp[List.upToEvent] at he'_in_up_to
+    apply List.mem_of_mem_take
+    . case h =>
+      exact he'_in_up_to
+
+lemma List.idx_in_take_lt_take_idx {α} [BEq α] [DecidableEq α]
+  (l : List α) (e : α) (hl_nodup : l.Nodup)
+  : ∀ e' ∈ take (idxOf e l) l, idxOf e' l < idxOf e l := by
+  intro e' he'_in_take
+  simp[List.mem_take_iff_getElem] at he'_in_take
+  have h_idx_lt_len := he'_in_take.choose_spec
+  have h := he'_in_take.choose_spec.choose_spec
+  obtain ⟨he'_idx_lt_e, he'_idx_lt_l_len⟩ := he'_in_take.choose_spec.choose
+  . case intro =>
+    have t := List.idxOf_getElem hl_nodup he'_in_take.choose he'_idx_lt_l_len
+    rw[h] at t
+    rw[← t] at he'_idx_lt_e
+    simp
+    sorry
+    -- simp [he'_idx_lt_e]
+    --[TODO] ask on Zulip how to work around the TotalOrder/Lattice definition of LT
+
+#check List.prefix_take_iff
+#check List.take_prefix
+#check List.prefix_iff_eq_take
+lemma List.upToEvent_e'_in_list_before_e
+  (l : List (Event n)) (e : Event n) (he_in_l : e ∈ l)
+  : ∀ e' ∈ upToEvent n l e, l.idxOf e' < l.idxOf e := by
+  simp [upToEvent, ]
+  intro e' he'_in_up_to
+  apply idx_in_take_lt_take_idx
+  . case hl_nodup =>
+    sorry
+  . case a =>
+    exact he'_in_up_to
+
+lemma List.upToEvent_ordered_before_e
+(l : List (Event n)) (e : Event n)
+(he_in_l : e ∈ l)
+(hl_sorted : List.Sorted (Event.OrderedBefore n) l)
+  : ∀ e' ∈ List.upToEvent n l e, e'.OrderedBefore n e := by
+  intro e' he'_in_up_to
+  simp[Sorted] at hl_sorted
+  rw[List.pairwise_iff_get] at hl_sorted
+  -- by `he'_in_up_to`, we know `e'` must be before `e` (i.e. `idxOf e' < idxOf e`).
+
+  let hidx_e' := l.idxOf e'
+  let hidx_e  := l.idxOf e
+
+  let hidx_e'_le_length : hidx_e' < l.length := by
+    apply List.idxOf_lt_length
+    . case h =>
+      apply List.mem_of_mem_take
+      simp[upToEvent] at he'_in_up_to
+      exact he'_in_up_to
+  let hidx_e_le_length  : hidx_e < l.length  := List.idxOf_lt_length he_in_l
+
+  let hidx_e'_fin : Fin l.length := ⟨hidx_e', hidx_e'_le_length⟩
+  let hidx_e_fin  : Fin l.length := ⟨hidx_e, hidx_e_le_length⟩
+
+  have hlt_idx_impl_ordered_before := hl_sorted hidx_e'_fin hidx_e_fin
+  repeat rw [List.idxOf_get] at hlt_idx_impl_ordered_before
+
+  apply hlt_idx_impl_ordered_before
+  apply upToEvent_e'_in_list_before_e
+  . case he_in_l => exact he_in_l
+  . case a => exact he'_in_up_to
+
+lemma Behaviour.eventsUpToEvent_are_pred_to_e (b : Behaviour n) (e : Event n)
+  (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e)
+  : ∀ e' ∈ b.eventsUpToEvent n e, b.Predecessor n e' e := by
+  intro e' he'_up_to_e
+  have he'_at_entry := b.eventsUpToEntry_at_e_entry n e
+  have he'_at_e := he'_at_entry e' he'_up_to_e
+
+  simp[eventsUpToEvent] at he'_up_to_e
+  have he'_in_upto_e_of_es_at_entry := he'_up_to_e
+  -- have hevents_at_entry_sorted := b.eventsAtEventEntry_ordered_before_sorted n e
+
+  constructor
+  . case sameEntry =>
+    constructor
+    . case sameStruct =>
+      exact he'_at_e.eAtStruct
+    . case sameAddr =>
+      exact he'_at_e.eAtAddr
+  . case isPred =>
+    apply List.upToEvent_ordered_before_e
+    . case he_in_l =>
+      apply Behaviour.bottom_e_in_b_impl_in_eventsAtEventEntry
+      . case he_in_b => exact he_in_b
+      . case he_bottom => exact he_bottom
+    . case hl_sorted =>
+      apply eventsAtEventEntry_ordered_before_sorted
+      -- . case b => exact b
+      -- . case e => exact e
+    . case a => exact he'_in_upto_e_of_es_at_entry
+  . case predInB =>
+    exact he'_at_e.eInB
+  . case succInB =>
+    exact he_in_b
 
 /- Def 2.33 Behaviour.StateBefore -/
 noncomputable def Behaviour.stateBefore (b : Behaviour n) (init : EntryState n) (e : Event n) : EntryState n :=
@@ -1138,21 +1318,6 @@ noncomputable def Behaviour.stateBefore (b : Behaviour n) (init : EntryState n) 
 
 noncomputable def Behaviour.stateAfter (b : Behaviour n) (init : EntryState n) (e : Event n) : EntryState n :=
   e.SucceedingState n (b.stateBefore n init e)
-
-lemma Behaviour.eventsAtEventEntry_at_e_entry (b : Behaviour n) (e : Event n) :
-  ∀ e' ∈ b.eventsAtEventEntry n e, b.eventAtEntry n e' e.struct e.addr := by
-  intro e' he'_at_entry
-  simp[eventsAtEventEntry] at he'_at_entry
-  obtain ⟨e_at_entry, hin_es_and_is_e'⟩ := he'_at_entry
-  obtain ⟨he_in_es, he_is_e'⟩ := hin_es_and_is_e'
-  subst he_is_e'
-  constructor
-  . case intro.intro.eInB =>
-    exact e_at_entry.prop.eInB
-  . case intro.intro.eAtStruct =>
-    exact e_at_entry.prop.eAtStruct
-  . case intro.intro.eAtAddr =>
-    exact e_at_entry.prop.eAtAddr
 
 lemma Behaviour.eventsUpToEvent_at_e_entry (b : Behaviour n) (e : Event n) :
   ∀ e' ∈ b.eventsUpToEvent n e, e' ∈ b.eventsAtEventEntry n e := by
