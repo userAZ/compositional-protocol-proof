@@ -750,13 +750,18 @@ lemma Behaviour.exists_predecessor_setting_state''
               | ⟨⟨.w,true,_⟩,_⟩ => -- coherent write case
                 match h_l_head_state : EntryState.cache n (List.stateAfter n l_head (IEntry n)) with
                 | ⟨some .wr, true⟩ => -- Can't be SW (M) state
-                  have ih_precond : (∀ e ∈ l_head, eventAtEntry n b e (Event.struct n (Event.cacheEvent ce_req)) (Event.addr n (Event.cacheEvent ce_req))) := by
+                  have ih_same_entry_precond : (∀ e ∈ l_head, eventAtEntry n b e (Event.struct n (Event.cacheEvent ce_req)) (Event.addr n (Event.cacheEvent ce_req))) := by
                     intro e he_in_l_head
                     -- have test := hpreds_at_same_entry e
                     apply hpreds_at_same_entry
                     . case a => simp[he_in_l_head]
 
-                  have ih_post := ih ih_precond
+                  have ih_pred_req_precond : (∀ e ∈ l_head, Predecessor n b e (Event.cacheEvent ce_req)) := by
+                    intro e he_in_l_head
+                    apply hpreds_pred_to_req
+                    . case a => simp[he_in_l_head]
+
+                  have ih_post := ih ih_same_entry_precond ih_pred_req_precond
 
                   rw[h_l_head_state] at ih_post
                   simp[Event.req] at ih_post
