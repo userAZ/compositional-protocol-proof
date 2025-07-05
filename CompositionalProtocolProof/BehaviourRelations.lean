@@ -663,9 +663,11 @@ lemma Behaviour.contradiction_of_has_coherent_perms_no_event_gets_perms {b init 
 /-- `Helper Lemma 1` in Lemma 3's re-write -/
 lemma Behaviour.exists_predecessor_setting_state''
   (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
+  (hreq_in_b : e_req ∈ b)
   (l_preds : List (Event n))
   -- (hl_preds : l_preds = b.eventsUpToEvent n e_req)
   (hpreds_at_same_entry : ∀ e ∈ l_preds, b.eventAtEntry n e e_req.struct e_req.addr)
+  (hpreds_pred_to_req : ∀ e ∈ l_preds, b.Predecessor n e e_req)
   (hreq_not_downgrade : ¬ e_req.down)
   (hhave_perms : reqHasPerms n b init e_req)
   (hinit_i : init.stateAt n e_req = IEntry n)
@@ -776,6 +778,8 @@ lemma Behaviour.exists_predecessor_setting_state''
 
                     have h_pred_cannot_get_perms_for_req := hno_pred e_pred
 
+                    have h_e_pred_at_e_req := hpreds_at_same_entry e_pred (by simp)
+
                     absurd h_pred_cannot_get_perms_for_req
                     have h_imm_bottom_pred_leave_perms :
                       immBottomPredEncapDirAndHasNoPermsAndLeavesStateAtLeast n b init e_pred (Event.cacheEvent ce_req)
@@ -793,16 +797,19 @@ lemma Behaviour.exists_predecessor_setting_state''
                               constructor
                               . case sameStruct => simp[Event.sameStructure, h_e_pred_at_e_req.eAtStruct]
                               . case sameAddr => simp[Event.sameAddr, h_e_pred_at_e_req.eAtAddr]
-                              /- Cannot complete this case, without referencing the fact that
-                              `e_pred` comes from `l_preds`, but using "induction `h : l_preds` with"
-                              makes the induction hypothesis unusable. -/
-                              /- Ideally, I could use `hpreds_at_same_entry : ∀ e ∈ l_preds, b.eventAtEntry n e e_req.struct e_req.addr`
-                              I have above, but I can't link `e_pred` to being in the events `l_preds` that are predecessor to `e_req` and at the same entry. -/
                             . case behavePred =>
                               constructor
-                              sorry
+                              . case sameEntry =>
+                                constructor
+                                . case sameStruct => simp[Event.sameStructure, h_e_pred_at_e_req.eAtStruct]
+                                . case sameAddr => simp[Event.sameAddr, h_e_pred_at_e_req.eAtAddr]
+                              . case isPred => exact (hpreds_pred_to_req e_pred (by simp)).isPred
+                              . case predInB => simp[h_e_pred_at_e_req.eInB]
+                              . case succInB => exact hreq_in_b
                             . case noIntermediate =>
+                              simp[NoIntermediatePredecessor]
                               /- [TODO] Need a way to say "`e_pred` is the immediate predecessor to `e_req`" -/
+                              intro an_event hevent_in_b hevent_btn_pred_and_req
                               sorry
                           . case isBottom => sorry
                         . case satisfyP => sorry
