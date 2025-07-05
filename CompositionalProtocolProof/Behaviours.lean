@@ -1091,13 +1091,6 @@ lemma Behaviour.eventsAtEntryOfListBottomEvents_map_ordered_before_sorted (b : B
 noncomputable def Behaviour.eventsAtEventEntry (b : Behaviour n) (e : Event n) : List (Event n) :=
   b.eventsAtEntryOfListBottomEvents n e |>.map (·.val)
 
-lemma Behaviour.eventsAtEventEntry_no_dups (b : Behaviour n) (e : Event n)
-  : b.eventsAtEventEntry n e |>.Nodup := by
-  simp[eventsAtEventEntry]
-  -- [TODO] show (·.val) is an injective map?
-  -- simp[List.nodup_map_iff]
-  sorry
-
 lemma Behaviour.bottom_e_in_b_impl_in_eventsAtEventEntry (b : Behaviour n) (e : Event n)
   (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e)
   : e ∈ b.eventsAtEventEntry n e := by
@@ -1130,6 +1123,19 @@ lemma Behaviour.eventsAtEventEntry_at_e_entry (b : Behaviour n) (e : Event n) :
     exact e_at_entry.prop.eAtStruct
   . case intro.intro.eAtAddr =>
     exact e_at_entry.prop.eAtAddr
+
+instance EventAtEntry.instGetValInjective {b st addr} : Function.Injective (λ e : EventAtEntry n b st addr => e.val) := by
+  simp[Function.Injective]
+  intro e₁ e₂ he₁_eq_e₂
+  apply Subtype.eq
+  exact he₁_eq_e₂
+
+lemma Behaviour.eventsAtEventEntry_no_dups (b : Behaviour n) (e : Event n)
+  : b.eventsAtEventEntry n e |>.Nodup := by
+  simp[eventsAtEventEntry]
+  rw [List.nodup_map_iff]
+  . exact b.eventsAtEntryOfListBottomEvents_no_dups n e
+  . exact EventAtEntry.instGetValInjective n
 
 lemma Behaviour.eventsAtEventEntry_sublist_impl_eventsAtEntryOfListBottomEvents {b e}
   {e₁ e₂ : Event n} (he₁_at_e : b.eventAtEntry n e₁ e.struct e.addr) (he₂_at_e : b.eventAtEntry n e₂ e.struct e.addr)
