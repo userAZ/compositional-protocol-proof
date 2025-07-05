@@ -1213,22 +1213,65 @@ lemma Behaviour.eventsUpToEntry_at_e_entry (b : Behaviour n) (e : Event n) :
     . case h =>
       exact he'_in_up_to
 
-lemma List.idx_in_take_lt_take_idx {α} [BEq α] [DecidableEq α]
+lemma List.idx_in_take_lt_take_idx {α} [DecidableEq α]
   (l : List α) (e : α) (hl_nodup : l.Nodup)
   : ∀ e' ∈ take (idxOf e l) l, idxOf e' l < idxOf e l := by
   intro e' he'_in_take
-  simp[List.mem_take_iff_getElem] at he'_in_take
-  have h_idx_lt_len := he'_in_take.choose_spec
-  have h := he'_in_take.choose_spec.choose_spec
-  obtain ⟨he'_idx_lt_e, he'_idx_lt_l_len⟩ := he'_in_take.choose_spec.choose
-  . case intro =>
-    have t := List.idxOf_getElem hl_nodup he'_in_take.choose he'_idx_lt_l_len
-    rw[h] at t
-    rw[← t] at he'_idx_lt_e
+  have he'_in_l_somewhere := List.mem_take_iff_getElem.mp he'_in_take
+  obtain ⟨he'_lt_min, hget_e'_from_l⟩ := he'_in_l_somewhere.choose_spec
+  have he'_lt_l_length : he'_in_l_somewhere.choose < l.length := by
+    unfold min at he'_lt_min
+    unfold instMinNat minOfLe at he'_lt_min
+    simp at he'_lt_min
+
+    /- Also unfold and simp the definitions in the goal; Needed to have the types of
+    the ...choose be the same. -/
+    unfold min instMinNat minOfLe
     simp
-    sorry
-    -- simp [he'_idx_lt_e]
-    --[TODO] ask on Zulip how to work around the TotalOrder/Lattice definition of LT
+    by_cases idxOf e l ≤ l.length
+    . case pos he_is_le_length =>
+      simp [he_is_le_length, reduceIte] at he'_lt_min
+      /- Simp the exist-choose in the def as well. -/
+      simp [he_is_le_length, reduceIte]
+      exact Nat.lt_of_lt_of_le he'_lt_min he_is_le_length
+    . case neg he_not_le_length =>
+      simp[he_not_le_length] at he'_lt_min
+      /- Simp the exist-choose in the def as well. -/
+      simp[he_not_le_length]
+      exact he'_lt_min
+
+  have he'_lt_idx_of_e : he'_in_l_somewhere.choose < idxOf e l := by
+    unfold min at he'_lt_min
+    unfold instMinNat minOfLe at he'_lt_min
+    simp at he'_lt_min
+
+    /- Simp the exist-choose in the def as well. -/
+    unfold min instMinNat minOfLe
+    simp
+
+    by_cases idxOf e l ≤ l.length
+    . case pos he_is_le_length =>
+      simp [he_is_le_length, reduceIte] at he'_lt_min
+      /- Simp the exist-choose in the def as well. -/
+      simp [he_is_le_length, reduceIte]
+      exact he'_lt_min
+    . case neg he_not_le_length =>
+      simp[he_not_le_length] at he'_lt_min
+      /- Simp the exist-choose in the def as well. -/
+      simp[he_not_le_length]
+
+      simp at he_not_le_length
+      exact Nat.lt_trans he'_lt_min he_not_le_length
+
+  /- Can't use `lt_min_iff`, it uses `instDistribLatticeOfLinearOrder.toSemilatticeInf.toLT`
+  instead of `instLTNat` -/
+  -- obtain ⟨he'_lt_idx_of_e, he'_lt_l_length⟩ := lt_min_iff.mp he'_lt_min
+  have tidx_of_e' := List.idxOf_getElem hl_nodup he'_in_l_somewhere.choose he'_lt_l_length
+  rw[hget_e'_from_l] at tidx_of_e'
+  rw[← tidx_of_e'] at he'_lt_idx_of_e
+  . case intro =>
+    simp [he'_lt_idx_of_e]
+
 
 lemma List.upToEvent_e'_in_list_before_e
   (l : List (Event n)) (e : Event n) (hl_nodup : l.Nodup)
