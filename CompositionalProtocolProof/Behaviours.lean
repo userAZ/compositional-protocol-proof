@@ -501,10 +501,7 @@ noncomputable def Behaviour.PreviousEvent (b : Behaviour n) (e : Event n) : Opti
 
 noncomputable def Set.finSetEvents (es : Set (Event n)) (hes_fin : Finite es) : Finset (Event n) := Set.Finite.toFinset hes_fin
 
-def Event.atStruct (e : (Event n)) (st : (Struct n)) : Prop :=
-  match st with
-  | .directory => e.isDirectoryEvent
-  | .cache cid => e.isCacheEventAtCid n cid
+def Event.atStruct (e : (Event n)) (st : (Struct n)) : Prop := e.struct = st
 
 structure Event.isBottomAtEntry (b : Behaviour n) (st : Struct n) (addr : Addr) (e : Event n) where
   addr : e.addr = addr
