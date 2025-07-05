@@ -1230,23 +1230,18 @@ lemma List.idx_in_take_lt_take_idx {α} [BEq α] [DecidableEq α]
     -- simp [he'_idx_lt_e]
     --[TODO] ask on Zulip how to work around the TotalOrder/Lattice definition of LT
 
-#check List.prefix_take_iff
-#check List.take_prefix
-#check List.prefix_iff_eq_take
 lemma List.upToEvent_e'_in_list_before_e
-  (l : List (Event n)) (e : Event n) (he_in_l : e ∈ l)
+  (l : List (Event n)) (e : Event n) (hl_nodup : l.Nodup)
   : ∀ e' ∈ upToEvent n l e, l.idxOf e' < l.idxOf e := by
   simp [upToEvent, ]
   intro e' he'_in_up_to
   apply idx_in_take_lt_take_idx
-  . case hl_nodup =>
-    sorry
-  . case a =>
-    exact he'_in_up_to
+  . case hl_nodup => exact hl_nodup
+  . case a => exact he'_in_up_to
 
 lemma List.upToEvent_ordered_before_e
 (l : List (Event n)) (e : Event n)
-(he_in_l : e ∈ l)
+(he_in_l : e ∈ l) (hl_nodup : l.Nodup)
 (hl_sorted : List.Sorted (Event.OrderedBefore n) l)
   : ∀ e' ∈ List.upToEvent n l e, e'.OrderedBefore n e := by
   intro e' he'_in_up_to
@@ -1273,7 +1268,7 @@ lemma List.upToEvent_ordered_before_e
 
   apply hlt_idx_impl_ordered_before
   apply upToEvent_e'_in_list_before_e
-  . case he_in_l => exact he_in_l
+  . case hl_nodup => exact hl_nodup
   . case a => exact he'_in_up_to
 
 lemma Behaviour.eventsUpToEvent_are_pred_to_e (b : Behaviour n) (e : Event n)
@@ -1285,7 +1280,6 @@ lemma Behaviour.eventsUpToEvent_are_pred_to_e (b : Behaviour n) (e : Event n)
 
   simp[eventsUpToEvent] at he'_up_to_e
   have he'_in_upto_e_of_es_at_entry := he'_up_to_e
-  -- have hevents_at_entry_sorted := b.eventsAtEventEntry_ordered_before_sorted n e
 
   constructor
   . case sameEntry =>
@@ -1300,10 +1294,9 @@ lemma Behaviour.eventsUpToEvent_are_pred_to_e (b : Behaviour n) (e : Event n)
       apply Behaviour.bottom_e_in_b_impl_in_eventsAtEventEntry
       . case he_in_b => exact he_in_b
       . case he_bottom => exact he_bottom
+    . case hl_nodup => exact b.eventsAtEventEntry_no_dups n e
     . case hl_sorted =>
       apply eventsAtEventEntry_ordered_before_sorted
-      -- . case b => exact b
-      -- . case e => exact e
     . case a => exact he'_in_upto_e_of_es_at_entry
   . case predInB =>
     exact he'_at_e.eInB
@@ -1345,7 +1338,6 @@ lemma Behaviour.eventsUpToEvent_at_e_entry (b : Behaviour n) (e : Event n) :
         simp[hhead_is_e] at he'_in_rest
       . case neg =>
         have he'_in_rest := Or.resolve_left he'_in_es he'_is_head
-        -- rw[BEq.beq, eventInstBEq, ] at he'_in_rest
         simp at he'_in_rest
         simp[hhead_is_e] at he'_in_rest
 
