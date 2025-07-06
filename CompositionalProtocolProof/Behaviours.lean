@@ -1091,6 +1091,13 @@ lemma Behaviour.eventsAtEntryOfListBottomEvents_map_ordered_before_sorted (b : B
 noncomputable def Behaviour.eventsAtEventEntry (b : Behaviour n) (e : Event n) : List (Event n) :=
   b.eventsAtEntryOfListBottomEvents n e |>.map (·.val)
 
+lemma Behaviour.eventsAtEventEntry_are_bottom (b : Behaviour n) (e : Event n)
+  : ∀ e' ∈ b.eventsAtEventEntry n e, e'.isBottomAtEntry n b e.struct e.addr := by
+  simp[eventsAtEventEntry]
+  intro e' he'_in_es_at_entry
+  apply eventsAtEntryOfListBottomEvents_are_bottom
+  . case a => exact he'_in_es_at_entry
+
 lemma Behaviour.bottom_e_in_b_impl_in_eventsAtEventEntry (b : Behaviour n) (e : Event n)
   (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e)
   : e ∈ b.eventsAtEventEntry n e := by
@@ -1199,6 +1206,14 @@ lemma Behaviour.eventsAtEventEntry_ordered_before_sorted (b : Behaviour n) (e : 
 
 noncomputable def Behaviour.eventsUpToEvent (b : Behaviour n) (e : Event n) : List (Event n) :=
   b.eventsAtEventEntry n e |>.upToEvent n e
+
+lemma Behaviour.eventsUpToEvent_are_bottom (b : Behaviour n) (e : Event n)
+  : ∀ e' ∈ b.eventsUpToEvent n e, e'.isBottomAtEntry n b e.struct e.addr := by
+  simp[eventsUpToEvent]
+  simp[List.upToEvent]
+  intro e' he'_in_es_upto_event
+  apply b.eventsAtEventEntry_are_bottom n e
+  . case a => exact List.mem_of_mem_take he'_in_es_upto_event
 
 lemma Behaviour.eventsUpToEvent_no_dups (b : Behaviour n) (e : Event n)
   : b.eventsUpToEvent n e |>.Nodup := by
