@@ -591,31 +591,31 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
   (hax6 : Behaviour.axRequestAccessesDirectory n)
   (hno_pred : ∀ e_predecessor ∈ b, ¬immBottomPredHasNoPermsAndLeavesStateAtLeast n b init e_predecessor e_req)
   : ¬ (Event.req n e_req).MRS ≤ EntryState.cache n (List.stateAfter n (l_preds) (IEntry n)) := by
-        induction l_preds using List.reverseRecOn with
-        | nil =>
-          match he : e_req with
-          | .cacheEvent ce =>
-            /- For any request, the state it was made on is greater or equal to it's MRS. -/
-            match hreq : ce.req with
-            | ⟨⟨rw,true,_⟩,_⟩
-            | ⟨⟨.r,false,.Weak⟩,{}⟩
-            | ⟨⟨.w,false,.Weak⟩,{}⟩
-            | ⟨⟨.w,false,.Rel⟩,{}⟩
-            | ⟨⟨.r,false,.Acq⟩,{}⟩ =>
-              all_goals simp[List.stateAfter, EntryState.cache]; simp[ValidRequest.MRS, Event.req, hreq]; simp[LE.le, State.le, Option.le]
-          | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
-        | append_singleton l_head e_pred ih =>
-          match hreq : e_req with
-          | .cacheEvent ce_req =>
-                  have ih_same_entry_precond : (∀ e ∈ l_head, eventAtEntry n b e (Event.struct n (Event.cacheEvent ce_req)) (Event.addr n (Event.cacheEvent ce_req))) := by
-                    intro e he_in_l_head
-                    apply hpreds_at_same_entry
-                    . case a => simp[he_in_l_head]
+  induction l_preds using List.reverseRecOn with
+  | nil =>
+    match he : e_req with
+    | .cacheEvent ce =>
+      /- For any request, the state it was made on is greater or equal to it's MRS. -/
+      match hreq : ce.req with
+      | ⟨⟨rw,true,_⟩,_⟩
+      | ⟨⟨.r,false,.Weak⟩,{}⟩
+      | ⟨⟨.w,false,.Weak⟩,{}⟩
+      | ⟨⟨.w,false,.Rel⟩,{}⟩
+      | ⟨⟨.r,false,.Acq⟩,{}⟩ =>
+        all_goals simp[List.stateAfter, EntryState.cache]; simp[ValidRequest.MRS, Event.req, hreq]; simp[LE.le, State.le, Option.le]
+    | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
+  | append_singleton l_head e_pred ih =>
+    match hreq : e_req with
+    | .cacheEvent ce_req =>
+      have ih_same_entry_precond : (∀ e ∈ l_head, eventAtEntry n b e (Event.struct n (Event.cacheEvent ce_req)) (Event.addr n (Event.cacheEvent ce_req))) := by
+        intro e he_in_l_head
+        apply hpreds_at_same_entry
+        . case a => simp[he_in_l_head]
 
-                  have ih_pred_req_precond : (∀ e ∈ l_head, Predecessor n b e (Event.cacheEvent ce_req)) := by
-                    intro e he_in_l_head
-                    apply hpreds_pred_to_req
-                    . case a => simp[he_in_l_head]
+      have ih_pred_req_precond : (∀ e ∈ l_head, Predecessor n b e (Event.cacheEvent ce_req)) := by
+        intro e he_in_l_head
+        apply hpreds_pred_to_req
+        . case a => simp[he_in_l_head]
 
       have ih_pred_bottom_precond : (∀ e' ∈ l_head, Event.isBottomAtEntry n b (Event.struct n (Event.cacheEvent ce_req)) (Event.addr n (Event.cacheEvent ce_req)) e') := by
         intro e he_in_l_head
@@ -631,60 +631,60 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
           match h_l_head_state : EntryState.cache n (List.stateAfter n l_head (IEntry n)) with
           | ⟨some .wr, true⟩ => -- Can't be SW (M) state
 
-                  rw[h_l_head_state] at ih_post
-                  simp[Event.req] at ih_post
-                  simp[hreq_req] at ih_post
-                  simp[ValidRequest.MRS] at ih_post
-                  simp[ReadWrite.toPerms, ReadWrite.toRWPerms] at ih_post
-                  simp[LE.le, State.le, Option.le] at ih_post
-                | ⟨some .r, true⟩ => -- Can be on MR (S) state, and e_pred can't be
-                  match e_pred.req with
-                  | ⟨⟨.w, true,_⟩,_⟩ =>
-                    -- if e_pred gets permissions (SW, or M), then it violates hno_pred
+            rw[h_l_head_state] at ih_post
+            simp[Event.req] at ih_post
+            simp[hreq_req] at ih_post
+            simp[ValidRequest.MRS] at ih_post
+            simp[ReadWrite.toPerms, ReadWrite.toRWPerms] at ih_post
+            simp[LE.le, State.le, Option.le] at ih_post
+          | ⟨some .r, true⟩ => -- Can be on MR (S) state, and e_pred can't be
+            match e_pred.req with
+            | ⟨⟨.w, true,_⟩,_⟩ =>
+              -- if e_pred gets permissions (SW, or M), then it violates hno_pred
 
               -- e_pred must go to the directory.
               -- e_pred
               have h := b.stateBefore n (init.stateAt n e_pred) e_pred
 
-                    have h_e_pred_at_e_req := hpreds_at_same_entry e_pred (by simp)
+              have h_e_pred_at_e_req := hpreds_at_same_entry e_pred (by simp)
 
               have h_pred_cannot_get_perms_for_req := hno_pred e_pred h_e_pred_at_e_req.eInB
 
-                    absurd h_pred_cannot_get_perms_for_req
-                    have h_imm_bottom_pred_leave_perms :
+              absurd h_pred_cannot_get_perms_for_req
+              have h_imm_bottom_pred_leave_perms :
                 immBottomPredHasNoPermsAndLeavesStateAtLeast n b init e_pred (Event.cacheEvent ce_req)
-                        := by
+                  := by
                   simp[immBottomPredHasNoPermsAndLeavesStateAtLeast]
-                        simp[ImmediateBottomPredSatisfyingProp]
+                  simp[ImmediateBottomPredSatisfyingProp]
                   simp[predHasNoPermsAndLeavesStateAtLeastReq]
+                  constructor
+                  . case isImmBottomPred =>
+                    constructor
+                    . case isImmPred =>
+                      constructor
+                      . case sameEntry =>
+                        have h_e_pred_at_e_req := hpreds_at_same_entry e_pred (by simp)
                         constructor
-                        . case isImmBottomPred =>
-                          constructor
-                          . case isImmPred =>
-                            constructor
-                            . case sameEntry =>
-                              have h_e_pred_at_e_req := hpreds_at_same_entry e_pred (by simp)
-                              constructor
                         . case sameStruct =>
                           simp[Event.sameStructure, h_e_pred_at_e_req.eAtStruct]
-                              . case sameAddr => simp[Event.sameAddr, h_e_pred_at_e_req.eAtAddr]
-                            . case behavePred =>
-                              constructor
-                              . case sameEntry =>
-                                constructor
-                                . case sameStruct => simp[Event.sameStructure, h_e_pred_at_e_req.eAtStruct]
-                                . case sameAddr => simp[Event.sameAddr, h_e_pred_at_e_req.eAtAddr]
-                              . case isPred => exact (hpreds_pred_to_req e_pred (by simp)).isPred
-                              . case predInB => simp[h_e_pred_at_e_req.eInB]
-                              . case succInB => exact hreq_in_b
-                            . case noIntermediate =>
-                              simp[NoIntermediatePredecessor]
-                              /- [TODO] Need a way to say "`e_pred` is the immediate predecessor to `e_req`" -/
-                              intro an_event hevent_in_b hevent_btn_pred_and_req
+                        . case sameAddr => simp[Event.sameAddr, h_e_pred_at_e_req.eAtAddr]
+                      . case behavePred =>
+                        constructor
+                        . case sameEntry =>
+                          constructor
+                          . case sameStruct => simp[Event.sameStructure, h_e_pred_at_e_req.eAtStruct]
+                          . case sameAddr => simp[Event.sameAddr, h_e_pred_at_e_req.eAtAddr]
+                        . case isPred => exact (hpreds_pred_to_req e_pred (by simp)).isPred
+                        . case predInB => simp[h_e_pred_at_e_req.eInB]
+                        . case succInB => exact hreq_in_b
+                      . case noIntermediate =>
+                        simp[NoIntermediatePredecessor]
+                        /- [TODO] Need a way to say "`e_pred` is the immediate predecessor to `e_req`" -/
+                        intro an_event hevent_in_b hevent_btn_pred_and_req
                         -- [TODO] : July 5, 2025
-                              sorry
-                          . case isBottom => exact hpreds_are_bottom e_pred (by simp) |>.isBottom
-                        . case satisfyP =>
+                        sorry
+                    . case isBottom => exact hpreds_are_bottom e_pred (by simp) |>.isBottom
+                  . case satisfyP =>
                     simp[Event.PropOnEvent]
                     constructor
                     . case missingPerms => sorry
@@ -711,13 +711,13 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
                       -- . case dirOfReq => sorry
                       -- . case dirInB => sorry
                       -- . case reqInB => sorry
-                    exact h_imm_bottom_pred_leave_perms
-                  | _ => sorry
-                | _ => sorry
-              | _ => sorry
-            | true =>
-            sorry
-          | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
+              exact h_imm_bottom_pred_leave_perms
+            | _ => sorry
+          | _ => sorry
+        | _ => sorry
+      | true =>
+      sorry
+    | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
 
 /-- `Helper Lemma 1` in Lemma 3's re-write -/
 lemma Behaviour.exists_predecessor_setting_state''
