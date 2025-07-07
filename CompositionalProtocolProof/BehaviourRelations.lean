@@ -11,6 +11,22 @@ structure Request.IsValid (r : Request) where
   no_cwr : r.NoCoherentWeakRead := by simp
 -/
 
+/-- Key definition: (Not Acq, Rel, Weak Write). A request cache event has permissions if it's MRS is less than or equal the state it's made on. -/
+def Behaviour.eventOnStateHasPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
+  e_req.req.MRS ≤ (b.stateBefore n (init.stateAt n e_req) e_req).cache
+
+/-- Key Definition: A request does not have permissions if the negation of it's MRS is less than the state it's made on is true. -/
+def Behaviour.eventOnStateNoPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
+  ¬ b.eventOnStateHasPerms n init e_req
+
+def Behaviour.eventOnCoherentState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
+  (b.stateBefore n (init.stateAt n e_req) e_req).cache.c
+def Behaviour.eventOnNonCoherentState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
+  ¬ (b.stateBefore n (init.stateAt n e_req) e_req).cache.c
+
+def Behaviour.acqRelWeakWriteNoPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
+  ¬ (b.eventOnCoherentState n init e_req ∧ b.eventOnStateHasPerms n init e_req)
+
 noncomputable def Event.reqToDirOfRequestEvent (e_req : Event n) (state_before : State) : ValidRequest :=
   match e_req.req, state_before, e_req.down with
   | ⟨⟨.w, false, _⟩, _⟩, I, false => ⟨⟨.r, false, .Weak⟩, {}⟩
@@ -380,22 +396,6 @@ def Event.isNcRelAcq : Event n → Prop
 def Behaviour.eventOnMRSState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
   (b.stateBefore n (init.stateAt n e_req) e_req).cache = e_req.req.MRS
 -/
-
-/-- Key definition: (Not Acq, Rel, Weak Write). A request cache event has permissions if it's MRS is less than or equal the state it's made on. -/
-def Behaviour.eventOnStateHasPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
-  e_req.req.MRS ≤ (b.stateBefore n (init.stateAt n e_req) e_req).cache
-
-/-- Key Definition: A request does not have permissions if the negation of it's MRS is less than the state it's made on is true. -/
-def Behaviour.eventOnStateNoPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
-  ¬ b.eventOnStateHasPerms n init e_req
-
-def Behaviour.eventOnCoherentState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
-  (b.stateBefore n (init.stateAt n e_req) e_req).cache.c
-def Behaviour.eventOnNonCoherentState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
-  ¬ (b.stateBefore n (init.stateAt n e_req) e_req).cache.c
-
-def Behaviour.acqRelWeakWriteNoPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
-  ¬ (b.eventOnCoherentState n init e_req ∧ b.eventOnStateHasPerms n init e_req)
 
 /-- Def. Prop on a Request Event `e_req`.
 The state `e_req` is made on is not sufficient to be able to complete the request in cache.
