@@ -917,25 +917,47 @@ lemma Behaviour.exists_predecessor_setting_state''
   -- Use the directory event to fill in the `_` below.
   -- [TODO] : July 5, 2025
 
-  have hhas_pred_getting_perms : dirAccessOfRequest n b init e_req (sorry) := by
+  have hpred_no_perm_gets_perms := hexists_e_pred.choose_spec.right
+  simp[immBottomPredHasNoPermsAndLeavesStateAtLeast, ImmediateBottomPredSatisfyingProp] at hpred_no_perm_gets_perms
+  have hprop_pred_no_perms_get_perms := hpred_no_perm_gets_perms.satisfyP
+  simp[Event.PropOnEvent] at hprop_pred_no_perms_get_perms
+  have hpred_no_perms := hprop_pred_no_perms_get_perms.missingPerms
+  simp[reqMissingPerms] at hpred_no_perms
+
+  have hpred_at_cache : hexists_e_pred.choose.isCacheEvent n := by
+    have hpred_same_struct_req := hpred_no_perm_gets_perms.isImmBottomPred.isImmPred.sameStructure
+    simp[Event.sameStructure, Event.struct] at hpred_same_struct_req
+    simp[Event.isCacheEvent] at hreq_is_ce
+    simp[Event.isCacheEvent]
+    match hreq : e_req with
+    | .directoryEvent _ => simp_all
+    | .cacheEvent ce_req =>
+      simp[hreq] at hpred_same_struct_req
+      match hpred : hexists_e_pred.choose with
+      | .directoryEvent _ => simp_all
+      | .cacheEvent ce_pred => simp_all
+
+  have hpred_access_dir : ∃ e_dir ∈ b,
+    cacheEncapsulatesCorrespondingDirEvent n b (InitialSystemState.stateAt n init hexists_e_pred.choose) true
+    hexists_e_pred.choose e_dir :=
+      b.reqMissingPerms_accesses_dir n init
+        hexists_e_pred.choose hexists_e_pred.choose_spec.left hpred_at_cache hpred_no_perms hax6
+
+  have hhas_pred_getting_perms : dirAccessOfRequest n b init e_req hpred_access_dir.choose := by
     apply dirAccessOfRequest.orderBeforeDir
     . case hreq_has_perms => exact hhave_perms
-    . case hpred_accesses_dir => sorry
-    . case hexists_pred_getting_perms =>
-      simp[reqHasPermsSoDirPred]
-      exact hexists_e_pred
+    . case hpred_accesses_dir => exact hpred_access_dir.choose_spec.right
 
-  have hpred_that_gets_perms := hexists_e_pred.choose_spec.right
-  simp[immBottomPredHasNoPermsAndLeavesStateAtLeast] at hpred_that_gets_perms
-  simp[ImmediateBottomPredSatisfyingProp,] at hpred_that_gets_perms
-  -- simp[ IsImmediateBottomPredSatisfyingProp] at hpred_that_gets_perms
-  have t := hpred_that_gets_perms.satisfyP
-  simp[Event.PropOnEvent] at t
-  have t0 := t -- .cacheDirEvent.choose
-  -- use t.encapDir.cacheDirEvent.choose
+  use hpred_access_dir.choose
+  apply And.intro
+  . case h.left => exact hpred_access_dir.choose_spec.left
+  . case h.right =>
+    apply And.intro
+    . case left => exact hpred_access_dir.choose_spec.right.isDir
+    . case right =>
+      exact hhas_pred_getting_perms
           /- Show that there must be a predecessor that accesses the directory, and it is the immediate predecessor that accesses the directory.
           Use the contrapositive. -/
-  sorry
 
 -- [TODO] constrain goal to say not just `e_req` relates `e_dir`, but either encapsulates if lacking permissions, or a previous one if have perms,
 -- of a future one if Weak Non-Coherent on Vd
