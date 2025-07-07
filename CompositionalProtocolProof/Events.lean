@@ -195,8 +195,11 @@ def Event.isCoherent : Event n → Prop
 | .cacheEvent ce => ce.req.isCoherent
 | .directoryEvent _ => false
 
+def CacheEvent.isAcquire : CacheEvent n → Prop
+| ce => ce.req.isAcquire
+
 def Event.isAcquire : Event n → Prop
-| .cacheEvent ce => ce.req.val = ⟨.r, false, .Acq⟩
+| .cacheEvent ce => ce.isAcquire
 | .directoryEvent _ => false
 
 def Event.isNonCoherent : Event n → Prop
@@ -207,19 +210,37 @@ def Event.isWeak : Event n → Prop
 | .cacheEvent ce => ce.req.val.consistency = .Weak
 | .directoryEvent _ => false
 
+def CacheEvent.isNonCoherent : CacheEvent n → Prop
+| ce => ce.req.isNonCoherent
+
+def CacheEvent.isWeak : CacheEvent n → Prop
+| ce => ce.req.isWeak
+
+def CacheEvent.isNcWeak : CacheEvent n → Prop
+| ce => ce.isNonCoherent ∧ ce.isWeak
+
 def Event.isNcWeak : Event n → Prop
 | e => e.isNonCoherent ∧ e.isWeak
 
+def CacheEvent.isNcWeakRead : CacheEvent n → Prop
+| ce => ce.req.isNcWeakRead
+
 def Event.isNcWeakRead : Event n → Prop
-| .cacheEvent ce => ce.req.val = ⟨.r, false, .Weak⟩
+| .cacheEvent ce => ce.isNcWeakRead
 | .directoryEvent _ => false
+
+def CacheEvent.isNcWeakWrite : CacheEvent n → Prop
+| ce => ce.req.isNcWeakWrite
 
 def Event.isNcWeakWrite : Event n → Prop
-| .cacheEvent ce => ce.req.val = ⟨.w, false, .Weak⟩
+| .cacheEvent ce => ce.isNcWeakWrite
 | .directoryEvent _ => false
 
+def CacheEvent.isNcRelease : CacheEvent n → Prop
+| ce => ce.req.isNcRelease
+
 def Event.isNCRelease : Event n → Prop
-| .cacheEvent ce => ce.req.val = ⟨.w, false, .Rel⟩
+| .cacheEvent ce => ce.isNcRelease
 | .directoryEvent _ => false
 
 def Event.isCRelease : Event n → Prop
