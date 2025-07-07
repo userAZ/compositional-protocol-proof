@@ -730,6 +730,116 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
       sorry
     | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
 
+lemma Behaviour.reqMissingPerms_accesses_dir (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
+  (hreq_in_b : e_req ∈ b) (hreq_at_cache : e_req.isCacheEvent n)
+  (hmissing_perms : b.reqMissingPerms n init e_req) (hax_req_encap_dir : Behaviour.axRequestAccessesDirectory n)
+  : ∃ e_dir ∈ b, b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e_req) true e_req e_dir := by
+  /- First, start with the cases of missing permissions (`hmissing_perms`). Consider, ∀ e_req.req that's missing permissions.
+  Second, identify the relevant cases where a request encapsulating a directory event (`hax_req_encap_dir`). -/
+  cases hax_req_encap_dir
+  . case mk hreq_access_dir =>
+    have hreq_encap_dir := hreq_access_dir b e_req hreq_in_b init
+    simp[requestAccessesDirectoryWrapper] at hreq_encap_dir
+    match he_req : e_req with
+    | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_at_cache
+    | .cacheEvent ce =>
+      cases hmissing_perms
+      . case downgrade hreq_is_down hreq_on_mrs =>
+        match hreq_encap_dir with
+        | .evictVdWB hvd_wb =>
+          use hvd_wb.encapWBDirEvent.evictEncapCorrDir.choose
+          apply And.intro
+          . case h.left => exact hvd_wb.encapWBDirEvent.evictEncapCorrDir.choose_spec.left
+          . case h.right => exact hvd_wb.encapWBDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent
+        | .evictSCPutM hput_m =>
+          use hput_m.encapPutMDirEvent.evictEncapCorrDir.choose
+          apply And.intro
+          . case h.left => exact hput_m.encapPutMDirEvent.evictEncapCorrDir.choose_spec.left
+          . case h.right => exact hput_m.encapPutMDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent
+        | .evictSCPutS hput_s =>
+          use hput_s.encapPutSDirEvent.evictEncapCorrDir.choose
+          apply And.intro
+          . case h.left => exact hput_s.encapPutSDirEvent.evictEncapCorrDir.choose_spec.left
+          . case h.right => exact hput_s.encapPutSDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent
+        | .coherentRequest hcoherent_req_no_perms => simp_all [hcoherent_req_no_perms.notDowngrade]
+        | .nonCoherentRelease hnc_rel => simp_all [Event.down, hnc_rel.notDowngrade]
+        | .acquire hacq => simp_all [Event.down, hacq.notDowngrade]
+        | .weakWrite hww => simp_all [Event.down, hww.notDowngrade]
+        | .weakRead hwr => simp_all [Event.down, hwr.notDowngrade]
+
+      . case noPermsForNonNcRelAcqWeakWrite hreq_not_down hreq_not_nc_rel_acq_ww hno_perms =>
+        cases hreq_encap_dir
+        case coherentRequest hcoherent_req_no_perms =>
+          use hcoherent_req_no_perms.reqEncapDir.reqEncapCorrDir.choose
+          apply And.intro
+          . case h.left => exact hcoherent_req_no_perms.reqEncapDir.reqEncapCorrDir.choose_spec.left
+          . case h.right => exact hcoherent_req_no_perms.reqEncapDir.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent
+        case weakRead hwr =>
+          use hwr.encapDirEvent.reqEncapCorrDir.choose
+          apply And.intro
+          . case h.left => exact hwr.encapDirEvent.reqEncapCorrDir.choose_spec.left
+          . case h.right => exact hwr.encapDirEvent.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent
+
+        . case nonCoherentRelease hnc_rel =>
+          have his_nc_rel := hnc_rel.existsDirWb.choose_spec.right.isRelease
+          simp[CacheEvent.isNcRelease, ValidRequest.isNcRelease] at his_nc_rel
+          simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNCRelease, CacheEvent.isAcquire, CacheEvent.isNcRelease,
+            ValidRequest.isAcquire, ValidRequest.isNcRelease] at hreq_not_nc_rel_acq_ww
+          simp[his_nc_rel] at hreq_not_nc_rel_acq_ww
+        . case acquire hacq =>
+          have his_acq := hacq.isAcquire
+          simp[CacheEvent.isAcquire, ValidRequest.isAcquire] at his_acq
+          simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNCRelease, CacheEvent.isAcquire, CacheEvent.isNcRelease,
+            ValidRequest.isAcquire, ValidRequest.isNcRelease] at hreq_not_nc_rel_acq_ww
+          simp[his_acq] at hreq_not_nc_rel_acq_ww
+        . case weakWrite hww =>
+          have his_ww := hww.isWrite
+          simp[CacheEvent.isNcWeakWrite, ValidRequest.isNcWeakWrite] at his_ww
+          simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNCRelease, Event.isNcWeakWrite,
+            CacheEvent.isAcquire, CacheEvent.isNcRelease, CacheEvent.isNcWeakWrite,
+            ValidRequest.isAcquire, ValidRequest.isNcRelease, ValidRequest.isNcWeakWrite] at hreq_not_nc_rel_acq_ww
+          simp[his_ww] at hreq_not_nc_rel_acq_ww
+        . case evictVdWB hvd_wb => simp[Event.down, hvd_wb.isDowngrade] at hreq_not_down
+        . case evictSCPutM hput_m => simp[Event.down, hput_m.isDowngrade] at hreq_not_down
+        . case evictSCPutS hput_s => simp[Event.down, hput_s.isDowngrade] at hreq_not_down
+
+      . case ncRelAcqWeakWriteNotOnCoherentState hreq_not_down hreq_nc_rel_acq hno_perms =>
+        cases hreq_encap_dir
+        case nonCoherentRelease hnc_rel =>
+          use hnc_rel.existsDirWb.choose
+          apply And.intro
+          . case h.left => exact hnc_rel.existsDirWb.choose_spec.left
+          . case h.right => exact hnc_rel.existsDirWb.choose_spec.right.encapsDirWB.reqEncapCorrespondingDirEvent
+        case acquire hacq =>
+          use hacq.encapDirEvent.reqEncapCorrDir.choose
+          apply And.intro
+          . case h.left => exact hacq.encapDirEvent.reqEncapCorrDir.choose_spec.left
+          . case h.right => exact hacq.encapDirEvent.reqEncapCorrDir.choose_spec.right.reqEncapCorrespondingDirEvent
+
+        . case coherentRequest hcoherent_req_no_perms =>
+          have his_coh := hcoherent_req_no_perms.isCoherent
+          simp[Event.req,] at his_coh
+          simp[Event.isNcRelAcq, Event.isAcquire, Event.isNCRelease, CacheEvent.isAcquire, CacheEvent.isNcRelease,
+            ValidRequest.isAcquire, ValidRequest.isNcRelease] at hreq_nc_rel_acq
+          cases hreq_nc_rel_acq
+          . case inl his_acq => simp[his_acq] at his_coh
+          . case inr his_nc_rel => simp[his_nc_rel] at his_coh
+        . case weakWrite hww =>
+          have his_weak_write := hww.isWrite
+          simp[CacheEvent.isNcWeakWrite, ValidRequest.isNcWeakWrite] at his_weak_write
+          simp[Event.isNcRelAcq, Event.isAcquire, Event.isNCRelease, CacheEvent.isAcquire, CacheEvent.isNcRelease,
+            ValidRequest.isAcquire, ValidRequest.isNcRelease] at hreq_nc_rel_acq
+          simp[his_weak_write] at hreq_nc_rel_acq
+        . case weakRead hwr =>
+          have his_weak_read := hwr.isRead
+          simp[CacheEvent.isNcWeakRead, ValidRequest.isNcWeakRead] at his_weak_read
+          simp[Event.isNcRelAcq, Event.isAcquire, Event.isNCRelease, CacheEvent.isAcquire, CacheEvent.isNcRelease,
+            ValidRequest.isAcquire, ValidRequest.isNcRelease] at hreq_nc_rel_acq
+          simp[his_weak_read] at hreq_nc_rel_acq
+        . case evictVdWB hvd_wb => simp[Event.down, hvd_wb.isDowngrade] at hreq_not_down
+        . case evictSCPutM hput_m => simp[Event.down, hput_m.isDowngrade] at hreq_not_down
+        . case evictSCPutS hput_s => simp[Event.down, hput_s.isDowngrade] at hreq_not_down
+
 /-- `Helper Lemma 1` in Lemma 3's re-write -/
 lemma Behaviour.exists_predecessor_setting_state''
   (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
