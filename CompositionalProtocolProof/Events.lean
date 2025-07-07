@@ -271,6 +271,11 @@ def Event.down : Event n → Bool
 | .cacheEvent ce => ce.down
 | .directoryEvent de => de.down
 
+noncomputable def CacheEvent.MRS : CacheEvent n → State
+| ce => match ce.down with
+  | false => ce.req.MRS
+  | true => ⟨ce.req.val.rw.toPerms, ce.req.val.coherent⟩
+
 -- def CacheEvent.requestEvent (e : CacheEvent) : Prop := e.cid = e.rid
 -- def CacheEvent.sameAddress (e : CacheEvent) : Prop := e.cid = e.rid
 
