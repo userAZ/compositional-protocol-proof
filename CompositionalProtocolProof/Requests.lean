@@ -92,6 +92,13 @@ def Request.isRead (r : Request) : Prop := r.rw = .r
 def Request.isCoherentRead (r : Request) : Prop := r.isCoherent ∧ r.isRead
 def ValidRequest.isCoherentRead (vr : ValidRequest) : Prop := vr.val.isCoherentRead
 
+def ValidRequest.isAcquire (vr : ValidRequest) := vr.val = ⟨.r, false, .Acq⟩
+def ValidRequest.isNcRelease (vr : ValidRequest) := vr.val = ⟨.w, false, .Rel⟩
+def ValidRequest.isNonCoherent (vr : ValidRequest) := ¬ vr.val.coherent
+def ValidRequest.isWeak (vr : ValidRequest) := vr.val.consistency = .Weak
+def ValidRequest.isNcWeakRead (vr : ValidRequest) := vr.val = ⟨.r, false, .Weak⟩
+def ValidRequest.isNcWeakWrite (vr : ValidRequest) := vr.val = ⟨.w, false, .Weak⟩
+
 /-
 abbrev NonCoherentWeakRead : Request := ⟨.r, false, .Weak⟩
 abbrev NonCoherentWeakWrite : Request := ⟨.w, false, .Weak⟩
