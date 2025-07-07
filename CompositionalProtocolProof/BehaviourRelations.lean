@@ -47,8 +47,12 @@ structure Behaviour.requestDirectoryEvent (b : Behaviour n) (init : EntryState n
   dirReq :  e_dir.req = b.reqToDirOfRequestEvent n init rel_wb e_req -- from analysis on e_req and the state it's made on
   dirState : e_dir.isDirEventOfDirState n (b.stateAfter n init e_dir).directory
 
+structure DirectoryEvent.matchesCacheEvent (de : DirectoryEvent n) (ce : CacheEvent n) : Prop where
+  correspondingCE : de.eReq = ce
+  sameDown : de.down = ce.down
+
 def Event.dirEventOfReqEvent (e_dir e_req : Event n) : Prop := match e_dir, e_req with
-| .directoryEvent de, .cacheEvent ce => de.eReq = ce
+| .directoryEvent de, .cacheEvent ce => de.matchesCacheEvent n ce
 | _, _ => false
 
 structure Behaviour.cacheEncapsulatesCorrespondingDirEvent (b : Behaviour n) (init : EntryState n) (rel_wb : Bool) (e_req e_dir : Event n) : Prop where
