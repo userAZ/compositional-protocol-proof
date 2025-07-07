@@ -93,9 +93,9 @@ structure Behaviour.ncReleaseWritesBack (b : Behaviour n) (e_req e_dir : Event n
   writeBackOther : ∀ addr ≠ e_req.addr, ∃ e_wb ∈ b.es, e_wb.OrderedBefore n e_dir ∧ e_wb.isVdWriteBack
 
 /-- Def: Props for Coherent Request encapsulating a Directory Event -/
-structure Behaviour.requestCoherentNoPerms (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) : Prop where
+structure Behaviour.requestCoherentNoPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop where
   isCoherent : e_req.req.val.coherent
-  noPerms : (b.stateBefore n (init.stateAt n e_req) e_req).cache < e_req.req.MRS
+  noPerms : b.eventOnStateNoPerms n init e_req
   notDowngrade : ¬ e_req.down
   reqEncapDir : b.reqEncapCorrespondingDirEvent n (init.stateAt n e_req) true e_req
 
@@ -110,77 +110,82 @@ structure Behaviour.ncReleaseOnI (b : Behaviour n) (e_req e_dir_wb : Event n) (i
 
 /-- Def: Props for a non-coherent Release encapsulating one (or two) Directory Events (if on I state) -/
 structure Behaviour.nonCoherentReleaseEncapDirEvents (b : Behaviour n) (e_req : CacheEvent n) (e_dir_wb : Event n) (init : InitialSystemState n) : Prop where
-  notCoherent : ¬ e_req.Coherent
-  isRelease : e_req.req.val.consistency = .Rel
+  isRelease : e_req.isNcRelease
   encapsDirWB : b.reqEncapsulatesDirEvent n (init.stateAt n (Event.cacheEvent e_req)) true (Event.cacheEvent e_req) e_dir_wb
   encapGetVFromI : b.ncReleaseOnI n (Event.cacheEvent e_req) e_dir_wb init
 
-structure Behaviour.nonCoherentRelease (b : Behaviour n) (e_req : CacheEvent n) (init : InitialSystemState n) : Prop where
+structure Behaviour.nonCoherentRelease (b : Behaviour n) (init : InitialSystemState n) (e_req : CacheEvent n) : Prop where
   notDowngrade : ¬ e_req.down
+  noCoherentPerms : b.acqRelWeakWriteNoPerms n init (Event.cacheEvent e_req)
   existsDirWb : ∃ e_dir_wb ∈ b.es, b.nonCoherentReleaseEncapDirEvents n e_req e_dir_wb init
 
 /- Def: Props for a non-coherent Acquire encapsulating a Directory Event. -/
-structure Behaviour.acquireEncapDirEvent (b : Behaviour n) (e_req : CacheEvent n) (init : InitialSystemState n) : Prop where
+structure Behaviour.acquireEncapDirEvent (b : Behaviour n) (init : InitialSystemState n) (e_req : CacheEvent n) : Prop where
   notDowngrade : ¬ e_req.down
-  isAcquire : e_req.req.val.consistency = .Acq
-  madeOnNCStates : let made_on_state := b.stateBefore n (init.stateAt n (Event.cacheEvent e_req)) (Event.cacheEvent e_req)
-    made_on_state = VdEntry n ∨ made_on_state = VcEntry n ∨ made_on_state = IEntry n
+  isAcquire : e_req.isAcquire -- e_req.req.val.consistency = .Acq
+  madeOnNCStates : b.acqRelWeakWriteNoPerms n init (Event.cacheEvent e_req)
+    -- let made_on_state := b.stateBefore n (init.stateAt n (Event.cacheEvent e_req)) (Event.cacheEvent e_req)
+    -- made_on_state = VdEntry n ∨ made_on_state = VcEntry n ∨ made_on_state = IEntry n
   encapDirEvent : b.reqEncapCorrespondingDirEvent n (init.stateAt n (Event.cacheEvent e_req)) true (Event.cacheEvent e_req)
 
 /-- Def: Props stating when a non-coherent weak operation (read/write) encapsulates a Directory Event -/
 structure Behaviour.ncWeakRequestEncapDirEvent (b : Behaviour n) (init : InitialSystemState n) (e_req : CacheEvent n) : Prop where
-  notCoherent : ¬ e_req.Coherent
-  isWeak : e_req.req.val.consistency = .Weak
-  madeOnIState : b.stateBefore n (init.stateAt n (Event.cacheEvent e_req)) (Event.cacheEvent e_req) = IEntry n
+  -- isNcWeak : e_req.isNcWeak
+  madeOnIState : b.eventOnStateNoPerms n init (Event.cacheEvent e_req) -- b.stateBefore n (init.stateAt n (Event.cacheEvent e_req)) (Event.cacheEvent e_req) = IEntry n
   notDowngrade : ¬ e_req.down
 
 /-- Prop: NC Weak Read encaps a dir event -/
 structure Behaviour.ncWeakReadEncapDirEvent (b : Behaviour n) (init : InitialSystemState n) (e_req : CacheEvent n) : Prop where
   ncWeakReq : b.ncWeakRequestEncapDirEvent n init e_req
   encapDirEvent : b.reqEncapCorrespondingDirEvent n (init.stateAt n (Event.cacheEvent e_req)) true (Event.cacheEvent e_req)
-  isRead : e_req.req.val.isRead
+  isRead : e_req.isNcWeakRead
+  notDowngrade : ¬ e_req.down
 
 /-- Prop: NC Weak Read encaps a dir event -/
 structure Behaviour.ncWeakWriteEncapDirEvent (b : Behaviour n) (init : InitialSystemState n) (e_req : CacheEvent n) : Prop where
   ncWeakReq : b.ncWeakRequestEncapDirEvent n init e_req
   encapDirEvent : b.reqEncapCorrespondingDirEvent n (init.stateAt n (Event.cacheEvent e_req)) false (Event.cacheEvent e_req) -- [NOTE] One of two places where `rel_wb` is false
-  isWrite : e_req.req.val.isWrite
+  isWrite : e_req.isNcWeakWrite
+  notDowngrade : ¬ e_req.down
+
+def Behaviour.evictOnMRSState (b : Behaviour n) (init : InitialSystemState n) (e_req : CacheEvent n) : Prop :=
+  (b.stateBefore n (init.stateAt n (Event.cacheEvent e_req)) (Event.cacheEvent e_req)).cache = e_req.MRS
 
 def Behaviour.eventOnMRSState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
   (b.stateBefore n (init.stateAt n e_req) e_req).cache = e_req.req.MRS
 
 /-- Def Props stating when an Evicting Weak Non-Coherent Write accesses the Directory -/
-structure Behaviour.evictVdWBEncapsulatesDirEvent (b : Behaviour n) (e_req : CacheEvent n) (init : InitialSystemState n) : Prop where
+structure Behaviour.evictVdWBEncapsulatesDirEvent (b : Behaviour n) (init : InitialSystemState n) (e_req : CacheEvent n) : Prop where
   isDowngrade : e_req.down
   isVdWriteBack : e_req.req.val = ⟨.w, false, .Weak⟩
-  mrsVdState : e_req.req.MRS = Vd
-  madeOnMrs : b.eventOnMRSState n init (Event.cacheEvent e_req)
+  mrsVdState : e_req.MRS = Vd
+  madeOnMrs : b.evictOnMRSState n init e_req
   encapWBDirEvent : b.evictEncapCorrespondingDirEvent n (init.stateAt n (Event.cacheEvent e_req)) true (Event.cacheEvent e_req)
 
-structure Behaviour.evictSCPutMEncapsulatesDirEvent (b : Behaviour n) (e_req : CacheEvent n) (init : InitialSystemState n) : Prop where
+structure Behaviour.evictSCPutMEncapsulatesDirEvent (b : Behaviour n) (init : InitialSystemState n) (e_req : CacheEvent n) : Prop where
   isDowngrade : e_req.down
   isPutM : e_req.req.val = ⟨.w, true, .SC⟩
-  mrsSWState : e_req.req.MRS = SW
-  madeOnMrs : b.eventOnMRSState n init (Event.cacheEvent e_req)
+  mrsSWState : e_req.MRS = SW
+  madeOnMrs : b.evictOnMRSState n init e_req
   encapPutMDirEvent : b.evictEncapCorrespondingDirEvent n (init.stateAt n (Event.cacheEvent e_req)) true (Event.cacheEvent e_req)
 
-structure Behaviour.evictSCPutSEncapsulatesDirEvent (b : Behaviour n) (e_req : CacheEvent n) (init : InitialSystemState n) : Prop where
+structure Behaviour.evictSCPutSEncapsulatesDirEvent (b : Behaviour n) (init : InitialSystemState n) (e_req : CacheEvent n) : Prop where
   isDowngrade : e_req.down
   isPutS : e_req.req.val = ⟨.r, true, .SC⟩
-  mrsMRState : e_req.req.MRS = MR
-  madeOnMrs : b.eventOnMRSState n init (Event.cacheEvent e_req)
+  mrsMRState : e_req.MRS = MR
+  madeOnMrs : b.evictOnMRSState n init e_req
   encapPutSDirEvent : b.evictEncapCorrespondingDirEvent n (init.stateAt n (Event.cacheEvent e_req)) true (Event.cacheEvent e_req)
 
 /-- Axiom 6: When a Request Event encapsulates Directory Events to access/request from the Directory. -/
 inductive Behaviour.requestAccessesDirectory (b : Behaviour n) (ce : CacheEvent n) (init : InitialSystemState n) : Prop
-| coherentRequest : b.requestCoherentNoPerms n (Event.cacheEvent ce) init → Behaviour.requestAccessesDirectory b ce init
-| nonCoherentRelease : b.nonCoherentRelease n ce init → Behaviour.requestAccessesDirectory b ce init -- TODO: have a struct and fields for OnI and OnV
-| acquire : b.acquireEncapDirEvent n ce init → Behaviour.requestAccessesDirectory b ce init -- TODO: struct field : Not on MR
-| weakWrite : b.ncWeakWriteEncapDirEvent n init ce → Behaviour.requestAccessesDirectory b ce init -- TODO: struct field : On I
-| weakRead : b.ncWeakReadEncapDirEvent n init ce → Behaviour.requestAccessesDirectory b ce init -- TODO: struct field : On I
-| evictVdWB : b.evictVdWBEncapsulatesDirEvent n ce init → Behaviour.requestAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
-| evictSCPutM : b.evictSCPutMEncapsulatesDirEvent n ce init → Behaviour.requestAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
-| evictSCPutS : b.evictSCPutSEncapsulatesDirEvent n ce init → Behaviour.requestAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
+| coherentRequest (hcohrent_req_of_no_perms : b.requestCoherentNoPerms n init (Event.cacheEvent ce)) : Behaviour.requestAccessesDirectory b ce init
+| nonCoherentRelease (hnc_rel : b.nonCoherentRelease n init ce) : Behaviour.requestAccessesDirectory b ce init -- TODO: have a struct and fields for OnI and OnV
+| acquire (hacq_encap_dir : b.acquireEncapDirEvent n init ce) : Behaviour.requestAccessesDirectory b ce init -- TODO: struct field : Not on MR
+| weakWrite (hncww_encap_dir : b.ncWeakWriteEncapDirEvent n init ce) : Behaviour.requestAccessesDirectory b ce init -- TODO: struct field : On I
+| weakRead (hncwr_encap_dir : b.ncWeakReadEncapDirEvent n init ce) : Behaviour.requestAccessesDirectory b ce init -- TODO: struct field : On I
+| evictVdWB (hevict_vd_wb_encap_dir : b.evictVdWBEncapsulatesDirEvent n init ce) : Behaviour.requestAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
+| evictSCPutM (hevict_put_m_encap_dir : b.evictSCPutMEncapsulatesDirEvent n init ce) : Behaviour.requestAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
+| evictSCPutS (hevict_put_s_encap_dir : b.evictSCPutSEncapsulatesDirEvent n init ce) : Behaviour.requestAccessesDirectory b ce init -- TODO: downgrade field true, AND struct field: is one of {VdWriteBack, Coherent Write, Coherent Read}
 
 /-- Axiom 6 Event → CacheEvent Wrapper. -/
 def Behaviour.requestAccessesDirectoryWrapper (b : Behaviour n) (e : Event n) (init : InitialSystemState n) : Prop := match e with
