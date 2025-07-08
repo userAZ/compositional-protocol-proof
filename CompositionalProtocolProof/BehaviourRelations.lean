@@ -898,7 +898,7 @@ lemma Behaviour.exists_predecessor_setting_state''
       /- show that because of `hno_pred` (no predecessor gets permissions for `e_req`)
       all the predecessor events to `e_req` do not obtain permissions for `e_req` as per h_has_perms. -/
       have hno_perms : ¬ (Event.req n e_req).MRS ≤ EntryState.cache n (List.stateAfter n (l_preds) (IEntry n)) :=
-        b.no_pred_obtains_perms_impl_req_has_no_perms n init e_req l_preds hreq_in_b
+        b.no_pred_obtains_perms_impl_req_has_no_perms n init e_req l_preds h_is_coherent hreq_in_b
           hreq_is_ce hpreds_at_same_entry hpreds_pred_to_req hpreds_are_bottom hax6 hno_pred
       absurd h_has_perms
       exact hno_perms
