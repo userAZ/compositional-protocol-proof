@@ -592,6 +592,143 @@ structure Behaviour.ncRelease (b : Behaviour n) (e_req : Event n) (init : Initia
 
 -- [NOTE] use `Behaviour.vdCacheEntryWriteBackLater` in the Vd succeeding Dir Events case
 
+lemma List.ordered_mem_impl_ordered_idx {α} [DecidableEq α] {l_head l_tail : List α} {n m : α}
+  (l : List α) (hlist : l = l_head ++ l_tail)
+  (hn_in_head : n ∈ l_head) (hm_in_tail : m ∈ l_tail) (hl_nodup : l.Nodup) : idxOf n l < idxOf m l  := by
+  rw[hlist]
+  rw[List.idxOf_append_of_mem]
+  have hm_not_in_head : m ∉ l_head := by
+    simp[List.Nodup] at hl_nodup
+    intro hm_in_head
+    rw[hlist] at hl_nodup
+    have test := List.nodup_append.mp hl_nodup
+    have test1 := test.right.right
+    simp[List.Disjoint] at test1
+    apply (test1 hm_in_head)
+    exact hm_in_tail
+  . rw[List.idxOf_append_of_notMem hm_not_in_head]
+    have hidx_n_lt_length := List.idxOf_lt_length hn_in_head
+    have hidx_n_lt_length_plus_idx_m := Nat.lt_add_left (idxOf m l_tail) hidx_n_lt_length
+    rw[Nat.add_comm] at hidx_n_lt_length_plus_idx_m
+    exact hidx_n_lt_length_plus_idx_m
+  . exact hn_in_head
+
+lemma Behaviour.contradiction_of_event_after_last_pred
+  {l_head : List (Event n)} {last : (Event n)} (l : List (Event n)) (hsorted : l.Sorted (Event.OrderedBefore n))
+  (hlist : l = l_head ++ [last]) (hl_nodup : l.Nodup) (e_between : Event n) (he_btn_in_l : e_between ∈ l) (hlast_lt_n : last.OrderedBefore n e_between)
+  : False := by
+  have hlast_in_l : last ∈ l := by simp [hlist]
+  simp[List.Sorted] at hsorted
+  -- simp[List.pairwise_iff Nat.lt l] at hsorted
+  -- simp[List.pairwise_iff_forall_sublist] at hsorted
+  simp[List.pairwise_iff_getElem] at hsorted
+
+  have hspare_n_in_l := he_btn_in_l
+
+  rw[hlist] at he_btn_in_l
+  simp[List.mem_append] at he_btn_in_l
+  have hn_ne_last : e_between ≠ last := by
+    intro he_btn_eq_last
+    simp[Event.OrderedBefore] at hlast_lt_n
+    rw[he_btn_eq_last] at hlast_lt_n
+    absurd hlast_lt_n
+    simp[Nat.le_iff_lt_or_eq, last.oWellFormed]
+  have hn_in_head := Or.resolve_right he_btn_in_l hn_ne_last
+
+  have hlast_in_tail : last ∈ [last] := by simp
+
+  have hlast_in_l : last ∈ l := by simp[hlast_in_tail, hlist]
+  have hlast_lt_len : List.idxOf last l < l.length := List.idxOf_lt_length_iff.mpr hlast_in_l
+
+  have hn_lt_len : List.idxOf e_between l < l.length := List.idxOf_lt_length_iff.mpr hspare_n_in_l
+
+  have hidx_n_lt_last : List.idxOf e_between l < List.idxOf last l :=
+    List.ordered_mem_impl_ordered_idx l hlist hn_in_head hlast_in_tail hl_nodup
+
+  have hn_lt_last := hsorted (List.idxOf e_between l) (List.idxOf last l) hn_lt_len hlast_lt_len hidx_n_lt_last
+  simp[List.getElem_idxOf] at hn_lt_last
+  absurd hlast_lt_n
+  simp[Event.OrderedBefore,] at hn_lt_last
+  simp[Event.OrderedBefore, Nat.le_iff_lt_or_eq, ]
+  apply Or.intro_left
+  have h : e_between.oStart < last.oEnd := by
+    calc e_between.oStart < e_between.oEnd := e_between.oWellFormed
+      _ < last.oStart := hn_lt_last
+      _ < last.oEnd := last.oWellFormed
+  exact h
+
+-- (hinit_i : init.stateAt n e_req = IEntry n)
+lemma Event.init_state_at_entry_is_same (init : InitialSystemState n) (e₁ e₂ : Event n)
+  (hsame_entry : e₁.sameEntry n e₂)
+  : (init.stateAt n e₁) = (init.stateAt n e₂) := by
+  simp[InitialSystemState.stateAt]
+  match e₁ with
+  | .cacheEvent ce₁ =>
+    match e₂ with
+    | .cacheEvent ce₂ =>
+      simp[InitialSystemState.cacheStates]
+      have hsame_cid := hsame_entry.sameStruct
+      simp[Event.sameStructure, Event.struct] at hsame_cid
+      simp[hsame_cid]
+    | .directoryEvent _ =>
+      have hsame_cid := hsame_entry.sameStruct
+      simp[Event.sameStructure, Event.struct] at hsame_cid
+  | .directoryEvent de₁ =>
+    match e₂ with
+    | .cacheEvent ce₂ =>
+      simp[InitialSystemState.cacheStates]
+      have hsame_cid := hsame_entry.sameStruct
+      simp[Event.sameStructure, Event.struct] at hsame_cid
+    | .directoryEvent de₂ =>
+      simp[InitialSystemState.cacheStates]
+      have hsame_pinst := hsame_entry.sameStruct
+      simp[Event.sameStructure, Event.struct] at hsame_pinst
+      simp[hsame_pinst]
+
+lemma Behaviour.list_upToEvent_with_imm_bot_pred_eq_upToPred_append
+  (b : Behaviour n) (init : InitialSystemState n) (e_pred e : Event n) (himm_bot_pred : b.IsImmediateBottomPred n e_pred e)
+  : List.upToEvent n (eventsAtEventEntry n b e) e = eventsUpToEvent n b e_pred ++ [e_pred] := by
+  /- [TODO]: Add Lemmas to Behaviours.lean. build up that any Event `e` in the set of events is in the list of events.
+  Then when we get to `eventsUpToEvent`, `e_pred` in `b` means `e_pred` is in `eventsUpToEvent`.
+  Then because it's the immediate predecessor, it is at the end of the list, getting us `++ [e_pred]`.
+
+  To get `eventsUpToEvent n b e_pred` from the left half of `eventsUpToEvent n b e_pred ++ [e_pred]`:
+  1. The list is sorted by Ordered Before
+  2. All events in the set from `b` are in the list `l_head`.
+  So all events before `e_pred` in `l_head` is equal to literally writting `eventsUpToEvent n b e_pred`
+  -/
+  sorry
+
+lemma Behaviour.state_after_eventsUpToEvent_has_e_pred_last
+  (b : Behaviour n) (init : InitialSystemState n) (e_pred e : Event n) (himm_bot_pred : b.IsImmediateBottomPred n e_pred e)
+  : (List.stateAfter n (eventsUpToEvent n b e) (InitialSystemState.stateAt n init e)).cache n =
+    (eventsUpToEvent n b e_pred ++ [e_pred] |>.stateAfter n (InitialSystemState.stateAt n init e)).cache n :=
+  by
+  nth_rw 1 [eventsUpToEvent]
+  rw [b.list_upToEvent_with_imm_bot_pred_eq_upToPred_append n init e_pred e himm_bot_pred]
+
+lemma Behaviour.state_after_eventsUpToEvent_eq_state_after_imm_bot_pred
+  (b : Behaviour n) (init : InitialSystemState n) (e_pred e : Event n) (himm_bot_pred : b.IsImmediateBottomPred n e_pred e)
+  : (List.stateAfter n (eventsUpToEvent n b e) (InitialSystemState.stateAt n init e)).cache n =
+    (stateAfter n b (InitialSystemState.stateAt n init e_pred) e_pred).cache n :=
+  by
+  have hsame_entry := himm_bot_pred.isImmPred.sameEntry
+  have hsame_init : (InitialSystemState.stateAt n init e_pred) = (InitialSystemState.stateAt n init e) :=
+    e_pred.init_state_at_entry_is_same n (init) e hsame_entry
+  simp[hsame_init]
+
+  simp[stateAfter, stateBefore]
+  rw [Behaviour.state_after_eventsUpToEvent_has_e_pred_last n b init e_pred e himm_bot_pred]
+
+lemma Behaviour.state_before_is_state_after_pred (b : Behaviour n) (init : InitialSystemState n)
+  (e_pred e : Event n) (himm_bot_pred : b.IsImmediateBottomPred n e_pred e)
+  : (stateBefore n b (InitialSystemState.stateAt n init e) e).cache n =
+    (stateAfter n b (InitialSystemState.stateAt n init e_pred) e_pred).cache n :=
+  by
+  simp[stateBefore]
+  apply Behaviour.state_after_eventsUpToEvent_eq_state_after_imm_bot_pred
+  . case himm_bot_pred => exact himm_bot_pred
+
 lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
   (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
   (l_preds : List (Event n))
