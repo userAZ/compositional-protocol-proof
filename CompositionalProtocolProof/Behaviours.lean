@@ -1372,7 +1372,7 @@ noncomputable def Behaviour.stateBefore (b : Behaviour n) (init : EntryState n) 
   b.eventsUpToEvent n e |>.stateAfter n init
 
 noncomputable def Behaviour.stateAfter (b : Behaviour n) (init : EntryState n) (e : Event n) : EntryState n :=
-  e.SucceedingState n (b.stateBefore n init e)
+  b.eventsUpToEvent n e ++ [e] |>.stateAfter n init
 
 lemma Behaviour.eventsUpToEvent_at_e_entry (b : Behaviour n) (e : Event n) :
   ∀ e' ∈ b.eventsUpToEvent n e, e' ∈ b.eventsAtEventEntry n e := by
