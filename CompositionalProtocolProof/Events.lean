@@ -151,12 +151,12 @@ def Event.atCid : Event n → CacheId n → Prop
 | .directoryEvent _, _ => false
 
 inductive Struct
-| directory : Struct
+| directory : ProtocolInstance → Struct
 | cache : CacheId n → Struct
 deriving DecidableEq
 
 def Event.struct : Event n → Struct n
-| .directoryEvent _ => .directory
+| .directoryEvent de => .directory de.pInst
 | .cacheEvent ce => .cache ce.cid
 
 def CacheEvent.isFromSelf : CacheEvent n → Prop
