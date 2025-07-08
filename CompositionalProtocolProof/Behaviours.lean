@@ -61,15 +61,6 @@ def Behaviour.EntryImmediatePredecessor.predInB {b : Behaviour n} {e_pred e_succ
 : e_pred ∈ b.es := hb_imm_pred.behavePred.predInB
 def Behaviour.EntryImmediatePredecessor.sameStructure {b : Behaviour n} {e_pred e_succ : Event n} (hb_imm_pred : Behaviour.EntryImmediatePredecessor n b e_pred e_succ)
 : e_pred.sameStructure n e_succ := hb_imm_pred.behavePred.sameEntry.sameStruct
-structure Event.EncapAtSameStructure (e_bottom e : Event n) : Prop where
-  encap : e_bottom.Encapsulates n e
-  sameEntry : Event.sameEntry n e_bottom e
-
-abbrev Behaviour.IsNotEncapAtSameStruct (b : Behaviour n) (e : Event n) : Prop := ∀ e' ∈ b.es, ¬ e'.EncapAtSameStructure n e
-
-def Behaviour.IsBottomEvent (b : Behaviour n) (e : Event n) : Prop := b.IsNotEncapAtSameStruct n e
-structure Behaviour.bottomEvent : Prop where
-  isBottom : ∀ b : Behaviour n, ∀ e : Event n, b.IsBottomEvent n e
 
 /-- Old Axiom 2. Replaced by CacheEvent.AreOrdered.
 Use lemma `Behaviour.orderedBottomCacheEntries` to show two bottom cache events are
