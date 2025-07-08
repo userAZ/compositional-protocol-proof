@@ -1004,7 +1004,10 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
                   exact hcoh_req.notDowngrade
                 . case hreq_missing_perms.hreq_not_nc_rel_acq_ww =>
                   simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite,
-                    Event.isAcquire, Event.isNCRelease, Event.isNcWeakWrite, hreq]
+                    Event.isAcquire, Event.isNCRelease, Event.isNcWeakWrite,
+                    CacheEvent.isAcquire, CacheEvent.isNcRelease, CacheEvent.isNcWeakWrite,
+                    ValidRequest.isAcquire, ValidRequest.isNcRelease, ValidRequest.isNcWeakWrite,
+                    hreq]
                 . case hreq_missing_perms.hno_perms =>
                   simp[Behaviour.eventOnStateNoPerms, eventOnStateHasPerms]
                   simp[Event.req]
