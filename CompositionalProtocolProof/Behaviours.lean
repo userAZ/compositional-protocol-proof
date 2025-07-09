@@ -1305,6 +1305,8 @@ lemma Behaviour.bottom_e_in_b_impl_in_eventsAtEventEntry (b : Behaviour n) (e : 
     apply Behaviour.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents
     . case he_in_b => exact he_in_b
     . case he_bottom => exact he_bottom
+    . case he_eq_st => rfl
+    . case he_eq_addr => rfl
   . case h.right => simp
 
 lemma List.sublist_tail_mem {α} {x₁ x₂ : α} {l} : [x₁, x₂].Sublist l → x₂ ∈ l := by
@@ -1343,7 +1345,7 @@ lemma Behaviour.eventsAtEventEntry_no_dups (b : Behaviour n) (e : Event n)
 
 lemma Behaviour.eventsAtEventEntry_sublist_impl_eventsAtEntryOfListBottomEvents {b e}
   {e₁ e₂ : Event n} (he₁_at_e : b.eventAtEntry n e₁ e.struct e.addr) (he₂_at_e : b.eventAtEntry n e₂ e.struct e.addr)
-  : [e₁, e₂].Sublist (eventsAtEventEntry n b e) → [⟨e₁, he₁_at_e⟩, ⟨e₂, he₂_at_e⟩].Sublist (eventsAtEntryOfListBottomEvents n b e) := by
+  : [e₁, e₂].Sublist (eventsAtEventEntry n b e) → [⟨e₁, he₁_at_e⟩, ⟨e₂, he₂_at_e⟩].Sublist (eventsAtEntryOfListBottomEvents n b e.struct e.addr) := by
   simp[eventsAtEventEntry]
   simp[List.sublist_map_iff]
   intro he_at_entry he_at_entry_sublist he_is_sublist
