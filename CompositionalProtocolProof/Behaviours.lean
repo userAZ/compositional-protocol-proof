@@ -628,6 +628,43 @@ structure Behaviour.eventAtEntry (b : Behaviour n) (e : Event n) (st : Struct n)
 def EventAtEntry (b : Behaviour n) (st : Struct n) (addr : Addr) : Type :=
   {e : Event n // b.eventAtEntry n e st addr }
 
+instance EventAtEntry.instDecidableEq {b st addr} : DecidableEq (EventAtEntry n b st addr) := by
+  simp[DecidableEq]
+  intro e₁ e₂
+  rw[Subtype.eq_iff]
+  infer_instance
+
+instance EventAtEntry.instBEq {b st addr} : BEq (EventAtEntry n b st addr) := by
+  constructor
+  intro e₁ e₂
+  exact e₁.val == e₂.val
+
+instance EventAtEntry.instLawfulBEq {b st addr} : LawfulBEq (EventAtEntry n b st addr) where
+  rfl := by
+    intro e
+    rw[Subtype.beq_iff]
+    simp
+  eq_of_beq {e₁ e₂ heq} := by
+    rw[Subtype.beq_iff] at heq
+    rw[Subtype.eq_iff]
+    simp at heq
+    exact heq
+
+instance EventAtEntry.instEquivBEq {b st addr} [BEq (EventAtEntry n b st addr)] [LawfulBEq (EventAtEntry n b st addr)]
+  : EquivBEq (EventAtEntry n b st addr) where
+  symm := by
+    intro e₁ e₂ heq
+    rw[beq_iff_eq]
+    simp[] at heq
+    rw[Eq.comm]
+    exact heq
+  trans := by
+    intro e₁ e₂ e₃ he₁_eq_e₂ he₂_eq_e₃
+    simp_all
+  rfl := by
+    intro e
+    simp
+
 def EventAtEntry.OrderedBefore (b : Behaviour n) (st : Struct n) (addr : Addr)
   (e₁ e₂ : EventAtEntry n b st addr) : Prop := e₁.val.OrderedBefore n e₂.val
 
