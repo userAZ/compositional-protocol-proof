@@ -1324,6 +1324,42 @@ lemma Behaviour.eventsUpToEntry_at_e_entry (b : Behaviour n) (e : Event n) :
     . case h =>
       exact he'_in_up_to
 
+lemma Behaviour.eventsAtEventEntry_eq_same_entry (b : Behaviour n) (e₁ e₂ : Event n) (hsame_entry : e₁.sameEntry n e₂)
+  : b.eventsAtEventEntry n e₁ = b.eventsAtEventEntry n e₂ := by
+  simp[eventsAtEventEntry, eventsAtEntryOfListBottomEvents]
+  have hsame_addr := hsame_entry.sameAddr
+  have hsame_struct := hsame_entry.sameStruct
+  simp[Event.sameAddr] at hsame_addr
+  simp[Event.sameStructure] at hsame_struct
+  rw [hsame_addr]
+  rw [hsame_struct]
+
+lemma Behaviour.upTo_immediatePredecessor_eq (b : Behaviour n) (e_pred e : Event n)
+  (hn_imm_pred_m : b.listImmediateBottomPred n (eventsAtEventEntry n b e) e_pred e)
+  : b.eventsUpToEvent n e = b.eventsUpToEvent n e_pred ++ [e_pred] := by
+  simp[eventsUpToEvent]
+  rw[b.eventsAtEventEntry_eq_same_entry n e_pred e hn_imm_pred_m.sameEntry]
+  simp[List.upToEvent]
+
+  apply Eq.symm
+  have hidxm_eq_idxn_one : List.idxOf e (eventsAtEventEntry n b e) = List.idxOf e_pred (eventsAtEventEntry n b e) + 1 :=
+    hn_imm_pred_m.noIntermediate
+  rw[hidxm_eq_idxn_one]
+
+  have he_pred_in_eventsAtEventEntry := b.bottom_e_in_b_impl_in_eventsAtEventEntry n e_pred hn_imm_pred_m.predInB hn_imm_pred_m.isBottomPred
+  have he_in_eventsAtEventEntry      := b.bottom_e_in_b_impl_in_eventsAtEventEntry n e hn_imm_pred_m.succInB hn_imm_pred_m.isBottomSucc
+
+  rw[b.eventsAtEventEntry_eq_same_entry n e_pred e hn_imm_pred_m.sameEntry] at he_pred_in_eventsAtEventEntry
+
+  have hn_lt_len : List.idxOf e_pred (eventsAtEventEntry n b e) < (eventsAtEventEntry n b e).length :=
+    List.idxOf_lt_length he_pred_in_eventsAtEventEntry
+  have heventsAtEventEntry_nodup := b.eventsAtEventEntry_no_dups n e
+  have hn : [(eventsAtEventEntry n b e)[List.idxOf e_pred (eventsAtEventEntry n b e)]] = [e_pred] := by
+    simp[List.idxOf_getElem heventsAtEventEntry_nodup (List.idxOf e_pred (eventsAtEventEntry n b e)) hn_lt_len]
+  rw[← hn]
+
+  apply List.take_append_getElem hn_lt_len
+
 lemma List.idx_in_take_lt_take_idx {α} [DecidableEq α]
   (l : List α) (e : α) (hl_nodup : l.Nodup)
   : ∀ e' ∈ take (idxOf e l) l, idxOf e' l < idxOf e l := by
