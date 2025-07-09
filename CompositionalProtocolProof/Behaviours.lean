@@ -74,6 +74,7 @@ structure CacheEvent.BottomAreOrdered (e₁ e₂ : CacheEvent n) (b : Behaviour 
 structure Behaviour.IsImmediateBottomPred (b : Behaviour n) (e_pred e_succ : Event n) where
   isImmPred : b.EntryImmediatePredecessor n e_pred e_succ
   isBottom : b.IsBottomEvent n e_pred
+  isBottomSucc : b.IsBottomEvent n e_succ
 
 /-- Define what is an event that's the immediate predecessor of another event. -/
 def Behaviour.ImmediateBottomPredecessor : Behaviour n → Event n → Event n → Prop
@@ -331,10 +332,12 @@ lemma Behaviour.immediate_bottom_predecessor_satisfying_p_unique (b : Behaviour 
       constructor
       exact he₁_b.isImmBottomPred.isImmPred
       exact he₁_b.isImmBottomPred.isBottom
+exact he₁_b.isImmBottomPred.isBottomSucc
     have he₂_b' : b.IsImmediateBottomPred n e_pred₂ e_succ := by
       constructor
       exact he₂_b.isImmBottomPred.isImmPred
       exact he₂_b.isImmBottomPred.isBottom
+      exact he₂_b.isImmBottomPred.isBottomSucc
 
     apply Behaviour.immediate_bottom_predecessor_unique n b e_succ e_pred₁ e_pred₂ he₁_b' he₂_b'
 
