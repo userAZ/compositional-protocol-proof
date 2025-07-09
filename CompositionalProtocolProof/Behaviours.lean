@@ -1181,6 +1181,113 @@ lemma Behaviour.eventsAtEntryOfListBottomEvents_map_ordered_before_sorted (b : B
 noncomputable def Behaviour.eventsAtEventEntry (b : Behaviour n) (e : Event n) : List (Event n) :=
   b.eventsAtEntryOfListBottomEvents n e.struct e.addr |>.map (·.val)
 
+/-
+lemma Behaviour.eventsAtEntryOfListBottomEvents_eq_same_entry (b : Behaviour n) (e₁ e₂ : Event n)
+  (hsame_struct : e₁.struct n = e₂.struct n)
+  (hsame_addr : e₁.addr n = e₂.addr n)
+  : b.eventsAtEntryOfListBottomEvents n e₁.struct e₁.addr = b.eventsAtEntryOfListBottomEvents n e₂.struct e₂.addr := by
+  simp[eventsAtEventEntry, eventsAtEntryOfListBottomEvents]
+  have hsame_addr := hsame_entry.sameAddr
+  have hsame_struct := hsame_entry.sameStruct
+  simp[Event.sameAddr] at hsame_addr
+  simp[Event.sameStructure] at hsame_struct
+  rw [hsame_addr]
+  rw [hsame_struct]
+-/
+
+structure Behaviour.listImmediateBottomPred (b : Behaviour n)
+  (l : List (Event n)) (e_pred e_succ : Event n) where
+  sameEntry : e_pred.sameEntry n e_succ
+  noIntermediate : List.idxOf e_succ l = List.idxOf e_pred l + 1
+  isBottomPred : b.IsBottomEvent n e_pred
+  isBottomSucc : b.IsBottomEvent n e_succ
+  predInB : e_pred ∈ b
+  succInB : e_succ ∈ b
+
+structure Behaviour.listImmediateBottomPredAtEntry {st addr} (b : Behaviour n)
+  (l : List (EventAtEntry n b st addr)) (e_pred e_succ : EventAtEntry n b st addr) where
+  -- behavePred : Behaviour.Predecessor n b e_pred e_succ
+  noIntermediate : List.idxOf e_pred l + 1 = List.idxOf e_succ l
+  isBottom : b.IsBottomEvent n e_pred.val
+
+lemma Event.same_entry_impl_same_addr (e₁ e₂ : Event n) (hsame_entry : e₁.sameEntry n e₂)
+  : Event.addr n e₁ = Event.addr n e₂ := by
+  have hsame_addr := hsame_entry.sameAddr
+  simp[Event.sameAddr] at hsame_addr
+  simp[hsame_addr]
+
+lemma Event.same_entry_impl_same_struct (e₁ e₂ : Event n) (hsame_entry : e₁.sameEntry n e₂)
+  : Event.struct n e₁ = Event.struct n e₂ := by
+  have hsame_struct := hsame_entry.sameStruct
+  simp[Event.sameStructure] at hsame_struct
+  simp[hsame_struct]
+
+-- [TODO]: Refactor away (b.eventsAtEntryOfListBottomEvents) to a List `l`. Supply List `l` as (b.eventsAtEntryOfListBottomEvents n e.struct e.addr)
+-- outside
+-- bottom_e_in_bottomEventsAtEntry'_impl_in_listBottomEventsAtEntry'
+lemma Behaviour.listBottomEventsAtEntry'_imm_pred_equiv (b : Behaviour n)
+  (e_pred e : Event n) (hpred_in_b : e_pred ∈ b) (he_in_b : e ∈ b) (hsame_entry : e_pred.sameEntry n e)
+  (hb_imm_bot_pred : b.IsImmediateBottomPred n e_pred e)
+  :
+    -- let e_pred_at_entry : EventAtEntry n b e.struct e.addr := ⟨e_pred,⟨hpred_in_b, by simp[e_pred.same_entry_impl_same_struct n e hsame_entry], by simp[e_pred.same_entry_impl_same_addr n e hsame_entry]⟩⟩
+    -- let e_at_entry : EventAtEntry n b e.struct e.addr := ⟨e,⟨he_in_b,by simp,by simp⟩⟩
+    b.listImmediateBottomPredAtEntry n (b.eventsAtEntryOfListBottomEvents n e.struct e.addr)
+    ⟨e_pred,⟨hpred_in_b, by simp[e_pred.same_entry_impl_same_struct n e hsame_entry], by simp[e_pred.same_entry_impl_same_addr n e hsame_entry]⟩⟩
+    ⟨e,⟨he_in_b,by simp,by simp⟩⟩ :=
+  by
+  -- intro e_pred_at_entry e_at_entry
+  constructor
+  . case noIntermediate =>
+    by_contra hnot_imm
+    simp only [Nat.eq_iff_le_and_ge, not_and_or, Nat.not_le] at hnot_imm
+    cases hnot_imm
+    . case inl he_lt_pred_one =>
+      have hencap_ob_sorted := b.eventsAtEntryOfListBottomEvents_sorted n e
+      have hes_all_bottom := b.eventsAtEntryOfListBottomEvents_are_bottom n e
+      have hsorted : (eventsAtEntryOfListBottomEvents n b e.struct e.addr).Sorted (EventAtEntry.OrderedBefore n b e.struct e.addr) :=
+        b.bottomEventsAtEntry_sorted_ordered_before n hes_all_bottom hencap_ob_sorted
+      /- Sorted means entries are ordered by Ordered Before. -/
+      have hpred_to_e := hb_imm_bot_pred.isImmPred.isPred
+      simp[Event.Predecessor] at hpred_to_e
+
+      simp[List.Sorted] at hsorted
+      simp[List.pairwise_iff_getElem] at hsorted
+
+      have hpred_st_eq_e_st   : e_pred.struct = e.struct := e_pred.same_entry_impl_same_struct n e hsame_entry
+      have hpred_st_eq_e_addr : e_pred.addr = e.addr := e_pred.same_entry_impl_same_addr n e hsame_entry
+
+      have hpred_in_es_list := b.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents n e.struct e.addr e_pred hpred_in_b hb_imm_bot_pred.isBottom     (hpred_st_eq_e_st) (hpred_st_eq_e_addr)
+      have he_in_es_list    := b.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents n e.struct e.addr e      he_in_b    hb_imm_bot_pred.isBottomSucc (by simp) (by simp)
+
+      have hpred_lt_length := List.idxOf_lt_length hpred_in_es_list
+      have he_lt_length    := List.idxOf_lt_length he_in_es_list
+
+      have hidx_e_lt_pred : List.idxOf ⟨e_pred,⟨hpred_in_b, by simp[e_pred.same_entry_impl_same_struct n e hsame_entry], by simp[e_pred.same_entry_impl_same_addr n e hsame_entry]⟩⟩
+                            (eventsAtEntryOfListBottomEvents n b (Event.struct n e) (Event.addr n e)) <
+        List.idxOf ⟨e,⟨he_in_b,by simp,by simp⟩⟩ (eventsAtEntryOfListBottomEvents n b (Event.struct n e) (Event.addr n e)) := by
+        rw[Nat.add_comm] at he_lt_pred_one
+        rw[Nat.lt_one_add_iff] at he_lt_pred_one
+        sorry
+
+      -- subst e_pred_at_entry
+      -- subst e_at_entry
+      have he_ob_pred := hsorted
+        (List.idxOf ⟨e_pred,⟨hpred_in_b, by simp[e_pred.same_entry_impl_same_struct n e hsame_entry], by simp[e_pred.same_entry_impl_same_addr n e hsame_entry]⟩⟩ (eventsAtEntryOfListBottomEvents n b e.struct e.addr))
+        (List.idxOf ⟨e,⟨he_in_b,by simp,by simp⟩⟩ (eventsAtEntryOfListBottomEvents n b e.struct e.addr))
+        hpred_lt_length he_lt_length
+        hidx_e_lt_pred
+      -- rw[List.idxOf_getElem hpred_lt_length]
+      rw[List.getElem_idxOf hpred_lt_length] at he_ob_pred
+
+      simp[EventAtEntry.OrderedBefore] at he_ob_pred
+      absurd he_ob_pred
+      simp[Event.OrderedBefore]
+      simp[Nat.le_iff_lt_or_eq]
+      apply Or.intro_left
+      sorry
+    . case inr hpred_lt_e_one => sorry
+  . case isBottom => sorry
+
 lemma Behaviour.eventsAtEventEntry_are_bottom (b : Behaviour n) (e : Event n)
   : ∀ e' ∈ b.eventsAtEventEntry n e, e'.isBottomAtEntry n b e.struct e.addr := by
   simp[eventsAtEventEntry]
