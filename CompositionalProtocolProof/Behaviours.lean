@@ -746,16 +746,16 @@ instance EventAtEntry.instIsTotal {n} {b} {st} {addr} :
 def Behaviour.bottomEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct n) : Set (EventAtEntry n b st addr) :=
   {e : EventAtEntry n b st addr | e.val ∈ b.es ∧ e.val.isBottomAtEntry n b st addr}
 
-lemma Behaviour.bottom_e_in_b_impl_bottomEventsAtEntry' (b : Behaviour n) (e : Event n)
-  (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e)
-  : ⟨e, ⟨he_in_b, by simp, by simp⟩⟩ ∈ b.bottomEventsAtEntry' n e.addr e.struct := by
+lemma Behaviour.bottom_e_in_b_impl_bottomEventsAtEntry' (b : Behaviour n) (st : Struct n) (addr : Addr) (e : Event n)
+  (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e) (he_eq_st : e.struct = st) (he_eq_addr : e.addr = addr)
+  : ⟨e, ⟨he_in_b, by simp[he_eq_st], by simp[he_eq_addr]⟩⟩ ∈ b.bottomEventsAtEntry' n addr st := by
   simp[bottomEventsAtEntry']
   apply And.intro
   . case left => exact he_in_b
   . case right =>
     constructor
-    . case addr => simp
-    . case atStruct => simp[Event.atStruct]
+    . case addr => simp[he_eq_addr]
+    . case atStruct => simp[Event.atStruct, he_eq_st]
     . case isBottom => exact he_bottom
 
 lemma Behaviour.bottomEventsAtEntry'_are_bottom (b : Behaviour n) (addr : Addr) (st : Struct n)
@@ -808,14 +808,16 @@ noncomputable def Behaviour.listBottomEventsAtEntry' (b : Behaviour n) (addr : A
   let e_at_centry := b.bottomEventsAtEntry' n addr st
   Set.finSetEvents' n e_at_centry (b.bottomEventsAtEntry_finite' n addr st) |>.toList
 
-lemma Behaviour.bottom_e_in_bottomEventsAtEntry'_impl_in_listBottomEventsAtEntry' (b : Behaviour n) (e : Event n)
-  (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e)
-  : ⟨e, ⟨he_in_b, by simp, by simp⟩⟩ ∈ b.listBottomEventsAtEntry' n e.addr e.struct := by
+lemma Behaviour.bottom_e_in_bottomEventsAtEntry'_impl_in_listBottomEventsAtEntry' (b : Behaviour n) (st : Struct n) (addr : Addr) (e : Event n)
+  (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e) (he_eq_st : e.struct = st) (he_eq_addr : e.addr = addr)
+  : ⟨e, ⟨he_in_b, by simp[he_eq_st], by simp[he_eq_addr]⟩⟩ ∈ b.listBottomEventsAtEntry' n addr st := by
   simp[listBottomEventsAtEntry']
   simp[Set.finSetEvents']
   apply b.bottom_e_in_b_impl_bottomEventsAtEntry'
   . case he_in_b => exact he_in_b
   . case he_bottom => exact he_bottom
+  . case he_eq_st => simp[he_eq_st]
+  . case he_eq_addr => simp[he_eq_addr]
 
 def Behaviour.listBottomEventsAtEntry'_no_dups (b : Behaviour n) (addr : Addr) (st : Struct n)
   : b.listBottomEventsAtEntry' n addr st |>.Nodup := by
@@ -1084,11 +1086,11 @@ def List.upToEvent (es : List (Event n)) (e : Event n) := (es.take (es.idxOf e))
 noncomputable def List.stateAtEvent (es : List (Event n)) (e : Event n) (init : EntryState n) : EntryState n :=
   List.stateAfter n (es.upToEvent n e) init
 
-noncomputable def Behaviour.eventsAtEntryOfListBottomEvents (b : Behaviour n) (e : Event n) : List (EventAtEntry n b e.struct e.addr) :=
-  b.listBottomEventsAtEntry' n e.addr e.struct |>.insertionSort (EventAtEntry.encapOrOrderedBefore n b e.struct e.addr)
+noncomputable def Behaviour.eventsAtEntryOfListBottomEvents (b : Behaviour n) (st : Struct n) (addr : Addr) : List (EventAtEntry n b st addr) :=
+  b.listBottomEventsAtEntry' n addr st |>.insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr)
 
 lemma Behaviour.eventsAtEntryOfListBottomEvents_sorted (b : Behaviour n) (e : Event n) :
-  (b.eventsAtEntryOfListBottomEvents n e).Sorted (EventAtEntry.encapOrOrderedBefore n b e.struct e.addr) := by
+  (b.eventsAtEntryOfListBottomEvents n e.struct e.addr).Sorted (EventAtEntry.encapOrOrderedBefore n b e.struct e.addr) := by
   simp[eventsAtEntryOfListBottomEvents]
   simp[List.sorted_insertionSort]
 
@@ -1110,28 +1112,30 @@ instance EventAtEntry.encapOrOrderedBefore.instIsIrrefl {b st addr} : IsIrrefl (
       simp[horder_before]
 
 lemma Behaviour.eventsAtEntryOfListBottomEvents_no_dups (b : Behaviour n) (e : Event n)
-  : b.eventsAtEntryOfListBottomEvents n e |>.Nodup := by
+  : b.eventsAtEntryOfListBottomEvents n e.struct e.addr |>.Nodup := by
   have hsorted := b.eventsAtEntryOfListBottomEvents_sorted n e
   apply List.Sorted.nodup hsorted
 
-lemma Behaviour.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents (b : Behaviour n) (e : Event n)
-  (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e)
+lemma Behaviour.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents (b : Behaviour n) (st : Struct n) (addr : Addr) (e : Event n)
+  (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e) (he_eq_st : e.struct = st) (he_eq_addr : e.addr = addr)
   -- (he_in_bottom_es : ⟨e, ⟨he_in_b, by simp, by simp⟩⟩ ∈ b.listBottomEventsAtEntry' n e.addr e.struct)
-  : ⟨e, ⟨he_in_b, by simp, by simp⟩⟩ ∈ b.eventsAtEntryOfListBottomEvents n e := by
+  : ⟨e, ⟨he_in_b, by simp[he_eq_st], by simp[he_eq_addr]⟩⟩ ∈ b.eventsAtEntryOfListBottomEvents n st addr := by
   simp[eventsAtEntryOfListBottomEvents]
   apply b.bottom_e_in_bottomEventsAtEntry'_impl_in_listBottomEventsAtEntry'
   . case he_in_b => exact he_in_b
   . case he_bottom => exact he_bottom
+  . case he_eq_st => simp[he_eq_st]
+  . case he_eq_addr => simp[he_eq_addr]
 
 lemma Behaviour.eventsAtEntryOfListBottomEvents_are_bottom (b : Behaviour n) (e : Event n) :
-  ∀ e' ∈ b.eventsAtEntryOfListBottomEvents n e, e'.val.isBottomAtEntry n b e.struct e.addr := by
+  ∀ e' ∈ b.eventsAtEntryOfListBottomEvents n e.struct e.addr, e'.val.isBottomAtEntry n b e.struct e.addr := by
   intro e' he'_in_bottom
   simp[eventsAtEntryOfListBottomEvents] at he'_in_bottom
   apply b.listBottomEventsAtEntry'_are_bottom
   . case a =>
     exact he'_in_bottom
 
-lemma Behaviour.bottomEventsAtEntry_sorted_ordered_before {st addr} (b : Behaviour n) (l : List (EventAtEntry n b st addr))
+lemma Behaviour.bottomEventsAtEntry_sorted_ordered_before {st addr} {b : Behaviour n} {l : List (EventAtEntry n b st addr)}
   (h_all_bottom : ∀ e ∈ l, e.val.isBottomAtEntry n b st addr)
   (hsorted : l.Sorted (EventAtEntry.encapOrOrderedBefore n b st addr))
   : l.Sorted (EventAtEntry.OrderedBefore n b st addr) := by
@@ -1167,7 +1171,7 @@ lemma Behaviour.bottomEventsAtEntry_sorted_ordered_before {st addr} (b : Behavio
     exact he₁_ordered_before_e₂
 
 lemma Behaviour.eventsAtEntryOfListBottomEvents_map_ordered_before_sorted (b : Behaviour n) (e : Event n)
-  : (b.eventsAtEntryOfListBottomEvents n e).Sorted (EventAtEntry.OrderedBefore n b e.struct e.addr) := by
+  : (b.eventsAtEntryOfListBottomEvents n e.struct e.addr).Sorted (EventAtEntry.OrderedBefore n b e.struct e.addr) := by
   apply b.bottomEventsAtEntry_sorted_ordered_before
   . case h_all_bottom =>
     apply b.eventsAtEntryOfListBottomEvents_are_bottom n e
@@ -1175,7 +1179,7 @@ lemma Behaviour.eventsAtEntryOfListBottomEvents_map_ordered_before_sorted (b : B
     exact b.eventsAtEntryOfListBottomEvents_sorted n e
 
 noncomputable def Behaviour.eventsAtEventEntry (b : Behaviour n) (e : Event n) : List (Event n) :=
-  b.eventsAtEntryOfListBottomEvents n e |>.map (·.val)
+  b.eventsAtEntryOfListBottomEvents n e.struct e.addr |>.map (·.val)
 
 lemma Behaviour.eventsAtEventEntry_are_bottom (b : Behaviour n) (e : Event n)
   : ∀ e' ∈ b.eventsAtEventEntry n e, e'.isBottomAtEntry n b e.struct e.addr := by
