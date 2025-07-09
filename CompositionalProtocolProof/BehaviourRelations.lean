@@ -687,7 +687,8 @@ lemma Event.init_state_at_entry_is_same (init : InitialSystemState n) (e₁ e₂
 
 lemma Behaviour.list_upToEvent_with_imm_bot_pred_eq_upToPred_append
   (b : Behaviour n) (init : InitialSystemState n) (e_pred e : Event n) (himm_bot_pred : b.IsImmediateBottomPred n e_pred e)
-  : List.upToEvent n (eventsAtEventEntry n b e) e = eventsUpToEvent n b e_pred ++ [e_pred] := by
+  : eventsUpToEvent n b e = eventsUpToEvent n b e_pred ++ [e_pred] := by
+  -- : List.upToEvent n (eventsAtEventEntry n b e) e = eventsUpToEvent n b e_pred ++ [e_pred] := by
   /- [TODO]: Add Lemmas to Behaviours.lean. build up that any Event `e` in the set of events is in the list of events.
   Then when we get to `eventsUpToEvent`, `e_pred` in `b` means `e_pred` is in `eventsUpToEvent`.
   Then because it's the immediate predecessor, it is at the end of the list, getting us `++ [e_pred]`.
@@ -704,7 +705,7 @@ lemma Behaviour.state_after_eventsUpToEvent_has_e_pred_last
   : (List.stateAfter n (eventsUpToEvent n b e) (InitialSystemState.stateAt n init e)).cache n =
     (eventsUpToEvent n b e_pred ++ [e_pred] |>.stateAfter n (InitialSystemState.stateAt n init e)).cache n :=
   by
-  nth_rw 1 [eventsUpToEvent]
+  -- nth_rw 1 [eventsUpToEvent]
   rw [b.list_upToEvent_with_imm_bot_pred_eq_upToPred_append n init e_pred e himm_bot_pred]
 
 lemma Behaviour.state_after_eventsUpToEvent_eq_state_after_imm_bot_pred
