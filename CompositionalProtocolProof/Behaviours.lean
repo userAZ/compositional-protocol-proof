@@ -332,7 +332,7 @@ lemma Behaviour.immediate_bottom_predecessor_satisfying_p_unique (b : Behaviour 
       constructor
       exact he₁_b.isImmBottomPred.isImmPred
       exact he₁_b.isImmBottomPred.isBottom
-exact he₁_b.isImmBottomPred.isBottomSucc
+      exact he₁_b.isImmBottomPred.isBottomSucc
     have he₂_b' : b.IsImmediateBottomPred n e_pred₂ e_succ := by
       constructor
       exact he₂_b.isImmBottomPred.isImmPred
@@ -550,11 +550,9 @@ noncomputable def Behaviour.PreviousEvent (b : Behaviour n) (e : Event n) : Opti
 
 noncomputable def Set.finSetEvents (es : Set (Event n)) (hes_fin : Finite es) : Finset (Event n) := Set.Finite.toFinset hes_fin
 
-def Event.atStruct (e : (Event n)) (st : (Struct n)) : Prop := e.struct = st
-
 structure Event.isBottomAtEntry (b : Behaviour n) (st : Struct n) (addr : Addr) (e : Event n) where
   addr : e.addr = addr
-  atStruct : e.atStruct n st
+  atStruct : e.struct = st
   isBottom : b.IsBottomEvent n e
 
 def Behaviour.bottomEventsAtEntry (b : Behaviour n) (addr : Addr) (st : Struct n) : Set (Event n) :=
@@ -634,6 +632,7 @@ instance EventAtEntry.instDecidableEq {b st addr} : DecidableEq (EventAtEntry n 
   rw[Subtype.eq_iff]
   infer_instance
 
+/-
 instance EventAtEntry.instBEq {b st addr} : BEq (EventAtEntry n b st addr) := by
   constructor
   intro e₁ e₂
@@ -664,7 +663,7 @@ instance EventAtEntry.instEquivBEq {b st addr} [BEq (EventAtEntry n b st addr)] 
   rfl := by
     intro e
     simp
-
+-/
 def EventAtEntry.OrderedBefore (b : Behaviour n) (st : Struct n) (addr : Addr)
   (e₁ e₂ : EventAtEntry n b st addr) : Prop := e₁.val.OrderedBefore n e₂.val
 
@@ -755,7 +754,7 @@ lemma Behaviour.bottom_e_in_b_impl_bottomEventsAtEntry' (b : Behaviour n) (st : 
   . case right =>
     constructor
     . case addr => simp[he_eq_addr]
-    . case atStruct => simp[Event.atStruct, he_eq_st]
+    . case atStruct => simp[he_eq_st]
     . case isBottom => exact he_bottom
 
 lemma Behaviour.bottomEventsAtEntry'_are_bottom (b : Behaviour n) (addr : Addr) (st : Struct n)
