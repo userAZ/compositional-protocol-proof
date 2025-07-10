@@ -1519,7 +1519,7 @@ lemma Behaviour.eventsAtEventEntry_ordered_before_sorted (b : Behaviour n) (e : 
   have he₂_in_es_at_entry : e₂ ∈ eventsAtEventEntry n b e := List.sublist_tail_mem hsublist
   have he₂_at_entry : b.eventAtEntry n e₂ e.struct e.addr := b.eventsAtEventEntry_at_e_entry n e e₂ he₂_in_es_at_entry
 
-  have hbottom_sorted := b.eventsAtEntryOfListBottomEvents_map_ordered_before_sorted n e
+  have hbottom_sorted := b.eventsAtEntryOfListBottomEvents_map_ordered_before_sorted n e.struct e.addr
   simp[List.Sorted] at hbottom_sorted
   simp[List.pairwise_iff_forall_sublist] at hbottom_sorted
   have he_at_entry_sublist := b.eventsAtEventEntry_sublist_impl_eventsAtEntryOfListBottomEvents n he₁_at_entry he₂_at_entry hsublist
