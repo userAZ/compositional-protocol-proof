@@ -1106,8 +1106,8 @@ noncomputable def List.stateAtEvent (es : List (Event n)) (e : Event n) (init : 
 noncomputable def Behaviour.eventsAtEntryOfListBottomEvents (b : Behaviour n) (st : Struct n) (addr : Addr) : List (EventAtEntry n b st addr) :=
   b.listBottomEventsAtEntry' n addr st |>.insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr)
 
-lemma Behaviour.eventsAtEntryOfListBottomEvents_sorted (b : Behaviour n) (e : Event n) :
-  (b.eventsAtEntryOfListBottomEvents n e.struct e.addr).Sorted (EventAtEntry.encapOrOrderedBefore n b e.struct e.addr) := by
+lemma Behaviour.eventsAtEntryOfListBottomEvents_sorted (b : Behaviour n) (struct : Struct n) (addr : Addr) :
+  (b.eventsAtEntryOfListBottomEvents n struct addr).Sorted (EventAtEntry.encapOrOrderedBefore n b struct addr) := by
   simp[eventsAtEntryOfListBottomEvents]
   simp[List.sorted_insertionSort]
 
@@ -1128,9 +1128,9 @@ instance EventAtEntry.encapOrOrderedBefore.instIsIrrefl {b st addr} : IsIrrefl (
       rw[Nat.le_iff_lt_or_eq]
       simp[horder_before]
 
-lemma Behaviour.eventsAtEntryOfListBottomEvents_no_dups (b : Behaviour n) (e : Event n)
-  : b.eventsAtEntryOfListBottomEvents n e.struct e.addr |>.Nodup := by
-  have hsorted := b.eventsAtEntryOfListBottomEvents_sorted n e
+lemma Behaviour.eventsAtEntryOfListBottomEvents_no_dups (b : Behaviour n) (struct : Struct n) (addr : Addr)
+  : b.eventsAtEntryOfListBottomEvents n struct addr |>.Nodup := by
+  have hsorted := b.eventsAtEntryOfListBottomEvents_sorted n struct addr
   apply List.Sorted.nodup hsorted
 
 lemma Behaviour.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents (b : Behaviour n) (st : Struct n) (addr : Addr) (e : Event n)
@@ -1196,13 +1196,13 @@ lemma Behaviour.bottomEventsAtEntry_sorted_ordered_before {st addr} {b : Behavio
     simp[EventAtEntry.OrderedBefore]
     exact he₁_ordered_before_e₂
 
-lemma Behaviour.eventsAtEntryOfListBottomEvents_map_ordered_before_sorted (b : Behaviour n) (e : Event n)
-  : (b.eventsAtEntryOfListBottomEvents n e.struct e.addr).Sorted (EventAtEntry.OrderedBefore n b e.struct e.addr) := by
+lemma Behaviour.eventsAtEntryOfListBottomEvents_map_ordered_before_sorted (b : Behaviour n) (struct : Struct n) (addr : Addr)
+  : (b.eventsAtEntryOfListBottomEvents n struct addr).Sorted (EventAtEntry.OrderedBefore n b struct addr) := by
   apply b.bottomEventsAtEntry_sorted_ordered_before
   . case h_all_bottom =>
-    apply b.eventsAtEntryOfListBottomEvents_are_bottom n e
+    apply b.eventsAtEntryOfListBottomEvents_are_bottom n struct addr
   . case hsorted =>
-    exact b.eventsAtEntryOfListBottomEvents_sorted n e
+    exact b.eventsAtEntryOfListBottomEvents_sorted n struct addr
 
 noncomputable def Behaviour.eventsAtEventEntry (b : Behaviour n) (e : Event n) : List (Event n) :=
   b.eventsAtEntryOfListBottomEvents n e.struct e.addr |>.map (·.val)
