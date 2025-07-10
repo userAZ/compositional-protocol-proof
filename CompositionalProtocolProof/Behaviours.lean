@@ -1527,6 +1527,101 @@ lemma Behaviour.eventsAtEventEntry_ordered_before_sorted (b : Behaviour n) (e : 
   simp[EventAtEntry.OrderedBefore] at he_at_entry_ordered_before
   exact he_at_entry_ordered_before
 
+-- def GenericSubtype {β : Type} {p : β → Prop} : Type := {x : β // p x}
+
+lemma List.idxOf_subtype_eq_idxOf_subtype_val {b st addr}
+  (l : List (EventAtEntry n b st addr)) (n : (EventAtEntry n b st addr)) : idxOf n l = idxOf n.val (l.map (·.val)) := by
+  induction l with
+  | nil => simp
+  | cons head rest ih =>
+    simp only [List.idxOf_cons]
+    by_cases hhead_is_n : head == n
+    . case pos =>
+      have hval_eq : head.val = n.val := by
+        simp at hhead_is_n
+        simp[hhead_is_n]
+      simp[hhead_is_n, hval_eq]
+    . case neg =>
+      have hval_neq : ¬ head.val == n.val := by
+        simp at hhead_is_n
+        simp[hhead_is_n,]
+        rw[← Subtype.eq_iff,]
+        simp[hhead_is_n]
+      simp only [map_cons, idxOf_cons, ]
+      simp only [hval_neq, hhead_is_n, cond_false]
+      simp only [ih]
+
+lemma List.test {b st addr} (e : EventAtEntry n b st addr) (l : List (EventAtEntry n b st addr)) : idxOf e l = idxOf e.val (l.map (·.val)) := by
+  have h := idxOf_subtype_eq_idxOf_subtype_val n l e
+  exact h
+
+lemma Behaviour.eventsAtEventEntry_imm_pred_equiv
+  {b : Behaviour n} (st : Struct n) (addr : Addr)
+
+  (e_pred e : Event n) (hpred_in_b : e_pred ∈ b) (he_in_b : e ∈ b)
+  (hpred_at_st : e_pred.struct = st) (hpred_at_addr : e_pred.addr = addr)
+  (he_at_st : e.struct = st) (he_at_addr : e.addr = addr)
+
+  (hb_imm_bot_pred : b.IsImmediateBottomPred n e_pred e)
+  :
+    b.listImmediateBottomPred n (b.eventsAtEventEntry n e)
+    e_pred
+    e :=
+  by
+
+  have hpred_at_e_struct := hb_imm_bot_pred.isImmPred.sameEntry.sameStruct
+  simp[Event.sameStructure] at hpred_at_e_struct
+  have hpred_at_e_addr := hb_imm_bot_pred.isImmPred.sameEntry.sameAddr
+  simp[Event.sameAddr] at hpred_at_e_addr
+
+  have he_at_e_struct : e.struct = e.struct := by rfl
+  have he_at_e_addr : e.addr = e.addr := by rfl
+
+  have he_in_l_in_b := b.eventsAtEntryOfListBottomEvents_in_b n st addr
+  have he_in_l_bottom := b.eventsAtEntryOfListBottomEvents_are_bottom n st addr
+
+  have hentry_es_sorted := b.eventsAtEntryOfListBottomEvents_map_ordered_before_sorted n st addr
+  have hentry_es_nodup := b.eventsAtEntryOfListBottomEvents_no_dups n st addr
+
+  let e_pred_at : EventAtEntry n b st addr := ⟨e_pred,⟨hb_imm_bot_pred.isImmPred.predInB, hpred_at_st, hpred_at_addr⟩⟩
+  let e_at      : EventAtEntry n b st addr := ⟨e,⟨he_in_b,he_at_st,he_at_addr⟩⟩
+
+  have he_pred : e_pred_at = ⟨e_pred,⟨hb_imm_bot_pred.isImmPred.predInB, hpred_at_st, hpred_at_addr⟩⟩ := by simp[e_pred_at]
+  have he      : e_at      = ⟨e,⟨he_in_b, he_at_st, he_at_addr⟩⟩ := by simp[e_at]
+
+  have hpred_in_l := b.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents n st addr e_pred hb_imm_bot_pred.isImmPred.predInB hb_imm_bot_pred.isBottom hpred_at_st hpred_at_addr
+  have he_in_l := b.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents n st addr e he_in_b hb_imm_bot_pred.isBottomSucc he_at_st he_at_addr
+
+  have hidxOf_pred_in_l := List.idxOf_lt_length hpred_in_l
+  have hidxOf_e_in_l := List.idxOf_lt_length he_in_l
+  have hlist_bottom_pred_at := b.listBottomEventsAtEntry'_imm_pred_equiv n st addr
+    (b.eventsAtEntryOfListBottomEvents n st addr)
+    e_pred e
+    hpred_in_b he_in_b hpred_at_st hpred_at_addr
+    he_at_st he_at_addr he_in_l_in_b he_in_l_bottom
+    hentry_es_sorted hentry_es_nodup
+    e_pred_at e_at
+    he_pred he
+    hidxOf_pred_in_l hidxOf_e_in_l
+    hb_imm_bot_pred
+  constructor
+  . case sameEntry => exact hb_imm_bot_pred.isImmPred.sameEntry
+  . case noIntermediate =>
+    apply Eq.symm
+    have h := hlist_bottom_pred_at.noIntermediate
+    simp[eventsAtEventEntry]
+    rw[List.idxOf_subtype_eq_idxOf_subtype_val n (eventsAtEntryOfListBottomEvents n b st addr) e_pred_at] at h
+    rw[List.idxOf_subtype_eq_idxOf_subtype_val n (eventsAtEntryOfListBottomEvents n b st addr) e_at] at h
+    simp[he_pred, he] at h
+
+    rw[he_at_st]
+    rw[he_at_addr]
+    exact h
+  . case isBottomPred => exact hb_imm_bot_pred.isBottom
+  . case isBottomSucc => exact hb_imm_bot_pred.isBottomSucc
+  . case predInB => exact hb_imm_bot_pred.isImmPred.predInB
+  . case succInB => exact he_in_b
+
 noncomputable def Behaviour.eventsUpToEvent (b : Behaviour n) (e : Event n) : List (Event n) :=
   b.eventsAtEventEntry n e |>.upToEvent n e
 
