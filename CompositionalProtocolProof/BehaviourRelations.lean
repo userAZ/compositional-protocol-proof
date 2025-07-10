@@ -800,7 +800,6 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
   | append_singleton l_head e_pred ih =>
     match hreq : e_req with
     | .cacheEvent ce_req =>
-      /-
       have ih_same_entry_precond : (∀ e ∈ l_head, eventAtEntry n b e (Event.struct n (Event.cacheEvent ce_req)) (Event.addr n (Event.cacheEvent ce_req))) := by
         intro e he_in_l_head
         apply hpreds_at_same_entry
@@ -816,8 +815,21 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
         apply hpreds_are_bottom
         . case a => simp[he_in_l_head]
 
+      have ih_bottom_same_entry : (∀ e ∈ b,
+        bottomSameEntry n b e (Event.cacheEvent ce_req) → Event.OrderedBefore n e (Event.cacheEvent ce_req) → e ∈ l_head) :=
+        by
+        intro e he_in_b hbottom_same_entry hordered_before
+        have h := hentry_preds_in_l_preds e he_in_b hbottom_same_entry hordered_before
+        simp[List.mem_append] at h
+        cases h
+        . case inl hin_head => exact hin_head
+        . case inr his_pred => sorry
+
+      have ih_nodup : l_head.Nodup := by sorry
+
+      have ih_sorted : List.Sorted (Event.OrderedBefore n) l_head := by sorry
+
       have ih_post := ih ih_same_entry_precond ih_pred_req_precond ih_pred_bottom_precond
-      -/
 
       /- `ih_post`: the state after `l_head` (the state before `e_pred`) is less than the state required of `e_req` -/
 
