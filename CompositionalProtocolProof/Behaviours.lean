@@ -40,8 +40,19 @@ structure Behaviour.bottomSameEntry (b : Behaviour n) (e₁ e₂ : Event n) : Pr
   sameEntry : e₁.sameEntry n e₂
   isBottom : b.IsBottomEvent n e₁
 
+structure Behaviour.noBottomIntermediatePredecessorAtSucc (b : Behaviour n) (e_inter e_pred e_succ : Event n) : Prop where
+  bottomSameEntry : b.bottomSameEntry n e_inter e_succ
+  notIntermediate :  ¬ (e_inter.OrderedBetween n e_pred e_succ)
+
 def Behaviour.NoIntermediatePredecessor (b : Behaviour n) (e_pred e_succ : Event n) : Prop :=
-  ∀ e ∈ b, b.bottomSameEntry n e e_succ → ¬ (e.OrderedBetween n e_pred e_succ)
+  ∀ e ∈ b, b.noBottomIntermediatePredecessorAtSucc n e e_pred e_succ
+
+structure Behaviour.noBottomIntermediatePredecessorAtSuccSatisfyingProp (b : Behaviour n) (e_inter e_pred e_succ : Event n) (p : Event n → Prop) : Prop where
+  bottomEntryNotInter : b.noBottomIntermediatePredecessorAtSucc n e_inter e_pred e_succ
+  satisfiesP : p e_inter
+
+def Behaviour.NoIntermediatePredecessorSatisfyingProp (b : Behaviour n) (e_pred e_succ : Event n) (p : Event n → Prop) : Prop :=
+  ∀ e ∈ b, b.noBottomIntermediatePredecessorAtSuccSatisfyingProp n e e_pred e_succ p
 
 structure Behaviour.Predecessor (b : Behaviour n) (e_pred e_succ : Event n) where
   sameEntry : Event.sameEntry n e_pred e_succ
@@ -50,17 +61,22 @@ structure Behaviour.Predecessor (b : Behaviour n) (e_pred e_succ : Event n) wher
   succInB : e_succ ∈ b.es
 
 structure Behaviour.EntryImmediatePredecessor (b : Behaviour n) (e_pred e_succ : Event n) where
-  sameEntry : Event.sameEntry n e_pred e_succ
-  behavePred : Behaviour.Predecessor n b e_pred e_succ
+  -- sameEntry : Event.sameEntry n e_pred e_succ
+  bPred : Behaviour.Predecessor n b e_pred e_succ
   noIntermediate : b.NoIntermediatePredecessor n e_pred e_succ
+
+structure Behaviour.EntryImmediatePredecessorSatisfyingProp (b : Behaviour n) (e_pred e_succ : Event n) (p : Event n → Prop) where
+  -- sameEntry : Event.sameEntry n e_pred e_succ
+  bPred : Behaviour.Predecessor n b e_pred e_succ
+  noIntermediateSatisfyingP : b.NoIntermediatePredecessorSatisfyingProp n e_pred e_succ p
 
 /- Access properties nested deeper in Behaviour.ImmediatePredecessor -/
 def Behaviour.EntryImmediatePredecessor.isPred {b : Behaviour n} {e_pred e_succ : Event n} (hb_imm_pred : Behaviour.EntryImmediatePredecessor n b e_pred e_succ)
-: e_pred.Predecessor n e_succ := hb_imm_pred.behavePred.isPred
+: e_pred.Predecessor n e_succ := hb_imm_pred.bPred.isPred
 def Behaviour.EntryImmediatePredecessor.predInB {b : Behaviour n} {e_pred e_succ : Event n} (hb_imm_pred : Behaviour.EntryImmediatePredecessor n b e_pred e_succ)
-: e_pred ∈ b.es := hb_imm_pred.behavePred.predInB
+: e_pred ∈ b.es := hb_imm_pred.bPred.predInB
 def Behaviour.EntryImmediatePredecessor.sameStructure {b : Behaviour n} {e_pred e_succ : Event n} (hb_imm_pred : Behaviour.EntryImmediatePredecessor n b e_pred e_succ)
-: e_pred.sameStructure n e_succ := hb_imm_pred.behavePred.sameEntry.sameStruct
+: e_pred.sameStructure n e_succ := hb_imm_pred.bPred.sameEntry.sameStruct
 
 /-- Old Axiom 2. Replaced by CacheEvent.AreOrdered.
 Use lemma `Behaviour.orderedBottomCacheEntries` to show two bottom cache events are
@@ -73,8 +89,14 @@ structure CacheEvent.BottomAreOrdered (e₁ e₂ : CacheEvent n) (b : Behaviour 
 
 structure Behaviour.IsImmediateBottomPred (b : Behaviour n) (e_pred e_succ : Event n) where
   isImmPred : b.EntryImmediatePredecessor n e_pred e_succ
-  isBottom : b.IsBottomEvent n e_pred
+  isBottomPred : b.IsBottomEvent n e_pred
   isBottomSucc : b.IsBottomEvent n e_succ
+
+structure Behaviour.IsImmediateBottomPredSatisfyingProp (b : Behaviour n) (e_pred e_succ : Event n) (p : Event n → Prop) where
+  isImmPred : b.EntryImmediatePredecessorSatisfyingProp n e_pred e_succ p
+  isBottomPred : b.IsBottomEvent n e_pred
+  isBottomSucc : b.IsBottomEvent n e_succ
+  satisfyP : e_pred.PropOnEvent n p
 
 /-- Define what is an event that's the immediate predecessor of another event. -/
 def Behaviour.ImmediateBottomPredecessor : Behaviour n → Event n → Event n → Prop
@@ -96,44 +118,65 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction {e_pred₁ e_p
     unfold Behaviour.EntryImmediatePredecessor at he₁_no_intermediate_to_e_suc
     unfold Behaviour.NoIntermediatePredecessor at he₁_no_intermediate_to_e_suc
 
-    apply he₁_no_intermediate_to_e_suc
-    apply he₂_b.isImmPred.predInB
-    . case a =>
-      constructor
-      . case sameEntry => exact he₂_b.isImmPred.sameEntry
-      . case isBottom => exact he₂_b.isBottom
-    . case a =>
-      constructor
-      . case pred =>
-        exact es₁_ordered_es₂
-      . case succ =>
-        unfold autoParam
+    apply he₁_no_intermediate_to_e_suc e_pred₂ he₂_b.isImmPred.predInB |>.notIntermediate
+    constructor
+    unfold autoParam
+    . case pred =>
+      exact es₁_ordered_es₂
+    . case succ =>
+      unfold autoParam
 
-        have e₂_o_e_succ := he₂_b.isImmPred.isPred
-        unfold Event.Predecessor at e₂_o_e_succ
-        exact e₂_o_e_succ
+      have e₂_o_e_succ := he₂_b.isImmPred.isPred
+      unfold Event.Predecessor at e₂_o_e_succ
+      exact e₂_o_e_succ
   . case inr es₂_ordered_es₁ =>
     have he₂_no_intermediate_to_e_suc := he₂_b.isImmPred.noIntermediate
     unfold Behaviour.EntryImmediatePredecessor at he₂_no_intermediate_to_e_suc
     unfold Behaviour.NoIntermediatePredecessor at he₂_no_intermediate_to_e_suc
 
-    apply he₂_no_intermediate_to_e_suc
-    apply he₁_b.isImmPred.predInB
-    . case a =>
-      constructor
-      . case sameEntry => exact he₁_b.isImmPred.sameEntry
-      . case isBottom => exact he₁_b.isBottom
-    . case a =>
-      constructor
+    apply he₂_no_intermediate_to_e_suc e_pred₁ he₁_b.isImmPred.predInB |>.notIntermediate
+    constructor
+    unfold autoParam
+    . case pred =>
+      exact es₂_ordered_es₁
+    . case succ =>
       unfold autoParam
-      . case pred =>
-        exact es₂_ordered_es₁
-      . case succ =>
-        unfold autoParam
 
-        have e₁_o_e_succ := he₁_b.isImmPred.isPred
-        unfold Event.Predecessor at e₁_o_e_succ
-        exact e₁_o_e_succ
+      have e₁_o_e_succ := he₁_b.isImmPred.isPred
+      unfold Event.Predecessor at e₁_o_e_succ
+      exact e₁_o_e_succ
+
+lemma Behaviour.es₁_ordered_es₂_imm_bottom_pred_satisfying_p_contradiction {p : Event n → Prop} {e_pred₁ e_pred₂ e_succ : Event n} {b : Behaviour n}
+(he₁_b : b.IsImmediateBottomPredSatisfyingProp n e_pred₁ e_succ p) (he₂_b : b.IsImmediateBottomPredSatisfyingProp n e_pred₂ e_succ p)
+(hes₁_ordered_es₂ : e_pred₁.Ordered n e_pred₂)
+: False := by
+  /- Show contradiction from ce₁ and ce₂ ordered -/
+  cases hes₁_ordered_es₂
+  . case inl es₁_ordered_es₂ =>
+    apply he₁_b.isImmPred.noIntermediateSatisfyingP e_pred₂ he₂_b.isImmPred.bPred.predInB |>.bottomEntryNotInter.notIntermediate
+    constructor
+    unfold autoParam
+    . case pred =>
+      exact es₁_ordered_es₂
+    . case succ =>
+      unfold autoParam
+
+      have e₂_o_e_succ := he₂_b.isImmPred.bPred.isPred
+      unfold Event.Predecessor at e₂_o_e_succ
+      exact e₂_o_e_succ
+  . case inr es₂_ordered_es₁ =>
+    apply he₂_b.isImmPred.noIntermediateSatisfyingP e_pred₁ he₁_b.isImmPred.bPred.predInB |>.bottomEntryNotInter.notIntermediate
+    constructor
+    unfold autoParam
+    . case pred =>
+      exact es₂_ordered_es₁
+    . case succ =>
+      unfold autoParam
+
+      have e₁_o_e_succ := he₁_b.isImmPred.bPred.isPred
+      unfold Event.Predecessor at e₁_o_e_succ
+      exact e₁_o_e_succ
+
 lemma CacheEvent.encap_then_event_encap (ce₁ ce₂ : CacheEvent n) (hencap : ce₁.Encapsulates n ce₂) :
   (Event.cacheEvent ce₁).Encapsulates n (Event.cacheEvent ce₂) := by
   unfold Event.Encapsulates Event.oStart Event.oEnd
@@ -233,9 +276,9 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour n) (e_succ : 
       have de₁_de₂_ordered_prop := b.orderedAtEntry.dir_ordered de₁ de₂
       apply Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction n he₁_b he₂_b de₁_de₂_ordered_prop.ordered
     | .cacheEvent ce₁, .cacheEvent ce₂ =>
-      have hpred₁_pred₂_same_entry := Event.same_entry_trans n he₁_b.isImmPred.behavePred.sameEntry he₂_b.isImmPred.behavePred.sameEntry
+      have hpred₁_pred₂_same_entry := Event.same_entry_trans n he₁_b.isImmPred.bPred.sameEntry he₂_b.isImmPred.bPred.sameEntry
       have ce₁_ce₂_ordered := orderedBottomCacheEntries n b ce₁ ce₂ he₁_b.isImmPred.predInB he₂_b.isImmPred.predInB
-        he₁_b.isBottom he₂_b.isBottom hpred₁_pred₂_same_entry
+        he₁_b.isBottomPred he₂_b.isBottomPred hpred₁_pred₂_same_entry
 
       apply Behaviour.es₁_ordered_es₂_imm_bottom_pred_contradiction n he₁_b he₂_b ce₁_ce₂_ordered
     | .directoryEvent de, .cacheEvent ce =>
@@ -255,6 +298,53 @@ lemma Behaviour.immediate_bottom_predecessor_unique (b : Behaviour n) (e_succ : 
     | .cacheEvent ce, .directoryEvent de =>
       have h_e_succ_is_cache := he₁_b.isImmPred.sameStructure
       have h_e_succ_is_dir   := he₂_b.isImmPred.sameStructure
+      match hsucc : e_succ with
+      | .directoryEvent de_succ =>
+        subst hsucc
+        have e₁_same_struct_e_succ := h_e_succ_is_cache
+        unfold Event.struct at e₁_same_struct_e_succ
+        simp[Event.sameStructure, Event.struct] at e₁_same_struct_e_succ
+      | .cacheEvent ce_succ =>
+        subst hsucc
+        have e₂_same_struct_e_succ := h_e_succ_is_dir
+        unfold Event.struct at e₂_same_struct_e_succ
+        simp[Event.sameStructure, Event.struct] at e₂_same_struct_e_succ
+
+lemma Behaviour.immediate_bottom_predecessor_satisfying_p_unique {p : Event n → Prop} {b : Behaviour n} {e_succ : Event n} {e_pred₁ e_pred₂ : Event n}
+  (he₁_b : b.IsImmediateBottomPredSatisfyingProp n e_pred₁ e_succ p) (he₂_b : b.IsImmediateBottomPredSatisfyingProp n e_pred₂ e_succ p) :
+  e_pred₁ = e_pred₂ := by
+    -- this is the "multiple" case in Lemma 1.
+    /- By Ordered Cache Events and Ordered Directory Events,
+    if e_pred₁ and e_pred₂ are different events, then they are ordered, and contradict he₁_b or he₂_b's NoIntermediatePredecessor.
+    By contradiction, e_pred₁ and e_pred₂ are the same event. -/
+    by_contra h_e_pred_diff
+    match h_pred₁ : e_pred₁, h_pred₂ : e_pred₂ with
+    | .directoryEvent de₁, .directoryEvent de₂ => -- Use dir_ordered to show de₁ and de₂ are ordered → Contradiction.
+      have de₁_de₂_ordered_prop := b.orderedAtEntry.dir_ordered de₁ de₂
+      apply Behaviour.es₁_ordered_es₂_imm_bottom_pred_satisfying_p_contradiction n he₁_b he₂_b de₁_de₂_ordered_prop.ordered
+    | .cacheEvent ce₁, .cacheEvent ce₂ =>
+      have hpred₁_pred₂_same_entry := Event.same_entry_trans n he₁_b.isImmPred.bPred.sameEntry he₂_b.isImmPred.bPred.sameEntry
+      have ce₁_ce₂_ordered := orderedBottomCacheEntries n b ce₁ ce₂ he₁_b.isImmPred.bPred.predInB he₂_b.isImmPred.bPred.predInB
+        he₁_b.isBottomPred he₂_b.isBottomPred hpred₁_pred₂_same_entry
+
+      apply Behaviour.es₁_ordered_es₂_imm_bottom_pred_satisfying_p_contradiction n he₁_b he₂_b ce₁_ce₂_ordered
+    | .directoryEvent de, .cacheEvent ce =>
+      have h_e_succ_is_dir   := he₁_b.isImmPred.bPred.sameEntry.sameStruct
+      have h_e_succ_is_cache := he₂_b.isImmPred.bPred.sameEntry.sameStruct
+      match hsucc : e_succ with
+      | .directoryEvent de_succ =>
+        subst hsucc
+        have e₂_same_struct_e_succ := h_e_succ_is_cache
+        unfold Event.struct at e₂_same_struct_e_succ
+        simp[Event.sameStructure, Event.struct] at e₂_same_struct_e_succ
+      | .cacheEvent ce_succ =>
+        subst hsucc
+        have e₁_same_struct_e_succ := h_e_succ_is_dir
+        unfold Event.struct at e₁_same_struct_e_succ
+        simp[Event.sameStructure, Event.struct] at e₁_same_struct_e_succ
+    | .cacheEvent ce, .directoryEvent de =>
+      have h_e_succ_is_cache := he₁_b.isImmPred.bPred.sameEntry.sameStruct
+      have h_e_succ_is_dir   := he₂_b.isImmPred.bPred.sameEntry.sameStruct
       match hsucc : e_succ with
       | .directoryEvent de_succ =>
         subst hsucc
@@ -302,20 +392,14 @@ lemma Behaviour.immediate_bottom_predecessor_empty_or_unique (b : Behaviour n) (
       exact And.right he₂
     exact Or.inr (Set.nonempty_unique_is_singleton imm_bottom_preds h_nonempty' h_unique)
 
-/- Add constraint `p` on predecessor -/
-
-def Event.PropOnEvent (e : Event n) (p : Event n → Prop) : Prop := p e
-
-structure Behaviour.IsImmediateBottomPredSatisfyingProp (b : Behaviour n) (e_pred e_succ : Event n) (p : Event n → Prop) where
-  isImmBottomPred : b.IsImmediateBottomPred n e_pred e_succ
-  satisfyP : e_pred.PropOnEvent n p
-
 lemma Behaviour.IsImmediateBottomPredSatisfyingProp_neg {b : Behaviour n} {e_pred e_succ : Event n} {p : Event n → Prop}
-  : ¬ b.IsImmediateBottomPredSatisfyingProp n e_pred e_succ p → ¬ (b.IsImmediateBottomPred n e_pred e_succ ∧ e_pred.PropOnEvent n p) := by
+  : ¬ b.IsImmediateBottomPredSatisfyingProp n e_pred e_succ p → ¬ (b.IsImmediateBottomPredSatisfyingProp n e_pred e_succ p ∧ e_pred.PropOnEvent n p) := by
   intro hneg_imm_pred hprop_fields
   apply hneg_imm_pred
   constructor
-  . case isImmBottomPred => exact hprop_fields.left
+  . case isImmPred => exact hprop_fields.left.isImmPred
+  . case isBottomPred => exact hprop_fields.left.isBottomPred
+  . case isBottomSucc => exact hprop_fields.left.isBottomSucc
   . case satisfyP => exact hprop_fields.right
 
 def Behaviour.ImmediateBottomPredSatisfyingProp : Behaviour n → Event n → Event n → (Event n → Prop) → Prop
@@ -324,25 +408,8 @@ def Behaviour.ImmediateBottomPredSatisfyingProp : Behaviour n → Event n → Ev
 def Behaviour.ImmBottomPredecessorsSatisfyingP : Behaviour n → Event n → (Event n → Prop) → Set (Event n)
 | b, e_succ, p => {e_pred ∈ b.es | b.ImmediateBottomPredSatisfyingProp n e_pred e_succ p}
 
-lemma Behaviour.immediate_bottom_predecessor_satisfying_p_unique (b : Behaviour n) (e_succ : Event n)
-  (e_pred₁ e_pred₂ : Event n) (p : Event n → Prop)
-  (he₁_b : b.IsImmediateBottomPredSatisfyingProp n e_pred₁ e_succ p) (he₂_b : b.IsImmediateBottomPredSatisfyingProp n e_pred₂ e_succ p) :
-  e_pred₁ = e_pred₂ := by
-    have he₁_b' : b.IsImmediateBottomPred n e_pred₁ e_succ := by
-      constructor
-      exact he₁_b.isImmBottomPred.isImmPred
-      exact he₁_b.isImmBottomPred.isBottom
-      exact he₁_b.isImmBottomPred.isBottomSucc
-    have he₂_b' : b.IsImmediateBottomPred n e_pred₂ e_succ := by
-      constructor
-      exact he₂_b.isImmBottomPred.isImmPred
-      exact he₂_b.isImmBottomPred.isBottom
-      exact he₂_b.isImmBottomPred.isBottomSucc
-
-    apply Behaviour.immediate_bottom_predecessor_unique n b e_succ e_pred₁ e_pred₂ he₁_b' he₂_b'
-
 /-- Lemma 1, with a Prop `p` on predecessors. -/
-    lemma Behaviour.immediate_bottom_predecessor_satisfying_p_empty_or_unique (b : Behaviour n) (e_succ : Event n) (p : Event n → Prop)
+lemma Behaviour.immediate_bottom_predecessor_satisfying_p_empty_or_unique (b : Behaviour n) (e_succ : Event n) (p : Event n → Prop)
   :
   let imm_bottom_preds := b.ImmBottomPredecessorsSatisfyingP n e_succ p; imm_bottom_preds = ∅ ∨ imm_bottom_preds.IsSingleton := by
   intro imm_bottom_preds
@@ -353,9 +420,9 @@ lemma Behaviour.immediate_bottom_predecessor_satisfying_p_unique (b : Behaviour 
     have h_nonempty' := Set.nonempty_iff_ne_empty'.mpr h_nonempty
     have h_unique : ∀ (e₁ e₂ : Event n), e₁ ∈ imm_bottom_preds → e₂ ∈ imm_bottom_preds → e₁ = e₂ := by
       intro e₁ e₂ he₁ he₂
-      apply Behaviour.immediate_bottom_predecessor_satisfying_p_unique n b e_succ e₁ e₂ p
-      exact And.right he₁
-      exact And.right he₂
+      apply Behaviour.immediate_bottom_predecessor_satisfying_p_unique n /-b e_succ e₁ e₂ p-/
+      . case he₁_b => exact And.right he₁
+      . case he₂_b => exact And.right he₂
     exact Or.inr (Set.nonempty_unique_is_singleton imm_bottom_preds h_nonempty' h_unique)
 
 /- Now define the immediate bottom successor. -/
@@ -395,33 +462,20 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction {e_pred e_succ
   /- Show contradiction from ce₁ and ce₂ ordered -/
   cases hes₁_ordered_es₂
   . case inl es₁_ordered_es₂ =>
-    have he_no_intermediate_to_e_suc₂ := he₂_b.isImmSucc.noIntermediate
-    unfold Behaviour.EntryImmediatePredecessor at he_no_intermediate_to_e_suc₂
-    unfold Behaviour.NoIntermediatePredecessor at he_no_intermediate_to_e_suc₂
     have e_pred_o_e_succ₁ := he₁_b.isImmSucc.isSucc
     unfold Event.Predecessor at e_pred_o_e_succ₁
     unfold Event.Successor at e_pred_o_e_succ₁
     simp at e_pred_o_e_succ₁
 
-    apply he_no_intermediate_to_e_suc₂
-    apply he₁_b.isImmSucc.succInB
-    constructor
-    . case a.sameEntry =>
-      have h1 := he₁_b.isImmSucc.sameEntry
-      have h2 := he₂_b.isImmSucc.sameEntry
-      apply Event.event_same_entry_trans
-      . case he₁_e₃ => exact he₁_b.isImmSucc.sameEntry
-      . case he₂_e₃ => exact he₂_b.isImmSucc.sameEntry
-    . case a.isBottom => exact he₁_b.isBottom
-
+    apply he₂_b.isImmSucc.noIntermediate e_succ₁ he₁_b.isImmSucc.succInB |>.notIntermediate
     constructor
     unfold autoParam
-    . case a.pred =>
+    . case pred =>
       unfold Event.Predecessor at e_pred_o_e_succ₁
       simp at e_pred_o_e_succ₁
       unfold Event.OrderedBefore
       exact e_pred_o_e_succ₁
-    . case a.succ =>
+    . case succ =>
       unfold autoParam
       exact es₁_ordered_es₂
   . case inr es₂_ordered_es₁ =>
@@ -432,25 +486,15 @@ lemma Behaviour.es₁_ordered_es₂_imm_bottom_succ_contradiction {e_pred e_succ
     unfold Event.Successor at e_pred_o_e_succ₂
     simp at e_pred_o_e_succ₂
 
-    apply he₁_no_intermediate_to_e_suc
-    apply he₂_b.isImmSucc.succInB
-    constructor
-    . case a.sameEntry =>
-      have h1 := he₁_b.isImmSucc.sameEntry
-      have h2 := he₂_b.isImmSucc.sameEntry
-      apply Event.event_same_entry_trans
-      . case he₁_e₃ => exact he₂_b.isImmSucc.sameEntry
-      . case he₂_e₃ => exact he₁_b.isImmSucc.sameEntry
-    . case a.isBottom => exact he₂_b.isBottom
-
+    apply he₁_b.isImmSucc.noIntermediate e_succ₂ he₂_b.isImmSucc.succInB |>.notIntermediate
     constructor
     unfold autoParam
-    . case a.pred =>
+    . case pred =>
       unfold Event.Predecessor at e_pred_o_e_succ₂
       simp at e_pred_o_e_succ₂
       unfold Event.OrderedBefore
       exact e_pred_o_e_succ₂
-    . case a.succ =>
+    . case succ =>
       unfold autoParam
       exact es₂_ordered_es₁
 
@@ -1399,7 +1443,7 @@ lemma Behaviour.listBottomEventsAtEntry'_imm_pred_equiv
           . case sameStruct => simp[Event.sameStructure, he_at_st, hx_bottom_at.atStruct]
           . case sameAddr => simp[Event.sameAddr, he_at_addr, hx_bottom_at.addr]
         . case isBottom => simp[hx_bottom_at.isBottom]
-      have hno_order_between := hnot_intermediate x_at.val (hall_in_b x_at hx_in_l) hbottom_same_entry
+      have hno_order_between := hnot_intermediate x_at.val (hall_in_b x_at hx_in_l) |>.notIntermediate
       intro hx_ob_e
       apply hno_order_between
       constructor
@@ -1410,7 +1454,7 @@ lemma Behaviour.listBottomEventsAtEntry'_imm_pred_equiv
       . case succ =>
         simp[he] at hx_ob_e
         simp[autoParam, hx_ob_e]
-  . case isBottom => simp[he_pred, hb_imm_bot_pred.isBottom]
+  . case isBottom => simp[he_pred, hb_imm_bot_pred.isBottomPred]
 
 lemma Behaviour.eventsAtEventEntry_are_bottom (b : Behaviour n) (e : Event n)
   : ∀ e' ∈ b.eventsAtEventEntry n e, e'.isBottomAtEntry n b e.struct e.addr := by
@@ -1569,9 +1613,9 @@ lemma Behaviour.eventsAtEventEntry_imm_pred_equiv
     e :=
   by
 
-  have hpred_at_e_struct := hb_imm_bot_pred.isImmPred.sameEntry.sameStruct
+  have hpred_at_e_struct := hb_imm_bot_pred.isImmPred.bPred.sameEntry.sameStruct
   simp[Event.sameStructure] at hpred_at_e_struct
-  have hpred_at_e_addr := hb_imm_bot_pred.isImmPred.sameEntry.sameAddr
+  have hpred_at_e_addr := hb_imm_bot_pred.isImmPred.bPred.sameEntry.sameAddr
   simp[Event.sameAddr] at hpred_at_e_addr
 
   have he_at_e_struct : e.struct = e.struct := by rfl
@@ -1589,7 +1633,7 @@ lemma Behaviour.eventsAtEventEntry_imm_pred_equiv
   have he_pred : e_pred_at = ⟨e_pred,⟨hb_imm_bot_pred.isImmPred.predInB, hpred_at_st, hpred_at_addr⟩⟩ := by simp[e_pred_at]
   have he      : e_at      = ⟨e,⟨he_in_b, he_at_st, he_at_addr⟩⟩ := by simp[e_at]
 
-  have hpred_in_l := b.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents n st addr e_pred hb_imm_bot_pred.isImmPred.predInB hb_imm_bot_pred.isBottom hpred_at_st hpred_at_addr
+  have hpred_in_l := b.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents n st addr e_pred hb_imm_bot_pred.isImmPred.predInB hb_imm_bot_pred.isBottomPred hpred_at_st hpred_at_addr
   have he_in_l := b.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents n st addr e he_in_b hb_imm_bot_pred.isBottomSucc he_at_st he_at_addr
 
   have hidxOf_pred_in_l := List.idxOf_lt_length hpred_in_l
@@ -1605,7 +1649,7 @@ lemma Behaviour.eventsAtEventEntry_imm_pred_equiv
     hidxOf_pred_in_l hidxOf_e_in_l
     hb_imm_bot_pred
   constructor
-  . case sameEntry => exact hb_imm_bot_pred.isImmPred.sameEntry
+  . case sameEntry => exact hb_imm_bot_pred.isImmPred.bPred.sameEntry
   . case noIntermediate =>
     apply Eq.symm
     have h := hlist_bottom_pred_at.noIntermediate
@@ -1617,7 +1661,7 @@ lemma Behaviour.eventsAtEventEntry_imm_pred_equiv
     rw[he_at_st]
     rw[he_at_addr]
     exact h
-  . case isBottomPred => exact hb_imm_bot_pred.isBottom
+  . case isBottomPred => exact hb_imm_bot_pred.isBottomPred
   . case isBottomSucc => exact hb_imm_bot_pred.isBottomSucc
   . case predInB => exact hb_imm_bot_pred.isImmPred.predInB
   . case succInB => exact he_in_b

@@ -688,9 +688,9 @@ lemma Event.init_state_at_entry_is_same (init : InitialSystemState n) (e₁ e₂
 lemma Behaviour.list_upToEvent_with_imm_bot_pred_eq_upToPred_append
   (b : Behaviour n) (e_pred e : Event n) (he_in_b : e ∈ b) (himm_bot_pred : b.IsImmediateBottomPred n e_pred e)
   : eventsUpToEvent n b e = eventsUpToEvent n b e_pred ++ [e_pred] := by
-  have hpred_at_e_struct := himm_bot_pred.isImmPred.sameEntry.sameStruct
+  have hpred_at_e_struct := himm_bot_pred.isImmPred.bPred.sameEntry.sameStruct
   simp[Event.sameStructure] at hpred_at_e_struct
-  have hpred_at_e_addr := himm_bot_pred.isImmPred.sameEntry.sameAddr
+  have hpred_at_e_addr := himm_bot_pred.isImmPred.bPred.sameEntry.sameAddr
   simp[Event.sameAddr] at hpred_at_e_addr
 
   have he_at_e_struct : e.struct = e.struct := by rfl
@@ -710,7 +710,7 @@ lemma Behaviour.list_upToEvent_with_imm_bot_pred_eq_upToPred_append
 
   have hpred_in_l := b.bottom_e_in_b_impl_in_eventsAtEventEntry n e_pred himm_bot_pred.isImmPred.predInB himm_bot_pred.isBottom
   have he_in_l := b.bottom_e_in_b_impl_in_eventsAtEventEntry n e he_in_b himm_bot_pred.isBottomSucc
-  rw[b.eventsAtEventEntry_eq_same_entry n e_pred e himm_bot_pred.isImmPred.sameEntry] at hpred_in_l
+  rw[b.eventsAtEventEntry_eq_same_entry n e_pred e himm_bot_pred.isImmPred.bPred.sameEntry] at hpred_in_l
 
   have hidxOf_pred_in_l := List.idxOf_lt_length hpred_in_l
   have hidxOf_e_in_l := List.idxOf_lt_length he_in_l
@@ -732,7 +732,7 @@ lemma Behaviour.list_upToEvent_with_imm_bot_pred_eq_upToPred_append
     simp[List.idxOf_getElem hentry_es_nodup (List.idxOf e_pred (eventsAtEventEntry n b e)) hn_lt_len]
   rw[← hn]
 
-  rw[b.eventsAtEventEntry_eq_same_entry n e_pred e himm_bot_pred.isImmPred.sameEntry]
+  rw[b.eventsAtEventEntry_eq_same_entry n e_pred e himm_bot_pred.isImmPred.bPred.sameEntry]
   apply List.take_append_getElem hidxOf_pred_in_l
 
 lemma Behaviour.state_after_eventsUpToEvent_has_e_pred_last
@@ -747,7 +747,7 @@ lemma Behaviour.state_after_eventsUpToEvent_eq_state_after_imm_bot_pred
   : (List.stateAfter n (eventsUpToEvent n b e) (InitialSystemState.stateAt n init e)).cache n =
     (stateAfter n b (InitialSystemState.stateAt n init e_pred) e_pred).cache n :=
   by
-  have hsame_entry := himm_bot_pred.isImmPred.sameEntry
+  have hsame_entry := himm_bot_pred.isImmPred.bPred.sameEntry
   have hsame_init : (InitialSystemState.stateAt n init e_pred) = (InitialSystemState.stateAt n init e) :=
     e_pred.init_state_at_entry_is_same n (init) e hsame_entry
   simp[hsame_init]
@@ -848,13 +848,7 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
         constructor
         . case isImmPred =>
           constructor
-          . case sameEntry =>
-            have h_e_pred_at_e_req := hpreds_at_same_entry e_pred (by simp)
-            constructor
-            . case sameStruct =>
-              simp[Event.sameStructure, h_e_pred_at_e_req.eAtStruct]
-            . case sameAddr => simp[Event.sameAddr, h_e_pred_at_e_req.eAtAddr]
-          . case behavePred =>
+          . case bPred =>
             constructor
             . case sameEntry =>
               constructor
