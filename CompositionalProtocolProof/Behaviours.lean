@@ -757,6 +757,12 @@ lemma Behaviour.bottom_e_in_b_impl_bottomEventsAtEntry' (b : Behaviour n) (st : 
     . case atStruct => simp[he_eq_st]
     . case isBottom => exact he_bottom
 
+lemma Behaviour.bottomEventsAtEntry'_in_b (b : Behaviour n) (addr : Addr) (st : Struct n)
+  : ∀ e ∈ b.bottomEventsAtEntry' n addr st, e.val ∈ b := by
+  simp[bottomEventsAtEntry']
+  intro e he_in_b he_is_bottom
+  exact he_in_b
+
 lemma Behaviour.bottomEventsAtEntry'_are_bottom (b : Behaviour n) (addr : Addr) (st : Struct n)
   : ∀ e ∈ b.bottomEventsAtEntry' n addr st, e.val.isBottomAtEntry n b st addr := by
   simp[bottomEventsAtEntry']
@@ -823,6 +829,18 @@ def Behaviour.listBottomEventsAtEntry'_no_dups (b : Behaviour n) (addr : Addr) (
   simp [listBottomEventsAtEntry']
   simp [Set.finSetEvents']
   simp[Finset.nodup_toList]
+
+lemma Behaviour.listBottomEventsAtEntry'_in_b (b : Behaviour n) (addr : Addr) (st : Struct n)
+  : ∀ e ∈ Behaviour.listBottomEventsAtEntry' n b addr st, e.val ∈ b := by
+  simp[listBottomEventsAtEntry']
+  have h := b.bottomEventsAtEntry'_are_bottom n addr st
+  intro e he_in_finsets
+  have he_in_bottom : e ∈ bottomEventsAtEntry' n b addr st :=
+    Set.finSetEvents'_e_in_result n (b.bottomEventsAtEntry' n addr st) (b.bottomEventsAtEntry_finite' n addr st)
+      e he_in_finsets
+  apply b.bottomEventsAtEntry'_in_b
+  . case a =>
+    exact he_in_bottom
 
 lemma Behaviour.listBottomEventsAtEntry'_are_bottom (b : Behaviour n) (addr : Addr) (st : Struct n)
   : ∀ e ∈ Behaviour.listBottomEventsAtEntry' n b addr st, e.val.isBottomAtEntry n b st addr := by
@@ -1126,8 +1144,17 @@ lemma Behaviour.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents (b : Behav
   . case he_eq_st => simp[he_eq_st]
   . case he_eq_addr => simp[he_eq_addr]
 
-lemma Behaviour.eventsAtEntryOfListBottomEvents_are_bottom (b : Behaviour n) (e : Event n) :
-  ∀ e' ∈ b.eventsAtEntryOfListBottomEvents n e.struct e.addr, e'.val.isBottomAtEntry n b e.struct e.addr := by
+lemma Behaviour.eventsAtEntryOfListBottomEvents_in_b (b : Behaviour n) (st : Struct n) (addr : Addr) :
+  ∀ e' ∈ b.eventsAtEntryOfListBottomEvents n st addr, e'.val ∈ b := by
+  intro e' he'_in_bottom
+  simp[eventsAtEntryOfListBottomEvents] at he'_in_bottom
+
+  apply b.listBottomEventsAtEntry'_in_b
+  . case a =>
+    exact he'_in_bottom
+
+lemma Behaviour.eventsAtEntryOfListBottomEvents_are_bottom (b : Behaviour n) (st : Struct n) (addr : Addr) :
+  ∀ e' ∈ b.eventsAtEntryOfListBottomEvents n st addr, e'.val.isBottomAtEntry n b st addr := by
   intro e' he'_in_bottom
   simp[eventsAtEntryOfListBottomEvents] at he'_in_bottom
   apply b.listBottomEventsAtEntry'_are_bottom
