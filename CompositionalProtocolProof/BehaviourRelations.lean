@@ -773,6 +773,7 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
   -- (hreq_has_perms : b.reqHasPerms n init e_req)
   -- (hl_preds_up_to_req :  l_preds = b.eventsUpToEvent n e_req)
   (hreq_in_b : e_req ∈ b)
+  (hreq_is_bottom : b.IsBottomEvent n e_req)
   (hreq_is_ce : e_req.isCacheEvent n)
   (hpreds_at_same_entry : ∀ e ∈ l_preds, b.eventAtEntry n e e_req.struct e_req.addr)
   (hpreds_pred_to_req : ∀ e ∈ l_preds, b.Predecessor n e e_req)
@@ -862,6 +863,7 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
             . case he_btn_in_l => exact hevent_in_l_preds
             . case hlast_lt_n => exact hpred_before_event
         . case isBottom => exact hpreds_are_bottom e_pred (by simp) |>.isBottom
+        . case isBottomSucc => exact hreq_is_bottom
 
       constructor
       . case isImmBottomPred => exact hpred_imm_bot_pred_to_req
