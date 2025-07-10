@@ -686,30 +686,64 @@ lemma Event.init_state_at_entry_is_same (init : InitialSystemState n) (e₁ e₂
       simp[hsame_pinst]
 
 lemma Behaviour.list_upToEvent_with_imm_bot_pred_eq_upToPred_append
-  (b : Behaviour n) (init : InitialSystemState n) (e_pred e : Event n) (himm_bot_pred : b.IsImmediateBottomPred n e_pred e)
+  (b : Behaviour n) (e_pred e : Event n) (he_in_b : e ∈ b) (himm_bot_pred : b.IsImmediateBottomPred n e_pred e)
   : eventsUpToEvent n b e = eventsUpToEvent n b e_pred ++ [e_pred] := by
-  -- : List.upToEvent n (eventsAtEventEntry n b e) e = eventsUpToEvent n b e_pred ++ [e_pred] := by
-  /- [TODO]: Add Lemmas to Behaviours.lean. build up that any Event `e` in the set of events is in the list of events.
-  Then when we get to `eventsUpToEvent`, `e_pred` in `b` means `e_pred` is in `eventsUpToEvent`.
-  Then because it's the immediate predecessor, it is at the end of the list, getting us `++ [e_pred]`.
+  have hpred_at_e_struct := himm_bot_pred.isImmPred.sameEntry.sameStruct
+  simp[Event.sameStructure] at hpred_at_e_struct
+  have hpred_at_e_addr := himm_bot_pred.isImmPred.sameEntry.sameAddr
+  simp[Event.sameAddr] at hpred_at_e_addr
 
-  To get `eventsUpToEvent n b e_pred` from the left half of `eventsUpToEvent n b e_pred ++ [e_pred]`:
-  1. The list is sorted by Ordered Before
-  2. All events in the set from `b` are in the list `l_head`.
-  So all events before `e_pred` in `l_head` is equal to literally writting `eventsUpToEvent n b e_pred`
-  -/
-  sorry
+  have he_at_e_struct : e.struct = e.struct := by rfl
+  have he_at_e_addr : e.addr = e.addr := by rfl
+
+  have he_in_l_in_b := b.eventsAtEntryOfListBottomEvents_in_b n e.struct e.addr
+  have he_in_l_bottom := b.eventsAtEntryOfListBottomEvents_are_bottom n e.struct e.addr
+
+  have hentry_es_sorted := b.eventsAtEventEntry_ordered_before_sorted n e
+  have hentry_es_nodup := b.eventsAtEventEntry_no_dups n e
+
+  let e_pred_at : EventAtEntry n b e.struct e.addr := ⟨e_pred,⟨himm_bot_pred.isImmPred.predInB, hpred_at_e_struct, hpred_at_e_addr⟩⟩
+  let e_at      : EventAtEntry n b e.struct e.addr := ⟨e,⟨he_in_b,he_at_e_struct,he_at_e_addr⟩⟩
+
+  have he_pred : e_pred_at = ⟨e_pred,⟨himm_bot_pred.isImmPred.predInB, hpred_at_e_struct, hpred_at_e_addr⟩⟩ := by simp[e_pred_at]
+  have he      : e_at      = ⟨e,⟨he_in_b, he_at_e_struct, he_at_e_addr⟩⟩ := by simp[e_at]
+
+  have hpred_in_l := b.bottom_e_in_b_impl_in_eventsAtEventEntry n e_pred himm_bot_pred.isImmPred.predInB himm_bot_pred.isBottom
+  have he_in_l := b.bottom_e_in_b_impl_in_eventsAtEventEntry n e he_in_b himm_bot_pred.isBottomSucc
+  rw[b.eventsAtEventEntry_eq_same_entry n e_pred e himm_bot_pred.isImmPred.sameEntry] at hpred_in_l
+
+  have hidxOf_pred_in_l := List.idxOf_lt_length hpred_in_l
+  have hidxOf_e_in_l := List.idxOf_lt_length he_in_l
+
+  have hpred_imm_list_pred_e := b.eventsAtEventEntry_imm_pred_equiv n e.struct e.addr
+    e_pred e himm_bot_pred.isImmPred.predInB he_in_b
+    hpred_at_e_struct hpred_at_e_addr
+    he_at_e_struct he_at_e_addr
+    himm_bot_pred
+
+  simp[eventsUpToEvent, List.upToEvent]
+  apply Eq.symm
+
+  have hidx_pred_one_eq_idx_e := hpred_imm_list_pred_e.noIntermediate
+  rw[hidx_pred_one_eq_idx_e]
+
+  have hn_lt_len : List.idxOf e_pred (eventsAtEventEntry n b e) < (eventsAtEventEntry n b e).length := List.idxOf_lt_length hpred_in_l
+  have hn : [(eventsAtEventEntry n b e)[List.idxOf e_pred (eventsAtEventEntry n b e)]] = [e_pred] := by
+    simp[List.idxOf_getElem hentry_es_nodup (List.idxOf e_pred (eventsAtEventEntry n b e)) hn_lt_len]
+  rw[← hn]
+
+  rw[b.eventsAtEventEntry_eq_same_entry n e_pred e himm_bot_pred.isImmPred.sameEntry]
+  apply List.take_append_getElem hidxOf_pred_in_l
 
 lemma Behaviour.state_after_eventsUpToEvent_has_e_pred_last
-  (b : Behaviour n) (init : InitialSystemState n) (e_pred e : Event n) (himm_bot_pred : b.IsImmediateBottomPred n e_pred e)
+  (b : Behaviour n) (init : InitialSystemState n) (e_pred e : Event n) (he_in_b : e ∈ b) (himm_bot_pred : b.IsImmediateBottomPred n e_pred e)
   : (List.stateAfter n (eventsUpToEvent n b e) (InitialSystemState.stateAt n init e)).cache n =
     (eventsUpToEvent n b e_pred ++ [e_pred] |>.stateAfter n (InitialSystemState.stateAt n init e)).cache n :=
   by
-  -- nth_rw 1 [eventsUpToEvent]
-  rw [b.list_upToEvent_with_imm_bot_pred_eq_upToPred_append n init e_pred e himm_bot_pred]
+  rw [b.list_upToEvent_with_imm_bot_pred_eq_upToPred_append n e_pred e he_in_b himm_bot_pred]
 
 lemma Behaviour.state_after_eventsUpToEvent_eq_state_after_imm_bot_pred
-  (b : Behaviour n) (init : InitialSystemState n) (e_pred e : Event n) (himm_bot_pred : b.IsImmediateBottomPred n e_pred e)
+  (b : Behaviour n) (init : InitialSystemState n) (e_pred e : Event n) (he_in_b : e ∈ b) (himm_bot_pred : b.IsImmediateBottomPred n e_pred e)
   : (List.stateAfter n (eventsUpToEvent n b e) (InitialSystemState.stateAt n init e)).cache n =
     (stateAfter n b (InitialSystemState.stateAt n init e_pred) e_pred).cache n :=
   by
@@ -719,15 +753,16 @@ lemma Behaviour.state_after_eventsUpToEvent_eq_state_after_imm_bot_pred
   simp[hsame_init]
 
   simp[stateAfter, stateBefore]
-  rw [Behaviour.state_after_eventsUpToEvent_has_e_pred_last n b init e_pred e himm_bot_pred]
+  rw [Behaviour.state_after_eventsUpToEvent_has_e_pred_last n b init e_pred e he_in_b himm_bot_pred]
 
 lemma Behaviour.state_before_is_state_after_pred (b : Behaviour n) (init : InitialSystemState n)
-  (e_pred e : Event n) (himm_bot_pred : b.IsImmediateBottomPred n e_pred e)
+  (e_pred e : Event n) (he_in_b : e ∈ b) (himm_bot_pred : b.IsImmediateBottomPred n e_pred e)
   : (stateBefore n b (InitialSystemState.stateAt n init e) e).cache n =
     (stateAfter n b (InitialSystemState.stateAt n init e_pred) e_pred).cache n :=
   by
   simp[stateBefore]
   apply Behaviour.state_after_eventsUpToEvent_eq_state_after_imm_bot_pred
+  . case he_in_b => exact he_in_b
   . case himm_bot_pred => exact himm_bot_pred
 
 lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
@@ -785,9 +820,9 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
 
       /- `ih_post`: the state after `l_head` (the state before `e_pred`) is less than the state required of `e_req` -/
 
-              have h_e_pred_at_e_req := hpreds_at_same_entry e_pred (by simp)
+      have h_e_pred_at_e_req := hpreds_at_same_entry e_pred (by simp)
 
-              have h_pred_cannot_get_perms_for_req := hno_pred e_pred h_e_pred_at_e_req.eInB
+      have h_pred_cannot_get_perms_for_req := hno_pred e_pred h_e_pred_at_e_req.eInB
 
       have hno_imm_bott_pred_of_p := b.IsImmediateBottomPredSatisfyingProp_neg n h_pred_cannot_get_perms_for_req
 
@@ -797,26 +832,26 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
       apply h_pred_cannot_get_perms_for_req
 
       have hpred_imm_bot_pred_to_req : IsImmediateBottomPred n b e_pred (Event.cacheEvent ce_req) := by
-                    constructor
-                    . case isImmPred =>
-                      constructor
-                      . case sameEntry =>
-                        have h_e_pred_at_e_req := hpreds_at_same_entry e_pred (by simp)
-                        constructor
-                        . case sameStruct =>
-                          simp[Event.sameStructure, h_e_pred_at_e_req.eAtStruct]
-                        . case sameAddr => simp[Event.sameAddr, h_e_pred_at_e_req.eAtAddr]
-                      . case behavePred =>
-                        constructor
-                        . case sameEntry =>
-                          constructor
-                          . case sameStruct => simp[Event.sameStructure, h_e_pred_at_e_req.eAtStruct]
-                          . case sameAddr => simp[Event.sameAddr, h_e_pred_at_e_req.eAtAddr]
-                        . case isPred => exact (hpreds_pred_to_req e_pred (by simp)).isPred
-                        . case predInB => simp[h_e_pred_at_e_req.eInB]
-                        . case succInB => exact hreq_in_b
-                      . case noIntermediate =>
-                        simp[NoIntermediatePredecessor]
+        constructor
+        . case isImmPred =>
+          constructor
+          . case sameEntry =>
+            have h_e_pred_at_e_req := hpreds_at_same_entry e_pred (by simp)
+            constructor
+            . case sameStruct =>
+              simp[Event.sameStructure, h_e_pred_at_e_req.eAtStruct]
+            . case sameAddr => simp[Event.sameAddr, h_e_pred_at_e_req.eAtAddr]
+          . case behavePred =>
+            constructor
+            . case sameEntry =>
+              constructor
+              . case sameStruct => simp[Event.sameStructure, h_e_pred_at_e_req.eAtStruct]
+              . case sameAddr => simp[Event.sameAddr, h_e_pred_at_e_req.eAtAddr]
+            . case isPred => exact (hpreds_pred_to_req e_pred (by simp)).isPred
+            . case predInB => simp[h_e_pred_at_e_req.eInB]
+            . case succInB => exact hreq_in_b
+          . case noIntermediate =>
+            simp[NoIntermediatePredecessor]
             intro an_event he_in_b he_is_bottom_same_entry he_btn_pred_and_req
             have hpred_before_event := he_btn_pred_and_req.pred
             have hevent_in_l_preds := hentry_preds_in_l_preds an_event he_in_b he_is_bottom_same_entry he_btn_pred_and_req.succ
@@ -826,33 +861,27 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
             . case hl_nodup => exact hl_preds_nodup
             . case he_btn_in_l => exact hevent_in_l_preds
             . case hlast_lt_n => exact hpred_before_event
-                    . case isBottom => exact hpreds_are_bottom e_pred (by simp) |>.isBottom
+        . case isBottom => exact hpreds_are_bottom e_pred (by simp) |>.isBottom
 
       constructor
       . case isImmBottomPred => exact hpred_imm_bot_pred_to_req
-                  . case satisfyP =>
-                    simp[Event.PropOnEvent]
+      . case satisfyP =>
+        simp[Event.PropOnEvent]
         -- have hno_imm_bott_pred_of_p := b.IsImmediateBottomPredSatisfyingProp_neg n (hno_pred e_pred h_e_pred_at_e_req.eInB)
         -- simp only [not_and] at hno_imm_bott_pred_of_p
-                    constructor
+        constructor
         . case missingPerms =>
           -- 3 cases on `e_pred`: in the downgrade case, show contradiction.
           -- apply reqMissingPerms.noPermsForNonNcRelAcqWeakWrite
-      sorry
+          sorry
         . case stateAfterAtLeast =>
           simp[reqLeavesStateAtLeast]
           simp[LE.le, State.le]
           apply Or.intro_right
           /- The state after the predecessor `e_pred` is the state before the request `e_req`-/
           apply Behaviour.state_before_is_state_after_pred
+          . case h.he_in_b => exact hreq_in_b
           . case h.himm_bot_pred => exact hpred_imm_bot_pred_to_req
-
-          -- simp[stateBefore]
-
-          -- rw[← hl_preds_up_to_req]
-          -- simp[stateAfter, stateBefore]
-
-          -- sorry
     | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
 
 lemma Behaviour.reqMissingPerms_accesses_dir (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
