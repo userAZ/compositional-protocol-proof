@@ -765,6 +765,22 @@ lemma Behaviour.state_before_is_state_after_pred (b : Behaviour n) (init : Initi
   . case he_in_b => exact he_in_b
   . case himm_bot_pred => exact himm_bot_pred
 
+lemma List.take_mem_append_eq_take {α} [DecidableEq α] (n m : α) (l : List α) (hn_in_head : n ∈ l)
+  : List.take (List.idxOf n l) l = List.take (List.idxOf n (l ++ [m])) (l ++ [m]) := by
+  rw[List.idxOf_append_of_mem hn_in_head]
+  rw[List.take_append_eq_append_take]
+  have hidxn_lt_len : (List.idxOf n l) < l.length := List.idxOf_lt_length hn_in_head
+  have hidxn_le_len := Nat.le_of_lt hidxn_lt_len
+  have hidxn_sub_len_eq_zero := Nat.sub_eq_zero_iff_le.mpr hidxn_le_len
+  rw[hidxn_sub_len_eq_zero]
+  simp
+
+lemma List.take_idxOf_append_eq_list {α} [DecidableEq α] (n : α) (l : List α) (hnodup : (l ++ [n]).Nodup) : List.take (List.idxOf n (l ++ [n])) (l ++ [n]) = l := by
+  have hn_not_in_l : n ∉ l := by
+    simp[List.nodup_append] at hnodup
+    exact hnodup.right
+  simp[List.idxOf_append_of_notMem hn_not_in_l]
+
 lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
   (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
   (l_preds : List (Event n))
