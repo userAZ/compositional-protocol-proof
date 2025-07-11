@@ -794,7 +794,8 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
   (hpreds_at_same_entry : ∀ e ∈ l_preds, b.eventAtEntry n e e_req.struct e_req.addr)
   (hpreds_pred_to_req : ∀ e ∈ l_preds, b.Predecessor n e e_req)
   (hpreds_are_bottom : ∀ e' ∈ l_preds, e'.isBottomAtEntry n b e_req.struct e_req.addr)
-  (hentry_preds_in_l_preds : ∀ e ∈ b, b.bottomSameEntry n e e_req → e.OrderedBefore n e_req → e ∈ l_preds)
+  (hpreds_split_state : ∀ e ∈ l_preds, List.take (List.idxOf e l_preds) l_preds = eventsUpToEvent n b e)
+  -- (hentry_preds_in_l_preds : ∀ e ∈ b, b.bottomSameEntry n e e_req → e.OrderedBefore n e_req → e ∈ l_preds)
   (hl_preds_nodup : l_preds.Nodup)
   (hl_preds_ob_sorted : l_preds.Sorted (Event.OrderedBefore n))
   (hax6 : Behaviour.axRequestAccessesDirectory n)
@@ -831,6 +832,15 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
         apply hpreds_are_bottom
         . case a => simp[he_in_l_head]
 
+      have ih_pred_take_up_to : (∀ e ∈ l_head, List.take (List.idxOf e l_head) l_head = eventsUpToEvent n b e) :=
+        by
+        intro e he_in_head
+        have htake_eq_up_to_event := hpreds_split_state e (by simp[he_in_head])
+        -- [NOTE] this property is true because e is in l_head!
+        rw[← htake_eq_up_to_event]
+        apply List.take_mem_append_eq_take
+        . case hn_in_head => exact he_in_head
+      /-
       have ih_bottom_same_entry : (∀ e ∈ b,
         bottomSameEntry n b e (Event.cacheEvent ce_req) → Event.OrderedBefore n e (Event.cacheEvent ce_req) → e ∈ l_head) :=
         by
@@ -840,72 +850,58 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
         cases h
         . case inl hin_head => exact hin_head
         . case inr his_pred => sorry
+      -/
+      have ih_nodup : l_head.Nodup :=
+        by
+        simp[List.nodup_append] at hl_preds_nodup
+        exact hl_preds_nodup.left
 
-      have ih_nodup : l_head.Nodup := by sorry
+      have ih_sorted : List.Sorted (Event.OrderedBefore n) l_head :=
+        by
+        simp [List.Sorted] at hl_preds_ob_sorted
+        simp [List.Sorted]
+        simp [List.pairwise_append] at hl_preds_ob_sorted
+        exact hl_preds_ob_sorted.left
 
-      have ih_sorted : List.Sorted (Event.OrderedBefore n) l_head := by sorry
+      have ih_post := ih ih_same_entry_precond ih_pred_req_precond ih_pred_bottom_precond ih_pred_take_up_to ih_nodup ih_sorted
 
-      have ih_post := ih ih_same_entry_precond ih_pred_req_precond ih_pred_bottom_precond
+      have htake_pred_eq_eventsUpToPred := hpreds_split_state e_pred (by simp)
+      rw[List.take_idxOf_append_eq_list] at htake_pred_eq_eventsUpToPred
+
+      rw[htake_pred_eq_eventsUpToPred] at ih_post
+
+      /- [TODO] [NOTE]: Use `hno_pred` to state that `e_pred` does not get permissions, and thus the goal is satisfied.
+      Then I can prove the lemma `hpreds_split_state` I use. -/
+
+      have h_e_pred_at_e_req := hpreds_at_same_entry e_pred (by simp)
+      have h_pred_cannot_get_perms_for_req := hno_pred e_pred h_e_pred_at_e_req.eInB
+
+      intro hreq_mrs_le_state_after_pred
+
+      apply h_pred_cannot_get_perms_for_req
+      constructor
+      . case isImmPred =>
+        constructor
+        . case bPred =>
+          apply hpreds_pred_to_req
+          . case a => simp
+        . case noIntermediateSatisfyingP =>
+          simp[NoIntermediatePredecessorSatisfyingProp]
+          sorry
+      . case isBottomPred => exact hpreds_are_bottom e_pred (by simp) |>.isBottom
+      . case isBottomSucc => exact hreq_is_bottom
+      . case satisfyP =>
+        simp[Event.PropOnEvent]
+        sorry
+      . case hnodup => exact hl_preds_nodup
 
       /- `ih_post`: the state after `l_head` (the state before `e_pred`) is less than the state required of `e_req` -/
 
-      have h_e_pred_at_e_req := hpreds_at_same_entry e_pred (by simp)
+      -- have hno_imm_bott_pred_of_p := b.IsImmediateBottomPredSatisfyingProp_neg n h_pred_cannot_get_perms_for_req
 
-      have h_pred_cannot_get_perms_for_req := hno_pred e_pred h_e_pred_at_e_req.eInB
 
-      have hno_imm_bott_pred_of_p := b.IsImmediateBottomPredSatisfyingProp_neg n h_pred_cannot_get_perms_for_req
 
-      /- use contra; if `e_req` got permissions, then we have a contradiction -/
-      by_contra hreq_mrs_le_state_after_pred
-
-      apply h_pred_cannot_get_perms_for_req
-
-      have hpred_imm_bot_pred_to_req : IsImmediateBottomPred n b e_pred (Event.cacheEvent ce_req) := by
-        constructor
-        . case isImmPred =>
-          constructor
-          . case bPred =>
-            constructor
-            . case sameEntry =>
-              constructor
-              . case sameStruct => simp[Event.sameStructure, h_e_pred_at_e_req.eAtStruct]
-              . case sameAddr => simp[Event.sameAddr, h_e_pred_at_e_req.eAtAddr]
-            . case isPred => exact (hpreds_pred_to_req e_pred (by simp)).isPred
-            . case predInB => simp[h_e_pred_at_e_req.eInB]
-            . case succInB => exact hreq_in_b
-          . case noIntermediate =>
-            simp[NoIntermediatePredecessor]
-            intro an_event he_in_b he_is_bottom_same_entry he_btn_pred_and_req
-            have hpred_before_event := he_btn_pred_and_req.pred
-            have hevent_in_l_preds := hentry_preds_in_l_preds an_event he_in_b he_is_bottom_same_entry he_btn_pred_and_req.succ
-            apply Behaviour.contradiction_of_event_after_last_pred
-            . case hsorted => exact hl_preds_ob_sorted
-            . case hlist => rfl
-            . case hl_nodup => exact hl_preds_nodup
-            . case he_btn_in_l => exact hevent_in_l_preds
-            . case hlast_lt_n => exact hpred_before_event
-        . case isBottom => exact hpreds_are_bottom e_pred (by simp) |>.isBottom
-        . case isBottomSucc => exact hreq_is_bottom
-
-      constructor
-      . case isImmBottomPred => exact hpred_imm_bot_pred_to_req
-      . case satisfyP =>
-        simp[Event.PropOnEvent]
-        -- have hno_imm_bott_pred_of_p := b.IsImmediateBottomPredSatisfyingProp_neg n (hno_pred e_pred h_e_pred_at_e_req.eInB)
-        -- simp only [not_and] at hno_imm_bott_pred_of_p
-        constructor
-        . case missingPerms =>
-          -- 3 cases on `e_pred`: in the downgrade case, show contradiction.
-          -- apply reqMissingPerms.noPermsForNonNcRelAcqWeakWrite
-          sorry
-        . case stateAfterAtLeast =>
-          simp[reqLeavesStateAtLeast]
-          simp[LE.le, State.le]
-          apply Or.intro_right
-          /- The state after the predecessor `e_pred` is the state before the request `e_req`-/
-          apply Behaviour.state_before_is_state_after_pred
-          . case h.he_in_b => exact hreq_in_b
-          . case h.himm_bot_pred => exact hpred_imm_bot_pred_to_req
+      --[TODO] show that stateAfter `l_head` is statebefore e_req
     | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
 
 lemma Behaviour.reqMissingPerms_accesses_dir (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
