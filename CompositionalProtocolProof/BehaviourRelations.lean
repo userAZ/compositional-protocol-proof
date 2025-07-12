@@ -464,7 +464,7 @@ def Behaviour.immBottomPredEncapCorrDirLeavesStateAtLeastReq (b : Behaviour n) (
   b.ImmediateBottomPredSatisfyingProp n e_pred e_req (b.predWithCorrespondingDirLeavesStateAtLeastReq n · e_req init)
 
 def Behaviour.predHasNoPermsAndLeavesStateAtLeastReq (b : Behaviour n) (init : InitialSystemState n) (e_pred e_req : Event n) : Prop :=
-  b.reqHasNoPermsLeavesStateAtLeast n init (b.stateBefore n (init.stateAt n e_req) e_req |>.cache) e_pred
+  b.reqHasNoPermsLeavesStateAtLeast n init (e_req.req.MRS) e_pred
 
 def Behaviour.immBottomPredHasNoPermsAndLeavesStateAtLeast (b : Behaviour n) (init : InitialSystemState n) (e_pred e_req : Event n) : Prop :=
   b.ImmediateBottomPredSatisfyingProp n e_pred e_req (b.predHasNoPermsAndLeavesStateAtLeastReq n init · e_req)
