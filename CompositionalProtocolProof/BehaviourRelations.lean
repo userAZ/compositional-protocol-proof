@@ -802,11 +802,16 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
   (hpreds_pred_to_req : ∀ e ∈ l_preds, b.Predecessor n e e_req)
   (hpreds_are_bottom : ∀ e' ∈ l_preds, e'.isBottomAtEntry n b e_req.struct e_req.addr)
   (hpreds_split_state : ∀ e ∈ l_preds, List.take (List.idxOf e l_preds) l_preds = eventsUpToEvent n b e)
+  (hpreds_take_drop : ∀ e ∈ l_preds, List.take (List.idxOf e l_preds) l_preds ++ List.drop (List.idxOf e l_preds) l_preds = l_preds)
+  (hpreds_in_b : ∀ e ∈ l_preds, e ∈ b)
+  -- (hpreds_split_state : ∀ e ∈ l_preds, )
   -- (hentry_preds_in_l_preds : ∀ e ∈ b, b.bottomSameEntry n e e_req → e.OrderedBefore n e_req → e ∈ l_preds)
   (hl_preds_nodup : l_preds.Nodup)
   (hl_preds_ob_sorted : l_preds.Sorted (Event.OrderedBefore n))
   (hax6 : Behaviour.axRequestAccessesDirectory n)
   (hno_pred : ∀ e_predecessor ∈ b, ¬immBottomPredHasNoPermsAndLeavesStateAtLeast n b init e_predecessor e_req)
+  -- (hinit_i : ∀ e ∈ b, e.isBottomAtEntry n b e_req.struct e_req.addr → )
+  (hinit_i : ∀ e ∈ b, e.isBottomAtEntry n b e_req.struct e_req.addr → (InitialSystemState.stateAt n init e) = IEntry n)
   : ¬ (Event.req n e_req).MRS ≤ EntryState.cache n (List.stateAfter n (l_preds) (IEntry n)) := by
   induction l_preds using List.reverseRecOn with
   | nil =>
@@ -883,6 +888,8 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
       have h_e_pred_at_e_req := hpreds_at_same_entry e_pred (by simp)
       have h_pred_cannot_get_perms_for_req := hno_pred e_pred h_e_pred_at_e_req.eInB
 
+      -- have hpred_in_b := hpreds_are_bottom e_pred (by simp) |>.isBottom
+
       intro hreq_mrs_le_state_after_pred
 
       apply h_pred_cannot_get_perms_for_req
@@ -894,12 +901,32 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
           . case a => simp
         . case noIntermediateSatisfyingP =>
           simp[NoIntermediatePredecessorSatisfyingProp]
+          intro e_inter he_inter_in_b he_inter_bottom_entry he_inter_sat_p
+          have test1 := he_inter_sat_p.orderedBetween
+          have test2 := he_inter_sat_p.satProp
           sorry
       . case isBottomPred => exact hpreds_are_bottom e_pred (by simp) |>.isBottom
       . case isBottomSucc => exact hreq_is_bottom
       . case satisfyP =>
         simp[Event.PropOnEvent]
-        sorry
+        simp[predHasNoPermsAndLeavesStateAtLeastReq]
+        constructor
+        . case missingPerms =>
+          -- constructor
+          apply reqMissingPerms.noPermsForNonNcRelAcqWeakWrite
+          sorry
+          sorry
+          sorry
+        . case stateAfterAtLeast =>
+          simp[reqLeavesStateAtLeast]
+          rw[hinit_i]
+          simp[stateAfter]
+          rw[← hpreds_take_drop e_pred (by simp)] at hreq_mrs_le_state_after_pred
+          rw[hpreds_split_state e_pred (by simp)] at hreq_mrs_le_state_after_pred
+          simp[List.drop_idxOf_append_eq_append hl_preds_nodup] at hreq_mrs_le_state_after_pred
+          exact hreq_mrs_le_state_after_pred
+          . case a => exact hpreds_in_b e_pred (by simp)
+          . case a => exact hpreds_are_bottom e_pred (by simp)
       . case hnodup => exact hl_preds_nodup
 
       /- `ih_post`: the state after `l_head` (the state before `e_pred`) is less than the state required of `e_req` -/
