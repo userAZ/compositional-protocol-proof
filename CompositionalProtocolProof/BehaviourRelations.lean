@@ -781,6 +781,13 @@ lemma List.take_idxOf_append_eq_list {α} [DecidableEq α] (n : α) (l : List α
     exact hnodup.right
   simp[List.idxOf_append_of_notMem hn_not_in_l]
 
+lemma List.drop_idxOf_append_eq_append {α} [DecidableEq α] {n : α} {l_head : List α} (hnodup : (l_head ++ [n]).Nodup)
+  : List.drop (List.idxOf n (l_head ++ [n])) (l_head ++ [n]) = [n] := by
+  have hn_not_in_l_head : n ∉ l_head := by
+    simp[List.nodup_append] at hnodup
+    exact hnodup.right
+  simp[List.idxOf_append_of_notMem hn_not_in_l_head]
+
 lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
   (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
   (l_preds : List (Event n))
