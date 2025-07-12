@@ -261,6 +261,10 @@ def EntryState.cache (entry_state : EntryState n) : State :=
   | .inl cache_state => cache_state
   | .inr _ => panic! "EntryState expected to be cache state (State), but got (DirectoryState) instead!"
 
+def EntryState.isCacheState (entry_state : EntryState n) : Prop := match entry_state with
+  | .inl _ => true
+  | .inr _ => false
+
 def EntryState.directory (entry_state : EntryState n) : DirectoryState n :=
   match entry_state with
   | .inl _ => panic! "EntryState expected to be cache state (DirectoryState), but got (State) instead!"
