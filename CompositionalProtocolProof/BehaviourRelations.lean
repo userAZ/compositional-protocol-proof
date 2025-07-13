@@ -788,6 +788,38 @@ lemma List.drop_idxOf_append_eq_append {α} [DecidableEq α] {n : α} {l_head : 
     exact hnodup.right
   simp[List.idxOf_append_of_notMem hn_not_in_l_head]
 
+lemma Behaviour.pred_gets_perms_and_all_events_up_to_req_sat_p_impl_sat_p (b : Behaviour n) (init : InitialSystemState n) (e e_pred e_req : Event n) (es : List (Event n))
+  (hinit_has_perms : e_req.req.MRS ≤ (init.stateAt n e_req).cache n)
+  (ce_req : CacheEvent n) (hreq : e_req = Event.cacheEvent ce_req)
+  : ∀ e ∈ es, ¬ e.OrderedBetweenSatisfyingProp n e_pred e_req fun x => predHasNoPermsAndLeavesStateAtLeastReq n b init x (Event.cacheEvent ce_req)
+  := by
+  induction es with
+  | nil => simp
+  | cons head tail ih =>
+    intro e_inter hinter_in_list hinter_sat_p
+    simp[List.mem_cons] at hinter_in_list
+    /- cases hinter_in_list
+    . case in head => then state before high, conflicts with `hinter_sat_p` `missingPerms`. Contradiction.
+      (Requires: being able to state that the state before `head` is `e_req.req.MRS ≤ eventsUpTo head`)
+    . case in tail => use ih to solve.
+      QED. -/
+    cases hinter_in_list
+    . case cons.inl he_is_head =>
+      have hno_perms := hinter_sat_p.satProp.missingPerms
+      cases hno_perms
+      . case downgrade =>
+        sorry
+      . case noPermsForNonNcRelAcqWeakWrite hnot_down hnot_rel_acq_ww hno_perms =>
+        simp[eventOnStateNoPerms, eventOnStateHasPerms] at hno_perms
+        simp[stateBefore] at hno_perms
+        /- [NOTE]: Try having the hypothesis that the list eq `l_head ++ [e_pred] ++ [this_list]`,
+        and the eventsUpTo all events in `[this_list]` include the ones in `l_head ++ [e_pred]`. Then
+        state the stateAfter `e_pred` is ≥ `e_req.req.MRS` -/
+        sorry
+      . case ncRelAcqWeakWriteNotOnCoherentState => sorry
+    . case cons.inr he_in_tail =>
+      sorry
+
 lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
   (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
   (l_preds : List (Event n))
@@ -901,9 +933,8 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
           . case a => simp
         . case noIntermediateSatisfyingP =>
           simp[NoIntermediatePredecessorSatisfyingProp]
-          intro e_inter he_inter_in_b he_inter_bottom_entry he_inter_sat_p
-          have test1 := he_inter_sat_p.orderedBetween
-          have test2 := he_inter_sat_p.satProp
+          /- [NOTE] July 12, 2025: Polish `Behaviour.pred_gets_perms_and_all_events_up_to_req_sat_p_impl_sat_p`,
+          add additional lemmas to state it, and use it here. -/
           sorry
       . case isBottomPred => exact hpreds_are_bottom e_pred (by simp) |>.isBottom
       . case isBottomSucc => exact hreq_is_bottom
