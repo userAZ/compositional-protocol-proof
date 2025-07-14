@@ -418,6 +418,7 @@ inductive Behaviour.reqMissingPerms (b : Behaviour n) (init : InitialSystemState
 
 structure Behaviour.reqHasNoPermsLeavesStateAtLeast (b : Behaviour n) (init : InitialSystemState n) (state : State) (e_req : Event n) : Prop where
   missingPerms : b.reqMissingPerms n init e_req
+  notDown : ¬ e_req.down -- try something new with the condition?
   stateAfterAtLeast : b.reqLeavesStateAtLeast n e_req init state
   -- encapDir : b.cacheEncapCorrespondingDirEvent n (init.stateAt n e_req) true e_req
 
@@ -788,14 +789,18 @@ lemma List.drop_idxOf_append_eq_append {α} [DecidableEq α] {n : α} {l_head : 
     exact hnodup.right
   simp[List.idxOf_append_of_notMem hn_not_in_l_head]
 
-lemma Behaviour.pred_gets_perms_and_all_events_up_to_req_sat_p_impl_sat_p (b : Behaviour n) (init : InitialSystemState n) (e e_pred e_req : Event n) (es : List (Event n))
-  (hinit_has_perms : e_req.req.MRS ≤ (init.stateAt n e_req).cache n)
+lemma Behaviour.pred_gets_perms_and_all_events_up_to_req_sat_p_impl_sat_p
+  (b : Behaviour n) (init : InitialSystemState n) (e e_pred e_req : Event n)
+  (l_preds : List (Event n)) (es : List (Event n))
+  -- (hinit_has_perms : e_req.req.MRS ≤ (init.stateAt n e_req).cache n)
+  (hpreds_split_state : ∀ e ∈ es, (l_preds ++ List.take (List.idxOf e es) es) = eventsUpToEvent n b e)
+  (hstate_after_preds : e_req.req.MRS ≤ (List.stateAfter n l_preds (init.stateAt n e_req)).cache n)
   (ce_req : CacheEvent n) (hreq : e_req = Event.cacheEvent ce_req)
   : ∀ e ∈ es, ¬ e.OrderedBetweenSatisfyingProp n e_pred e_req fun x => predHasNoPermsAndLeavesStateAtLeastReq n b init x (Event.cacheEvent ce_req)
   := by
-  induction es with
+  induction es using List.reverseRecOn with
   | nil => simp
-  | cons head tail ih =>
+  | append_singleton l_head tail ih =>
     intro e_inter hinter_in_list hinter_sat_p
     simp[List.mem_cons] at hinter_in_list
     /- cases hinter_in_list
@@ -803,8 +808,17 @@ lemma Behaviour.pred_gets_perms_and_all_events_up_to_req_sat_p_impl_sat_p (b : B
       (Requires: being able to state that the state before `head` is `e_req.req.MRS ≤ eventsUpTo head`)
     . case in tail => use ih to solve.
       QED. -/
+    have ih_precond : (∀ e ∈ l_head, l_preds ++ List.take (List.idxOf e l_head) l_head = eventsUpToEvent n b e) := by
+      intro an_event hevent_in_head
+      have hsplit_holds_on_tail := hpreds_split_state an_event (by simp[hevent_in_head])
+      rw[← List.take_mem_append_eq_take an_event tail l_head hevent_in_head] at hsplit_holds_on_tail
+      exact hsplit_holds_on_tail
+    have ih_post := ih ih_precond
     cases hinter_in_list
-    . case cons.inl he_is_head =>
+    . case append_singleton.inl he_in_head =>
+      have contra := ih_post e_inter he_in_head
+      contradiction
+      /-
       have hno_perms := hinter_sat_p.satProp.missingPerms
       cases hno_perms
       . case downgrade =>
@@ -812,13 +826,60 @@ lemma Behaviour.pred_gets_perms_and_all_events_up_to_req_sat_p_impl_sat_p (b : B
       . case noPermsForNonNcRelAcqWeakWrite hnot_down hnot_rel_acq_ww hno_perms =>
         simp[eventOnStateNoPerms, eventOnStateHasPerms] at hno_perms
         simp[stateBefore] at hno_perms
+        rw[← hpreds_split_state] at hno_perms
+        /- `e_inter` is either = head or ∈ the tail.
+        . case in head => contradiction.
+        . case in tail => Difficult using the IH? -/
         /- [NOTE]: Try having the hypothesis that the list eq `l_head ++ [e_pred] ++ [this_list]`,
         and the eventsUpTo all events in `[this_list]` include the ones in `l_head ++ [e_pred]`. Then
         state the stateAfter `e_pred` is ≥ `e_req.req.MRS` -/
+        simp[eventsUpToEvent] at hno_perms
         sorry
       . case ncRelAcqWeakWriteNotOnCoherentState => sorry
-    . case cons.inr he_in_tail =>
-      sorry
+      -/
+    . case append_singleton.inr he_is_tail =>
+      /- Strategy: Must show that the state before `e_inter` is ≥ e_req.req.MRS.
+      [TODO]: Rule out the possibility that the previous events are downgrades? -/
+      have hno_perms := hinter_sat_p.satProp.missingPerms
+      cases hno_perms
+      . case downgrade =>
+        sorry
+      . case noPermsForNonNcRelAcqWeakWrite hnot_down hnot_rel_acq_ww hno_perms =>
+        simp[eventOnStateNoPerms, eventOnStateHasPerms] at hno_perms
+        simp[stateBefore] at hno_perms
+        rw[he_is_tail] at hno_perms
+        rw[← hpreds_split_state] at hno_perms
+        induction l_head using List.reverseRecOn with
+        | nil =>
+          simp at ih
+          simp at hpreds_split_state
+          simp at hno_perms
+          -- the state after the `l_preds`, is the state e_inter is made on, is ≥ e_req.req.MRS, contradicting `e_inter`'s missing state
+          have hno_perms := hinter_sat_p.satProp.missingPerms
+          cases hno_perms
+          . case downgrade =>
+            sorry
+          . case noPermsForNonNcRelAcqWeakWrite hnot_down hnot_rel_acq_ww hno_perms =>
+            simp[eventOnStateNoPerms, eventOnStateHasPerms] at hno_perms
+            simp[stateBefore] at hno_perms
+            rw[he_is_tail] at hno_perms
+            rw[← hpreds_split_state] at hno_perms
+            -- Has permissions afterwards, so `tail`'s MRS must be at least `e_req.req.MRS`
+            -- So, I can derive `tail.req.MRS ≤ state after l_preds`
+            /- `e_inter` is either = head or ∈ the tail.
+            . case in head => contradiction.
+            . case in tail => Difficult using the IH? -/
+            /- [NOTE]: Try having the hypothesis that the list eq `l_head ++ [e_pred] ++ [this_list]`,
+            and the eventsUpTo all events in `[this_list]` include the ones in `l_head ++ [e_pred]`. Then
+            state the stateAfter `e_pred` is ≥ `e_req.req.MRS` -/
+            -- simp[eventsUpToEvent] at hno_perms
+            sorry
+          . case ncRelAcqWeakWriteNotOnCoherentState => sorry
+        | append_singleton l_head' tail' ih' =>
+          -- have hno_perms_gets_perms_impl_
+          have test := ih_post tail' (by simp)
+          simp[Event.OrderedBetweenSatisfyingProp] at test
+          sorry
 
 lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
   (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
