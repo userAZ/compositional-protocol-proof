@@ -852,6 +852,20 @@ instance EventAtEntry.instIsTotal {n} {b} {st} {addr} :
 def Behaviour.bottomEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct n) : Set (EventAtEntry n b st addr) :=
   {e : EventAtEntry n b st addr | e.val ∈ b.es ∧ e.val.isBottomAtEntry n b st addr}
 
+lemma Behaviour.bottomEventsAtEntry'_at_cache_all_cache (b : Behaviour n) (addr : Addr) (st : Struct n) (hst_cache : st.atCache)
+  : ∀ e ∈ b.bottomEventsAtEntry' n addr st, e.val.isCacheEvent := by
+  intro e he_in_bes
+  simp [Event.isCacheEvent]
+  match h : e.val with
+  | .cacheEvent _ => simp
+  | .directoryEvent _ =>
+    simp[bottomEventsAtEntry'] at he_in_bes
+    have he_at_st := he_in_bes.right.atStruct
+    simp[Event.struct, h] at he_at_st
+    match hst : st with
+    | .directory _ => simp[Struct.atCache, hst] at hst_cache
+    | .cache _ => simp at he_at_st
+
 lemma Behaviour.bottom_e_in_b_impl_bottomEventsAtEntry' (b : Behaviour n) (st : Struct n) (addr : Addr) (e : Event n)
   (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e) (he_eq_st : e.struct = st) (he_eq_addr : e.addr = addr)
   : ⟨e, ⟨he_in_b, by simp[he_eq_st], by simp[he_eq_addr]⟩⟩ ∈ b.bottomEventsAtEntry' n addr st := by
@@ -919,6 +933,13 @@ theorem Behaviour.bottomEventsAtEntry_finite' (b : Behaviour n) (addr : Addr) (s
 noncomputable def Behaviour.listBottomEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct n) : List (EventAtEntry n b st addr) :=
   let e_at_centry := b.bottomEventsAtEntry' n addr st
   Set.finSetEvents' n e_at_centry (b.bottomEventsAtEntry_finite' n addr st) |>.toList
+
+lemma Behaviour.listBottomEventsAtEntry'_at_cache_all_cache (b : Behaviour n) (addr : Addr) (st : Struct n) (hst_cache : st.atCache)
+  : ∀ e ∈ b.listBottomEventsAtEntry' n addr st, e.val.isCacheEvent := by
+  simp [listBottomEventsAtEntry']
+  simp [Set.finSetEvents']
+  apply bottomEventsAtEntry'_at_cache_all_cache
+  . case hst_cache => exact hst_cache
 
 lemma Behaviour.bottom_e_in_bottomEventsAtEntry'_impl_in_listBottomEventsAtEntry' (b : Behaviour n) (st : Struct n) (addr : Addr) (e : Event n)
   (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e) (he_eq_st : e.struct = st) (he_eq_addr : e.addr = addr)
@@ -1213,6 +1234,12 @@ noncomputable def List.stateAtEvent (es : List (Event n)) (e : Event n) (init : 
 noncomputable def Behaviour.eventsAtEntryOfListBottomEvents (b : Behaviour n) (st : Struct n) (addr : Addr) : List (EventAtEntry n b st addr) :=
   b.listBottomEventsAtEntry' n addr st |>.insertionSort (EventAtEntry.encapOrOrderedBefore n b st addr)
 
+lemma Behaviour.eventsAtEntryOfListBottomEvents_at_cache_all_cache (b : Behaviour n) (addr : Addr) (st : Struct n) (hst_cache : st.atCache)
+  : ∀ e ∈ b.eventsAtEntryOfListBottomEvents n st addr, e.val.isCacheEvent := by
+  simp[eventsAtEntryOfListBottomEvents]
+  apply listBottomEventsAtEntry'_at_cache_all_cache
+  . case hst_cache => exact hst_cache
+
 lemma Behaviour.eventsAtEntryOfListBottomEvents_sorted (b : Behaviour n) (struct : Struct n) (addr : Addr) :
   (b.eventsAtEntryOfListBottomEvents n struct addr).Sorted (EventAtEntry.encapOrOrderedBefore n b struct addr) := by
   simp[eventsAtEntryOfListBottomEvents]
@@ -1313,6 +1340,16 @@ lemma Behaviour.eventsAtEntryOfListBottomEvents_map_ordered_before_sorted (b : B
 
 noncomputable def Behaviour.eventsAtEventEntry (b : Behaviour n) (e : Event n) : List (Event n) :=
   b.eventsAtEntryOfListBottomEvents n e.struct e.addr |>.map (·.val)
+
+lemma Behaviour.eventsAtEventEntry_at_cache_all_cache (b : Behaviour n) (e : Event n) (he_cache : e.isCacheEvent)
+  : ∀ e' ∈ b.eventsAtEventEntry n e, e'.isCacheEvent := by
+  simp[eventsAtEventEntry]
+  apply eventsAtEntryOfListBottomEvents_at_cache_all_cache
+  . case hst_cache =>
+    simp[Event.struct]
+    match e with
+    | .cacheEvent _ => simp[Struct.atCache]
+    | .directoryEvent _ => simp[Event.isCacheEvent] at he_cache
 
 /-
 lemma Behaviour.eventsAtEntryOfListBottomEvents_eq_same_entry (b : Behaviour n) (e₁ e₂ : Event n)
@@ -1731,6 +1768,16 @@ lemma Behaviour.eventsAtEventEntry_imm_pred_equiv
 
 noncomputable def Behaviour.eventsUpToEvent (b : Behaviour n) (e : Event n) : List (Event n) :=
   b.eventsAtEventEntry n e |>.upToEvent n e
+
+lemma Behaviour.eventsUpToEvent_at_cache_all_cache (b : Behaviour n) (e : Event n) (he_cache : e.isCacheEvent)
+  : ∀ e' ∈ b.eventsUpToEvent n e, e'.isCacheEvent := by
+  simp[eventsUpToEvent]
+  simp[List.upToEvent]
+  intro e' he'_in_l
+  have he'_in_es_at_entry := List.mem_of_mem_take he'_in_l
+  apply eventsAtEventEntry_at_cache_all_cache
+  . case he_cache => exact he_cache
+  . case a => exact he'_in_es_at_entry
 
 lemma Behaviour.eventsUpToEvent_are_bottom (b : Behaviour n) (e : Event n)
   : ∀ e' ∈ b.eventsUpToEvent n e, e'.isBottomAtEntry n b e.struct e.addr := by
