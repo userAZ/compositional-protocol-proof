@@ -1276,6 +1276,17 @@ lemma Behaviour.state_after_eq_succeeding_state_before (b : Behaviour n) (init :
   : (stateAfter n b (InitialSystemState.stateAt n init e_req) e_req) = e_req.SucceedingState n (stateBefore n b (InitialSystemState.stateAt n init e_req) e_req)
    := by
   sorry
+
+lemma Behaviour.stateBefore_cache_event_is_cache (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) (hce : e_req.isCacheEvent n)
+  : (stateBefore n b (InitialSystemState.stateAt n init e_req) e_req).isCacheState := by
+  simp[EntryState.isCacheState, stateBefore, List.stateAfter, eventsUpToEvent, eventsAtEventEntry, eventsAtEntryOfListBottomEvents]
+  simp[listBottomEventsAtEntry', bottomEventsAtEntry', Set.finSetEvents']
+  split
+  . case h_1 entry_state cache_state heq =>
+    sorry
+  . case h_2 entry_state dir_state heq =>
+    sorry
+
 -- [TODO] constrain goal to say not just `e_req` relates `e_dir`, but either encapsulates if lacking permissions, or a previous one if have perms,
 -- of a future one if Weak Non-Coherent on Vd
 /-- `Lemma 3.` For each Cache Request Event `e_req`, there exists a unique event `e_dir` relating `e_req` to the total order of events at
