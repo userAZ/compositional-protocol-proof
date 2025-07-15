@@ -191,6 +191,7 @@ lemma List.take_idxOf_append_eq_list {α} [DecidableEq α] (n : α) (l : List α
     exact hnodup.right
   simp[List.idxOf_append_of_notMem hn_not_in_l]
 
+/-
 lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms'
   (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
   (l_preds : List (Event n))
@@ -232,6 +233,7 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms'
 
         sorry
     | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
+-/
 
 lemma List.drop_idxOf_append_eq_append {α} [DecidableEq α] {n : α} {l_head : List α} (hnodup : (l_head ++ [n]).Nodup)
   : List.drop (List.idxOf n (l_head ++ [n])) (l_head ++ [n]) = [n] := by
@@ -240,13 +242,14 @@ lemma List.drop_idxOf_append_eq_append {α} [DecidableEq α] {n : α} {l_head : 
     exact hnodup.right
   simp[List.idxOf_append_of_notMem hn_not_in_l_head]
 
+/-
 lemma Behaviour.htail_has_perms {init : InitialSystemState n} {tail : Event n} {l_preds l_head : List (Event n)}
   : (Event.req n tail).MRS ≤
   EntryState.cache n
     (List.stateAfter n (l_preds ++ List.take (List.idxOf tail (l_head ++ [tail])) (l_head ++ [tail]))
       (InitialSystemState.stateAt n init tail)) :=
   by
-  induction l_head using List.reverseRecOn with
+  induction l_head using List.reverseRecOn generalizing (InitialSystemState.stateAt n init tail) with
   | nil =>
     simp at ih
     simp at hpreds_split_state
@@ -707,6 +710,7 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
 
       --[TODO] show that stateAfter `l_head` is statebefore e_req
     | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
+-/
 
 lemma Behaviour.reqMissingPerms_accesses_dir {b : Behaviour n} {init : InitialSystemState n} {e_req : Event n}
   (hreq_in_b : e_req ∈ b) (hreq_at_cache : e_req.isCacheEvent n)
@@ -836,6 +840,7 @@ lemma Behaviour.reqMissingPerms_accesses_dir {b : Behaviour n} {init : InitialSy
           simp[Event.down] at his_down
           simp[Event.down, his_down] at hreq_not_down
 
+/-
 /-- `Helper Lemma 1` in Lemma 3's re-write -/
 lemma Behaviour.exists_predecessor_setting_state''
   (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
@@ -954,6 +959,7 @@ lemma Behaviour.exists_predecessor_setting_state''
       exact hhas_pred_getting_perms
           /- Show that there must be a predecessor that accesses the directory, and it is the immediate predecessor that accesses the directory.
           Use the contrapositive. -/
+-/
 
 structure Behaviour.exists_predecessor_setting_state (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) where
   hreq_has_perms : b.reqHasPerms n init e_req
