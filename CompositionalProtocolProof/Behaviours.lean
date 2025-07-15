@@ -1383,14 +1383,14 @@ lemma List.idxOf_n_one_lt_idxOf_m_impl_intermediate {α} {r : α → α → Prop
   have hidxelem_lt_idxm : idxOf helem.choose l < idxOf m l := by simp[helem.choose_spec, hidxn_one_lt_idxm]
   have hn_lt_elem : r n helem.choose := by
     simp[List.Sorted, List.pairwise_iff_getElem] at hsorted
-    have helem_lt_len : idxOf helem.choose l < l.length := List.idxOf_lt_length helem.choose_spec.left
+    have helem_lt_len : idxOf helem.choose l < l.length := List.idxOf_lt_length_of_mem helem.choose_spec.left
     have horder := hsorted (idxOf n l) (idxOf helem.choose l) hn_in_l helem_lt_len hidxn_lt_idxelem
     simp[List.idxOf_getElem,] at horder
     exact horder
   have helem_lt_m : r helem.choose m := by
     simp[List.Sorted] at hsorted
     simp[List.pairwise_iff_getElem] at hsorted
-    have helem_lt_len : idxOf helem.choose l < l.length := List.idxOf_lt_length helem.choose_spec.left
+    have helem_lt_len : idxOf helem.choose l < l.length := List.idxOf_lt_length_of_mem helem.choose_spec.left
     have horder := hsorted (idxOf helem.choose l) (idxOf m l) helem_lt_len hm_in_l hidxelem_lt_idxm
     simp[List.idxOf_getElem,] at horder
     exact horder
@@ -1699,8 +1699,8 @@ lemma Behaviour.eventsAtEventEntry_imm_pred_equiv
   have hpred_in_l := b.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents n st addr e_pred hb_imm_bot_pred.isImmPred.predInB hb_imm_bot_pred.isBottomPred hpred_at_st hpred_at_addr
   have he_in_l := b.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents n st addr e he_in_b hb_imm_bot_pred.isBottomSucc he_at_st he_at_addr
 
-  have hidxOf_pred_in_l := List.idxOf_lt_length hpred_in_l
-  have hidxOf_e_in_l := List.idxOf_lt_length he_in_l
+  have hidxOf_pred_in_l := List.idxOf_lt_length_of_mem hpred_in_l
+  have hidxOf_e_in_l := List.idxOf_lt_length_of_mem he_in_l
   have hlist_bottom_pred_at := b.listBottomEventsAtEntry'_imm_pred_equiv n st addr
     (b.eventsAtEntryOfListBottomEvents n st addr)
     e_pred e
@@ -1787,7 +1787,7 @@ lemma Behaviour.upTo_immediatePredecessor_eq (b : Behaviour n) (e_pred e : Event
   rw[b.eventsAtEventEntry_eq_same_entry n e_pred e hn_imm_pred_m.sameEntry] at he_pred_in_eventsAtEventEntry
 
   have hn_lt_len : List.idxOf e_pred (eventsAtEventEntry n b e) < (eventsAtEventEntry n b e).length :=
-    List.idxOf_lt_length he_pred_in_eventsAtEventEntry
+    List.idxOf_lt_length_of_mem he_pred_in_eventsAtEventEntry
   have heventsAtEventEntry_nodup := b.eventsAtEventEntry_no_dups n e
   have hn : [(eventsAtEventEntry n b e)[List.idxOf e_pred (eventsAtEventEntry n b e)]] = [e_pred] := by
     simp[List.idxOf_getElem heventsAtEventEntry_nodup (List.idxOf e_pred (eventsAtEventEntry n b e)) hn_lt_len]
@@ -1878,12 +1878,12 @@ lemma List.upToEvent_ordered_before_e
   let hidx_e  := l.idxOf e
 
   let hidx_e'_le_length : hidx_e' < l.length := by
-    apply List.idxOf_lt_length
+    apply List.idxOf_lt_length_of_mem
     . case h =>
       apply List.mem_of_mem_take
       simp[upToEvent] at he'_in_up_to
       exact he'_in_up_to
-  let hidx_e_le_length  : hidx_e < l.length  := List.idxOf_lt_length he_in_l
+  let hidx_e_le_length  : hidx_e < l.length  := List.idxOf_lt_length_of_mem he_in_l
 
   let hidx_e'_fin : Fin l.length := ⟨hidx_e', hidx_e'_le_length⟩
   let hidx_e_fin  : Fin l.length := ⟨hidx_e, hidx_e_le_length⟩
