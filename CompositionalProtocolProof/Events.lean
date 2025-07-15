@@ -155,6 +155,10 @@ inductive Struct
 | cache : CacheId n → Struct
 deriving DecidableEq
 
+def Struct.atCache : Struct n → Prop
+| .cache _ => True
+| .directory _ => False
+
 def Event.struct : Event n → Struct n
 | .directoryEvent de => .directory de.pInst
 | .cacheEvent ce => .cache ce.cid
