@@ -38,7 +38,9 @@ lemma List.in_tail_not_head (e m head : Nat) (l_tail : List Nat)
     simp[BEq.beq]
     simp[hhead_is_m]
 
-lemma List.mem_fn_list (l : List Nat) (hsorted : l.Sorted Nat.le) (m : Nat) :
+lemma List.mem_fn_list (l : List Nat)
+  (hsorted : l.Sorted Nat.le)
+  (m : Nat) :
   ∀ e ∈ (l.take ((l.idxOf m))), e ∈ l := by
   induction l with
   | nil =>
