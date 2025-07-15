@@ -126,7 +126,12 @@ instance State.instDecidableLt (s₁ s₂ : State) : Decidable (s₁ < s₂) := 
 -- #eval I < Vc
 
 def State.le : State → State → Prop
+| s₁, s₂ => s₁ < s₂ ∨ s₁ = s₂
+
+/-
+def State.le' : State → State → Prop
 | s₁, s₂ => s₁.p ≤ s₂.p ∧ s₁.c ≤ s₂.c
+-/
 
 instance State.instLE : (LE State) := {le := State.le}
 
@@ -255,6 +260,10 @@ def EntryState.cache (entry_state : EntryState n) : State :=
   match entry_state with
   | .inl cache_state => cache_state
   | .inr _ => panic! "EntryState expected to be cache state (State), but got (DirectoryState) instead!"
+
+def EntryState.isCacheState (entry_state : EntryState n) : Prop := match entry_state with
+  | .inl _ => true
+  | .inr _ => false
 
 def EntryState.directory (entry_state : EntryState n) : DirectoryState n :=
   match entry_state with
