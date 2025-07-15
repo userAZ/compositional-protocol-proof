@@ -1277,6 +1277,31 @@ lemma Behaviour.state_after_eq_succeeding_state_before (b : Behaviour n) (init :
    := by
   sorry
 
+lemma Behaviour.test {dir_state} (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) {l : List (Event n)} (hce : e_req.isCacheEvent n)
+  (hall_ : ∀ e ∈ l, e.isCacheEvent)
+  (heq : List.stateAfter n l (InitialSystemState.stateAt n init e_req) = Sum.inr dir_state)
+  : False := by
+  induction l with
+  | nil =>
+    simp[List.stateAfter, InitialSystemState.stateAt] at heq
+    match hreq : e_req with
+    | .directoryEvent _ => simp[Event.isCacheEvent, hreq] at hce
+    | .cacheEvent ce => simp[hreq] at heq
+  | cons h t ih =>
+    simp[List.stateAfter, InitialSystemState.stateAt] at heq
+    match hreq : e_req with
+    | .directoryEvent _ => simp[Event.isCacheEvent, hreq] at hce
+    | .cacheEvent ce =>
+      simp[hreq] at heq
+      simp[Event.SucceedingState] at heq
+      match hhead : h with
+      | .directoryEvent _ =>
+        have his_cache := hall_ h (by simp[hhead])
+        simp[Event.isCacheEvent, hhead] at his_cache
+      | .cacheEvent ceh =>
+        simp at heq
+        sorry
+
 lemma Behaviour.stateBefore_cache_event_is_cache (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) (hce : e_req.isCacheEvent n)
   : (stateBefore n b (InitialSystemState.stateAt n init e_req) e_req).isCacheState := by
   simp[EntryState.isCacheState, ]
