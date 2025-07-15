@@ -156,13 +156,45 @@ structure FollowsProtocolInterface (vrs : Set ValidRequest) where
   write_no_weak_read : SCWrite ∈ vrs → NonCoherentWeakRead ∉ vrs
   rel_no_sc_write : RelWrite ∈ vrs → SCRead ∉ vrs
   -/
-def ProtocolInterface := {vr : Set ValidRequest // FollowsProtocolInterface vr}
-  -- Want to find states a protocol interface has.
 def Request.toState : Request → State
 | ⟨rw, coherent, _⟩ => ⟨rw.toPerms, coherent⟩
 
 def ValidRequest.toState : ValidRequest → State
 | ⟨req, _⟩ => req.toState
+
+/-- What is the state a request leaves a cache entry in.  -/
+def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (s : State) /-(h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s)-/ : State :=
+  match vr with
+  | ⟨⟨_, true, _⟩, _⟩ | ⟨⟨.r, false, .Weak⟩, _⟩ =>
+    if vr.MRS ≤ s then s
+    else vr.MRS
+  | ⟨⟨.w, false, .Weak⟩, _⟩ =>
+    match s with
+    | ⟨some .wr, true⟩ => s
+    | ⟨some .r,  true⟩ => Vd -- none -- can avoid `none` by using contradiction from commented-out input arg `h_pi_has_s` and Lemma `ncw_impl_no_mr`.
+    | _ => Vd
+  | ⟨⟨.w, false, .Rel⟩, _⟩ =>
+    match s with
+    | ⟨some .wr, true⟩ => s
+    | ⟨some .r,  true⟩ => Vc -- none -- can avoid `none` by using contradiction from commented-out input arg `h_pi_has_s` and Lemma `ncw_impl_no_mr`.
+    | _ => Vc
+  | ⟨⟨.r, false, .Acq⟩, _⟩ => Vc
+
+noncomputable def ValidRequest.DowngradeState (vr : ValidRequest) : State → State
+| s => match vr.val.coherent with
+  | true =>
+    if s ≤ vr.MRS then I
+    else vr.MRS
+  | false =>
+    if vr.val = NonCoherentWeakRead then
+      if s = Vc then I
+      else I -- Junk. This is a self-invalidate
+    else if vr.val = NonCoherentWeakWrite ∨ vr.val = RelWrite then
+      if s = Vd then Vc
+      else I -- Junk. This is a write-back to directory
+    else I -- Junk. There are no other downgrade events we consider
+
+def ProtocolInterface := {vr : Set ValidRequest // FollowsProtocolInterface vr}
 
 def ProtocolInterface.ProtocolStates : ProtocolInterface → Set State
 | pi => pi.val.image (·.toState)
@@ -311,24 +343,6 @@ lemma pi_ncw_on_mr_contradiction {pi : ProtocolInterface} (vr : ValidRequest) (s
   contradiction
 -/
 
-/-- What is the state a request leaves a cache entry in.  -/
-def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (s : State) /-(h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s)-/ : State :=
-  match vr with
-  | ⟨⟨_, true, _⟩, _⟩ | ⟨⟨.r, false, .Weak⟩, _⟩ =>
-    if vr.MRS ≤ s then s
-    else vr.MRS
-  | ⟨⟨.w, false, .Weak⟩, _⟩ =>
-    match s with
-    | ⟨some .wr, true⟩ => s
-    | ⟨some .r,  true⟩ => Vd -- none -- can avoid `none` by using contradiction from commented-out input arg `h_pi_has_s` and Lemma `ncw_impl_no_mr`.
-    | _ => Vd
-  | ⟨⟨.w, false, .Rel⟩, _⟩ =>
-    match s with
-    | ⟨some .wr, true⟩ => s
-    | ⟨some .r,  true⟩ => Vc -- none -- can avoid `none` by using contradiction from commented-out input arg `h_pi_has_s` and Lemma `ncw_impl_no_mr`.
-    | _ => Vc
-  | ⟨⟨.r, false, .Acq⟩, _⟩ => Vc
-
 /- Not worth trying to prove right now.
 lemma ValidRequest.RequestState_in_pi {pi : ProtocolInterface} (vr : ValidRequest) (s : State)
 (h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s) : let next_state := ValidRequest.RequestState vr s h_vr_in_pi h_pi_has_s; pi.HasState next_state := by
@@ -415,20 +429,6 @@ lemma ValidRequest.RequestState_never_none {pi : ProtocolInterface} (vr : ValidR
       simp
   | ⟨⟨.r, false, .Acq⟩, _⟩ => simp
 -/
-
-noncomputable def ValidRequest.DowngradeState (vr : ValidRequest) : State → State
-| s => match vr.val.coherent with
-  | true =>
-    if s ≤ vr.MRS then I
-    else vr.MRS
-  | false =>
-    if vr.val = NonCoherentWeakRead then
-      if s = Vc then I
-      else I -- Junk. This is a self-invalidate
-    else if vr.val = NonCoherentWeakWrite ∨ vr.val = RelWrite then
-      if s = Vd then Vc
-      else I -- Junk. This is a write-back to directory
-    else I -- Junk. There are no other downgrade events we consider
 
 /-- Interface of each protocol "cluster" -/
 structure Protocol.interface where
