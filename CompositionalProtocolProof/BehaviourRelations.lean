@@ -435,23 +435,23 @@ def Behaviour.hasPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : 
 noncomputable def Behaviour.stateReqMadeOn (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : State :=
   (b.stateBefore n (init.stateAt n e_req) e_req).cache
 
-noncomputable def Behaviour.isReqMadeOnCoherentState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
+noncomputable def Behaviour.reqMadeOnCoherentState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
   (b.stateReqMadeOn n init e_req).c
 
-structure Behaviour.isReqHasPermsOnCoherentState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop where
+structure Behaviour.reqHasPermsOnCoherentState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop where
   hasPerms : b.hasPerms n init e_req
-  onCoherentState : b.isReqMadeOnCoherentState n init e_req
+  onCoherentState : b.reqMadeOnCoherentState n init e_req
 
-structure Behaviour.isReqHasCoherentPermsNotVd (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop where
+structure Behaviour.reqHasPermsNotVd (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop where
   hasPerms : b.hasPerms n init e_req
   notOnVd : b.stateReqMadeOn n init e_req ≠ Vd
-  coherentState : b.isReqMadeOnCoherentState n init e_req
+  -- coherentState : b.isReqMadeOnCoherentState n init e_req
 
 /-- Wrapper structure Def. Prop on a Request Event `e_req`. The state it's made on is at least it's `Minimum Required State (MRS)`. -/
 inductive Behaviour.reqHasPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop
 | hasPerms : e_req.isCoherent → b.hasPerms n init e_req → Behaviour.reqHasPerms b init e_req
-| ncRelAcqWeakWriteHasCoherentPerms : e_req.isNcRelAcqWeakWrite → b.isReqHasPermsOnCoherentState n init e_req → Behaviour.reqHasPerms b init e_req
-| ncWeakReadHasPermsNotVd : e_req.isNcWeakRead → b.isReqHasCoherentPermsNotVd n init e_req → Behaviour.reqHasPerms b init e_req
+| ncRelAcqWeakWriteHasCoherentPerms : e_req.isNcRelAcqWeakWrite → b.reqHasPermsOnCoherentState n init e_req → Behaviour.reqHasPerms b init e_req
+| ncWeakReadHasPermsNotVd : e_req.isNcWeakRead → b.reqHasPermsNotVd n init e_req → Behaviour.reqHasPerms b init e_req
 
 /-- Def. Structure stating a request event `e_req` has insufficient permissions, so it encapsulates directory event. -/
 structure Behaviour.isReqHasNoPermsSoEncapDir (b : Behaviour n) (init : InitialSystemState n) (e_req e_dir : Event n) : Prop where
