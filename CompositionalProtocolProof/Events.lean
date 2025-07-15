@@ -276,6 +276,11 @@ noncomputable def CacheEvent.MRS : CacheEvent n → State
   | false => ce.req.MRS
   | true => ⟨ce.req.val.rw.toPerms, ce.req.val.coherent⟩
 
+noncomputable def Event.MRS : Event n → State
+| e => match e.down with
+  | false => e.req.MRS
+  | true => ⟨e.req.val.rw.toPerms, e.req.val.coherent⟩
+
 -- def CacheEvent.requestEvent (e : CacheEvent) : Prop := e.cid = e.rid
 -- def CacheEvent.sameAddress (e : CacheEvent) : Prop := e.cid = e.rid
 

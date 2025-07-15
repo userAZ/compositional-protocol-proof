@@ -782,12 +782,173 @@ lemma List.take_idxOf_append_eq_list {α} [DecidableEq α] (n : α) (l : List α
     exact hnodup.right
   simp[List.idxOf_append_of_notMem hn_not_in_l]
 
+lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms'
+  (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
+  (l_preds : List (Event n))
+  -- (l_preds : EventPreds n b e_req)
+  (hreq_coherent : e_req.isCoherent n)
+  -- (hreq_has_perms : b.reqHasPerms n init e_req)
+  -- (hl_preds_up_to_req :  l_preds = b.eventsUpToEvent n e_req)
+  (hreq_in_b : e_req ∈ b)
+  (hreq_is_bottom : b.IsBottomEvent n e_req)
+  (hreq_is_ce : e_req.isCacheEvent n)
+  (hpreds_at_same_entry : ∀ e ∈ l_preds, b.eventAtEntry n e e_req.struct e_req.addr)
+  (hpreds_pred_to_req : ∀ e ∈ l_preds, b.Predecessor n e e_req)
+  (hpreds_are_bottom : ∀ e' ∈ l_preds, e'.isBottomAtEntry n b e_req.struct e_req.addr)
+  (hpreds_split_state : ∀ e ∈ l_preds, List.take (List.idxOf e l_preds) l_preds = eventsUpToEvent n b e)
+  (hpreds_in_b : ∀ e ∈ l_preds, e ∈ b)
+  (hpreds_take : ∀ n, List.take n l_preds = eventsUpToEvent n b (l_preds[n-1]))
+  -- (hentry_preds_in_l_preds : ∀ e ∈ b, b.bottomSameEntry n e e_req → e.OrderedBefore n e_req → e ∈ l_preds)
+  (hl_preds_nodup : l_preds.Nodup)
+  (hl_preds_ob_sorted : l_preds.Sorted (Event.OrderedBefore n))
+  (hax6 : Behaviour.axRequestAccessesDirectory n)
+  (hno_pred : ∀ e_predecessor ∈ b, ¬immBottomPredHasNoPermsAndLeavesStateAtLeast n b init e_predecessor e_req)
+  (init_state : EntryState n)
+  (hinit_state_not_greater_req : ¬ ((Event.req n e_req).MRS ≤ init_state.cache))
+  (hinit_cache_state : init_state.isCacheState n)
+  : ¬ (Event.req n e_req).MRS ≤ EntryState.cache n (List.stateAfter n (l_preds) (init_state)) := by
+  induction l_preds with -- using List.reverseRecOn with
+  | nil =>
+    match he : e_req with
+    | .cacheEvent ce =>
+      /- For any request, the state it was made on is greater or equal to it's MRS. -/
+      match hreq : ce.req with
+      | ⟨⟨rw,true,_⟩,_⟩
+      | ⟨⟨.r,false,.Weak⟩,{}⟩
+      | ⟨⟨.w,false,.Weak⟩,{}⟩
+      | ⟨⟨.w,false,.Rel⟩,{}⟩
+      | ⟨⟨.r,false,.Acq⟩,{}⟩ =>
+        match hinit : init_state with
+        | .inl s => match s with
+          | ⟨none, false⟩
+          | ⟨none, true⟩
+          | ⟨some .r, false⟩
+          | ⟨some .wr, false⟩
+          | ⟨some .r, true⟩
+          | ⟨some .wr, true⟩ =>
+            all_goals simp_all[List.stateAfter, EntryState.cache]; -- simp_all[ValidRequest.MRS, Event.req, hreq]; simp_all[LE.le, State.le, Option.le,]; simp_all[LT.lt])
+        | .inr _ => simp[EntryState.isCacheState, hinit] at hinit_cache_state
+    | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
+  | cons head l_tail ih =>
+    match hreq : e_req with
+    | .cacheEvent ce_req =>
+      have ih_same_entry_precond : (∀ e ∈ l_tail, eventAtEntry n b e (Event.struct n (Event.cacheEvent ce_req)) (Event.addr n (Event.cacheEvent ce_req))) := by
+        intro e he_in_l_tail
+        apply hpreds_at_same_entry
+        . case a => simp[he_in_l_tail]
+
+      have ih_pred_req_precond : (∀ e ∈ l_tail, Predecessor n b e (Event.cacheEvent ce_req)) := by
+        intro e he_in_l_tail
+        apply hpreds_pred_to_req
+        . case a => simp[he_in_l_tail]
+
+      have ih_pred_bottom_precond : (∀ e' ∈ l_tail, Event.isBottomAtEntry n b (Event.struct n (Event.cacheEvent ce_req)) (Event.addr n (Event.cacheEvent ce_req)) e') := by
+        intro e he_in_l_tail
+        apply hpreds_are_bottom
+        . case a => simp[he_in_l_tail]
+
+      have ih_pred_take_up_to : (∀ e ∈ l_tail, List.take (List.idxOf e l_tail) l_tail = eventsUpToEvent n b e) :=
+        by
+        intro e he_in_tail
+        have htake_eq_up_to_event := hpreds_split_state e (by simp[he_in_tail])
+        -- [NOTE] this property is true because e is in l_tail!
+        rw[← htake_eq_up_to_event]
+        apply List.take_mem_append_eq_take
+        . case hn_in_tail => exact he_in_tail
+      /-
+      have ih_bottom_same_entry : (∀ e ∈ b,
+        bottomSameEntry n b e (Event.cacheEvent ce_req) → Event.OrderedBefore n e (Event.cacheEvent ce_req) → e ∈ l_head) :=
+        by
+        intro e he_in_b hbottom_same_entry hordered_before
+        have h := hentry_preds_in_l_preds e he_in_b hbottom_same_entry hordered_before
+        simp[List.mem_append] at h
+        cases h
+        . case inl hin_head => exact hin_head
+        . case inr his_pred => sorry
+      -/
+      have ih_nodup : l_tail.Nodup :=
+        by
+        simp[List.nodup_append] at hl_preds_nodup
+        exact hl_preds_nodup.left
+
+      have ih_sorted : List.Sorted (Event.OrderedBefore n) l_tail :=
+        by
+        simp [List.Sorted] at hl_preds_ob_sorted
+        simp [List.Sorted]
+        simp [List.pairwise_append] at hl_preds_ob_sorted
+        exact hl_preds_ob_sorted.left
+
+      have ih_post := ih ih_same_entry_precond ih_pred_req_precond ih_pred_bottom_precond ih_pred_take_up_to ih_nodup ih_sorted
+
+      simp[List.stateAfter]
+      /- Now we know (by `hno_pred`) the succeeding state of head is `¬ (e_req.MRS ≤ head.SucceedingState n init_state)` (ref as `head_succ_state`).
+      So `head_succ_state` satisfies the same constraint as `init_state`. there should be a way to state:
+      `(Event.SucceedingState n head init_state)` = `init_state` -/
+      have hhead_no_pred := hno_pred head (hpreds_in_b head (by simp))
+      have hhead_state_not_perms : ¬ e_req.req.MRS ≤ EntryState.cache n (Event.SucceedingState n head init_state) :=
+        by
+        intro hhead_gets_req_perms
+        apply hhead_no_pred
+        simp[immBottomPredHasNoPermsAndLeavesStateAtLeast]
+        simp[ImmediateBottomPredSatisfyingProp]
+        constructor
+        . case isImmPred =>
+          constructor
+          . case bPred => sorry
+          . case noIntermediateSatisfyingP =>
+            simp[NoIntermediatePredecessorSatisfyingProp]
+            sorry
+        . case isBottomPred => sorry
+        . case isBottomSucc => sorry
+        . case satisfyP => sorry
+
+    | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
+
 lemma List.drop_idxOf_append_eq_append {α} [DecidableEq α] {n : α} {l_head : List α} (hnodup : (l_head ++ [n]).Nodup)
   : List.drop (List.idxOf n (l_head ++ [n])) (l_head ++ [n]) = [n] := by
   have hn_not_in_l_head : n ∉ l_head := by
     simp[List.nodup_append] at hnodup
     exact hnodup.right
   simp[List.idxOf_append_of_notMem hn_not_in_l_head]
+
+lemma Behaviour.htail_has_perms {init : InitialSystemState n} {tail : Event n} {l_preds l_head : List (Event n)}
+  : (Event.req n tail).MRS ≤
+  EntryState.cache n
+    (List.stateAfter n (l_preds ++ List.take (List.idxOf tail (l_head ++ [tail])) (l_head ++ [tail]))
+      (InitialSystemState.stateAt n init tail)) :=
+  by
+  induction l_head using List.reverseRecOn with
+  | nil =>
+    simp at ih
+    simp at hpreds_split_state
+    simp at hno_perms
+    -- the state after the `l_preds`, is the state e_inter is made on, is ≥ e_req.req.MRS, contradicting `e_inter`'s missing state
+    have hno_perms := hinter_sat_p.satProp.missingPerms
+    cases hno_perms
+    . case downgrade =>
+      sorry
+    . case noPermsForNonNcRelAcqWeakWrite hnot_down hnot_rel_acq_ww hno_perms =>
+      simp[eventOnStateNoPerms, eventOnStateHasPerms] at hno_perms
+      simp[stateBefore] at hno_perms
+      rw[he_is_tail] at hno_perms
+      rw[← hpreds_split_state] at hno_perms
+      -- Has permissions afterwards, so `tail`'s MRS must be at least `e_req.req.MRS`
+      -- So, I can derive `tail.req.MRS ≤ state after l_preds`
+      /- `e_inter` is either = head or ∈ the tail.
+      . case in head => contradiction.
+      . case in tail => Difficult using the IH? -/
+      /- [NOTE]: Try having the hypothesis that the list eq `l_head ++ [e_pred] ++ [this_list]`,
+      and the eventsUpTo all events in `[this_list]` include the ones in `l_head ++ [e_pred]`. Then
+      state the stateAfter `e_pred` is ≥ `e_req.req.MRS` -/
+      -- simp[eventsUpToEvent] at hno_perms
+      sorry
+    . case ncRelAcqWeakWriteNotOnCoherentState => sorry
+  | append_singleton l_head' tail' ih' =>
+  -- | cons head' l_tail' ih' =>
+    -- have hno_perms_gets_perms_impl_
+    have test := ih_post head' (by simp)
+    simp[Event.OrderedBetweenSatisfyingProp] at test
+    sorry
 
 lemma Behaviour.pred_gets_perms_and_all_events_up_to_req_sat_p_impl_sat_p
   (b : Behaviour n) (init : InitialSystemState n) (e e_pred e_req : Event n)
@@ -849,37 +1010,174 @@ lemma Behaviour.pred_gets_perms_and_all_events_up_to_req_sat_p_impl_sat_p
         simp[stateBefore] at hno_perms
         rw[he_is_tail] at hno_perms
         rw[← hpreds_split_state] at hno_perms
-        induction l_head using List.reverseRecOn with
-        | nil =>
-          simp at ih
-          simp at hpreds_split_state
-          simp at hno_perms
-          -- the state after the `l_preds`, is the state e_inter is made on, is ≥ e_req.req.MRS, contradicting `e_inter`'s missing state
-          have hno_perms := hinter_sat_p.satProp.missingPerms
-          cases hno_perms
-          . case downgrade =>
+        /- [NOTE]: The second induction is forwards.
+        The state before is ≥ `e_req.MRS`.
+        Here, show that the state before `tail` contradicts it's `no perms`
+        -/
+        have htail_has_perms : (Event.req n tail).MRS ≤
+          EntryState.cache n
+            (List.stateAfter n (l_preds ++ List.take (List.idxOf tail (l_head ++ [tail])) (l_head ++ [tail]))
+              (InitialSystemState.stateAt n init tail)) :=
+          by
+          induction l_head with -- using List.reverseRecOn with
+          | nil =>
+            simp at ih
+            simp at hpreds_split_state
+            simp at hno_perms
+            -- the state after the `l_preds`, is the state e_inter is made on, is ≥ e_req.req.MRS, contradicting `e_inter`'s missing state
+            have hno_perms := hinter_sat_p.satProp.missingPerms
+            cases hno_perms
+            . case downgrade =>
+              sorry
+            . case noPermsForNonNcRelAcqWeakWrite hnot_down hnot_rel_acq_ww hno_perms =>
+              simp[eventOnStateNoPerms, eventOnStateHasPerms] at hno_perms
+              simp[stateBefore] at hno_perms
+              rw[he_is_tail] at hno_perms
+              rw[← hpreds_split_state] at hno_perms
+              -- Has permissions afterwards, so `tail`'s MRS must be at least `e_req.req.MRS`
+              -- So, I can derive `tail.req.MRS ≤ state after l_preds`
+              /- `e_inter` is either = head or ∈ the tail.
+              . case in head => contradiction.
+              . case in tail => Difficult using the IH? -/
+              /- [NOTE]: Try having the hypothesis that the list eq `l_head ++ [e_pred] ++ [this_list]`,
+              and the eventsUpTo all events in `[this_list]` include the ones in `l_head ++ [e_pred]`. Then
+              state the stateAfter `e_pred` is ≥ `e_req.req.MRS` -/
+              -- simp[eventsUpToEvent] at hno_perms
+              sorry
+            . case ncRelAcqWeakWriteNotOnCoherentState => sorry
+          -- | append_singleton l_head' tail' ih' =>
+          | cons head' l_tail' ih' =>
+            -- have hno_perms_gets_perms_impl_
+            have test := ih_post head' (by simp)
+            simp[Event.OrderedBetweenSatisfyingProp] at test
             sorry
-          . case noPermsForNonNcRelAcqWeakWrite hnot_down hnot_rel_acq_ww hno_perms =>
-            simp[eventOnStateNoPerms, eventOnStateHasPerms] at hno_perms
-            simp[stateBefore] at hno_perms
-            rw[he_is_tail] at hno_perms
-            rw[← hpreds_split_state] at hno_perms
-            -- Has permissions afterwards, so `tail`'s MRS must be at least `e_req.req.MRS`
-            -- So, I can derive `tail.req.MRS ≤ state after l_preds`
-            /- `e_inter` is either = head or ∈ the tail.
-            . case in head => contradiction.
-            . case in tail => Difficult using the IH? -/
-            /- [NOTE]: Try having the hypothesis that the list eq `l_head ++ [e_pred] ++ [this_list]`,
-            and the eventsUpTo all events in `[this_list]` include the ones in `l_head ++ [e_pred]`. Then
-            state the stateAfter `e_pred` is ≥ `e_req.req.MRS` -/
-            -- simp[eventsUpToEvent] at hno_perms
-            sorry
-          . case ncRelAcqWeakWriteNotOnCoherentState => sorry
-        | append_singleton l_head' tail' ih' =>
-          -- have hno_perms_gets_perms_impl_
-          have test := ih_post tail' (by simp)
-          simp[Event.OrderedBetweenSatisfyingProp] at test
-          sorry
+        contradiction
+
+lemma Behaviour.test2 {e_req head : Event n} {l_tail : List (Event n)}
+  (hgets_perms : (Event.req n e_req).MRS ≤ EntryState.cache n (List.stateAfter n l_tail (Event.SucceedingState n head (IEntry n))))
+  (hhead_succ_state : ¬Event.SucceedingState n head (IEntry n) = IEntry n)
+  (hall_cache : ∀ e ∈ head :: l_tail, e.isCacheEvent)
+  : (Event.req n e_req).MRS ≤ EntryState.cache n (List.stateAfter n l_tail (IEntry n)) := by
+  have hhead_cache := hall_cache head (by simp)
+  have hhead_higher_state : (Event.SucceedingState n head (IEntry n)).cache n > I := by
+    simp[Event.SucceedingState] at hhead_succ_state
+    match hhead : head with
+    | .directoryEvent _ =>
+      simp[Event.isCacheEvent] at hhead_cache
+    | .cacheEvent ce =>
+      sorry
+
+  induction l_tail with
+  | nil =>
+    simp[Event.SucceedingState] at hgets_perms
+    match hhead : head with
+    | .directoryEvent _ =>
+      simp[Event.isCacheEvent] at hhead_cache
+    | .cacheEvent ce =>
+      simp at hgets_perms
+      simp[CacheEvent.SucceedingState] at hgets_perms
+      sorry
+  | cons head' l_tail' ih =>
+    sorry
+
+  -- match (Event.SucceedingState n head (IEntry n)).cache n with
+  -- | ⟨some .wr, true⟩ => sorry
+
+lemma Behaviour.test {e_req head : Event n} {l_tail : List (Event n)}
+  : (Event.req n e_req).MRS ≤ EntryState.cache n (List.stateAfter n (head :: l_tail) (IEntry n)) →
+  (Event.req n e_req).MRS ≤ EntryState.cache n (List.stateAfter n (l_tail) (IEntry n)) := by
+  intro hgets_perms
+  simp[List.stateAfter] at hgets_perms
+  by_cases hhead_succ_state : (Event.SucceedingState n head (IEntry n)) = IEntry n
+  . case pos => simp[hhead_succ_state] at hgets_perms; exact hgets_perms
+  . case neg =>
+    apply Behaviour.test2 n hgets_perms hhead_succ_state
+
+lemma Behaviour.test3 {e_req tail : Event n} {l_head : List (Event n)}
+  : (Event.req n e_req).MRS ≤ EntryState.cache n (List.stateAfter n (l_head ++ [tail]) (IEntry n)) →
+  (Event.req n e_req).MRS ≤ EntryState.cache n (List.stateAfter n (l_head) (IEntry n)) := by
+  intro hgets_perms
+  sorry
+
+lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms''''
+  (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
+  (l_preds : List (Event n))
+  -- (l_preds : EventPreds n b e_req)
+  (hreq_coherent : e_req.isCoherent n)
+  -- (hreq_has_perms : b.reqHasPerms n init e_req)
+  -- (hl_preds_up_to_req :  l_preds = b.eventsUpToEvent n e_req)
+  (hreq_in_b : e_req ∈ b)
+  (hreq_is_bottom : b.IsBottomEvent n e_req)
+  (hreq_is_ce : e_req.isCacheEvent n)
+  -- (hpreds_at_same_entry : ∀ e ∈ l_preds, b.eventAtEntry n e e_req.struct e_req.addr)
+  -- (hpreds_pred_to_req : ∀ e ∈ l_preds, b.Predecessor n e e_req)
+  -- (hpreds_are_bottom : ∀ e' ∈ l_preds, e'.isBottomAtEntry n b e_req.struct e_req.addr)
+  -- (hpreds_split_state : ∀ e ∈ l_preds, List.take (List.idxOf e l_preds) l_preds = eventsUpToEvent n b e)
+  -- (hpreds_take_drop : ∀ e ∈ l_preds, List.take (List.idxOf e l_preds) l_preds ++ List.drop (List.idxOf e l_preds) l_preds = l_preds)
+  (hpreds_in_b : ∀ e ∈ l_preds, e ∈ b)
+  (hl_preds_nodup : l_preds.Nodup)
+  (hl_preds_ob_sorted : l_preds.Sorted (Event.OrderedBefore n))
+  (hax6 : Behaviour.axRequestAccessesDirectory n)
+  (hno_pred : ∀ e_predecessor ∈ b, ¬immBottomPredHasNoPermsAndLeavesStateAtLeast n b init e_predecessor e_req)
+  -- (hinit_i : ∀ e ∈ b, e.isBottomAtEntry n b e_req.struct e_req.addr → )
+  (hreq_has_perms : (Event.req n e_req).MRS ≤ EntryState.cache n (List.stateAfter n l_preds (IEntry n)))
+  (hinit_i : ∀ e ∈ b, e.isBottomAtEntry n b e_req.struct e_req.addr → (InitialSystemState.stateAt n init e) = IEntry n)
+  (e_imm_pred : Event n)
+  (he_imm_is_imm_pred : b.ImmediateBottomPredecessor n e_imm_pred e_req)
+  (hstate_before_req_perms : (Event.req n e_req).MRS ≤ (b.stateAfter n (IEntry n) e_imm_pred).cache n)
+  : --False
+  ∃ e_pred ∈ b, immBottomPredHasNoPermsAndLeavesStateAtLeast n b init e_pred e_req
+  := by
+  induction l_preds using List.reverseRecOn with
+  | nil =>
+    match he : e_req with
+    | .cacheEvent ce =>
+      /- For any request, the state it was made on is greater or equal to it's MRS. -/
+      match hreq : ce.req with
+      | ⟨⟨rw,true,_⟩,_⟩
+      | ⟨⟨.r,false,.Weak⟩,{}⟩
+      | ⟨⟨.w,false,.Weak⟩,{}⟩
+      | ⟨⟨.w,false,.Rel⟩,{}⟩
+      | ⟨⟨.r,false,.Acq⟩,{}⟩ =>
+        all_goals simp[List.stateAfter, EntryState.cache] at hreq_has_perms; simp[ValidRequest.MRS, Event.req, hreq] at hreq_has_perms; simp[LE.le, State.le, Option.le,] at hreq_has_perms; simp[LT.lt, State.lt, ReadWrite.toPerms,] at hreq_has_perms
+    | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
+  -- | cons head l_tail ih =>
+  | append_singleton l_head tail ih =>
+    have tail_in_b := hpreds_in_b tail (by simp)
+    by_cases htail_sat : immBottomPredHasNoPermsAndLeavesStateAtLeast n b init tail e_req
+    . case pos =>
+      use tail
+    . case neg =>
+      induction l_head using List.reverseRecOn with
+      | nil => sorry
+      -- | cons head' l_tail' ih' =>
+      | append_singleton l_head' tail' ih' =>
+
+    /-
+    have tail_is_pred : immBottomPredHasNoPermsAndLeavesStateAtLeast n b init tail e_req := by
+      simp[immBottomPredHasNoPermsAndLeavesStateAtLeast]
+      simp[ImmediateBottomPredSatisfyingProp]
+      constructor
+      . case isImmPred =>
+        constructor
+        . case bPred =>
+          constructor
+          . case sameEntry => sorry
+          . case isPred => sorry
+          . case predInB => sorry
+          . case succInB => sorry
+        . case noIntermediateSatisfyingP =>
+          simp[NoIntermediatePredecessorSatisfyingProp]
+      . case isBottomPred => sorry
+      . case isBottomSucc => sorry
+      . case satisfyP =>
+        simp[Event.PropOnEvent]
+        constructor
+        . case missingPerms => sorry
+        . case notDown => sorry
+        . case stateAfterAtLeast => sorry-/
+    -- by_cases
+    sorry
 
 lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
   (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
@@ -905,8 +1203,11 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
   (hno_pred : ∀ e_predecessor ∈ b, ¬immBottomPredHasNoPermsAndLeavesStateAtLeast n b init e_predecessor e_req)
   -- (hinit_i : ∀ e ∈ b, e.isBottomAtEntry n b e_req.struct e_req.addr → )
   (hinit_i : ∀ e ∈ b, e.isBottomAtEntry n b e_req.struct e_req.addr → (InitialSystemState.stateAt n init e) = IEntry n)
+  (e_imm_pred : Event n)
+  (he_imm_is_imm_pred : b.ImmediateBottomPredecessor n e_imm_pred e_req)
+  (hstate_before_req_perms : (Event.req n e_req).MRS ≤ (b.stateAfter n (IEntry n) e_imm_pred).cache n)
   : ¬ (Event.req n e_req).MRS ≤ EntryState.cache n (List.stateAfter n (l_preds) (IEntry n)) := by
-  induction l_preds using List.reverseRecOn with
+  induction l_preds with --using List.reverseRecOn with
   | nil =>
     match he : e_req with
     | .cacheEvent ce =>
@@ -919,7 +1220,8 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
       | ⟨⟨.r,false,.Acq⟩,{}⟩ =>
         all_goals simp[List.stateAfter, EntryState.cache]; simp[ValidRequest.MRS, Event.req, hreq]; simp[LE.le, State.le, Option.le,]; simp[LT.lt]
     | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
-  | append_singleton l_head e_pred ih =>
+  -- | append_singleton l_head e_pred ih =>
+  | cons head l_tail ih =>
     match hreq : e_req with
     | .cacheEvent ce_req =>
       have ih_same_entry_precond : (∀ e ∈ l_head, eventAtEntry n b e (Event.struct n (Event.cacheEvent ce_req)) (Event.addr n (Event.cacheEvent ce_req))) := by
@@ -985,6 +1287,11 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
 
       intro hreq_mrs_le_state_after_pred
 
+      /- July 12, 2025: Consider the Subsingleton set of immediate predecessors.
+      ∅ : a contradiction, based on the stateBefore e_req
+      An Imm Pred : Show a contradiction.
+        By   -/
+
       apply h_pred_cannot_get_perms_for_req
       constructor
       . case isImmPred =>
@@ -996,6 +1303,38 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
           simp[NoIntermediatePredecessorSatisfyingProp]
           /- [NOTE] July 12, 2025: Polish `Behaviour.pred_gets_perms_and_all_events_up_to_req_sat_p_impl_sat_p`,
           add additional lemmas to state it, and use it here. -/
+
+          -- break down def. of stateBefore `e_req`
+          have aux2 :
+            (∀ e ∈ b, e ∈ eventsUpToEvent n b e_req → ¬ e.OrderedBetweenSatisfyingProp n e_pred e_req fun x =>
+            predHasNoPermsAndLeavesStateAtLeastReq n b init x (Event.cacheEvent ce_req)
+            -- → noBottomIntermediatePredecessorAtSuccSatisfyingProp n b e e_pred (Event.cacheEvent ce_req) fun x =>
+            --   predHasNoPermsAndLeavesStateAtLeastReq n b init x (Event.cacheEvent ce_req)
+              ) →
+            ∀ e ∈ b,
+            noBottomIntermediatePredecessorAtSuccSatisfyingProp n b e e_pred (Event.cacheEvent ce_req) fun x =>
+            predHasNoPermsAndLeavesStateAtLeastReq n b init x (Event.cacheEvent ce_req)
+            := by sorry
+          apply aux2
+          induction eventsUpToEvent n b e_req with
+          | nil => simp
+          | cons head tail ih =>
+            -- contradiction?
+            sorry
+
+          /-
+          intro e_inter he_inter_in_b he_inter_bottom_entry
+          have aux :
+            Event.OrderedBetweenSatisfyingProp n e_inter e_pred (Event.cacheEvent ce_req) fun x =>
+            predHasNoPermsAndLeavesStateAtLeastReq n b init x (Event.cacheEvent ce_req) =
+            (¬ e_req.req.MRS ≤ (b.stateAfter n (IEntry n) e_inter).cache n)
+             := by sorry
+          intro he_inter_sat_p
+          have hinter_btn_pred_and_req := he_inter_sat_p.orderedBetween
+          have hinter_has_no_perms_gets_state := he_inter_sat_p.satProp
+          simp[predHasNoPermsAndLeavesStateAtLeastReq] at hinter_has_no_perms_gets_state
+          have test := hinter_has_no_perms_gets_state-/
+
           sorry
       . case isBottomPred => exact hpreds_are_bottom e_pred (by simp) |>.isBottom
       . case isBottomSucc => exact hreq_is_bottom
