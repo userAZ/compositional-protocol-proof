@@ -968,35 +968,41 @@ structure Behaviour.has_perms_or_vd_exists_e_dir_before_or_after where
   hasPermsDirBefore : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req : Event n, b.exists_predecessor_setting_state n init e_req
   vdDirAfter : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req : Event n, b.exists_vd_successor_wb_or_get_sw n init e_req
 
-lemma Behaviour.state_after_eq_succeeding_state_before (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
-  : (stateAfter n b (InitialSystemState.stateAt n init e_req) e_req) = e_req.SucceedingState n (stateBefore n b (InitialSystemState.stateAt n init e_req) e_req)
-  := by
-  sorry
-
-lemma Behaviour.test' {dir_state} (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) {l : List (Event n)} (hce : e_req.isCacheEvent n)
+lemma Behaviour.contradiction_of_dir_state_from_state_after_from_cache_events
+  {dir_state} (e_req : Event n) {l : List (Event n)} (hce : e_req.isCacheEvent n)
   (hall_ : ∀ e ∈ l, e.isCacheEvent)
-  (heq : List.stateAfter n l (InitialSystemState.stateAt n init e_req) = Sum.inr dir_state)
+  (entry_s : EntryState n)
+  (hentry_s : entry_s.isCacheState)
+  (heq : (List.stateAfter n l entry_s) = Sum.inr dir_state)
   : False := by
-  induction l with
+  induction l generalizing entry_s with
   | nil =>
     simp[List.stateAfter, InitialSystemState.stateAt] at heq
     match hreq : e_req with
     | .directoryEvent _ => simp[Event.isCacheEvent, hreq] at hce
-    | .cacheEvent ce => simp[hreq] at heq
+    | .cacheEvent ce => match entry_s with
+      | .inl cs => simp[hreq] at heq
+      | .inr _ => simp[EntryState.isCacheState] at hentry_s
   | cons h t ih =>
     simp[List.stateAfter, InitialSystemState.stateAt] at heq
     match hreq : e_req with
     | .directoryEvent _ => simp[Event.isCacheEvent, hreq] at hce
     | .cacheEvent ce =>
-      simp[hreq] at heq
-      simp[Event.SucceedingState] at heq
-      match hhead : h with
-      | .directoryEvent _ =>
-        have his_cache := hall_ h (by simp[hhead])
-        simp[Event.isCacheEvent, hhead] at his_cache
-      | .cacheEvent ceh =>
-        simp at heq
-        sorry
+      apply ih
+      . case hall_ =>
+        intro event he_in_t
+        apply hall_ event (by simp[he_in_t])
+      . case hentry_s =>
+        have hsucc_is_cache_s : (Event.SucceedingState n h entry_s).isCacheState := by
+          simp[Event.SucceedingState]
+          match hh : h with
+          | .cacheEvent ce => simp[EntryState.isCacheState]
+          | .directoryEvent _ =>
+            have hcache_h := hall_ h (by simp[hh])
+            simp[Event.isCacheEvent, hh] at hcache_h
+        apply hsucc_is_cache_s
+      . case heq =>
+        apply heq
 
 lemma Behaviour.stateBefore_cache_event_is_cache (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) (hce : e_req.isCacheEvent n)
   : (stateBefore n b (InitialSystemState.stateAt n init e_req) e_req).isCacheState := by
