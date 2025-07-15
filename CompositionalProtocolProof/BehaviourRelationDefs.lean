@@ -380,14 +380,6 @@ structure Behaviour.reqWithCorrespondDirLeavesStateAtLeast (b : Behaviour n) (e_
   encapCorresponding : b.reqEncapCorrespondingDir n e_req init
   stateAfterAtLeast : b.reqLeavesStateAtLeast n e_req init state
 
-def Behaviour.eventOnCoherentStateAtLeastMRS (b : Behaviour n) (e : Event n) (init : InitialSystemState n) : Prop := match e with
-| .cacheEvent ce => let state_made_on := init.stateAt n e |>.cache n;
-  state_made_on.c ∧ ce.req.MRS ≤ (b.stateBefore n (init.stateAt n e) e).cache n
-| .directoryEvent _ => false
-
-/-- (Old. Don't use.) A Transitive Relation from a Request Event to a Directory Event. For Lemma 3. -/
-def Event.relates (e₁ e₂ : Event n) : Prop := e₁.Encapsulates n e₂ ∨ e₁.Ordered n e₂
-
 /- Defs describing where a Coherent Request's Directory Event that links the Request's data to the total order of Directory Entry Events. -/
 
 def Event.isNcRelAcqWeakWrite : Event n → Prop
