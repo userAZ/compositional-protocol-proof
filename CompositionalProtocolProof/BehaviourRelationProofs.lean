@@ -1,5 +1,7 @@
 import CompositionalProtocolProof.BehaviourRelationDefs
 
+variable (n : Nat)
+
 lemma List.ordered_mem_impl_ordered_idx {α} [DecidableEq α] {l_head l_tail : List α} {n m : α}
   (l : List α) (hlist : l = l_head ++ l_tail)
   (hn_in_head : n ∈ l_head) (hm_in_tail : m ∈ l_tail) (hl_nodup : l.Nodup) : idxOf n l < idxOf m l  := by
