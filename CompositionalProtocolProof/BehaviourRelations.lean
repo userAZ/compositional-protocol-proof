@@ -1259,6 +1259,18 @@ lemma Behaviour.exists_predecessor_setting_state''
           /- Show that there must be a predecessor that accesses the directory, and it is the immediate predecessor that accesses the directory.
           Use the contrapositive. -/
 
+structure Behaviour.exists_predecessor_setting_state (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) where
+  hreq_has_perms : b.reqHasPerms n init e_req
+  hexists_pred_getting_perms : b.reqHasPermsSoDirPred n init e_req
+  hpred_accesses_dir : ∃ e_dir ∈ b, b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n hexists_pred_getting_perms.choose) true hexists_pred_getting_perms.choose e_dir
+
+structure Behaviour.exists_vd_successor_wb_or_get_sw (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) where
+  hweak_read_on_vd : b.ncWeakReqOnVd n init e_req
+  hsucc_encap_dir : ∃ e_dir ∈ b, b.immBottomSuccOnVdEncapCorrDir n init e_req e_dir
+
+structure Behaviour.has_perms_or_vd_exists_e_dir_before_or_after where
+  hasPermsDirBefore : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req : Event n, b.exists_predecessor_setting_state n init e_req
+  vdDirAfter : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req : Event n, b.exists_vd_successor_wb_or_get_sw n init e_req
 -- [TODO] constrain goal to say not just `e_req` relates `e_dir`, but either encapsulates if lacking permissions, or a previous one if have perms,
 -- of a future one if Weak Non-Coherent on Vd
 /-- `Lemma 3.` For each Cache Request Event `e_req`, there exists a unique event `e_dir` relating `e_req` to the total order of events at
