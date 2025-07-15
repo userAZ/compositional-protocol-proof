@@ -1271,6 +1271,11 @@ structure Behaviour.exists_vd_successor_wb_or_get_sw (b : Behaviour n) (init : I
 structure Behaviour.has_perms_or_vd_exists_e_dir_before_or_after where
   hasPermsDirBefore : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req : Event n, b.exists_predecessor_setting_state n init e_req
   vdDirAfter : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req : Event n, b.exists_vd_successor_wb_or_get_sw n init e_req
+
+lemma Behaviour.state_after_eq_succeeding_state_before (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
+  : (stateAfter n b (InitialSystemState.stateAt n init e_req) e_req) = e_req.SucceedingState n (stateBefore n b (InitialSystemState.stateAt n init e_req) e_req)
+   := by
+  sorry
 -- [TODO] constrain goal to say not just `e_req` relates `e_dir`, but either encapsulates if lacking permissions, or a previous one if have perms,
 -- of a future one if Weak Non-Coherent on Vd
 /-- `Lemma 3.` For each Cache Request Event `e_req`, there exists a unique event `e_dir` relating `e_req` to the total order of events at
