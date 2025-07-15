@@ -708,7 +708,7 @@ lemma Behaviour.no_pred_obtains_perms_impl_req_has_no_perms
       --[TODO] show that stateAfter `l_head` is statebefore e_req
     | .directoryEvent _ => simp[Event.isCacheEvent] at hreq_is_ce
 
-lemma Behaviour.reqMissingPerms_accesses_dir (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
+lemma Behaviour.reqMissingPerms_accesses_dir {b : Behaviour n} {init : InitialSystemState n} {e_req : Event n}
   (hreq_in_b : e_req ∈ b) (hreq_at_cache : e_req.isCacheEvent n)
   (hmissing_perms : b.reqMissingPerms n init e_req) (hax_req_encap_dir : Behaviour.axRequestAccessesDirectory n)
   : ∃ e_dir ∈ b, b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e_req) true e_req e_dir := by
