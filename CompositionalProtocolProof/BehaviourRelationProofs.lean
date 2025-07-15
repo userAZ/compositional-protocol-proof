@@ -1514,17 +1514,34 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
   . case directoryEvent _ => simp [hce] at ax6
 
 /-- Def. Prop constraints for Def 2.37 case where the request has coherent permissions and is then defined as it's own linearization event. -/
-structure Behaviour.requestWithCoherentPermsLinearizes (b : Behaviour n) (e_req e_lin : Event n) (init : InitialSystemState n) : Prop where
+structure Behaviour.requestWithCoherentPermsLinearizes (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop where
   reqHasCoherentPerms : b.eventOnCoherentStateAtLeastMRS n e_req init
-  reqIsLin : e_lin = e_req
+  reqIsLin : ∃ e_lin ∈ b, e_lin = e_req
 
+/-
 /-- Def. Wrapper structure : Prop. for Def 2.37-/
 structure Behaviour.requestWithCoherentPermLin : Prop where
-  linearizingRequest : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∃ e_lin : Event n, b.requestWithCoherentPermsLinearizes n e_req e_lin init
+  linearizingRequest : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∃ e_lin : Event n,
+    b.requestWithCoherentPermsLinearizes n init e_req e_lin
+-/
+
+/-- Def. Prop constraints for Def 2.37 case where the request has doesn't have coherent permissions and there exists a corresponding Directory
+Event, defined by Lemma 3. -/
+structure Behaviour.requestWithoutCoherentPermsLinearizesAtDir (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
+  -- (hreq_in_b : e_req ∈ b) (hreq_encap_dir : axRequestAccessesDirectory n) (hdir_before_after : has_perms_or_vd_exists_e_dir_before_or_after n)
+  : Prop where
+  reqOnNonCoherentOrNoPerms : b.eventOnNonCoherentState n init e_req ∨ b.eventOnStateNoPerms n init e_req
+  reqLinearizeAtDir : ∃ e_lin ∈ b, ∃ e_dir ∈ b, e_dir.isDirectoryEvent ∧ b.dirAccessOfRequest n init e_req e_dir ∧ e_lin = e_dir
+
+/-
+/-- Def. Wrapper structure : Prop. for Def 2.37-/
+structure Behaviour.requestWithoutCoherentPermLin (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop where
+  linearizingRequest : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∃ e_lin : Event n,
+    b.requestWithoutCoherentPermsLinearizesAtDir n init e_req e_lin
+-/
 
 /-- Def. 2.37. Linearization Event Corresponding to a Request Event. If a Request Event `e_req` is made on a `Coherent` state with sufficient
 permissions, the linearization event `e_lin` of `e_req` is `e_req`. Otherwise, `e_lin` is the Directory Event `e_dir` stated by Lemma 3. -/
--- [TODO]: add structure defining what each case entails.
-inductive Behaviour.linearizationEventOfRequest
-| requestLin : Behaviour.requestWithCoherentPermLin n → Behaviour.linearizationEventOfRequest
-| dirLin : /- Structure with `Behaviour.exists_e_dir_relating_e_req` goes here when it's ready. -/ Behaviour.linearizationEventOfRequest
+inductive Behaviour.linearizationEventOfRequest (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
+| requestLin : b.requestWithCoherentPermsLinearizes n init e_req → Behaviour.linearizationEventOfRequest b init e_req
+| dirLin : b.requestWithoutCoherentPermsLinearizesAtDir n init e_req → Behaviour.linearizationEventOfRequest b init e_req
