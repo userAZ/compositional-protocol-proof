@@ -483,7 +483,7 @@ inductive Behaviour.dirEventOfCoherentReq (b : Behaviour n) (init : InitialSyste
 
 structure Behaviour.ncWeakReqOnVd (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop where
   weakReq : e_req.isNcWeak
-  reqOnOrAfterVd : b.stateBefore n (init.stateAt n e_req) e_req = VdEntry n ∨ b.stateAfter n (init.stateAt n e_req) e_req = VdEntry n
+  reqOnOrAfterVd : (b.stateBefore n (init.stateAt n e_req) e_req).cache n = Vd ∨ (b.stateAfter n (init.stateAt n e_req) e_req).cache n = Vd
 
 /-- Succeeding Request Event on Vd that accesses the Directory -/
 structure Behaviour.reqOnVdWithCorrespondingDir (b : Behaviour n) (init : InitialSystemState n) (e_req e_dir : Event n) : Prop where
