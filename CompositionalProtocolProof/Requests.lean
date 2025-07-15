@@ -53,31 +53,36 @@ abbrev Request.NoReadRelease := λ r : Request => ¬r.ReadRelease
 abbrev Request.NoCoherentAcquire := λ r : Request => r.consistency = .Acq → ¬ r.coherent -- ¬r.CoherentAcquire
 abbrev Request.NoCoherentWeakRead := λ r : Request => ¬r.CoherentWeakRead
 
-structure Request.IsValid (r : Request) where
-  non_coherent : r.NoSCNonCoherent := by simp
-  no_write_acq : r.NoWriteAcquire := by simp
-  no_read_rel : r.NoReadRelease := by simp
-  no_cacq : r.NoCoherentAcquire := by simp
-  no_cwr : r.NoCoherentWeakRead := by simp
+structure Request.IsValid (r : Request) : Prop where
+  non_coherent : r.NoSCNonCoherent -- := by simp
+  no_write_acq : r.NoWriteAcquire -- := by simp
+  no_read_rel : r.NoReadRelease -- := by simp
+  no_cacq : r.NoCoherentAcquire -- := by simp
+  no_cwr : r.NoCoherentWeakRead -- := by simp
 
-abbrev ValidRequest := {r : Request // Request.IsValid r}
+def Request.IsValid' (r : Request) : Prop :=
+  r.NoSCNonCoherent ∧ r.NoWriteAcquire ∧ r.NoReadRelease ∧ r.NoCoherentAcquire ∧ r.NoCoherentWeakRead
+
+abbrev ValidRequest := {r : Request // Request.IsValid' r}
 
 /-- Definition 2.12 Minimum Required State of a request. -/
-noncomputable def ValidRequest.MRS : ValidRequest → State
-| ⟨⟨rw,true,_⟩,_⟩ => ⟨rw.toPerms, true⟩
+def ValidRequest.MRS : ValidRequest → State
+| ⟨⟨rw,true,.SC⟩,_⟩ => ⟨rw.toPerms, true⟩
+| ⟨⟨.w,true,.Rel⟩,_⟩ => ⟨some .wr, true⟩
+| ⟨⟨.w,true,.Weak⟩,_⟩ => ⟨some .wr, true⟩
 | ⟨⟨_,false,.Weak⟩,_⟩ => Vc
 | ⟨⟨.w,false,.Rel⟩,_⟩ => Vd
 | ⟨⟨.r,false,.Acq⟩,_⟩ => Vc
 
-abbrev SCWrite : ValidRequest := ⟨⟨.w, true, .SC⟩, {}⟩
-abbrev SCRead : ValidRequest := ⟨⟨.r, true, .SC⟩, {}⟩
-abbrev RelWrite : ValidRequest := ⟨⟨.w, false, .Rel⟩, {}⟩
-abbrev CoherentRelWrite : ValidRequest := ⟨⟨.w, true, .Rel⟩, {}⟩
-abbrev AcqRead : ValidRequest := ⟨⟨.r, false, .Acq⟩, {}⟩
-abbrev NonCoherentWeakRead : ValidRequest := ⟨⟨.r, false, .Weak⟩, {}⟩
-abbrev NonCoherentWeakWrite : ValidRequest := ⟨⟨.w, false, .Weak⟩, {}⟩
-abbrev CoherentWeakWrite : ValidRequest := ⟨⟨.w, true, .Weak⟩, {}⟩
-abbrev CoherentRelease : ValidRequest := ⟨⟨.w, true, .Rel⟩, {}⟩
+abbrev SCWrite : ValidRequest := ⟨⟨.w, true, .SC⟩, by simp[Request.IsValid']⟩
+abbrev SCRead : ValidRequest := ⟨⟨.r, true, .SC⟩, by simp[Request.IsValid']⟩
+abbrev RelWrite : ValidRequest := ⟨⟨.w, false, .Rel⟩, by simp[Request.IsValid']⟩
+abbrev CoherentRelWrite : ValidRequest := ⟨⟨.w, true, .Rel⟩, by simp[Request.IsValid']⟩
+abbrev AcqRead : ValidRequest := ⟨⟨.r, false, .Acq⟩, by simp[Request.IsValid']⟩
+abbrev NonCoherentWeakRead : ValidRequest := ⟨⟨.r, false, .Weak⟩, by simp[Request.IsValid']⟩
+abbrev NonCoherentWeakWrite : ValidRequest := ⟨⟨.w, false, .Weak⟩, by simp[Request.IsValid']⟩
+abbrev CoherentWeakWrite : ValidRequest := ⟨⟨.w, true, .Weak⟩, by simp[Request.IsValid']⟩
+abbrev CoherentRelease : ValidRequest := ⟨⟨.w, true, .Rel⟩, by simp[Request.IsValid']⟩
 
 def ValidRequest.isCoherent (vr : ValidRequest) : Prop := vr.val.isCoherent
 
@@ -189,6 +194,7 @@ lemma non_coherent_in_pi_impl_no_sc_read  {pi : ProtocolInterface} (vr : ValidRe
   have h_nc_no_sc := pi.prop.nc_no_sc h_vr_in_pi h_vr_is_ncw
   exact h_nc_no_sc.right
 
+/-
 lemma ncw_impl_no_mr {pi : ProtocolInterface} (vr : ValidRequest) (s : State) (h_vr_in_pi : vr ∈ pi.val) (h_s_in_pi : pi.HasState s)
 (h_vr_is_ncw : vr.val = RelWrite ∨ vr.val = NonCoherentWeakWrite) (h_s_mr : s = MR) : ¬ pi.HasState s := by
   /- Use PI and h_vr_is_ncw to constrain which VRs are in PI.
@@ -269,6 +275,7 @@ lemma ncw_impl_no_mr {pi : ProtocolInterface} (vr : ValidRequest) (s : State) (h
     /- Cases of Disallowed Requests below. -/
   | ⟨.r, false, .SC⟩ =>
     subst hreq
+
     have hreq_no_noncoherent := hreq_valid.non_coherent
     simp at hreq_no_noncoherent
     /-
@@ -302,24 +309,25 @@ lemma pi_ncw_on_mr_contradiction {pi : ProtocolInterface} (vr : ValidRequest) (s
   have h_s_not_mr := ncw_impl_no_mr vr s h_vr_in_pi h_s_in_pi h_vr_is_ncw h_s_mr
   absurd h_s_not_mr h_s_in_pi
   contradiction
+-/
 
 /-- What is the state a request leaves a cache entry in.  -/
-noncomputable def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (s : State) /-(h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s)-/ : State :=
+def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (s : State) /-(h_vr_in_pi : vr ∈ pi.val) (h_pi_has_s : pi.HasState s)-/ : State :=
   match vr with
-  | ⟨⟨_, true, _⟩, _⟩ | ⟨⟨.r, false, .Weak⟩, {}⟩ =>
+  | ⟨⟨_, true, _⟩, _⟩ | ⟨⟨.r, false, .Weak⟩, _⟩ =>
     if vr.MRS ≤ s then s
     else vr.MRS
-  | ⟨⟨.w, false, .Weak⟩, {}⟩ =>
+  | ⟨⟨.w, false, .Weak⟩, _⟩ =>
     match s with
     | ⟨some .wr, true⟩ => s
     | ⟨some .r,  true⟩ => Vd -- none -- can avoid `none` by using contradiction from commented-out input arg `h_pi_has_s` and Lemma `ncw_impl_no_mr`.
     | _ => Vd
-  | ⟨⟨.w, false, .Rel⟩, {}⟩ =>
+  | ⟨⟨.w, false, .Rel⟩, _⟩ =>
     match s with
     | ⟨some .wr, true⟩ => s
     | ⟨some .r,  true⟩ => Vc -- none -- can avoid `none` by using contradiction from commented-out input arg `h_pi_has_s` and Lemma `ncw_impl_no_mr`.
     | _ => Vc
-  | ⟨⟨.r, false, .Acq⟩, {}⟩ => Vc
+  | ⟨⟨.r, false, .Acq⟩, _⟩ => Vc
 
 /- Not worth trying to prove right now.
 lemma ValidRequest.RequestState_in_pi {pi : ProtocolInterface} (vr : ValidRequest) (s : State)
