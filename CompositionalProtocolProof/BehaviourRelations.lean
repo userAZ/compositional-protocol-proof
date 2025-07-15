@@ -1280,10 +1280,12 @@ lemma Behaviour.state_after_eq_succeeding_state_before (b : Behaviour n) (init :
 lemma Behaviour.stateBefore_cache_event_is_cache (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) (hce : e_req.isCacheEvent n)
   : (stateBefore n b (InitialSystemState.stateAt n init e_req) e_req).isCacheState := by
   simp[EntryState.isCacheState, stateBefore, List.stateAfter, eventsUpToEvent, eventsAtEventEntry, eventsAtEntryOfListBottomEvents]
-  simp[listBottomEventsAtEntry', bottomEventsAtEntry', Set.finSetEvents']
+  -- simp[listBottomEventsAtEntry', bottomEventsAtEntry', Set.finSetEvents']
   split
   . case h_1 entry_state cache_state heq =>
-    sorry
+    cases (listBottomEventsAtEntry' n b (Event.addr n e_req) (Event.struct n e_req))
+    . case nil => sorry
+    . case cons h t => sorry
   . case h_2 entry_state dir_state heq =>
     sorry
 
