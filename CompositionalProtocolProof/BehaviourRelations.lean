@@ -412,7 +412,7 @@ For Acq, Non-Coherent Rel, and Weak Writes, this means the state it's made on is
 For other requests, SC, Coherent, and Weak Reads, this means it's state it's made on is lower that it's `MRS`.
 In the case of Weak Reads, the state it's made on excludes `Vd`. -/
 inductive Behaviour.reqMissingPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop
-| downgrade (hreq_is_down : e_req.down) (hreq_on_mrs_state : b.eventOnMRSState n init e_req) : Behaviour.reqMissingPerms b init e_req
+| downgrade (hreq_is_down : e_req.down) (hreq_on_mrs_state : b.evictOnMRSState n init e_req) : Behaviour.reqMissingPerms b init e_req
 | noPermsForNonNcRelAcqWeakWrite (hreq_not_down : ¬ e_req.down) (hreq_not_nc_rel_acq_ww : e_req.notNcRelAcqWeakWrite n) (hno_perms : b.eventOnStateNoPerms n init e_req) : Behaviour.reqMissingPerms b init e_req
 | ncRelAcqWeakWriteNotOnCoherentState (hreq_not_down : ¬ e_req.down) (hreq_nc_rel_acq : e_req.isNcRelAcq) (hno_perms : b.acqRelWeakWriteNoPerms n init e_req) : Behaviour.reqMissingPerms b init e_req
 
