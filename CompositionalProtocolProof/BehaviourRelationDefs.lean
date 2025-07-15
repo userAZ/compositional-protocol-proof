@@ -25,6 +25,10 @@ def Behaviour.eventOnCoherentState (b : Behaviour n) (init : InitialSystemState 
 def Behaviour.eventOnNonCoherentState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
   ¬ (b.stateBefore n (init.stateAt n e_req) e_req).cache.c
 
+def Behaviour.eventOnCoherentStateAtLeastMRS (b : Behaviour n) (e : Event n) (init : InitialSystemState n) : Prop := match e with
+| .cacheEvent _ => b.eventOnCoherentState n init e ∧ b.eventOnStateHasPerms n init e
+| .directoryEvent _ => False
+
 def Behaviour.acqRelWeakWriteNoPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
   ¬ (b.eventOnCoherentState n init e_req ∧ b.eventOnStateHasPerms n init e_req)
 
