@@ -3,6 +3,11 @@ version = "0.1.0"
 defaultTargets = ["compositional-protocol-proof"]
 
 [[require]]
+name = "Hammer"
+git = "https://github.com/JOSHCLUNE/LeanHammer"
+rev = "temp-v4.21.0-rc3"
+
+[[require]]
 name = "mathlib"
 scope = "leanprover-community"
 

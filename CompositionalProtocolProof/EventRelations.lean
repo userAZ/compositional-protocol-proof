@@ -31,7 +31,7 @@ lemma DirectoryEvent.ordered_events {de₁ de₂ : DirectoryEvent n} {e₁ e₂ 
   | .directoryEvent de₁', .directoryEvent de₂' =>
     subst he₁_is_de₁ he₂_is_de₂
     intro h_de₁_lt_de₂
-    simp [Event.o]
+    simp
     exact h_de₁_lt_de₂
   | .directoryEvent _, .cacheEvent _ => contradiction
   | .cacheEvent _, .directoryEvent _ => contradiction
@@ -113,9 +113,15 @@ lemma Event.encap_by_encap_by_trans {e₁ e₂ e₃ : Event n} : e₁.Encapsulat
 /- The shape of Trans's definition doesn't match to Event.encap_order_trans. Need to massage def. -/
 instance Event.instTransEncapByEncapBy : Trans (Event.EncapsulatedBy n) (Event.EncapsulatedBy n) (Event.EncapsulatedBy n) := {trans := Event.encap_by_encap_by_trans n}
 
+def Event.PropOnEvent (e : Event n) (p : Event n → Prop) : Prop := p e
+
 structure Event.OrderedBetween (e e_pred e_succ : Event n) where
   pred : e_pred.OrderedBefore n e := by simp
   succ : e.OrderedBefore n e_succ := by simp
+
+structure Event.OrderedBetweenSatisfyingProp (e e_pred e_succ : Event n) (p : Event n → Prop) where
+  orderedBetween : e.OrderedBetween n e_pred e_succ
+  satProp : p e
 
 def CacheEvent.SameRequester (e₁ e₂ : CacheEvent n) : Prop := e₁.rid = e₂.rid
 def CacheEvent.SameCache (e₁ e₂ : CacheEvent n) : Prop := e₁.cid = e₂.cid
@@ -275,17 +281,15 @@ abbrev CacheEvent.NoRequestPermissions (e : CacheEvent n) (s : State) : Prop := 
 
 abbrev CacheEvent.WithoutCoherentPermissions (e : CacheEvent n) (s : State) : Prop := e.Local ∧ e.Coherent ∧ e.NoRequestPermissions n s
 
-structure Event.sameStructure (e₁ e₂ : Event n) : Prop where
-  sameStruct : e₁.struct = e₂.struct
+def Event.sameStructure (e₁ e₂ : Event n) : Prop := e₁.struct = e₂.struct
 
-structure Event.sameAddr (e₁ e₂ : Event n) : Prop where
-  sameStruct : e₁.addr = e₂.addr
+def Event.sameAddr (e₁ e₂ : Event n) : Prop := e₁.addr = e₂.addr
 
 structure Event.sameEntry (e₁ e₂ : Event n) : Prop where
   sameStruct : e₁.sameStructure n e₂
   sameAddr : e₁.sameAddr n e₂
 
-def CacheEvent.SucceedingState (e : CacheEvent n) (s : State) : State :=
+noncomputable def CacheEvent.SucceedingState (e : CacheEvent n) (s : State) : State :=
   match e.down with
   | false => e.req.RequestState s
   | true => e.req.DowngradeState s
@@ -334,7 +338,7 @@ def Event.directoryState (e : Event n) (s : EntryState n) : Prop := match e with
    OR build in the input state and interface requests into the types.
 -/
 
-def Event.SucceedingState (e : Event n) (s : EntryState n) : EntryState n := match e with
+noncomputable def Event.SucceedingState (e : Event n) (s : EntryState n) : EntryState n := match e with
   | .cacheEvent ce => Sum.inl <| ce.SucceedingState n s.cache
   | .directoryEvent de => Sum.inr <| de.SucceedingState n s.directory
 
