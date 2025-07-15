@@ -1274,7 +1274,7 @@ structure Behaviour.has_perms_or_vd_exists_e_dir_before_or_after where
 
 lemma Behaviour.state_after_eq_succeeding_state_before (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n)
   : (stateAfter n b (InitialSystemState.stateAt n init e_req) e_req) = e_req.SucceedingState n (stateBefore n b (InitialSystemState.stateAt n init e_req) e_req)
-   := by
+  := by
   sorry
 
 lemma Behaviour.test {dir_state} (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) {l : List (Event n)} (hce : e_req.isCacheEvent n)
