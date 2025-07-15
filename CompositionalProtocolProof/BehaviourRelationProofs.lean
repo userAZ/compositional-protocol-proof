@@ -1016,10 +1016,20 @@ lemma Behaviour.stateBefore_cache_event_is_cache (b : Behaviour n) (init : Initi
       simp
   . case h_2 entry_state dir_state heq =>
     simp [stateBefore] at heq
-    match (eventsUpToEvent n b e_req) with
-    | .nil => sorry
-    | .cons h t =>
-      simp
+    apply Behaviour.contradiction_of_dir_state_from_state_after_from_cache_events
+    . case hce => exact hce
+    . case hall_ =>
+      apply eventsUpToEvent_at_cache_all_cache
+      . case b => exact b
+      . case he_cache => exact hce
+    . case hentry_s =>
+      have hinit_entry : (InitialSystemState.stateAt n init e_req).isCacheState := by
+        simp[InitialSystemState.stateAt]
+        match e_req with
+        | .cacheEvent _ => simp[EntryState.isCacheState]
+        | .directoryEvent _ => simp[Event.isCacheEvent] at hce
+      exact hinit_entry
+    . case heq => exact heq
 
 -- [TODO] constrain goal to say not just `e_req` relates `e_dir`, but either encapsulates if lacking permissions, or a previous one if have perms,
 -- of a future one if Weak Non-Coherent on Vd
