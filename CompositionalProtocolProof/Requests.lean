@@ -201,7 +201,9 @@ noncomputable def ValidRequest.DowngradeState (vr : ValidRequest) : State → St
       else I -- Junk. This is a write-back to directory
     else I -- Junk. There are no other downgrade events we consider
 
-def ProtocolInterface := {vr : Finset ValidRequest // FollowsProtocolInterface vr}
+def ProtocolInterface := {vr : Set ValidRequest // FollowsProtocolInterface vr}
+
+instance : Membership (ValidRequest) (ProtocolInterface) := ⟨fun pi vr => vr ∈ pi.val⟩
 
 /-- Def 2.42: a SWMR protocol. -/
 def ProtocolInterface.swmrProtocol : ProtocolInterface := ⟨{SCWrite, SCRead}, by
