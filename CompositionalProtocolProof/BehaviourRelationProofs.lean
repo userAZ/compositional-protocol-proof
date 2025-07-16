@@ -965,6 +965,7 @@ structure Behaviour.exists_predecessor_setting_state (b : Behaviour n) (init : I
   hexists_pred_getting_perms : b.reqHasPermsSoDirPred n init e_req
   hpred_accesses_dir : ∃ e_dir ∈ b, b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n hexists_pred_getting_perms.choose) true hexists_pred_getting_perms.choose e_dir
 
+/-- Axiom 7 Redux. -/
 structure Behaviour.exists_vd_successor_wb_or_get_sw (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) where
   hweak_read_on_vd : b.ncWeakReqOnVd n init e_req
   hsucc_encap_dir : ∃ e_dir ∈ b, b.immBottomSuccOnVdEncapCorrDir n init e_req e_dir
