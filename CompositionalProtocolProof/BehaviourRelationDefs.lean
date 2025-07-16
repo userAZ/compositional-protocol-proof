@@ -45,12 +45,24 @@ noncomputable def Behaviour.reqToDirOfRequestEvent (b : Behaviour n) (init : Ent
     let state_before := b.stateBefore n init e_req
     e_req.reqToDirOfRequestEvent n state_before.cache
 
+def Event.protocol (e_req : Event n) : ProtocolInstance := match e_req with
+  | .cacheEvent ce => match ce.cid with
+    | .proxy pi => pi
+    | .cache pci => match pci with
+      | .globalP _ => .global
+      | .cluster1 _ => .cluster1
+      | .cluster2 _ => .cluster2
+  | .directoryEvent de => de.pInst
+
+def Event.sameProtocol (e_req e_dir : Event n) : Prop := e_req.protocol = e_dir.protocol
+
 /-- Axiom 3. The Request field of a Directory Event corresponding to a Request Event (Cache Event). -/
 structure Behaviour.requestDirectoryEvent (b : Behaviour n) (init : EntryState n) (rel_wb : Bool) (e_req e_dir : Event n) : Prop where
   reqEvent : e_dir.isDirEventOfReqEvent n e_req
   sameAddr : e_req.addr = e_dir.addr
   dirReq :  e_dir.req = b.reqToDirOfRequestEvent n init rel_wb e_req -- from analysis on e_req and the state it's made on
   dirState : e_dir.isDirEventOfDirState n (b.stateAfter n init e_dir).directory
+  sameProtocol : e_req.sameProtocol n e_dir
 
 structure DirectoryEvent.matchesCacheEvent (de : DirectoryEvent n) (ce : CacheEvent n) : Prop where
   correspondingCE : de.eReq = ce
