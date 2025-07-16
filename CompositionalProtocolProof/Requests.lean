@@ -1,5 +1,6 @@
 import CompositionalProtocolProof.Common
 import CompositionalProtocolProof.States
+import Mathlib
 
 inductive ReadWrite
 | r : ReadWrite
@@ -141,16 +142,16 @@ structure ContainsAcqNotSC (vr : Set ValidRequest) : Prop where
   acqInVr : AcqRead ∈ vr
 def ContainsEitherSCOrAcq (vr : Set ValidRequest) : Prop := ContainsSCNotAcq vr ∨ ContainsAcqNotSC vr
 
-structure FollowsProtocolInterface (vrs : Set ValidRequest) where
-  sc_rel_crel : ContainsEitherSCOrRelOrCRel vrs
-  sc_or_acq : ContainsEitherSCOrAcq vrs
-  write_read : SCWrite ∈ vrs → SCRead ∈ vrs
-  rel_write_acq : (RelWrite ∈ vrs ∨ CoherentRelWrite ∈ vrs) → AcqRead ∈ vrs
-  acq_weak : AcqRead ∈ vrs → NonCoherentWeakRead ∈ vrs
-  real_weak : RelWrite ∈ vrs → NonCoherentWeakWrite ∈ vrs
-  rel_weak_coherent : CoherentRelWrite ∈ vrs → (CoherentWeakWrite ∈ vrs ∨ NonCoherentWeakWrite ∈ vrs)
+structure FollowsProtocolInterface (vrs : Finset ValidRequest) where
+  sc_rel_crel : ContainsEitherSCOrRelOrCRel vrs := by simp
+  sc_or_acq : ContainsEitherSCOrAcq vrs := by simp
+  write_read : SCWrite ∈ vrs → SCRead ∈ vrs := by simp
+  rel_write_acq : (RelWrite ∈ vrs ∨ CoherentRelWrite ∈ vrs) → AcqRead ∈ vrs := by simp
+  acq_weak : AcqRead ∈ vrs → NonCoherentWeakRead ∈ vrs := by simp
+  real_weak : RelWrite ∈ vrs → NonCoherentWeakWrite ∈ vrs := by simp
+  rel_weak_coherent : CoherentRelWrite ∈ vrs → (CoherentWeakWrite ∈ vrs ∨ NonCoherentWeakWrite ∈ vrs) := by simp
   /- no mixing SC and Weak -/
-  nc_no_sc {vr : ValidRequest} (hvr_in_pi : vr ∈ vrs) (hvr_nc : vr.NonCoherent) : SCWrite ∉ vrs ∧ SCRead ∉ vrs
+  nc_no_sc {vr : ValidRequest} (hvr_in_pi : vr ∈ vrs) (hvr_nc : vr.NonCoherent) : SCWrite ∉ vrs ∧ SCRead ∉ vrs := by simp
   /- TODO: lazily convert these to a nice compact field like `nc_no_sc` above.
   write_no_weak_write : SCWrite ∈ vrs → NonCoherentWeakWrite ∉ vrs
   write_no_weak_read : SCWrite ∈ vrs → NonCoherentWeakRead ∉ vrs
@@ -194,7 +195,7 @@ noncomputable def ValidRequest.DowngradeState (vr : ValidRequest) : State → St
       else I -- Junk. This is a write-back to directory
     else I -- Junk. There are no other downgrade events we consider
 
-def ProtocolInterface := {vr : Set ValidRequest // FollowsProtocolInterface vr}
+def ProtocolInterface := {vr : Finset ValidRequest // FollowsProtocolInterface vr}
 
 def ProtocolInterface.ProtocolStates : ProtocolInterface → Set State
 | pi => pi.val.image (·.toState)
