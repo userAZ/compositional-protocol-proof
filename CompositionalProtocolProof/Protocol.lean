@@ -3,10 +3,8 @@ import CompositionalProtocolProof.Requests
 
 variable (n : Nat)
 
-structure Protocol where
-  pi : ProtocolInstance -- Which `cluster` is this protocol associated with
-  requests : ProtocolInterface
-  /- Axioms 4-14 -/
+/-- Axioms 4-14 -/
+structure RequestAxioms where
   acqInvals : Behaviour.acqInvalWrapper n
   relWritesBack : Behaviour.ncRelWriteBackWrapper n
   whenReqAccessDir : Behaviour.axRequestAccessesDirectory n
@@ -18,5 +16,9 @@ structure Protocol where
   nonCohReqDowngrades : Behaviour.nonCoherentRequestDowngradeOthers n
   relAcqSelfBroadcast : Behaviour.relAcqBroadcast n
 
+structure Protocol where
+  pi : ProtocolInstance -- Which `cluster` is this protocol associated with
+  requests : ProtocolInterface
+  reqAxioms : RequestAxioms n
 
 /- Want to State if a protocol has some requests. -/
