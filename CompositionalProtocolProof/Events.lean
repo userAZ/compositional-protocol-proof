@@ -298,6 +298,8 @@ def InitialSystemState.stateAt (init : InitialSystemState n) (e : Event n) : Ent
   | .cacheEvent ce => Sum.inl <| init.cacheStates (ce.cid)
   | .directoryEvent de => Sum.inr <| init.directoryStates de.pInst
 
+/-- Def: From the protocol request interfaces of the 3 protocols (`p_i`), state the
+  protocol interface (set of requests) Event `e` is a part of. -/
 def Event.interfaceMatchingProtocol (e : Event n) (p_i : Protocol.interface) : ProtocolInterface :=
   match e with
   | .cacheEvent ce => match ce.cid with
@@ -306,9 +308,9 @@ def Event.interfaceMatchingProtocol (e : Event n) (p_i : Protocol.interface) : P
       | .cluster1 => p_i.cluster1_pi
       | .cluster2 => p_i.cluster2_pi
     | .cache pci => match pci with
-      | .globalP _ _ => p_i.global_pi
-      | .cluster1 _ _ => p_i.cluster1_pi
-      | .cluster2 _ _ => p_i.cluster2_pi
+      | .globalP _ => p_i.global_pi
+      | .cluster1 _ => p_i.cluster1_pi
+      | .cluster2 _ => p_i.cluster2_pi
   | .directoryEvent de => match de.pInst with
     | .global => p_i.global_pi
     | .cluster1 => p_i.cluster1_pi
