@@ -103,11 +103,18 @@ structure Behaviour.acquireInvalidates (b : Behaviour n) (e_req e_dir : Event n)
   encapDirEvent : ∀ init : EntryState n, b.reqEncapCorrespondingDirEvent n init true e_req
   invalOther : ∀ addr ≠ e_req.addr, ∃ e_inval ∈ b.es, e_dir.OrderedBefore n e_inval ∧ e_inval.isVcInval
 
+/-- Wrapper for Axiom 4. An Acquire invalidates Vc entries. -/
+def Behaviour.acqInvalWrapper : Prop := ∀ b : Behaviour n, ∀ e_req e_dir : Event n,
+  b.acquireInvalidates n e_req e_dir
+
 /-- Axiom 5. Non Coherent Release writes back other Vd cache entries before it's directory access. -/
 structure Behaviour.ncReleaseWritesBack (b : Behaviour n) (e_req e_dir : Event n) : Prop where
   isRelease : e_req.isNCRelease
   encapDirEvent : ∀ init : EntryState n, b.reqEncapCorrespondingDirEvent n init true e_req
   writeBackOther : ∀ addr ≠ e_req.addr, ∃ e_wb ∈ b.es, e_wb.OrderedBefore n e_dir ∧ e_wb.isVdWriteBack
+
+def Behaviour.ncRelWriteBackWrapper : Prop := ∀ b : Behaviour n, ∀ e_req e_dir : Event n,
+  b.ncReleaseWritesBack n e_req e_dir
 
 /-- Def: Props for Coherent Request encapsulating a Directory Event -/
 structure Behaviour.requestCoherentNoPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop where
@@ -210,13 +217,21 @@ def Behaviour.requestAccessesDirectoryWrapper (b : Behaviour n) (e : Event n) (i
   | .directoryEvent _ => false
 
 /-- Axiom 6 Structure Wrapper for use in Lemmas. -/
-structure Behaviour.axRequestAccessesDirectory : Prop where
-  reqAccessDir : ∀ b : Behaviour n, ∀ e ∈ b.es, ∀ init : InitialSystemState n, b.requestAccessesDirectoryWrapper n e init
+def Behaviour.axRequestAccessesDirectory : Prop :=
+  ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e ∈ b.es, b.requestAccessesDirectoryWrapper n e init
+
+structure Behaviour.vdStateBeforeWBOrGetSW (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop where
+  onVd : (b.stateBefore n (init.stateAt n e) e).cache = Vd
+  isWBOrGetSW : e.isVdWriteBack ∨ e.isCoherentWrite
 
 /-- Axiom 7, a Cache Entry in Vd State may writeback -/
-structure Behaviour.vdCacheEntryWriteBackLater (b : Behaviour n) (e : Event n) /-(vd_wb_e : Event n)-/ (init : InitialSystemState n) : Prop where
+structure Behaviour.vdCacheEntryWriteBackLater (b : Behaviour n) (init : InitialSystemState n) (e : Event n) /-(vd_wb_e : Event n)-/ : Prop where
   vdStateAfterEvent : b.stateAfter n (init.stateAt n e) e = VdEntry n
-  wbImmPred : ∃ vd_wb_e ∈ b.es, b.ImmediateBottomPredecessor n e vd_wb_e
+  wbImmPred : ∃ vd_wb_e ∈ b.es, b.ImmediateBottomSuccSatisfyingProp n e vd_wb_e (b.vdStateBeforeWBOrGetSW n init ·)
+
+/-- Axiom 7 Wrapper. -/
+def Behaviour.vdCacheEntryWBOrGetSWLaterWrapper : Prop := ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e : Event n,
+  b.vdCacheEntryWriteBackLater n init e
 
 /-- Def. state that two events `e₁` `e₂` are orderedBefore if their Deid fields are orderedBefore. -/
 structure Behaviour.orderedDeidEvents (b : Behaviour n) (e₁ e₂ : Event n) : Prop where
@@ -226,8 +241,7 @@ structure Behaviour.orderedDeidEvents (b : Behaviour n) (e₁ e₂ : Event n) : 
   e₂InB : e₂ ∈ b.es
 
 /-- Axiom 8, messages from the directory are ordered by Cache Event `deid?` field. -/
-structure Behaviour.deidOrdered : Prop where
-  orderedDeidEvents : ∀ b : Behaviour n, ∀ e₁ e₂ : Event n, b.orderedDeidEvents n e₁ e₂
+def Behaviour.deidOrdered : Prop := ∀ b : Behaviour n, ∀ e₁ e₂ : Event n, b.orderedDeidEvents n e₁ e₂
 
 /-- Def. Constraints on fields of Forwarded Downgrade. -/
 structure Behaviour.requestDowngradePrevOwner (b : Behaviour n) (e_req e_dir e_fwd_down : Event n) (init : InitialSystemState n) : Prop where
@@ -274,8 +288,8 @@ structure Behaviour.coherentWriteDowngradeOthers (b : Behaviour n) (e_req e_dir 
   downgradeOtherCaches : b.coherentWriteAtDirectoryEncapDowngrades n e_req e_dir init
 
 /-- Axiom 9, Coherent-Write request to Directory results in Downgrade at other caches axiom. -/
-structure Behaviour.coherentWriteDirDowngradeOthers : Prop where
-  encapDowngrades : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es, b.coherentWriteDowngradeOthers n e_req e_dir init
+def Behaviour.coherentWriteDirDowngradeOthers : Prop := ∀ b : Behaviour n, ∀ init : InitialSystemState n,
+  ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es, b.coherentWriteDowngradeOthers n e_req e_dir init
 
 /- Def. Which directory states will a Coherent Read Request cause downgrades at other caches. Includes Props on Downgrade Events to
 other caches. -/
@@ -291,8 +305,8 @@ structure Behaviour.coherentReadDowngradeOthers (b : Behaviour n) (e_req e_dir :
   downgradeOtherCaches : b.coherentRequestAtDirectoryEncapDowngrades n e_req e_dir init
 
 /-- Axiom 10. Coherent-Read request to Directory results in Downgrade at other caches axiom. -/
-structure Behaviour.coherentReadDirDowngradeOthers : Prop where
-  encapDowngrade : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es, b.coherentReadDowngradeOthers n e_req e_dir init
+def Behaviour.coherentReadDirDowngradeOthers : Prop := ∀ b : Behaviour n, ∀ init : InitialSystemState n,
+  ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es, b.coherentReadDowngradeOthers n e_req e_dir init
 
 /-- Prop Structure Helper for Axiom 11. Coherent Evict at Directory encapsulates a Grant OrderedAfter the Directory Event. -/
 structure Behaviour.coherentEvictDirGrantOrdering (b : Behaviour n) (e_req e_dir e_grant : Event n) : Prop where
@@ -301,8 +315,8 @@ structure Behaviour.coherentEvictDirGrantOrdering (b : Behaviour n) (e_req e_dir
   reqDirGrantOrderings : e_req.encapGrantAfterDirEvent n e_dir e_grant
 
 /-- Axiom 11. Coherent Evict at Directory encapsulates a Grant OrderedAfter the Directory Event. -/
-structure Behaviour.coherentEvictGetsGrant : Prop where
-  evictGetsGrant : ∀ b : Behaviour n, ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es, ∃ e_grant ∈ b.es, b.coherentEvictDirGrantOrdering n e_req e_dir e_grant
+def Behaviour.coherentEvictGetsGrant : Prop :=
+  ∀ b : Behaviour n, ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es, ∃ e_grant ∈ b.es, b.coherentEvictDirGrantOrdering n e_req e_dir e_grant
 
 structure Behaviour.nonCoherentReqOnSWDowngradeOthers (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
   dirNCReq : e_dir.req.NonCoherent
@@ -312,8 +326,8 @@ structure Behaviour.nonCoherentReqOnSWDowngradeOthers (b : Behaviour n) (e_req e
   fwdPrevOwner : ∃ e_down ∈ b.es, b.requestDowngradePrevOwner n e_req e_dir e_down init
 
 /-- Axiom 12. Non-Coherent Write/Read on SW Directory State results in Downgrades. -/
-structure Behaviour.nonCoherentRequestDowngradeOthers : Prop where
-  ncReqDowngradeSWOwner : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es,
+def Behaviour.nonCoherentRequestDowngradeOthers : Prop :=
+  ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es,
     b.nonCoherentReqOnSWDowngradeOthers n e_req e_dir init
 
 /-- Def.a (broadcast before e_dir) For all other entry addresses, an event `e_original` is copied and broadcast to other entries. -/
