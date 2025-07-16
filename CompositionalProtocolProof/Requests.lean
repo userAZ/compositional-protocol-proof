@@ -142,7 +142,11 @@ structure ContainsAcqNotSC (vr : Set ValidRequest) : Prop where
   acqInVr : AcqRead ∈ vr
 def ContainsEitherSCOrAcq (vr : Set ValidRequest) : Prop := ContainsSCNotAcq vr ∨ ContainsAcqNotSC vr
 
-structure FollowsProtocolInterface (vrs : Finset ValidRequest) where
+def ValidRequest.isAcqLabel (vr : ValidRequest) := vr.val.consistency = .Acq
+def ValidRequest.isRelLabel (vr : ValidRequest) := vr.val.consistency = .Rel
+
+structure FollowsProtocolInterface (vrs : Set ValidRequest) where
+  /- "Positive" restrictions (if `r` ∈ vrs, then `r1` ∈ vrs) -/
   sc_rel_crel : ContainsEitherSCOrRelOrCRel vrs := by simp
   sc_or_acq : ContainsEitherSCOrAcq vrs := by simp
   write_read : SCWrite ∈ vrs → SCRead ∈ vrs := by simp
@@ -150,13 +154,15 @@ structure FollowsProtocolInterface (vrs : Finset ValidRequest) where
   acq_weak : AcqRead ∈ vrs → NonCoherentWeakRead ∈ vrs := by simp
   real_weak : RelWrite ∈ vrs → NonCoherentWeakWrite ∈ vrs := by simp
   rel_weak_coherent : CoherentRelWrite ∈ vrs → (CoherentWeakWrite ∈ vrs ∨ NonCoherentWeakWrite ∈ vrs) := by simp
-  /- no mixing SC and Weak -/
-  nc_no_sc {vr : ValidRequest} (hvr_in_pi : vr ∈ vrs) (hvr_nc : vr.NonCoherent) : SCWrite ∉ vrs ∧ SCRead ∉ vrs := by simp
-  /- TODO: lazily convert these to a nice compact field like `nc_no_sc` above.
-  write_no_weak_write : SCWrite ∈ vrs → NonCoherentWeakWrite ∉ vrs
-  write_no_weak_read : SCWrite ∈ vrs → NonCoherentWeakRead ∉ vrs
-  rel_no_sc_write : RelWrite ∈ vrs → SCRead ∉ vrs
-  -/
+  /- "Negative" restrictions (if `r` ∈ vrs, then `r1` ∉ vrs) -/
+  /- No mixing MSI and RCC requests. -/
+  nc_no_sc : ∀ vr ∈ vrs, vr ∈ vrs ∧ (vr.NonCoherent ∨ vr.isAcqLabel ∨ vr.isRelLabel) → SCWrite ∉ vrs ∧ SCRead ∉ vrs := by simp
+  sc_no_nc : SCWrite ∈ vrs ∨ SCRead ∈ vrs → ∀ vr ∈ vrs, vr.NonCoherent ∨ vr.isAcqLabel ∨ vr.isRelLabel → vr ∉ vrs := by simp
+  /- No mixing multiple flavours of RCC requests. -/
+  only_one_rel : RelWrite ∈ vrs → CoherentRelWrite ∉ vrs ∧ CoherentRelWrite ∉ vrs → RelWrite ∈ vrs := by simp
+  nc_rel_no_coh_ww : RelWrite ∈ vrs → CoherentWeakWrite ∉ vrs := by simp
+  coh_rel_one_ww : CoherentRelWrite ∈ vrs → ((CoherentWeakWrite ∈ vrs ∧ NonCoherentWeakWrite ∉ vrs) ∨ (CoherentWeakWrite ∉ vrs ∧ NonCoherentWeakWrite ∈ vrs)) := by simp
+
 def Request.toState : Request → State
 | ⟨rw, coherent, _⟩ => ⟨rw.toPerms, coherent⟩
 
@@ -202,7 +208,7 @@ def ProtocolInterface.swmrProtocol : ProtocolInterface := ⟨{SCWrite, SCRead}, 
   all_goals constructor
   all_goals simp [autoParam]
   all_goals constructor
-  all_goals try simp[ValidRequest.NonCoherent, Request.nonCoherent]
+  all_goals try simp[ValidRequest.NonCoherent, Request.nonCoherent, ValidRequest.isAcqLabel, ValidRequest.isRelLabel]
   all_goals constructor
   all_goals simp
   ⟩
@@ -232,11 +238,12 @@ lemma vr_rel_write_in_pi_impl_rel_write_in_pi {pi : ProtocolInterface} (vr : Val
   subst h_vr_is_ncw
   simp_all only
 
+/-
 lemma non_coherent_in_pi_impl_no_sc_read  {pi : ProtocolInterface} (vr : ValidRequest) (h_vr_in_pi : vr ∈ pi.val)
 (h_vr_is_ncw : vr.NonCoherent) : SCRead ∉ pi.val := by
   have h_nc_no_sc := pi.prop.nc_no_sc h_vr_in_pi h_vr_is_ncw
   exact h_nc_no_sc.right
-
+-/
 /-
 lemma ncw_impl_no_mr {pi : ProtocolInterface} (vr : ValidRequest) (s : State) (h_vr_in_pi : vr ∈ pi.val) (h_s_in_pi : pi.HasState s)
 (h_vr_is_ncw : vr.val = RelWrite ∨ vr.val = NonCoherentWeakWrite) (h_s_mr : s = MR) : ¬ pi.HasState s := by
