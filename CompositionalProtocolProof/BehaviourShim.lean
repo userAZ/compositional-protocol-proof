@@ -54,4 +54,16 @@ def Event.globalCacheCorrespondingCluster (e_greq e_cluster : Event n) : Prop :=
     | .proxy _ => False
   | .directoryEvent _ => False
 
+def Event.inCorrespondingClusterOfGlobalCache (e_greq e : Event n) : Prop :=
+  match e_greq with
+  | .cacheEvent ce => match ce.cid with
+    | .cache p_cache_inst => match p_cache_inst with
+      | .globalP fin_2 => match fin_2 with
+        | 0 => e.protocol = .cluster1
+        | 1 => e.protocol = .cluster2
+      | .cluster1 _ => False
+      | .cluster2 _ => False
+    | .proxy _ => False
+  | .directoryEvent _ => False
+
 -- /-- (Shim) Axiom 16: Downgrade at a Global Cache is translated to a Cluster Directory access -/
