@@ -446,3 +446,6 @@ structure Protocol.interface where
   global_pi : ProtocolInterface
   cluster1_pi : ProtocolInterface
   cluster2_pi : ProtocolInterface
+
+/-- Axiom 14, the global protocol is a SWMR protocol. -/
+def Protocol.globalSWMR (pi : Protocol.interface) : Prop := pi.global_pi = ProtocolInterface.swmrProtocol
