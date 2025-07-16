@@ -197,6 +197,16 @@ noncomputable def ValidRequest.DowngradeState (vr : ValidRequest) : State → St
 
 def ProtocolInterface := {vr : Finset ValidRequest // FollowsProtocolInterface vr}
 
+/-- Def 2.42: a SWMR protocol. -/
+def ProtocolInterface.swmrProtocol : ProtocolInterface := ⟨{SCWrite, SCRead}, by
+  all_goals constructor
+  all_goals simp [autoParam]
+  all_goals constructor
+  all_goals try simp[ValidRequest.NonCoherent, Request.nonCoherent]
+  all_goals constructor
+  all_goals simp
+  ⟩
+
 def ProtocolInterface.ProtocolStates : ProtocolInterface → Set State
 | pi => pi.val.image (·.toState)
 
