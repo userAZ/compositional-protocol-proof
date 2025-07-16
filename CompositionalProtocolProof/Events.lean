@@ -255,6 +255,9 @@ def Event.isWrite : Event n → Prop
 | .cacheEvent ce => ce.req.val.isWrite
 | .directoryEvent _ => false
 
+def Event.isCoherentWrite : Event n → Prop
+| e => e.isCoherent ∧ e.isWrite
+
 structure CacheEvent.vcInval (e : CacheEvent n) : Prop where
   isDown : e.down
   isWeakRead : e.req.val = ⟨.r, false, .Weak⟩
