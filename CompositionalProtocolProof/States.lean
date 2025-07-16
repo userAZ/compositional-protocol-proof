@@ -181,9 +181,9 @@ a fixed number (`n`) between both -/
 variable (n : Nat) -- generic number of caches.
 
 inductive ProtocolCacheInstance
-| globalP : Fin 2 → Vector State 2 → ProtocolCacheInstance -- Fin 2 because there are 2 clusters
-| cluster1 : Fin n → Vector State n → ProtocolCacheInstance
-| cluster2 : Fin n → Vector State n → ProtocolCacheInstance
+| globalP : Fin 2 → ProtocolCacheInstance -- Fin 2 because there are 2 clusters
+| cluster1 : Fin n → ProtocolCacheInstance
+| cluster2 : Fin n → ProtocolCacheInstance
 deriving DecidableEq
 
 /-
