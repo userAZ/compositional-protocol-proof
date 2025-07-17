@@ -90,9 +90,9 @@ structure Event.isSCReadGlobalDowngrade (e : Event n) : Prop where
   isGlobalDown : e.isGlobalCache
   isSCWrite : e.isSCRead
 
-/-- A directory event is made on state SW or MR -/
-def Behaviour.dirEventMadeOnSWOrMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop :=
-  (b.directoryStateMadeOn n init e).toState = SW ∨ (b.directoryStateMadeOn n init e).toState = MR
+/-- A directory event `e` is made on state `s` -/
+def Behaviour.dirEventMadeOn (b : Behaviour n) (init : InitialSystemState n) (e : Event n) (s : State) : Prop :=
+  (b.directoryStateMadeOn n init e).toState = s
 
 def Event.atProxy (e : Event n) : Prop := match e with
   | .cacheEvent ce => match ce.cid with
