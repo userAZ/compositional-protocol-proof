@@ -294,6 +294,9 @@ noncomputable def Event.MRS : Event n → State
 -- abbrev CoherentRequest := {e : CacheEvent // e.r.coherent = true}
 -- abbrev NonCoherentRequest := {e : CacheEvent // e.r.coherent = false}
 
+def Event.isSCWrite (e : Event n) : Prop := e.req.isSCWrite
+def Event.isSCRead (e : Event n) : Prop := e.req.isSCRead
+
 def UniqueCacheEventIds (ce₁ ce₂ : CacheEvent n) : Prop := ce₁.eid ≠ ce₂.eid
 
 -- NOTE: TODO: Update this to use a Vector for CacheIds, and Addresses.
