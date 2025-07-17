@@ -12,8 +12,10 @@ structure Request.IsValid (r : Request) where
   no_cwr : r.NoCoherentWeakRead := by simp
 -/
 
-noncomputable def Behaviour.stateMadeOn (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : State :=
+noncomputable def Behaviour.cacheStateMadeOn (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : State :=
   (b.stateBefore n (init.stateAt n e_req) e_req).cache
+noncomputable def Behaviour.directoryStateMadeOn (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : DirectoryState n :=
+  (b.stateBefore n (init.stateAt n e_req) e_req).directory
 
 /-- Key definition: (Not Acq, Rel, Weak Write). A request cache event has permissions if it's MRS is less than or equal the state it's made on. -/
 def Behaviour.eventOnStateHasPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
