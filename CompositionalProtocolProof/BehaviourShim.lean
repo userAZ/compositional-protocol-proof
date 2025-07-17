@@ -90,11 +90,9 @@ structure Event.isSCReadGlobalDowngrade (e : Event n) : Prop where
   isGlobalDown : e.isGlobalCache
   isSCWrite : e.isSCRead
 
-/-
-/-- A cache event is made on state SW or MR -/
-def Behaviour.madeOnSWOrMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop :=
-  b.stateMadeOn n init e = SW ∨ b.stateMadeOn n init e = MR
--/
+/-- A directory event is made on state SW or MR -/
+def Behaviour.dirEventMadeOnSWOrMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop :=
+  (b.directoryStateMadeOn n init e).toState = SW ∨ (b.directoryStateMadeOn n init e).toState = MR
 
 def Event.atProxy (e : Event n) : Prop := match e with
   | .cacheEvent ce => match ce.cid with
@@ -114,30 +112,54 @@ structure Event.Shim.bothCoherentWriteReadTranslateWriteFwd (e_gdown e_shim_coh_
   atCorrClusterProxy : Event.Shim.globalToClusterCacheEvent n e_gdown e_shim_coh_write
   scWrite : e_shim_coh_write.isSCWrite
   notDown : ¬ e_shim_coh_write.down
+  globalEncap : e_gdown.Encapsulates n e_shim_coh_write
 
 /-- A translated Global SC Write Downgrade that contains a SC Write Evict (Put M) -/
 structure Event.Shim.bothCoherentWriteReadTranslateWriteEvict (e_gdown e_shim_coh_evict : Event n) : Prop where
   atCorrClusterProxy : Event.Shim.globalToClusterCacheEvent n e_gdown e_shim_coh_evict
   scWrite : e_shim_coh_evict.isSCWrite
   down : e_shim_coh_evict.down
+  globalEncap : e_gdown.Encapsulates n e_shim_coh_evict
+
+/-- Global Cache Downgrade Request, encapsulates a Cluster Directory event. -/
+structure Event.Shim.globalToClusterDirectoryEvent (e_gdown e_shim_trans : Event n) : Prop where
+  sameAddr : e_gdown.sameAddr n e_shim_trans
+  atCorrCluster : e_gdown.correspondingClusterOfGlobalCache n e_shim_trans (Event.protocol n)
+  atDir : e_shim_trans.isDirectoryEvent n
+  globalEncap : e_gdown.Encapsulates n e_shim_trans
+
+structure Event.vcInvalDummy (e : Event n) : Prop where
+  down : e.down
+  isDir : e.isDirectoryEvent
+  vcWeakRead : e.isNcWeakRead
+
+structure Event.Shim.globalToClusterDirectoryEventStateCheck (e_gdown e_shim_trans : Event n) : Prop where
+  toCluster : Event.Shim.globalToClusterDirectoryEvent n e_gdown e_shim_trans
+  vcInvalDummy : e_shim_trans.vcInvalDummy
 
 /-- A global SC write downgrade encapsulates a Coherent Write `e_w` and Evict `e_v` (`e_w` orderedBefore `e_v`) in the corresponding Cluster's Proxy Cache. -/
-structure Behaviour.encapCorrespondingGetSWAndEvict (b : Behaviour n) (p : Protocol n) (e_gdown e_shim_coh_write e_shim_coh_evict : Event n) : Prop where
+structure Behaviour.encapCorrespondingGetSWAndEvict (b : Behaviour n) (p : Protocol n)
+  (e_gdown e_dir_state e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict : Event n) : Prop where
+  stateCheckBeforeAccess : b.ImmediateBottomPredecessor n e_dir_state e_dir_shim_coh_write
   cohWrite : Event.Shim.bothCoherentWriteReadTranslateWriteFwd n e_gdown e_shim_coh_write
-  encapCoherentWrite : e_gdown.Encapsulates n e_shim_coh_write
   cohEvict : Event.Shim.bothCoherentWriteReadTranslateWriteEvict n e_gdown e_shim_coh_evict
-  encapCoherentEvict : e_gdown.Encapsulates n e_shim_coh_evict
   cohWriteImmBeforeEvict : b.ImmediateBottomPredecessor n e_shim_coh_write e_shim_coh_evict
 
 /-- Wrapper for the above. -/
 def Behaviour.encapCorrespondingGetSWAndEvictWrapper (b : Behaviour n) (p : Protocol n) (e_gdown : Event n) : Prop :=
-  ∃ e_shim_coh_write ∈ b, ∃ e_shim_coh_evict ∈ b, b.encapCorrespondingGetSWAndEvict n p e_gdown e_shim_coh_write e_shim_coh_evict
+  ∃ e_dir_state ∈ b, ∃ e_shim_coh_write ∈ b, ∃ e_dir_shim_coh_write, ∃ e_shim_coh_evict ∈ b,
+    b.encapCorrespondingGetSWAndEvict n p e_gdown e_dir_state e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict
 
 /-- Helper for (Shim) Axiom 16: State a Global Write Fwd Downgrade (for a Cluster with both Coherent Write and Read)
 is translated to a Cluster (1) Proxy Cache SC Write, and (2) a Proxy Cache SC Write Evict. -/
-structure Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslation (b : Behaviour n) (init : InitialSystemState n) (p : Protocol n) (e_gdown : Event n) : Prop where
-  -- gDownOnSWOrMR : b.madeOnSWOrMR n init e_gdown
+structure Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslation (b : Behaviour n) (init : InitialSystemState n) (p : Protocol n) (e_gdown e_dir_check : Event n) : Prop where
+  clusterDir : Event.Shim.globalToClusterDirectoryEventStateCheck n e_gdown e_dir_check
+  gDownOnSWOrMR : b.dirEventMadeOnSWOrMR n init e_dir_check -- consider using a weak downgrade
   scGDownTranslation : b.encapCorrespondingGetSWAndEvictWrapper n p e_gdown
+
+/-- Wrapper for def above. -/
+def Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslationWrapper (b : Behaviour n) (init : InitialSystemState n) (p : Protocol n) (e_gdown : Event n) : Prop :=
+  ∃ e_dir_check ∈ b, Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslation n b init p e_gdown e_dir_check
 
 structure Event.Shim.bothCoherentWriteReadTranslateReadFwd (e_gdown e_shim_coh_read : Event n) : Prop where
   atCorrClusterProxy : Event.Shim.globalToClusterCacheEvent n e_gdown e_shim_coh_read
@@ -157,7 +179,7 @@ def Behaviour.Shim.Global.bothWriteReadSCReadDownTranslation (b : Behaviour n) (
 where the protocol has both a Coherent-Write and Coherent-Read.
 Covers `bothCoherentWriteAndRead` case in `inductive Behaviour.Shim.GlobalToCluster` -/
 inductive Behaviour.Shim.Global.bothWriteReadSCWriteDown (b : Behaviour n) (init : InitialSystemState n) (p : Protocol n) (e_gdown : Event n) : Prop
-| scWriteDown (hwrite_down : e_gdown.isSCWriteGlobalDowngrade) (translation : Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslation n b init p e_gdown)
+| scWriteDown (hwrite_down : e_gdown.isSCWriteGlobalDowngrade) (translation : Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslationWrapper n b init p e_gdown)
   : Behaviour.Shim.Global.bothWriteReadSCWriteDown b init p e_gdown
 | scReadDown (hread_down : e_gdown.isSCReadGlobalDowngrade) (translation : Behaviour.Shim.Global.bothWriteReadSCReadDownTranslation n b p e_gdown)
   : Behaviour.Shim.Global.bothWriteReadSCWriteDown b init p e_gdown
