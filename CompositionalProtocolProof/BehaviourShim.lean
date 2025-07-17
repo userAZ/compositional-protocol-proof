@@ -112,6 +112,3 @@ inductive Behaviour.Shim.GlobalToCluster (b : Behaviour n) (e_gdown : Event n) (
 | noCoherentRead (hcorrespond : e_gdown.correspondingClusterOfGlobalCache n pi Protocol.pi)
   (hno_coherent_read : pi.noCoherentRead n)
   : Behaviour.Shim.GlobalToCluster b e_gdown pi
-
--- (hgsc_write_down : e_gdown.isGlobalDowngrade n)
--- (hgsc_read_down : e_gdown.isGlobalDowngrade n)
