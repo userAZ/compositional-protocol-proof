@@ -107,13 +107,13 @@ structure Event.Shim.globalToClusterCacheEvent (e_gdown e_shim_trans : Event n) 
   atCorrCluster : e_gdown.correspondingClusterOfGlobalCache n e_shim_trans (Event.protocol n)
   proxyTrans : e_shim_trans.atProxy n
 
-/-- A translated Global SC Write Downgrade contains a SC Write (Get M) -/
+/-- A translated Global SC Write Downgrade that contains a SC Write (Get M) -/
 structure Event.Shim.bothCoherentWriteReadTranslateWriteFwd (e_gdown e_shim_coh_write : Event n) : Prop where
   atCorrClusterProxy : Event.Shim.globalToClusterCacheEvent n e_gdown e_shim_coh_write
   scWrite : e_shim_coh_write.isSCWrite
   notDown : ¬ e_shim_coh_write.down
 
-/-- A translated Global SC Write Downgrade contains a SC Write Evict (Put M) -/
+/-- A translated Global SC Write Downgrade that contains a SC Write Evict (Put M) -/
 structure Event.Shim.bothCoherentWriteReadTranslateWriteEvict (e_gdown e_shim_coh_evict : Event n) : Prop where
   atCorrClusterProxy : Event.Shim.globalToClusterCacheEvent n e_gdown e_shim_coh_evict
   scWrite : e_shim_coh_evict.isSCWrite
@@ -125,15 +125,31 @@ structure Behaviour.encapCorrespondingGetSWAndEvict (b : Behaviour n) (p : Proto
   encapCoherentWrite : e_gdown.Encapsulates n e_shim_coh_write
   cohEvict : Event.Shim.bothCoherentWriteReadTranslateWriteEvict n e_gdown e_shim_coh_evict
   encapCoherentEvict : e_gdown.Encapsulates n e_shim_coh_evict
-  cohWriteBeforeEvict : e_shim_coh_write.OrderedBefore n e_shim_coh_evict
+  cohWriteImmBeforeEvict : b.ImmediateBottomPredecessor n e_shim_coh_write e_shim_coh_evict
 
 /-- Wrapper for the above. -/
 def Behaviour.encapCorrespondingGetSWAndEvictWrapper (b : Behaviour n) (p : Protocol n) (e_gdown : Event n) : Prop :=
   ∃ e_shim_coh_write ∈ b, ∃ e_shim_coh_evict ∈ b, b.encapCorrespondingGetSWAndEvict n p e_gdown e_shim_coh_write e_shim_coh_evict
 
-inductive Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslation (b : Behaviour n) (init : InitialSystemState n) (p : Protocol n) (e_gdown : Event n) : Prop
-| gReqOnSWOrMR (gDownOnSWOrMR : b.madeOnSWOrMR n init e_gdown) (scGDownTranslation : b.encapCorrespondingGetSWAndEvictWrapper n p e_gdown)
-  : Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslation b init p e_gdown
+/-- Helper for (Shim) Axiom 16: State a Global Write Fwd Downgrade (for a Cluster with both Coherent Write and Read)
+is translated to a Cluster (1) Proxy Cache SC Write, and (2) a Proxy Cache SC Write Evict. -/
+structure Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslation (b : Behaviour n) (init : InitialSystemState n) (p : Protocol n) (e_gdown : Event n) : Prop where
+  gDownOnSWOrMR : b.madeOnSWOrMR n init e_gdown
+  scGDownTranslation : b.encapCorrespondingGetSWAndEvictWrapper n p e_gdown
+
+structure Event.Shim.bothCoherentWriteReadTranslateReadFwd (e_gdown e_shim_coh_read : Event n) : Prop where
+  atCorrClusterProxy : Event.Shim.globalToClusterCacheEvent n e_gdown e_shim_coh_read
+  scWrite : e_shim_coh_read.isSCRead
+  notDown : ¬ e_shim_coh_read.down
+
+structure Behaviour.encapCorrespondingGetMR (b : Behaviour n) (p : Protocol n) (e_gdown e_shim_coh_read : Event n) : Prop where
+  cohRead : Event.Shim.bothCoherentWriteReadTranslateReadFwd n e_gdown e_shim_coh_read
+  encapCoherentWrite : e_gdown.Encapsulates n e_shim_coh_read
+
+/-- Helper for (Shim) Axiom 16: State that a Global Read Fwd Downgrade (for a Cluster with both Coherent Write and Read)
+is translated to a Cluster Proxy Cache SC Read. -/
+def Behaviour.Shim.Global.bothWriteReadSCReadDownTranslation (b : Behaviour n) (p : Protocol n) (e_gdown : Event n) : Prop :=
+  ∃ e_shim_coh_read ∈ b, b.encapCorrespondingGetMR n p e_gdown e_shim_coh_read
 
 /-- Helper for (Shim) Axiom 16: translation from a Global SC Write Downgrade to the Cluster,
 where the protocol has both a Coherent-Write and Coherent-Read.
@@ -141,7 +157,7 @@ Covers `bothCoherentWriteAndRead` case in `inductive Behaviour.Shim.GlobalToClus
 inductive Behaviour.Shim.Global.bothWriteReadSCWriteDown (b : Behaviour n) (init : InitialSystemState n) (p : Protocol n) (e_gdown : Event n) : Prop
 | scWriteDown (hwrite_down : e_gdown.isSCWriteGlobalDowngrade) (translation : Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslation n b init p e_gdown)
   : Behaviour.Shim.Global.bothWriteReadSCWriteDown b init p e_gdown
-| scReadDown (hread_down : e_gdown.isSCReadGlobalDowngrade) /- [TODO] add translation for SC Read downgrade here -/
+| scReadDown (hread_down : e_gdown.isSCReadGlobalDowngrade) (translation : Behaviour.Shim.Global.bothWriteReadSCReadDownTranslation n b p e_gdown)
   : Behaviour.Shim.Global.bothWriteReadSCWriteDown b init p e_gdown
 
 /- [TODO] add translation for `noCoherentRead` case in `inductive Behaviour.Shim.GlobalToCluster` -/
@@ -149,7 +165,7 @@ inductive Behaviour.Shim.Global.bothWriteReadSCWriteDown (b : Behaviour n) (init
 /-- (Shim) Axiom 16: Downgrade at a Global Cache is translated to a Cluster Directory access -/
 inductive Behaviour.Shim.GlobalToCluster (b : Behaviour n) (init : InitialSystemState n) (p : Protocol n) (e_gdown : Event n) : Prop
 | bothCoherentWriteAndRead (hcorrespond : e_gdown.correspondingClusterOfGlobalCache n p Protocol.pi)
-  (hboth_coherent_wr : p.hasCoherentWriteAndRead n)
+  (hboth_coherent_wr : p.hasCoherentWriteAndRead n) (downTranslation : Behaviour.Shim.Global.bothWriteReadSCWriteDown n b init p e_gdown)
   : Behaviour.Shim.GlobalToCluster b init p e_gdown
 | noCoherentRead (hcorrespond : e_gdown.correspondingClusterOfGlobalCache n p Protocol.pi)
   (hno_coherent_read : p.noCoherentRead n)
