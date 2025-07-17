@@ -1,4 +1,5 @@
 import CompositionalProtocolProof.BehaviourRelationProofs
+import CompositionalProtocolProof.Protocol
 
 variable (n : Nat)
 
@@ -67,4 +68,50 @@ def Event.correspondingClusterOfGlobalCache {α : Type} (e_greq : Event n) (e : 
     | .proxy _ => False
   | .directoryEvent _ => False
 
--- /-- (Shim) Axiom 16: Downgrade at a Global Cache is translated to a Cluster Directory access -/
+def Protocol.hasCoherentWrite (p : Protocol n) : Prop := ∃ req ∈ p.requests, req.isCoherentWrite
+def Protocol.hasCoherentRead (p : Protocol n) : Prop := ∃ req ∈ p.requests, req.isCoherentRead
+
+def Protocol.hasCoherentWriteAndRead (p : Protocol n) : Prop := p.hasCoherentWrite ∧ p.hasCoherentRead
+
+def Protocol.noCoherentWrite (p : Protocol n) : Prop := ∀ req ∈ p.requests, ¬ req.isCoherentWrite
+def Protocol.noCoherentRead (p : Protocol n) : Prop := ∀ req ∈ p.requests, ¬ req.isCoherentRead
+
+def Protocol.noCoherentWriteOrRead (p : Protocol n) : Prop := p.noCoherentWrite ∧ p.noCoherentRead
+
+structure Event.isGlobalDowngrade (e : Event n) : Prop where
+  isGlobal : e.isGlobalCache
+  isDown : e.down
+
+structure Event.isSCWriteGlobalDowngrade (e : Event n) : Prop where
+  isGlobalDown : e.isGlobalCache
+  isSCWrite : e.isSCWrite
+
+structure Event.isSCReadGlobalDowngrade (e : Event n) : Prop where
+  isGlobalDown : e.isGlobalCache
+  isSCWrite : e.isSCRead
+
+/- [Work in progress]
+inductive Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslation (b : Behaviour n) (e_gdown : Event n) (pi : Protocol n) : Prop
+| gReqOnSWOrMR : (/- [TODO] on SW or MR -/) (/- [TODO] Encap a coherent write req and evict SW-/)
+  : Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslation b e_gdown pi
+-/
+
+/-- Helper for (Shim) Axiom 16: translation from a Global SC Write Downgrade to the Cluster,
+where the protocol has both a Coherent-Write and Coherent-Read. -/
+inductive Behaviour.Shim.Global.bothWriteReadSCWriteDown (b : Behaviour n) (e_gdown : Event n) (pi : Protocol n) : Prop
+| scWriteDown (hwrite_down : e_gdown.isSCWriteGlobalDowngrade) /- [TODO] If state before `e_gdown` is ... then ...-/
+  : Behaviour.Shim.Global.bothWriteReadSCWriteDown b e_gdown pi
+| scReadDown (hread_down : e_gdown.isSCReadGlobalDowngrade)
+  : Behaviour.Shim.Global.bothWriteReadSCWriteDown b e_gdown pi
+
+/-- (Shim) Axiom 16: Downgrade at a Global Cache is translated to a Cluster Directory access -/
+inductive Behaviour.Shim.GlobalToCluster (b : Behaviour n) (e_gdown : Event n) (pi : Protocol n) : Prop
+| bothCoherentWriteAndRead (hcorrespond : e_gdown.correspondingClusterOfGlobalCache n pi Protocol.pi)
+  (hboth_coherent_wr : pi.hasCoherentWriteAndRead n)
+  : Behaviour.Shim.GlobalToCluster b e_gdown pi
+| noCoherentRead (hcorrespond : e_gdown.correspondingClusterOfGlobalCache n pi Protocol.pi)
+  (hno_coherent_read : pi.noCoherentRead n)
+  : Behaviour.Shim.GlobalToCluster b e_gdown pi
+
+-- (hgsc_write_down : e_gdown.isGlobalDowngrade n)
+-- (hgsc_read_down : e_gdown.isGlobalDowngrade n)
