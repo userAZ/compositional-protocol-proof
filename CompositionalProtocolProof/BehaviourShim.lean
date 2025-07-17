@@ -90,9 +90,11 @@ structure Event.isSCReadGlobalDowngrade (e : Event n) : Prop where
   isGlobalDown : e.isGlobalCache
   isSCWrite : e.isSCRead
 
+/-
 /-- A cache event is made on state SW or MR -/
 def Behaviour.madeOnSWOrMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop :=
   b.stateMadeOn n init e = SW ∨ b.stateMadeOn n init e = MR
+-/
 
 def Event.atProxy (e : Event n) : Prop := match e with
   | .cacheEvent ce => match ce.cid with
@@ -134,7 +136,7 @@ def Behaviour.encapCorrespondingGetSWAndEvictWrapper (b : Behaviour n) (p : Prot
 /-- Helper for (Shim) Axiom 16: State a Global Write Fwd Downgrade (for a Cluster with both Coherent Write and Read)
 is translated to a Cluster (1) Proxy Cache SC Write, and (2) a Proxy Cache SC Write Evict. -/
 structure Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslation (b : Behaviour n) (init : InitialSystemState n) (p : Protocol n) (e_gdown : Event n) : Prop where
-  gDownOnSWOrMR : b.madeOnSWOrMR n init e_gdown
+  -- gDownOnSWOrMR : b.madeOnSWOrMR n init e_gdown
   scGDownTranslation : b.encapCorrespondingGetSWAndEvictWrapper n p e_gdown
 
 structure Event.Shim.bothCoherentWriteReadTranslateReadFwd (e_gdown e_shim_coh_read : Event n) : Prop where
