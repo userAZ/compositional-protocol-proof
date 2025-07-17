@@ -141,8 +141,10 @@ Covers `bothCoherentWriteAndRead` case in `inductive Behaviour.Shim.GlobalToClus
 inductive Behaviour.Shim.Global.bothWriteReadSCWriteDown (b : Behaviour n) (init : InitialSystemState n) (p : Protocol n) (e_gdown : Event n) : Prop
 | scWriteDown (hwrite_down : e_gdown.isSCWriteGlobalDowngrade) (translation : Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslation n b init p e_gdown)
   : Behaviour.Shim.Global.bothWriteReadSCWriteDown b init p e_gdown
-| scReadDown (hread_down : e_gdown.isSCReadGlobalDowngrade)
+| scReadDown (hread_down : e_gdown.isSCReadGlobalDowngrade) /- [TODO] add translation for SC Read downgrade here -/
   : Behaviour.Shim.Global.bothWriteReadSCWriteDown b init p e_gdown
+
+/- [TODO] add translation for `noCoherentRead` case in `inductive Behaviour.Shim.GlobalToCluster` -/
 
 /-- (Shim) Axiom 16: Downgrade at a Global Cache is translated to a Cluster Directory access -/
 inductive Behaviour.Shim.GlobalToCluster (b : Behaviour n) (init : InitialSystemState n) (p : Protocol n) (e_gdown : Event n) : Prop
