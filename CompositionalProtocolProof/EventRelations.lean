@@ -306,6 +306,7 @@ def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent 
       DirectoryState.Vd ⟨Vd, by simp⟩
     | ⟨.r, false, _⟩ => -- Non-Coherent-Read
       match ds with
+      | .SW sw _ => DirectoryState.Vd ⟨Vd, by simp⟩
       | .Vd vd => DirectoryState.Vd vd
       -- MR forbidden
       | _ => DirectoryState.Vc ⟨Vc, by simp⟩
