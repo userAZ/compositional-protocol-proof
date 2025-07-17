@@ -139,7 +139,7 @@ inductive Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslation (b : Behavio
 where the protocol has both a Coherent-Write and Coherent-Read.
 Covers `bothCoherentWriteAndRead` case in `inductive Behaviour.Shim.GlobalToCluster` -/
 inductive Behaviour.Shim.Global.bothWriteReadSCWriteDown (b : Behaviour n) (init : InitialSystemState n) (p : Protocol n) (e_gdown : Event n) : Prop
-| scWriteDown (hwrite_down : e_gdown.isSCWriteGlobalDowngrade) /- [TODO] If state before `e_gdown` is ... then ...-/
+| scWriteDown (hwrite_down : e_gdown.isSCWriteGlobalDowngrade) (translation : Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslation n b init p e_gdown)
   : Behaviour.Shim.Global.bothWriteReadSCWriteDown b init p e_gdown
 | scReadDown (hread_down : e_gdown.isSCReadGlobalDowngrade)
   : Behaviour.Shim.Global.bothWriteReadSCWriteDown b init p e_gdown
