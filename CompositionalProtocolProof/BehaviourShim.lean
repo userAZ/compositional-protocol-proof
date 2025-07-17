@@ -100,6 +100,10 @@ def Event.atProxy (e : Event n) : Prop := match e with
     | .cache _ => False
   | .directoryEvent _ => False
 
+structure Event.Shim.Global.ToCluster.matchingCluster (e_gdown e_shim_trans : Event n) : Prop where
+  sameAddr : e_gdown.sameAddr n e_shim_trans
+  atCorrCluster : e_gdown.correspondingClusterOfGlobalCache n e_shim_trans (Event.protocol n)
+
 /-- A translated event from the shim `e_shim_trans` goes to the Proxy Cache, for the same address,
 in the Cluster corresponding to requesting downgrade. -/
 structure Event.Shim.globalToClusterCacheEvent (e_gdown e_shim_trans : Event n) : Prop where
