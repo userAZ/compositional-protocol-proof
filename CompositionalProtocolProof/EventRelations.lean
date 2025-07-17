@@ -324,8 +324,14 @@ def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent 
       /- These two cases .Vd .Vc, can be proven absurd by adding a hypothesis that the DirectoryState is an `Allowed` Directory State. -/
       | .Vd _ => DirectoryState.Vd ⟨Vd, by simp⟩
       | .Vc _ => DirectoryState.Vc ⟨Vc, by simp⟩
-    | ⟨.w, false, _⟩ => DirectoryState.Vc ⟨Vc, by simp⟩ -- Non-Coherent-Write downgrade
-    | ⟨.r, false, _⟩ => DirectoryState.I ⟨I, by simp⟩ -- Non-Coherent-Read downgrade
+    | ⟨.w, false, _⟩ =>
+      match ds with
+      | .Vd _ => DirectoryState.Vc ⟨Vc, by simp⟩ -- Non-Coherent-Write downgrade
+      | _ => ds -- Junk.
+    | ⟨.r, false, _⟩ =>
+      match ds with
+      | .Vc _ => DirectoryState.I ⟨I, by simp⟩ -- Non-Coherent-Read downgrade
+      | _ => ds -- Junk.
 
 /-- Axiom. Directory state is the state after the Directory Event, this captures a Coherent Read's requester getting added to sharers. -/
 def DirectoryEvent.directoryState (de : DirectoryEvent n) (s : EntryState n) : Prop := de.SucceedingState n s.directory = de.dirS
