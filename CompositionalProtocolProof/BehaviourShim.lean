@@ -55,13 +55,13 @@ def Event.globalCacheCorrespondingCluster (e_greq e_cluster : Event n) : Prop :=
   | .directoryEvent _ => False
 
 /-- Def: State that an Event `e` is in the corresponding Cluster to a Global Cache Event `e_gReq` -/
-def Event.inCorrespondingClusterOfGlobalCache (e_greq e : Event n) : Prop :=
+def Event.correspondingClusterOfGlobalCache {α : Type} (e_greq : Event n) (e : α) (protocol : α → ProtocolInstance) : Prop :=
   match e_greq with
   | .cacheEvent ce => match ce.cid with
     | .cache p_cache_inst => match p_cache_inst with
       | .globalP fin_2 => match fin_2 with
-        | 0 => e.protocol = .cluster1
-        | 1 => e.protocol = .cluster2
+        | 0 => protocol e = .cluster1
+        | 1 => protocol e = .cluster2
       | .cluster1 _ => False
       | .cluster2 _ => False
     | .proxy _ => False
