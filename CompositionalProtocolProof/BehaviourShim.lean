@@ -136,7 +136,8 @@ inductive Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslation (b : Behavio
   : Behaviour.Shim.Global.bothWriteReadSCWriteDownTranslation b init p e_gdown
 
 /-- Helper for (Shim) Axiom 16: translation from a Global SC Write Downgrade to the Cluster,
-where the protocol has both a Coherent-Write and Coherent-Read. -/
+where the protocol has both a Coherent-Write and Coherent-Read.
+Covers `bothCoherentWriteAndRead` case in `inductive Behaviour.Shim.GlobalToCluster` -/
 inductive Behaviour.Shim.Global.bothWriteReadSCWriteDown (b : Behaviour n) (init : InitialSystemState n) (p : Protocol n) (e_gdown : Event n) : Prop
 | scWriteDown (hwrite_down : e_gdown.isSCWriteGlobalDowngrade) /- [TODO] If state before `e_gdown` is ... then ...-/
   : Behaviour.Shim.Global.bothWriteReadSCWriteDown b init p e_gdown
