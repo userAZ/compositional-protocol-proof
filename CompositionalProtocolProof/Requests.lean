@@ -197,11 +197,11 @@ noncomputable def ValidRequest.DowngradeState (vr : ValidRequest) : State → St
   | false =>
     if vr.val = NonCoherentWeakRead then
       if s = Vc then I
-      else I -- Junk. This is a self-invalidate
+      else s -- Junk. This is a self-invalidate
     else if vr.val = NonCoherentWeakWrite ∨ vr.val = RelWrite then
       if s = Vd then Vc
-      else I -- Junk. This is a write-back to directory
-    else I -- Junk. There are no other downgrade events we consider
+      else s -- Junk. This is a write-back to directory
+    else s -- Junk. There are no other downgrade events we consider
 
 def ProtocolInterface := {vr : Set ValidRequest // FollowsProtocolInterface vr}
 
