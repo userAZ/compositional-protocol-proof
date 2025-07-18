@@ -217,6 +217,9 @@ def ProtocolInterface.swmrProtocol : ProtocolInterface := ⟨{SCWrite, SCRead}, 
   all_goals simp
   ⟩
 
+def ProtocolInterface.isSWMR : ProtocolInterface → Prop
+| pi => pi = swmrProtocol
+
 def ProtocolInterface.ProtocolStates : ProtocolInterface → Set State
 | pi => pi.val.image (·.toState)
 
