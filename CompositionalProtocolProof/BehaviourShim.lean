@@ -40,7 +40,7 @@ structure Event.clusterDirEncapCorrespondingGlobalCache (e_dir e_greq : Event n)
   gReqOfCDir : e_greq.globalCacheEventOfClusterDir n e_dir
 
 /-- (Shim) Axiom 15: Cluster Directory Events are translated to Request Events at the corresponding Cache in the Global Protocol. -/
-structure Behaviour.Shim.ClusterDirEncapCorrespondingGlobalCache (b : Behaviour n) (e_dir : Event n) : Prop where
+structure Behaviour.Shim.ClusterToGlobal (b : Behaviour n) (e_dir : Event n) : Prop where
   -- dirCluster : e_dir.isClusterDir
   encapGlobalCache : e_dir.isClusterDir → ∃ e_greq ∈ b, Event.clusterDirEncapCorrespondingGlobalCache n e_greq e_dir
 
