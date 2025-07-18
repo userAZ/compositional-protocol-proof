@@ -229,6 +229,15 @@ structure ValidProtocolRequest' (pi : ProtocolInterface) (vr : ValidRequest) : P
 def ProtocolInterface.HasState : ProtocolInterface → State → Prop
 | pi, s => ∃ vr ∈ pi.val, vr.toState = s
 
+/-- Interface of each protocol "cluster" -/
+structure Protocol.interface where
+  global_pi : ProtocolInterface
+  cluster1_pi : ProtocolInterface
+  cluster2_pi : ProtocolInterface
+
+/-- Axiom 14, the global protocol is a SWMR protocol. -/
+def Protocol.globalSWMR (pi : Protocol.interface) : Prop := pi.global_pi = ProtocolInterface.swmrProtocol
+
 /- Not worth trying to prove right now.
 def ProtocolInterface.HasDirState : ProtocolInterface → DirectoryState → Prop
 | pi, ds => ∃ vr ∈ pi.val, vr.toState = ds.toState
