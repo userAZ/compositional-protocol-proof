@@ -4,16 +4,19 @@ import CompositionalProtocolProof.BehaviourRelationDefs
 
 variable (n : Nat)
 
-/- [TODO] Make MWE to ask what is the best way to write "subsingleton to option"
-def Behaviour.immediateBottomPredecessorSatisfyingProp (b : Behaviour n) (e : Event n) (p : Event n → Prop) : Option (Event n) :=
-  let immPreds := b.ImmBottomPredecessorsSatisfyingP n e p
-  if h : immPreds = ∅ then
+-- [NOTE] Probably want a lemma about subsingleton input
+open scoped Classical in
+noncomputable def Set.toOption {α} (s : Set α) : Option (α) :=
+  by classical exact
+  if h : s = ∅ then
     none
   else
-    some <| Classical.choice immPreds
--/
+    have nonempty : Nonempty s := by
+      simp[← Set.nonempty_iff_ne_empty'] at h
+      simp[h]
+    Option.some (Classical.choice nonempty).val
 
-def MatchingProtocolInstances (pi : ProtocolInstance) (pci : ProtocolCacheInstance n) : Prop :=
+noncomputable def Behaviour.eventToState (b : Behaviour n) (init : InitialSystemState n) (e? : Option (Event n)) (cid : CacheId n) : State :=
   match pi, pci with
   | .global, .globalP _
   | .cluster1, .cluster1 _
