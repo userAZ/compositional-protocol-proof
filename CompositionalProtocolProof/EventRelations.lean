@@ -17,6 +17,19 @@ def Event.Ordered (e₁ e₂ : Event n) : Prop := e₁.OrderedBefore n e₂ ∨ 
 def CacheEvent.Ordered (e₁ e₂ : CacheEvent n) : Prop := e₁.OrderedBefore n e₂ ∨ e₂.OrderedBefore n e₁
 def DirectoryEvent.Ordered (e₁ e₂ : DirectoryEvent n) : Prop := e₁.OrderedBefore n e₂ ∨ e₂.OrderedBefore n e₁
 
+/- Def for SWMR on pg 34. -/
+/-- An event `e_pred` ends before another event `e_succ` -/
+def Event.finishesBefore (e_pred e_succ : Event n) : Prop := e_pred.oEnd < e_succ.oEnd
+
+/- Def for SWMR on pg 34. -/
+/-- There's an intermediate event `e_inter` that finishes before the successor `e_succ`, and
+predecessor `e_pred` finishes before `e_inter`, where `e_pred` and `e_inter` are at the same Entry. -/
+structure Event.intermediateFinishesBeforeOfSameEntry (e_inter e_pred e_succ : Event n) : Prop where
+  sameCidInterPred : e_inter.struct = e_pred.struct
+  sameAddr : e_inter.addr = e_pred.addr
+  interPred : e_pred.finishesBefore n e_inter
+  interSucc : e_inter.finishesBefore n e_succ
+
 def Event.fromDirectoryEvent (de : DirectoryEvent n) (e : Event n) : Prop :=
   match e with
   | .directoryEvent de' => de = de'
