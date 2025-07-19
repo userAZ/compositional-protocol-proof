@@ -35,18 +35,33 @@ def ProtocolInstance.cidSetAtProtocolInstance_is_finite (pi : ProtocolInstance)
   constructor
   . case a =>
     -- simp[CacheId.atProtocol]
+    sorry
+  . case n => sorry
+
+-- Set.Finite.toFinset
+-- [TODO]: State that the set of Cids are finite, and then take it to a Finite List?
+/-
+def ProtocolInstance.cidListAtProtocolInstance (pi : ProtocolInstance) :=
+  (pi.cidSetAtProtocolInstance n).toList
+-/
+
+/-- Assumption: The set of events from projecting the events at `cid` is singleton. -/
+noncomputable def Behaviour.stateOfSubsingletonCidSet
+  (b : Behaviour n) (init : InitialSystemState n) (cid : CacheId n) (s : Set (Event n)) : State :=
+  b.eventToState n init {e ∈ s | e.atCid n cid}.toOption cid
+
+-- [NOTE] may need to prove this is Set.Countable
+def Behaviour.stateOfEventSet (b : Behaviour n) (init : InitialSystemState n) (pi : ProtocolInstance) (e : Event n) : Set State :=
+  let events_ending_immediately_before_event_ends := b.eventsEndingImmediatelyBefore n e
+  let cids := pi.cidSetAtProtocolInstance n
+  cids.image (b.stateOfSubsingletonCidSet n init · events_ending_immediately_before_event_ends)
+
+-- Try: State that projections of SW state and MR state from `stateOfEventSet` satisfy SWMR
+
+def SWMR (b : Behaviour n) (init : InitialSystemState n) (pi : ProtocolInstance) (e : Event n) : Prop :=
+  let cache_states := b.stateOfEventSet n init pi e
   sorry
 
-def SWMR (b : Behaviour n) (init : InitialSystemState n) : Prop :=
-  ∀ e ∈ b, ∀ cid : CacheId n, e.differentCidInSameProtocol n cid → sorry
 
 /- Want to state: the state of all caches in a protocol is SWMR
 (SW ≤ 1, exclusive or, MR ≥ 0, SW = 1 → MR = 0, and MR > 0 → SW = 0) -/
-
-/-
-def SWMR (b : Behaviour n) (init : InitialSystemState n) : Prop :=
-  ∀ e ∈ b, e.isCacheEvent → b.stateAfter n (init.stateAt n e) e
-
-def SWMR' (b : Behaviour n) (init : InitialSystemState n) : Prop :=
-  ∀ e ∈ b, e.isCacheEvent → b.stateAfter n (init.stateAt n e) e
--/
