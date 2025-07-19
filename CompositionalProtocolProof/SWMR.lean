@@ -54,12 +54,9 @@ noncomputable def Behaviour.cidSetAtProtocolInstance.cacheStatesFinishBeforeEven
   let cid_list := pi.cidSetAtProtocolInstance_to_list n
   cid_list.map (b.stateOfSubsingletonCidSet n init · events_ending_immediately_before_event_ends)
 
--- Try: State that projections of SW state and MR state from `stateOfEventSet` satisfy SWMR
+structure List.swmr (l : List State) : Prop where
+  swExclusiveMR : ¬ (SW ∈ l ∧ MR ∈ l) -- Cannot have both SW and MR at the same time
+  exclusiveSW : l.count SW ≤ 1 -- Can only have 1 exclusive writer
 
 def SWMR (b : Behaviour n) (init : InitialSystemState n) (pi : ProtocolInstance) (e : Event n) : Prop :=
-  let cache_states := b.stateOfEventSet n init pi e
-  sorry
-
-
-/- Want to state: the state of all caches in a protocol is SWMR
-(SW ≤ 1, exclusive or, MR ≥ 0, SW = 1 → MR = 0, and MR > 0 → SW = 0) -/
+  (Behaviour.cidSetAtProtocolInstance.cacheStatesFinishBeforeEvent n b init pi e).swmr
