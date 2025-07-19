@@ -33,14 +33,14 @@ def ProtocolInstance.cidSetAtProtocolInstance_is_finite (pi : ProtocolInstance)
   . case a =>
     -- simp[CacheId.atProtocol]
     sorry
-  . case n => sorry
+  . case n =>
+    sorry
 
--- Set.Finite.toFinset
--- [TODO]: State that the set of Cids are finite, and then take it to a Finite List?
-/-
-def ProtocolInstance.cidListAtProtocolInstance (pi : ProtocolInstance) :=
-  (pi.cidSetAtProtocolInstance n).toList
--/
+noncomputable def ProtocolInstance.cidSetAtProtocolInstance_to_finset (pi : ProtocolInstance) : Finset (CacheId n) :=
+  Set.Finite.toFinset (ProtocolInstance.cidSetAtProtocolInstance_is_finite n pi)
+
+noncomputable def ProtocolInstance.cidSetAtProtocolInstance_to_list (pi : ProtocolInstance) : List (CacheId n) :=
+  (pi.cidSetAtProtocolInstance_to_finset n).toList
 
 /-- Assumption: The set of events from projecting the events at `cid` is singleton. -/
 noncomputable def Behaviour.stateOfSubsingletonCidSet
