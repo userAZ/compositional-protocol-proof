@@ -197,6 +197,45 @@ inductive CacheId
 deriving DecidableEq
 
 /-
+instance : FinEnum (CacheId n) where
+  card := by exact 3 + 2 + n + n /- 3 from proxy, 2 from cache.globalP, n from cache.cluster1, n from cache.cluster2 -/
+  equiv := by
+    constructor
+    sorry
+-/
+
+def MatchingProtocolInstances (pi : ProtocolInstance) (pci : ProtocolCacheInstance n) : Prop :=
+  match pi, pci with
+  | .global, .globalP _
+  | .cluster1, .cluster1 _
+  | .cluster2, .cluster2 _ => True
+  | _, _ => False
+
+def CacheId.sameProtocol (cid₁ cid₂ : CacheId n) : Prop :=
+  match cid₁, cid₂ with
+  | .proxy pinst₁, .proxy pinst₂ => pinst₁ = pinst₂
+  | .cache pcinst₁, .cache pcinst₂ => match pcinst₁, pcinst₂ with
+    | .globalP _, .globalP _
+    | .cluster1 _, .cluster1 _
+    | .cluster2 _, .cluster2 _ => True
+    | _, _ => False
+  | .cache pcinst, .proxy pinst => MatchingProtocolInstances n pinst pcinst
+  | .proxy pinst, .cache pcinst => MatchingProtocolInstances n pinst pcinst
+
+def CacheId.atProtocol (cid : CacheId n) (pi : ProtocolInstance) : Prop :=
+  match cid with
+  | .proxy pinst => pinst = pi
+  | .cache pcinst => match pcinst, pi with
+    | .globalP _, .global
+    | .cluster1 _, .cluster1
+    | .cluster2 _, .cluster2 => True
+    | _, _ => False
+
+structure CacheId.differentIdSameProtocol (cid cid_other : CacheId n) : Prop where
+  ne : cid ≠ cid_other
+  sameProtocol : cid.sameProtocol n cid_other
+
+/-
 set_option quotPrecheck false in
 notation "CacheId" => CacheId' n
 -/
