@@ -2,6 +2,7 @@ import CompositionalProtocolProof.Common
 import Mathlib.Order.Category.PartOrd
 import Mathlib.Data.Finset.Defs
 import Mathlib.Data.Finset.Basic
+import Mathlib.Data.FinEnum
 
 /--
 ReadWritePermissions.
