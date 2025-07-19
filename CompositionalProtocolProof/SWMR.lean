@@ -8,13 +8,8 @@ variable (n : Nat)
 open scoped Classical in
 noncomputable def Set.toOption {α} (s : Set α) : Option (α) :=
   by classical exact
-  if h : s = ∅ then
-    none
-  else
-    have nonempty : Nonempty s := by
-      simp[← Set.nonempty_iff_ne_empty'] at h
-      simp[h]
-    Option.some (Classical.choice nonempty).val
+  if h : Nonempty s then some h.some
+  else none
 
 noncomputable def Behaviour.eventToState (b : Behaviour n) (init : InitialSystemState n) (e? : Option (Event n)) (cid : CacheId n) : State :=
   match e? with
