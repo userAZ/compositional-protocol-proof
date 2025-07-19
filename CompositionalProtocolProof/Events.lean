@@ -304,6 +304,23 @@ def InitialSystemState.stateAt (init : InitialSystemState n) (e : Event n) : Ent
   | .cacheEvent ce => Sum.inl <| init.cacheStates (ce.cid)
   | .directoryEvent de => Sum.inr <| init.directoryStates de.pInst
 
+def InitialSystemState.stateAtCid (init : InitialSystemState n) (cid : CacheId n) : State := init.cacheStates (cid)
+
+/-- Handle a relation on a (cache) event's Cid and another Cid. -/
+def Event.propOnBinaryCid (e : Event n) (p : CacheId n → CacheId n → Prop) : CacheId n → Prop := match e with
+  | .cacheEvent ce => p ce.cid
+  | .directoryEvent _ => (λ _ => False)
+
+def Event.differentCidInSameProtocol (e : Event n) (cid : CacheId n) : Prop :=
+  e.propOnBinaryCid n (CacheId.differentIdSameProtocol n) cid
+
+def Event.propOnUnitaryCid (e : Event n) (p : CacheId n → Prop) : Prop := match e with
+  | .cacheEvent ce => p ce.cid
+  | .directoryEvent _ => False
+
+def Event.eventOfDifferentCidInSameProtocol (e₁ e₂ : Event n) : Prop :=
+  e₂.propOnUnitaryCid n (e₁.propOnBinaryCid n (CacheId.differentIdSameProtocol n))
+
 /-- Def: From the protocol request interfaces of the 3 protocols (`p_i`), state the
   protocol interface (set of requests) Event `e` is a part of. -/
 def Event.interfaceMatchingProtocol (e : Event n) (p_i : Protocol.interface) : ProtocolInterface :=
