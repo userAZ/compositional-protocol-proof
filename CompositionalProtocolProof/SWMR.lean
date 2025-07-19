@@ -47,11 +47,12 @@ noncomputable def Behaviour.stateOfSubsingletonCidSet
   (b : Behaviour n) (init : InitialSystemState n) (cid : CacheId n) (s : Set (Event n)) : State :=
   b.eventToState n init {e ∈ s | e.atCid n cid}.toOption cid
 
--- [NOTE] may need to prove this is Set.Countable
-def Behaviour.stateOfEventSet (b : Behaviour n) (init : InitialSystemState n) (pi : ProtocolInstance) (e : Event n) : Set State :=
+/-- List of Cache States After Events immediately finishing before an Event `e`, including State After `e`. -/
+noncomputable def Behaviour.cidSetAtProtocolInstance.cacheStatesFinishBeforeEvent
+  (b : Behaviour n) (init : InitialSystemState n) (pi : ProtocolInstance) (e : Event n) : List State :=
   let events_ending_immediately_before_event_ends := b.eventsEndingImmediatelyBefore n e
-  let cids := pi.cidSetAtProtocolInstance n
-  cids.image (b.stateOfSubsingletonCidSet n init · events_ending_immediately_before_event_ends)
+  let cid_list := pi.cidSetAtProtocolInstance_to_list n
+  cid_list.map (b.stateOfSubsingletonCidSet n init · events_ending_immediately_before_event_ends)
 
 -- Try: State that projections of SW state and MR state from `stateOfEventSet` satisfy SWMR
 
