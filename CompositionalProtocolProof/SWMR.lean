@@ -16,7 +16,9 @@ noncomputable def Behaviour.eventToState (b : Behaviour n) (init : InitialSystem
   | .none => init.stateAtCid n cid
   | .some e => (b.stateAfter n (init.stateAt n e) e).cache
 
-/-- (although the title is "events", the set is Subsingleton) -/
+/-- Project the (Subsingleton) set of events at CacheId `cid` that's the immediate Finishes Before event of an Event `e`.
+(although the title is "events", the set is Subsingleton, as shown by Lemma
+`Behaviour.immediateFinishesBeforeEvents_is_subsingleton` in Behaviours.lean) -/
 def Behaviour.eventsEndingImmediatelyBeforeEvent (b : Behaviour n) (e : Event n) (cid : CacheId n) :=
   {e' ∈ b.eventsEndingImmediatelyBefore n e | e.atCid n cid}
 
