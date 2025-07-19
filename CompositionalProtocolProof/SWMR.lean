@@ -17,35 +17,24 @@ noncomputable def Set.toOption {α} (s : Set α) : Option (α) :=
     Option.some (Classical.choice nonempty).val
 
 noncomputable def Behaviour.eventToState (b : Behaviour n) (init : InitialSystemState n) (e? : Option (Event n)) (cid : CacheId n) : State :=
-  match pi, pci with
-  | .global, .globalP _
-  | .cluster1, .cluster1 _
-  | .cluster2, .cluster2 _ => True
-  | _, _ => False
+  match e? with
+  | .none => init.stateAtCid n cid
+  | .some e => (b.stateAfter n (init.stateAt n e) e).cache
 
-def CacheId.sameProtocol (cid₁ cid₂ : CacheId n) : Prop :=
-  match cid₁, cid₂ with
-  | .proxy pinst₁, .proxy pinst₂ => pinst₁ = pinst₂
-  | .cache pcinst₁, .cache pcinst₂ => match pcinst₁, pcinst₂ with
-    | .globalP _, .globalP _
-    | .cluster1 _, .cluster1 _
-    | .cluster2 _, .cluster2 _ => True
-    | _, _ => False
-  | .cache pcinst, .proxy pinst => MatchingProtocolInstances n pinst pcinst
-  | .proxy pinst, .cache pcinst => MatchingProtocolInstances n pinst pcinst
+/-- (although the title is "events", the set is Subsingleton) -/
+def Behaviour.eventsEndingImmediatelyBeforeEvent (b : Behaviour n) (e : Event n) (cid : CacheId n) :=
+  {e' ∈ b.eventsEndingImmediatelyBefore n e | e.atCid n cid}
 
-structure CacheId.differentIdSameProtocol (cid cid_other : CacheId n) : Prop where
-  ne : cid ≠ cid_other
-  sameProtocol : cid.sameProtocol n cid_other
+-- [NOTE] may need to prove finite
+def ProtocolInstance.cidSetAtProtocolInstance (pi : ProtocolInstance) := {c : CacheId n | c.atProtocol n pi}
 
-def Event.propOnCid (e : Event n) (p : CacheId n → CacheId n → Prop) : CacheId n → Prop := match e with
-  | .cacheEvent ce => p ce.cid
-  | .directoryEvent _ => (λ _ => False)
-
-def Event.differentCidInSameProtocol (e : Event n) (cid : CacheId n) : Prop :=
-  e.propOnCid n (CacheId.differentIdSameProtocol n) cid
-
-def Behaviour.setOfEventsImmPredEndBefore (b : Behaviour n) (e : Event n) : Set (Option (Event n)) :=
+def ProtocolInstance.cidSetAtProtocolInstance_is_finite (pi : ProtocolInstance)
+  : (pi.cidSetAtProtocolInstance n).Finite := by
+  simp[cidSetAtProtocolInstance]
+  simp[Set.Finite,]
+  constructor
+  . case a =>
+    -- simp[CacheId.atProtocol]
   sorry
 
 def SWMR (b : Behaviour n) (init : InitialSystemState n) : Prop :=
