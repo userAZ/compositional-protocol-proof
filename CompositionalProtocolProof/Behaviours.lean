@@ -643,6 +643,213 @@ lemma Behaviour.immediate_bottom_successor (b : Behaviour n) (e_pred : Event n) 
       exact And.right he₂
     exact Or.inr (Set.nonempty_unique_is_singleton imm_bottom_succs h_nonempty' h_unique)
 
+/- Defs for SWMR on pg 34. -/
+
+-- [NOTE] Consider declaring instance of Transitivity
+
+/-- An event `e_pred` ends before another event `e_succ` in a Behaviour `b` -/
+structure Behaviour.finishesBefore (b : Behaviour n) (e_pred e_succ : Event n) where
+  endBefore : e_pred.finishesBefore n e_succ
+  sameAddr : e_pred.sameAddr n e_succ
+  diffCidSameProtocol : e_pred.eventOfDifferentCidInSameProtocol n e_succ
+  predInB : e_pred ∈ b
+  succInB : e_succ ∈ b
+
+/-- There is _no_ intermediate event `e_inter` that finishes before the successor `e_succ`, and
+predecessor `e_pred` finishes before `e_inter` in the same entry. -/
+def Behaviour.noIntermediateFinishesBeforeOfSameEntry (b : Behaviour n) (e_pred e_succ : Event n) : Prop :=
+  ∀ e_inter ∈ b, ¬ e_inter.intermediateFinishesBeforeOfSameEntry n e_pred e_succ
+
+/-- There is an event `e_inter` that _immediately_ finishes before the successor `e_succ` -/
+structure Behaviour.immediateFinishesBefore (b : Behaviour n) (e_pred e_succ : Event n) where
+  finishBefore : Behaviour.finishesBefore n b e_pred e_succ
+  noIntermediate : b.noIntermediateFinishesBeforeOfSameEntry n e_pred e_succ
+
+def Behaviour.immediateFinishesBeforeEvents : Behaviour n → Event n → Set (Event n)
+| b, e_succ => {e_pred ∈ b.es | b.immediateFinishesBefore n e_pred e_succ}
+
+lemma Behaviour.contradiction_of_e_succ_eq_e_imm_finishes_before'
+  {e e' e_succ : Event n} {cid : CacheId n} {b : Behaviour n}
+  (he_at_cid : Event.atCid n e cid) (he'_at_cid : Event.atCid n e' cid)
+  (he_eq_e_succ : e = e_succ)
+  (he'_imm_fin_before : e' ∈ b.es ∧ immediateFinishesBefore n b e' e_succ)
+  : False := by
+  have hcid_e' := he'_imm_fin_before.right.finishBefore.diffCidSameProtocol
+  simp[Event.eventOfDifferentCidInSameProtocol, Event.propOnUnitaryCid,
+    Event.propOnBinaryCid,] at hcid_e'
+  match hce' : e', he_succ' : e_succ with
+  | .cacheEvent ce', .cacheEvent ce_succ =>
+    simp[] at hcid_e'
+    have hdiff_cid := hcid_e'.ne
+    have same_cid : ce'.cid = ce_succ.cid := by
+      simp[Event.atCid, he_eq_e_succ] at he_at_cid he'_at_cid
+      rw[he_at_cid, he'_at_cid]
+    contradiction
+  | .cacheEvent _, .directoryEvent _
+  | .directoryEvent _, .cacheEvent _
+  | .directoryEvent _, .directoryEvent _ =>
+    simp[] at hcid_e'
+
+lemma Behaviour.contradiction_of_e_e'_immediate_finishes_before_successor_e_finishes_before_e'
+  {e e' e_succ : Event n} {cid : CacheId n} {b : Behaviour n}
+  (he_imm : immediateFinishesBefore n b e e_succ) (he'_imm : immediateFinishesBefore n b e' e_succ)
+  (he_at_cid : e.atCid n cid) (he'_at_cid : e'.atCid n cid)
+  (he_in_b : e ∈ b.es) (he'_in_b : e' ∈ b.es)
+  (he_finish_before_e' : e.finishesBefore n e')
+  : False := by
+  have he_no_inter := he_imm.noIntermediate
+  simp[noIntermediateFinishesBeforeOfSameEntry] at he_no_inter
+  have he_no_inter_of_e' := he_no_inter e' he'_in_b
+  exfalso
+  apply he_no_inter_of_e'
+  constructor
+  . case sameCidInterPred =>
+    match hce : e, hce' : e' with
+    | .cacheEvent ce, .cacheEvent ce' =>
+      simp[Event.atCid] at he_at_cid he'_at_cid
+      simp[Event.struct, he_at_cid, he'_at_cid]
+    | .cacheEvent _, .directoryEvent _
+    | .directoryEvent _, .cacheEvent _
+    | .directoryEvent _, .directoryEvent _ =>
+      simp[Event.atCid] at he_at_cid he'_at_cid
+  . case sameAddr =>
+    have he_at_addr := he_imm.finishBefore.sameAddr
+    have he'_at_addr := he'_imm.finishBefore.sameAddr
+    simp[Event.sameAddr] at he_at_addr he'_at_addr
+    simp[he_at_addr, he'_at_addr]
+  . case interPred => exact he_finish_before_e'
+  . case interSucc => exact he'_imm.finishBefore.endBefore
+
+lemma CacheEvent.contradiction_of_ce_ce'_end_at_same_time {ce ce' : CacheEvent n}
+  (he'_e_finish_at_the_same_time : Event.oEnd n (Event.cacheEvent ce') = Event.oEnd n (Event.cacheEvent ce))
+  (hce_encap_or_before_ce' : CacheEvent.encapsulatedOrBefore n ce ce')
+  : False := by
+  simp[CacheEvent.encapsulatedOrBefore] at hce_encap_or_before_ce'
+  cases hce_encap_or_before_ce'
+  . case inl hce_encap_by_ce' =>
+    have hce_ce'_end_at_different_times :
+      (Event.cacheEvent ce').oEnd ≠ (Event.cacheEvent ce).oEnd := by
+      simp[CacheEvent.EncapsulatedBy, CacheEvent.Encapsulates] at hce_encap_by_ce'
+      rw[Nat.ne_iff_lt_or_gt]
+      apply Or.intro_right
+      . case h => exact hce_encap_by_ce'.right
+    contradiction
+  . case inr hce_before_ce' =>
+    have hce_ce'_end_at_different_times :
+      (Event.cacheEvent ce').oEnd ≠ (Event.cacheEvent ce).oEnd := by
+      simp[CacheEvent.OrderedBefore] at hce_before_ce'
+      have hce_end_before_ce' : ce.oEnd < ce'.oEnd :=
+        calc ce.oEnd < ce'.oStart := hce_before_ce'
+          _ < ce'.oEnd := ce'.oWellFormed
+      rw[Nat.ne_iff_lt_or_gt]
+      apply Or.intro_right
+      . case h => exact hce_end_before_ce'
+    contradiction
+
+lemma Behaviour.contradiction_of_two_events_immediate_finishes_before_successor_event
+  {b : Behaviour n} {cid : CacheId n} {e e' e_succ : Event n}
+  (he_imm : immediateFinishesBefore n b e e_succ)
+  (he'_imm : immediateFinishesBefore n b e' e_succ)
+  (he_at_cid : e.atCid n cid)
+  (he'_at_cid : e'.atCid n cid)
+  (he_in_b : e ∈ b.es)
+  (he'_in_b : e' ∈ b.es)
+  : False := by
+  by_cases he_finishes_before_e' : e.finishesBefore n e'
+  . case pos =>
+    apply b.contradiction_of_e_e'_immediate_finishes_before_successor_e_finishes_before_e'
+    . case he_imm => exact he_imm
+    . case he'_imm => exact he'_imm
+    . case he_at_cid => exact he_at_cid
+    . case he'_at_cid => exact he'_at_cid
+    . case he_in_b => exact he_in_b
+    . case he'_in_b => exact he'_in_b
+    . case he_finish_before_e' => exact he_finishes_before_e'
+  . case neg =>
+    apply b.contradiction_of_e_e'_immediate_finishes_before_successor_e_finishes_before_e'
+    . case he_imm => exact he'_imm
+    . case he'_imm => exact he_imm
+    . case he_at_cid => exact he'_at_cid
+    . case he'_at_cid => exact he_at_cid
+    . case he_in_b => exact he'_in_b
+    . case he'_in_b => exact he_in_b
+    . case he_finish_before_e' =>
+      simp[Event.finishesBefore] at he_finishes_before_e'
+      simp[Nat.le_iff_lt_or_eq] at he_finishes_before_e'
+      cases he_finishes_before_e'
+      . case inl he'_finishes_before_e =>
+        rw[← Event.finishesBefore.eq_def] at he'_finishes_before_e
+        exact he'_finishes_before_e
+      . case inr he'_e_finish_at_the_same_time =>
+        have he_ordered := b.orderedAtEntry
+        match hce : e, hce' : e' with
+        | .cacheEvent ce, .cacheEvent ce' =>
+          have hordered := b.orderedAtEntry.cache_ordered ce ce' |>.ordered
+          simp[CacheEvent.encapsulatedOrOrdered] at hordered
+          cases hordered
+          . case inl hce_encap_or_before_ce' =>
+            exfalso
+            apply ce.contradiction_of_ce_ce'_end_at_same_time
+            . case he'_e_finish_at_the_same_time => exact he'_e_finish_at_the_same_time
+            . case hce_encap_or_before_ce' => exact hce_encap_or_before_ce'
+          . case inr hce'_encap_or_before_ce =>
+            exfalso
+            apply ce'.contradiction_of_ce_ce'_end_at_same_time
+            . case he'_e_finish_at_the_same_time =>
+              apply Eq.symm
+              exact he'_e_finish_at_the_same_time
+            . case hce_encap_or_before_ce' => exact hce'_encap_or_before_ce
+        | .cacheEvent _, .directoryEvent _
+        | .directoryEvent _, .cacheEvent _
+        | .directoryEvent _, .directoryEvent _ =>
+          simp[Event.atCid] at he_at_cid he'_at_cid
+
+/-- (For SWMR Def. 2.41) Define the set of events that immediately (no intermediate event(s))
+end before an event `e` ends. -/
+def Behaviour.eventsEndingImmediatelyBefore (b : Behaviour n) (e : Event n) : Set (Event n) :=
+  (b.immediateFinishesBeforeEvents n e) ∪ {e}
+
+lemma Behaviour.immediateFinishesBeforeEvents_is_subsingleton (b : Behaviour n) (e_succ : Event n)
+  : ∀ cid : CacheId n, {e ∈ b.eventsEndingImmediatelyBefore n e_succ | e.atCid n cid}.Subsingleton := by
+  simp[eventsEndingImmediatelyBefore]
+  simp[immediateFinishesBeforeEvents]
+  simp only [Set.Subsingleton, Set.mem_setOf_eq,]
+  intro cid e he_in_set e' he'_in_set
+  have he  := Set.mem_setOf.mp he_in_set
+  have he' := Set.mem_setOf.mp he'_in_set
+  cases hcases_e : he.left
+  . case inl he_eq_e_succ =>
+    cases hcases_e' : he'.left
+    . case inl he'_eq_e_succ =>
+      rw[he_eq_e_succ, he'_eq_e_succ]
+    . case inr he'_imm_fin_before =>
+      exfalso
+      apply contradiction_of_e_succ_eq_e_imm_finishes_before'
+      . case he_at_cid => exact he.right
+      . case he'_at_cid => exact he'.right
+      . case he_eq_e_succ => exact he_eq_e_succ
+      . case he'_imm_fin_before => exact he'_imm_fin_before
+  . case inr he_imm_fin_before =>
+    cases hcases_e' : he'.left
+    . case inl he'_eq_e_succ =>
+      exfalso
+      apply contradiction_of_e_succ_eq_e_imm_finishes_before'
+      . case he_at_cid => exact he'.right
+      . case he'_at_cid => exact he.right
+      . case he_eq_e_succ => exact he'_eq_e_succ
+      . case he'_imm_fin_before => exact he_imm_fin_before
+    . case inr he'_imm_fin_before =>
+      have he_imm := he_imm_fin_before.right
+      have he'_imm := he'_imm_fin_before.right
+      exfalso
+      apply b.contradiction_of_two_events_immediate_finishes_before_successor_event
+      . case he_imm => exact he_imm_fin_before.right
+      . case he'_imm => exact he'_imm_fin_before.right
+      . case he_at_cid => exact he.right
+      . case he'_at_cid => exact he'.right
+      . case he_in_b => exact he_imm_fin_before.left
+      . case he'_in_b => exact he'_imm_fin_before.left
+
 /- Def 2.32 Behaviour.PreviousEvent -/
 open scoped Classical in
 noncomputable def Behaviour.PreviousEvent (b : Behaviour n) (e : Event n) : Option (Event n) :=
