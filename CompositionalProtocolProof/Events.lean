@@ -1,4 +1,5 @@
 import CompositionalProtocolProof.Requests
+import CompositionalProtocolProof.RequestPPOs
 import CompositionalProtocolProof.States
 
 variable (n : Nat)
@@ -305,6 +306,17 @@ def InitialSystemState.stateAt (init : InitialSystemState n) (e : Event n) : Ent
   | .directoryEvent de => Sum.inr <| init.directoryStates de.pInst
 
 def InitialSystemState.stateAtCid (init : InitialSystemState n) (cid : CacheId n) : State := init.cacheStates (cid)
+
+/-- Events are at the same Cache. -/
+def Event.sameCid (e₁ e₂ : Event n) : Prop :=
+  match e₁, e₂ with
+  | .cacheEvent ce₁, .cacheEvent ce₂ => ce₁.cid = ce₂.cid
+  | _, _ => False
+
+/-- Def 2.38: Is a Request Pair a PPO Pair. -/
+structure Event.isPPOPair (e₁ e₂ : Event n) : Prop where
+  requestPPO : e₁.req.isPPOPair e₂.req
+  sameCache : e₁.sameCid n e₂
 
 /-- Handle a relation on a (cache) event's Cid and another Cid. -/
 def Event.propOnBinaryCid (e : Event n) (p : CacheId n → CacheId n → Prop) : CacheId n → Prop := match e with
