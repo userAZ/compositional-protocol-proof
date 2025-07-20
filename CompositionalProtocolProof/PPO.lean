@@ -15,7 +15,7 @@ structure Event.orderedBeforeToSameEntry (e_lin₂ e_lin₃ : Event n) : Prop wh
 structure Event.lazyLinearizationOrder (e_lin₁ e_lin₂ e_lin₃ : Event n) : Prop where
   e₁e₂sameProtocol : e_lin₁.sameProtocol n e_lin₂
   e₂e₃sameProtocol : e_lin₂.sameProtocol n e_lin₃
-  e₁e₃EndsBefore : e_lin₁.oEnd < e_lin₃.oEnd
+  e₁e₃FinishesBefore : e_lin₁.finishesBefore n e_lin₃
 
 /-- Def 2.39: A Request Pair is in PPO -/
 def Event.LinearizationOrder (b : Behaviour n) (init : InitialSystemState n)
