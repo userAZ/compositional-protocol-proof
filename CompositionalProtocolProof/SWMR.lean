@@ -54,3 +54,5 @@ structure List.swmr (l : List State) : Prop where
 
 def SWMR (b : Behaviour n) (init : InitialSystemState n) (pi : ProtocolInstance) (e : Event n) : Prop :=
   (Behaviour.cidSetAtProtocolInstance.cacheStatesFinishBeforeEvent n b init pi e).swmr
+
+def SWMR.wrapper : Prop := ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ pi : ProtocolInstance, ∀ e ∈ b, SWMR n b init pi e

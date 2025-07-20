@@ -1,5 +1,6 @@
 import CompositionalProtocolProof.BehaviourRelationProofs
 import CompositionalProtocolProof.Requests
+import CompositionalProtocolProof.SWMR
 
 variable (n : Nat)
 
@@ -15,6 +16,7 @@ structure RequestAxioms where
   coherentEvictGrant : Behaviour.coherentEvictGetsGrant n
   nonCohReqDowngrades : Behaviour.nonCoherentRequestDowngradeOthers n
   relAcqSelfBroadcast : Behaviour.relAcqBroadcast n
+  swmr : SWMR.wrapper n
 
 structure Protocol where
   pi : ProtocolInstance -- Which `cluster` is this protocol associated with
