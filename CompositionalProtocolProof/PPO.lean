@@ -3,9 +3,6 @@ import CompositionalProtocolProof.RequestPPOs
 
 variable (n : Nat)
 
-/-- Def 2.38: Is a Request Pair a PPO Pair. -/
-def Event.isPPOPair (e₁ e₂ : Event n) : Prop := e₁.req.isPPOPair e₂.req
-
 noncomputable def Behaviour.linearizationEventOfRequest.linearizationEvent {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
   (e_lin : Behaviour.linearizationEventOfRequest n b init e) : Event n := match e_lin with
   | .requestLin lin_e => lin_e.choose
