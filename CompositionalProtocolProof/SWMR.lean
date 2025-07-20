@@ -25,16 +25,166 @@ def Behaviour.eventsEndingImmediatelyBeforeEvent (b : Behaviour n) (e : Event n)
 -- [NOTE] may need to prove finite
 def ProtocolInstance.cidSetAtProtocolInstance (pi : ProtocolInstance) := {c : CacheId n | c.atProtocol n pi}
 
-def ProtocolInstance.cidSetAtProtocolInstance_is_finite (pi : ProtocolInstance)
+def CacheId.mkCacheGlobalP (m : Fin 2) : CacheId n := CacheId.cache (.globalP m)
+def CacheId.mkCacheCluster1 (m : Fin n) : CacheId n := CacheId.cache (.cluster1 m)
+def CacheId.mkCacheCluster2 (m : Fin n) : CacheId n := CacheId.cache (.cluster2 m)
+def CacheId.mkProxy (n : Nat) (p : ProtocolInstance) : CacheId n := CacheId.proxy p
+
+instance CacheId.mkCacheGlobalP_inj : Function.Injective (CacheId.mkCacheGlobalP n) := by
+  simp[Function.Injective]
+  simp[mkCacheGlobalP]
+instance CacheId.mkCacheCluster1_inj : Function.Injective (CacheId.mkCacheCluster1 n) := by
+  simp[Function.Injective]
+  simp[mkCacheCluster1]
+instance CacheId.mkCacheCluster2_inj : Function.Injective (CacheId.mkCacheCluster2 n) := by
+  simp[Function.Injective]
+  simp[mkCacheCluster2]
+instance CacheId.mkCacheProxy_inj : Function.Injective (CacheId.mkProxy n) := by
+  simp[Function.Injective]
+  simp[mkProxy]
+
+instance CacheId.isFintype : Fintype (CacheId n) where
+  elems := by
+    constructor
+    case val =>
+      exact (
+        (List.finRange 2).map (CacheId.mkCacheGlobalP n ·) ++
+        (List.finRange n).map (CacheId.mkCacheCluster1 n ·) ++
+        (List.finRange n).map (CacheId.mkCacheCluster2 n ·) ++
+        [CacheId.mkProxy n .global, CacheId.mkProxy n .cluster1, CacheId.mkProxy n .cluster2]
+        )
+    case nodup =>
+      simp[List.nodup_append]
+      apply And.intro
+      . case left =>
+        rw[List.nodup_map_iff]
+        simp[List.nodup_finRange]
+        simp[mkCacheGlobalP_inj,]
+      . case right =>
+        apply And.intro
+        . case left =>
+          apply And.intro
+          . case left =>
+            rw[List.nodup_map_iff]
+            simp[List.nodup_finRange]
+            simp[mkCacheCluster1_inj,]
+          . case right =>
+            apply And.intro
+            . case left =>
+              apply And.intro
+              . case left =>
+                rw[List.nodup_map_iff]
+                simp[List.nodup_finRange]
+                simp[mkCacheCluster2_inj,]
+              . case right =>
+                apply And.intro
+                . case left =>
+                  apply And.intro
+                  . case left =>
+                    apply And.intro
+                    . case left => simp[mkProxy]
+                    . case right => simp[mkProxy]
+                  . case right => simp[mkProxy]
+                . case right =>
+                  intro fin
+                  apply And.intro
+                  . case left => simp[mkCacheCluster2, mkProxy]
+                  . case right =>
+                    apply And.intro
+                    all_goals simp[mkProxy,mkCacheCluster1,mkCacheCluster2]
+            . case right =>
+              intro fin cid exist
+              cases exist
+              . case inl h =>
+                rw[← h.choose_spec]
+                simp[mkCacheCluster1, mkCacheCluster2]
+              . case inr h =>
+                cases h
+                . case inl h =>
+                  rw[h]
+                  simp[mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
+                . case inr h =>
+                  cases h
+                  . case inl h =>
+                    rw[h]
+                    simp[mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
+                  . case inr h =>
+                    rw[h]
+                    simp[mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
+        . case right =>
+          intro fin2 cid exist
+          cases exist
+          . case inl h =>
+            rw[← h.choose_spec]
+            simp[mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
+          . case inr h =>
+            cases h
+            . case inl h =>
+              rw[← h.choose_spec]
+              simp[mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
+            . case inr h =>
+              cases h
+              . case inl h =>
+                rw[h]
+                simp[mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
+              . case inr h =>
+                cases h
+                . case inl h =>
+                  rw[h]
+                  simp[mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
+                . case inr h =>
+                  rw[h]
+                  simp[mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
+  complete := by
+    intro cid
+    induction cid with
+    | proxy pi =>
+      simp
+      match pi with
+      | .global =>
+        apply Or.inr
+        apply Or.inr
+        apply Or.inr
+        apply Or.inl
+        rfl
+      | .cluster1 =>
+        apply Or.inr
+        apply Or.inr
+        apply Or.inr
+        apply Or.inr
+        apply Or.inl
+        rfl
+      | .cluster2 =>
+        apply Or.inr
+        apply Or.inr
+        apply Or.inr
+        apply Or.inr
+        apply Or.inr
+        rfl
+    | cache cache_inst =>
+      simp
+      match cache_inst with
+      | .globalP fin2 =>
+        apply Or.inl
+        apply Exists.intro
+        · rfl
+      | .cluster1 fin =>
+        apply Or.inr
+        apply Or.inl
+        apply Exists.intro
+        · rfl
+      | .cluster2 fin =>
+        apply Or.inr
+        apply Or.inr
+        apply Or.inl
+        apply Exists.intro
+        · rfl
+
+lemma ProtocolInstance.cidSetAtProtocolInstance_is_finite (pi : ProtocolInstance)
   : (pi.cidSetAtProtocolInstance n).Finite := by
   simp[cidSetAtProtocolInstance]
   simp[Set.Finite,]
-  constructor
-  . case a =>
-    -- simp[CacheId.atProtocol]
-    sorry
-  . case n =>
-    sorry
+  simp [Subtype.finite]
 
 noncomputable def ProtocolInstance.cidSetAtProtocolInstance_to_finset (pi : ProtocolInstance) : Finset (CacheId n) :=
   Set.Finite.toFinset (ProtocolInstance.cidSetAtProtocolInstance_is_finite n pi)
