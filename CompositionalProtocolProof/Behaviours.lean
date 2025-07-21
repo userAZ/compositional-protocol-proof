@@ -645,34 +645,46 @@ lemma Behaviour.immediate_bottom_successor (b : Behaviour n) (e_pred : Event n) 
 
 /- Defs for SWMR on pg 34. -/
 
--- [NOTE] Consider declaring instance of Transitivity
-
-/-- An event `e_pred` ends before another event `e_succ` in a Behaviour `b` -/
-structure Behaviour.finishesBefore (b : Behaviour n) (e_pred e_succ : Event n) where
+structure Behaviour.finishesBeforeNotEncap (b : Behaviour n) (e_pred e_succ : Event n) where
   endBefore : e_pred.finishesBefore n e_succ
+  notEncap : ¬ e_succ.Encapsulates n e_pred
   sameAddr : e_pred.sameAddr n e_succ
-  diffCidSameProtocol : e_pred.eventOfDifferentCidInSameProtocol n e_succ
   predInB : e_pred ∈ b
   succInB : e_succ ∈ b
 
+-- [NOTE] Consider declaring instance of Transitivity
+
+structure Behaviour.finishesBefore (b : Behaviour n) (e_pred e_succ : Event n) where
+  endBefore : e_pred.finishesBefore n e_succ
+  sameAddr : e_pred.sameAddr n e_succ
+  predInB : e_pred ∈ b
+  succInB : e_succ ∈ b
+
+/-- An event `e_pred` ends before another event `e_succ` in a Behaviour `b`, in a different Cache `cid`
+and the same protocol. -/
+structure Behaviour.finishesBeforeAtDifferentCid (b : Behaviour n) (e_pred e_succ : Event n) where
+  finBefore : b.finishesBefore n e_pred e_succ
+  diffCidSameProtocol : e_pred.eventOfDifferentCidInSameProtocol n e_succ
+
 /-- There is _no_ intermediate event `e_inter` that finishes before the successor `e_succ`, and
-predecessor `e_pred` finishes before `e_inter` in the same entry. -/
+predecessor `e_pred` finishes before `e_inter` in the same entry. Note that `e_pred` is at a different `cid`
+than `e_succ` in the same Protocol. -/
 def Behaviour.noIntermediateFinishesBeforeOfSameEntry (b : Behaviour n) (e_pred e_succ : Event n) : Prop :=
   ∀ e_inter ∈ b, ¬ e_inter.intermediateFinishesBeforeOfSameEntry n e_pred e_succ
 
-/-- There is an event `e_inter` that _immediately_ finishes before the successor `e_succ` -/
-structure Behaviour.immediateFinishesBefore (b : Behaviour n) (e_pred e_succ : Event n) where
-  finishBefore : Behaviour.finishesBefore n b e_pred e_succ
+/-- There is no event `e_inter` that _immediately_ finishes before the successor `e_succ` -/
+structure Behaviour.immediateFinishesBeforeAtDifferentCid (b : Behaviour n) (e_pred e_succ : Event n) where
+  finishBefore : Behaviour.finishesBeforeAtDifferentCid n b e_pred e_succ
   noIntermediate : b.noIntermediateFinishesBeforeOfSameEntry n e_pred e_succ
 
-def Behaviour.immediateFinishesBeforeEvents : Behaviour n → Event n → Set (Event n)
-| b, e_succ => {e_pred ∈ b.es | b.immediateFinishesBefore n e_pred e_succ}
+def Behaviour.immediateFinishesBeforeAtDifferentCidEvents : Behaviour n → Event n → Set (Event n)
+| b, e_succ => {e_pred ∈ b.es | b.immediateFinishesBeforeAtDifferentCid n e_pred e_succ}
 
 lemma Behaviour.contradiction_of_e_succ_eq_e_imm_finishes_before'
   {e e' e_succ : Event n} {cid : CacheId n} {b : Behaviour n}
   (he_at_cid : Event.atCid n e cid) (he'_at_cid : Event.atCid n e' cid)
   (he_eq_e_succ : e = e_succ)
-  (he'_imm_fin_before : e' ∈ b.es ∧ immediateFinishesBefore n b e' e_succ)
+  (he'_imm_fin_before : e' ∈ b.es ∧ Behaviour.immediateFinishesBeforeAtDifferentCid n b e' e_succ)
   : False := by
   have hcid_e' := he'_imm_fin_before.right.finishBefore.diffCidSameProtocol
   simp[Event.eventOfDifferentCidInSameProtocol, Event.propOnUnitaryCid,
@@ -692,7 +704,7 @@ lemma Behaviour.contradiction_of_e_succ_eq_e_imm_finishes_before'
 
 lemma Behaviour.contradiction_of_e_e'_immediate_finishes_before_successor_e_finishes_before_e'
   {e e' e_succ : Event n} {cid : CacheId n} {b : Behaviour n}
-  (he_imm : immediateFinishesBefore n b e e_succ) (he'_imm : immediateFinishesBefore n b e' e_succ)
+  (he_imm : Behaviour.immediateFinishesBeforeAtDifferentCid n b e e_succ) (he'_imm : Behaviour.immediateFinishesBeforeAtDifferentCid n b e' e_succ)
   (he_at_cid : e.atCid n cid) (he'_at_cid : e'.atCid n cid)
   (he_in_b : e ∈ b.es) (he'_in_b : e' ∈ b.es)
   (he_finish_before_e' : e.finishesBefore n e')
@@ -713,12 +725,12 @@ lemma Behaviour.contradiction_of_e_e'_immediate_finishes_before_successor_e_fini
     | .directoryEvent _, .directoryEvent _ =>
       simp[Event.atCid] at he_at_cid he'_at_cid
   . case sameAddr =>
-    have he_at_addr := he_imm.finishBefore.sameAddr
-    have he'_at_addr := he'_imm.finishBefore.sameAddr
+    have he_at_addr := he_imm.finishBefore.finBefore.sameAddr
+    have he'_at_addr := he'_imm.finishBefore.finBefore.sameAddr
     simp[Event.sameAddr] at he_at_addr he'_at_addr
     simp[he_at_addr, he'_at_addr]
   . case interPred => exact he_finish_before_e'
-  . case interSucc => exact he'_imm.finishBefore.endBefore
+  . case interSucc => exact he'_imm.finishBefore.finBefore.endBefore
 
 lemma CacheEvent.contradiction_of_ce_ce'_end_at_same_time {ce ce' : CacheEvent n}
   (he'_e_finish_at_the_same_time : Event.oEnd n (Event.cacheEvent ce') = Event.oEnd n (Event.cacheEvent ce))
@@ -748,8 +760,8 @@ lemma CacheEvent.contradiction_of_ce_ce'_end_at_same_time {ce ce' : CacheEvent n
 
 lemma Behaviour.contradiction_of_two_events_immediate_finishes_before_successor_event
   {b : Behaviour n} {cid : CacheId n} {e e' e_succ : Event n}
-  (he_imm : immediateFinishesBefore n b e e_succ)
-  (he'_imm : immediateFinishesBefore n b e' e_succ)
+  (he_imm : Behaviour.immediateFinishesBeforeAtDifferentCid n b e e_succ)
+  (he'_imm : Behaviour.immediateFinishesBeforeAtDifferentCid n b e' e_succ)
   (he_at_cid : e.atCid n cid)
   (he'_at_cid : e'.atCid n cid)
   (he_in_b : e ∈ b.es)
@@ -807,12 +819,12 @@ lemma Behaviour.contradiction_of_two_events_immediate_finishes_before_successor_
 /-- (For SWMR Def. 2.41) Define the set of events that immediately (no intermediate event(s))
 end before an event `e` ends. -/
 def Behaviour.eventsEndingImmediatelyBefore (b : Behaviour n) (e : Event n) : Set (Event n) :=
-  (b.immediateFinishesBeforeEvents n e) ∪ {e}
+  (b.immediateFinishesBeforeAtDifferentCidEvents n e) ∪ {e}
 
 lemma Behaviour.immediateFinishesBeforeEvents_is_subsingleton (b : Behaviour n) (e_succ : Event n)
   : ∀ cid : CacheId n, {e ∈ b.eventsEndingImmediatelyBefore n e_succ | e.atCid n cid}.Subsingleton := by
   simp[eventsEndingImmediatelyBefore]
-  simp[immediateFinishesBeforeEvents]
+  simp[Behaviour.immediateFinishesBeforeAtDifferentCidEvents]
   simp only [Set.Subsingleton, Set.mem_setOf_eq,]
   intro cid e he_in_set e' he'_in_set
   have he  := Set.mem_setOf.mp he_in_set
