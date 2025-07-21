@@ -40,10 +40,62 @@ structure Event.clusterDirEncapCorrespondingGlobalCache (e_dir e_greq : Event n)
   encapGlobalCache : e_dir.Encapsulates n e_greq
   gReqOfCDir : e_greq.globalCacheEventOfClusterDir n e_dir
 
+-- state the previous state of the corresponding global cache does not have sufficient state for a directory access.
+
+/-- An Global Cache Event `e_gcache` corresponding to a Directory Event `e_cdir` ends before `e_cdir` in a Behaviour `b`. -/
+structure Behaviour.globalCacheFinishesBeforeNotEncapClusterDirectory (b : Behaviour n) (e_gcache e_cdir : Event n) where
+  finBefore : b.finishesBeforeNotEncap n e_gcache e_cdir
+  gCacheOfCDir : Event.reqAtCorrespondingGCacheOfCDir n e_cdir e_gcache
+
+/-- There's an intermediate event `e_inter` that finishes before the successor `e_succ`, and
+predecessor `e_pred` finishes before `e_inter`, where `e_pred` and `e_inter` are at the same Entry. -/
+structure Event.intermediateFinishesBeforeNotEncapOfSameEntry (e_inter e_pred e_succ : Event n) : Prop where
+  noInter : e_inter.intermediateFinishesBeforeOfSameEntry n e_pred e_succ
+  noEncap : ¬ e_succ.Encapsulates n e_inter
+
+/-- There is _no_ intermediate event `e_inter` that finishes before the successor `e_succ`, and
+predecessor `e_pred` finishes before `e_inter` in the same entry. Note that `e_pred` is at a different `cid`
+than `e_succ` in the same Protocol. -/
+def Behaviour.noIntermediateFinishesBeforeNotEncapOfSameEntry (b : Behaviour n) (e_pred e_succ : Event n) : Prop :=
+  ∀ e_inter ∈ b, ¬ e_inter.intermediateFinishesBeforeNotEncapOfSameEntry n e_pred e_succ
+
+/-- There is no event `e_inter` that _immediately_ finishes before the successor `e_succ` -/
+structure Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncap (b : Behaviour n) (e_pred e_succ : Event n) where
+  finishBefore : Behaviour.globalCacheFinishesBeforeNotEncapClusterDirectory n b e_pred e_succ
+  noIntermediate : b.noIntermediateFinishesBeforeNotEncapOfSameEntry n e_pred e_succ
+
+def Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncapEvents : Behaviour n → Event n → Set (Event n)
+| b, e_succ => {e_pred ∈ b | b.immediateFinishesBeforeAtGlobalCacheNotEncap n e_pred e_succ}
+
+/- Prove if needed -/
+lemma Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncapEvents_is_subsingleton (b : Behaviour n) (e_succ : Event n)
+  : ∀ cid : CacheId n, (b.immediateFinishesBeforeAtGlobalCacheNotEncapEvents n e_succ).Subsingleton := by
+  sorry
+
+def Event.globalCidCorrespondingToClusterDir (e_dir : Event n) : CacheId n :=
+  match e_dir.protocol with
+  | .cluster1 => CacheId.cache (ProtocolCacheInstance.globalP 0)
+  | .cluster2 => CacheId.cache (ProtocolCacheInstance.globalP 1)
+  | .global => panic! "Error: The Global Directory does not have a corresponding cache."
+
+/-- Assumption: The set of events from projecting the events at `cid` is singleton. -/
+noncomputable def Behaviour.stateOfSubsingletonGlobalEventSet
+  (b : Behaviour n) (init : InitialSystemState n) (cid : CacheId n) (s : Set (Event n)) : State :=
+  b.eventToState n init s.toOption cid
+
+noncomputable def Behaviour.globalCacheStateOfDirectoryEvent (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : State :=
+  let global_cache_cid := (e_dir.globalCidCorrespondingToClusterDir n)
+  let global_event_imm_finish_before_dir := (b.immediateFinishesBeforeAtGlobalCacheNotEncapEvents n e_dir)
+  b.stateOfSubsingletonGlobalEventSet n init global_cache_cid global_event_imm_finish_before_dir
+
+structure Behaviour.clusterDirNoPermsInGlobalCache (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : Prop where
+  clusterDir : e_dir.isClusterDir
+  gCacheOfDirNoPerms : ¬ e_dir.req.MRS ≤ b.globalCacheStateOfDirectoryEvent n init e_dir
+
 /-- (Shim) Axiom 15: Cluster Directory Events are translated to Request Events at the corresponding Cache in the Global Protocol. -/
-structure Behaviour.Shim.ClusterToGlobal (b : Behaviour n) (e_dir : Event n) : Prop where
+structure Behaviour.Shim.ClusterToGlobal (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : Prop where
   -- dirCluster : e_dir.isClusterDir
-  encapGlobalCache : e_dir.isClusterDir → ∃ e_greq ∈ b, Event.clusterDirEncapCorrespondingGlobalCache n e_greq e_dir
+  encapGlobalCache : b.clusterDirNoPermsInGlobalCache n init e_dir → ∃ e_greq ∈ b, Event.clusterDirEncapCorrespondingGlobalCache n e_greq e_dir
 
 def Event.globalCacheCorrespondingCluster (e_greq e_cluster : Event n) : Prop := match e_greq with
   | .cacheEvent ce => match ce.cid with
