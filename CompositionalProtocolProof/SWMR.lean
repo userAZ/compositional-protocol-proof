@@ -11,10 +11,10 @@ noncomputable def Set.toOption {α} (s : Set α) : Option (α) :=
   if h : Nonempty s then some h.some
   else none
 
-noncomputable def Behaviour.eventToState (b : Behaviour n) (init : InitialSystemState n) (e? : Option (Event n)) (cid : CacheId n) : State :=
+noncomputable def Behaviour.eventToState (b : Behaviour n) (init : InitialSystemState n) (e? : Option (Event n)) (struct : Struct n) : State :=
   match e? with
-  | .none => init.stateAtCid n cid
-  | .some e => (b.stateAfter n (init.stateAt n e) e).cache
+  | .none => init.stateAtStruct n struct
+  | .some e => (b.stateAfter n (init.stateAt n e) e).state
 
 /-- Project the (Subsingleton) set of events at CacheId `cid` that's the immediate Finishes Before event of an Event `e`.
 (although the title is "events", the set is Subsingleton, as shown by Lemma
@@ -39,7 +39,7 @@ noncomputable def ProtocolInstance.cidSetAtProtocolInstance_to_list (pi : Protoc
 /-- Assumption: The set of events from projecting the events at `cid` is singleton. -/
 noncomputable def Behaviour.stateOfSubsingletonCidSet
   (b : Behaviour n) (init : InitialSystemState n) (cid : CacheId n) (s : Set (Event n)) : State :=
-  b.eventToState n init {e ∈ s | e.atCid n cid}.toOption cid
+  b.eventToState n init {e ∈ s | e.atCid n cid}.toOption (Struct.cache cid)
 
 /-- List of Cache States After Events immediately finishing before an Event `e`, including State After `e`. -/
 noncomputable def Behaviour.cidSetAtProtocolInstance.cacheStatesFinishBeforeEvent

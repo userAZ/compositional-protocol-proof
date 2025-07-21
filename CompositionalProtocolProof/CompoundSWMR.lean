@@ -9,9 +9,9 @@ import CompositionalProtocolProof.Protocol
 variable (n : Nat)
 
 noncomputable def Behaviour.globalCacheStateOfDirEventState (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : State :=
-  let global_cache_cid := (e_dir.globalCidCorrespondingToClusterDir n)
+  let global_cache_cid := Struct.cache (e_dir.globalCidCorrespondingToClusterDir n)
   let global_event_imm_finish_before_dir := (b.immediateFinishesBeforeAtGlobalCacheEvents n e_dir)
-  b.stateOfSubsingletonGlobalEventSet n init global_cache_cid global_event_imm_finish_before_dir
+  b.stateOfSubsingletonEventSet n init global_cache_cid global_event_imm_finish_before_dir
 
 /-- Directory Event Has permissions. -/
 def Behaviour.dirEventStateLeGlobalCacheState (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : Prop :=
@@ -23,7 +23,9 @@ structure CompoundSWMR.stateAfterClusterDirEventLeGlobalCache (b : Behaviour n) 
   stateAfterLeGlobalCache : b.dirEventStateLeGlobalCacheState n init e_cdir
 
 noncomputable def Behaviour.latestDirectoryStateOfGlobalCache (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : State :=
-  sorry
+  let cluster_dir_struct := Struct.directory (e_gcache.clusterDirProtocolCorrespondingToGlobalCache n)
+  let cluster_dir_imm_finish_before_global := b.immediateFinishesBeforeAtClusterDirectoryEvents n e_gcache
+  b.stateOfSubsingletonEventSet n init cluster_dir_struct cluster_dir_imm_finish_before_global
 
 /-- The corresponding directory has state permissions ≤ the state after a global cache event -/
 def Behaviour.dirEventStateLeGlobalCacheState' (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : Prop :=
