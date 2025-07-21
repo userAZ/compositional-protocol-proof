@@ -108,7 +108,7 @@ structure Behaviour.immediateFinishesBeforeAtGlobalCache (b : Behaviour n) (e_pr
   noIntermediate : b.noIntermediateFinishesBeforeOfSameEntry n e_pred e_succ
 
 def Behaviour.immediateFinishesBeforeAtGlobalCacheEvents : Behaviour n → Event n → Set (Event n)
-| b, e_succ => {e_pred ∈ b | b.immediateFinishesBeforeAtGlobalCacheNotEncap n e_pred e_succ}
+| b, e_succ => {e_pred ∈ b | b.immediateFinishesBeforeAtGlobalCache n e_pred e_succ}
 
 /- Prove if needed -/
 lemma Behaviour.immediateFinishesBeforeAtGlobalCacheEvents_is_subsingleton (b : Behaviour n) (e_succ : Event n)
