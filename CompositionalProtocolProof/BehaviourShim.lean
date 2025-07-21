@@ -97,6 +97,24 @@ structure Behaviour.Shim.ClusterToGlobal (b : Behaviour n) (init : InitialSystem
   -- dirCluster : e_dir.isClusterDir
   encapGlobalCache : b.clusterDirNoPermsInGlobalCache n init e_dir → ∃ e_greq ∈ b, Event.clusterDirEncapCorrespondingGlobalCache n e_greq e_dir
 
+/- For Stating the Global Cache State a Directory Event has corresponding permissions of. -/
+structure Behaviour.globalCacheFinishesBeforeClusterDirectory (b : Behaviour n) (e_gcache e_cdir : Event n) where
+  finBefore : b.finishesBefore n e_gcache e_cdir
+  gCacheOfCDir : Event.reqAtCorrespondingGCacheOfCDir n e_cdir e_gcache
+
+/-- There is no event `e_inter` that _immediately_ finishes before the successor `e_succ` -/
+structure Behaviour.immediateFinishesBeforeAtGlobalCache (b : Behaviour n) (e_pred e_succ : Event n) where
+  finishBefore : Behaviour.globalCacheFinishesBeforeClusterDirectory n b e_pred e_succ
+  noIntermediate : b.noIntermediateFinishesBeforeOfSameEntry n e_pred e_succ
+
+def Behaviour.immediateFinishesBeforeAtGlobalCacheEvents : Behaviour n → Event n → Set (Event n)
+| b, e_succ => {e_pred ∈ b | b.immediateFinishesBeforeAtGlobalCacheNotEncap n e_pred e_succ}
+
+/- Prove if needed -/
+lemma Behaviour.immediateFinishesBeforeAtGlobalCacheEvents_is_subsingleton (b : Behaviour n) (e_succ : Event n)
+  : ∀ cid : CacheId n, (b.immediateFinishesBeforeAtGlobalCacheEvents n e_succ).Subsingleton := by
+  sorry
+
 def Event.globalCacheCorrespondingCluster (e_greq e_cluster : Event n) : Prop := match e_greq with
   | .cacheEvent ce => match ce.cid with
     | .cache p_cache_inst => match p_cache_inst with
