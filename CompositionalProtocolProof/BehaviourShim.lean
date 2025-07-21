@@ -196,13 +196,6 @@ structure Event.Shim.Global.ToCluster.translateDirectoryEvent (e_gdown e_shim_tr
   downgrade : e_shim_trans.down = isDown
   globalEncap : e_gdown.Encapsulates n e_shim_trans
 
-/-
-structure Event.vcInvalDummy (e : Event n) : Prop where
-  down : e.down
-  isDir : e.isDirectoryEvent
-  vcWeakRead : e.isNcWeakRead
--/
-
 structure Event.Shim.Global.ToCluster.directoryEventStateCheck (e_gdown e_shim_trans : Event n) : Prop where
   toCluster : Event.Shim.Global.ToCluster.translateDirectoryEvent n e_gdown e_shim_trans ValidRequest.isNcWeakRead True
 
