@@ -31,7 +31,7 @@ noncomputable def Behaviour.latestDirectoryStateOfGlobalCache (b : Behaviour n) 
 def Behaviour.dirEventStateLeGlobalCacheState' (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : Prop :=
   b.latestDirectoryStateOfGlobalCache n init e_gcache ≤ b.cacheStateMadeOn n init e_gcache
 
-/- Def 2.47,b: Compound SWMR: global cache downgrade events (or all global cache events) have corresponding state in
+/-- Def 2.47,b: Compound SWMR: global cache downgrade events (or all global cache events) have corresponding state in
 the directory that's ≤ global cache event. (i.e. corresponding dir event state finish immediately before global cache event
 is ≤ the state after the global cache event) -/
 structure CompoundSWMR.stateAfterClusterDirEventLeGlobalCache' (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : Prop where
