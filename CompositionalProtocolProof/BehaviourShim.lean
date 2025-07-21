@@ -32,6 +32,7 @@ structure Event.isClusterDir (e_dir : Event n) : Prop where
 structure Event.globalCacheEventOfClusterDir (e_greq e_dir : Event n) where
   reqGlobalCache : e_greq.isGlobalCache
   dirCluster : e_dir.isClusterDir
+  sameAddr : e_dir.addr = e_greq.addr
   gReq : e_dir.reqAtCorrespondingGCacheOfCDir n e_greq -- Global Cache Request corresponds to e_dir's cluster
   matchingOp : e_greq.req = ⟨⟨e_dir.req.val.rw, true, .SC⟩, by simp[Request.IsValid']⟩
 
