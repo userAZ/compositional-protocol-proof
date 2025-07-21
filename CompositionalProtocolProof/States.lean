@@ -174,7 +174,7 @@ inductive ProtocolInstance
 | global : ProtocolInstance
 | cluster1 : ProtocolInstance
 | cluster2 : ProtocolInstance
-deriving DecidableEq
+deriving DecidableEq, Inhabited
 
 /- Consider letting there be different numbers of caches in cluster1 (`i`) and cluster2 (`j`) instead of
 a fixed number (`n`) between both -/
