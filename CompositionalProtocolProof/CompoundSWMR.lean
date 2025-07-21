@@ -18,12 +18,22 @@ def Behaviour.dirEventStateLeGlobalCacheState (b : Behaviour n) (init : InitialS
   e_dir.req.MRS ≤ b.globalCacheStateOfDirEventState n init e_dir
 
 /-- Def 2.47,a: Compound SWMR: directory event has permissions in global cache. -/
-structure CompoundSWMR.stateAfterClusterDirEventLeGlobalCache (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : Prop where
-  dirEvent : e_dir.isDirectoryEvent
-  stateAfterLeGlobalCache : b.dirEventStateLeGlobalCacheState n init e_dir
+structure CompoundSWMR.stateAfterClusterDirEventLeGlobalCache (b : Behaviour n) (init : InitialSystemState n) (e_cdir : Event n) : Prop where
+  dirEvent : e_cdir.isClusterDir
+  stateAfterLeGlobalCache : b.dirEventStateLeGlobalCacheState n init e_cdir
+
+noncomputable def Behaviour.latestDirectoryStateOfGlobalCache (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : State :=
+  sorry
+
+/-- The corresponding directory has state permissions ≤ the state after a global cache event -/
+def Behaviour.dirEventStateLeGlobalCacheState' (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : Prop :=
+  b.latestDirectoryStateOfGlobalCache n init e_gcache ≤ b.cacheStateMadeOn n init e_gcache
 
 /- Def 2.47,b: Compound SWMR: global cache downgrade events (or all global cache events) have corresponding state in
 the directory that's ≤ global cache event. (i.e. corresponding dir event state finish immediately before global cache event
 is ≤ the state after the global cache event) -/
+structure CompoundSWMR.stateAfterClusterDirEventLeGlobalCache' (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : Prop where
+  gCache : e_gcache.isGlobalCache
+  stateAfterLeGlobalCache : b.dirEventStateLeGlobalCacheState n init e_gcache
 
 -- def CompoundSWMR.wrapper
