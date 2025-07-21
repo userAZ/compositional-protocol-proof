@@ -307,6 +307,11 @@ def InitialSystemState.stateAt (init : InitialSystemState n) (e : Event n) : Ent
 
 def InitialSystemState.stateAtCid (init : InitialSystemState n) (cid : CacheId n) : State := init.cacheStates (cid)
 
+def InitialSystemState.stateAtStruct (init : InitialSystemState n) (struct : Struct n) : State :=
+  match struct with
+  | .directory pi => (init.directoryStates pi).toState
+  | .cache cid => init.cacheStates cid
+
 /-- Events are at the same Cache. -/
 def Event.sameCid (e₁ e₂ : Event n) : Prop :=
   match e₁, e₂ with
