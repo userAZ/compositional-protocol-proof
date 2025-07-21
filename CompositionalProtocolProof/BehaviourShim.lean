@@ -64,6 +64,7 @@ structure Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncap (b : Behaviour 
   finishBefore : Behaviour.globalCacheFinishesBeforeNotEncapClusterDirectory n b e_pred e_succ
   noIntermediate : b.noIntermediateFinishesBeforeNotEncapOfSameEntry n e_pred e_succ
 
+/-- Latest (that isn't encapsulated by the Cluster Directory Event) Corresponding Global Cache Event of a Cluster Directory Event. -/
 def Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncapEvents : Behaviour n → Event n → Set (Event n)
 | b, e_succ => {e_pred ∈ b | b.immediateFinishesBeforeAtGlobalCacheNotEncap n e_pred e_succ}
 
@@ -79,14 +80,14 @@ def Event.globalCidCorrespondingToClusterDir (e_dir : Event n) : CacheId n :=
   | .global => panic! "Error: The Global Directory does not have a corresponding cache."
 
 /-- Assumption: The set of events from projecting the events at `cid` is singleton. -/
-noncomputable def Behaviour.stateOfSubsingletonGlobalEventSet
-  (b : Behaviour n) (init : InitialSystemState n) (cid : CacheId n) (s : Set (Event n)) : State :=
-  b.eventToState n init s.toOption cid
+noncomputable def Behaviour.stateOfSubsingletonEventSet
+  (b : Behaviour n) (init : InitialSystemState n) (struct : Struct n) (s : Set (Event n)) : State :=
+  b.eventToState n init s.toOption struct
 
 noncomputable def Behaviour.globalCacheStateOfDirectoryEvent (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : State :=
-  let global_cache_cid := (e_dir.globalCidCorrespondingToClusterDir n)
-  let global_event_imm_finish_before_dir := (b.immediateFinishesBeforeAtGlobalCacheNotEncapEvents n e_dir)
-  b.stateOfSubsingletonGlobalEventSet n init global_cache_cid global_event_imm_finish_before_dir
+  let global_cache_cid := Struct.cache (e_dir.globalCidCorrespondingToClusterDir n)
+  let global_event_imm_finish_before_dir := b.immediateFinishesBeforeAtGlobalCacheNotEncapEvents n e_dir
+  b.stateOfSubsingletonEventSet n init global_cache_cid global_event_imm_finish_before_dir
 
 structure Behaviour.clusterDirNoPermsInGlobalCache (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : Prop where
   clusterDir : e_dir.isClusterDir
