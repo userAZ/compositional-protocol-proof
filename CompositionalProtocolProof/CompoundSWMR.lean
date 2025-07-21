@@ -38,4 +38,8 @@ structure CompoundSWMR.stateAfterClusterDirEventLeGlobalCache' (b : Behaviour n)
   gCache : e_gcache.isGlobalCache
   stateAfterLeGlobalCache : b.dirEventStateLeGlobalCacheState n init e_gcache
 
--- def CompoundSWMR.wrapper
+structure CompoundSWMR.wrapper where
+  clusterDirHasPermissions : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_cdir ∈ b,
+    e_cdir.isClusterDir → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache n b init e_cdir
+  globalCachePermissionsRestriction : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_gcache ∈ b,
+    e_gcache.isGlobalCache → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache' n b init e_gcache
