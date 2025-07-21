@@ -197,6 +197,9 @@ inductive CacheId
 | cache : ProtocolCacheInstance n → CacheId
 deriving DecidableEq
 
+instance : Inhabited (CacheId n) where
+  default := CacheId.proxy .global -- Junk
+
 def CacheId.mkCacheGlobalP (m : Fin 2) : CacheId n := CacheId.cache (.globalP m)
 def CacheId.mkCacheCluster1 (m : Fin n) : CacheId n := CacheId.cache (.cluster1 m)
 def CacheId.mkCacheCluster2 (m : Fin n) : CacheId n := CacheId.cache (.cluster2 m)
