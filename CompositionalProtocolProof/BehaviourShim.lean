@@ -108,6 +108,7 @@ structure Behaviour.immediateFinishesBeforeAtGlobalCache (b : Behaviour n) (e_pr
   finishBefore : Behaviour.globalCacheFinishesBeforeClusterDirectory n b e_pred e_succ
   noIntermediate : b.noIntermediateFinishesBeforeOfSameEntry n e_pred e_succ
 
+/-- Latest Corresponding Global Cache Event of a Cluster Directory Event. -/
 def Behaviour.immediateFinishesBeforeAtGlobalCacheEvents : Behaviour n → Event n → Set (Event n)
 | b, e_succ => {e_pred ∈ b | b.immediateFinishesBeforeAtGlobalCache n e_pred e_succ}
 
@@ -115,6 +116,36 @@ def Behaviour.immediateFinishesBeforeAtGlobalCacheEvents : Behaviour n → Event
 lemma Behaviour.immediateFinishesBeforeAtGlobalCacheEvents_is_subsingleton (b : Behaviour n) (e_succ : Event n)
   : ∀ cid : CacheId n, (b.immediateFinishesBeforeAtGlobalCacheEvents n e_succ).Subsingleton := by
   sorry
+
+structure Behaviour.clusterDirectoryFinishesBeforeGlobalCache (b : Behaviour n) (e_cdir e_gcache : Event n) where
+  finBefore : b.finishesBefore n e_cdir e_gcache
+  gCacheOfCDir : Event.reqAtCorrespondingGCacheOfCDir n e_cdir e_gcache
+
+/-- There is no event `e_inter` that _immediately_ finishes before the successor `e_succ` -/
+structure Behaviour.immediateFinishesBeforeAtClusterDirectory (b : Behaviour n) (e_pred e_succ : Event n) where
+  finishBefore : Behaviour.clusterDirectoryFinishesBeforeGlobalCache n b e_pred e_succ
+  noIntermediate : b.noIntermediateFinishesBeforeOfSameEntry n e_pred e_succ
+
+/-- The Latest Cluster Directory Event corresponding to a Global Cache Event -/
+def Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents : Behaviour n → Event n → Set (Event n)
+| b, e_succ => {e_pred ∈ b | b.immediateFinishesBeforeAtClusterDirectory n e_pred e_succ}
+
+/- Prove if needed -/
+lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_subsingleton (b : Behaviour n) (e_succ : Event n)
+  : ∀ cid : CacheId n, (b.immediateFinishesBeforeAtClusterDirectoryEvents n e_succ).Subsingleton := by
+  sorry
+
+def Event.clusterDirProtocolCorrespondingToGlobalCache (e_gcache : Event n) : ProtocolInstance :=
+  match e_gcache with
+  | .cacheEvent ce => match ce.cid with
+    | .cache pci => match pci with
+      | .globalP fin2 => match fin2 with
+        | 0 => .cluster1
+        | 1 => .cluster2
+      | .cluster1 _
+      | .cluster2 _ => panic! "Error: Expected `e_gcache` to be a Global _Cache_ Event, not a _Cluster_ Cache Event."
+    | .proxy _ => panic! "Error: Expected `e_gcache` to be a Global _Cache_ Event, not a _Proxy_ Cache Event."
+  | .directoryEvent _ => panic! "Error: Expected `e_gcache` to be a Global _Cache_ Event, not a Directory Event."
 
 def Event.globalCacheCorrespondingCluster (e_greq e_cluster : Event n) : Prop := match e_greq with
   | .cacheEvent ce => match ce.cid with
