@@ -6,73 +6,110 @@ import CompositionalProtocolProof.CompositionalProof.Lemma5GlobalRequest
 
 variable (n : Nat)
 
-def Behaviour.dirEventCorrespondingToCacheEvent (b : Behaviour n) (init : InitialSystemState n) (e_cdir e : Event n) : Prop :=
-  b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e) true e_cdir e ∨
-  b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e) false e_cdir e
+def Behaviour.dirEventCorrespondingToCacheEvent (b : Behaviour n) (init : InitialSystemState n) (e e_cdir : Event n) : Prop :=
+  b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e) true e e_cdir ∨
+  b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e) false e e_cdir
 
-def Behaviour.dirEventNotCorrespondingToCacheEvent (b : Behaviour n) (init : InitialSystemState n) (e_cdir e : Event n) : Prop :=
-  ¬ b.dirEventCorrespondingToCacheEvent n init e_cdir e
+def Behaviour.dirEventNotCorrespondingToCacheEvent (b : Behaviour n) (init : InitialSystemState n) (e e_cdir : Event n) : Prop :=
+  ¬ b.dirEventCorrespondingToCacheEvent n init e e_cdir
 
-structure Behaviour.clusterDirFinishBeforeUnrelated (b : Behaviour n) (init : InitialSystemState n) (e_cdir e : Event n) : Prop where
+structure Behaviour.clusterDirFinishBeforeUnrelated (b : Behaviour n) (init : InitialSystemState n) (e e_cdir : Event n) : Prop where
   dirFinishBefore : e_cdir.finishesBefore n e
-  unrelated : b.dirEventNotCorrespondingToCacheEvent n init e_cdir e
+  unrelated : b.dirEventNotCorrespondingToCacheEvent n init e e_cdir
 
-structure Behaviour.globalCacheFinishBeforeUnrelated (b : Behaviour n) (init : InitialSystemState n) (e_gcache e : Event n) : Prop where
+structure Behaviour.globalCacheFinishBeforeUnrelated (b : Behaviour n) (init : InitialSystemState n) (e e_gcache : Event n) : Prop where
   gCacheFinishBefore : e_gcache.finishesBefore n e
   unrelated : ∃ e_dir ∈ b, b.dirEventNotCorrespondingToCacheEvent n init e_dir e ∧ e_dir.Encapsulates n e_gcache
 
-/- Don't need these
-structure Behaviour.encapCorrespondingClusterDir (b : Behaviour n) (init : InitialSystemState n) (e_cdir e : Event n) : Prop where
+structure Behaviour.encapCorrespondingClusterDir (b : Behaviour n) (init : InitialSystemState n) (e e_cdir : Event n) : Prop where
   dirFinishBefore : e_cdir.Encapsulates n e
-  unrelated : b.dirEventCorrespondingToCacheEvent n init e_cdir e
+  unrelated : b.dirEventCorrespondingToCacheEvent n init e e_cdir
 
-structure Behaviour.globalCacheFinishBefore (b : Behaviour n) (init : InitialSystemState n) (e_gcache e : Event n) : Prop where
+structure Behaviour.globalCacheFinishBefore (b : Behaviour n) (init : InitialSystemState n) (e e_gcache : Event n) : Prop where
   gCacheFinishBefore : e_gcache.finishesBefore n e
-  unrelated : ∃ e_dir ∈ b, b.encapCorrespondingClusterDir n init e_dir e ∧ e_dir.Encapsulates n e_gcache
--/
+  unrelated : ∃ e_dir ∈ b, b.encapCorrespondingClusterDir n init e e_dir ∧ e_dir.Encapsulates n e_gcache
 
 -- Define inductive to describe the statement of Lemma 4.
 
+/-- An Event `e` satisfies Compound SWMR if all events `e_other` finishing before `e` finishes satisfy
+compound SWMR. -/
+def CompoundSWMR.event_satisfies_cmp_swmr : Prop :=
+  ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e ∈ b, ∀ e_other ∈ b,
+  e_other.finishesBefore n e → CompoundSWMR.wrapper n
+
+def Behaviour.clusterRequest.allEncapDirEventSatisfiesCmpSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop :=
+  ∀ e_cdir ∈ b, e_cdir.isClusterDir → b.encapCorrespondingClusterDir n init e_cdir e → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache n b init e_cdir
+
+/-[NOTE] Remember to update Axiom 6 to include the `Negative`. i.e. on SW state,
+  There does not exist a corresponding directory event that a req encapsulates.
+  i.e.for all Events `e` in `b`, it isn't a corresponding Directory Event. -/
+
 /-- A Coherent Write Request in state that satisfies Compound SWMR before hand, satisfies Compound SWMR -/
-inductive Behaviour.coherentWrite.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
-| cacheSW : Behaviour.coherentWrite.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
-| cacheMRVdVcI : Behaviour.coherentWrite.satisfiesCompoundSWMR b e
+inductive Behaviour.coherentWrite.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
+| cacheSW (madeOnSW : b.eventOnStateHasPerms n init e)
+  (vacuous_satisfy_cmp_swmr : Behaviour.clusterRequest.allEncapDirEventSatisfiesCmpSWMR n b init e)
+  : Behaviour.coherentWrite.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
+| cacheMRVdVcI (madeOnMRVdVcI : b.eventOnStateNoPerms n init e)
+  /- Things to state:
+    (a) encap'd corresponding dir event satisfies Cmp SWMR
+    (b) Forall events `e_gdown` in b such that `e_gdown` is related to `e` through a Transitive Relation (TransGen),
+    `e_gdown` satisfies Cmp SWMR.
+    [NOTE] This requires updating Axioms to specify encapsulated events are in the same Protocol. -/
+  : Behaviour.coherentWrite.satisfiesCompoundSWMR b init e
 
-inductive Behaviour.coherentRead.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
-| cacheSWOrMR : Behaviour.coherentRead.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
-| cacheI : Behaviour.coherentRead.satisfiesCompoundSWMR b e
+inductive Behaviour.coherentRead.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
+| cacheSWOrMR (madeOnSW : b.eventOnStateHasPerms n init e)
+  : Behaviour.coherentRead.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
+| cacheI (madeOnI : b.eventOnStateNoPerms n init e)
+  : Behaviour.coherentRead.satisfiesCompoundSWMR b init e
 
-inductive Behaviour.ncReleaseWrite.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
-| cacheVdVc : Behaviour.ncReleaseWrite.satisfiesCompoundSWMR b e
-| cacheI : Behaviour.ncReleaseWrite.satisfiesCompoundSWMR b e
+inductive Behaviour.ncReleaseWrite.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
+| cacheVdVc (madeOnVdVc : b.cacheStateMadeOn n init e ∈ [Vd, Vc])
+  : Behaviour.ncReleaseWrite.satisfiesCompoundSWMR b init e
+| cacheI (madeOnI : b.cacheStateMadeOn n init e = I)
+  : Behaviour.ncReleaseWrite.satisfiesCompoundSWMR b init e
 
-inductive Behaviour.ncWeakWrite.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
-| cacheSWVdVc : Behaviour.ncWeakWrite.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
-| cacheI : Behaviour.ncWeakWrite.satisfiesCompoundSWMR b e
+inductive Behaviour.ncWeakWrite.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
+| cacheSWVdVc (madeOnSWVdVc : b.cacheStateMadeOn n init e ∈ [SW, Vd, Vc])
+  : Behaviour.ncWeakWrite.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
+| cacheI (madeOnI : b.cacheStateMadeOn n init e = I)
+  : Behaviour.ncWeakWrite.satisfiesCompoundSWMR b init e
 
-inductive Behaviour.ncAcqRead.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
-| cacheSW : Behaviour.ncAcqRead.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
-| cacheVd : Behaviour.ncAcqRead.satisfiesCompoundSWMR b e
-| cacheVcI : Behaviour.ncAcqRead.satisfiesCompoundSWMR b e
+inductive Behaviour.ncAcqRead.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
+| cacheSW (madeOnSW : b.cacheStateMadeOn n init e = SW)
+  : Behaviour.ncAcqRead.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
+| cacheVd (madeOnVd : b.cacheStateMadeOn n init e = Vd)
+  : Behaviour.ncAcqRead.satisfiesCompoundSWMR b init e
+| cacheVcI (madeOnVcI : b.cacheStateMadeOn n init e ∈ [Vc, I])
+  : Behaviour.ncAcqRead.satisfiesCompoundSWMR b init e
 
-inductive Behaviour.ncWeakRead.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
-| cacheSWVdVc : Behaviour.ncWeakRead.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
-| cacheI : Behaviour.ncWeakRead.satisfiesCompoundSWMR b e
+inductive Behaviour.ncWeakRead.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
+| cacheSWVdVc (madeOnSWVdVc : b.cacheStateMadeOn n init e ∈ [SW, Vd, Vc])
+  : Behaviour.ncWeakRead.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
+| cacheI (madeOnI : b.cacheStateMadeOn n init e = I)
+  : Behaviour.ncWeakRead.satisfiesCompoundSWMR b init e
 
-inductive Behaviour.vcWriteBack.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
-| cacheVd : Behaviour.vcWriteBack.satisfiesCompoundSWMR b e
-| cacheSWVcI : Behaviour.vcWriteBack.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
+inductive Behaviour.vcWriteBack.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
+| cacheVd (madeOnVd : b.cacheStateMadeOn n init e = Vd)
+  : Behaviour.vcWriteBack.satisfiesCompoundSWMR b init e
+| cacheSWVcI (madeOnSWVcI : b.cacheStateMadeOn n init e ∈ [SW, Vc, I])
+  : Behaviour.vcWriteBack.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
 
-inductive Behaviour.vcInvalidation.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
-| cacheSWVdVcI : Behaviour.vcInvalidation.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
+inductive Behaviour.vcInvalidation.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
+| cacheSWVdVcI (madeOnSWVdVcI : b.cacheStateMadeOn n init e ∈ [SW, Vd, Vc, I])
+  : Behaviour.vcInvalidation.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
 
-inductive Behaviour.evictSW.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
-| cacheSW : Behaviour.evictSW.satisfiesCompoundSWMR b e
-| cacheMRVdVcI : Behaviour.evictSW.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
+inductive Behaviour.evictSW.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
+| cacheSW (madeOnSW : b.cacheStateMadeOn n init e = SW)
+  : Behaviour.evictSW.satisfiesCompoundSWMR b init e
+| cacheMRVdVcI (madeOnMRVdVcI : b.cacheStateMadeOn n init e ∈ [MR, Vd, Vc, I])
+  : Behaviour.evictSW.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
 
-inductive Behaviour.evictMR.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
-| cacheMR : Behaviour.evictMR.satisfiesCompoundSWMR b e
-| cacheSWI : Behaviour.evictMR.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
+inductive Behaviour.evictMR.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
+| cacheMR (madeOnMR : b.cacheStateMadeOn n init e = MR)
+  : Behaviour.evictMR.satisfiesCompoundSWMR b init e
+| cacheSWI (madeOnSWI : b.cacheStateMadeOn n init e ∈ [SW, I])
+  : Behaviour.evictMR.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
 
 /-- Any request satisfies Compound SWMR -/
 inductive Behaviour.clusterRequest.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
