@@ -167,11 +167,28 @@ def Event.struct : Event n → Struct n
 def CacheEvent.isFromSelf : CacheEvent n → Prop
 | ce => ce.cid = ce.rid
 
-def CacheEvent.isEvict : CacheEvent n → Prop
-| ce => ce.isFromSelf ∧ ce.down
+structure CacheEvent.isEvict (ce : CacheEvent n) : Prop where
+  selfRequester : ce.isFromSelf
+  downgrade : ce.down
 
 def Event.isEvict : Event n → Prop
 | .cacheEvent ce => ce.isEvict
+| .directoryEvent _ => true
+
+structure CacheEvent.isEvictSW (ce : CacheEvent n) : Prop where
+  evict : ce.isEvict
+  coherentWrite : ce.req.isCoherentWrite
+
+structure CacheEvent.isEvictMR (ce : CacheEvent n) : Prop where
+  evict : ce.isEvict
+  coherentWrite : ce.req.isCoherentRead
+
+def Event.isEvictSW : Event n → Prop
+| .cacheEvent ce => ce.isEvictSW
+| .directoryEvent _ => true
+
+def Event.isEvictMR : Event n → Prop
+| .cacheEvent ce => ce.isEvictMR
 | .directoryEvent _ => true
 
 def Event.isCacheEvent : Event n → Prop
