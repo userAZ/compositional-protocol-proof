@@ -244,7 +244,7 @@ def Event.isNcWeakWrite : Event n → Prop
 def CacheEvent.isNcRelease : CacheEvent n → Prop
 | ce => ce.req.isNcRelease
 
-def Event.isNCRelease : Event n → Prop
+def Event.isNcRelease : Event n → Prop
 | .cacheEvent ce => ce.isNcRelease
 | .directoryEvent _ => false
 
