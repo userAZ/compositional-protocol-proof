@@ -764,19 +764,19 @@ lemma Behaviour.reqMissingPerms_accesses_dir {b : Behaviour n} {init : InitialSy
       . case nonCoherentRelease hnc_rel =>
         have his_nc_rel := hnc_rel.existsDirWb.choose_spec.right.isRelease
         simp[CacheEvent.isNcRelease, ValidRequest.isNcRelease] at his_nc_rel
-        simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNCRelease, CacheEvent.isAcquire, CacheEvent.isNcRelease,
+        simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNcRelease, CacheEvent.isAcquire, CacheEvent.isNcRelease,
           ValidRequest.isAcquire, ValidRequest.isNcRelease] at hreq_not_nc_rel_acq_ww
         simp[his_nc_rel] at hreq_not_nc_rel_acq_ww
       . case acquire hacq =>
         have his_acq := hacq.isAcquire
         simp[CacheEvent.isAcquire, ValidRequest.isAcquire] at his_acq
-        simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNCRelease, CacheEvent.isAcquire, CacheEvent.isNcRelease,
+        simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNcRelease, CacheEvent.isAcquire, CacheEvent.isNcRelease,
           ValidRequest.isAcquire, ValidRequest.isNcRelease] at hreq_not_nc_rel_acq_ww
         simp[his_acq] at hreq_not_nc_rel_acq_ww
       . case weakWrite hww =>
         have his_ww := hww.isWrite
         simp[CacheEvent.isNcWeakWrite, ValidRequest.isNcWeakWrite] at his_ww
-        simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNCRelease, Event.isNcWeakWrite,
+        simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNcRelease, Event.isNcWeakWrite,
           CacheEvent.isAcquire, CacheEvent.isNcRelease, CacheEvent.isNcWeakWrite,
           ValidRequest.isAcquire, ValidRequest.isNcRelease, ValidRequest.isNcWeakWrite] at hreq_not_nc_rel_acq_ww
         simp[his_ww] at hreq_not_nc_rel_acq_ww
@@ -809,7 +809,7 @@ lemma Behaviour.reqMissingPerms_accesses_dir {b : Behaviour n} {init : InitialSy
       . case coherentRequest hcoherent_req_no_perms =>
         have his_coh := hcoherent_req_no_perms.isCoherent
         simp[Event.req,] at his_coh
-        simp[Event.isNcRelAcq, Event.isAcquire, Event.isNCRelease, CacheEvent.isAcquire, CacheEvent.isNcRelease,
+        simp[Event.isNcRelAcq, Event.isAcquire, Event.isNcRelease, CacheEvent.isAcquire, CacheEvent.isNcRelease,
           ValidRequest.isAcquire, ValidRequest.isNcRelease] at hreq_nc_rel_acq
         cases hreq_nc_rel_acq
         . case inl his_acq => simp[his_acq] at his_coh
@@ -817,13 +817,13 @@ lemma Behaviour.reqMissingPerms_accesses_dir {b : Behaviour n} {init : InitialSy
       . case weakWrite hww =>
         have his_weak_write := hww.isWrite
         simp[CacheEvent.isNcWeakWrite, ValidRequest.isNcWeakWrite] at his_weak_write
-        simp[Event.isNcRelAcq, Event.isAcquire, Event.isNCRelease, CacheEvent.isAcquire, CacheEvent.isNcRelease,
+        simp[Event.isNcRelAcq, Event.isAcquire, Event.isNcRelease, CacheEvent.isAcquire, CacheEvent.isNcRelease,
           ValidRequest.isAcquire, ValidRequest.isNcRelease] at hreq_nc_rel_acq
         simp[his_weak_write] at hreq_nc_rel_acq
       . case weakRead hwr =>
         have his_weak_read := hwr.isRead
         simp[CacheEvent.isNcWeakRead, ValidRequest.isNcWeakRead] at his_weak_read
-        simp[Event.isNcRelAcq, Event.isAcquire, Event.isNCRelease, CacheEvent.isAcquire, CacheEvent.isNcRelease,
+        simp[Event.isNcRelAcq, Event.isAcquire, Event.isNcRelease, CacheEvent.isAcquire, CacheEvent.isNcRelease,
           ValidRequest.isAcquire, ValidRequest.isNcRelease] at hreq_nc_rel_acq
         simp[his_weak_read] at hreq_nc_rel_acq
       . case evictVdWB hvd_wb =>
@@ -1083,7 +1083,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
         . case neg =>
           /- Request has no permissions, so encapsulates a directory event to access the Directory. -/
           have hreq_not_rel_acq_ww : (Event.cacheEvent ce).notNcRelAcqWeakWrite := by
-            simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNCRelease, Event.isNcWeakWrite,
+            simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNcRelease, Event.isNcWeakWrite,
               CacheEvent.isAcquire, CacheEvent.isNcRelease, CacheEvent.isNcWeakWrite,
               ValidRequest.isAcquire, ValidRequest.isNcRelease, ValidRequest.isNcWeakWrite,
               hreq]
@@ -1180,7 +1180,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
         . case neg =>
           /- Request has no permissions, so encapsulates a directory event to access the Directory. -/
           have hreq_not_rel_acq_ww : (Event.cacheEvent ce).notNcRelAcqWeakWrite := by
-            simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNCRelease, Event.isNcWeakWrite,
+            simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNcRelease, Event.isNcWeakWrite,
               CacheEvent.isAcquire, CacheEvent.isNcRelease, CacheEvent.isNcWeakWrite,
               ValidRequest.isAcquire, ValidRequest.isNcRelease, ValidRequest.isNcWeakWrite,
               hreq]
@@ -1215,7 +1215,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
           /- Request has permissions, must exist predecessor that obtained permissions previously. -/
           have hreq_rel_acq_ww : (Event.cacheEvent ce).isNcRelAcqWeakWrite := by
             simp[Event.isNcRelAcqWeakWrite,
-              Event.isAcquire, Event.isNCRelease, Event.isNcWeakWrite,
+              Event.isAcquire, Event.isNcRelease, Event.isNcWeakWrite,
               CacheEvent.isAcquire, CacheEvent.isNcRelease, CacheEvent.isNcWeakWrite,
               ValidRequest.isAcquire, ValidRequest.isNcRelease, ValidRequest.isNcWeakWrite,
               hreq]
@@ -1243,7 +1243,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
         . case neg =>
           /- Request has no permissions, so encapsulates a directory event to access the Directory. -/
           have hreq_not_rel_acq_ww : (Event.cacheEvent ce).isNcRelAcq := by
-            simp[Event.isNcRelAcq, Event.isAcquire, Event.isNCRelease, Event.isNcWeakWrite,
+            simp[Event.isNcRelAcq, Event.isAcquire, Event.isNcRelease, Event.isNcWeakWrite,
               CacheEvent.isAcquire, CacheEvent.isNcRelease, CacheEvent.isNcWeakWrite,
               ValidRequest.isAcquire, ValidRequest.isNcRelease, ValidRequest.isNcWeakWrite,
               hreq]
@@ -1280,7 +1280,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
           /- Request has permissions, must exist predecessor that obtained permissions previously. -/
           have hreq_rel_acq_ww : (Event.cacheEvent ce).isNcRelAcqWeakWrite := by
             simp[Event.isNcRelAcqWeakWrite,
-              Event.isAcquire, Event.isNCRelease, Event.isNcWeakWrite,
+              Event.isAcquire, Event.isNcRelease, Event.isNcWeakWrite,
               CacheEvent.isAcquire, CacheEvent.isNcRelease, CacheEvent.isNcWeakWrite,
               ValidRequest.isAcquire, ValidRequest.isNcRelease, ValidRequest.isNcWeakWrite,
               hreq]
@@ -1398,7 +1398,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
           /- Request has permissions, must exist predecessor that obtained permissions previously. -/
           have hreq_rel_acq_ww : (Event.cacheEvent ce).isNcRelAcqWeakWrite := by
             simp[Event.isNcRelAcqWeakWrite,
-              Event.isAcquire, Event.isNCRelease, Event.isNcWeakWrite,
+              Event.isAcquire, Event.isNcRelease, Event.isNcWeakWrite,
               CacheEvent.isAcquire, CacheEvent.isNcRelease, CacheEvent.isNcWeakWrite,
               ValidRequest.isAcquire, ValidRequest.isNcRelease, ValidRequest.isNcWeakWrite,
               hreq]
@@ -1426,7 +1426,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
         . case neg =>
           /- Request has no permissions, so encapsulates a directory event to access the Directory. -/
           have hreq_not_rel_acq_ww : (Event.cacheEvent ce).isNcRelAcq := by
-            simp[Event.isNcRelAcq, Event.isAcquire, Event.isNCRelease, Event.isNcWeakWrite,
+            simp[Event.isNcRelAcq, Event.isAcquire, Event.isNcRelease, Event.isNcWeakWrite,
               CacheEvent.isAcquire, CacheEvent.isNcRelease, CacheEvent.isNcWeakWrite,
               ValidRequest.isAcquire, ValidRequest.isNcRelease, ValidRequest.isNcWeakWrite,
               hreq]

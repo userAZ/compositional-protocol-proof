@@ -115,7 +115,7 @@ def Behaviour.acqInvalWrapper : Prop := ∀ b : Behaviour n, ∀ e_req e_dir : E
 
 /-- Axiom 5. Non Coherent Release writes back other Vd cache entries before it's directory access. -/
 structure Behaviour.ncReleaseWritesBack (b : Behaviour n) (e_req e_dir : Event n) : Prop where
-  isRelease : e_req.isNCRelease
+  isRelease : e_req.isNcRelease
   encapDirEvent : ∀ init : EntryState n, b.reqEncapCorrespondingDirEvent n init true e_req
   writeBackOther : ∀ addr ≠ e_req.addr, ∃ e_wb ∈ b.es, e_wb.OrderedBefore n e_dir ∧ e_wb.isVdWriteBack
 
@@ -371,7 +371,7 @@ structure Behaviour.acqInvalOtherEntries (b : Behaviour n) (e_req e_inval e_dir 
 
 /-- Def. Non-Coherent Release WritesBack Other Entries in Vd before accessing the Directory -/
 structure Behaviour.relWriteBackOtherEntries (b : Behaviour n) (e_req e_wb e_dir : Event n) (init : InitialSystemState n) : Prop where
-  isNCRel : e_req.isNCRelease
+  isNCRel : e_req.isNcRelease
   isDir : e_dir.isDirectoryEvent
   dirCorresponds : b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e_req) true e_dir e_req
   isVdWriteBack : e_wb.isVdWriteBack
@@ -419,17 +419,17 @@ structure Behaviour.reqWithCorrespondDirLeavesStateAtLeast (b : Behaviour n) (e_
 /- Defs describing where a Coherent Request's Directory Event that links the Request's data to the total order of Directory Entry Events. -/
 
 def Event.isNcRelAcqWeakWrite : Event n → Prop
-| e => e.isAcquire ∨ e.isNCRelease ∨ e.isNcWeakWrite
+| e => e.isAcquire ∨ e.isNcRelease ∨ e.isNcWeakWrite
 def Event.notNcRelAcqWeakWrite : Event n → Prop
 | e => ¬ e.isNcRelAcqWeakWrite
 
 def Event.isNcRelAcqWeakWriteRead : Event n → Prop
-| e => e.isAcquire ∨ e.isNCRelease ∨ e.isNcWeakWrite ∨ e.isNcWeakRead
+| e => e.isAcquire ∨ e.isNcRelease ∨ e.isNcWeakWrite ∨ e.isNcWeakRead
 def Event.notNcRelAcqWeakWriteRead : Event n → Prop
 | e => ¬ e.isNcRelAcqWeakWriteRead
 
 def Event.isNcRelAcq : Event n → Prop
-| e => e.isAcquire ∨ e.isNCRelease
+| e => e.isAcquire ∨ e.isNcRelease
 /-
 def Behaviour.eventOnMRSState (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop :=
   (b.stateBefore n (init.stateAt n e_req) e_req).cache = e_req.req.MRS
@@ -613,7 +613,7 @@ structure Behaviour.ncAcquire (b : Behaviour n) (e_req : Event n) (init : Initia
 
 /-- Top level def for a Non-Coherent Release's Directory Event relation. -/
 structure Behaviour.ncRelease (b : Behaviour n) (e_req : Event n) (init : InitialSystemState n) : Prop where
-  reqNcRelease : e_req.isNCRelease
+  reqNcRelease : e_req.isNcRelease
   encapDirCorresponds : b.cacheEncapCorrespondingDirEvent n (init.stateAt n e_req) true e_req
   notDowngrade : ¬e_req.down
   /-
