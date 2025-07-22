@@ -31,6 +31,67 @@ structure Behaviour.globalCacheFinishBefore (b : Behaviour n) (init : InitialSys
   unrelated : ∃ e_dir ∈ b, b.encapCorrespondingClusterDir n init e_dir e ∧ e_dir.Encapsulates n e_gcache
 -/
 
+-- Define inductive to describe the statement of Lemma 4.
+
+/-- A Coherent Write Request in state that satisfies Compound SWMR before hand, satisfies Compound SWMR -/
+inductive Behaviour.coherentWrite.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
+| cacheSW : Behaviour.coherentWrite.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
+| cacheMRVdVcI : Behaviour.coherentWrite.satisfiesCompoundSWMR b e
+
+inductive Behaviour.coherentRead.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
+| cacheSWOrMR : Behaviour.coherentRead.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
+| cacheI : Behaviour.coherentRead.satisfiesCompoundSWMR b e
+
+inductive Behaviour.ncReleaseWrite.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
+| cacheVdVc : Behaviour.ncReleaseWrite.satisfiesCompoundSWMR b e
+| cacheI : Behaviour.ncReleaseWrite.satisfiesCompoundSWMR b e
+
+inductive Behaviour.ncWeakWrite.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
+| cacheSWVdVc : Behaviour.ncWeakWrite.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
+| cacheI : Behaviour.ncWeakWrite.satisfiesCompoundSWMR b e
+
+inductive Behaviour.ncAcqRead.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
+| cacheSW : Behaviour.ncAcqRead.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
+| cacheVd : Behaviour.ncAcqRead.satisfiesCompoundSWMR b e
+| cacheVcI : Behaviour.ncAcqRead.satisfiesCompoundSWMR b e
+
+inductive Behaviour.ncWeakRead.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
+| cacheSWVdVc : Behaviour.ncWeakRead.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
+| cacheI : Behaviour.ncWeakRead.satisfiesCompoundSWMR b e
+
+inductive Behaviour.vcWriteBack.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
+| cacheVd : Behaviour.vcWriteBack.satisfiesCompoundSWMR b e
+| cacheSWVcI : Behaviour.vcWriteBack.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
+
+inductive Behaviour.vcInvalidation.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
+| cacheSWVdVcI : Behaviour.vcInvalidation.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
+
+inductive Behaviour.evictSW.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
+| cacheSW : Behaviour.evictSW.satisfiesCompoundSWMR b e
+| cacheMRVdVcI : Behaviour.evictSW.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
+
+inductive Behaviour.evictMR.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
+| cacheMR : Behaviour.evictMR.satisfiesCompoundSWMR b e
+| cacheSWI : Behaviour.evictMR.satisfiesCompoundSWMR b e -- Trivial, no encap'ed events
+
+/-- Any request satisfies Compound SWMR -/
+inductive Behaviour.clusterRequest.satisfiesCompoundSWMR (b : Behaviour n) (e : Event n) : Prop
+| cohWrite (hcoh_write : e.isCoherentWrite) : Behaviour.clusterRequest.satisfiesCompoundSWMR b e
+| cohRead (hcoh_read : e.isCoherentRead) : Behaviour.clusterRequest.satisfiesCompoundSWMR b e
+| ncRelWrite (hnc_rel_w : e.isNcRelease) : Behaviour.clusterRequest.satisfiesCompoundSWMR b e
+| ncWeakWrite (hnc_weak_w : e.isNcWeakWrite) : Behaviour.clusterRequest.satisfiesCompoundSWMR b e
+| ncAcqRead (hnc_acq_r : e.isAcquire) : Behaviour.clusterRequest.satisfiesCompoundSWMR b e
+| ncWeakRead (hnc_weak_r : e.isNcWeakRead) : Behaviour.clusterRequest.satisfiesCompoundSWMR b e
+| vdWriteBack (hvd_wb : e.isVdWriteBack) : Behaviour.clusterRequest.satisfiesCompoundSWMR b e
+| vcInval (hvc_inval : e.isVcInval) : Behaviour.clusterRequest.satisfiesCompoundSWMR b e
+| evictSW (hevict_sw : e.isEvictSW) : Behaviour.clusterRequest.satisfiesCompoundSWMR b e
+| evictMR (hevict_sw : e.isEvictMR) : Behaviour.clusterRequest.satisfiesCompoundSWMR b e
+
+/- [TODO] In Lemma 4, add state restrictions;
+Disallow specific Protocol Event state-before/after combinations depending on state.
+This avoids those cases when reasoning through cases.
+-/
+
 /-- Lemma 4 : A Cluster Request Event leaves a protocol in Compound SWMR. -/
 lemma Behaviour.cluster_request_enforces_compound_swmr
   (b : Behaviour n) (init : InitialSystemState n)
