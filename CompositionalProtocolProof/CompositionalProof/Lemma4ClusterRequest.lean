@@ -97,8 +97,8 @@ lemma Behaviour.cluster_request_enforces_compound_swmr
   (b : Behaviour n) (init : InitialSystemState n)
   (cmp : CompoundProtocol n)
   -- (hcmp_swmr : CompoundSWMR.wrapper n)
-  -- Initial or Current state just before Event `e` in Compound SWMR
   (e : Event n) (he_in_b : e ∈ b)
+  -- Initial or Current state just before Event `e` in Compound SWMR
   (hpred_cdir_cmp_swmr : ∀ e_cdir ∈ b, e_cdir.isClusterDir → b.clusterDirFinishBeforeUnrelated n init e_cdir e → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache n b init e_cdir)
   (hpred_gcache_cmp_swmr : ∀ e_gcache ∈ b, e_gcache.isGlobalCache → b.globalCacheFinishBeforeUnrelated n init e_gcache e → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache' n b init e_gcache)
   : True
