@@ -82,6 +82,7 @@ structure Behaviour.cacheEncapsulatesCorrespondingDirEvent (b : Behaviour n) (in
   reqEncapDir : e_req.Encapsulates n e_dir
   dirCorresponds : b.requestDirectoryEvent n init rel_wb e_req e_dir
   dirOfReq : e_dir.dirEventOfReqEvent n e_req
+  sameProtocol : e_req.protocol = e_dir.protocol
   dirInB : e_dir ∈ b.es
   reqInB : e_req ∈ b.es
 
