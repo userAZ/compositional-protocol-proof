@@ -59,6 +59,7 @@ inductive Behaviour.coherentWrite.satisfiesCompoundSWMR (b : Behaviour n) (init 
 
 inductive Behaviour.coherentRead.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
 | cacheSWOrMR (madeOnSW : b.eventOnStateHasPerms n init e)
+  (vacuous_satisfy_cmp_swmr : Behaviour.clusterRequest.allEncapDirEventSatisfiesCmpSWMR n b init e)
   : Behaviour.coherentRead.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
 | cacheI (madeOnI : b.eventOnStateNoPerms n init e)
   : Behaviour.coherentRead.satisfiesCompoundSWMR b init e
@@ -71,12 +72,14 @@ inductive Behaviour.ncReleaseWrite.satisfiesCompoundSWMR (b : Behaviour n) (init
 
 inductive Behaviour.ncWeakWrite.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
 | cacheSWVdVc (madeOnSWVdVc : b.cacheStateMadeOn n init e ∈ [SW, Vd, Vc])
+  (vacuous_satisfy_cmp_swmr : Behaviour.clusterRequest.allEncapDirEventSatisfiesCmpSWMR n b init e)
   : Behaviour.ncWeakWrite.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
 | cacheI (madeOnI : b.cacheStateMadeOn n init e = I)
   : Behaviour.ncWeakWrite.satisfiesCompoundSWMR b init e
 
 inductive Behaviour.ncAcqRead.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
 | cacheSW (madeOnSW : b.cacheStateMadeOn n init e = SW)
+  (vacuous_satisfy_cmp_swmr : Behaviour.clusterRequest.allEncapDirEventSatisfiesCmpSWMR n b init e)
   : Behaviour.ncAcqRead.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
 | cacheVd (madeOnVd : b.cacheStateMadeOn n init e = Vd)
   : Behaviour.ncAcqRead.satisfiesCompoundSWMR b init e
@@ -85,6 +88,7 @@ inductive Behaviour.ncAcqRead.satisfiesCompoundSWMR (b : Behaviour n) (init : In
 
 inductive Behaviour.ncWeakRead.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
 | cacheSWVdVc (madeOnSWVdVc : b.cacheStateMadeOn n init e ∈ [SW, Vd, Vc])
+  (vacuous_satisfy_cmp_swmr : Behaviour.clusterRequest.allEncapDirEventSatisfiesCmpSWMR n b init e)
   : Behaviour.ncWeakRead.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
 | cacheI (madeOnI : b.cacheStateMadeOn n init e = I)
   : Behaviour.ncWeakRead.satisfiesCompoundSWMR b init e
@@ -93,22 +97,26 @@ inductive Behaviour.vcWriteBack.satisfiesCompoundSWMR (b : Behaviour n) (init : 
 | cacheVd (madeOnVd : b.cacheStateMadeOn n init e = Vd)
   : Behaviour.vcWriteBack.satisfiesCompoundSWMR b init e
 | cacheSWVcI (madeOnSWVcI : b.cacheStateMadeOn n init e ∈ [SW, Vc, I])
+  (vacuous_satisfy_cmp_swmr : Behaviour.clusterRequest.allEncapDirEventSatisfiesCmpSWMR n b init e)
   : Behaviour.vcWriteBack.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
 
 inductive Behaviour.vcInvalidation.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
 | cacheSWVdVcI (madeOnSWVdVcI : b.cacheStateMadeOn n init e ∈ [SW, Vd, Vc, I])
+  (vacuous_satisfy_cmp_swmr : Behaviour.clusterRequest.allEncapDirEventSatisfiesCmpSWMR n b init e)
   : Behaviour.vcInvalidation.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
 
 inductive Behaviour.evictSW.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
 | cacheSW (madeOnSW : b.cacheStateMadeOn n init e = SW)
   : Behaviour.evictSW.satisfiesCompoundSWMR b init e
 | cacheMRVdVcI (madeOnMRVdVcI : b.cacheStateMadeOn n init e ∈ [MR, Vd, Vc, I])
+  (vacuous_satisfy_cmp_swmr : Behaviour.clusterRequest.allEncapDirEventSatisfiesCmpSWMR n b init e)
   : Behaviour.evictSW.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
 
 inductive Behaviour.evictMR.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
 | cacheMR (madeOnMR : b.cacheStateMadeOn n init e = MR)
   : Behaviour.evictMR.satisfiesCompoundSWMR b init e
 | cacheSWI (madeOnSWI : b.cacheStateMadeOn n init e ∈ [SW, I])
+  (vacuous_satisfy_cmp_swmr : Behaviour.clusterRequest.allEncapDirEventSatisfiesCmpSWMR n b init e)
   : Behaviour.evictMR.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
 
 /-- Any request satisfies Compound SWMR -/
