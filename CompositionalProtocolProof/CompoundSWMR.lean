@@ -38,8 +38,15 @@ structure CompoundSWMR.stateAfterClusterDirEventLeGlobalCache' (b : Behaviour n)
   gCache : e_gcache.isGlobalCache
   stateAfterLeGlobalCache : b.dirEventStateLeGlobalCacheState n init e_gcache
 
-structure CompoundSWMR.wrapper where
-  clusterDirHasPermissions : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_cdir ∈ b,
-    e_cdir.isClusterDir → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache n b init e_cdir
-  globalCachePermissionsRestriction : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_gcache ∈ b,
-    e_gcache.isGlobalCache → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache' n b init e_gcache
+def Behaviour.clusterDirEvent.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop :=
+  e.isClusterDir → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache n b init e
+
+def Behaviour.globalCacheEvent.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop :=
+  e.isGlobalCache → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache' n b init e
+
+inductive CompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
+| cDir (cdir_satisfies_cmp_swmr : Behaviour.clusterDirEvent.satisfiesCompoundSWMR n b init e) : CompoundSWMR b init e
+| gCache (gcache_satisfies_cmp_swmr : Behaviour.globalCacheEvent.satisfiesCompoundSWMR n b init e) : CompoundSWMR b init e
+
+def CompoundSWMR.wrapper : Prop := ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e ∈ b,
+  e.isClusterDir ∨ e.isGlobalCache → CompoundSWMR n b init e
