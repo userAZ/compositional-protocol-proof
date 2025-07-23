@@ -346,6 +346,15 @@ def Event.cid (e : Event n) : CacheId n := match e with
   | .cacheEvent ce => ce.cid
   | .directoryEvent _ => panic! "Error: getting an Event's Cid, but was given a DirectoryEvent?"
 
+def Event.clusterNonProxyCacheEvent (e : Event n) : Prop := match e with
+  | .cacheEvent ce => match ce.cid with
+    | .proxy _ => False
+    | .cache pci => match pci with
+      | .cluster1 _ => True
+      | .cluster2 _ => True
+      | .globalP _ => False
+  | .directoryEvent _ => False
+
 /-- Def 2.38: Is a Request Pair a PPO Pair. -/
 structure Event.isPPOPair (e₁ e₂ : Event n) : Prop where
   requestPPO : e₁.req.isPPOPair e₂.req
