@@ -21,6 +21,8 @@ structure Behaviour.globalCacheFinishBeforeUnrelated (b : Behaviour n) (init : I
   gCacheFinishBefore : e_gcache.finishesBefore n e
   unrelated : ∃ e_dir ∈ b, b.dirEventNotCorrespondingToCacheEvent n init e_dir e ∧ e_dir.Encapsulates n e_gcache
 
+/- Old approach -- Model all outcomes as inductive for the Goal. vs new approach -- all events `e` enforce "CompoundeSWMR" as a goal
+
 structure Behaviour.encapCorrespondingClusterDir (b : Behaviour n) (init : InitialSystemState n) (e e_cdir : Event n) : Prop where
   dirFinishBefore : e_cdir.Encapsulates n e
   unrelated : b.dirEventCorrespondingToCacheEvent n init e e_cdir
@@ -38,7 +40,38 @@ def CompoundSWMR.event_satisfies_cmp_swmr : Prop :=
   e_other.finishesBefore n e → CompoundSWMR.wrapper n
 
 def Behaviour.clusterRequest.allEncapDirEventSatisfiesCmpSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop :=
-  ∀ e_cdir ∈ b, e_cdir.isClusterDir → b.encapCorrespondingClusterDir n init e_cdir e → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache n b init e_cdir
+  ∀ e_cdir ∈ b, e_cdir.isClusterDir → b.encapCorrespondingClusterDir n init e e_cdir → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache n b init e_cdir
+
+/- In Lemma 5 file: (so that we may prove this property modularly in Lemma 5.) Import and use in the above. -- Each of these are
+  small inductives, stating 2 cases: an event either encapsulates another event, or doesn't (include a negative proof, to show
+  a contradiction in the negative case, and stop the proof there).
+`e_gcache` may encapsulate another Event `e_gdown`
+-/
+--[NOTE] don't technically need this specifically for Global cache events.
+inductive Behaviour.globalCacheEvent.mayAccessGlobalDir  (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : Prop
+-- |
+
+/- State a Cluster Request Event `e` encaps a corresponding directory event `e_dir`.
+`e_dir` may encap another Event `e_gcache` (if e_dir needs gcache perms, otherwise there exists no additional encap'd `e_gcache`),
+ -/
+structure Behaviour.clusterDirEvent.encapGlobalCacheEvent (b : Behaviour n) (init : InitialSystemState n) (e_cdir e_gcache : Event n) : Prop where
+  cDirEncapGCache : Event.clusterDirEncapCorrespondingGlobalCache n e_cdir e_gcache
+  -- [NOTE] `e_gcache` satisfies `Compound SWMR` technically not needed; more worried about `e_gdown`
+  gCacheSatisfiesCmpSWMR : Behaviour.globalCacheEvent.satisfiesCompoundSWMR n b init e_gcache
+  gCacheMayEncapGDir : Behaviour.globalCacheEvent.mayAccessGlobalDir n b init e_gcache
+
+def Behaviour.existsTransitiveGlobalCacheAccessOfDirEvent (b : Behaviour n) (init : InitialSystemState n) (e_cdir : Event n) : Prop :=
+  ∃ e_gcache ∈ b, Behaviour.clusterDirEvent.encapGlobalCacheEvent n b init e_cdir e_gcache
+
+inductive Behaviour.coherentWrite.noPermsDirAccess (b : Behaviour n) (init : InitialSystemState n) (e e_cdir : Event n) : Prop
+| accessGCache (no_global_perms : b.clusterDirNoPermsInGlobalCache n init e_cdir)
+  /- [NOTE] State that there exists an e_gcache, and it may or may not encap another. -/
+  /- *[TODO]* Update this to say, if the Directory Event is a Cluster Directory Event, then... it may encapsulate a Global Cache Event -/
+  (exists_gcache : b.existsTransitiveGlobalCacheAccessOfDirEvent n init e_cdir)
+  : Behaviour.coherentWrite.noPermsDirAccess b init e e_cdir
+| noGCache (has_global_perms : b.clusterDirHasPermsInGlobalCache n init e_cdir)
+  (no_gcache : ¬b.existsGlobalCacheAccessOfDirEvent n e_cdir)
+  : Behaviour.coherentWrite.noPermsDirAccess b init e e_cdir
 
 /-[NOTE] Remember to update Axiom 6 to include the `Negative`. i.e. on SW state,
   There does not exist a corresponding directory event that a req encapsulates.
@@ -47,7 +80,9 @@ def Behaviour.clusterRequest.allEncapDirEventSatisfiesCmpSWMR (b : Behaviour n) 
 /-- A Coherent Write Request in state that satisfies Compound SWMR before hand, satisfies Compound SWMR -/
 inductive Behaviour.coherentWrite.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
 | cacheSW (madeOnSW : b.eventOnStateHasPerms n init e)
+  /- [TODO] If this is a Cluster Cache Request Event, then define -/
   (vacuous_satisfy_cmp_swmr : Behaviour.clusterRequest.allEncapDirEventSatisfiesCmpSWMR n b init e)
+  /- [TODO] also means that we vacuously satisfy "all Global Cache events enforce Compound SWMR" -/
   : Behaviour.coherentWrite.satisfiesCompoundSWMR b init e -- Trivial, no encap'ed events
 | cacheMRVdVcI (madeOnMRVdVcI : b.eventOnStateNoPerms n init e)
   /- Things to state:
@@ -135,6 +170,8 @@ inductive Behaviour.clusterRequest.satisfiesCompoundSWMR (b : Behaviour n) (e : 
 /- [TODO] In Lemma 4, add state restrictions;
 Disallow specific Protocol Event state-before/after combinations depending on state.
 This avoids those cases when reasoning through cases.
+-/
+
 -/
 
 /-- Lemma 4 : A Cluster Request Event leaves a protocol in Compound SWMR. -/
