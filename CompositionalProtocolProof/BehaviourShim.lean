@@ -93,10 +93,21 @@ structure Behaviour.clusterDirNoPermsInGlobalCache (b : Behaviour n) (init : Ini
   clusterDir : e_dir.isClusterDir
   gCacheOfDirNoPerms : ¬ e_dir.req.MRS ≤ b.globalCacheStateOfDirectoryEvent n init e_dir
 
+structure Behaviour.clusterDirHasPermsInGlobalCache (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : Prop where
+  clusterDir : e_dir.isClusterDir
+  gCacheOfDirNoPerms : e_dir.req.MRS ≤ b.globalCacheStateOfDirectoryEvent n init e_dir
+
+def Behaviour.existsGlobalCacheAccessOfDirEvent (b : Behaviour n) (e_dir : Event n) : Prop :=
+  ∃ e_greq ∈ b, Event.clusterDirEncapCorrespondingGlobalCache n e_dir e_greq
+
 /-- (Shim) Axiom 15: Cluster Directory Events are translated to Request Events at the corresponding Cache in the Global Protocol. -/
-structure Behaviour.Shim.ClusterToGlobal (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : Prop where
-  -- dirCluster : e_dir.isClusterDir
-  encapGlobalCache : b.clusterDirNoPermsInGlobalCache n init e_dir → ∃ e_greq ∈ b, Event.clusterDirEncapCorrespondingGlobalCache n e_greq e_dir
+inductive Behaviour.Shim.ClusterToGlobal (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : Prop where
+| encapGlobalCache (no_global_cache_perms : b.clusterDirNoPermsInGlobalCache n init e_dir)
+  (request_global_cache : b.existsGlobalCacheAccessOfDirEvent n e_dir)
+  : Behaviour.Shim.ClusterToGlobal b init e_dir
+| noGlobalCache (has_global_cache_perms : b.clusterDirHasPermsInGlobalCache n init e_dir)
+  (no_global_cache_request : ¬b.existsGlobalCacheAccessOfDirEvent n e_dir)
+  : Behaviour.Shim.ClusterToGlobal  b init e_dir
 
 /- For Stating the Global Cache State a Directory Event has corresponding permissions of. -/
 structure Behaviour.globalCacheFinishesBeforeClusterDirectory (b : Behaviour n) (e_gcache e_cdir : Event n) where
