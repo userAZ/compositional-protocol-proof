@@ -88,13 +88,13 @@ def Behaviour.ncRelOnICorrespondingClusterDirSatisfyCompoundSWMR (b : Behaviour 
 
 /-- Goal for Lemma 4. Top level goal. -/
 inductive Behaviour.allClusterEventCorrespondingDirEventSatisfyCompoundSWMR  (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
-| ncRelOnI (isNcRel : e.isNcRelease) (onI : b.cacheStateMadeOn n init e = I)
+| ncRelOnI (isNcRel : e.isNcRelease) (onI : b.cacheStateMadeOn n init e = I) (cluster_cache_not_proxy : e.clusterNonProxyCacheEvent n)
   (encapTwoDirs : b.ncRelOnICorrespondingClusterDirSatisfyCompoundSWMR n init e)
   : Behaviour.allClusterEventCorrespondingDirEventSatisfyCompoundSWMR b init e
-| ncRelNotOnI (isNcRel : e.isNcRelease) (notOnI : b.cacheStateMadeOn n init e ≠ I)
+| ncRelNotOnI (isNcRel : e.isNcRelease) (notOnI : b.cacheStateMadeOn n init e ≠ I) (cluster_cache_not_proxy : e.clusterNonProxyCacheEvent n)
   (any_dir_satisfies_cmp_swmr : b.allCorrespondingGlobalDowngradeSatisfyCompoundSWMR n init e)
   : Behaviour.allClusterEventCorrespondingDirEventSatisfyCompoundSWMR b init e
-| notNcRel (isNotNcRel : ¬ e.isNcRelease)
+| notNcRel (isNotNcRel : ¬ e.isNcRelease) (cluster_cache_not_proxy : e.clusterNonProxyCacheEvent n)
   (any_dir_satisfies_cmp_swmr : b.allCorrespondingGlobalDowngradeSatisfyCompoundSWMR n init e)
   : Behaviour.allClusterEventCorrespondingDirEventSatisfyCompoundSWMR b init e
 
