@@ -250,7 +250,7 @@ structure Behaviour.orderedDeidEvents (b : Behaviour n) (e₁ e₂ : Event n) : 
 def Behaviour.deidOrdered : Prop := ∀ b : Behaviour n, ∀ e₁ e₂ : Event n, b.orderedDeidEvents n e₁ e₂
 
 /-- Def. Constraints on fields of Forwarded Downgrade. -/
-structure Behaviour.requestDowngradePrevOwner (b : Behaviour n) (e_req e_dir e_fwd_down : Event n) (init : InitialSystemState n) : Prop where
+structure Behaviour.requestDowngradePrevOwner (b : Behaviour n) (init : InitialSystemState n) (e_req e_dir e_fwd_down : Event n) : Prop where
   atPrevOwner : e_fwd_down.downgradeAtPrevOwner n (b.stateBefore n (init.stateAt n e_dir) e_dir).directory
   fwdFromRequester : e_req.downgradeCorrespondingToRequest n e_fwd_down
   idCorrespondDir : e_fwd_down.fromDirectory n e_dir
@@ -258,14 +258,14 @@ structure Behaviour.requestDowngradePrevOwner (b : Behaviour n) (e_req e_dir e_f
   reqEncapDir : e_req.Encapsulates n e_dir
 
 /- Def. Constraints on fields of Forwarded Downgrade events, and Grant Events. -/
-structure Behaviour.downgradeAtPrevOwner (b : Behaviour n) (e_req e_dir e_fwd_down e_grant : Event n) (init : InitialSystemState n) : Prop where
-  downgradePrevOwner : b.requestDowngradePrevOwner n e_req e_dir e_fwd_down init
+structure Behaviour.downgradeAtPrevOwner (b : Behaviour n) (init : InitialSystemState n) (e_req e_dir e_fwd_down e_grant : Event n) : Prop where
+  downgradePrevOwner : b.requestDowngradePrevOwner n init e_req e_dir e_fwd_down
   grantRels : e_req.encapGrantAfterDirEvent n e_dir e_grant
 
 /- Def. When a Coherent Request causes a Forwarded Downgrade to the previous owner at the Directory. (and a Grant Event) -/
-structure Behaviour.fwdCoherentRequestToOwner (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+structure Behaviour.fwdCoherentRequestToOwner (b : Behaviour n) (init : InitialSystemState n) (e_req e_dir : Event n) : Prop where
   reqDirOnSW   : b.stateBefore n (init.stateAt n e_dir) e_dir = SWEntry n
-  fwdPrevOwner : ∃ e_down ∈ b.es, ∃ e_grant ∈ b.es, b.downgradeAtPrevOwner n e_req e_dir e_down e_grant init
+  fwdPrevOwner : ∃ e_down ∈ b.es, ∃ e_grant ∈ b.es, b.downgradeAtPrevOwner n init e_req e_dir e_down e_grant
 /-- Def. Downgrade to sharers -/
 def Behaviour.downgradeAtSharers (b : Behaviour n) (dir_state : DirectoryState n) (e_req e_dir : Event n) : Prop := match dir_state with
   | .MR _ sharers => ∃ e_grant ∈ b.es, ∀ s ∈ sharers, ∃ e_down ∈ b.es, match e_req, e_down with
@@ -275,32 +275,32 @@ def Behaviour.downgradeAtSharers (b : Behaviour n) (dir_state : DirectoryState n
   | _ => false
 
 /-- Def. fwd coherent request to other Sharer caches -/
-structure Behaviour.fwdCoherentRequestToSharers (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+structure Behaviour.fwdCoherentRequestToSharers (b : Behaviour n) (init : InitialSystemState n) (e_req e_dir : Event n) : Prop where
   cWriteOnMR : b.stateBefore n (init.stateAt n e_dir) e_dir = MREntry n
   fwdSharers : b.downgradeAtSharers n (b.stateBefore n (init.stateAt n e_dir) e_dir).directory e_req e_dir
 
 /- Def. Which directory states will a Coherent Write Request cause downgrades at other caches. Includes Props on Downgrade Events to
 other caches. -/
-inductive Behaviour.coherentWriteAtDirectoryEncapDowngrades (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop
-| cWriteOnSW : b.fwdCoherentRequestToOwner n e_req e_dir init → Behaviour.coherentWriteAtDirectoryEncapDowngrades b e_req e_dir init
-| cWriteOnMR : b.fwdCoherentRequestToSharers n e_req e_dir init → Behaviour.coherentWriteAtDirectoryEncapDowngrades b e_req e_dir init
+inductive Behaviour.coherentWriteAtDirectoryEncapDowngrades (b : Behaviour n) (init : InitialSystemState n) (e_req e_dir : Event n) : Prop
+| cWriteOnSW : b.fwdCoherentRequestToOwner n init e_req e_dir → Behaviour.coherentWriteAtDirectoryEncapDowngrades b init e_req e_dir
+| cWriteOnMR : b.fwdCoherentRequestToSharers n init e_req e_dir → Behaviour.coherentWriteAtDirectoryEncapDowngrades b init e_req e_dir
 
 /-- Def. When a coherent write to the Directory downgrades other caches. -/
-structure Behaviour.coherentWriteDowngradeOthers (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
+structure Behaviour.coherentWriteDowngradeOthers (b : Behaviour n) (init : InitialSystemState n) (e_req e_dir : Event n) : Prop where
   isDirEvent : e_dir.isDirectoryEvent
   dirCoherentWrite : e_dir.req.isCoherentWrite
   isCacheEvent : e_req.isCacheEvent
   reqCoherentWrite : e_req.req.isCoherentWrite
-  downgradeOtherCaches : b.coherentWriteAtDirectoryEncapDowngrades n e_req e_dir init
+  downgradeOtherCaches : b.coherentWriteAtDirectoryEncapDowngrades n init e_req e_dir
 
 /-- Axiom 9, Coherent-Write request to Directory results in Downgrade at other caches axiom. -/
 def Behaviour.coherentWriteDirDowngradeOthers : Prop := ∀ b : Behaviour n, ∀ init : InitialSystemState n,
-  ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es, b.coherentWriteDowngradeOthers n e_req e_dir init
+  ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es, b.coherentWriteDowngradeOthers n init e_req e_dir
 
 /- Def. Which directory states will a Coherent Read Request cause downgrades at other caches. Includes Props on Downgrade Events to
 other caches. -/
 inductive Behaviour.coherentRequestAtDirectoryEncapDowngrades (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop
-| cReadOnSW : b.fwdCoherentRequestToOwner n e_req e_dir init → Behaviour.coherentRequestAtDirectoryEncapDowngrades b e_req e_dir init
+| cReadOnSW : b.fwdCoherentRequestToOwner n init e_req e_dir → Behaviour.coherentRequestAtDirectoryEncapDowngrades b e_req e_dir init
 
 /-- Def. Props on Coherent Read Request event accessing the directory -/
 structure Behaviour.coherentReadDowngradeOthers (b : Behaviour n) (e_req e_dir : Event n) (init : InitialSystemState n) : Prop where
@@ -329,7 +329,7 @@ structure Behaviour.nonCoherentReqOnSWDowngradeOthers (b : Behaviour n) (e_req e
   isDir : e_dir.isDirectoryEvent
   isCache : e_req.isCacheEvent
   reqDirOnSW : b.stateBefore n (init.stateAt n e_dir) e_dir = SWEntry n
-  fwdPrevOwner : ∃ e_down ∈ b.es, b.requestDowngradePrevOwner n e_req e_dir e_down init
+  fwdPrevOwner : ∃ e_down ∈ b.es, b.requestDowngradePrevOwner n init e_req e_dir e_down
 
 /-- Axiom 12. Non-Coherent Write/Read on SW Directory State results in Downgrades. -/
 def Behaviour.nonCoherentRequestDowngradeOthers : Prop :=
