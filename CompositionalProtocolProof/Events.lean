@@ -342,6 +342,10 @@ def Event.sameCid (e₁ e₂ : Event n) : Prop :=
   | .cacheEvent ce₁, .cacheEvent ce₂ => ce₁.cid = ce₂.cid
   | _, _ => False
 
+def Event.cid (e : Event n) : CacheId n := match e with
+  | .cacheEvent ce => ce.cid
+  | .directoryEvent _ => panic! "Error: getting an Event's Cid, but was given a DirectoryEvent?"
+
 /-- Def 2.38: Is a Request Pair a PPO Pair. -/
 structure Event.isPPOPair (e₁ e₂ : Event n) : Prop where
   requestPPO : e₁.req.isPPOPair e₂.req
