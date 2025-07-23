@@ -1,6 +1,9 @@
 import CompositionalProtocolProof.CompoundSWMR
 import CompositionalProtocolProof.CompoundProtocol
 
+import CompositionalProtocolProof.CompositionalProof.ProofBasic
+import CompositionalProtocolProof.CompositionalProof.Lemma8CompoundEnforcesSWMR
+
 /- TODO:
 1. define an inductive stating the Compound Linearization event of a Cluster Cache Request Event
   is defined by two cases on what the Request's Linearization event is in the cluster:
