@@ -48,5 +48,5 @@ inductive CompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Even
 | cDir (cdir_satisfies_cmp_swmr : Behaviour.clusterDirEvent.satisfiesCompoundSWMR n b init e) : CompoundSWMR b init e
 | gCache (gcache_satisfies_cmp_swmr : Behaviour.globalCacheEvent.satisfiesCompoundSWMR n b init e) : CompoundSWMR b init e
 
-def CompoundSWMR.wrapper : Prop := ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e ∈ b,
-  e.isClusterDir ∨ e.isGlobalCache → CompoundSWMR n b init e
+def CompoundSWMR.wrapper (b : Behaviour n) (init : InitialSystemState n) : Prop :=
+  ∀ e ∈ b, e.isClusterDir ∨ e.isGlobalCache → CompoundSWMR n b init e
