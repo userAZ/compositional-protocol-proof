@@ -174,18 +174,94 @@ This avoids those cases when reasoning through cases.
 
 -/
 
+-- [Simpler] Alternate approach: Define at a higher level of abstraction, simplify the approach
+-- Modularly state smaller relations between events (ex. Cache (Request) Event encapsulating a Directory Event.)
+-- inductive Behaviour.cacheRequestEvent.mayAccessDir (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
+-- | cacheAccessDir () (Behaviour.clusterRequest.allEncapDirEventSatisfiesCmpSWMR) :
+
+structure Event.isGlobalDir (e_dir : Event n) : Prop where
+  dirAtDir : e_dir.isDirectoryEvent
+  dirGlobal : e_dir.protocol = .global
+
+-- [NOTE] could swap out the `∀ e ∈ b, ...` with `(∃ e ∈ b) → ...`, might be simpler? or not.
+
+def Behaviour.globalDowngradeEvent.fwdOnSW.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e_gcache e_gdir e_gdown : Event n) : Prop :=
+  b.requestDowngradePrevOwner n init e_gcache e_gdir e_gdown → CompoundSWMR n b init e_gdown
+
+def Behaviour.globalDowngradeEvent.fwdOnMR.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e_gcache e_gdir e_gdown : Event n) : Prop :=
+  ∀ s ∈ (b.directoryStateMadeOn n init e_gdir).CurrentSharers, s ≠ e_gcache.cid →
+    Event.swDowngradeSharersParameters n e_gcache e_gdown s → CompoundSWMR n b init e_gdown
+
+inductive Behaviour.globalDowngradeEvent.fwdWrite.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e_gcache e_gdir e_gdown : Event n) : Prop
+| dirWasSW (on_sw : (b.directoryStateMadeOn n init e_gdir).toState = SW)
+  (downgrade_owner : Behaviour.globalDowngradeEvent.fwdOnSW.satisfiesCompoundSWMR n b init e_gcache e_gdir e_gdown)
+  : Behaviour.globalDowngradeEvent.fwdWrite.satisfiesCompoundSWMR b init e_gcache e_gdir e_gdown
+| dirWasMR (on_mr : (b.directoryStateMadeOn n init e_gdir).toState = MR)
+  (downgrade_sharers : Behaviour.globalDowngradeEvent.fwdOnMR.satisfiesCompoundSWMR n b init e_gcache e_gdir e_gdown)
+  : Behaviour.globalDowngradeEvent.fwdWrite.satisfiesCompoundSWMR b init e_gcache e_gdir e_gdown
+
+inductive Behaviour.globalDowngradeEvent.fwdSWOrMR.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e_gcache e_gdir e_gdown : Event n) : Prop
+| fwdSWDown (down : e_gdown.down) (fwd_sw : e_gdown.isSCWrite) (global_down_satisfies_cmp_swmr : Behaviour.globalDowngradeEvent.fwdWrite.satisfiesCompoundSWMR n b init e_gcache e_gdir e_gdown)
+  : Behaviour.globalDowngradeEvent.fwdSWOrMR.satisfiesCompoundSWMR b init e_gcache e_gdir e_gdown
+| fwdMRDown (down : e_gdown.down) (fwd_mr : e_gdown.isSCRead) (global_down_satisfies_cmp_swmr : Behaviour.globalDowngradeEvent.fwdOnSW.satisfiesCompoundSWMR n b init e_gcache e_gdir e_gdown)
+  : Behaviour.globalDowngradeEvent.fwdSWOrMR.satisfiesCompoundSWMR b init e_gcache e_gdir e_gdown
+
+/-- Goal for Lemma 4. Split for Lemma 6/7. -/
+def Behaviour.globalDowngradeEvent.satisfiesCompoundSMWR (b : Behaviour n) (init : InitialSystemState n) (e_gcache e_gdir : Event n) : Prop :=
+    ∀ e_gdown ∈ b, e_gdown.isGlobalDowngrade → Behaviour.globalDowngradeEvent.fwdSWOrMR.satisfiesCompoundSWMR n b init e_gcache e_gdir e_gdown
+
+/-- Goal for Lemma 4. Split for Lemma 5. -/
+def Behaviour.globalCacheEvent.satisfiesCompoundSMWR (b : Behaviour n) (init : InitialSystemState n) (e_cdir : Event n) : Prop :=
+    ∀ e_gcache ∈ b, e_gcache.isGlobalCache → e_cdir.clusterDirEncapCorrespondingGlobalCache n e_gcache →
+    ∀ e_gdir ∈ b, e_gdir.isGlobalDir → b.dirEventCorrespondingToCacheEvent n init e_gcache e_gdir →
+    Behaviour.globalDowngradeEvent.satisfiesCompoundSMWR n b init e_gcache e_gdir
+
+/-- Goal for Lemma 4. Stating a corresponding Cluster Directory Event `e_cdir` satisfies Compound SWMR. -/
+structure Behaviour.correspondingClusterDirSatisfyCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e e_cdir : Event n) : Prop where
+  clusterDirSatisfiesCmpSWMR : CompoundSWMR n b init e_cdir
+  globalCacheSatisfiesCmpSWMR : Behaviour.globalCacheEvent.satisfiesCompoundSMWR n b init e_cdir
+
+/-- Goal for Lemma 4. This is the prop used in the top level Goal. For any Cluster Event `e`, any Directory Event `e_cdir` that corresponds to `e`,
+`e_cdir` must satisfy `CompoundSWMR`, and any global downgrades transitively related through it must also satisfy `CompoundSWMR` -/
+def Behaviour.allCorrespondingGlobalDowngradeSatisfyCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop :=
+  ∀ e_cdir ∈ b, e_cdir.isClusterDir → b.dirEventCorrespondingToCacheEvent n init e e_cdir →
+    b.correspondingClusterDirSatisfyCompoundSWMR n init e e_cdir
+
+structure Behaviour.ncRelOnIEncapTwoDirEvents (b : Behaviour n) (init : InitialSystemState n) (e e_cdir_vc e_cdir_vd : Event n) : Prop where
+  vcClusterDir : e_cdir_vc.isClusterDir
+  vdClusterDir : e_cdir_vd.isClusterDir
+  vcCorresponds : b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e) false e e_cdir_vc
+  vdCorresponds : b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e) true e e_cdir_vd
+
+structure Behaviour.ncRelDirEventsSatisfyCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e e_cdir_vc e_cdir_vd : Event n) : Prop where
+  vcSatisfyCmpSWMR : b.correspondingClusterDirSatisfyCompoundSWMR n init e e_cdir_vc
+  vdSatisfyCmpSWMR : b.correspondingClusterDirSatisfyCompoundSWMR n init e e_cdir_vd
+
+def Behaviour.ncRelOnICorrespondingClusterDirSatisfyCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop :=
+  ∃ e_cdir_vc ∈ b, ∃ e_cdir_vd ∈ b, b.ncRelOnIEncapTwoDirEvents n init e e_cdir_vc e_cdir_vd →
+    b.ncRelDirEventsSatisfyCompoundSWMR n init e e_cdir_vc e_cdir_vd
+
+/-- Goal for Lemma 4. Top level goal. -/
+inductive Behaviour.allClusterEventCorrespondingDirEventSatisfyCompoundSWMR  (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop
+| ncRelOnI (isNcRel : e.isNcRelease) (onI : b.cacheStateMadeOn n init e = I)
+  (encapTwoDirs : b.ncRelOnICorrespondingClusterDirSatisfyCompoundSWMR n init e)
+  : Behaviour.allClusterEventCorrespondingDirEventSatisfyCompoundSWMR b init e
+| ncRelNotOnI (isNcRel : e.isNcRelease) (notOnI : b.cacheStateMadeOn n init e ≠ I)
+  (any_dir_satisfies_cmp_swmr : b.allCorrespondingGlobalDowngradeSatisfyCompoundSWMR n init e)
+  : Behaviour.allClusterEventCorrespondingDirEventSatisfyCompoundSWMR b init e
+| notNcRel (isNotNcRel : ¬ e.isNcRelease)
+  (any_dir_satisfies_cmp_swmr : b.allCorrespondingGlobalDowngradeSatisfyCompoundSWMR n init e)
+  : Behaviour.allClusterEventCorrespondingDirEventSatisfyCompoundSWMR b init e
+
+structure Behaviour.allCorresponding.ClusterDirAndGlobalDowngrade.satisfyCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop where
+
 /-- Lemma 4 : A Cluster Request Event leaves a protocol in Compound SWMR. -/
 lemma Behaviour.cluster_request_enforces_compound_swmr
   (b : Behaviour n) (init : InitialSystemState n)
   (cmp : CompoundProtocol n)
-  -- (hcmp_swmr : CompoundSWMR.wrapper n)
   (e : Event n) (he_in_b : e ∈ b)
   -- Initial or Current state just before Event `e` in Compound SWMR
-  (hpred_cdir_cmp_swmr : ∀ e_cdir ∈ b, e_cdir.isClusterDir → b.clusterDirFinishBeforeUnrelated n init e_cdir e → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache n b init e_cdir)
-  (hpred_gcache_cmp_swmr : ∀ e_gcache ∈ b, e_gcache.isGlobalCache → b.globalCacheFinishBeforeUnrelated n init e_gcache e → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache' n b init e_gcache)
-  : True
-  -- ∀ e_cdir ∈ b, e_cdir.isClusterDir → b.encapCorrespondingClusterDir n init e_cdir e → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache n b init e_cdir
-  -- ∧
-  -- ∀ e_gcache ∈ b, e_gcache.isGlobalCache → b.globalCacheFinishBefore n init e_cdir e → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache n b init e_cdir
-  := by
+  (hpred_cdir_cmp_swmr : ∀ e_cdir ∈ b, e_cdir.isClusterDir → b.clusterDirFinishBeforeUnrelated n init e e_cdir → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache n b init e_cdir)
+  (hpred_gcache_cmp_swmr : ∀ e_gcache ∈ b, e_gcache.isGlobalCache → b.globalCacheFinishBeforeUnrelated n init e e_gcache → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache' n b init e_gcache)
+  : b.allClusterEventCorrespondingDirEventSatisfyCompoundSWMR n init e := by
   sorry
