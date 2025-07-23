@@ -266,12 +266,21 @@ structure Behaviour.downgradeAtPrevOwner (b : Behaviour n) (init : InitialSystem
 structure Behaviour.fwdCoherentRequestToOwner (b : Behaviour n) (init : InitialSystemState n) (e_req e_dir : Event n) : Prop where
   reqDirOnSW   : b.stateBefore n (init.stateAt n e_dir) e_dir = SWEntry n
   fwdPrevOwner : ∃ e_down ∈ b.es, ∃ e_grant ∈ b.es, b.downgradeAtPrevOwner n init e_req e_dir e_down e_grant
+
+def Event.swDowngradeSharersParameters (e_req e_down : Event n) (sharer : CacheId n) : Prop :=
+  match e_req, e_down with
+  | .cacheEvent request, .cacheEvent downgrade =>
+    request.downgradeOfReqToCache n downgrade sharer
+  | _, _ => false
+
+structure Event.swDowngradeSharers (e_req e_dir e_down e_grant : Event n) (sharer : CacheId n): Prop where
+  downgradeParameters : e_req.swDowngradeSharersParameters n e_down sharer
+  downgradeOrdering : e_req.fwdMRDowngradeEventOrdering n e_dir e_down e_grant
+
 /-- Def. Downgrade to sharers -/
 def Behaviour.downgradeAtSharers (b : Behaviour n) (dir_state : DirectoryState n) (e_req e_dir : Event n) : Prop := match dir_state with
-  | .MR _ sharers => ∃ e_grant ∈ b.es, ∀ s ∈ sharers, ∃ e_down ∈ b.es, match e_req, e_down with
-    | .cacheEvent request, .cacheEvent downgrade =>
-      request.downgradeOfReqToCache n downgrade s ∧ e_req.fwdMRDowngradeEventOrdering n e_dir e_down e_grant
-    | _, _ => false
+  | .MR _ sharers => ∃ e_grant ∈ b.es, ∀ s ∈ sharers, s ≠ e_req.cid → ∃ e_down ∈ b.es,
+    e_req.swDowngradeSharers n e_dir e_down e_grant s
   | _ => false
 
 /-- Def. fwd coherent request to other Sharer caches -/
