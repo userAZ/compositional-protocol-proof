@@ -77,3 +77,6 @@ lemma CompoundProtocol.compound_swmr_holds
   apply Behaviour.cluster_request_enforces_compound_swmr n b init cmp_protocol e he_in_b
   . case hpred_cdir_cmp_swmr => exact hall_cdir_sat_cmp_swmr
   . case hpred_gcache_cmp_swmr => exact hall_gcache_sat_cmp_swmr
+
+--[TODO] Need to write lemma to get the two hypotheses for Lemma9?
+-- So that I can say for any event, the all directory events/gcache events finishing before a request event satisfies Compound SWMR.
