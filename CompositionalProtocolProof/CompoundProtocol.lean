@@ -4,7 +4,7 @@ import CompositionalProtocolProof.BehaviourShim
 variable (n : Nat)
 
 structure ShimAxioms where
-  clusterToGlobal : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_dir ∈ b, Behaviour.Shim.ClusterToGlobal n b init e_dir
+  clusterToGlobal : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_dir : Event n, e_dir.isDirectoryEvent → Behaviour.Shim.ClusterToGlobal n b init e_dir
   globalToCluster : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ p : Protocol n, ∀ e_gdown ∈ b, Behaviour.Shim.GlobalToCluster n b init p e_gdown
 
 structure CompoundProtocol where
