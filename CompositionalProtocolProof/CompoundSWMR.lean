@@ -29,7 +29,7 @@ noncomputable def Behaviour.latestDirectoryStateOfGlobalCache (b : Behaviour n) 
 
 /-- The corresponding directory has state permissions ≤ the state after a global cache event -/
 def Behaviour.dirEventStateLeGlobalCacheState' (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : Prop :=
-  b.latestDirectoryStateOfGlobalCache n init e_gcache ≤ b.cacheStateMadeOn n init e_gcache
+  b.latestDirectoryStateOfGlobalCache n init e_gcache ≤ (b.stateAfter n (init.stateAt n e_gcache) e_gcache).cache
 
 /-- Def 2.47,b: Compound SWMR: global cache downgrade events (or all global cache events) have corresponding state in
 the directory that's ≤ global cache event. (i.e. corresponding dir event state finish immediately before global cache event
