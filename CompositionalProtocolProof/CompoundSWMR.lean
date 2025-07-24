@@ -36,7 +36,7 @@ the directory that's ≤ global cache event. (i.e. corresponding dir event state
 is ≤ the state after the global cache event) -/
 structure CompoundSWMR.stateAfterClusterDirEventLeGlobalCache' (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : Prop where
   gCache : e_gcache.isGlobalCache
-  stateAfterLeGlobalCache : b.dirEventStateLeGlobalCacheState n init e_gcache
+  stateAfterLeGlobalCache : b.dirEventStateLeGlobalCacheState' n init e_gcache
 
 def Behaviour.clusterDirEvent.satisfiesCompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop :=
   e.isClusterDir → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache n b init e
