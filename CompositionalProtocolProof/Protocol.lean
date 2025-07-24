@@ -24,5 +24,6 @@ structure Protocol where
   reqAxioms : RequestAxioms n
   linearizationOfEvent : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b,
     Behaviour.linearizationEventOfRequest n b init e_req
+  eventReqOfProtocol : ∀ b : Behaviour n, ∀ e ∈ b, e.req ∈ requests
 
 /- Want to State if a protocol has some requests. -/
