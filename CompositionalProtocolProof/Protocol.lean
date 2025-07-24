@@ -22,5 +22,7 @@ structure Protocol where
   pi : ProtocolInstance -- Which `cluster` is this protocol associated with
   requests : ProtocolInterface
   reqAxioms : RequestAxioms n
+  linearizationOfEvent : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b,
+    Behaviour.linearizationEventOfRequest n b init e_req
 
 /- Want to State if a protocol has some requests. -/
