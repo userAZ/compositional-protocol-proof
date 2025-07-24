@@ -17,7 +17,7 @@ structure Behaviour.clusterDirFinishBeforeUnrelated (b : Behaviour n) (init : In
 
 structure Behaviour.globalCacheFinishBeforeUnrelated (b : Behaviour n) (init : InitialSystemState n) (e e_gcache : Event n) : Prop where
   gCacheFinishBefore : e_gcache.finishesBefore n e
-  unrelated : ∃ e_dir ∈ b, b.dirEventNotCorrespondingToCacheEvent n init e_dir e ∧ e_dir.Encapsulates n e_gcache
+  unrelated : ∀ e_dir ∈ b, b.dirEventNotCorrespondingToCacheEvent n init e_dir e ∧ e_dir.Encapsulates n e_gcache
 
 -- [Simpler] Alternate approach: Define at a higher level of abstraction, simplify the approach
 -- Modularly state smaller relations between events (ex. Cache (Request) Event encapsulating a Directory Event.)
