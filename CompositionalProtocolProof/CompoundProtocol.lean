@@ -16,3 +16,5 @@ structure CompoundProtocol where
   globalSWMR : global.requests.isSWMR
   cluster1WellFormed : cluster1.pi = .cluster1
   cluster2WellFormed : cluster2.pi = .cluster2
+  linearizationOfEvent : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b,
+    Behaviour.linearizationEventOfRequest n b init e_req
