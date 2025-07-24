@@ -110,6 +110,22 @@ inductive Event
 | directoryEvent : (DirectoryEvent n) → Event
 deriving DecidableEq, BEq
 
+instance : Inhabited (Event n) where
+  default := Event.cacheEvent (
+    CacheEvent.mk
+      (Occurrence.mk 0 1 (by simp))
+      0
+      1
+      (by simp)
+      (⟨⟨.r, false, .Weak⟩,by simp[Request.IsValid']⟩)
+      (CacheId.proxy (.global) : CacheId n)
+      (CacheId.proxy (.global) : CacheId n)
+      0
+      false
+      none
+      0
+  )
+
 @[simp]
 instance eventInstBEq : BEq (Event n) where
   beq a b := a = b
