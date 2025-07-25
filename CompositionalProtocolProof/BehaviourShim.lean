@@ -262,6 +262,7 @@ structure Behaviour.encapCorrespondingGetSWAndEvict (b : Behaviour n) (init : In
   cohWriteDir : Behaviour.cacheEncapsulatesCorrespondingDirEvent n b (init.stateAt n e_shim_coh_write) true e_shim_coh_write e_dir_shim_coh_write
   stateCheckBeforeAccess : b.ImmediateBottomPredecessor n e_dir_state e_dir_shim_coh_write
   cohWrite : Event.Shim.Global.ToCluster.translateProxyEvent n e_gdown e_shim_coh_write ValidRequest.isSCWrite False
+  cohEvictDir : Behaviour.cacheEncapsulatesCorrespondingDirEvent n b (init.stateAt n e_shim_coh_write) true e_shim_coh_write e_dir_shim_coh_write
   cohEvict : Event.Shim.Global.ToCluster.translateProxyEvent n e_gdown e_shim_coh_evict ValidRequest.isSCWrite True
   cohWriteImmBeforeEvict : b.ImmediateBottomPredecessor n e_shim_coh_write e_shim_coh_evict
 
