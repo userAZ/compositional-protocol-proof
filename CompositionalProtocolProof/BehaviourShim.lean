@@ -15,10 +15,13 @@ def Event.reqAtGlobalCache (e_greq : Event n) (globalCid : Fin 2) : Prop := matc
   | .directoryEvent _ => False
 
 def Event.reqAtCorrespondingGCacheOfCDir (e_dir e_greq : Event n) : Prop :=
-  match e_dir.protocol with
-  | .cluster1 => e_greq.reqAtGlobalCache n 0
-  | .cluster2 => e_greq.reqAtGlobalCache n 1
-  | .global => False
+  match e_dir with
+  | .directoryEvent _ =>
+    match e_dir.protocol with
+    | .cluster1 => e_greq.reqAtGlobalCache n 0
+    | .cluster2 => e_greq.reqAtGlobalCache n 1
+    | .global => False
+  | .cacheEvent _ => False
 
 structure Event.isGlobalCache (e_greq : Event n) : Prop where
   reqAtCache : e_greq.isCacheEvent
