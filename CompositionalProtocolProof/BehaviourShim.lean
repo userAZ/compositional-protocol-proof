@@ -255,6 +255,8 @@ structure Event.Shim.Global.ToCluster.translateDirectoryEvent (e_gdown e_shim_tr
 structure Event.Shim.Global.ToCluster.directoryEventStateCheck (e_gdown e_shim_trans : Event n) : Prop where
   toCluster : Event.Shim.Global.ToCluster.translateDirectoryEvent n e_gdown e_shim_trans ValidRequest.isNcWeakRead True
 
+/- [TODO]: Replace e_dir_state, with just a check on the last event that finishes immediately before e_gdown at the cluster dir -/
+
 /-- A global SC write downgrade encapsulates a Coherent Write `e_w` and Evict `e_v` (`e_w` orderedBefore `e_v`) in the corresponding Cluster's Proxy Cache. -/
 structure Behaviour.encapCorrespondingGetSWAndEvict (b : Behaviour n) (init : InitialSystemState n)
   (e_gdown e_dir_state e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict : Event n) : Prop where
