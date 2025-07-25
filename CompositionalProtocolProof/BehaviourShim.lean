@@ -262,11 +262,6 @@ structure Event.Shim.Global.ToCluster.translateDirectoryEvent (e_gdown e_shim_tr
   downgrade : e_shim_trans.down = isDown
   globalEncap : e_gdown.Encapsulates n e_shim_trans
 
-structure Event.Shim.Global.ToCluster.directoryEventStateCheck (e_gdown e_shim_trans : Event n) : Prop where
-  toCluster : Event.Shim.Global.ToCluster.translateDirectoryEvent n e_gdown e_shim_trans ValidRequest.isNcWeakRead True
-
-/- [TODO]: Replace e_dir_state, with just a check on the last event that finishes immediately before e_gdown at the cluster dir -/
-
 /-- A global SC write downgrade encapsulates a Coherent Write `e_w` and Evict `e_v` (`e_w` orderedBefore `e_v`) in the corresponding Cluster's Proxy Cache. -/
 structure Behaviour.encapCorrespondingGetSWAndEvict (b : Behaviour n) (init : InitialSystemState n)
   (e_gdown e_dir_state e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict : Event n) : Prop where
@@ -280,19 +275,19 @@ structure Behaviour.encapCorrespondingGetSWAndEvict (b : Behaviour n) (init : In
 
 /-- Wrapper for the above. -/
 def Behaviour.encapCorrespondingGetSWAndEvictWrapper (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) : Prop :=
-  ∃ e_dir_state ∈ b, ∃ e_shim_coh_write ∈ b, ∃ e_dir_shim_coh_write, ∃ e_shim_coh_evict ∈ b,
-    b.encapCorrespondingGetSWAndEvict n init e_gdown e_dir_state e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict
+  ∃ e_shim_coh_write ∈ b, ∃ e_dir_shim_coh_write, ∃ e_shim_coh_evict ∈ b, ∃ e_dir_shim_coh_evict ∈ b,
+    b.encapCorrespondingGetSWAndEvict n init e_gdown e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict e_dir_shim_coh_evict
 
 /-- Helper for (Shim) Axiom 16: State a Global Write Fwd Downgrade (for a Cluster with both Coherent Write and Read)
 is translated to a Cluster (1) Proxy Cache SC Write, and (2) a Proxy Cache SC Write Evict. -/
-structure Behaviour.Shim.Global.bothCoherentWriteRead.SCWriteDownTranslation (b : Behaviour n) (init : InitialSystemState n) (p : Protocol n) (e_gdown e_dir_check : Event n) : Prop where
-  clusterDir : Event.Shim.Global.ToCluster.directoryEventStateCheck n e_gdown e_dir_check
-  gDownOnSWOrMR : b.dirEventMadeOn n init e_dir_check SW ∨ b.dirEventMadeOn n init e_dir_check MR -- consider using a weak downgrade
+structure Behaviour.Shim.Global.bothCoherentWriteRead.SCWriteDownTranslation (b : Behaviour n) (init : InitialSystemState n) (p : Protocol n) (e_gdown : Event n) : Prop where
+  -- clusterDir : Event.Shim.Global.ToCluster.directoryEventStateCheck n e_gdown
+  -- gDownOnSWOrMR : b.dirEventMadeOn n init e_dir_check SW ∨ b.dirEventMadeOn n init MR -- consider using a weak downgrade
   scGDownTranslation : b.encapCorrespondingGetSWAndEvictWrapper n init e_gdown
 
 /-- Wrapper for def above. -/
 def Behaviour.Shim.Global.bothCoherentWriteRead.SCWriteDownTranslation.wrapper (b : Behaviour n) (init : InitialSystemState n) (p : Protocol n) (e_gdown : Event n) : Prop :=
-  ∃ e_dir_check ∈ b, Behaviour.Shim.Global.bothCoherentWriteRead.SCWriteDownTranslation n b init p e_gdown e_dir_check
+  Behaviour.Shim.Global.bothCoherentWriteRead.SCWriteDownTranslation n b init p e_gdown
 
 structure Behaviour.encapCorrespondingGetMR (b : Behaviour n) (p : Protocol n) (e_gdown e_shim_coh_read : Event n) : Prop where
   cohRead : Event.Shim.Global.ToCluster.translateProxyEvent n e_gdown e_shim_coh_read ValidRequest.isSCRead False
@@ -313,30 +308,24 @@ inductive Behaviour.Shim.Global.bothWriteRead.Down (b : Behaviour n) (init : Ini
   (translation : Behaviour.Shim.Global.bothWriteRead.SCReadDownTranslation n b p e_gdown)
   : Behaviour.Shim.Global.bothWriteRead.Down b init p e_gdown
 
-structure Behaviour.Shim.Global.toClusterDirCheckState (b : Behaviour n) (init : InitialSystemState n) (e_gdown e_dir_check : Event n) (s : State) : Prop where
-  clusterDir : Event.Shim.Global.ToCluster.directoryEventStateCheck n e_gdown e_dir_check
-  gDownOn : b.dirEventMadeOn n init e_dir_check s
-
-def Behaviour.Shim.Global.toClusterDirCheckStateWrapper (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) (s : State) : Prop :=
-  ∃ e_dir_check , Behaviour.Shim.Global.toClusterDirCheckState n b init e_gdown e_dir_check s
+def Behaviour.Shim.Global.toCluster.clusterDirStateBefore (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) (s : State) : Prop :=
+  b.latestDirectoryStateOfGlobalCache n init e_gdown = s
 
 /-- Helper for (Shim) Axiom 16: a Global `Write` Downgrade to a Cluster Protocol with no Coherent Read on Vd state
 is translated to a Directory state check, directory downgrades from Vd to Vc, and Vc to I. -/
-structure Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVd (b : Behaviour n) (init : InitialSystemState n) (e_gdown e_dir_state e_dir_shim_vd_down e_dir_shim_vc_down : Event n) : Prop where
-  stateCheckBeforeAccess : b.ImmediateBottomPredecessor n e_dir_state e_dir_shim_vd_down
+structure Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVd (b : Behaviour n) (init : InitialSystemState n) (e_gdown e_dir_shim_vd_down e_dir_shim_vc_down : Event n) : Prop where
   gDownEncapVdWBDir : Event.Shim.Global.ToCluster.translateDirectoryEvent n e_gdown e_dir_shim_vd_down ValidRequest.isNcWeakWrite True
   vdWBDirImmBeforeVcInvalDir : b.ImmediateBottomPredecessor n e_dir_shim_vd_down e_dir_shim_vc_down
   gDownEncapVcInvalDir : Event.Shim.Global.ToCluster.translateDirectoryEvent n e_gdown e_dir_shim_vc_down ValidRequest.isNcWeakRead True
 
 def Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVd.wrapper (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) : Prop :=
-  ∃ e_dir_state ∈ b, ∃ e_dir_shim_vd_down ∈ b, ∃ e_dir_shim_vc_down ∈ b,
-    Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVd n b init e_gdown e_dir_state e_dir_shim_vd_down e_dir_shim_vc_down
+  ∃ e_dir_shim_vd_down ∈ b, ∃ e_dir_shim_vc_down ∈ b,
+    Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVd n b init e_gdown e_dir_shim_vd_down e_dir_shim_vc_down
 
 /-- Helper for (Shim) Axiom 16: a Global `Write` Downgrade to a Cluster Protocol with no Coherent Read on SW state
 is translated to a Directory state check, then an Acquire, and directory downgrades from Vd to Vc, and Vc to I. -/
-structure Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW (b : Behaviour n) (init : InitialSystemState n) (e_gdown e_dir_state e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down : Event n) : Prop where
+structure Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW (b : Behaviour n) (init : InitialSystemState n) (e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down : Event n) : Prop where
   acqDir : Behaviour.cacheEncapsulatesCorrespondingDirEvent n b (init.stateAt n e_shim_acq) true e_shim_acq e_dir_shim_acq
-  stateCheckBeforeAccess : b.ImmediateBottomPredecessor n e_dir_state e_dir_shim_acq
   acq : Event.Shim.Global.ToCluster.translateProxyEvent n e_gdown e_shim_acq ValidRequest.isAcquire False
   acqDirImmBeforeVdWBDir : b.ImmediateBottomPredecessor n e_dir_shim_acq e_dir_shim_vd_down
   gDownEncapVdWBDir : Event.Shim.Global.ToCluster.translateDirectoryEvent n e_gdown e_dir_shim_vd_down ValidRequest.isNcWeakWrite True
@@ -344,52 +333,57 @@ structure Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW (b :
   gDownEncapVcInvalDir : Event.Shim.Global.ToCluster.translateDirectoryEvent n e_gdown e_dir_shim_vc_down ValidRequest.isNcWeakRead True
 
 def Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW.wrapper (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) : Prop :=
-  ∃ e_dir_state ∈ b, ∃ e_shim_acq ∈ b, ∃ e_dir_shim_acq ∈ b, ∃ e_dir_shim_vd_down ∈ b, ∃ e_dir_shim_vc_down ∈ b,
-    Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW n b init e_gdown e_dir_state e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down
+  ∃ e_shim_acq ∈ b, ∃ e_dir_shim_acq ∈ b, ∃ e_dir_shim_vd_down ∈ b, ∃ e_dir_shim_vc_down ∈ b,
+    Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW n b init e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down
+
+structure Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVc (b : Behaviour n) (init : InitialSystemState n) (e_gdown e_dir_shim_vc_down : Event n) : Prop where
+  gDownEncapVcInvalDir : Event.Shim.Global.ToCluster.translateDirectoryEvent n e_gdown e_dir_shim_vc_down ValidRequest.isNcWeakRead True
+
+def Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVc.wrapper (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) : Prop :=
+  ∃ e_dir_shim_vc_down ∈ b,
+    Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVc n b init e_gdown e_dir_shim_vc_down
 
 /-- Helper for (Shim) Axiom 16: This inductive : Prop states the cases where a Global Fwded GetSW (GetM) is
 translated to specified messages based on the state of the corresponding Cluster directory. -/
 inductive Behaviour.Shim.Global.ToCluster.noCoherentRead.WriteDowngradeTranslation (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) : Prop
-| onDirSW (dirSW : Behaviour.Shim.Global.toClusterDirCheckStateWrapper n b init e_gdown SW)
+| onDirSW (dirSW : Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_gdown SW)
   (translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW.wrapper n b init e_gdown)
   : Behaviour.Shim.Global.ToCluster.noCoherentRead.WriteDowngradeTranslation b init e_gdown
-| onDirVd (dirVd : Behaviour.Shim.Global.toClusterDirCheckStateWrapper n b init e_gdown Vd)
+| onDirVd (dirVd : Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_gdown Vd)
   (translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVd.wrapper n b init e_gdown)
   : Behaviour.Shim.Global.ToCluster.noCoherentRead.WriteDowngradeTranslation b init e_gdown
-| onDirVc (dirVc : Behaviour.Shim.Global.toClusterDirCheckStateWrapper n b init e_gdown Vc)
-  -- (translation : sorry) -- state check uses Vc Downgrade
+| onDirVc (dirVc : Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_gdown Vc)
+  (translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVc.wrapper n b init e_gdown)
   : Behaviour.Shim.Global.ToCluster.noCoherentRead.WriteDowngradeTranslation b init e_gdown
 
 /-- Helper for (Shim) Axiom 16: a Global `Read` Downgrade to a Cluster Protocol with no Coherent Read on Vd state
 is translated to a Directory state check, directory downgrades from Vd to Vc, and Vc to I. -/
-structure Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirVd (b : Behaviour n) (init : InitialSystemState n) (e_gdown e_dir_state e_dir_shim_vd_down : Event n) : Prop where
-  stateCheckBeforeAccess : b.ImmediateBottomPredecessor n e_dir_state e_dir_shim_vd_down
+structure Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirVd (b : Behaviour n) (init : InitialSystemState n) (e_gdown e_dir_shim_vd_down : Event n) : Prop where
   gDownEncapVdWBDir : Event.Shim.Global.ToCluster.translateDirectoryEvent n e_gdown e_dir_shim_vd_down ValidRequest.isNcWeakWrite True
 
 def Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirVd.wrapper (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) : Prop :=
-  ∃ e_dir_state ∈ b, ∃ e_shim_acq ∈ b, ∃ e_dir_shim_acq ∈ b, ∃ e_dir_shim_vd_down ∈ b,
-    Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirVd n b init e_gdown e_dir_state e_dir_shim_vd_down
+  ∃ e_shim_acq ∈ b, ∃ e_dir_shim_acq ∈ b, ∃ e_dir_shim_vd_down ∈ b,
+    Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirVd n b init e_gdown e_dir_shim_vd_down
 
 /-- Helper for (Shim) Axiom 16: a Global `Read` Downgrade to a Cluster Protocol with no Coherent Read on SW state
 is translated to a Directory state check, then an Acquire, and directory downgrades from Vd to Vc. -/
-structure Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirSW (b : Behaviour n) (init : InitialSystemState n) (e_gdown e_dir_state e_shim_acq e_dir_shim_acq e_dir_shim_vd_down : Event n) : Prop where
+structure Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirSW (b : Behaviour n) (init : InitialSystemState n) (e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down : Event n) : Prop where
   acqDir : Behaviour.cacheEncapsulatesCorrespondingDirEvent n b (init.stateAt n e_shim_acq) true e_shim_acq e_dir_shim_acq
-  stateCheckBeforeAccess : b.ImmediateBottomPredecessor n e_dir_state e_dir_shim_acq
   acq : Event.Shim.Global.ToCluster.translateProxyEvent n e_gdown e_shim_acq ValidRequest.isAcquire False
   acqDirImmBeforeVdWBDir : b.ImmediateBottomPredecessor n e_dir_shim_acq e_dir_shim_vd_down
   gDownEncapVdWBDir : Event.Shim.Global.ToCluster.translateDirectoryEvent n e_gdown e_dir_shim_vd_down ValidRequest.isNcWeakWrite True
 
 def Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirSW.wrapper (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) : Prop :=
-  ∃ e_dir_state ∈ b, ∃ e_shim_acq ∈ b, ∃ e_dir_shim_acq ∈ b, ∃ e_dir_shim_vd_down ∈ b,
-    Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirSW n b init e_gdown e_dir_state e_shim_acq e_dir_shim_acq e_dir_shim_vd_down
+  ∃ e_shim_acq ∈ b, ∃ e_dir_shim_acq ∈ b, ∃ e_dir_shim_vd_down ∈ b,
+    Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirSW n b init e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down
 
 /-- Helper for (Shim) Axiom 16: This inductive : Prop states the cases where a Global Fwded GetMR (GetS) is
 translated to specified messages based on the state of the corresponding Cluster directory. -/
 inductive Behaviour.Shim.Global.ToCluster.noCoherentRead.ReadDowngradeTranslation (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) : Prop
-| onDirSW (dirSW : Behaviour.Shim.Global.toClusterDirCheckStateWrapper n b init e_gdown SW)
+| onDirSW (dirSW : Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_gdown SW)
   (translation : Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirSW.wrapper n b init e_gdown)
   : Behaviour.Shim.Global.ToCluster.noCoherentRead.ReadDowngradeTranslation b init e_gdown
-| onDirVd (dirVd : Behaviour.Shim.Global.toClusterDirCheckStateWrapper n b init e_gdown Vd)
+| onDirVd (dirVd : Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_gdown Vd)
   (translation : Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirVd.wrapper n b init e_gdown)
   : Behaviour.Shim.Global.ToCluster.noCoherentRead.ReadDowngradeTranslation b init e_gdown
 
