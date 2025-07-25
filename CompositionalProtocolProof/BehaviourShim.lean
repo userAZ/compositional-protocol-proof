@@ -264,14 +264,12 @@ structure Event.Shim.Global.ToCluster.translateDirectoryEvent (e_gdown e_shim_tr
 
 /-- A global SC write downgrade encapsulates a Coherent Write `e_w` and Evict `e_v` (`e_w` orderedBefore `e_v`) in the corresponding Cluster's Proxy Cache. -/
 structure Behaviour.encapCorrespondingGetSWAndEvict (b : Behaviour n) (init : InitialSystemState n)
-  (e_gdown e_dir_state e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict : Event n) : Prop where
-  gDownEncapDirState : e_gdown.Encapsulates n e_dir_state
+  (e_gdown e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict e_dir_shim_coh_evict : Event n) : Prop where
   cohWriteDir : Behaviour.cacheEncapsulatesCorrespondingDirEvent n b (init.stateAt n e_shim_coh_write) true e_shim_coh_write e_dir_shim_coh_write
-  stateCheckBeforeAccess : b.ImmediateBottomPredecessor n e_dir_state e_dir_shim_coh_write
   cohWrite : Event.Shim.Global.ToCluster.translateProxyEvent n e_gdown e_shim_coh_write ValidRequest.isSCWrite False
-  cohEvictDir : Behaviour.cacheEncapsulatesCorrespondingDirEvent n b (init.stateAt n e_shim_coh_write) true e_shim_coh_write e_dir_shim_coh_write
+  cohEvictDir : Behaviour.cacheEncapsulatesCorrespondingDirEvent n b (init.stateAt n e_shim_coh_evict) true e_shim_coh_evict e_dir_shim_coh_evict
   cohEvict : Event.Shim.Global.ToCluster.translateProxyEvent n e_gdown e_shim_coh_evict ValidRequest.isSCWrite True
-  cohWriteImmBeforeEvict : b.ImmediateBottomPredecessor n e_shim_coh_write e_shim_coh_evict
+  cohWriteImmBeforeEvict : b.ImmediateBottomPredecessor n e_dir_shim_coh_write e_dir_shim_coh_evict
 
 /-- Wrapper for the above. -/
 def Behaviour.encapCorrespondingGetSWAndEvictWrapper (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) : Prop :=
