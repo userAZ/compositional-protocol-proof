@@ -12,6 +12,25 @@ For any global SW downgrade cache event `e_gdown`:
 2. the corresponding Cluster is in SWMR. (techinically have this by an Axiom)
 -/
 
+def CompoundProtocol.globalCidToProtocol (cmp : CompoundProtocol n) (g_cid : Fin 2) : Protocol n := match g_cid with
+  | 0 => cmp.cluster1
+  | 1 => cmp.cluster2
+
+def ProtocolCacheInstance.globalCacheEventCid (pci : ProtocolCacheInstance n) : Fin 2 := match pci with
+  | .globalP fin_2 => fin_2
+  | .cluster1 _ => 3 -- Attempt to be smart; Using a value that's not a Fin 2 should produce an error.
+  | .cluster2 _ => 3 -- panic! "Error: Expected a Global Cache Event, not a Cluster Cache Event!"
+
+def CacheEvent.globalCacheEventCid (ce_greq : CacheEvent n) : Fin 2 := match ce_greq.cid with
+  | .cache p_cache_inst => p_cache_inst.globalCacheEventCid
+  | .proxy _ => 3
+
+def Event.globalCacheEventCid (e_greq : Event n) : Fin 2 := match e_greq with
+  | .cacheEvent ce => ce.globalCacheEventCid
+  | .directoryEvent _ => 3
+
+def CompoundProtocol.clusterProtocolCorrespondingToGlobalProtocol (cmp : CompoundProtocol n) (e_greq : Event n) : Protocol n :=
+  cmp.globalCidToProtocol n (e_greq.globalCacheEventCid n)
 /-- Lemma 6/7: A global downgrade `e_gdown` leaves it's corresponding cluster directory
 in state `s` ≤ `e_gdown.MRS` -/
 lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
