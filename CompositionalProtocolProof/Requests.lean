@@ -192,8 +192,13 @@ def ValidRequest.RequestState /-{pi : ProtocolInterface}-/ (vr : ValidRequest) (
 noncomputable def ValidRequest.DowngradeState (vr : ValidRequest) : State → State
 | s => match vr.val.coherent with
   | true =>
-    if s ≤ vr.MRS then I
-    else vr.MRS
+    match vr.val.consistency with
+    | .Rel | .Weak | .Acq =>
+      if s ≤ Vc then s
+      else Vc
+    | .SC =>
+      if s ≤ vr.MRS then I
+      else vr.MRS
   | false =>
     if vr.val = NonCoherentWeakRead then
       if s = Vc then I
