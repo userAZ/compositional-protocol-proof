@@ -225,6 +225,16 @@ lemma Behaviour.stateAfter_fwd_sw_downgrade_eq_i {b init_entry_state}
         all_goals simp [LE.le, State.le, LT.lt, Option.le]
     | .directoryEvent _ => simp[Event.isCacheEvent] at hcache
   | cons h tail ih => simp [List.stateAfter, ih]
+
+lemma Behaviour.stateAfter_get_sw_immediately_put_sw_at_directory_eq_i {b init_entry_state}
+  {e_cdir_get_sw e_cdir_put_sw : Event n}
+  (hget_then_immediate_put : b.ImmediateBottomPredecessor n e_cdir_get_sw e_cdir_put_sw)
+  (hget_dir : e_cdir_get_sw.isDirectoryEvent) (hget_not_down : ¬ e_cdir_get_sw.down) (hget_sc_write : e_cdir_get_sw.isSCWrite)
+  (hput_dir : e_cdir_put_sw.isDirectoryEvent) (hput_down : e_cdir_put_sw.down) (hput_sc_write : e_cdir_put_sw.isSCWrite)
+  : (Behaviour.stateAfter n b init_entry_state e_cdir_put_sw) = Sum.inr (DirI n) := by
+  simp[Behaviour.stateAfter]
+  sorry
+
 /-- Lemma 6/7: A global downgrade `e_gdown` leaves it's corresponding cluster directory
 in state `s` ≤ `e_gdown.MRS` -/
 lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
