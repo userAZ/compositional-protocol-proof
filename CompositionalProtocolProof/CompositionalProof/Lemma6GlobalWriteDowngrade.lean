@@ -197,6 +197,34 @@ lemma Behaviour.cluster_dir_event_immediately_finish_before_of_global_downgrade
   -/
   sorry
 
+/-- A coherent write downgrade at a cache will have a resulting state of I. -/
+lemma Behaviour.stateAfter_fwd_sw_downgrade_eq_i {b init_entry_state}
+  {e_gdown : Event n} (hcache : e_gdown.isCacheEvent) (hdown : e_gdown.down) (hsc_write : e_gdown.isSCWrite)
+  : (Behaviour.stateAfter n b init_entry_state e_gdown) = Sum.inl I := by
+  simp[Behaviour.stateAfter]
+  /- Induct on the list, events up to event, unfold List.stateAfter.
+  Show that the state after an `e_gdown` (fwded sc write downwgrade) is always I.  -/
+  induction eventsUpToEvent n b e_gdown generalizing init_entry_state with
+  | nil =>
+    simp[List.stateAfter]
+    simp[Event.SucceedingState]
+    match e_gdown with
+    | .cacheEvent ce =>
+      simp[Event.down] at hdown
+      simp[CacheEvent.SucceedingState, hdown]
+      /- Show the result of the global downgrade `e_gdown` is `I`. -/
+      simp[ValidRequest.DowngradeState]
+
+      simp[Event.isSCWrite, Event.req, ValidRequest.isSCWrite] at hsc_write
+      simp only [hsc_write, ]
+      simp only [ValidRequest.MRS, ReadWrite.toPerms, ReadWrite.toRWPerms]
+      /- No matter what the previous state is, this fwd SC get SW `e_gdown` invalidates this cache. -/
+
+      match EntryState.cache n init_entry_state with
+      | ⟨some .wr, true⟩ | ⟨some .r, true⟩ | ⟨some .wr, false⟩ | ⟨some .r, false⟩ | ⟨none, false⟩ | ⟨none, true⟩ =>
+        all_goals simp [LE.le, State.le, LT.lt, Option.le]
+    | .directoryEvent _ => simp[Event.isCacheEvent] at hcache
+  | cons h tail ih => simp [List.stateAfter, ih]
 /-- Lemma 6/7: A global downgrade `e_gdown` leaves it's corresponding cluster directory
 in state `s` ≤ `e_gdown.MRS` -/
 lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
