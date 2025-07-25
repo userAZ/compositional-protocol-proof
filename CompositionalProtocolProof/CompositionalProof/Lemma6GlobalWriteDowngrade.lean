@@ -180,6 +180,23 @@ lemma Behaviour.event_immediate_finish_before_gdown_singleton
     intro he_eq_e_cdir
     simp[he_eq_e_cdir, he_cdir_in_b]
     exact he_cdir_satisfies
+
+lemma Behaviour.cluster_dir_event_immediately_finish_before_of_global_downgrade
+  {b : Behaviour n} (e_cdir e_gdown : Event n)
+  : immediateFinishesBeforeAtClusterDirectory n b e_cdir e_gdown := by
+  /- `e_shim_coh_evict` must be the last event finishing before `e_gdown` finishes.
+  Proof by contradiction:
+  Assume there is another event `e_dir_other` that finishes before `e_shim_coh_evict`, it requires another directory event to be
+  ordered after `e_shim_coh_evict`.
+  Another event `e_dir_other` can only come from another cache request or global cache event + shim axiom.
+  This shim axiom contains no other directory events, so `e_dir_other` must be from a cache request.
+  However, a cache request will not finish before `e_gdown`, because a cache request to increase permissions
+  greater than `e_shim_coh_evict` will need to encapsulate a Global Cache Event, which will need to be
+  ordered with respect to `e_gdown`, and so it will need to be ordered after.
+  Therefore, `e_dir_other` cannot finish before `e_gdown`, after `e_shim_coh_evict`, a contradiction with `e_dir_other`.
+  -/
+  sorry
+
 /-- Lemma 6/7: A global downgrade `e_gdown` leaves it's corresponding cluster directory
 in state `s` ≤ `e_gdown.MRS` -/
 lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
