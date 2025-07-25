@@ -10,25 +10,6 @@ lemma Set.ImmediatePredecessor' (ns : Set Nat) (n m : Nat)
   : ns.ImmediatePredecessor n m = (Set.ImmediatePredecessor ns · m) n := by
   simp
 
-def Set.IsSingleton {α : Type} (s : Set α) : Prop := ∃ e, {e} = s
-
-lemma Set.nonempty_unique_is_singleton {α} (s : Set α) (h_nonempty : Nonempty s)
-  (h_unique : ∀ (a b : α),  a ∈ s → b ∈ s → a = b) : s.IsSingleton := by
-  have ⟨a, ha⟩ := h_nonempty
-  exists a
-  apply Set.ext
-  intro x
-  constructor
-  · case mp =>
-    intro hxa
-    exact -- canonical
-      Eq.rec (motive := fun a_1 t ↦ s a_1)
-        (Nonempty.rec (motive := fun t ↦ s a) (fun val ↦ ha) h_nonempty)
-        (Eq.rec (motive := fun a t ↦ a = x) (Eq.refl x) hxa)
-  · case mpr =>
-    intro hxs
-    exact h_unique x a hxs ha
-
 example (ns : Set Nat) (n m : Nat) (hn_in_ns : n ∈ ns) (hm_in_ns : m ∈ ns)
   (hn_m_one : m = n + 1)
   : {n' ∈ ns | (ns.ImmediatePredecessor · m) n'} = {n} := by
