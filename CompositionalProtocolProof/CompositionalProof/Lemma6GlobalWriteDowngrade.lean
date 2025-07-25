@@ -218,4 +218,37 @@ lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
       /- NOTE: must know the state before this `e_gdown` satisfies Compound SWMR;
       how should I transfer the def of events before `e_creq` satisfiy Compound SWMR to `e_gdown`.
       Maybe not needed. Let's try the proof first. -/
-  sorry
+      -- show the latest directory event `e_cdir_down` before `e_gdown` always produces state ≤ state after `e_gdown`
+      let cluster_p_of_gdown := cmp.clusterProtocolCorrespondingToGlobalProtocol n e_gdown
+      have hgdown_translation_to_cluster := cmp.shimAxioms.globalToCluster b init cluster_p_of_gdown e_gdown hgdown_in_b
+      -- Get the corresponding cluster to the global cache;
+      cases hgdown_translation_to_cluster
+      . case bothCoherentWriteAndRead hcluster_of_gcache hcluster_has_sc_write_read hgdown_is_down =>
+        cases hgdown_is_down
+        . case scWriteDown hgdown_write_spec hgdown_translation =>
+          simp [Behaviour.Shim.Global.bothCoherentWriteRead.SCWriteDownTranslation.wrapper] at hgdown_translation
+          have hwrite_down_translation := hgdown_translation.choose_spec.right.scGDownTranslation
+          simp[Behaviour.encapCorrespondingGetSWAndEvictWrapper] at hwrite_down_translation
+          have htranslation_spec := hwrite_down_translation.choose_spec.right.choose_spec.right.choose_spec.choose_spec.right
+          let coh_evict := hwrite_down_translation.choose_spec.right.choose_spec.right.choose_spec.choose
+          let hcoh_evict_in_b := hwrite_down_translation.choose_spec.right.choose_spec.right.choose_spec.choose_spec.left
+          have htrans_coherent_evict_sw := htranslation_spec.cohEvict
+          /- Now, this Coherent SW Evict's corresponding Directory Event is the last Directory Event that finishes before `e_gdown`.
+          There are no others, -/
+          simp[Behaviour.latestDirectoryStateOfGlobalCache]
+          simp[Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents]
+
+          have hevict_imm_finish_before_gdown := b.cluster_dir_event_immediately_finish_before_of_global_downgrade n coh_evict e_gdown
+          rw[Behaviour.event_immediate_finish_before_gdown_singleton n hcoh_evict_in_b hevict_imm_finish_before_gdown]
+          simp[Behaviour.stateOfSubsingletonEventSet, Set.toOption, Behaviour.eventToState]
+          /- show the state after the evict `e_shim_coh_evict` (in the ⋯) is always ≤ the state after `e_gdown`.
+          `e_shim_coh_evict` brings the Cluster Directory state down to `I` (get SW then evict SW to I).
+          `e_gdown` is a downgrade at the Global Cache (fwd get M / SW), and will bring the Global cache to `I`. -/
+          /- are the `Behaviour.stateAfter` definitions easy to work with? Maybe I need helper lemmas to make
+          definitions like `stateAfter` easier to work with -/
+          sorry
+        . case scReadDown hgdown_read_spec hgdown_translation =>
+          sorry
+      . case noCoherentRead =>
+        sorry
+      -- have hglobal_swmr := cmp.globalSWMR
