@@ -66,6 +66,7 @@ structure Behaviour.requestDirectoryEvent (b : Behaviour n) (init : EntryState n
   reqEvent : e_dir.isDirEventOfReqEvent n e_req
   sameAddr : e_req.addr = e_dir.addr
   dirReq :  e_dir.req = b.reqToDirOfRequestEvent n init rel_wb e_req -- from analysis on e_req and the state it's made on
+  sameDown : e_dir.down = e_req.down
   dirState : e_dir.isDirEventOfDirState n (b.stateAfter n init e_dir).directory
   sameProtocol : e_req.sameProtocol n e_dir
 
