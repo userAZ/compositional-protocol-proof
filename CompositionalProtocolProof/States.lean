@@ -410,6 +410,8 @@ inductive DirectoryState
 | I  : StateI  → DirectoryState
 deriving DecidableEq, BEq, Inhabited
 
+abbrev DirI : DirectoryState n := DirectoryState.I ⟨I, by simp⟩
+
 /-
 set_option quotPrecheck false in
 notation "DirectoryState" => DirectoryState' n
