@@ -171,6 +171,16 @@ def Event.clusterDirProtocolCorrespondingToGlobalCache (e_gcache : Event n) : Pr
     | .proxy _ => panic! "Error: Expected `e_gcache` to be a Global _Cache_ Event, not a _Proxy_ Cache Event."
   | .directoryEvent _ => panic! "Error: Expected `e_gcache` to be a Global _Cache_ Event, not a Directory Event."
 
+noncomputable def Behaviour.globalCacheStateOfDirEventState (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : State :=
+  let global_cache_cid := Struct.cache (e_dir.globalCidCorrespondingToClusterDir n)
+  let global_event_imm_finish_before_dir := (b.immediateFinishesBeforeAtGlobalCacheEvents n e_dir)
+  b.stateOfSubsingletonEventSet n init global_cache_cid global_event_imm_finish_before_dir
+
+noncomputable def Behaviour.latestDirectoryStateOfGlobalCache (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : State :=
+  let cluster_dir_struct := Struct.directory (e_gcache.clusterDirProtocolCorrespondingToGlobalCache n)
+  let cluster_dir_imm_finish_before_global := b.immediateFinishesBeforeAtClusterDirectoryEvents n e_gcache
+  b.stateOfSubsingletonEventSet n init cluster_dir_struct cluster_dir_imm_finish_before_global
+
 def Event.globalCacheCorrespondingCluster (e_greq e_cluster : Event n) : Prop := match e_greq with
   | .cacheEvent ce => match ce.cid with
     | .cache p_cache_inst => match p_cache_inst with
