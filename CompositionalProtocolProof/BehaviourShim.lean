@@ -73,7 +73,7 @@ def Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncapEvents : Behaviour n �
 
 /- Prove if needed -/
 lemma Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncapEvents_is_subsingleton (b : Behaviour n) (e_succ : Event n)
-  : ∀ cid : CacheId n, (b.immediateFinishesBeforeAtGlobalCacheNotEncapEvents n e_succ).Subsingleton := by
+  : (b.immediateFinishesBeforeAtGlobalCacheNotEncapEvents n e_succ).Subsingleton := by
   sorry
 
 def Event.globalCidCorrespondingToClusterDir (e_dir : Event n) : CacheId n :=
@@ -103,7 +103,7 @@ def Behaviour.clusterDirHasPermsInGlobalCache (b : Behaviour n) (init : InitialS
 lemma Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncapEvents_is_singleton (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n)
   -- [TODO] state that hinit_i : all initial states are in I.
   (hinit_i : sorry) (hcdir_has_perms : e_dir.req.MRS ≤ b.globalCacheStateOfDirectoryEvent n init e_dir)
-  : ∀ cid : CacheId n, (b.immediateFinishesBeforeAtGlobalCacheNotEncapEvents n e_dir).Subsingleton := by
+  : (b.immediateFinishesBeforeAtGlobalCacheNotEncapEvents n e_dir).Subsingleton := by
   sorry
 
 def Behaviour.existsGlobalCacheAccessOfDirEvent (b : Behaviour n) (e_dir : Event n) : Prop :=
@@ -138,7 +138,7 @@ def Behaviour.immediateFinishesBeforeAtGlobalCacheEvents : Behaviour n → Event
 
 /- Prove if needed -/
 lemma Behaviour.immediateFinishesBeforeAtGlobalCacheEvents_is_subsingleton (b : Behaviour n) (e_succ : Event n)
-  : ∀ cid : CacheId n, (b.immediateFinishesBeforeAtGlobalCacheEvents n e_succ).Subsingleton := by
+  : (b.immediateFinishesBeforeAtGlobalCacheEvents n e_succ).Subsingleton := by
   sorry
 
 structure Behaviour.clusterDirectoryFinishesBeforeGlobalCache (b : Behaviour n) (e_cdir e_gcache : Event n) where
@@ -156,7 +156,8 @@ def Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents : Behaviour n → 
 
 /- Prove if needed -/
 lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_subsingleton (b : Behaviour n) (e_succ : Event n)
-  : ∀ cid : CacheId n, (b.immediateFinishesBeforeAtClusterDirectoryEvents n e_succ).Subsingleton := by
+  : (b.immediateFinishesBeforeAtClusterDirectoryEvents n e_succ).Subsingleton := by
+  sorry
   sorry
 
 def Event.clusterDirProtocolCorrespondingToGlobalCache (e_gcache : Event n) : ProtocolInstance :=
