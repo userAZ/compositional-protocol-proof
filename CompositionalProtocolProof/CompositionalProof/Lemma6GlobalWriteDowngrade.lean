@@ -280,7 +280,14 @@ lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
             (hwrite_down_translation.choose_spec.right.choose_spec.choose_spec.right.choose) e_gdown
 
           rw[Behaviour.event_immediate_finish_before_gdown_singleton n hdir_coh_evict_in_b hevict_imm_finish_before_gdown]
-          simp[Behaviour.stateOfSubsingletonEventSet, Set.toOption, Behaviour.eventToState]
+          simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToState, -- Set.toOption,
+            -- nonempty_subtype, Set.mem_singleton_iff, exists_eq, ↓reduceDIte, ge_iff_le
+            ]
+          have hcdir_fin_before_gdown_singleton := Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_cdir_singleton n b e_gdown hevict_imm_finish_before_gdown
+          have hsingleton := Set.toOption_singleton' dir_coh_evict hcdir_fin_before_gdown_singleton
+          rw[hcdir_fin_before_gdown_singleton] at hsingleton
+          rw[hsingleton]
+          simp
           /- show the state after the evict `e_shim_coh_evict` (in the ⋯) is always ≤ the state after `e_gdown`.
           `e_shim_coh_evict` brings the Cluster Directory state down to `I` (get SW then evict SW to I).
           `e_gdown` is a downgrade at the Global Cache (fwd get M / SW), and will bring the Global cache to `I`. -/
