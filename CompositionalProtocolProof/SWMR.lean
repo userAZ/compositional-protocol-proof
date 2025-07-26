@@ -30,6 +30,8 @@ lemma Set.toOption_singleton {α} {s : Set α} (hsingleton : s.IsSingleton) : �
     . case h =>
       use hsingleton.choose
 
+lemma Set.toOption_singleton' {α} {s : Set α} (e : α) (hsingleton : s = {e}) : s.toOption = some e := by sorry
+
 noncomputable def Behaviour.eventToState (b : Behaviour n) (init : InitialSystemState n) (e? : Option (Event n)) (struct : Struct n) : State :=
   match e? with
   | .none => init.stateAtStruct n struct
