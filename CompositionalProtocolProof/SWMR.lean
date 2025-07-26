@@ -11,7 +11,7 @@ noncomputable def Set.toOption {α} (s : Set α) : Option (α) :=
   if h : Nonempty s then some h.some
   else none
 
-lemma Set.toOption_singleton {α} (s : Set α) (hsingleton : s.IsSingleton) : ∃ e, s = {e} → s.toOption = some e := by
+lemma Set.toOption_singleton {α} {s : Set α} (hsingleton : s.IsSingleton) : ∃ e, s = {e} → s.toOption = some e := by
   use hsingleton.choose
   intro hs_singleton
   simp only [toOption, Option.dite_none_right_eq_some,]
