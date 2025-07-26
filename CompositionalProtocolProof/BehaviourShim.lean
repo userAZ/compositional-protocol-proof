@@ -158,6 +158,11 @@ def Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents : Behaviour n → 
 lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_subsingleton (b : Behaviour n) (e_succ : Event n)
   : (b.immediateFinishesBeforeAtClusterDirectoryEvents n e_succ).Subsingleton := by
   sorry
+
+/- Will need this lemma later.-/
+lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_cdir_singleton {e_cdir} (b : Behaviour n)
+  (e_succ : Event n) (h : b.immediateFinishesBeforeAtClusterDirectory n e_cdir e_succ)
+  : (b.immediateFinishesBeforeAtClusterDirectoryEvents n e_succ) = {e_cdir} := by
   sorry
 
 def Event.clusterDirProtocolCorrespondingToGlobalCache (e_gcache : Event n) : ProtocolInstance :=
