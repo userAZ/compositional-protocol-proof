@@ -30,7 +30,22 @@ lemma Set.toOption_singleton {α} {s : Set α} (hsingleton : s.IsSingleton) : �
     . case h =>
       use hsingleton.choose
 
-lemma Set.toOption_singleton' {α} {s : Set α} (e : α) (hsingleton : s = {e}) : s.toOption = some e := by sorry
+lemma Set.toOption_singleton' {α} {s : Set α} (e : α) (hsingleton : s = {e}) : s.toOption = some e := by
+  simp only [toOption, Option.dite_none_right_eq_some,]
+  have hs_nonempty' : Nonempty s := by
+    simp []
+    use e
+    simp[Set.eq_singleton_iff_unique_mem] at hsingleton
+    obtain ⟨hsingle_in_s, helem_of_s⟩ := hsingleton
+    simp[hsingle_in_s]
+  use hs_nonempty'
+  obtain ⟨_,hxs_eq_singleton⟩ := Set.eq_singleton_iff_unique_mem.mp hsingleton
+  simp
+  apply hxs_eq_singleton
+  . case h.intro.a =>
+    apply Nonempty.some_mem
+    . case h =>
+      use e
 
 noncomputable def Behaviour.eventToState (b : Behaviour n) (init : InitialSystemState n) (e? : Option (Event n)) (struct : Struct n) : State :=
   match e? with
