@@ -286,9 +286,6 @@ lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
           `e_gdown` is a downgrade at the Global Cache (fwd get M / SW), and will bring the Global cache to `I`. -/
           /- are the `Behaviour.stateAfter` definitions easy to work with? Maybe I need helper lemmas to make
           definitions like `stateAfter` easier to work with -/
-          have test1 := hgdown.isGlobal.reqAtCache
-          have test := hgdown_write_spec
-          --- Behaviour.stateAfter_fwd_sw_downgrade_eq_i
           rw[Behaviour.stateAfter_fwd_sw_downgrade_eq_i n hgdown.isGlobal.reqAtCache hgdown.isDown hgdown_write_spec.isSCWrite]
           -- Now show the state after the Coherent Evict sent to the directory `e_shim_coh_evict` results in I state.
           have hcoh_write_immediate_evict := htranslation_spec.cohWriteImmBeforeEvict
@@ -322,33 +319,17 @@ lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
           /- Coherent Evict at Directory is a downgrade -/
           have hcoh_evict_dir_down : hwrite_down_translation.choose_spec.right.choose_spec.choose_spec.right.choose.down := by
             simp[hcoh_evict_dir_down_eq_coh_evict_down, hcoh_evict_down]
+
+          /- Coherent Write Directory Event is a SC Write. -/
+          have hcoh_evict_dir_sc_write : hwrite_down_translation.choose_spec.right.choose_spec.choose_spec.right.choose.isSCWrite := by
             sorry
 
           rw[Behaviour.stateAfter_get_sw_immediately_put_sw_at_directory_eq_i
               n htranslation_spec.cohWriteImmBeforeEvict hcoh_write_dir hcoh_write_dir_not_down hcoh_write_dir_sc_write
+              hcoh_evict_dir hcoh_evict_dir_down hcoh_evict_dir_sc_write
             ]
 
           simp[EntryState.state,DirectoryState.toState, EntryState.cache, LE.le, State.le]
-          . case e_cdir_get_sw =>
-            -- have dir_get_sw := hwrite_down_translation.choose_spec.right.choose
-            exact hwrite_down_translation.choose_spec.right.choose
-          . case hget_then_immediate_put =>
-            have h_get_immediate_before_put := htranslation_spec.cohWriteImmBeforeEvict
-
-            simp [htranslation_spec.cohWriteImmBeforeEvict]
-            sorry
-          . case hget_dir =>
-            sorry
-          . case hget_not_down =>
-            sorry
-          . case hget_sc_write =>
-            sorry
-          . case hput_dir =>
-            sorry
-          . case hput_down =>
-            sorry
-          . case hput_sc_write =>
-            sorry
         . case scReadDown hgdown_read_spec hgdown_translation =>
           sorry
       . case noCoherentRead =>
