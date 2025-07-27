@@ -228,13 +228,14 @@ lemma Behaviour.global_sw_downgrade_encap_corresponding_evict {b : Behaviour n} 
 
 lemma Behaviour.global_sw_downgrade_dir_evict_has_no_intermediate {b : Behaviour n} {init : InitialSystemState n}
   {e_gdown e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict e_dir_shim_coh_evict : Event n}
+  (hgdown : e_gdown.isGlobalDowngrade)
   (hfwd_sw_down_translation : Behaviour.encapCorrespondingGetSWAndEvict n b init e_gdown e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict e_dir_shim_coh_evict)
   : noIntermediateFinishesBeforeOfSameEntry n b e_dir_shim_coh_evict e_gdown := by
   simp[noIntermediateFinishesBeforeOfSameEntry]
   have honly_encap_get_put_dir := hfwd_sw_down_translation.onlyWriteEvictDir
   intro e_inter hinter_in_b hinter_finishes_btn_evict_and_gdown
   have hdir_evict_same_struct_inter := hinter_finishes_btn_evict_and_gdown.sameCidInterPred
-  match e_dir_shim_coh_evict, hinter : e_inter with
+  match hdir_evict : e_dir_shim_coh_evict, hinter : e_inter with
   | .directoryEvent de_dir_evict , .directoryEvent de_inter =>
     have hdir_ordered := b.orderedAtEntry.dir_ordered de_dir_evict de_inter
     have hordered := hdir_ordered.ordered
@@ -244,7 +245,53 @@ lemma Behaviour.global_sw_downgrade_dir_evict_has_no_intermediate {b : Behaviour
       -- can't have another event between dir_evict and e_gdown ending.
       --Event.Shim.Global.ToCluster.correspondingDirectoryEvent
       have hinter_dir_of_gdown : Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_inter := by
-        sorry
+        constructor
+        . case clusterMatch =>
+          constructor
+          . case sameAddr =>
+            simp[Event.sameAddr]
+            rw[hinter, hinter_finishes_btn_evict_and_gdown.sameAddr]
+            rw[← hfwd_sw_down_translation.cohEvictDir.dirCorresponds.sameAddr]
+            simp[← Event.sameAddr.eq_1, hfwd_sw_down_translation.cohEvict.atCorrClusterProxy.clusterMatch.sameAddr]
+          . case atCorrCluster =>
+            have hdir_evict_corr_cluster := Behaviour.global_sw_downgrade_encap_corresponding_evict n hgdown hfwd_sw_down_translation
+            simp[Event.reqAtCorrespondingGCacheOfCDir] at hdir_evict_corr_cluster
+            simp[Event.correspondingClusterOfGlobalCache]
+
+            simp[Event.protocol] at hdir_evict_corr_cluster
+            match hdir_evict_pi : de_dir_evict.pInst with
+            | .global | .cluster2 | .cluster1 =>
+              simp[hdir_evict_pi] at hdir_evict_corr_cluster
+              try (
+              simp[Event.reqAtGlobalCacheCid] at hdir_evict_corr_cluster
+              match e_gdown with
+              | .cacheEvent ce_gdown =>
+                simp_all
+                match hcegdown_cid : ce_gdown.cid with
+                | .cache pci =>
+                  simp_all []
+                  match pci with
+                  | .cluster1 _ | .cluster2 _ | .globalP fin2 =>
+                    simp_all
+                    try (
+                    simp[Event.protocol]
+                    simp[Event.struct] at hdir_evict_same_struct_inter
+                    rw[hdir_evict_same_struct_inter]
+                    exact hdir_evict_pi)
+                | .proxy pi => simp[hcegdown_cid] at hdir_evict_corr_cluster
+              | .directoryEvent _ => simp at hdir_evict_corr_cluster
+              )
+        . case atDir => simp [Event.isDirectoryEvent, hinter]
+        . case globalEncap =>
+          simp[Event.Encapsulates]
+          apply And.intro
+          . case left =>
+            simp [DirectoryEvent.OrderedBefore] at hdir_evict_ob_inter
+            calc e_gdown.oStart < e_shim_coh_evict.oStart := hfwd_sw_down_translation.cohEvict.globalEncap.left
+                _ < e_dir_shim_coh_evict.oStart := by simp[hdir_evict, hfwd_sw_down_translation.cohEvictDir.reqEncapDir.left]
+                _ < e_dir_shim_coh_evict.oEnd := e_dir_shim_coh_evict.oWellFormed
+                _ < e_inter.oStart := by simp[hdir_evict, hinter, Event.oEnd, Event.oStart, hdir_evict_ob_inter]
+          . case right => simp[← Event.finishesBefore.eq_def, hinter, hinter_finishes_btn_evict_and_gdown.interSucc]
       have hinter_is_dir_evict_or_dir_get := honly_encap_get_put_dir e_inter (by simp[hinter, hinter_in_b]) hinter_dir_of_gdown
       cases hinter_is_dir_evict_or_dir_get
       . case inl hinter_eq_dir_write =>
