@@ -391,6 +391,16 @@ def Event.propOnUnitaryCid (e : Event n) (p : CacheId n → Prop) : Prop := matc
 def Event.eventOfDifferentCidInSameProtocol (e₁ e₂ : Event n) : Prop :=
   e₂.propOnUnitaryCid n (e₁.propOnBinaryCid n (CacheId.differentIdSameProtocol n))
 
+/-- State that an event `e_greq` is a Global Cache (not Proxy) Event. -/
+def Event.reqAtGlobalCache (e_greq : Event n) : Prop := match e_greq with
+  | .cacheEvent ce => match ce.cid with
+    | .cache p_cache_inst => match p_cache_inst with
+      | .globalP _ => True
+      | .cluster1 _ => False
+      | .cluster2 _ => False
+    | .proxy _ => False
+  | .directoryEvent _ => False
+
 /-- Def: From the protocol request interfaces of the 3 protocols (`p_i`), state the
   protocol interface (set of requests) Event `e` is a part of. -/
 def Event.interfaceMatchingProtocol (e : Event n) (p_i : Protocol.interface) : ProtocolInterface :=
