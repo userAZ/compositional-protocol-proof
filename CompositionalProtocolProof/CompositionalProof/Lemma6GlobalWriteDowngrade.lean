@@ -290,6 +290,12 @@ lemma Behaviour.global_sw_downgrade_dir_evict_has_no_intermediate {b : Behaviour
     have hdir_evict_dir := hfwd_sw_down_translation.cohEvictDir.isDir
     simp[Event.struct] at hdir_evict_same_struct_inter
     try simp[Event.isDirectoryEvent] at hdir_evict_dir
+
+lemma Behaviour.cluster_dir_event_immediately_finish_before_of_global_downgrade {b : Behaviour n} {init : InitialSystemState n}
+  {e_gdown e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict e_dir_shim_coh_evict : Event n}
+  (hgdown_in_b : e_gdown ∈ b) (hgdown : e_gdown.isGlobalDowngrade)
+  (hfwd_sw_down_translation : Behaviour.encapCorrespondingGetSWAndEvict n b init e_gdown e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict e_dir_shim_coh_evict)
+  : immediateFinishesBeforeAtClusterDirectory n b e_dir_shim_coh_evict e_gdown := by
   /- `e_shim_coh_evict` must be the last event finishing before `e_gdown` finishes.
   Proof by contradiction:
   Assume there is another event `e_dir_other` that finishes before `e_shim_coh_evict`, it requires another directory event to be
@@ -301,7 +307,31 @@ lemma Behaviour.global_sw_downgrade_dir_evict_has_no_intermediate {b : Behaviour
   ordered with respect to `e_gdown`, and so it will need to be ordered after.
   Therefore, `e_dir_other` cannot finish before `e_gdown`, after `e_shim_coh_evict`, a contradiction with `e_dir_other`.
   -/
-  sorry
+  constructor
+  . case finishBefore =>
+    constructor
+    . case finBefore =>
+      constructor
+      . case endBefore =>
+        simp[Event.finishesBefore,]
+        calc e_dir_shim_coh_evict.oEnd < e_shim_coh_evict.oEnd := hfwd_sw_down_translation.cohEvictDir.reqEncapDir.right
+          _ < e_gdown.oEnd := hfwd_sw_down_translation.cohEvict.globalEncap.right
+      . case sameAddr =>
+        simp[Event.sameAddr, Eq.comm]
+        calc e_gdown.addr = e_shim_coh_evict.addr := hfwd_sw_down_translation.cohEvict.atCorrClusterProxy.clusterMatch.sameAddr
+          _ = e_dir_shim_coh_evict.addr := hfwd_sw_down_translation.cohEvictDir.dirCorresponds.sameAddr
+      . case predInB => simp[hfwd_sw_down_translation.cohEvictDir.dirInB]
+      . case succInB => exact hgdown_in_b
+    . case gCacheOfCDir =>
+      apply Behaviour.global_sw_downgrade_encap_corresponding_evict
+      . case hgdown => exact hgdown
+      . case hfwd_sw_down_translation => exact hfwd_sw_down_translation
+  . case noIntermediate =>
+    simp[noIntermediateFinishesBeforeOfSameEntry]
+    have honly_encap_get_put_dir := hfwd_sw_down_translation.onlyWriteEvictDir
+    intro e_inter hinter_in_b hinter_finishes_btn_evict_and_gdown
+    have := hinter_finishes_btn_evict_and_gdown.
+    sorry
 
 /-- A coherent write downgrade at a cache will have a resulting state of I. -/
 lemma Behaviour.stateAfter_fwd_sw_downgrade_eq_i {b init_entry_state}
