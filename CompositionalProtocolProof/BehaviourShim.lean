@@ -196,6 +196,32 @@ lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_same_struct {b :
       | .directoryEvent _ => simp[] at hcdir_at_corresponding_cdir he_at_corresponding_cdir
   | .cacheEvent _, .cacheEvent _ | .directoryEvent _, .cacheEvent _ | .cacheEvent _, .directoryEvent _
     => simp at hcdir_at_corresponding_cdir he_at_corresponding_cdir
+
+lemma Behaviour.contradiction_of_two_directory_events_immediate_finishes_before_successor_event
+  {b : Behaviour n} {de_cdir de : DirectoryEvent n} {e_succ : Event n}
+  (hcdir_ob_de : DirectoryEvent.OrderedBefore n de_cdir de)
+  (he_in_b :Event.directoryEvent de ∈ b)
+  (hcdir : immediateFinishesBeforeAtClusterDirectory n b (Event.directoryEvent de_cdir) e_succ)
+  (he :immediateFinishesBeforeAtClusterDirectory n b (Event.directoryEvent de) e_succ)
+  : False := by
+  have he_not_intermediate := hcdir.noIntermediate (Event.directoryEvent de) he_in_b
+  apply he_not_intermediate
+  constructor
+  . case sameCidInterPred =>
+    apply Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_same_struct
+    . case hcdir => exact hcdir
+    . case he => exact he
+  . case sameAddr =>
+    have hcdir_same_addr_succ := hcdir.finishBefore.finBefore.sameAddr
+    have he_same_addr_succ := he.finishBefore.finBefore.sameAddr
+    simp[Event.sameAddr] at hcdir_same_addr_succ he_same_addr_succ
+    simp[hcdir_same_addr_succ, he_same_addr_succ]
+  . case interPred =>
+    simp[Event.finishesBefore, Event.oEnd,]
+    calc de_cdir.oEnd < de.oStart := hcdir_ob_de
+      _ < de.oEnd := de.oWellFormed
+  . case interSucc => exact he.finishBefore.finBefore.endBefore
+
 /- Will need this lemma later.-/
 lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_cdir_singleton {e_cdir} (b : Behaviour n)
   (e_succ : Event n) (h : b.immediateFinishesBeforeAtClusterDirectory n e_cdir e_succ)
