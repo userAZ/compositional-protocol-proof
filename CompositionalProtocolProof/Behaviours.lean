@@ -1921,7 +1921,7 @@ lemma List.test {b st addr} (e : EventAtEntry n b st addr) (l : List (EventAtEnt
 lemma Behaviour.eventsAtEventEntry_imm_pred_equiv
   {b : Behaviour n} (st : Struct n) (addr : Addr)
 
-  (e_pred e : Event n) (hpred_in_b : e_pred ∈ b) (he_in_b : e ∈ b)
+  {e_pred e : Event n} (hpred_in_b : e_pred ∈ b) (he_in_b : e ∈ b)
   (hpred_at_st : e_pred.struct = st) (hpred_at_addr : e_pred.addr = addr)
   (he_at_st : e.struct = st) (he_at_addr : e.addr = addr)
 
