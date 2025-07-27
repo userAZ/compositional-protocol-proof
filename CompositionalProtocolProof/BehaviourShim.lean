@@ -261,13 +261,18 @@ structure Event.Shim.Global.ToCluster.translateProxyEvent (e_gdown e_shim : Even
   downgrade : e_shim.down = isDown
   globalEncap : e_gdown.Encapsulates n e_shim
 
-/-- Global Cache Downgrade Request, encapsulates a Cluster Directory event. -/
-structure Event.Shim.Global.ToCluster.translateDirectoryEvent (e_gdown e_shim_trans : Event n) (prop : ValidRequest → Prop) (isDown : Prop) : Prop where
+/-- A Global cache event encapsulates a cluster directory event at the corresponding cluster. -/
+structure Event.Shim.Global.ToCluster.correspondingDirectoryEvent (e_gdown e_shim_trans : Event n) : Prop where
   clusterMatch : Event.Shim.Global.ToCluster.matchingCluster n e_gdown e_shim_trans
   atDir : e_shim_trans.isDirectoryEvent n
+  globalEncap : e_gdown.Encapsulates n e_shim_trans
+
+/-- Global Cache Downgrade Request, encapsulates a Cluster Directory event `e_cdir`.
+`e_cdir` is of a specific Request stated by `prop`, and is a downgrade or request as per `isDown` -/
+structure Event.Shim.Global.ToCluster.translateDirectoryEvent (e_gdown e_shim_trans : Event n) (prop : ValidRequest → Prop) (isDown : Prop) : Prop where
+  dirCorrespondToGlobalCache : Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_shim_trans
   reqTranslation : prop e_shim_trans.req
   downgrade : e_shim_trans.down = isDown
-  globalEncap : e_gdown.Encapsulates n e_shim_trans
 
 /-- A global SC write downgrade encapsulates a Coherent Write `e_w` and Evict `e_v` (`e_w` orderedBefore `e_v`) in the corresponding Cluster's Proxy Cache. -/
 structure Behaviour.encapCorrespondingGetSWAndEvict (b : Behaviour n) (init : InitialSystemState n)
