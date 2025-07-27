@@ -407,14 +407,6 @@ lemma Behaviour.stateAfter_fwd_sw_downgrade_eq_i {b init_entry_state}
     | .directoryEvent _ => simp[Event.isCacheEvent] at hcache
   | cons h tail ih => simp [List.stateAfter, ih]
 
-lemma Behaviour.upTo_immediatePredecessor_eq' (b : Behaviour n) (e_pred e : Event n)
-  (himm_pred_to_e : b.ImmediateBottomPredecessor n e_pred e)
-  : b.eventsUpToEvent n e = b.eventsUpToEvent n e_pred ++ [e_pred] := by
-  simp[eventsUpToEvent]
-  simp[eventsAtEventEntry]
-  simp[eventsAtEntryOfListBottomEvents]
-  sorry
-
 lemma Behaviour.stateAfter_get_sw_immediately_put_sw_at_directory_eq_i {b : Behaviour n}
   {e_cdir_get_sw e_cdir_put_sw : Event n} (init_entry_state : EntryState n)
   (hget_put_same_requester : e_cdir_get_sw.directoryEventSameRequester n e_cdir_put_sw)
