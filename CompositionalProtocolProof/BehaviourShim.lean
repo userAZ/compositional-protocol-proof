@@ -25,6 +25,7 @@ def Event.reqAtCorrespondingGCacheOfCDir (e_dir e_greq : Event n) : Prop :=
 
 structure Event.isGlobalCache (e_greq : Event n) : Prop where
   reqAtCache : e_greq.isCacheEvent
+  notAtGProxy : e_greq.reqAtGlobalCache
   reqGlobal : e_greq.protocol = .global
 
 structure Event.isClusterDir (e_dir : Event n) : Prop where
