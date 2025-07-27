@@ -225,6 +225,71 @@ lemma Behaviour.global_sw_downgrade_encap_corresponding_evict {b : Behaviour n} 
   | .cacheEvent _ =>
     have hdir_is_dir := hfwd_sw_down_translation.cohEvictDir.isDir
     simp[Event.isDirectoryEvent,] at hdir_is_dir
+
+lemma Behaviour.global_sw_downgrade_dir_evict_has_no_intermediate {b : Behaviour n} {init : InitialSystemState n}
+  {e_gdown e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict e_dir_shim_coh_evict : Event n}
+  (hfwd_sw_down_translation : Behaviour.encapCorrespondingGetSWAndEvict n b init e_gdown e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict e_dir_shim_coh_evict)
+  : noIntermediateFinishesBeforeOfSameEntry n b e_dir_shim_coh_evict e_gdown := by
+  simp[noIntermediateFinishesBeforeOfSameEntry]
+  have honly_encap_get_put_dir := hfwd_sw_down_translation.onlyWriteEvictDir
+  intro e_inter hinter_in_b hinter_finishes_btn_evict_and_gdown
+  have hdir_evict_same_struct_inter := hinter_finishes_btn_evict_and_gdown.sameCidInterPred
+  match e_dir_shim_coh_evict, hinter : e_inter with
+  | .directoryEvent de_dir_evict , .directoryEvent de_inter =>
+    have hdir_ordered := b.orderedAtEntry.dir_ordered de_dir_evict de_inter
+    have hordered := hdir_ordered.ordered
+    simp[DirectoryEvent.Ordered] at hordered
+    cases hordered
+    . case inl hdir_evict_ob_inter =>
+      -- can't have another event between dir_evict and e_gdown ending.
+      --Event.Shim.Global.ToCluster.correspondingDirectoryEvent
+      have hinter_dir_of_gdown : Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_inter := by
+        sorry
+      have hinter_is_dir_evict_or_dir_get := honly_encap_get_put_dir e_inter (by simp[hinter, hinter_in_b]) hinter_dir_of_gdown
+      cases hinter_is_dir_evict_or_dir_get
+      . case inl hinter_eq_dir_write =>
+        -- contradiction, hinter is coh get SW dir event, that's immediately before coh put SW dir event.
+        rw[hinter] at hinter_eq_dir_write
+        absurd hinter_finishes_btn_evict_and_gdown.interPred
+        rw[hinter_eq_dir_write]
+        simp[Event.finishesBefore]
+        simp[Nat.le_iff_lt_or_eq]
+        apply Or.intro_left
+        have hinter_imm_pred_dir_evict := hfwd_sw_down_translation.cohWriteImmBeforeEvict
+        simp[ImmediateBottomPredecessor,] at hinter_imm_pred_dir_evict
+        have hinter_pred_dir_evict := hinter_imm_pred_dir_evict.isImmPred.bPred.isPred
+        simp[Event.Predecessor, Event.OrderedBefore,] at hinter_pred_dir_evict
+        match e_dir_shim_coh_write with
+        | .directoryEvent de_dir_write =>
+          simp[Event.oEnd, Event.oStart] at hinter_pred_dir_evict
+          simp[Event.oEnd]
+          calc de_dir_write.oEnd < de_dir_evict.oStart := hinter_pred_dir_evict
+            _ < de_dir_evict.oEnd := de_dir_evict.oWellFormed
+        | .cacheEvent _ =>
+          have hwrite_dir_is_dir := hfwd_sw_down_translation.cohWriteDir.isDir
+          simp[Event.isDirectoryEvent] at hwrite_dir_is_dir
+      . case inr hinter_eq_dir_evict =>
+        -- contradiction, dir evict event can't finish before itself!
+        absurd hinter_finishes_btn_evict_and_gdown.interPred
+        simp[Event.finishesBefore]
+        simp[Nat.le_iff_lt_or_eq]
+        apply Or.intro_right
+        rw[hinter] at hinter_eq_dir_evict
+        rw[hinter_eq_dir_evict]
+    . case inr hinter_ob_dir_evict =>
+      absurd hinter_finishes_btn_evict_and_gdown.interPred
+      simp[Event.finishesBefore]
+      simp[Nat.le_iff_lt_or_eq]
+      apply Or.intro_left
+      simp[Event.oEnd]
+      calc de_inter.oEnd < de_dir_evict.oStart := hinter_ob_dir_evict
+        _ < de_dir_evict.oEnd := de_dir_evict.oWellFormed
+  | .cacheEvent ce_dir_evict , .directoryEvent de_inter
+  | .directoryEvent de_dir_evict , .cacheEvent ce_inter
+  | .cacheEvent ce_dir_evict , .cacheEvent ce_inter =>
+    have hdir_evict_dir := hfwd_sw_down_translation.cohEvictDir.isDir
+    simp[Event.struct] at hdir_evict_same_struct_inter
+    try simp[Event.isDirectoryEvent] at hdir_evict_dir
   /- `e_shim_coh_evict` must be the last event finishing before `e_gdown` finishes.
   Proof by contradiction:
   Assume there is another event `e_dir_other` that finishes before `e_shim_coh_evict`, it requires another directory event to be
