@@ -282,6 +282,9 @@ structure Behaviour.encapCorrespondingGetSWAndEvict (b : Behaviour n) (init : In
   cohEvictDir : Behaviour.cacheEncapsulatesCorrespondingDirEvent n b (init.stateAt n e_shim_coh_evict) true e_shim_coh_evict e_dir_shim_coh_evict
   cohEvict : Event.Shim.Global.ToCluster.translateProxyEvent n e_gdown e_shim_coh_evict ValidRequest.isSCWrite True
   cohWriteImmBeforeEvict : b.ImmediateBottomPredecessor n e_dir_shim_coh_write e_dir_shim_coh_evict
+  -- `e_gdown` only encapsulates these 2 cluster directory events at the corresponding cluster
+  onlyWriteEvictDir : ∀ e_cdir ∈ b, Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_cdir →
+    e_cdir = e_dir_shim_coh_write ∨ e_cdir = e_dir_shim_coh_evict
 
 /-- Wrapper for the above. -/
 def Behaviour.encapCorrespondingGetSWAndEvictWrapper (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) : Prop :=
