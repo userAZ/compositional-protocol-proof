@@ -2056,6 +2056,8 @@ lemma Behaviour.listImmediateBottomPred_of_eventsAtEventEntry_IsImmediateBottomP
 lemma Behaviour.upTo_immediatePredecessor_eq {b : Behaviour n} {e_pred e : Event n}
   (hb_imm_bot_pred : b.IsImmediateBottomPred n e_pred e)
   : b.eventsUpToEvent n e = b.eventsUpToEvent n e_pred ++ [e_pred] := by
+  have hn_imm_pred_m : b.listImmediateBottomPred n (eventsAtEventEntry n b e) e_pred e :=
+    b.listImmediateBottomPred_of_eventsAtEventEntry_IsImmediateBottomPred n hb_imm_bot_pred
   simp[eventsUpToEvent]
   rw[b.eventsAtEventEntry_eq_same_entry n e_pred e hn_imm_pred_m.sameEntry]
   simp[List.upToEvent]
