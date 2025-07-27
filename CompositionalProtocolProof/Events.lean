@@ -401,6 +401,12 @@ def Event.reqAtGlobalCache (e_greq : Event n) : Prop := match e_greq with
     | .proxy _ => False
   | .directoryEvent _ => False
 
+def DirectoryEvent.sameRequester (de₁ de₂ : DirectoryEvent n) : Prop := de₁.eReq.rid = de₂.eReq.rid
+
+def Event.directoryEventSameRequester (e₁ e₂ : Event n) : Prop := match e₁, e₂ with
+| .directoryEvent de₁, .directoryEvent de₂ => de₁.sameRequester n de₂
+| _, _ => False
+
 /-- Def: From the protocol request interfaces of the 3 protocols (`p_i`), state the
   protocol interface (set of requests) Event `e` is a part of. -/
 def Event.interfaceMatchingProtocol (e : Event n) (p_i : Protocol.interface) : ProtocolInterface :=
