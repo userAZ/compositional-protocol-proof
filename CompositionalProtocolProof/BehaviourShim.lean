@@ -160,6 +160,42 @@ lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_subsingleton 
   : (b.immediateFinishesBeforeAtClusterDirectoryEvents n e_succ).Subsingleton := by
   sorry
 
+lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_same_struct {b : Behaviour n} {e_cdir e e_succ : Event n}
+  (hcdir : immediateFinishesBeforeAtClusterDirectory n b e_cdir e_succ)
+  (he : immediateFinishesBeforeAtClusterDirectory n b e e_succ)
+  : Event.struct n e = Event.struct n e_cdir := by
+  have hcdir_at_corresponding_cdir := hcdir.finishBefore.gCacheOfCDir
+  have he_at_corresponding_cdir := he.finishBefore.gCacheOfCDir
+  simp[Event.reqAtCorrespondingGCacheOfCDir] at hcdir_at_corresponding_cdir he_at_corresponding_cdir
+  match e_cdir, e with
+  | .directoryEvent de_cdir, .directoryEvent de_e =>
+    simp[Event.protocol] at hcdir_at_corresponding_cdir he_at_corresponding_cdir
+    match hcdir_pi : de_cdir.pInst, he_pi : de_e.pInst with
+    | .cluster1, .cluster1
+    | .cluster2, .cluster2 =>
+      simp[hcdir_pi, he_pi] at hcdir_at_corresponding_cdir he_at_corresponding_cdir
+      simp[Event.struct, hcdir_pi, he_pi]
+    | .global, .global | .cluster1, .global | .cluster2, .global | .global, .cluster1 | .global, .cluster2
+      => simp[hcdir_pi, he_pi] at hcdir_at_corresponding_cdir he_at_corresponding_cdir
+    | .cluster1, .cluster2 | .cluster2, .cluster1 =>
+      simp[hcdir_pi, he_pi, Event.reqAtGlobalCacheCid] at hcdir_at_corresponding_cdir he_at_corresponding_cdir
+      -- Contradiction, `e_succ` can't be at Global Cache 0 and 1 at the same time.
+      match e_succ with
+      | .cacheEvent ce_succ =>
+        simp[] at hcdir_at_corresponding_cdir he_at_corresponding_cdir
+        match hsucc_cid : ce_succ.cid with
+        | .cache pci =>
+          simp[hsucc_cid] at hcdir_at_corresponding_cdir he_at_corresponding_cdir
+          match hsucc_pci : pci with
+          | .globalP fin2 =>
+            simp[] at hcdir_at_corresponding_cdir he_at_corresponding_cdir
+            absurd hcdir_at_corresponding_cdir
+            simp[he_at_corresponding_cdir]
+          | .cluster1 _ | .cluster2 _ => simp[] at hcdir_at_corresponding_cdir he_at_corresponding_cdir
+        | .proxy _ => simp[hsucc_cid] at hcdir_at_corresponding_cdir he_at_corresponding_cdir
+      | .directoryEvent _ => simp[] at hcdir_at_corresponding_cdir he_at_corresponding_cdir
+  | .cacheEvent _, .cacheEvent _ | .directoryEvent _, .cacheEvent _ | .cacheEvent _, .directoryEvent _
+    => simp at hcdir_at_corresponding_cdir he_at_corresponding_cdir
 /- Will need this lemma later.-/
 lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_cdir_singleton {e_cdir} (b : Behaviour n)
   (e_succ : Event n) (h : b.immediateFinishesBeforeAtClusterDirectory n e_cdir e_succ)
