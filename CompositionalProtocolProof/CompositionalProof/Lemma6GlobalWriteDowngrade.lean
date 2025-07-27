@@ -415,7 +415,7 @@ lemma Behaviour.stateAfter_get_sw_immediately_put_sw_at_directory_eq_i {b : Beha
   (hput_dir : e_cdir_put_sw.isDirectoryEvent) (hput_down : e_cdir_put_sw.down) (hput_sc_write : e_cdir_put_sw.isSCWrite)
   : (Behaviour.stateAfter n b init_entry_state e_cdir_put_sw) = Sum.inr (DirI n) := by
   simp[Behaviour.stateAfter]
-  rw[Behaviour.upTo_immediatePredecessor_eq' n b e_cdir_get_sw e_cdir_put_sw hget_then_immediate_put]
+  rw[Behaviour.upTo_immediatePredecessor_eq n hget_then_immediate_put]
 
   induction eventsUpToEvent n b e_cdir_get_sw generalizing init_entry_state with
   | nil =>
