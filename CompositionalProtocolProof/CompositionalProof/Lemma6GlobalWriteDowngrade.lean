@@ -407,14 +407,54 @@ lemma Behaviour.stateAfter_fwd_sw_downgrade_eq_i {b init_entry_state}
     | .directoryEvent _ => simp[Event.isCacheEvent] at hcache
   | cons h tail ih => simp [List.stateAfter, ih]
 
-lemma Behaviour.stateAfter_get_sw_immediately_put_sw_at_directory_eq_i {b init_entry_state}
-  {e_cdir_get_sw e_cdir_put_sw : Event n}
+lemma Behaviour.upTo_immediatePredecessor_eq' (b : Behaviour n) (e_pred e : Event n)
+  (himm_pred_to_e : b.ImmediateBottomPredecessor n e_pred e)
+  : b.eventsUpToEvent n e = b.eventsUpToEvent n e_pred ++ [e_pred] := by
+  simp[eventsUpToEvent]
+  simp[eventsAtEventEntry]
+  simp[eventsAtEntryOfListBottomEvents]
+  sorry
+
+lemma Behaviour.stateAfter_get_sw_immediately_put_sw_at_directory_eq_i {b : Behaviour n}
+  {e_cdir_get_sw e_cdir_put_sw : Event n} (init_entry_state : EntryState n)
+  (hget_put_same_requester : e_cdir_get_sw.directoryEventSameRequester n e_cdir_put_sw)
   (hget_then_immediate_put : b.ImmediateBottomPredecessor n e_cdir_get_sw e_cdir_put_sw)
   (hget_dir : e_cdir_get_sw.isDirectoryEvent) (hget_not_down : ¬ e_cdir_get_sw.down) (hget_sc_write : e_cdir_get_sw.isSCWrite)
   (hput_dir : e_cdir_put_sw.isDirectoryEvent) (hput_down : e_cdir_put_sw.down) (hput_sc_write : e_cdir_put_sw.isSCWrite)
   : (Behaviour.stateAfter n b init_entry_state e_cdir_put_sw) = Sum.inr (DirI n) := by
   simp[Behaviour.stateAfter]
-  sorry
+  rw[Behaviour.upTo_immediatePredecessor_eq' n b e_cdir_get_sw e_cdir_put_sw hget_then_immediate_put]
+
+  induction eventsUpToEvent n b e_cdir_get_sw generalizing init_entry_state with
+  | nil =>
+    simp[List.stateAfter]
+    nth_rw 2 [Event.SucceedingState.eq_def]
+    match e_cdir_get_sw with
+    | .directoryEvent de_get =>
+      simp -- show state at directory is SW, then downgrade/put sets it to I.
+      simp[DirectoryEvent.SucceedingState]
+      simp[Event.down] at hget_not_down
+      simp[hget_not_down]
+      simp [Event.isSCWrite, Event.req, ValidRequest.isSCWrite] at hget_sc_write
+      simp[hget_sc_write]
+
+      nth_rw 1 [Event.SucceedingState.eq_def]
+      match e_cdir_put_sw with
+      | .directoryEvent de_put =>
+        simp [EntryState.directory]
+        simp[DirectoryEvent.SucceedingState]
+        simp[Event.down] at hput_down
+        simp[hput_down]
+        simp [Event.isSCWrite, Event.req, ValidRequest.isSCWrite] at hput_sc_write
+        simp[hput_sc_write]
+
+        simp[Event.directoryEventSameRequester, DirectoryEvent.sameRequester] at hget_put_same_requester
+        simp [hget_put_same_requester]
+      | .cacheEvent _ => simp[Event.isDirectoryEvent] at hput_dir
+    | .cacheEvent _ => simp[Event.isDirectoryEvent] at hget_dir
+  | cons head l_tail ih =>
+    simp only [ List.cons_append, List.stateAfter ]
+    apply ih
 
 /-- Lemma 6/7: A global downgrade `e_gdown` leaves it's corresponding cluster directory
 in state `s` ≤ `e_gdown.MRS` -/
