@@ -248,7 +248,43 @@ lemma Behaviour.contradiction_of_two_ordered_directory_events_immediate_finishes
 lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_cdir_singleton {e_cdir} (b : Behaviour n)
   (e_succ : Event n) (h : b.immediateFinishesBeforeAtClusterDirectory n e_cdir e_succ)
   : (b.immediateFinishesBeforeAtClusterDirectoryEvents n e_succ) = {e_cdir} := by
-  sorry
+  simp[immediateFinishesBeforeAtClusterDirectoryEvents]
+  apply Set.ext
+  case h =>
+  intro e
+  apply Iff.intro
+  . case mp =>
+    intro he_in_finish_befores
+    simp_all
+    obtain ⟨he_in_b,he_imm_fin_before⟩ := he_in_finish_befores
+    case intro =>
+    by_contra he_ne_cdir
+    -- Show for either case of `e.OrderedBefore e_cdir` or `e_cdir.OrderedBefore e`, there's a Contradiction:
+    have hcdir_at_corresponding_cdir := h.finishBefore.gCacheOfCDir
+    have he_at_corresponding_cdir := he_imm_fin_before.finishBefore.gCacheOfCDir
+    simp[Event.reqAtCorrespondingGCacheOfCDir] at hcdir_at_corresponding_cdir he_at_corresponding_cdir
+    match e, e_cdir with
+    | .directoryEvent de, .directoryEvent de_cdir =>
+      -- Contradiction; Both `e` and `e_cdir` can't both be immediate finish-before `e_succ` events.
+      have hordered := b.orderedAtEntry.dir_ordered de de_cdir |>.ordered
+      simp[DirectoryEvent.Ordered] at hordered
+      apply Behaviour.contradiction_of_two_ordered_directory_events_immediate_finishes_before_successor_event
+      . case hordered => exact hordered
+      . case he_in_b => exact he_in_b
+      . case hcdir => exact h
+      . case he => exact he_imm_fin_before
+    | .cacheEvent _, .cacheEvent _ | .directoryEvent _, .cacheEvent _ | .cacheEvent _, .directoryEvent _
+      => simp at hcdir_at_corresponding_cdir he_at_corresponding_cdir
+  . case mpr =>
+    intro he_in_cdir
+    simp[]
+    apply And.intro
+    . case left =>
+      simp at he_in_cdir; rw[he_in_cdir]
+      exact h.finishBefore.finBefore.predInB
+    . case right =>
+      simp at he_in_cdir; rw[he_in_cdir]
+      exact h
 
 def Event.clusterDirProtocolCorrespondingToGlobalCache (e_gcache : Event n) : ProtocolInstance :=
   match e_gcache with
