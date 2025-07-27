@@ -222,6 +222,28 @@ lemma Behaviour.contradiction_of_two_directory_events_immediate_finishes_before_
       _ < de.oEnd := de.oWellFormed
   . case interSucc => exact he.finishBefore.finBefore.endBefore
 
+lemma Behaviour.contradiction_of_two_ordered_directory_events_immediate_finishes_before_successor_event
+  {b : Behaviour n} {de_cdir de : DirectoryEvent n} {e_succ : Event n}
+  (hordered : DirectoryEvent.OrderedBefore n de de_cdir ∨ DirectoryEvent.OrderedBefore n de_cdir de)
+  (he_in_b :Event.directoryEvent de ∈ b)
+  (hcdir : immediateFinishesBeforeAtClusterDirectory n b (Event.directoryEvent de_cdir) e_succ)
+  (he :immediateFinishesBeforeAtClusterDirectory n b (Event.directoryEvent de) e_succ)
+  : False := by
+  cases hordered
+  . case inl hde_ob_cdir =>
+    apply Behaviour.contradiction_of_two_directory_events_immediate_finishes_before_successor_event
+    . case hcdir_ob_de => exact hde_ob_cdir
+    . case he_in_b => exact hcdir.finishBefore.finBefore.predInB
+    . case hcdir => exact he
+    . case he => exact hcdir
+  . case inr hcdir_ob_de =>
+    apply Behaviour.contradiction_of_two_directory_events_immediate_finishes_before_successor_event
+    . case hcdir_ob_de => exact hcdir_ob_de
+    . case he_in_b => exact he_in_b
+    . case hcdir => exact hcdir
+    . case he => exact he
+
+
 /- Will need this lemma later.-/
 lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_cdir_singleton {e_cdir} (b : Behaviour n)
   (e_succ : Event n) (h : b.immediateFinishesBeforeAtClusterDirectory n e_cdir e_succ)
