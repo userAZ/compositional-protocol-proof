@@ -64,8 +64,8 @@ def Behaviour.NoIntermediatePredecessorSatisfyingProp (b : Behaviour n) (e_pred 
 structure Behaviour.Predecessor (b : Behaviour n) (e_pred e_succ : Event n) where
   sameEntry : Event.sameEntry n e_pred e_succ
   isPred : e_pred.Predecessor n e_succ
-  predInB : e_pred ∈ b.es
-  succInB : e_succ ∈ b.es
+  predInB : e_pred ∈ b
+  succInB : e_succ ∈ b
 
 structure Behaviour.EntryImmediatePredecessor (b : Behaviour n) (e_pred e_succ : Event n) where
   -- sameEntry : Event.sameEntry n e_pred e_succ
