@@ -2035,8 +2035,26 @@ lemma Behaviour.eventsAtEventEntry_eq_same_entry (b : Behaviour n) (e₁ e₂ : 
   rw [hsame_addr]
   rw [hsame_struct]
 
-lemma Behaviour.upTo_immediatePredecessor_eq (b : Behaviour n) (e_pred e : Event n)
-  (hn_imm_pred_m : b.listImmediateBottomPred n (eventsAtEventEntry n b e) e_pred e)
+lemma Behaviour.listImmediateBottomPred_of_eventsAtEventEntry_IsImmediateBottomPred {b : Behaviour n}
+  {e_pred e : Event n} (hb_imm_bot_pred : b.IsImmediateBottomPred n e_pred e)
+  : b.listImmediateBottomPred n (eventsAtEventEntry n b e) e_pred e := by
+  apply b.eventsAtEventEntry_imm_pred_equiv n (e.struct n) (e.addr n)
+  . case hpred_in_b => exact hb_imm_bot_pred.isImmPred.bPred.predInB
+  . case he_in_b => exact hb_imm_bot_pred.isImmPred.bPred.succInB
+  . case hpred_at_st =>
+    have hpred_at_e_struct := hb_imm_bot_pred.isImmPred.bPred.sameEntry.sameStruct
+    simp[Event.sameStructure] at hpred_at_e_struct
+    simp[hpred_at_e_struct]
+  . case hpred_at_addr =>
+    have hpred_at_e_addr := hb_imm_bot_pred.isImmPred.bPred.sameEntry.sameAddr
+    simp[Event.sameAddr] at hpred_at_e_addr
+    simp[hpred_at_e_addr]
+  . case he_at_st => rfl
+  . case he_at_addr => rfl
+  . case hb_imm_bot_pred => exact hb_imm_bot_pred
+
+lemma Behaviour.upTo_immediatePredecessor_eq {b : Behaviour n} {e_pred e : Event n}
+  (hb_imm_bot_pred : b.IsImmediateBottomPred n e_pred e)
   : b.eventsUpToEvent n e = b.eventsUpToEvent n e_pred ++ [e_pred] := by
   simp[eventsUpToEvent]
   rw[b.eventsAtEventEntry_eq_same_entry n e_pred e hn_imm_pred_m.sameEntry]
