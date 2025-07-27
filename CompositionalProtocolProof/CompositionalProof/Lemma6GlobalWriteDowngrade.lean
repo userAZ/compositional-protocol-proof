@@ -374,11 +374,9 @@ lemma Behaviour.cluster_dir_event_immediately_finish_before_of_global_downgrade 
       . case hgdown => exact hgdown
       . case hfwd_sw_down_translation => exact hfwd_sw_down_translation
   . case noIntermediate =>
-    simp[noIntermediateFinishesBeforeOfSameEntry]
-    have honly_encap_get_put_dir := hfwd_sw_down_translation.onlyWriteEvictDir
-    intro e_inter hinter_in_b hinter_finishes_btn_evict_and_gdown
-    have := hinter_finishes_btn_evict_and_gdown.
-    sorry
+    apply Behaviour.global_sw_downgrade_dir_evict_has_no_intermediate
+    . case hgdown => exact hgdown
+    . case hfwd_sw_down_translation => exact hfwd_sw_down_translation
 
 /-- A coherent write downgrade at a cache will have a resulting state of I. -/
 lemma Behaviour.stateAfter_fwd_sw_downgrade_eq_i {b init_entry_state}
