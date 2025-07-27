@@ -126,7 +126,7 @@ lemma Behaviour.list_upToEvent_with_imm_bot_pred_eq_upToPred_append
   have hidxOf_e_in_l := List.idxOf_lt_length_of_mem he_in_l
 
   have hpred_imm_list_pred_e := b.eventsAtEventEntry_imm_pred_equiv n e.struct e.addr
-    e_pred e himm_bot_pred.isImmPred.predInB he_in_b
+    himm_bot_pred.isImmPred.predInB he_in_b
     hpred_at_e_struct hpred_at_e_addr
     he_at_e_struct he_at_e_addr
     himm_bot_pred
