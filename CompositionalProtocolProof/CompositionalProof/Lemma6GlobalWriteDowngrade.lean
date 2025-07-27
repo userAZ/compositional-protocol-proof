@@ -56,13 +56,13 @@ lemma Behaviour.same_corresponding_gcache_same_struct {b : Behaviour n} {e_cdir 
         | .cluster1, .global =>
           match hcid : ce.cid with
           | .proxy pi =>
-            simp [hde, hde_c, Event.reqAtGlobalCache, hcid] at hcdir_at_gcache he_at_gcache
+            simp [hde, hde_c, Event.reqAtGlobalCacheCid, hcid] at hcdir_at_gcache he_at_gcache
           | .cache pci =>
             match pci with
             | .globalP fin2 =>
-              simp_all [hde, hde_c, Event.reqAtGlobalCache, hcid]
+              simp_all [hde, hde_c, Event.reqAtGlobalCacheCid, hcid]
             | .cluster1 fin | .cluster2 fin =>
-              simp [hde, hde_c, Event.reqAtGlobalCache, hcid] at hcdir_at_gcache he_at_gcache
+              simp [hde, hde_c, Event.reqAtGlobalCacheCid, hcid] at hcdir_at_gcache he_at_gcache
       | .cacheEvent ce_e, .directoryEvent de_c, .cacheEvent ce_g
       | .cacheEvent ce_e, .cacheEvent ce_c, .cacheEvent ce_g
       | .directoryEvent de_e, .cacheEvent ce_c, .cacheEvent ce_g
@@ -71,7 +71,7 @@ lemma Behaviour.same_corresponding_gcache_same_struct {b : Behaviour n} {e_cdir 
       | .directoryEvent de_e, .cacheEvent ce_c, .directoryEvent de_g
       | .directoryEvent de_e, .directoryEvent de_c, .directoryEvent de_g
         =>
-        all_goals simp [he, hecdir, Event.reqAtGlobalCache, hegdown] at hcdir_at_gcache he_at_gcache
+        all_goals simp [he, hecdir, Event.reqAtGlobalCacheCid, hegdown] at hcdir_at_gcache he_at_gcache
         all_goals try simp
         try
         match hde_e : de_e.pInst, hde_c : de_c.pInst with
@@ -84,7 +84,7 @@ lemma Behaviour.same_corresponding_gcache_same_struct {b : Behaviour n} {e_cdir 
         | .cluster2, .cluster1
         | .cluster2, .global
         | .cluster1, .global =>
-          all_goals simp [hde_e, hde_c, Event.reqAtGlobalCache] at hcdir_at_gcache he_at_gcache
+          all_goals simp [hde_e, hde_c, Event.reqAtGlobalCacheCid] at hcdir_at_gcache he_at_gcache
 
 lemma Behaviour.contradiction_of_directory_event_ends_eq {de de2}
   {he_eq_cdir_end : Event.oEnd n (Event.directoryEvent de) = Event.oEnd n (Event.directoryEvent de2) }

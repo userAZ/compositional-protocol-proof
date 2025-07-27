@@ -5,7 +5,7 @@ variable (n : Nat)
 
 --------------- At Pg. 35 of Doc -------------------
 
-def Event.reqAtGlobalCache (e_greq : Event n) (globalCid : Fin 2) : Prop := match e_greq with
+def Event.reqAtGlobalCacheCid (e_greq : Event n) (globalCid : Fin 2) : Prop := match e_greq with
   | .cacheEvent ce => match ce.cid with
     | .cache p_cache_inst => match p_cache_inst with
       | .globalP fin_2 => fin_2 = globalCid
@@ -18,8 +18,8 @@ def Event.reqAtCorrespondingGCacheOfCDir (e_dir e_greq : Event n) : Prop :=
   match e_dir with
   | .directoryEvent _ =>
     match e_dir.protocol with
-    | .cluster1 => e_greq.reqAtGlobalCache n 0
-    | .cluster2 => e_greq.reqAtGlobalCache n 1
+    | .cluster1 => e_greq.reqAtGlobalCacheCid n 0
+    | .cluster2 => e_greq.reqAtGlobalCacheCid n 1
     | .global => False
   | .cacheEvent _ => False
 
