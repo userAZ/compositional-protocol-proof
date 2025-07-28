@@ -311,7 +311,7 @@ def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent 
 | de, ds => match de.down with
   | false => match de.req.val with
     | ⟨.w, true, _⟩ => -- Coherent-Write
-      DirectoryState.SW ⟨SW, by simp⟩ de.eReq.rid
+      DirectoryState.SW ⟨SW, by simp⟩ de.eReq.cid
     | ⟨.r, true, _⟩ => -- Coherent-Read
       DirectoryState.MR ⟨MR, by simp⟩ (ds.CurrentSharers ∪ {de.eReq.rid})
     | ⟨.w, false, _⟩ => -- Non-Coherent-Write
@@ -327,7 +327,7 @@ def DirectoryEvent.SucceedingState : /- ProtocolInterface → -/ DirectoryEvent 
     | ⟨.w, true, _⟩ => -- Coherent-Write Downgrade
       match ds with
       | .SW _ owner => -- Determined by the Protocol
-        if de.eReq.rid == owner then DirectoryState.I ⟨I, by simp⟩
+        if de.eReq.cid == owner then DirectoryState.I ⟨I, by simp⟩
         else ds
       | .MR mr sharers =>  DirectoryState.MR mr (sharers \ {de.eReq.rid})
       | .Vd _ | .Vc _ | .I _ => DirectoryState.I ⟨I, by simp⟩
