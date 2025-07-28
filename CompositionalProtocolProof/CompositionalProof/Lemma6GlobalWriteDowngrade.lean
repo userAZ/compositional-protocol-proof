@@ -610,8 +610,41 @@ lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
               hcoh_evict_dir hcoh_evict_dir_down hcoh_evict_dir_sc_write
             ]
 
-          simp[EntryState.state,DirectoryState.toState, EntryState.cache, LE.le, State.le]
-        . case scReadDown hgdown_read_spec hgdown_translation =>
+/-- Lemma 6/7: A global downgrade `e_gdown` leaves it's corresponding cluster directory
+in state `s` ≤ `e_gdown.MRS` -/
+lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
+  (cmp : CompoundProtocol n)
+  (b : Behaviour n) (init : InitialSystemState n)
+  (e_gdown : Event n) (hgdown_in_b : e_gdown ∈ b)
+  (hgdown : e_gdown.isGlobalDowngrade)
+  : CompoundSWMR n b init e_gdown := by
+  apply CompoundSWMR.gCache
+  . case gcache_satisfies_cmp_swmr =>
+    simp [Behaviour.globalCacheEvent.satisfiesCompoundSWMR]
+    intro haux_is_gcache
+    constructor
+    exact haux_is_gcache
+    . case stateAfterLeGlobalCache =>
+      -- simp[Behaviour.dirEventStateLeGlobalCacheState']
+      /- Strategy: Show the latest event is the one corresponding to
+      lower state to I (for fwd SW) or going to S (for fwd MR).-/
+      /- NOTE: must know the state before this `e_gdown` satisfies Compound SWMR;
+      how should I transfer the def of events before `e_creq` satisfiy Compound SWMR to `e_gdown`.
+      Maybe not needed. Let's try the proof first. -/
+      -- show the latest directory event `e_cdir_down` before `e_gdown` always produces state ≤ state after `e_gdown`
+      let cluster_p_of_gdown := cmp.clusterProtocolCorrespondingToGlobalProtocol n e_gdown
+      have hgdown_translation_to_cluster := cmp.shimAxioms.globalToCluster b init cluster_p_of_gdown e_gdown hgdown_in_b
+      -- Get the corresponding cluster to the global cache;
+      cases hgdown_translation_to_cluster
+      . case bothCoherentWriteAndRead hcluster_of_gcache hcluster_has_sc_write_read hgdown_is_down =>
+        cases hgdown_is_down
+        . case scWriteDown hgdown_write_spec hgdown_translation =>
+          apply CompoundProtocol.global_sc_write_downgrade_le_cluster_dir_state
+          . case hgdown_in_b => exact hgdown_in_b
+          . case hgdown => exact hgdown
+          . case hgdown_write_spec => exact hgdown_write_spec
+          . case hgdown_translation => exact hgdown_translation
+        . case scReadDown hgdown_read_spec hgdown_on_sw hgdown_translation =>
           sorry
       . case noCoherentRead =>
         sorry
