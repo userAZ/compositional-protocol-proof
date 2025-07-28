@@ -618,12 +618,12 @@ lemma CompoundProtocol.global_sc_write_downgrade_le_cluster_dir_state {cluster_p
 --[Work in progress]!
 /-
 lemma Behaviour.global_mr_downgrade_dir_evict_has_no_intermediate {b : Behaviour n} {init : InitialSystemState n}
-  {e_gdown e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict e_dir_shim_coh_evict : Event n}
+  {e_gdown e_shim_coh_read e_dir_shim_coh_read : Event n}
   (hgdown : e_gdown.isGlobalDowngrade)
   (hfwd_mr_down_translation : Behaviour.encapCorrespondingGetMR n b init cluster_p_of_gdown e_gdown e_shim_coh_read e_dir_shim_coh_read)
   : noIntermediateFinishesBeforeOfSameEntry n b e_dir_shim_coh_evict e_gdown := by
   simp[noIntermediateFinishesBeforeOfSameEntry]
-  have honly_encap_get_put_dir := hfwd_sw_down_translation.onlyWriteEvictDir
+  have honly_encap_get_mr_dir := hfwd_mr_down_translation.onlyReadDir
   intro e_inter hinter_in_b hinter_finishes_btn_evict_and_gdown
   have hdir_evict_same_struct_inter := hinter_finishes_btn_evict_and_gdown.sameCidInterPred
   match hdir_evict : e_dir_shim_coh_evict, hinter : e_inter with
@@ -731,6 +731,7 @@ lemma Behaviour.global_mr_downgrade_dir_evict_has_no_intermediate {b : Behaviour
     have hdir_evict_dir := hfwd_sw_down_translation.cohEvictDir.isDir
     simp[Event.struct] at hdir_evict_same_struct_inter
     try simp[Event.isDirectoryEvent] at hdir_evict_dir
+-/
 
 lemma Behaviour.cluster_dir_event_immediately_finish_before_of_global_read_downgrade
   {b : Behaviour n} {init : InitialSystemState n} {cluster_p_of_gdown} {e_gdown e_shim_coh_read e_dir_shim_coh_read : Event n}
@@ -773,8 +774,7 @@ lemma Behaviour.cluster_dir_event_immediately_finish_before_of_global_read_downg
     -- [TODO] create version of `mr` instead of `sw` below.
     apply Behaviour.global_mr_downgrade_dir_evict_has_no_intermediate
     . case hgdown => exact hgdown
-    . case hfwd_sw_down_translation => exact hfwd_mr_down_translation
--/
+    . case hfwd_mr_down_translation => exact hfwd_mr_down_translation
 
 lemma CompoundProtocol.global_sc_read_downgrade_le_cluster_dir_state {cluster_p_of_gdown}
   {b : Behaviour n} {init : InitialSystemState n}
@@ -792,12 +792,11 @@ lemma CompoundProtocol.global_sc_read_downgrade_le_cluster_dir_state {cluster_p_
   let htranslation_spec := hgdown_translation.choose_spec.right.choose_spec.right
   let h := hgdown_translation.choose_spec.right.choose_spec.right
 
-  /-
   -- use `Behaviour.cluster_dir_event_immediately_finish_before_of_global_read_downgrade` here.
-  have hevict_imm_finish_before_gdown := b.cluster_dir_event_immediately_finish_before_of_global_downgrade n
+  have hevict_imm_finish_before_gdown := b.cluster_dir_event_immediately_finish_before_of_global_read_downgrade n
     hgdown_in_b hgdown htranslation_spec
-  -/
-  -- rw[Behaviour.event_immediate_finish_before_gdown_singleton n]
+  let e_dir_coh_get_mr_in_b := htranslation_spec.cohReadDir.dirInB
+  rw[Behaviour.event_immediate_finish_before_gdown_singleton n e_dir_coh_get_mr_in_b hevict_imm_finish_before_gdown]
   sorry
 
 /-- Lemma 6/7: A global downgrade `e_gdown` leaves it's corresponding cluster directory
