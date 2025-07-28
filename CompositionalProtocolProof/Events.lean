@@ -401,7 +401,7 @@ def Event.reqAtGlobalCache (e_greq : Event n) : Prop := match e_greq with
     | .proxy _ => False
   | .directoryEvent _ => False
 
-def DirectoryEvent.sameRequester (de₁ de₂ : DirectoryEvent n) : Prop := de₁.eReq.rid = de₂.eReq.rid
+def DirectoryEvent.sameRequester (de₁ de₂ : DirectoryEvent n) : Prop := de₁.eReq.cid = de₂.eReq.cid
 
 def Event.directoryEventSameRequester (e₁ e₂ : Event n) : Prop := match e₁, e₂ with
 | .directoryEvent de₁, .directoryEvent de₂ => de₁.sameRequester n de₂
