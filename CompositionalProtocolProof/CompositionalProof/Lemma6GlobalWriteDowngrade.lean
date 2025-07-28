@@ -613,6 +613,193 @@ lemma CompoundProtocol.global_sc_write_downgrade_le_cluster_dir_state {cluster_p
     ]
 
   simp[EntryState.state,DirectoryState.toState, EntryState.cache, LE.le, State.le]
+
+/- ---------------- Global SC Read Downgrade Specific cases. --------------- -/
+--[Work in progress]!
+/-
+lemma Behaviour.global_mr_downgrade_dir_evict_has_no_intermediate {b : Behaviour n} {init : InitialSystemState n}
+  {e_gdown e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict e_dir_shim_coh_evict : Event n}
+  (hgdown : e_gdown.isGlobalDowngrade)
+  (hfwd_mr_down_translation : Behaviour.encapCorrespondingGetMR n b init cluster_p_of_gdown e_gdown e_shim_coh_read e_dir_shim_coh_read)
+  : noIntermediateFinishesBeforeOfSameEntry n b e_dir_shim_coh_evict e_gdown := by
+  simp[noIntermediateFinishesBeforeOfSameEntry]
+  have honly_encap_get_put_dir := hfwd_sw_down_translation.onlyWriteEvictDir
+  intro e_inter hinter_in_b hinter_finishes_btn_evict_and_gdown
+  have hdir_evict_same_struct_inter := hinter_finishes_btn_evict_and_gdown.sameCidInterPred
+  match hdir_evict : e_dir_shim_coh_evict, hinter : e_inter with
+  | .directoryEvent de_dir_evict , .directoryEvent de_inter =>
+    have hdir_ordered := b.orderedAtEntry.dir_ordered de_dir_evict de_inter
+    have hordered := hdir_ordered.ordered
+    simp[DirectoryEvent.Ordered] at hordered
+    cases hordered
+    . case inl hdir_evict_ob_inter =>
+      -- can't have another event between dir_evict and e_gdown ending.
+      --Event.Shim.Global.ToCluster.correspondingDirectoryEvent
+      have hinter_dir_of_gdown : Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_inter := by
+        constructor
+        . case clusterMatch =>
+          constructor
+          . case sameAddr =>
+            simp[Event.sameAddr]
+            rw[hinter, hinter_finishes_btn_evict_and_gdown.sameAddr]
+            rw[← hfwd_sw_down_translation.cohEvictDir.dirCorresponds.sameAddr]
+            simp[← Event.sameAddr.eq_1, hfwd_sw_down_translation.cohEvict.atCorrClusterProxy.clusterMatch.sameAddr]
+          . case atCorrCluster =>
+            have hdir_evict_corr_cluster := Behaviour.global_downgrade_cache_translation_encap_corresponding_evict n hgdown
+              hfwd_sw_down_translation.cohEvict.atCorrClusterProxy.clusterMatch.atCorrCluster
+              hfwd_sw_down_translation.cohEvictDir.sameProtocol
+              hfwd_sw_down_translation.cohEvictDir.isDir
+            simp[Event.reqAtCorrespondingGCacheOfCDir] at hdir_evict_corr_cluster
+            simp[Event.correspondingClusterOfGlobalCache]
+
+            simp[Event.protocol] at hdir_evict_corr_cluster
+            match hdir_evict_pi : de_dir_evict.pInst with
+            | .global | .cluster2 | .cluster1 =>
+              simp[hdir_evict_pi] at hdir_evict_corr_cluster
+              try (
+              simp[Event.reqAtGlobalCacheCid] at hdir_evict_corr_cluster
+              match e_gdown with
+              | .cacheEvent ce_gdown =>
+                simp_all
+                match hcegdown_cid : ce_gdown.cid with
+                | .cache pci =>
+                  simp_all []
+                  match pci with
+                  | .cluster1 _ | .cluster2 _ | .globalP fin2 =>
+                    simp_all
+                    try (
+                    simp[Event.protocol]
+                    simp[Event.struct] at hdir_evict_same_struct_inter
+                    rw[hdir_evict_same_struct_inter]
+                    exact hdir_evict_pi)
+                | .proxy pi => simp[hcegdown_cid] at hdir_evict_corr_cluster
+              | .directoryEvent _ => simp at hdir_evict_corr_cluster
+              )
+        . case atDir => simp [Event.isDirectoryEvent, hinter]
+        . case globalEncap =>
+          simp[Event.Encapsulates]
+          apply And.intro
+          . case left =>
+            simp [DirectoryEvent.OrderedBefore] at hdir_evict_ob_inter
+            calc e_gdown.oStart < e_shim_coh_evict.oStart := hfwd_sw_down_translation.cohEvict.globalEncap.left
+                _ < e_dir_shim_coh_evict.oStart := by simp[hdir_evict, hfwd_sw_down_translation.cohEvictDir.reqEncapDir.left]
+                _ < e_dir_shim_coh_evict.oEnd := e_dir_shim_coh_evict.oWellFormed
+                _ < e_inter.oStart := by simp[hdir_evict, hinter, Event.oEnd, Event.oStart, hdir_evict_ob_inter]
+          . case right => simp[← Event.finishesBefore.eq_def, hinter, hinter_finishes_btn_evict_and_gdown.interSucc]
+      have hinter_is_dir_evict_or_dir_get := honly_encap_get_put_dir e_inter (by simp[hinter, hinter_in_b]) hinter_dir_of_gdown
+      cases hinter_is_dir_evict_or_dir_get
+      . case inl hinter_eq_dir_write =>
+        -- contradiction, hinter is coh get SW dir event, that's immediately before coh put SW dir event.
+        rw[hinter] at hinter_eq_dir_write
+        absurd hinter_finishes_btn_evict_and_gdown.interPred
+        rw[hinter_eq_dir_write]
+        simp[Event.finishesBefore]
+        simp[Nat.le_iff_lt_or_eq]
+        apply Or.intro_left
+        have hinter_imm_pred_dir_evict := hfwd_sw_down_translation.cohWriteImmBeforeEvict
+        simp[ImmediateBottomPredecessor,] at hinter_imm_pred_dir_evict
+        have hinter_pred_dir_evict := hinter_imm_pred_dir_evict.isImmPred.bPred.isPred
+        simp[Event.Predecessor, Event.OrderedBefore,] at hinter_pred_dir_evict
+        match e_dir_shim_coh_write with
+        | .directoryEvent de_dir_write =>
+          simp[Event.oEnd, Event.oStart] at hinter_pred_dir_evict
+          simp[Event.oEnd]
+          calc de_dir_write.oEnd < de_dir_evict.oStart := hinter_pred_dir_evict
+            _ < de_dir_evict.oEnd := de_dir_evict.oWellFormed
+        | .cacheEvent _ =>
+          have hwrite_dir_is_dir := hfwd_sw_down_translation.cohWriteDir.isDir
+          simp[Event.isDirectoryEvent] at hwrite_dir_is_dir
+      . case inr hinter_eq_dir_evict =>
+        -- contradiction, dir evict event can't finish before itself!
+        absurd hinter_finishes_btn_evict_and_gdown.interPred
+        simp[Event.finishesBefore]
+        simp[Nat.le_iff_lt_or_eq]
+        apply Or.intro_right
+        rw[hinter] at hinter_eq_dir_evict
+        rw[hinter_eq_dir_evict]
+    . case inr hinter_ob_dir_evict =>
+      absurd hinter_finishes_btn_evict_and_gdown.interPred
+      simp[Event.finishesBefore]
+      simp[Nat.le_iff_lt_or_eq]
+      apply Or.intro_left
+      simp[Event.oEnd]
+      calc de_inter.oEnd < de_dir_evict.oStart := hinter_ob_dir_evict
+        _ < de_dir_evict.oEnd := de_dir_evict.oWellFormed
+  | .cacheEvent ce_dir_evict , .directoryEvent de_inter
+  | .directoryEvent de_dir_evict , .cacheEvent ce_inter
+  | .cacheEvent ce_dir_evict , .cacheEvent ce_inter =>
+    have hdir_evict_dir := hfwd_sw_down_translation.cohEvictDir.isDir
+    simp[Event.struct] at hdir_evict_same_struct_inter
+    try simp[Event.isDirectoryEvent] at hdir_evict_dir
+
+lemma Behaviour.cluster_dir_event_immediately_finish_before_of_global_read_downgrade
+  {b : Behaviour n} {init : InitialSystemState n} {cluster_p_of_gdown} {e_gdown e_shim_coh_read e_dir_shim_coh_read : Event n}
+  (hgdown_in_b : e_gdown ∈ b) (hgdown : e_gdown.isGlobalDowngrade)
+  (hfwd_mr_down_translation : Behaviour.encapCorrespondingGetMR n b init cluster_p_of_gdown e_gdown e_shim_coh_read e_dir_shim_coh_read)
+  : immediateFinishesBeforeAtClusterDirectory n b e_dir_shim_coh_read e_gdown := by
+  /- `e_shim_coh_evict` must be the last event finishing before `e_gdown` finishes.
+  Proof by contradiction:
+  Assume there is another event `e_dir_other` that finishes before `e_shim_coh_evict`, it requires another directory event to be
+  ordered after `e_shim_coh_evict`.
+  Another event `e_dir_other` can only come from another cache request or global cache event + shim axiom.
+  This shim axiom contains no other directory events, so `e_dir_other` must be from a cache request.
+  However, a cache request will not finish before `e_gdown`, because a cache request to increase permissions
+  greater than `e_shim_coh_evict` will need to encapsulate a Global Cache Event, which will need to be
+  ordered with respect to `e_gdown`, and so it will need to be ordered after.
+  Therefore, `e_dir_other` cannot finish before `e_gdown`, after `e_shim_coh_evict`, a contradiction with `e_dir_other`.
+  -/
+  constructor
+  . case finishBefore =>
+    constructor
+    . case finBefore =>
+      constructor
+      . case endBefore =>
+        simp[Event.finishesBefore,]
+        calc e_dir_shim_coh_read.oEnd < e_shim_coh_read.oEnd := hfwd_mr_down_translation.cohReadDir.reqEncapDir.right
+          _ < e_gdown.oEnd := hfwd_mr_down_translation.cohRead.globalEncap.right
+      . case sameAddr =>
+        simp[Event.sameAddr, Eq.comm]
+        calc e_gdown.addr = e_shim_coh_read.addr := hfwd_mr_down_translation.cohRead.atCorrClusterProxy.clusterMatch.sameAddr
+          _ = e_dir_shim_coh_read.addr := hfwd_mr_down_translation.cohReadDir.dirCorresponds.sameAddr
+      . case predInB => simp[hfwd_mr_down_translation.cohReadDir.dirInB]
+      . case succInB => exact hgdown_in_b
+    . case gCacheOfCDir =>
+      apply Behaviour.global_downgrade_cache_translation_encap_corresponding_evict
+      . case hgdown => exact hgdown
+      . case hrequest_protocol => exact hfwd_mr_down_translation.cohRead.atCorrClusterProxy.clusterMatch.atCorrCluster
+      . case hdir_req_same_protocol_req => exact hfwd_mr_down_translation.cohReadDir.sameProtocol
+      . case hdir_is_dir => exact hfwd_mr_down_translation.cohReadDir.isDir
+  . case noIntermediate =>
+    -- [TODO] create version of `mr` instead of `sw` below.
+    apply Behaviour.global_mr_downgrade_dir_evict_has_no_intermediate
+    . case hgdown => exact hgdown
+    . case hfwd_sw_down_translation => exact hfwd_mr_down_translation
+-/
+
+lemma CompoundProtocol.global_sc_read_downgrade_le_cluster_dir_state {cluster_p_of_gdown}
+  {b : Behaviour n} {init : InitialSystemState n}
+  (e_gdown : Event n) (hgdown_in_b : e_gdown ∈ b)
+  (hgdown : e_gdown.isGlobalDowngrade)
+  (hgdown_read_spec : Event.isSCReadGlobalDowngrade n e_gdown)
+  (hgdown_on_sw : Behaviour.cacheStateMadeOn n b init e_gdown = SW)
+  (hgdown_translation : Behaviour.Shim.Global.bothWriteRead.SCReadDownTranslation n b init cluster_p_of_gdown e_gdown)
+  : Behaviour.dirEventStateLeGlobalCacheState' n b init e_gdown := by
+  simp[Behaviour.dirEventStateLeGlobalCacheState']
+
+  simp[Behaviour.latestDirectoryStateOfGlobalCache]
+  simp[Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents]
+
+  let htranslation_spec := hgdown_translation.choose_spec.right.choose_spec.right
+  let h := hgdown_translation.choose_spec.right.choose_spec.right
+
+  /-
+  -- use `Behaviour.cluster_dir_event_immediately_finish_before_of_global_read_downgrade` here.
+  have hevict_imm_finish_before_gdown := b.cluster_dir_event_immediately_finish_before_of_global_downgrade n
+    hgdown_in_b hgdown htranslation_spec
+  -/
+  -- rw[Behaviour.event_immediate_finish_before_gdown_singleton n]
+  sorry
+
 /-- Lemma 6/7: A global downgrade `e_gdown` leaves it's corresponding cluster directory
 in state `s` ≤ `e_gdown.MRS` -/
 lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
@@ -648,7 +835,12 @@ lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
           . case hgdown_write_spec => exact hgdown_write_spec
           . case hgdown_translation => exact hgdown_translation
         . case scReadDown hgdown_read_spec hgdown_on_sw hgdown_translation =>
-          sorry
+          apply CompoundProtocol.global_sc_read_downgrade_le_cluster_dir_state
+          . case hgdown_in_b => exact hgdown_in_b
+          . case hgdown => exact hgdown
+          . case hgdown_read_spec => exact hgdown_read_spec
+          . case hgdown_on_sw => exact hgdown_on_sw
+          . case hgdown_translation => exact hgdown_translation
       . case noCoherentRead =>
         sorry
       -- have hglobal_swmr := cmp.globalSWMR
