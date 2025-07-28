@@ -378,6 +378,67 @@ lemma Behaviour.cluster_dir_event_immediately_finish_before_of_global_downgrade 
     . case hgdown => exact hgdown
     . case hfwd_sw_down_translation => exact hfwd_sw_down_translation
 
+lemma Behaviour.cluster_dir_events_same_requester_of_global_sc_downgrade {b : Behaviour n} {init : InitialSystemState n}
+  {e_gdown e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict e_dir_shim_coh_evict : Event n}
+  (hgdown_in_b : e_gdown ∈ b) (hgdown : e_gdown.isGlobalDowngrade)
+  (hfwd_sw_down_translation : Behaviour.encapCorrespondingGetSWAndEvict n b init e_gdown e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict e_dir_shim_coh_evict)
+  : e_dir_shim_coh_write.directoryEventSameRequester n e_dir_shim_coh_evict
+    := by
+    simp[Event.directoryEventSameRequester]
+    have hget_dir := hfwd_sw_down_translation.cohWriteDir.isDir
+    have hput_dir := hfwd_sw_down_translation.cohEvictDir.isDir
+    match hwrite : e_dir_shim_coh_write, hevict : e_dir_shim_coh_evict with
+    | .directoryEvent get_dir, .directoryEvent put_dir
+      =>
+      simp
+      simp[DirectoryEvent.sameRequester]
+      have hget_proxy := hfwd_sw_down_translation.cohWrite.atCorrClusterProxy.atProxy
+      have hput_proxy := hfwd_sw_down_translation.cohEvict.atCorrClusterProxy.atProxy
+      simp[Event.atProxy] at hget_proxy hput_proxy
+      match hwrite : e_shim_coh_write, hevict : e_shim_coh_evict with
+      | .cacheEvent ce_write, .cacheEvent ce_evict =>
+        simp at hget_proxy hput_proxy
+        match hwrite_cid : ce_write.cid, hevict_cid : ce_evict.cid with
+        | .proxy pi_write, .proxy pi_evict =>
+          simp[hwrite_cid, hevict_cid] at hget_proxy hput_proxy
+          -- both at proxy. now show both at same Protocol Instance `pi`
+          have hget_pi := hfwd_sw_down_translation.cohWrite.atCorrClusterProxy.clusterMatch.atCorrCluster
+          have hput_pi := hfwd_sw_down_translation.cohEvict.atCorrClusterProxy.clusterMatch.atCorrCluster
+          simp[Event.correspondingClusterOfGlobalCache] at hget_pi hput_pi
+          match e_gdown with
+          | .cacheEvent cgdown =>
+            simp at hget_pi hput_pi
+            match hgdown_cid : cgdown.cid with
+            | .cache pci =>
+              simp[hgdown_cid] at hget_pi hput_pi
+              match pci with
+              | .globalP fin2 =>
+                simp[] at hget_pi hput_pi
+                match fin2 with
+                | 0 | 1 =>
+                  simp[] at hget_pi hput_pi
+                  simp[Event.protocol] at hget_pi hput_pi
+                  simp[hwrite_cid, hevict_cid] at hget_pi hput_pi
+                  -- same protocol
+                  -- the dir events have corresponding rids
+                  have hget_dir_proxy := hfwd_sw_down_translation.cohWriteDir.dirOfReq
+                  have hput_dir_proxy := hfwd_sw_down_translation.cohEvictDir.dirOfReq
+                  simp[Event.dirEventOfReqEvent] at hget_dir_proxy hput_dir_proxy
+                  have hget_dir_of_cget := hget_dir_proxy.correspondingCE
+                  have hput_dir_of_cput := hput_dir_proxy.correspondingCE
+                  rw[hget_dir_of_cget, hput_dir_of_cput]
+
+                  rw[hwrite_cid, hevict_cid, hget_pi, hput_pi]
+              | .cluster1 _ | .cluster2 _ => simp[] at hget_pi hput_pi
+            | .proxy _ => simp[hgdown_cid] at hget_pi hput_pi
+          | .directoryEvent _ => simp at hget_pi hput_pi
+        | .cache _, .proxy _ | .proxy _, .cache _ | .cache _, .cache _
+          => simp [hwrite_cid, hevict_cid] at hget_proxy hput_proxy
+      | .directoryEvent _, .directoryEvent _ | .cacheEvent _, .directoryEvent _ | .directoryEvent _, .cacheEvent _
+        => simp at hget_proxy hput_proxy
+    | .cacheEvent get_dir, .directoryEvent put_dir | .directoryEvent get_dir, .cacheEvent put_dir | .cacheEvent get_dir, .cacheEvent put_dir
+      => simp[Event.isDirectoryEvent] at hget_dir hput_dir
+
 /-- A coherent write downgrade at a cache will have a resulting state of I. -/
 lemma Behaviour.stateAfter_fwd_sw_downgrade_eq_i {b init_entry_state}
   {e_gdown : Event n} (hcache : e_gdown.isCacheEvent) (hdown : e_gdown.down) (hsc_write : e_gdown.isSCWrite)
