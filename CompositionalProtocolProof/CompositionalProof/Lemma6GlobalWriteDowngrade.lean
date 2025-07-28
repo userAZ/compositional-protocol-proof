@@ -612,6 +612,7 @@ lemma CompoundProtocol.global_sc_write_downgrade_le_cluster_dir_state {cluster_p
       hcoh_evict_dir hcoh_evict_dir_down hcoh_evict_dir_sc_write
     ]
 
+  simp[EntryState.state,DirectoryState.toState, EntryState.cache, LE.le, State.le]
 /-- Lemma 6/7: A global downgrade `e_gdown` leaves it's corresponding cluster directory
 in state `s` ≤ `e_gdown.MRS` -/
 lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
