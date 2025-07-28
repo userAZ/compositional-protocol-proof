@@ -509,106 +509,101 @@ lemma Behaviour.stateAfter_get_sw_immediately_put_sw_at_directory_eq_i {b : Beha
     simp only [ List.cons_append, List.stateAfter ]
     apply ih
 
-/-- Lemma 6/7: A global downgrade `e_gdown` leaves it's corresponding cluster directory
-in state `s` ≤ `e_gdown.MRS` -/
-lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
-  (cmp : CompoundProtocol n)
-  (b : Behaviour n) (init : InitialSystemState n)
+lemma CompoundProtocol.global_sc_write_downgrade_le_cluster_dir_state {cluster_p_of_gdown}
+  {b : Behaviour n} {init : InitialSystemState n}
   (e_gdown : Event n) (hgdown_in_b : e_gdown ∈ b)
   (hgdown : e_gdown.isGlobalDowngrade)
-  : CompoundSWMR n b init e_gdown := by
-  apply CompoundSWMR.gCache
-  . case gcache_satisfies_cmp_swmr =>
-    simp [Behaviour.globalCacheEvent.satisfiesCompoundSWMR]
-    intro haux_is_gcache
-    constructor
-    exact haux_is_gcache
-    . case stateAfterLeGlobalCache =>
-      simp[Behaviour.dirEventStateLeGlobalCacheState']
-      /- Strategy: Show the latest event is the one corresponding to
-      lower state to I (for fwd SW) or going to S (for fwd MR).-/
-      /- NOTE: must know the state before this `e_gdown` satisfies Compound SWMR;
-      how should I transfer the def of events before `e_creq` satisfiy Compound SWMR to `e_gdown`.
-      Maybe not needed. Let's try the proof first. -/
-      -- show the latest directory event `e_cdir_down` before `e_gdown` always produces state ≤ state after `e_gdown`
-      let cluster_p_of_gdown := cmp.clusterProtocolCorrespondingToGlobalProtocol n e_gdown
-      have hgdown_translation_to_cluster := cmp.shimAxioms.globalToCluster b init cluster_p_of_gdown e_gdown hgdown_in_b
-      -- Get the corresponding cluster to the global cache;
-      cases hgdown_translation_to_cluster
-      . case bothCoherentWriteAndRead hcluster_of_gcache hcluster_has_sc_write_read hgdown_is_down =>
-        cases hgdown_is_down
-        . case scWriteDown hgdown_write_spec hgdown_translation =>
-          simp [Behaviour.Shim.Global.bothCoherentWriteRead.SCWriteDownTranslation.wrapper] at hgdown_translation
-          let hwrite_down_translation := hgdown_translation.scGDownTranslation
-          simp[Behaviour.encapCorrespondingGetSWAndEvictWrapper] at hwrite_down_translation
-          let htranslation_spec := hwrite_down_translation.choose_spec.right.choose_spec.choose_spec.right.choose_spec.right
-          let dir_coh_evict := hwrite_down_translation.choose_spec.right.choose_spec.choose_spec.right.choose
-          let hdir_coh_evict_in_b := hwrite_down_translation.choose_spec.right.choose_spec.choose_spec.right.choose_spec.left
-          have htrans_coherent_evict_sw := htranslation_spec.cohEvict
-          /- Now, this Coherent SW Evict's corresponding Directory Event is the last Directory Event that finishes before `e_gdown`.
-          There are no others, -/
-          simp[Behaviour.latestDirectoryStateOfGlobalCache]
-          simp[Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents]
+  (hgdown_write_spec : Event.isSCWriteGlobalDowngrade n e_gdown)
+  (hgdown_translation : Behaviour.Shim.Global.bothCoherentWriteRead.SCWriteDownTranslation.wrapper n b init cluster_p_of_gdown e_gdown)
+  : Behaviour.dirEventStateLeGlobalCacheState' n b init e_gdown := by
+  simp [Behaviour.Shim.Global.bothCoherentWriteRead.SCWriteDownTranslation.wrapper] at hgdown_translation
+  let hwrite_down_translation := hgdown_translation.scGDownTranslation
+  simp[Behaviour.encapCorrespondingGetSWAndEvictWrapper] at hwrite_down_translation
+  let htranslation_spec := hwrite_down_translation.choose_spec.right.choose_spec.choose_spec.right.choose_spec.right
+  let dir_coh_evict := hwrite_down_translation.choose_spec.right.choose_spec.choose_spec.right.choose
+  let hdir_coh_evict_in_b := hwrite_down_translation.choose_spec.right.choose_spec.choose_spec.right.choose_spec.left
+  have htrans_coherent_evict_sw := htranslation_spec.cohEvict
+  /- Now, this Coherent SW Evict's corresponding Directory Event is the last Directory Event that finishes before `e_gdown`.
+  There are no others, -/
+  simp[Behaviour.dirEventStateLeGlobalCacheState']
+  simp[Behaviour.latestDirectoryStateOfGlobalCache]
+  simp[Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents]
 
-          have hevict_imm_finish_before_gdown := b.cluster_dir_event_immediately_finish_before_of_global_downgrade n
-            (hwrite_down_translation.choose_spec.right.choose_spec.choose_spec.right.choose) e_gdown
+  have hevict_imm_finish_before_gdown := b.cluster_dir_event_immediately_finish_before_of_global_downgrade n
+    hgdown_in_b hgdown htranslation_spec
 
-          rw[Behaviour.event_immediate_finish_before_gdown_singleton n hdir_coh_evict_in_b hevict_imm_finish_before_gdown]
-          simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToState, -- Set.toOption,
-            -- nonempty_subtype, Set.mem_singleton_iff, exists_eq, ↓reduceDIte, ge_iff_le
-            ]
-          have hcdir_fin_before_gdown_singleton := Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_cdir_singleton n b e_gdown hevict_imm_finish_before_gdown
-          have hsingleton := Set.toOption_singleton' dir_coh_evict hcdir_fin_before_gdown_singleton
-          rw[hcdir_fin_before_gdown_singleton] at hsingleton
-          rw[hsingleton]
-          simp
-          /- show the state after the evict `e_shim_coh_evict` (in the ⋯) is always ≤ the state after `e_gdown`.
-          `e_shim_coh_evict` brings the Cluster Directory state down to `I` (get SW then evict SW to I).
-          `e_gdown` is a downgrade at the Global Cache (fwd get M / SW), and will bring the Global cache to `I`. -/
-          /- are the `Behaviour.stateAfter` definitions easy to work with? Maybe I need helper lemmas to make
-          definitions like `stateAfter` easier to work with -/
-          rw[Behaviour.stateAfter_fwd_sw_downgrade_eq_i n hgdown.isGlobal.reqAtCache hgdown.isDown hgdown_write_spec.isSCWrite]
-          -- Now show the state after the Coherent Evict sent to the directory `e_shim_coh_evict` results in I state.
-          have hcoh_write_immediate_evict := htranslation_spec.cohWriteImmBeforeEvict
-          /- Coherent Write at Directory Event is a directory event-/
-          have hcoh_write_dir := htranslation_spec.cohWriteDir.isDir
+  rw[Behaviour.event_immediate_finish_before_gdown_singleton n hdir_coh_evict_in_b hevict_imm_finish_before_gdown]
+  simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToState, -- Set.toOption,
+    -- nonempty_subtype, Set.mem_singleton_iff, exists_eq, ↓reduceDIte, ge_iff_le
+    ]
+  have hcdir_fin_before_gdown_singleton := Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_cdir_singleton n b e_gdown hevict_imm_finish_before_gdown
+  have hsingleton := Set.toOption_singleton' dir_coh_evict hcdir_fin_before_gdown_singleton
+  rw[hcdir_fin_before_gdown_singleton] at hsingleton
+  rw[hsingleton]
+  simp
+  /- show the state after the evict `e_shim_coh_evict` (in the ⋯) is always ≤ the state after `e_gdown`.
+  `e_shim_coh_evict` brings the Cluster Directory state down to `I` (get SW then evict SW to I).
+  `e_gdown` is a downgrade at the Global Cache (fwd get M / SW), and will bring the Global cache to `I`. -/
+  /- are the `Behaviour.stateAfter` definitions easy to work with? Maybe I need helper lemmas to make
+  definitions like `stateAfter` easier to work with -/
+  rw[Behaviour.stateAfter_fwd_sw_downgrade_eq_i n hgdown.isGlobal.reqAtCache hgdown.isDown hgdown_write_spec.isSCWrite]
+  -- Now show the state after the Coherent Evict sent to the directory `e_shim_coh_evict` results in I state.
+  have hcoh_write_immediate_evict := htranslation_spec.cohWriteImmBeforeEvict
+  /- Coherent Write at Directory Event is a directory event-/
+  have hcoh_write_dir := htranslation_spec.cohWriteDir.isDir
 
-          let coh_write := hwrite_down_translation.choose
-          have hcoh_write_not_down := htranslation_spec.cohWrite.downgrade
-          have hcoh_write_dir_down_eq_coh_write_down := htranslation_spec.cohWriteDir.dirCorresponds.sameDown
-          /- Coherent Write Directory Event is not a downgrade -/
-          have hcoh_write_dir_not_down : ¬ hwrite_down_translation.choose_spec.right.choose.down := by
-            simp[hcoh_write_dir_down_eq_coh_write_down, hcoh_write_not_down]
+  let coh_write := hwrite_down_translation.choose
+  have hcoh_write_not_down := htranslation_spec.cohWrite.downgrade
+  have hcoh_write_dir_down_eq_coh_write_down := htranslation_spec.cohWriteDir.dirCorresponds.sameDown
+  /- Coherent Write Directory Event is not a downgrade -/
+  have hcoh_write_dir_not_down : ¬ hwrite_down_translation.choose_spec.right.choose.down := by
+    simp[hcoh_write_dir_down_eq_coh_write_down, hcoh_write_not_down]
 
-          have hcoh_write_dir_req_eq_coh_write_req := htranslation_spec.cohWriteDir.dirCorresponds.dirReq
-          simp[Behaviour.reqToDirOfRequestEvent] at hcoh_write_dir_req_eq_coh_write_req
-          have hcoh_write_req := htranslation_spec.cohWrite.reqTranslation
-          simp[ValidRequest.isSCWrite] at hcoh_write_req
-          simp[hcoh_write_req] at hcoh_write_dir_req_eq_coh_write_req
-          simp [Event.reqToDirOfRequestEvent] at hcoh_write_dir_req_eq_coh_write_req
-          simp[hcoh_write_req] at hcoh_write_dir_req_eq_coh_write_req
-          /- Coherent Write Directory Event is a SC Write. -/
-          have hcoh_write_dir_sc_write : hwrite_down_translation.choose_spec.right.choose.isSCWrite := by
-            simp[Event.isSCWrite,ValidRequest.isSCWrite, hcoh_write_dir_req_eq_coh_write_req]
+  have hcoh_write_dir_req_eq_coh_write_req := htranslation_spec.cohWriteDir.dirCorresponds.dirReq
+  simp[Behaviour.reqToDirOfRequestEvent] at hcoh_write_dir_req_eq_coh_write_req
+  have hcoh_write_req := htranslation_spec.cohWrite.reqTranslation
+  simp[ValidRequest.isSCWrite] at hcoh_write_req
+  simp[hcoh_write_req] at hcoh_write_dir_req_eq_coh_write_req
+  simp [Event.reqToDirOfRequestEvent] at hcoh_write_dir_req_eq_coh_write_req
+  simp[hcoh_write_req] at hcoh_write_dir_req_eq_coh_write_req
+  /- Coherent Write Directory Event is a SC Write. -/
+  have hcoh_write_dir_sc_write : hwrite_down_translation.choose_spec.right.choose.isSCWrite := by
+    simp[Event.isSCWrite,ValidRequest.isSCWrite, hcoh_write_dir_req_eq_coh_write_req]
 
-          /- Coherent Evict at Directory is a directory event-/
-          have hcoh_evict_dir := htranslation_spec.cohEvictDir.isDir
+  /- Coherent Evict at Directory is a directory event-/
+  have hcoh_evict_dir := htranslation_spec.cohEvictDir.isDir
 
-          -- let coh_evict := hwrite_down_translation.choose
-          have hcoh_evict_down := htranslation_spec.cohEvict.downgrade
-          have hcoh_evict_dir_down_eq_coh_evict_down := htranslation_spec.cohEvictDir.dirCorresponds.sameDown
-          /- Coherent Evict at Directory is a downgrade -/
-          have hcoh_evict_dir_down : hwrite_down_translation.choose_spec.right.choose_spec.choose_spec.right.choose.down := by
-            simp[hcoh_evict_dir_down_eq_coh_evict_down, hcoh_evict_down]
+  have hcoh_evict_down := htranslation_spec.cohEvict.downgrade
+  have hcoh_evict_dir_down_eq_coh_evict_down := htranslation_spec.cohEvictDir.dirCorresponds.sameDown
+  /- Coherent Evict at Directory is a downgrade -/
+  have hcoh_evict_dir_down : hwrite_down_translation.choose_spec.right.choose_spec.choose_spec.right.choose.down := by
+    simp[hcoh_evict_dir_down_eq_coh_evict_down, hcoh_evict_down]
 
-          /- Coherent Write Directory Event is a SC Write. -/
-          have hcoh_evict_dir_sc_write : hwrite_down_translation.choose_spec.right.choose_spec.choose_spec.right.choose.isSCWrite := by
-            sorry
+  /- Coherent Write Directory Event is a SC Write. -/
+  have hcoh_evict_dir_req_eq_coh_evict_req := htranslation_spec.cohEvictDir.dirCorresponds.dirReq
+  simp[Behaviour.reqToDirOfRequestEvent] at hcoh_evict_dir_req_eq_coh_evict_req
+  have hcoh_evict_req := htranslation_spec.cohEvict.reqTranslation
+  simp[ValidRequest.isSCWrite] at hcoh_evict_req
+  simp[hcoh_evict_req] at hcoh_evict_dir_req_eq_coh_evict_req
+  simp [Event.reqToDirOfRequestEvent] at hcoh_evict_dir_req_eq_coh_evict_req
+  simp[hcoh_evict_req] at hcoh_evict_dir_req_eq_coh_evict_req
+  /- Coherent Write Directory Event is a SC Write. -/
+  have hcoh_evict_dir_sc_write : hwrite_down_translation.choose_spec.right.choose_spec.choose_spec.right.choose.isSCWrite := by
+    simp[Event.isSCWrite,ValidRequest.isSCWrite, hcoh_evict_dir_req_eq_coh_evict_req]
 
-          rw[Behaviour.stateAfter_get_sw_immediately_put_sw_at_directory_eq_i
-              n htranslation_spec.cohWriteImmBeforeEvict hcoh_write_dir hcoh_write_dir_not_down hcoh_write_dir_sc_write
-              hcoh_evict_dir hcoh_evict_dir_down hcoh_evict_dir_sc_write
-            ]
+  -- have test := hwrite_down_translation.choose_spec.right.choose
+  -- have test := hwrite_down_translation.choose_spec.right.choose_spec.choose_spec.right.choose
+
+  let hget_dir := hwrite_down_translation.choose_spec.right.choose -- .directoryEventSameRequester
+  let hput_dir := hwrite_down_translation.choose_spec.right.choose_spec.choose_spec.right.choose
+
+  have hget_dir_same_requester_put_dir : hget_dir.directoryEventSameRequester n hput_dir
+    := Behaviour.cluster_dir_events_same_requester_of_global_sc_downgrade n hgdown_in_b hgdown htranslation_spec
+
+  rw[Behaviour.stateAfter_get_sw_immediately_put_sw_at_directory_eq_i
+      n (InitialSystemState.stateAt n init dir_coh_evict) hget_dir_same_requester_put_dir htranslation_spec.cohWriteImmBeforeEvict hcoh_write_dir hcoh_write_dir_not_down hcoh_write_dir_sc_write
+      hcoh_evict_dir hcoh_evict_dir_down hcoh_evict_dir_sc_write
+    ]
 
 /-- Lemma 6/7: A global downgrade `e_gdown` leaves it's corresponding cluster directory
 in state `s` ≤ `e_gdown.MRS` -/
