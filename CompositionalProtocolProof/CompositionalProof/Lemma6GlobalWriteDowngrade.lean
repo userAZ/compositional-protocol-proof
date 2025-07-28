@@ -181,49 +181,51 @@ lemma Behaviour.event_immediate_finish_before_gdown_singleton
     simp[he_eq_e_cdir, he_cdir_in_b]
     exact he_cdir_satisfies
 
-lemma Behaviour.global_sw_downgrade_encap_corresponding_evict {b : Behaviour n} {init : InitialSystemState n}
-  {e_gdown e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict e_dir_shim_coh_evict : Event n}
+lemma Behaviour.global_downgrade_cache_translation_encap_corresponding_evict
+  {e_gdown e_shim_coh_request e_dir_shim_coh_request : Event n}
   (hgdown : e_gdown.isGlobalDowngrade)
-  (hfwd_sw_down_translation : Behaviour.encapCorrespondingGetSWAndEvict n b init e_gdown e_shim_coh_write e_dir_shim_coh_write e_shim_coh_evict e_dir_shim_coh_evict)
-  : Event.reqAtCorrespondingGCacheOfCDir n e_dir_shim_coh_evict e_gdown := by
+  (hrequest_protocol : Event.correspondingClusterOfGlobalCache n e_gdown e_shim_coh_request (Event.protocol n))
+  (hdir_req_same_protocol_req : Event.protocol n e_shim_coh_request = e_dir_shim_coh_request.protocol)
+  (hdir_is_dir : e_dir_shim_coh_request.isDirectoryEvent)
+  : Event.reqAtCorrespondingGCacheOfCDir n e_dir_shim_coh_request e_gdown := by
   simp[Event.reqAtCorrespondingGCacheOfCDir]
-  match hevict_dir : e_dir_shim_coh_evict with
+  match hread_dir : e_dir_shim_coh_request with
   | .directoryEvent de =>
     simp
     simp[Event.protocol]
-    have hevict_protocol := hfwd_sw_down_translation.cohEvict.atCorrClusterProxy.clusterMatch.atCorrCluster
-    simp[Event.correspondingClusterOfGlobalCache] at hevict_protocol
+    -- have hread_protocol := hfwd_mr_down_translation.cohRead.atCorrClusterProxy.clusterMatch.atCorrCluster
+    simp[Event.correspondingClusterOfGlobalCache] at hrequest_protocol
 
     have hgdown_cache := hgdown.isGlobal.notAtGProxy
     simp[Event.reqAtGlobalCache] at hgdown_cache
     match e_gdown with
     | .cacheEvent ce =>
       simp[] at hgdown_cache
-      simp at hevict_protocol
+      simp at hrequest_protocol
       match hcid : ce.cid with
       | .cache pci =>
-        simp[hcid] at hgdown_cache hevict_protocol
+        simp[hcid] at hgdown_cache hrequest_protocol
         match pci with
         | .globalP gcid2 =>
-          simp at hgdown_cache hevict_protocol
+          simp at hgdown_cache hrequest_protocol
           match gcid2 with
           | 0 | 1 =>
-            simp at hevict_protocol
-            have hdir_evict_same_protocol_evict := hfwd_sw_down_translation.cohEvictDir.sameProtocol
-            match hdir_evict_protocol : de.pInst with
+            simp at hrequest_protocol
+            -- have hdir_read_same_protocol_read := hfwd_mr_down_translation.cohReadDir.sameProtocol
+            match hdir_request_protocol : de.pInst with
             | .cluster1 | .cluster2 | .global =>
               simp[Event.reqAtGlobalCacheCid, hcid]
               try (
-                rw[hevict_protocol] at hdir_evict_same_protocol_evict
-                absurd hdir_evict_same_protocol_evict
+                rw[hrequest_protocol] at hdir_req_same_protocol_req
+                absurd hdir_req_same_protocol_req
                 simp[Event.protocol]
-                rw[hdir_evict_protocol]
+                rw[hdir_request_protocol]
                 simp)
         | .cluster1 _ | .cluster2 _ => simp at hgdown_cache
       | .proxy _ => simp[hcid] at hgdown_cache
     | .directoryEvent _ => simp[Event.reqAtGlobalCache] at hgdown_cache
   | .cacheEvent _ =>
-    have hdir_is_dir := hfwd_sw_down_translation.cohEvictDir.isDir
+    -- have hdir_is_dir := hfwd_mr_down_translation.cohReadDir.isDir
     simp[Event.isDirectoryEvent,] at hdir_is_dir
 
 lemma Behaviour.global_sw_downgrade_dir_evict_has_no_intermediate {b : Behaviour n} {init : InitialSystemState n}
@@ -254,7 +256,10 @@ lemma Behaviour.global_sw_downgrade_dir_evict_has_no_intermediate {b : Behaviour
             rw[← hfwd_sw_down_translation.cohEvictDir.dirCorresponds.sameAddr]
             simp[← Event.sameAddr.eq_1, hfwd_sw_down_translation.cohEvict.atCorrClusterProxy.clusterMatch.sameAddr]
           . case atCorrCluster =>
-            have hdir_evict_corr_cluster := Behaviour.global_sw_downgrade_encap_corresponding_evict n hgdown hfwd_sw_down_translation
+            have hdir_evict_corr_cluster := Behaviour.global_downgrade_cache_translation_encap_corresponding_evict n hgdown
+              hfwd_sw_down_translation.cohEvict.atCorrClusterProxy.clusterMatch.atCorrCluster
+              hfwd_sw_down_translation.cohEvictDir.sameProtocol
+              hfwd_sw_down_translation.cohEvictDir.isDir
             simp[Event.reqAtCorrespondingGCacheOfCDir] at hdir_evict_corr_cluster
             simp[Event.correspondingClusterOfGlobalCache]
 
@@ -370,9 +375,11 @@ lemma Behaviour.cluster_dir_event_immediately_finish_before_of_global_downgrade 
       . case predInB => simp[hfwd_sw_down_translation.cohEvictDir.dirInB]
       . case succInB => exact hgdown_in_b
     . case gCacheOfCDir =>
-      apply Behaviour.global_sw_downgrade_encap_corresponding_evict
+      apply Behaviour.global_downgrade_cache_translation_encap_corresponding_evict
       . case hgdown => exact hgdown
-      . case hfwd_sw_down_translation => exact hfwd_sw_down_translation
+      . case hrequest_protocol => exact hfwd_sw_down_translation.cohEvict.atCorrClusterProxy.clusterMatch.atCorrCluster
+      . case hdir_req_same_protocol_req => exact hfwd_sw_down_translation.cohEvictDir.sameProtocol
+      . case hdir_is_dir => exact hfwd_sw_down_translation.cohEvictDir.isDir
   . case noIntermediate =>
     apply Behaviour.global_sw_downgrade_dir_evict_has_no_intermediate
     . case hgdown => exact hgdown
