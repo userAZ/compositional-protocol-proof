@@ -98,15 +98,15 @@ def Request.isRead (r : Request) : Prop := r.rw = .r
 def Request.isCoherentRead (r : Request) : Prop := r.isCoherent ∧ r.isRead
 def ValidRequest.isCoherentRead (vr : ValidRequest) : Prop := vr.val.isCoherentRead
 
-def ValidRequest.isAcquire (vr : ValidRequest) := vr.val = ⟨.r, false, .Acq⟩
-def ValidRequest.isNcRelease (vr : ValidRequest) := vr.val = ⟨.w, false, .Rel⟩
+def ValidRequest.isAcquire (vr : ValidRequest) := vr = ⟨⟨.r, false, .Acq⟩, by simp[Request.IsValid']⟩
+def ValidRequest.isNcRelease (vr : ValidRequest) := vr = ⟨⟨.w, false, .Rel⟩, by simp[Request.IsValid']⟩
 def ValidRequest.isNonCoherent (vr : ValidRequest) := ¬ vr.val.coherent
 def ValidRequest.isWeak (vr : ValidRequest) := vr.val.consistency = .Weak
-def ValidRequest.isNcWeakRead (vr : ValidRequest) := vr.val = ⟨.r, false, .Weak⟩
-def ValidRequest.isNcWeakWrite (vr : ValidRequest) := vr.val = ⟨.w, false, .Weak⟩
+def ValidRequest.isNcWeakRead (vr : ValidRequest) := vr = ⟨⟨.r, false, .Weak⟩, by simp[Request.IsValid']⟩
+def ValidRequest.isNcWeakWrite (vr : ValidRequest) := vr = ⟨⟨.w, false, .Weak⟩, by simp[Request.IsValid']⟩
 
 def ValidRequest.isSCWrite (vr : ValidRequest) := vr = ⟨⟨.w, true, .SC⟩,by simp[Request.IsValid']⟩
-def ValidRequest.isSCRead (vr : ValidRequest) := vr.val = ⟨.r, true, .SC⟩
+def ValidRequest.isSCRead (vr : ValidRequest) := vr = ⟨⟨.r, true, .SC⟩, by simp [Request.IsValid']⟩
 /-
 abbrev NonCoherentWeakRead : Request := ⟨.r, false, .Weak⟩
 abbrev NonCoherentWeakWrite : Request := ⟨.w, false, .Weak⟩
