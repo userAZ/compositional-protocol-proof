@@ -834,6 +834,31 @@ lemma Behaviour.state_after_cluster_dir_sc_read_le_state_after_global_read_downg
   | .directoryEvent _, .directoryEvent _
   | .cacheEvent _, .cacheEvent _
     => simp[Event.isDirectoryEvent, Event.isCacheEvent] at hdir_is_dir hgdown_cache
+
+lemma Behaviour.stateAfter_directory_event_is_directory_state {b init_state e_dir_coh_read} {es : List (Event n)} (hdir_is_dir : e_dir_coh_read.isDirectoryEvent) (hinit_dir : init_state.isDirectoryState)
+  (hall_dir : ∀ e' ∈ es, eventAtEntry n b e' (Event.struct n e_dir_coh_read) (Event.addr n e_dir_coh_read))
+  : (List.stateAfter n es init_state).isDirectoryState := by
+  simp[EntryState.isDirectoryState]
+  induction es generalizing init_state with
+  | nil =>
+    simp[List.stateAfter]
+    simp[← EntryState.isDirectoryState.eq_def]
+    exact hinit_dir
+  | cons head tail ih =>
+    apply ih
+    . case cons.hinit_dir =>
+      simp[Event.SucceedingState]
+      have hhead_of_dir := hall_dir head (by simp) |>.eAtStruct
+      match head with
+      | .directoryEvent de => simp[EntryState.isDirectoryState]
+      | .cacheEvent _ =>
+        match e_dir_coh_read with
+        | .directoryEvent _ => simp [Event.struct] at hhead_of_dir
+        | .cacheEvent _ => simp[Event.isDirectoryEvent] at hdir_is_dir
+    . case cons.hall_dir =>
+      intro e' he'_in_tail
+      apply hall_dir
+      . case a => simp[he'_in_tail]
 lemma CompoundProtocol.global_sc_read_downgrade_le_cluster_dir_state {cluster_p_of_gdown}
   {b : Behaviour n} {init : InitialSystemState n}
   (e_gdown : Event n) (hgdown_in_b : e_gdown ∈ b)
