@@ -762,6 +762,11 @@ lemma Behaviour.state_imm_before_cluster_dir_event_eq_stateBefore_cluster_dir_ev
     =
     EntryState.state n (stateBefore n b (InitialSystemState.stateAt n init e_cdir) e_cdir)
   := by
+  /- show the set of events from `immediateFinishesBeforeAtClusterDirectoryEventsNotEncap` is the same as the list of events before `e_cdir`.
+  Need some assumptions;
+  1. ∀ `e`, `e_gdown.Encapsulates e`, `e_cdir`.OrderedBefore `e`.
+  Then (likely in a few helper lemmas) show that if there are no events in set `immediateFinishesBeforeAtClusterDirectoryEventsNotEncap`, then
+  the list of events before `e_cdir` is empty. -/
   sorry
 
 lemma Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore {b e init_state}
@@ -1055,6 +1060,15 @@ lemma Behaviour.noCoherentRead.corresponding_cluster_dir_state_le_stateAfter_fwd
   2. show that the stateAfter the SC Write Downgrade `e_gdown` is `I`.
   QED.
   -/
+
+  simp[Behaviour.stateAfter]
+  -- Use lemma (`Behaviour.upTo_immediatePredecessor_eq`) to state the state is based off of the immediate predecessors (`e_dir_shim_acq` and `e_dir_shim_vd_down`) to `e_dir_shim_vc_down`
+  -- rw[Behaviour.upTo_immediatePredecessor_eq n ]
+
+  -- may be useful later `Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore`
+  -- rw[Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore]
+  -- rw[Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore]
+
   sorry
 
 lemma CompoundProtocol.noCoherentRead.global_sc_write_downgrade_le_cluster_dir_state
