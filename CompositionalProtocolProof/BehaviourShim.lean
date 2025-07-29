@@ -466,7 +466,7 @@ inductive Behaviour.Shim.Global.bothWriteRead.Down (b : Behaviour n) (init : Ini
   : Behaviour.Shim.Global.bothWriteRead.Down b init p e_gdown
 
 def Behaviour.Shim.Global.toCluster.clusterDirStateBefore (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) (s : State) : Prop :=
-  b.latestDirectoryStateOfGlobalCache n init e_gdown = s
+  Behaviour.latestDirectoryState.Before.GlobalCache n b init e_gdown = s
 
 /-- Helper for (Shim) Axiom 16: a Global `Write` Downgrade to a Cluster Protocol with no Coherent Read on Vd state
 is translated to a Directory state check, directory downgrades from Vd to Vc, and Vc to I. -/
