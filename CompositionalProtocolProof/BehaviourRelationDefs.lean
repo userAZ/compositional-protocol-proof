@@ -39,8 +39,9 @@ def Behaviour.acqRelWeakWriteNoPerms (b : Behaviour n) (init : InitialSystemStat
 
 noncomputable def Event.reqToDirOfRequestEvent (e_req : Event n) (state_before : State) : ValidRequest :=
   match e_req.req, state_before, e_req.down with
-  | ⟨⟨.w, false, _⟩, _⟩, I, false => ⟨⟨.r, false, .Weak⟩, by simp[Request.IsValid']⟩
-  | ⟨⟨.r, false, .Acq⟩, _⟩, Vd, _ => ⟨⟨.w, false, .Weak⟩, by simp[Request.IsValid']⟩
+  | ⟨⟨.w, false, _⟩, _⟩, ⟨none, false⟩ /- made on I state -/, false => ⟨⟨.r, false, .Weak⟩, by simp[Request.IsValid']⟩
+  | ⟨⟨.w, false, _⟩, _⟩, ⟨none, true⟩ /- handle this case just in case -/, false => ⟨⟨.r, false, .Weak⟩, by simp[Request.IsValid']⟩
+  | ⟨⟨.r, false, .Acq⟩, _⟩, ⟨some .wr, false⟩ /- made on Vd state -/, _ => ⟨⟨.w, false, .Weak⟩, by simp[Request.IsValid']⟩
   | _, _, _ => e_req.req
 
 noncomputable def Behaviour.reqToDirOfRequestEvent (b : Behaviour n) (init : EntryState n) (rel_wb : Bool) (e_req : Event n) : ValidRequest :=
