@@ -1030,12 +1030,182 @@ lemma CompoundProtocol.global_sc_read_downgrade_le_cluster_dir_state {cluster_p_
 
 /- adding lemmas for Case `noCoherentRead`, `SC Write Downgrade` on `SW` state. -/
 
+lemma Behaviour.noCoherentRead.cluster_vc_downgrade_has_noIntermediateFinishesBeforeSameEntry_of_global_sc_write_downgrade {b : Behaviour n} {init : InitialSystemState n}
+  {e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down : Event n}
+  (hgdown : e_gdown.isGlobalDowngrade)
+  (hfwd_sw_down_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW n b init e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down)
+  : noIntermediateFinishesBeforeOfSameEntry n b e_dir_shim_vc_down e_gdown := by
+  simp[noIntermediateFinishesBeforeOfSameEntry]
+  intro e_inter hinter_in_b hinter_btn_vcInval_and_gdown
+
+  have hdir_vc_same_struct_inter := hinter_btn_vcInval_and_gdown.sameCidInterPred
+  match hdir_vc : e_dir_shim_vc_down, hinter : e_inter with
+  | .directoryEvent de_dir_vc_down , .directoryEvent de_inter =>
+    have hdir_ordered := b.orderedAtEntry.dir_ordered de_dir_vc_down de_inter
+    have hordered := hdir_ordered.ordered
+    simp[DirectoryEvent.Ordered] at hordered
+    cases hordered
+    . case inl hdir_vc_ob_inter =>
+      -- can't have another event between dir_evict and e_gdown ending.
+      --Event.Shim.Global.ToCluster.correspondingDirectoryEvent
+      -- have test : Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_inter := hfwd_sw_down_translation.
+      have hinter_dir_of_gdown : Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_inter := by
+        constructor
+        . case clusterMatch =>
+          constructor
+          . case sameAddr =>
+            simp[Event.sameAddr]
+            rw[hinter, hinter_btn_vcInval_and_gdown.sameAddr]
+            rw[← hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.clusterMatch.sameAddr]
+          . case atCorrCluster =>
+            have hdir_vcInval_corr_cluster := Behaviour.global_downgrade_cache_translation_encap_corresponding_request n hgdown
+              hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
+              (by rfl)
+              hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.atDir
+            simp[Event.reqAtCorrespondingGCacheOfCDir] at hdir_vcInval_corr_cluster
+            simp[Event.correspondingClusterOfGlobalCache]
+
+            simp[Event.protocol] at hdir_vcInval_corr_cluster
+            match hdir_evict_pi : de_dir_vc_down.pInst with
+            | .global => simp[hdir_evict_pi] at hdir_vcInval_corr_cluster
+            | .cluster2 | .cluster1 =>
+              simp[hdir_evict_pi] at hdir_vcInval_corr_cluster
+              simp[Event.reqAtGlobalCacheCid] at hdir_vcInval_corr_cluster
+              match e_gdown with
+              | .cacheEvent ce_gdown =>
+                simp_all
+                match hcegdown_cid : ce_gdown.cid with
+                | .cache pci =>
+                  simp_all []
+                  match pci with
+                  | .cluster1 _ | .cluster2 _ | .globalP fin2 =>
+                    simp_all
+                    try (
+                    simp[Event.protocol]
+                    simp[Event.struct] at hdir_vc_same_struct_inter
+                    rw[hdir_vc_same_struct_inter]
+                    exact hdir_evict_pi)
+                | .proxy pi => simp[hcegdown_cid] at hdir_vcInval_corr_cluster
+              | .directoryEvent _ => simp at hdir_vcInval_corr_cluster
+        . case atDir => simp [Event.isDirectoryEvent, hinter]
+        . case globalEncap =>
+          simp[Event.Encapsulates]
+          apply And.intro
+          . case left =>
+            simp [DirectoryEvent.OrderedBefore] at hdir_vc_ob_inter
+            calc e_gdown.oStart < e_dir_shim_vc_down.oStart := by simp[hdir_vc, hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.globalEncap.left]
+                -- _ < e_dir_shim_vc_down.oStart := by simp[hdir_vc, hfwd_sw_down_translation.cohEvictDir.reqEncapDir.left]
+                _ < e_dir_shim_vc_down.oEnd := e_dir_shim_vc_down.oWellFormed
+                _ < e_inter.oStart := by simp[hdir_vc, hinter, Event.oEnd, Event.oStart, hdir_vc_ob_inter]
+          . case right => simp[← Event.finishesBefore.eq_def, hinter, hinter_btn_vcInval_and_gdown.interSucc]
+      have honly_encap_acq_vd_vc := hfwd_sw_down_translation.onlyAcqVdVcDir
+      have hinter_is_dir_evict_or_dir_get := honly_encap_acq_vd_vc e_inter (by simp[hinter, hinter_in_b]) hinter_dir_of_gdown
+      cases hinter_is_dir_evict_or_dir_get
+      . case inl hinter_eq_acq_dir =>
+        -- contradiction, hinter is coh get SW dir event, that's immediately before coh put SW dir event.
+        rw[hinter] at hinter_eq_acq_dir
+        absurd hinter_btn_vcInval_and_gdown.interPred
+        rw[hinter_eq_acq_dir]
+        simp[Event.finishesBefore]
+        simp[Nat.le_iff_lt_or_eq]
+        apply Or.intro_left
+        have hinter_pred_dir_acq : Event.Predecessor n e_dir_shim_acq (Event.directoryEvent de_dir_vc_down) := by
+          have hdir_acq_imm_pred_vd := hfwd_sw_down_translation.acqDirImmBeforeVdWBDir
+          simp[ImmediateBottomPredecessor,] at hdir_acq_imm_pred_vd
+          have hdir_acq_end_before_vd_start := hdir_acq_imm_pred_vd.isImmPred.bPred.isPred
+          simp[Event.Predecessor, Event.OrderedBefore,] at hdir_acq_end_before_vd_start
+
+          have hvd_imm_pred_vc := hfwd_sw_down_translation.vdWBDirImmBeforeVcInvalDir
+          simp[ImmediateBottomPredecessor,] at hvd_imm_pred_vc
+          have hvd_end_before_vc_start := hvd_imm_pred_vc.isImmPred.bPred.isPred
+          simp[Event.Predecessor, Event.OrderedBefore,] at hvd_end_before_vc_start
+
+          have := hdir_acq_end_before_vd_start
+          simp[Event.Predecessor]
+          calc e_dir_shim_acq.oEnd < e_dir_shim_vd_down.oStart := hdir_acq_end_before_vd_start
+            _ < e_dir_shim_vd_down.oEnd := e_dir_shim_vd_down.oWellFormed
+            _ < (Event.directoryEvent de_dir_vc_down).oStart := hvd_end_before_vc_start
+        match e_dir_shim_acq with
+        | .directoryEvent de_dir_acq =>
+          simp[Event.Predecessor, Event.oEnd, Event.oStart] at hinter_pred_dir_acq
+          simp[Event.oEnd]
+          calc de_dir_acq.oEnd < de_dir_vc_down.oStart := hinter_pred_dir_acq
+            _ < de_dir_vc_down.oEnd := de_dir_vc_down.oWellFormed
+        | .cacheEvent _ =>
+          have hacq_dir_is_dir := hfwd_sw_down_translation.acqDir.isDir
+          simp[Event.isDirectoryEvent] at hacq_dir_is_dir
+      . case inr hinter_eq_vd_or_vc =>
+        cases hinter_eq_vd_or_vc
+        . case inl hinter_eq_vd =>
+          rw[hinter] at hinter_eq_vd
+          absurd hinter_btn_vcInval_and_gdown.interPred
+          rw[hinter_eq_vd]
+          simp[Event.finishesBefore]
+          simp[Nat.le_iff_lt_or_eq]
+          apply Or.intro_left
+          have hinter_imm_pred_dir_vc := hfwd_sw_down_translation.vdWBDirImmBeforeVcInvalDir
+          simp[ImmediateBottomPredecessor,] at hinter_imm_pred_dir_vc
+          have hinter_pred_dir_vc := hinter_imm_pred_dir_vc.isImmPred.bPred.isPred
+          simp[Event.Predecessor, Event.OrderedBefore,] at hinter_pred_dir_vc
+          match e_dir_shim_vd_down with
+          | .directoryEvent de_dir_vd =>
+            simp[Event.oEnd, Event.oStart] at hinter_pred_dir_vc
+            simp[Event.oEnd]
+            calc de_dir_vd.oEnd < de_dir_vc_down.oStart := hinter_pred_dir_vc
+              _ < de_dir_vc_down.oEnd := de_dir_vc_down.oWellFormed
+          | .cacheEvent _ =>
+            have hvd_dir_is_dir := hfwd_sw_down_translation.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir
+            simp[Event.isDirectoryEvent] at hvd_dir_is_dir
+        . case inr hinter_eq_vc =>
+        -- contradiction, dir evict event can't finish before itself!
+        absurd hinter_btn_vcInval_and_gdown.interPred
+        simp[Event.finishesBefore]
+        simp[Nat.le_iff_lt_or_eq]
+        apply Or.intro_right
+        rw[hinter] at hinter_eq_vc
+        rw[hinter_eq_vc]
+    . case inr hinter_ob_dir_evict =>
+      absurd hinter_btn_vcInval_and_gdown.interPred
+      simp[Event.finishesBefore]
+      simp[Nat.le_iff_lt_or_eq]
+      apply Or.intro_left
+      simp[Event.oEnd]
+      calc de_inter.oEnd < de_dir_vc_down.oStart := hinter_ob_dir_evict
+        _ < de_dir_vc_down.oEnd := de_dir_vc_down.oWellFormed
+  | .cacheEvent ce_dir_vc , .directoryEvent de_inter
+  | .directoryEvent de_dir_vc , .cacheEvent ce_inter
+  | .cacheEvent ce_dir_vc , .cacheEvent ce_inter =>
+    have hdir_vc_dir := hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.atDir
+    simp[Event.struct] at hdir_vc_same_struct_inter
+    try simp[Event.isDirectoryEvent] at hdir_vc_dir
+
 lemma Behaviour.noCoherentRead.cluster_dir_vc_downgrade_event_immediately_finish_before_of_global_write_downgrade
   {b : Behaviour n} {init : InitialSystemState n} {e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down : Event n}
-  (hgdown_in_b : e_gdown ∈ b) (hgdown : e_gdown.isGlobalDowngrade)
+  (hgdown_in_b : e_gdown ∈ b) (hgdown : e_gdown.isGlobalDowngrade) (hvc_down_in_b : e_dir_shim_vc_down ∈ b)
   (hfwd_sw_down_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW n b init e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down)
   : immediateFinishesBeforeAtClusterDirectory n b e_dir_shim_vc_down e_gdown := by
-  sorry
+  constructor
+  . case finishBefore =>
+    constructor
+    . case finBefore =>
+      constructor
+      . case endBefore => simp[Event.finishesBefore, hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.globalEncap.right]
+      . case sameAddr =>
+        simp[ Event.sameAddr,]
+        apply Eq.symm
+        simp[← Event.sameAddr.eq_def, hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.clusterMatch.sameAddr]
+      . case predInB => exact hvc_down_in_b
+      . case succInB => exact hgdown_in_b
+    . case gCacheOfCDir =>
+      apply Behaviour.global_downgrade_cache_translation_encap_corresponding_request
+      . case hgdown => exact hgdown
+      . case hrequest_protocol => exact hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
+      . case hdir_req_same_protocol_req => rfl
+      . case hdir_is_dir => exact hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.atDir
+  . case noIntermediate =>
+    apply Behaviour.noCoherentRead.cluster_vc_downgrade_has_noIntermediateFinishesBeforeSameEntry_of_global_sc_write_downgrade
+    . case hgdown => exact hgdown
+    . case hfwd_sw_down_translation => exact hfwd_sw_down_translation
 
 /- Is there a better way to automate these 3 lemmas with similar conclusions? -/
 lemma Behaviour.directory_vd_and_vc_downgrade_from_vd_state_le_i {b init e_gdown} {e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down : Event n}
@@ -1289,10 +1459,13 @@ lemma CompoundProtocol.noCoherentRead.global_sc_write_downgrade_le_cluster_dir_s
   simp[Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents]
 
   let htranslation_spec := hgdown_translation.choose_spec.right.choose_spec.right.choose_spec.right.choose_spec.right
+  let hvc_inval_in_b := hgdown_translation.choose_spec.right.choose_spec.right.choose_spec.right.choose_spec.left
 
   /- Identify the event that finishes the last, right before `e_gdown` does. -/
+  -- (hgdown_in_b : e_gdown ∈ b) (hgdown : e_gdown.isGlobalDowngrade) (hvc_down_in_b : e_dir_shim_vc_down ∈ b)
+  -- (hfwd_sw_down_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW n b init e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down)
   have hevict_imm_finish_before_gdown := Behaviour.noCoherentRead.cluster_dir_vc_downgrade_event_immediately_finish_before_of_global_write_downgrade n
-    hgdown_in_b hgdown htranslation_spec
+    hgdown_in_b hgdown hvc_inval_in_b htranslation_spec
   let e_dir_shim_vc_down := hgdown_translation.choose_spec.right.choose_spec.right.choose_spec.right.choose
   let e_dir_shim_vc_down_in_b := hgdown_translation.choose_spec.right.choose_spec.right.choose_spec.right.choose_spec.left
   rw[Behaviour.event_immediate_finish_before_gdown_singleton n e_dir_shim_vc_down_in_b hevict_imm_finish_before_gdown]
