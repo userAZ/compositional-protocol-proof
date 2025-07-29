@@ -672,6 +672,9 @@ than `e_succ` in the same Protocol. -/
 def Behaviour.noIntermediateFinishesBeforeOfSameEntry (b : Behaviour n) (e_pred e_succ : Event n) : Prop :=
   ∀ e_inter ∈ b, ¬ e_inter.intermediateFinishesBeforeOfSameEntry n e_pred e_succ
 
+def Behaviour.noIntermediateFinishesBeforeOfSameEntryNotEncap (b : Behaviour n) (e_pred e_succ : Event n) : Prop :=
+  ∀ e_inter ∈ b, ¬ e_inter.intermediateFinishesBeforeOfSameEntryNotEncap n e_pred e_succ
+
 /-- There is no event `e_inter` that _immediately_ finishes before the successor `e_succ` -/
 structure Behaviour.immediateFinishesBeforeAtDifferentCid (b : Behaviour n) (e_pred e_succ : Event n) where
   finishBefore : Behaviour.finishesBeforeAtDifferentCid n b e_pred e_succ

@@ -197,6 +197,21 @@ lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_same_struct {b :
   | .cacheEvent _, .cacheEvent _ | .directoryEvent _, .cacheEvent _ | .cacheEvent _, .directoryEvent _
     => simp at hcdir_at_corresponding_cdir he_at_corresponding_cdir
 
+-- BEGIN: State before a global downgrade is translated satisfies Compound SWMR:
+
+/-- There is no event `e_inter` that _immediately_ finishes before the successor `e_succ` -/
+structure Behaviour.immediateFinishesBeforeAtClusterDirectoryNotEncap (b : Behaviour n) (e_pred e_succ : Event n) where
+  finishBefore : Behaviour.clusterDirectoryFinishesBeforeGlobalCache n b e_pred e_succ
+  notEncap : ¬ e_succ.Encapsulates n e_pred
+  noIntermediate : b.noIntermediateFinishesBeforeOfSameEntryNotEncap n e_pred e_succ
+
+/-- The Latest Cluster Directory Event corresponding to a Global Cache Event -/
+def Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap : Behaviour n → Event n → Set (Event n)
+| b, e_succ => {e_pred ∈ b | b.immediateFinishesBeforeAtClusterDirectoryNotEncap n e_pred e_succ}
+-- [NOTE] prove the above is subsingleton?
+
+-- END: State before a global downgrade is translated satisfies Compound SWMR:
+
 lemma Behaviour.contradiction_of_two_directory_events_immediate_finishes_before_successor_event
   {b : Behaviour n} {de_cdir de : DirectoryEvent n} {e_succ : Event n}
   (hcdir_ob_de : DirectoryEvent.OrderedBefore n de_cdir de)
@@ -307,6 +322,12 @@ noncomputable def Behaviour.latestDirectoryStateOfGlobalCache (b : Behaviour n) 
   let cluster_dir_struct := Struct.directory (e_gcache.clusterDirProtocolCorrespondingToGlobalCache n)
   let cluster_dir_imm_finish_before_global := b.immediateFinishesBeforeAtClusterDirectoryEvents n e_gcache
   b.stateOfSubsingletonEventSet n init cluster_dir_struct cluster_dir_imm_finish_before_global
+
+/-- The state at the Cluster Directory before a corresopnding Global Cache Event `e_gcache`.-/
+noncomputable def Behaviour.latestDirectoryState.Before.GlobalCache (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : State :=
+  let cluster_dir_struct := Struct.directory (e_gcache.clusterDirProtocolCorrespondingToGlobalCache n)
+  let cluster_dir_imm_finish_before_global_not_encap := b.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap n e_gcache
+  b.stateOfSubsingletonEventSet n init cluster_dir_struct cluster_dir_imm_finish_before_global_not_encap
 
 def Event.globalCacheCorrespondingCluster (e_greq e_cluster : Event n) : Prop := match e_greq with
   | .cacheEvent ce => match ce.cid with
