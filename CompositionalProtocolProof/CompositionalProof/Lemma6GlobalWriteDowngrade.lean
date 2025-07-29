@@ -1064,6 +1064,14 @@ lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
           . case hgdown_read_spec => exact hgdown_read_spec
           . case hgdown_on_sw => exact hgdown_on_sw
           . case hgdown_translation => exact hgdown_translation
-      . case noCoherentRead =>
-        sorry
-      -- have hglobal_swmr := cmp.globalSWMR
+      . case noCoherentRead hcorrespond hno_coherent_read_in_p hdown_translation =>
+        cases hdown_translation
+        . case scWriteDowngrade hgdown_write_spec hgdown_translation =>
+          cases hgdown_translation
+          . case onDirSW hdir_on_sw htranslation => sorry
+          . case onDirVd hdir_on_vd htranslation => sorry
+          . case onDirVc hdir_on_vc htranslation => sorry
+        . case scReadDowngrade hgdown_read_spec hgdown_translation =>
+          cases hgdown_translation
+          . case onDirSW hdir_on_sw htranslation => sorry
+          . case onDirVd hdir_on_vd htranslation => sorry
