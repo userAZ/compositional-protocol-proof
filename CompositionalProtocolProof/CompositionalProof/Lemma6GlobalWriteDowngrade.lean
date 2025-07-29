@@ -859,6 +859,15 @@ lemma Behaviour.stateAfter_directory_event_is_directory_state {b init_state e_di
       intro e' he'_in_tail
       apply hall_dir
       . case a => simp[he'_in_tail]
+
+lemma Behaviour.stateBefore_dir_event_is_dir_state {b init_state e_dir_coh_read} (hdir_is_dir : e_dir_coh_read.isDirectoryEvent) (hinit_dir : init_state.isDirectoryState)
+  : (stateBefore n b init_state e_dir_coh_read).isDirectoryState := by
+  simp[stateBefore]
+  have hall_dir := Behaviour.eventsUpToEntry_at_e_entry n b e_dir_coh_read
+  apply Behaviour.stateAfter_directory_event_is_directory_state
+  . case hdir_is_dir => exact hdir_is_dir
+  . case hinit_dir => exact hinit_dir
+  . case hall_dir => exact hall_dir
 lemma CompoundProtocol.global_sc_read_downgrade_le_cluster_dir_state {cluster_p_of_gdown}
   {b : Behaviour n} {init : InitialSystemState n}
   (e_gdown : Event n) (hgdown_in_b : e_gdown ∈ b)
