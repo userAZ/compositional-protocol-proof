@@ -774,6 +774,66 @@ lemma Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore {b e
     nth_rw 3 [List.stateAfter]
     nth_rw 1 [List.stateAfter]
     apply ih
+
+lemma Behaviour.state_after_cluster_dir_sc_read_le_state_after_global_read_downgrade_of_cmp_swmr
+  {state_before_e_dir state_before_gdown : EntryState n} {e_dir_coh_read : Event n}
+  {e_gdown : Event n} (hsc_read : e_gdown.isSCRead)
+  (hgdown : e_gdown.isGlobalDowngrade)
+  -- (hgdown_in_b : e_gdown ∈ b)
+  (hdir_is_dir : e_dir_coh_read.isDirectoryEvent)
+  (hdir_not_down : ¬ e_dir_coh_read.down)
+  (hdir_req : e_dir_coh_read.req.isSCRead)
+  -- (hprev_cluster_state_le_gdown_state_before : EntryState.state n state_before_e_dir ≤ EntryState.cache n state_before_gdown)
+  (hstate_before_e_dir_is_dir_state : state_before_e_dir.isDirectoryState)
+  (hstate_before_gdown_is_cache_state : state_before_gdown.isCacheState)
+  (hstate_before_gdown : state_before_gdown.cache = SW)
+  : EntryState.state n (List.stateAfter n [e_dir_coh_read] state_before_e_dir) ≤ EntryState.cache n (List.stateAfter n [e_gdown] state_before_gdown)
+  := by
+  simp[List.stateAfter]
+  have hgdown_cache := hgdown.isGlobal.reqAtCache
+  match e_dir_coh_read, e_gdown with
+  | .directoryEvent de, .cacheEvent ce =>
+    match state_before_gdown with
+    | .inl cache_s_before_gdown =>
+      simp [EntryState.cache] at hstate_before_gdown
+      rw[hstate_before_gdown]
+      nth_rw 2 [Event.SucceedingState.eq_def]
+      simp
+      simp[CacheEvent.SucceedingState]
+      -- rewrite so the state before `e_gdown` is SW
+
+      have hgdown_down := hgdown.isDown
+      simp [Event.down] at hgdown_down
+      simp[hgdown_down]
+      -- simp and get to the determine the (downgrade) succeeding state after `e_gdown`
+
+      simp[ValidRequest.DowngradeState]
+
+      have hgdown_sc_read := hsc_read
+      simp[Event.isSCRead, Event.req, ValidRequest.isSCRead] at hgdown_sc_read
+
+      simp [hgdown_sc_read]
+      simp[EntryState.cache, ValidRequest.MRS, SW, ReadWrite.toPerms, ReadWrite.toRWPerms,]
+      -- substitue in the downgrade request as a Fwd SC Read Downgrade
+
+      match state_before_e_dir with
+      | .inl s => simp [EntryState.isDirectoryState] at hstate_before_e_dir_is_dir_state
+      | .inr ds =>
+        nth_rw 1 [Event.SucceedingState.eq_def]
+        simp[EntryState.directory]
+        simp[DirectoryEvent.SucceedingState]
+        simp[Event.down] at hdir_not_down
+        simp[Event.req, ValidRequest.isSCRead] at hdir_req
+
+        simp[hdir_not_down, hdir_req]
+        simp[EntryState.state, DirectoryState.toState]
+        simp[LE.le, State.le, I]
+        simp[LT.lt, State.lt, LE.le, Option.le]
+    | .inr _ => simp [EntryState.isCacheState] at hstate_before_gdown_is_cache_state
+  | .cacheEvent _, .directoryEvent _
+  | .directoryEvent _, .directoryEvent _
+  | .cacheEvent _, .cacheEvent _
+    => simp[Event.isDirectoryEvent, Event.isCacheEvent] at hdir_is_dir hgdown_cache
 lemma CompoundProtocol.global_sc_read_downgrade_le_cluster_dir_state {cluster_p_of_gdown}
   {b : Behaviour n} {init : InitialSystemState n}
   (e_gdown : Event n) (hgdown_in_b : e_gdown ∈ b)
