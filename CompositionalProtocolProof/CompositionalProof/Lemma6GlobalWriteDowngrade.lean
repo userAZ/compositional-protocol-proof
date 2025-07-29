@@ -902,6 +902,70 @@ lemma Behaviour.stateBefore_cache_event_is_cache_state {b init_state e} (he_is_c
   . case he_is_cache => exact he_is_cache
   . case hinit_cache => exact hinit_cache
   . case hall_at_entry => exact hall_at_entry
+
+lemma Behaviour.corresponding_cluster_dir_state_le_stateAfter_fwd_mr_downgrade {b : Behaviour n} {init : InitialSystemState n} {e_dir_coh_read : Event n}
+  {e_gdown : Event n} (hsc_read : e_gdown.isSCRead) (hgdown : e_gdown.isGlobalDowngrade)
+  (hgdown_in_b : e_gdown ∈ b)
+  (hstateBefore_gdown_sw : b.cacheStateMadeOn n init e_gdown = SW)
+  (hdir_is_dir : e_dir_coh_read.isDirectoryEvent)
+  (hdir_not_down : ¬ e_dir_coh_read.down)
+  (hdir_get_mr : e_dir_coh_read.req.isSCRead)
+  /-
+  (hprev_cluster_state_cmp_swmr :
+    ∀ e_gcache ∈ b, e_gcache.isGlobalCache →
+    Behaviour.stateBefore.globalCacheEvent.satisfiesCompoundSWMR' n b init e_gcache)-/
+  :
+  EntryState.state n (Behaviour.stateAfter n b (InitialSystemState.stateAt n init e_dir_coh_read) e_dir_coh_read) ≤
+  EntryState.cache n (Behaviour.stateAfter n b (InitialSystemState.stateAt n init e_gdown) e_gdown)
+  -- EntryState.state n (Behaviour.stateAfter n b (InitialSystemState.stateAt n init e_dir_coh_read) e_dir_coh_read) ≤
+  -- EntryState.cache n (Behaviour.stateAfter n b (InitialSystemState.stateAt n init e_gdown) e_gdown)
+  := by
+  /-
+  have hprev_cluster_state_satisfies_cmp_swmr := hprev_cluster_state_cmp_swmr e_gdown hgdown_in_b hgdown.isGlobal
+  simp[Behaviour.stateBefore.globalCacheEvent.satisfiesCompoundSWMR'] at hprev_cluster_state_satisfies_cmp_swmr
+  have hprev_cluster_state_satisfies_cmp_swmr' := hprev_cluster_state_satisfies_cmp_swmr /-hgdown_in_b-/ hgdown.isGlobal
+  have hprev_cluster_state_le_gdown_state_before := hprev_cluster_state_satisfies_cmp_swmr'.stateAfterLeGlobalCache
+  simp[dirEventState.Before.LeGlobalCacheState', Behaviour.latestDirectoryState.Before.GlobalCache] at hprev_cluster_state_le_gdown_state_before
+  simp[stateOfSubsingletonEventSet] at hprev_cluster_state_le_gdown_state_before
+
+  -- something like this [TODO]: make it specific to e_dir_coh_read
+  rw[Behaviour.state_imm_before_cluster_dir_event_eq_stateBefore_cluster_dir_event n e_dir_coh_read] at hprev_cluster_state_le_gdown_state_before
+  -/
+
+  simp[Behaviour.stateAfter]
+  -- state after events up to event
+  rw[Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore]
+  rw[Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore]
+
+  -- Now we can work through the cases. The state before `e_dir_coh_read` is always ≤ the state before `e_gdown`.
+  apply Behaviour.state_after_cluster_dir_sc_read_le_state_after_global_read_downgrade_of_cmp_swmr
+  . case hsc_read => exact hsc_read
+  . case hgdown => exact hgdown
+  . case hdir_is_dir => exact hdir_is_dir
+  . case hdir_not_down => exact hdir_not_down
+  . case hdir_req => exact hdir_get_mr
+  . case hstate_before_e_dir_is_dir_state =>
+    apply Behaviour.stateBefore_dir_event_is_dir_state
+    . case hdir_is_dir => exact hdir_is_dir
+    . case hinit_dir =>
+      simp [InitialSystemState.stateAt]
+      match e_dir_coh_read with
+      | .directoryEvent _ => simp [EntryState.isDirectoryState]
+      | .cacheEvent _ => simp[Event.isDirectoryEvent] at hdir_is_dir
+  . case hstate_before_gdown_is_cache_state =>
+    apply Behaviour.stateBefore_cache_event_is_cache_state
+    . case he_is_cache => exact hgdown.isGlobal.reqAtCache
+    . case hinit_cache =>
+      simp [InitialSystemState.stateAt]
+      match e_gdown with
+      | .cacheEvent _ => simp [EntryState.isCacheState]
+      | .directoryEvent _ =>
+        have hgdown_is_cache := hgdown.isGlobal.reqAtCache
+        simp[Event.isCacheEvent] at hgdown_is_cache
+  . case hstate_before_gdown =>
+    simp [cacheStateMadeOn] at hstateBefore_gdown_sw
+    simp[hstateBefore_gdown_sw]
+
 lemma CompoundProtocol.global_sc_read_downgrade_le_cluster_dir_state {cluster_p_of_gdown}
   {b : Behaviour n} {init : InitialSystemState n}
   (e_gdown : Event n) (hgdown_in_b : e_gdown ∈ b)
