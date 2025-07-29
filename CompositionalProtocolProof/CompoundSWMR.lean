@@ -40,3 +40,19 @@ inductive CompoundSWMR (b : Behaviour n) (init : InitialSystemState n) (e : Even
 
 def CompoundSWMR.wrapper (b : Behaviour n) (init : InitialSystemState n) : Prop :=
   ∀ e ∈ b, e.isClusterDir ∨ e.isGlobalCache → CompoundSWMR n b init e
+
+------------------------------------------------------------------
+
+/- State at Cluster Directory corresponding to Global Cache `e_gdown` is in Compound SWMR state
+before considering `e_gdown`'s translation events to the Cluster Directory. -/
+
+/-- The corresponding directory has state permissions ≤ the state after a global cache event -/
+def Behaviour.dirEventState.Before.LeGlobalCacheState' (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : Prop :=
+  Behaviour.latestDirectoryState.Before.GlobalCache n b init e_gcache ≤ (b.stateBefore n (init.stateAt n e_gcache) e_gcache).cache
+
+structure CompoundSWMR.stateAfterClusterDirEvent.Before.LeGlobalCache' (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : Prop where
+  gCache : e_gcache.isGlobalCache
+  stateAfterLeGlobalCache : Behaviour.dirEventState.Before.LeGlobalCacheState' n b init e_gcache
+
+def Behaviour.stateBefore.globalCacheEvent.satisfiesCompoundSWMR' (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop :=
+  e.isGlobalCache → CompoundSWMR.stateAfterClusterDirEvent.Before.LeGlobalCache' n b init e

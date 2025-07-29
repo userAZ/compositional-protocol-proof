@@ -30,6 +30,11 @@ structure Event.intermediateFinishesBeforeOfSameEntry (e_inter e_pred e_succ : E
   interPred : e_pred.finishesBefore n e_inter
   interSucc : e_inter.finishesBefore n e_succ
 
+/-- Inter finishes before `e_pred`, and is also not encapsulated by `e_succ` -/
+structure Event.intermediateFinishesBeforeOfSameEntryNotEncap (e_inter e_pred e_succ : Event n) : Prop where
+  interFinish : e_inter.intermediateFinishesBeforeOfSameEntry n e_pred e_succ
+  notEncap : ¬ e_succ.Encapsulates n e_inter
+
 def Event.fromDirectoryEvent (de : DirectoryEvent n) (e : Event n) : Prop :=
   match e with
   | .directoryEvent de' => de = de'
