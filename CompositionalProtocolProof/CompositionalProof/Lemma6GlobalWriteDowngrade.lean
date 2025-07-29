@@ -868,6 +868,40 @@ lemma Behaviour.stateBefore_dir_event_is_dir_state {b init_state e_dir_coh_read}
   . case hdir_is_dir => exact hdir_is_dir
   . case hinit_dir => exact hinit_dir
   . case hall_dir => exact hall_dir
+
+lemma Behaviour.stateAfter_cache_event_is_cache_state {b init_state e} {es : List (Event n)} (he_is_cache : e.isCacheEvent) (hinit_cache : init_state.isCacheState)
+  (hall_at_entry : ∀ e' ∈ es, eventAtEntry n b e' (Event.struct n e) (Event.addr n e))
+  : (List.stateAfter n es init_state).isCacheState := by
+  simp[EntryState.isCacheState]
+  induction es generalizing init_state with
+  | nil =>
+    simp[List.stateAfter]
+    simp[← EntryState.isCacheState.eq_def]
+    exact hinit_cache
+  | cons head tail ih =>
+    apply ih
+    . case cons.hinit_cache =>
+      simp[Event.SucceedingState]
+      have hhead_of_dir := hall_at_entry head (by simp) |>.eAtStruct
+      match head with
+      | .cacheEvent _ => simp[EntryState.isCacheState]
+      | .directoryEvent _ =>
+        match e with
+        | .directoryEvent _ => simp[Event.isCacheEvent] at he_is_cache
+        | .cacheEvent _ => simp [Event.struct] at hhead_of_dir
+    . case cons.hall_at_entry =>
+      intro e' he'_in_tail
+      apply hall_at_entry
+      . case a => simp[he'_in_tail]
+
+lemma Behaviour.stateBefore_cache_event_is_cache_state {b init_state e} (he_is_cache : e.isCacheEvent) (hinit_cache : init_state.isCacheState)
+  : (stateBefore n b init_state e).isCacheState := by
+  simp[stateBefore]
+  have hall_at_entry := Behaviour.eventsUpToEntry_at_e_entry n b e
+  apply Behaviour.stateAfter_cache_event_is_cache_state
+  . case he_is_cache => exact he_is_cache
+  . case hinit_cache => exact hinit_cache
+  . case hall_at_entry => exact hall_at_entry
 lemma CompoundProtocol.global_sc_read_downgrade_le_cluster_dir_state {cluster_p_of_gdown}
   {b : Behaviour n} {init : InitialSystemState n}
   (e_gdown : Event n) (hgdown_in_b : e_gdown ∈ b)
