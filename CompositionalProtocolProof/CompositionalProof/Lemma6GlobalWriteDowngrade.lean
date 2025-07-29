@@ -752,6 +752,7 @@ lemma Behaviour.cluster_dir_event_immediately_finish_before_of_global_read_downg
     . case hgdown => exact hgdown
     . case hfwd_mr_down_translation => exact hfwd_mr_down_translation
 
+-- Not currently used -- need to work with "all events finishing before a Global downgrade not encapsulated by the global downgrade satisfy Compound SWMR"
 -- consider the immediate successor event encapsulated in e_gdown.
 lemma Behaviour.state_imm_before_cluster_dir_event_eq_stateBefore_cluster_dir_event
   -- (hcdir_first_event_at_dir : )
