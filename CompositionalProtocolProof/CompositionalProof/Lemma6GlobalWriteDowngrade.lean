@@ -1028,7 +1028,7 @@ lemma CompoundProtocol.global_sc_read_downgrade_le_cluster_dir_state {cluster_p_
     simp[hproxy_get_mr]
     simp[ValidRequest.isSCRead]
 
-/- adding lemmas for Case `noCoherentRead`, `SC Write Downgrade` on `Vd` state. -/
+/- adding lemmas for Case `noCoherentRead`, `SC Write Downgrade` on `SW` state. -/
 
 lemma Behaviour.noCoherentRead.cluster_dir_vc_downgrade_event_immediately_finish_before_of_global_write_downgrade
   {b : Behaviour n} {init : InitialSystemState n} {e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down : Event n}
@@ -1311,6 +1311,10 @@ lemma CompoundProtocol.noCoherentRead.global_sc_write_downgrade_le_cluster_dir_s
   . case hsc_write => exact hgdown_write_spec.isSCWrite
   . case hgdown => exact hgdown
   . case hfwd_sw_down_translation => exact htranslation_spec
+
+/- adding lemmas for Case `noCoherentRead`, `SC Write Downgrade` on `Vd` state. -/
+
+/- adding lemmas for Case `noCoherentRead`, `SC Write Downgrade` on `Vc` state. -/
 
 /-- Lemma 6/7: A global downgrade `e_gdown` leaves it's corresponding cluster directory
 in state `s` ≤ `e_gdown.MRS` -/
