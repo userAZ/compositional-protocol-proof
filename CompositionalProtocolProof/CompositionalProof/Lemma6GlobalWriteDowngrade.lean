@@ -741,7 +741,7 @@ lemma Behaviour.cluster_dir_event_immediately_finish_before_of_global_read_downg
       . case predInB => simp[hfwd_mr_down_translation.cohReadDir.dirInB]
       . case succInB => exact hgdown_in_b
     . case gCacheOfCDir =>
-      apply Behaviour.global_downgrade_cache_translation_encap_corresponding_evict
+      apply Behaviour.global_downgrade_cache_translation_encap_corresponding_request
       . case hgdown => exact hgdown
       . case hrequest_protocol => exact hfwd_mr_down_translation.cohRead.atCorrClusterProxy.clusterMatch.atCorrCluster
       . case hdir_req_same_protocol_req => exact hfwd_mr_down_translation.cohReadDir.sameProtocol
