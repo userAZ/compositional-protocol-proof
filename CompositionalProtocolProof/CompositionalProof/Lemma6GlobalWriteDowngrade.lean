@@ -181,7 +181,7 @@ lemma Behaviour.event_immediate_finish_before_gdown_singleton
     simp[he_eq_e_cdir, he_cdir_in_b]
     exact he_cdir_satisfies
 
-lemma Behaviour.global_downgrade_cache_translation_encap_corresponding_evict
+lemma Behaviour.global_downgrade_cache_translation_encap_corresponding_request
   {e_gdown e_shim_coh_request e_dir_shim_coh_request : Event n}
   (hgdown : e_gdown.isGlobalDowngrade)
   (hrequest_protocol : Event.correspondingClusterOfGlobalCache n e_gdown e_shim_coh_request (Event.protocol n))
@@ -256,7 +256,7 @@ lemma Behaviour.global_sw_downgrade_dir_evict_has_no_intermediate {b : Behaviour
             rw[← hfwd_sw_down_translation.cohEvictDir.dirCorresponds.sameAddr]
             simp[← Event.sameAddr.eq_1, hfwd_sw_down_translation.cohEvict.atCorrClusterProxy.clusterMatch.sameAddr]
           . case atCorrCluster =>
-            have hdir_evict_corr_cluster := Behaviour.global_downgrade_cache_translation_encap_corresponding_evict n hgdown
+            have hdir_evict_corr_cluster := Behaviour.global_downgrade_cache_translation_encap_corresponding_request n hgdown
               hfwd_sw_down_translation.cohEvict.atCorrClusterProxy.clusterMatch.atCorrCluster
               hfwd_sw_down_translation.cohEvictDir.sameProtocol
               hfwd_sw_down_translation.cohEvictDir.isDir
@@ -375,7 +375,7 @@ lemma Behaviour.cluster_dir_event_immediately_finish_before_of_global_downgrade 
       . case predInB => simp[hfwd_sw_down_translation.cohEvictDir.dirInB]
       . case succInB => exact hgdown_in_b
     . case gCacheOfCDir =>
-      apply Behaviour.global_downgrade_cache_translation_encap_corresponding_evict
+      apply Behaviour.global_downgrade_cache_translation_encap_corresponding_request
       . case hgdown => exact hgdown
       . case hrequest_protocol => exact hfwd_sw_down_translation.cohEvict.atCorrClusterProxy.clusterMatch.atCorrCluster
       . case hdir_req_same_protocol_req => exact hfwd_sw_down_translation.cohEvictDir.sameProtocol
