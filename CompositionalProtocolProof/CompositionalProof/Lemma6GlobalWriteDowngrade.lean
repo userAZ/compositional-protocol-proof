@@ -1023,6 +1023,77 @@ lemma CompoundProtocol.global_sc_read_downgrade_le_cluster_dir_state {cluster_p_
     simp[hproxy_get_mr]
     simp[ValidRequest.isSCRead]
 
+/- adding lemmas for Case `noCoherentRead`, `SC Write Downgrade` on `Vd` state. -/
+
+lemma Behaviour.noCoherentRead.cluster_dir_vc_downgrade_event_immediately_finish_before_of_global_write_downgrade
+  {b : Behaviour n} {init : InitialSystemState n} {e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down : Event n}
+  (hgdown_in_b : e_gdown ∈ b) (hgdown : e_gdown.isGlobalDowngrade)
+  (hfwd_sw_down_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW n b init e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down)
+  : immediateFinishesBeforeAtClusterDirectory n b e_dir_shim_vc_down e_gdown := by
+  sorry
+
+lemma Behaviour.noCoherentRead.corresponding_cluster_dir_state_le_stateAfter_fwd_sw_downgrade {b : Behaviour n} {init : InitialSystemState n}
+  {e_dir_shim_vc_down : Event n} {e_gdown : Event n} (hsc_read : e_gdown.isSCWrite) (hgdown : e_gdown.isGlobalDowngrade)
+  (hgdown_in_b : e_gdown ∈ b)
+  -- (hdir_is_dir : e_dir_shim_vc_down.isDirectoryEvent)
+  -- (hdir_not_down : e_dir_shim_vc_down.down)
+  -- (hdir_get_mr : e_dir_shim_vc_down.req.isNcWeakRead)
+  (hgdown_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW.wrapper n b init e_gdown)
+  /-
+  (hprev_cluster_state_cmp_swmr :
+    ∀ e_gcache ∈ b, e_gcache.isGlobalCache →
+    Behaviour.stateBefore.globalCacheEvent.satisfiesCompoundSWMR' n b init e_gcache)-/
+  :
+  EntryState.state n (Behaviour.stateAfter n b (InitialSystemState.stateAt n init e_dir_shim_vc_down) e_dir_shim_vc_down) ≤
+  EntryState.cache n (Behaviour.stateAfter n b (InitialSystemState.stateAt n init e_gdown) e_gdown)
+  := by
+  /- Strategy:
+  1. show that with an Acquire, Acquire Dir event, Vd Dir downgrade, and Vc Dir downgrade, the state after e_dir_shim_vc_down is `I`.
+    (a) Show that Acquire Dir access `e_dir_shim_acq` sets the Directory State to `Vd`.
+    (b) Show that the Vd Dir Downgrade `e_dir_shim_vd_down` sets the Directory State to `Vc`.
+    (c) Show that the Vc Dir Downgrade `e_dir_shim_vc_down` sets the Directory State to `I`.
+  2. show that the stateAfter the SC Write Downgrade `e_gdown` is `I`.
+  QED.
+  -/
+  sorry
+
+lemma CompoundProtocol.noCoherentRead.global_sc_write_downgrade_le_cluster_dir_state
+  {b : Behaviour n} {init : InitialSystemState n}
+  (e_gdown : Event n) (hgdown_in_b : e_gdown ∈ b)
+  (hgdown : e_gdown.isGlobalDowngrade)
+  (hgdown_write_spec : Event.isSCWriteGlobalDowngrade n e_gdown)
+  (hgdown_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW.wrapper n b init e_gdown)
+  : Behaviour.dirEventStateLeGlobalCacheState' n b init e_gdown := by
+  simp[Behaviour.dirEventStateLeGlobalCacheState']
+
+  simp[Behaviour.latestDirectoryStateOfGlobalCache]
+  simp[Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents]
+
+  let htranslation_spec := hgdown_translation.choose_spec.right.choose_spec.right.choose_spec.right.choose_spec.right
+
+  /- Identify the event that finishes the last, right before `e_gdown` does. -/
+  have hevict_imm_finish_before_gdown := Behaviour.noCoherentRead.cluster_dir_vc_downgrade_event_immediately_finish_before_of_global_write_downgrade n
+    hgdown_in_b hgdown htranslation_spec
+  let e_dir_shim_vc_down := hgdown_translation.choose_spec.right.choose_spec.right.choose_spec.right.choose
+  let e_dir_shim_vc_down_in_b := hgdown_translation.choose_spec.right.choose_spec.right.choose_spec.right.choose_spec.left
+  rw[Behaviour.event_immediate_finish_before_gdown_singleton n e_dir_shim_vc_down_in_b hevict_imm_finish_before_gdown]
+  simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToState, -- Set.toOption,
+    -- nonempty_subtype, Set.mem_singleton_iff, exists_eq, ↓reduceDIte, ge_iff_le
+    ]
+
+  /- Simp into the state after the coherent read is ≤ the state after the coherent read downgrade. -/
+  have hcdir_fin_before_gdown_singleton := Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_cdir_singleton n b e_gdown hevict_imm_finish_before_gdown
+  have hsingleton := Set.toOption_singleton' e_dir_shim_vc_down hcdir_fin_before_gdown_singleton
+  rw[hcdir_fin_before_gdown_singleton] at hsingleton
+  rw[hsingleton]
+  simp
+
+  apply Behaviour.noCoherentRead.corresponding_cluster_dir_state_le_stateAfter_fwd_sw_downgrade
+  sorry
+  sorry
+  sorry
+  sorry
+
 /-- Lemma 6/7: A global downgrade `e_gdown` leaves it's corresponding cluster directory
 in state `s` ≤ `e_gdown.MRS` -/
 lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
@@ -1068,7 +1139,12 @@ lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
         cases hdown_translation
         . case scWriteDowngrade hgdown_write_spec hgdown_translation =>
           cases hgdown_translation
-          . case onDirSW hdir_on_sw htranslation => sorry
+          . case onDirSW hdir_on_sw htranslation =>
+            apply CompoundProtocol.noCoherentRead.global_sc_write_downgrade_le_cluster_dir_state
+            sorry
+            sorry
+            sorry
+            sorry
           . case onDirVd hdir_on_vd htranslation => sorry
           . case onDirVc hdir_on_vc htranslation => sorry
         . case scReadDowngrade hgdown_read_spec hgdown_translation =>
