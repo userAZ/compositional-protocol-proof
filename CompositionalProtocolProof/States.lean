@@ -459,8 +459,12 @@ def EntryState.state (entry_state : EntryState n) : State :=
   | .inr dir_state => dir_state.toState
 
 def EntryState.isCacheState (entry_state : EntryState n) : Prop := match entry_state with
-  | .inl _ => true
-  | .inr _ => false
+  | .inl _ => True
+  | .inr _ => False
+
+def EntryState.isDirectoryState (entry_state : EntryState n) : Prop := match entry_state with
+  | .inl _ => False
+  | .inr _ => True
 
 def EntryState.directory (entry_state : EntryState n) : DirectoryState n :=
   match entry_state with
