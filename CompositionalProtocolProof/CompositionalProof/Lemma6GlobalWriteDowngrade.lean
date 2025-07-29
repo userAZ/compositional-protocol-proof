@@ -1037,19 +1037,165 @@ lemma Behaviour.noCoherentRead.cluster_dir_vc_downgrade_event_immediately_finish
   : immediateFinishesBeforeAtClusterDirectory n b e_dir_shim_vc_down e_gdown := by
   sorry
 
-lemma Behaviour.noCoherentRead.corresponding_cluster_dir_state_le_stateAfter_fwd_sw_downgrade {b : Behaviour n} {init : InitialSystemState n}
-  {e_dir_shim_vc_down : Event n} {e_gdown : Event n} (hsc_read : e_gdown.isSCWrite) (hgdown : e_gdown.isGlobalDowngrade)
-  (hgdown_in_b : e_gdown ∈ b)
-  -- (hdir_is_dir : e_dir_shim_vc_down.isDirectoryEvent)
-  -- (hdir_not_down : e_dir_shim_vc_down.down)
-  -- (hdir_get_mr : e_dir_shim_vc_down.req.isNcWeakRead)
-  (hgdown_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW.wrapper n b init e_gdown)
+/- Is there a better way to automate these 3 lemmas with similar conclusions? -/
+lemma Behaviour.directory_vd_and_vc_downgrade_from_vd_state_le_i {b init e_gdown} {e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down : Event n}
+  (hfwd_sw_down_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW n b init e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down)
+  : EntryState.state n
+    (List.stateAfter n [e_dir_shim_vd_down, e_dir_shim_vc_down]
+      (Sum.inr (DirectoryState.Vd ⟨Vd, DirectoryEvent.SucceedingState._proof_3⟩))) ≤
+  EntryState.cache n (Sum.inl I) := by
+  rw[List.stateAfter]
+  simp[Event.SucceedingState]
+  -- e_dir_shim_vd_down is a directory event
+  match e_dir_shim_vd_down with
+  | .directoryEvent de_shim_vd_down =>
+    simp [DirectoryEvent.SucceedingState]
+    have hshim_vd_down_is_down := hfwd_sw_down_translation.gDownEncapVdWBDir.downgrade
+    simp[Event.down] at hshim_vd_down_is_down
+    -- resolve to the case that `e_vd_down` is indeed a downgrade
+    simp[hshim_vd_down_is_down]
+
+    have hshim_vd_down_is_vd_req := hfwd_sw_down_translation.gDownEncapVdWBDir.reqTranslation
+    simp[Event.req, ValidRequest.isNcWeakWrite] at hshim_vd_down_is_vd_req
+    -- resolve to case where we apply a Vd downgrade at the directory
+    simp[hshim_vd_down_is_vd_req]
+    simp[EntryState.directory]
+
+    -- Now resolve Shim Vc downgrade
+    simp[List.stateAfter]
+    simp[Event.SucceedingState]
+    match e_dir_shim_vc_down with
+    | .directoryEvent de_shim_vc_down =>
+      simp[DirectoryEvent.SucceedingState]
+      have hshim_vc_down_is_down := hfwd_sw_down_translation.gDownEncapVcInvalDir.downgrade
+      simp[Event.down] at hshim_vc_down_is_down
+      -- resolve to the case that `e_vd_down` is indeed a downgrade
+      simp[hshim_vc_down_is_down]
+
+      have hshim_vc_down_is_vc_req := hfwd_sw_down_translation.gDownEncapVcInvalDir.reqTranslation
+      simp[Event.req, ValidRequest.isNcWeakRead] at hshim_vc_down_is_vc_req
+      -- resolve to case where we apply a Vd downgrade at the directory
+      simp[hshim_vc_down_is_vc_req]
+      simp[EntryState.directory]
+
+      -- Now resolve Shim Vc downgrade
+      simp[EntryState.state, EntryState.cache, DirectoryState.toState]
+      simp[LE.le, State.le]
+    | .cacheEvent _ =>
+      have hshim_vc_down_is_dir := hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.atDir
+      simp[Event.isDirectoryEvent] at hshim_vc_down_is_dir
+  | .cacheEvent _ =>
+    have hshim_vd_down_is_dir := hfwd_sw_down_translation.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir
+    simp[Event.isDirectoryEvent] at hshim_vd_down_is_dir
+
+lemma Behaviour.directory_vd_and_vc_downgrade_from_vd_state_le_i' {b init e_gdown} {e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down : Event n}
+  (hfwd_sw_down_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW n b init e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down)
+  : EntryState.state n (List.stateAfter n [e_dir_shim_vd_down, e_dir_shim_vc_down] (Sum.inr (DirectoryState.Vd vd))) ≤
+  EntryState.cache n (Sum.inl I) := by
+  rw[List.stateAfter]
+  simp[Event.SucceedingState]
+  -- e_dir_shim_vd_down is a directory event
+  match e_dir_shim_vd_down with
+  | .directoryEvent de_shim_vd_down =>
+    simp [DirectoryEvent.SucceedingState]
+    have hshim_vd_down_is_down := hfwd_sw_down_translation.gDownEncapVdWBDir.downgrade
+    simp[Event.down] at hshim_vd_down_is_down
+    -- resolve to the case that `e_vd_down` is indeed a downgrade
+    simp[hshim_vd_down_is_down]
+
+    have hshim_vd_down_is_vd_req := hfwd_sw_down_translation.gDownEncapVdWBDir.reqTranslation
+    simp[Event.req, ValidRequest.isNcWeakWrite] at hshim_vd_down_is_vd_req
+    -- resolve to case where we apply a Vd downgrade at the directory
+    simp[hshim_vd_down_is_vd_req]
+    simp[EntryState.directory]
+
+    -- Now resolve Shim Vc downgrade
+    simp[List.stateAfter]
+    simp[Event.SucceedingState]
+    match e_dir_shim_vc_down with
+    | .directoryEvent de_shim_vc_down =>
+      simp[DirectoryEvent.SucceedingState]
+      have hshim_vc_down_is_down := hfwd_sw_down_translation.gDownEncapVcInvalDir.downgrade
+      simp[Event.down] at hshim_vc_down_is_down
+      -- resolve to the case that `e_vd_down` is indeed a downgrade
+      simp[hshim_vc_down_is_down]
+
+      have hshim_vc_down_is_vc_req := hfwd_sw_down_translation.gDownEncapVcInvalDir.reqTranslation
+      simp[Event.req, ValidRequest.isNcWeakRead] at hshim_vc_down_is_vc_req
+      -- resolve to case where we apply a Vd downgrade at the directory
+      simp[hshim_vc_down_is_vc_req]
+      simp[EntryState.directory]
+
+      -- Now resolve Shim Vc downgrade
+      simp[EntryState.state, EntryState.cache, DirectoryState.toState]
+      simp[LE.le, State.le]
+    | .cacheEvent _ =>
+      have hshim_vc_down_is_dir := hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.atDir
+      simp[Event.isDirectoryEvent] at hshim_vc_down_is_dir
+  | .cacheEvent _ =>
+    have hshim_vd_down_is_dir := hfwd_sw_down_translation.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir
+    simp[Event.isDirectoryEvent] at hshim_vd_down_is_dir
+
+lemma Behaviour.directory_vd_and_vc_downgrade_from_vc_state_le_i {b init e_gdown} {e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down : Event n}
+  (hfwd_sw_down_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW n b init e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down)
+  : EntryState.state n
+    (List.stateAfter n [e_dir_shim_vd_down, e_dir_shim_vc_down]
+      (Sum.inr (DirectoryState.Vc ⟨Vc, DirectoryEvent.SucceedingState._proof_4⟩))) ≤
+  EntryState.cache n (Sum.inl I) := by
+  rw[List.stateAfter]
+  simp[Event.SucceedingState]
+  -- e_dir_shim_vd_down is a directory event
+  match e_dir_shim_vd_down with
+  | .directoryEvent de_shim_vd_down =>
+    simp [DirectoryEvent.SucceedingState]
+    have hshim_vd_down_is_down := hfwd_sw_down_translation.gDownEncapVdWBDir.downgrade
+    simp[Event.down] at hshim_vd_down_is_down
+    -- resolve to the case that `e_vd_down` is indeed a downgrade
+    simp[hshim_vd_down_is_down]
+
+    have hshim_vd_down_is_vd_req := hfwd_sw_down_translation.gDownEncapVdWBDir.reqTranslation
+    simp[Event.req, ValidRequest.isNcWeakWrite] at hshim_vd_down_is_vd_req
+    -- resolve to case where we apply a Vd downgrade at the directory
+    simp[hshim_vd_down_is_vd_req]
+    simp[EntryState.directory]
+
+    -- Now resolve Shim Vc downgrade
+    simp[List.stateAfter]
+    simp[Event.SucceedingState]
+    match e_dir_shim_vc_down with
+    | .directoryEvent de_shim_vc_down =>
+      simp[DirectoryEvent.SucceedingState]
+      have hshim_vc_down_is_down := hfwd_sw_down_translation.gDownEncapVcInvalDir.downgrade
+      simp[Event.down] at hshim_vc_down_is_down
+      -- resolve to the case that `e_vd_down` is indeed a downgrade
+      simp[hshim_vc_down_is_down]
+
+      have hshim_vc_down_is_vc_req := hfwd_sw_down_translation.gDownEncapVcInvalDir.reqTranslation
+      simp[Event.req, ValidRequest.isNcWeakRead] at hshim_vc_down_is_vc_req
+      -- resolve to case where we apply a Vd downgrade at the directory
+      simp[hshim_vc_down_is_vc_req]
+      simp[EntryState.directory]
+
+      -- Now resolve Shim Vc downgrade
+      simp[EntryState.state, EntryState.cache, DirectoryState.toState]
+      simp[LE.le, State.le]
+    | .cacheEvent _ =>
+      have hshim_vc_down_is_dir := hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.atDir
+      simp[Event.isDirectoryEvent] at hshim_vc_down_is_dir
+  | .cacheEvent _ =>
+    have hshim_vd_down_is_dir := hfwd_sw_down_translation.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir
+    simp[Event.isDirectoryEvent] at hshim_vd_down_is_dir
+
+lemma Behaviour.noCoherentRead.corresponding_cluster_dir_state_le_stateAfter_fwd_sw_downgrade
+  {b : Behaviour n} {init : InitialSystemState n} {init_cdir_state : EntryState n}
+  {e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down : Event n} {e_gdown : Event n} (hsc_write : e_gdown.isSCWrite) (hgdown : e_gdown.isGlobalDowngrade)
+  (hfwd_sw_down_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW n b init e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down)
   /-
   (hprev_cluster_state_cmp_swmr :
     ∀ e_gcache ∈ b, e_gcache.isGlobalCache →
     Behaviour.stateBefore.globalCacheEvent.satisfiesCompoundSWMR' n b init e_gcache)-/
   :
-  EntryState.state n (Behaviour.stateAfter n b (InitialSystemState.stateAt n init e_dir_shim_vc_down) e_dir_shim_vc_down) ≤
+  EntryState.state n (Behaviour.stateAfter n b init_cdir_state e_dir_shim_vc_down) ≤
   EntryState.cache n (Behaviour.stateAfter n b (InitialSystemState.stateAt n init e_gdown) e_gdown)
   := by
   /- Strategy:
@@ -1061,15 +1207,74 @@ lemma Behaviour.noCoherentRead.corresponding_cluster_dir_state_le_stateAfter_fwd
   QED.
   -/
 
+  -- cache state after a Fwd Get SW Downgrade is I.
+  rw[Behaviour.stateAfter_fwd_sw_downgrade_eq_i n hgdown.isGlobal.reqAtCache hgdown.isDown hsc_write]
+
   simp[Behaviour.stateAfter]
-  -- Use lemma (`Behaviour.upTo_immediatePredecessor_eq`) to state the state is based off of the immediate predecessors (`e_dir_shim_acq` and `e_dir_shim_vd_down`) to `e_dir_shim_vc_down`
-  -- rw[Behaviour.upTo_immediatePredecessor_eq n ]
 
-  -- may be useful later `Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore`
-  -- rw[Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore]
-  -- rw[Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore]
+  -- Now show that the state after an Acquire + Directory Vd Downgrade + Directory Vc Downgrade is I.
+  rw[Behaviour.upTo_immediatePredecessor_eq n hfwd_sw_down_translation.vdWBDirImmBeforeVcInvalDir]
+  rw[Behaviour.upTo_immediatePredecessor_eq n hfwd_sw_down_translation.acqDirImmBeforeVdWBDir]
 
-  sorry
+  induction eventsUpToEvent n b e_dir_shim_acq generalizing init_cdir_state with
+  | nil =>
+    simp
+    rw [List.stateAfter]
+    simp[Event.SucceedingState]
+    match e_dir_shim_acq with
+    | .directoryEvent de_acq =>
+      simp [DirectoryEvent.SucceedingState]
+      -- Show the Directory Acq `de_acq` corresponds to the proxy `e_shim_acq`
+      have hacq_correspond_dir_acq := hfwd_sw_down_translation.acqDir.dirCorresponds.dirReq
+      simp[reqToDirOfRequestEvent] at hacq_correspond_dir_acq
+      have hacq_same_down_dir_acq := hfwd_sw_down_translation.acqDir.dirCorresponds.sameDown
+
+      have hshim_acq_spec := hfwd_sw_down_translation.acq
+      have hshim_acq_at_proxy := hfwd_sw_down_translation.acq.atCorrClusterProxy.atProxy
+      simp[Event.atProxy] at hshim_acq_at_proxy
+      match e_shim_acq with
+      | .cacheEvent ce_acq =>
+        -- Relate `e_shim_acq` not downgrade to `e_dir_shim_acq` not downgrade as well.
+        have hshim_acq_not_downgrade := hshim_acq_spec.downgrade
+        simp at hshim_acq_not_downgrade
+        simp[hshim_acq_not_downgrade,] at hacq_same_down_dir_acq
+        simp[Event.down,] at hacq_same_down_dir_acq
+        -- Simp goal; `e_dir_shim_acq` not a downgrade
+        simp[hacq_same_down_dir_acq]
+
+        -- Relate `e_shim_acq` Acquire request to `e_dir_shim_acq` Acquire request as well.
+        have hshim_acq_is_acq := hshim_acq_spec.reqTranslation
+        simp[Event.req, ValidRequest.isAcquire] at hshim_acq_is_acq
+
+        simp[Event.req, hshim_acq_is_acq] at hacq_correspond_dir_acq
+        simp[Event.reqToDirOfRequestEvent,] at hacq_correspond_dir_acq
+        simp[Event.req,] at hacq_correspond_dir_acq
+        simp[hshim_acq_is_acq,] at hacq_correspond_dir_acq
+        match hacq_made_on : EntryState.cache n
+          (stateBefore n b (InitialSystemState.stateAt n init (Event.cacheEvent ce_acq)) (Event.cacheEvent ce_acq)) with
+        | ⟨some .wr, false⟩ =>
+          simp[hacq_made_on] at hacq_correspond_dir_acq
+          simp [hacq_correspond_dir_acq]
+          apply Behaviour.directory_vd_and_vc_downgrade_from_vd_state_le_i
+          . case hfwd_sw_down_translation => exact hfwd_sw_down_translation
+        | ⟨some .wr, true⟩ | ⟨some .r, true⟩ | ⟨some .r, false⟩ | ⟨none, true⟩ | ⟨none, false⟩ =>
+          simp[hacq_made_on] at hacq_correspond_dir_acq
+          simp [hacq_correspond_dir_acq]
+          match hdir_acq_made_on : init_cdir_state.directory with
+          | .SW sw _ | .MR mr _ | .Vd vd | .Vc vc | .I i
+            =>
+            simp[]
+            try (all_goals apply Behaviour.directory_vd_and_vc_downgrade_from_vd_state_le_i n hfwd_sw_down_translation )
+            try (all_goals apply Behaviour.directory_vd_and_vc_downgrade_from_vc_state_le_i n hfwd_sw_down_translation )
+            try (all_goals apply Behaviour.directory_vd_and_vc_downgrade_from_vd_state_le_i' n hfwd_sw_down_translation )
+      | .directoryEvent _ => simp at hshim_acq_at_proxy
+    | .cacheEvent _ =>
+      have hdir_acq_is_dir := hfwd_sw_down_translation.acqDir.isDir
+      simp[Event.isDirectoryEvent] at hdir_acq_is_dir
+  | cons head l_tail ih =>
+    simp only [List.cons_append]
+    simp only [List.stateAfter]
+    apply ih
 
 lemma CompoundProtocol.noCoherentRead.global_sc_write_downgrade_le_cluster_dir_state
   {b : Behaviour n} {init : InitialSystemState n}
@@ -1103,10 +1308,9 @@ lemma CompoundProtocol.noCoherentRead.global_sc_write_downgrade_le_cluster_dir_s
   simp
 
   apply Behaviour.noCoherentRead.corresponding_cluster_dir_state_le_stateAfter_fwd_sw_downgrade
-  sorry
-  sorry
-  sorry
-  sorry
+  . case hsc_write => exact hgdown_write_spec.isSCWrite
+  . case hgdown => exact hgdown
+  . case hfwd_sw_down_translation => exact htranslation_spec
 
 /-- Lemma 6/7: A global downgrade `e_gdown` leaves it's corresponding cluster directory
 in state `s` ≤ `e_gdown.MRS` -/
@@ -1155,10 +1359,10 @@ lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
           cases hgdown_translation
           . case onDirSW hdir_on_sw htranslation =>
             apply CompoundProtocol.noCoherentRead.global_sc_write_downgrade_le_cluster_dir_state
-            sorry
-            sorry
-            sorry
-            sorry
+            . case hgdown_in_b => exact hgdown_in_b
+            . case hgdown => exact hgdown
+            . case hgdown_write_spec => exact hgdown_write_spec
+            . case hgdown_translation => exact htranslation
           . case onDirVd hdir_on_vd htranslation => sorry
           . case onDirVc hdir_on_vc htranslation => sorry
         . case scReadDowngrade hgdown_read_spec hgdown_translation =>
