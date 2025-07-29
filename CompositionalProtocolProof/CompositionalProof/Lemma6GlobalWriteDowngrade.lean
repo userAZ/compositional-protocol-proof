@@ -752,6 +752,16 @@ lemma Behaviour.cluster_dir_event_immediately_finish_before_of_global_read_downg
     . case hgdown => exact hgdown
     . case hfwd_mr_down_translation => exact hfwd_mr_down_translation
 
+-- consider the immediate successor event encapsulated in e_gdown.
+lemma Behaviour.state_imm_before_cluster_dir_event_eq_stateBefore_cluster_dir_event
+  -- (hcdir_first_event_at_dir : )
+  (e_cdir : Event n)
+  : eventToState n b init (immediateFinishesBeforeAtClusterDirectoryEventsNotEncap n b e_gdown).toOption
+    (Struct.directory (Event.clusterDirProtocolCorrespondingToGlobalCache n e_gdown))
+    =
+    EntryState.state n (stateBefore n b (InitialSystemState.stateAt n init e_cdir) e_cdir)
+  := by
+  sorry
 lemma CompoundProtocol.global_sc_read_downgrade_le_cluster_dir_state {cluster_p_of_gdown}
   {b : Behaviour n} {init : InitialSystemState n}
   (e_gdown : Event n) (hgdown_in_b : e_gdown ∈ b)
