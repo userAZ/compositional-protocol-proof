@@ -980,14 +980,47 @@ lemma CompoundProtocol.global_sc_read_downgrade_le_cluster_dir_state {cluster_p_
   simp[Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents]
 
   let htranslation_spec := hgdown_translation.choose_spec.right.choose_spec.right
-  let h := hgdown_translation.choose_spec.right.choose_spec.right
 
   -- use `Behaviour.cluster_dir_event_immediately_finish_before_of_global_read_downgrade` here.
   have hevict_imm_finish_before_gdown := b.cluster_dir_event_immediately_finish_before_of_global_read_downgrade n
     hgdown_in_b hgdown htranslation_spec
+  let e_dir_coh_read := hgdown_translation.choose_spec.right.choose
   let e_dir_coh_get_mr_in_b := htranslation_spec.cohReadDir.dirInB
   rw[Behaviour.event_immediate_finish_before_gdown_singleton n e_dir_coh_get_mr_in_b hevict_imm_finish_before_gdown]
-  sorry
+  simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToState, -- Set.toOption,
+    -- nonempty_subtype, Set.mem_singleton_iff, exists_eq, ↓reduceDIte, ge_iff_le
+    ]
+
+  /- Simp into the state after the coherent read is ≤ the state after the coherent read downgrade. -/
+  have hcdir_fin_before_gdown_singleton := Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_cdir_singleton n b e_gdown hevict_imm_finish_before_gdown
+  have hsingleton := Set.toOption_singleton' e_dir_coh_read hcdir_fin_before_gdown_singleton
+  rw[hcdir_fin_before_gdown_singleton] at hsingleton
+  rw[hsingleton]
+  simp
+
+  /- State that Get MR Dir is not a downgrade and is a SC Read -/
+  apply Behaviour.corresponding_cluster_dir_state_le_stateAfter_fwd_mr_downgrade
+  . case hsc_read => exact hgdown_read_spec.isSCWrite
+  . case hgdown => exact hgdown
+  . case hgdown_in_b => exact hgdown_in_b
+  . case hstateBefore_gdown_sw => exact hgdown_on_sw
+  . case hdir_is_dir => exact htranslation_spec.cohReadDir.isDir
+  . case hdir_not_down =>
+    simp[e_dir_coh_read, htranslation_spec.cohReadDir.dirCorresponds.sameDown]
+    have hproxy_get_mr := htranslation_spec.cohRead.downgrade
+    simp at hproxy_get_mr
+    simp[hproxy_get_mr]
+  . case hdir_get_mr =>
+    have hget_mr_dir_same_req_as_proxy := htranslation_spec.cohReadDir.dirCorresponds.dirReq
+    simp[e_dir_coh_read, htranslation_spec.cohReadDir.dirCorresponds.dirReq]
+    simp[Behaviour.reqToDirOfRequestEvent]
+    have hproxy_get_mr := htranslation_spec.cohRead.reqTranslation
+    simp[ValidRequest.isSCRead] at hproxy_get_mr
+    simp[hproxy_get_mr]
+
+    simp[Event.reqToDirOfRequestEvent]
+    simp[hproxy_get_mr]
+    simp[ValidRequest.isSCRead]
 
 /-- Lemma 6/7: A global downgrade `e_gdown` leaves it's corresponding cluster directory
 in state `s` ≤ `e_gdown.MRS` -/
