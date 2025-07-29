@@ -762,6 +762,18 @@ lemma Behaviour.state_imm_before_cluster_dir_event_eq_stateBefore_cluster_dir_ev
     EntryState.state n (stateBefore n b (InitialSystemState.stateAt n init e_cdir) e_cdir)
   := by
   sorry
+
+lemma Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore {b e init_state}
+  : (List.stateAfter n (eventsUpToEvent n b e ++ [e]) init_state) = ([e].stateAfter n (stateBefore n b init_state e))
+  := by
+  simp [stateBefore]
+  induction eventsUpToEvent n b e generalizing init_state with
+  | nil => simp[List.stateAfter]
+  | cons head l_tail ih =>
+    rw[List.cons_append]
+    nth_rw 3 [List.stateAfter]
+    nth_rw 1 [List.stateAfter]
+    apply ih
 lemma CompoundProtocol.global_sc_read_downgrade_le_cluster_dir_state {cluster_p_of_gdown}
   {b : Behaviour n} {init : InitialSystemState n}
   (e_gdown : Event n) (hgdown_in_b : e_gdown ∈ b)
