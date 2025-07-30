@@ -52,6 +52,11 @@ noncomputable def Behaviour.eventToState (b : Behaviour n) (init : InitialSystem
   | .none => init.stateAtStruct n struct
   | .some e => (b.stateAfter n (init.stateAt n e) e).state
 
+noncomputable def Behaviour.eventToEntryState (b : Behaviour n) (init : InitialSystemState n) (e? : Option (Event n)) (struct : Struct n) : EntryState n :=
+  match e? with
+  | .none => init.entryStateAtStruct n struct
+  | .some e => (b.stateAfter n (init.stateAt n e) e)
+
 /-- Project the (Subsingleton) set of events at CacheId `cid` that's the immediate Finishes Before event of an Event `e`.
 (although the title is "events", the set is Subsingleton, as shown by Lemma
 `Behaviour.immediateFinishesBeforeEvents_is_subsingleton` in Behaviours.lean) -/
