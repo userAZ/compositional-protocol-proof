@@ -607,6 +607,8 @@ lemma CompoundProtocol.global_sc_write_downgrade_le_cluster_dir_state {cluster_p
   have hget_dir_same_requester_put_dir : hget_dir.directoryEventSameRequester n hput_dir
     := Behaviour.cluster_dir_events_same_requester_of_global_sc_downgrade n hgdown_in_b hgdown htranslation_spec
 
+  simp[Behaviour.eventToEntryState]
+
   rw[Behaviour.stateAfter_get_sw_immediately_put_sw_at_directory_eq_i
       n (InitialSystemState.stateAt n init dir_coh_evict) hget_dir_same_requester_put_dir htranslation_spec.cohWriteImmBeforeEvict hcoh_write_dir hcoh_write_dir_not_down hcoh_write_dir_sc_write
       hcoh_evict_dir hcoh_evict_dir_down hcoh_evict_dir_sc_write
