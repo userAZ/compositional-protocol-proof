@@ -752,23 +752,6 @@ lemma Behaviour.cluster_dir_event_immediately_finish_before_of_global_read_downg
     . case hgdown => exact hgdown
     . case hfwd_mr_down_translation => exact hfwd_mr_down_translation
 
--- Not currently used -- need to work with "all events finishing before a Global downgrade not encapsulated by the global downgrade satisfy Compound SWMR"
--- consider the immediate successor event encapsulated in e_gdown.
-lemma Behaviour.state_imm_before_cluster_dir_event_eq_stateBefore_cluster_dir_event
-  -- (hcdir_first_event_at_dir : )
-  (e_cdir : Event n)
-  : eventToState n b init (immediateFinishesBeforeAtClusterDirectoryEventsNotEncap n b e_gdown).toOption
-    (Struct.directory (Event.clusterDirProtocolCorrespondingToGlobalCache n e_gdown))
-    =
-    EntryState.state n (stateBefore n b (InitialSystemState.stateAt n init e_cdir) e_cdir)
-  := by
-  /- show the set of events from `immediateFinishesBeforeAtClusterDirectoryEventsNotEncap` is the same as the list of events before `e_cdir`.
-  Need some assumptions;
-  1. ∀ `e`, `e_gdown.Encapsulates e`, `e_cdir`.OrderedBefore `e`.
-  Then (likely in a few helper lemmas) show that if there are no events in set `immediateFinishesBeforeAtClusterDirectoryEventsNotEncap`, then
-  the list of events before `e_cdir` is empty. -/
-  sorry
-
 lemma Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore {b e init_state}
   : (List.stateAfter n (eventsUpToEvent n b e ++ [e]) init_state) = ([e].stateAfter n (stateBefore n b init_state e))
   := by
@@ -1486,6 +1469,499 @@ lemma CompoundProtocol.noCoherentRead.global_sc_write_downgrade_le_cluster_dir_s
   . case hfwd_sw_down_translation => exact htranslation_spec
 
 /- adding lemmas for Case `noCoherentRead`, `SC Write Downgrade` on `Vd` state. -/
+
+lemma Behaviour.noCoherentRead.cluster_vc_downgrade_has_noIntermediateFinishesBeforeSameEntry_of_global_sc_write_downgrade_on_cluster_Vd
+  {b : Behaviour n} {init : InitialSystemState n} {e_gdown e_dir_shim_vd_down e_dir_shim_vc_down : Event n}
+  (hgdown : e_gdown.isGlobalDowngrade)
+  (hfwd_sw_down_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVd n b init  e_gdown e_dir_shim_vd_down e_dir_shim_vc_down)
+  : noIntermediateFinishesBeforeOfSameEntry n b e_dir_shim_vc_down e_gdown := by
+  simp[noIntermediateFinishesBeforeOfSameEntry]
+  intro e_inter hinter_in_b hinter_btn_vcInval_and_gdown
+
+  have hdir_vc_same_struct_inter := hinter_btn_vcInval_and_gdown.sameCidInterPred
+  match hdir_vc : e_dir_shim_vc_down, hinter : e_inter with
+  | .directoryEvent de_dir_vc_down , .directoryEvent de_inter =>
+    have hdir_ordered := b.orderedAtEntry.dir_ordered de_dir_vc_down de_inter
+    have hordered := hdir_ordered.ordered
+    simp[DirectoryEvent.Ordered] at hordered
+    cases hordered
+    . case inl hdir_vc_ob_inter =>
+      -- can't have another event between dir_evict and e_gdown ending.
+      --Event.Shim.Global.ToCluster.correspondingDirectoryEvent
+      -- have test : Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_inter := hfwd_sw_down_translation.
+      have hinter_dir_of_gdown : Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_inter := by
+        constructor
+        . case clusterMatch =>
+          constructor
+          . case sameAddr =>
+            simp[Event.sameAddr]
+            rw[hinter, hinter_btn_vcInval_and_gdown.sameAddr]
+            rw[← hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.clusterMatch.sameAddr]
+          . case atCorrCluster =>
+            have hdir_vcInval_corr_cluster := Behaviour.global_downgrade_cache_translation_encap_corresponding_request n hgdown
+              hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
+              (by rfl)
+              hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.atDir
+            simp[Event.reqAtCorrespondingGCacheOfCDir] at hdir_vcInval_corr_cluster
+            simp[Event.correspondingClusterOfGlobalCache]
+
+            simp[Event.protocol] at hdir_vcInval_corr_cluster
+            match hdir_evict_pi : de_dir_vc_down.pInst with
+            | .global => simp[hdir_evict_pi] at hdir_vcInval_corr_cluster
+            | .cluster2 | .cluster1 =>
+              simp[hdir_evict_pi] at hdir_vcInval_corr_cluster
+              simp[Event.reqAtGlobalCacheCid] at hdir_vcInval_corr_cluster
+              match e_gdown with
+              | .cacheEvent ce_gdown =>
+                simp_all
+                match hcegdown_cid : ce_gdown.cid with
+                | .cache pci =>
+                  simp_all []
+                  match pci with
+                  | .cluster1 _ | .cluster2 _ | .globalP fin2 =>
+                    simp_all
+                    try (
+                    simp[Event.protocol]
+                    simp[Event.struct] at hdir_vc_same_struct_inter
+                    rw[hdir_vc_same_struct_inter]
+                    exact hdir_evict_pi)
+                | .proxy pi => simp[hcegdown_cid] at hdir_vcInval_corr_cluster
+              | .directoryEvent _ => simp at hdir_vcInval_corr_cluster
+        . case atDir => simp [Event.isDirectoryEvent, hinter]
+        . case globalEncap =>
+          simp[Event.Encapsulates]
+          apply And.intro
+          . case left =>
+            simp [DirectoryEvent.OrderedBefore] at hdir_vc_ob_inter
+            calc e_gdown.oStart < e_dir_shim_vc_down.oStart := by simp[hdir_vc, hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.globalEncap.left]
+                -- _ < e_dir_shim_vc_down.oStart := by simp[hdir_vc, hfwd_sw_down_translation.cohEvictDir.reqEncapDir.left]
+                _ < e_dir_shim_vc_down.oEnd := e_dir_shim_vc_down.oWellFormed
+                _ < e_inter.oStart := by simp[hdir_vc, hinter, Event.oEnd, Event.oStart, hdir_vc_ob_inter]
+          . case right => simp[← Event.finishesBefore.eq_def, hinter, hinter_btn_vcInval_and_gdown.interSucc]
+      have honly_encap_vd_vc := hfwd_sw_down_translation.onlyVdVcDir
+      have hinter_is_dir_vd_or_vc := honly_encap_vd_vc e_inter (by simp[hinter, hinter_in_b]) hinter_dir_of_gdown
+      cases hinter_is_dir_vd_or_vc
+      . case inl hinter_eq_vd =>
+        -- contradiction, hinter is coh get SW dir event, that's immediately before coh put SW dir event.
+        rw[hinter] at hinter_eq_vd
+        absurd hinter_btn_vcInval_and_gdown.interPred
+        rw[hinter_eq_vd]
+        simp[Event.finishesBefore]
+        simp[Nat.le_iff_lt_or_eq]
+        apply Or.intro_left
+        have hinter_imm_pred_dir_vc := hfwd_sw_down_translation.vdWBDirImmBeforeVcInvalDir
+        simp[ImmediateBottomPredecessor,] at hinter_imm_pred_dir_vc
+        have hinter_pred_dir_vc := hinter_imm_pred_dir_vc.isImmPred.bPred.isPred
+        simp[Event.Predecessor, Event.OrderedBefore,] at hinter_pred_dir_vc
+        match e_dir_shim_vd_down with
+        | .directoryEvent de_dir_vd =>
+          simp[Event.oEnd, Event.oStart] at hinter_pred_dir_vc
+          simp[Event.oEnd]
+          calc de_dir_vd.oEnd < de_dir_vc_down.oStart := hinter_pred_dir_vc
+            _ < de_dir_vc_down.oEnd := de_dir_vc_down.oWellFormed
+        | .cacheEvent _ =>
+          have hvd_dir_is_dir := hfwd_sw_down_translation.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir
+          simp[Event.isDirectoryEvent] at hvd_dir_is_dir
+      . case inr hinter_eq_vc =>
+        -- contradiction, dir evict event can't finish before itself!
+        absurd hinter_btn_vcInval_and_gdown.interPred
+        simp[Event.finishesBefore]
+        simp[Nat.le_iff_lt_or_eq]
+        apply Or.intro_right
+        rw[hinter] at hinter_eq_vc
+        rw[hinter_eq_vc]
+    . case inr hinter_ob_dir_evict =>
+      absurd hinter_btn_vcInval_and_gdown.interPred
+      simp[Event.finishesBefore]
+      simp[Nat.le_iff_lt_or_eq]
+      apply Or.intro_left
+      simp[Event.oEnd]
+      calc de_inter.oEnd < de_dir_vc_down.oStart := hinter_ob_dir_evict
+        _ < de_dir_vc_down.oEnd := de_dir_vc_down.oWellFormed
+  | .cacheEvent ce_dir_vc , .directoryEvent de_inter
+  | .directoryEvent de_dir_vc , .cacheEvent ce_inter
+  | .cacheEvent ce_dir_vc , .cacheEvent ce_inter =>
+    have hdir_vc_dir := hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.atDir
+    simp[Event.struct] at hdir_vc_same_struct_inter
+    try simp[Event.isDirectoryEvent] at hdir_vc_dir
+
+lemma Behaviour.noCoherentRead.cluster_dir_vc_downgrade_event_immediately_finish_before_of_global_write_downgrade_on_cluster_Vd
+  {b : Behaviour n} {init : InitialSystemState n} {e_gdown e_dir_shim_vd_down e_dir_shim_vc_down : Event n}
+  (hgdown_in_b : e_gdown ∈ b) (hgdown : e_gdown.isGlobalDowngrade) (hvc_down_in_b : e_dir_shim_vc_down ∈ b)
+  (hfwd_sw_down_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVd n b init  e_gdown e_dir_shim_vd_down e_dir_shim_vc_down)
+  : immediateFinishesBeforeAtClusterDirectory n b e_dir_shim_vc_down e_gdown := by
+  constructor
+  . case finishBefore =>
+    constructor
+    . case finBefore =>
+      constructor
+      . case endBefore => simp[Event.finishesBefore, hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.globalEncap.right]
+      . case sameAddr =>
+        simp[ Event.sameAddr,]
+        apply Eq.symm
+        simp[← Event.sameAddr.eq_def, hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.clusterMatch.sameAddr]
+      . case predInB => exact hvc_down_in_b
+      . case succInB => exact hgdown_in_b
+    . case gCacheOfCDir =>
+      apply Behaviour.global_downgrade_cache_translation_encap_corresponding_request
+      . case hgdown => exact hgdown
+      . case hrequest_protocol => exact hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
+      . case hdir_req_same_protocol_req => rfl
+      . case hdir_is_dir => exact hfwd_sw_down_translation.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.atDir
+  . case noIntermediate =>
+    apply Behaviour.noCoherentRead.cluster_vc_downgrade_has_noIntermediateFinishesBeforeSameEntry_of_global_sc_write_downgrade_on_cluster_Vd
+    . case hgdown => exact hgdown
+    . case hfwd_sw_down_translation => exact hfwd_sw_down_translation
+
+lemma Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore' {b e es init_state}
+  : (List.stateAfter n (eventsUpToEvent n b e ++ es) init_state) = (es.stateAfter n (stateBefore n b init_state e))
+  := by
+  simp [stateBefore]
+  induction eventsUpToEvent n b e generalizing init_state with
+  | nil => simp[List.stateAfter]
+  | cons head l_tail ih =>
+    rw[List.cons_append]
+    nth_rw 2 [List.stateAfter]
+    nth_rw 1 [List.stateAfter]
+    apply ih
+
+lemma Behaviour.placeholder {b e_gdown e_cdir}
+  (h : ∀ e ∈ b, Event.reqAtCorrespondingGCacheOfCDir n e e_gdown → e_gdown.Encapsulates n e → ¬ e.OrderedBefore n e_cdir)
+  (himm_finish_before_empty : immediateFinishesBeforeAtClusterDirectoryEventsNotEncap n b e_gdown = ∅)
+  : (eventsUpToEvent n b e_cdir) = [] := by
+  sorry
+
+lemma Behaviour.placeholder'' {b e_gdown e_cdir}
+  (h : ∀ e ∈ b, Event.reqAtCorrespondingGCacheOfCDir n e e_gdown → e_gdown.Encapsulates n e → ¬ e.OrderedBefore n e_cdir)
+  (himm_finish_before_empty : ¬ immediateFinishesBeforeAtClusterDirectoryEventsNotEncap n b e_gdown = ∅)
+  : (eventsUpToEvent n b e_cdir) = [] := by
+  sorry
+
+lemma Behaviour.immediate_finishes_before_cluster_not_encap_singleton_of_nonempty_and_subsingleton
+  (himm_finish_before_subsingleton : (immediateFinishesBeforeAtClusterDirectoryEventsNotEncap n b e_gdown).Subsingleton)
+  (himm_finish_nonempty : ∃ e_pred ∈ b, immediateFinishesBeforeAtClusterDirectoryNotEncap n b e_pred e_gdown)
+  : {e_pred | e_pred ∈ b ∧ immediateFinishesBeforeAtClusterDirectoryNotEncap n b e_pred e_gdown} = {himm_finish_nonempty.choose} := by
+  have t := Set.mem_setOf.mpr himm_finish_nonempty.choose_spec.right
+
+  sorry
+
+
+lemma Set.toOption_singleton'' {α} {s : Set α} (e : α) {hsingleton : s = {e}} : s.toOption = some e := by
+  simp only [toOption, Option.dite_none_right_eq_some,]
+  have hs_nonempty' : Nonempty s := by
+    simp []
+    use e
+    simp[Set.eq_singleton_iff_unique_mem] at hsingleton
+    obtain ⟨hsingle_in_s, helem_of_s⟩ := hsingleton
+    simp[hsingle_in_s]
+  use hs_nonempty'
+  obtain ⟨_,hxs_eq_singleton⟩ := Set.eq_singleton_iff_unique_mem.mp hsingleton
+  simp
+  apply hxs_eq_singleton
+  . case h.intro.a =>
+    apply Nonempty.some_mem
+    . case h =>
+      use e
+
+lemma Behaviour.InitialSystemState_eq_of_cluster_directory_corresponding_to_global_cache {e_gdown e_cdir init}
+  (hdir_is_dir : e_cdir.isDirectoryEvent)
+  (hcdir_matching_cluster : Event.Shim.Global.ToCluster.matchingCluster n e_gdown e_cdir)
+  : InitialSystemState.stateAt n init e_cdir =
+  InitialSystemState.entryStateAtStruct n init
+    (Struct.directory (Event.clusterDirProtocolCorrespondingToGlobalCache n e_gdown))
+  := by
+  have hvd_cluster := hcdir_matching_cluster.atCorrCluster
+  simp[Event.correspondingClusterOfGlobalCache] at hvd_cluster
+
+  simp[Event.clusterDirProtocolCorrespondingToGlobalCache]
+
+  match e_gdown with
+  | .cacheEvent ce =>
+    simp_all
+    match hcid : ce.cid with
+    | .cache pci =>
+      simp_all[]
+      match pci with
+      | .globalP fin2 =>
+        match fin2 with
+        | 0 | 1 =>
+          simp at hvd_cluster
+          simp
+          simp[InitialSystemState.entryStateAtStruct]
+          -- [NOTE] update as needed;
+          simp[InitialSystemState.stateAt]
+          match e_cdir with
+          | .directoryEvent de =>
+            simp
+            simp[Event.protocol] at hvd_cluster
+            simp [hvd_cluster]
+          | .cacheEvent ce => simp[Event.isDirectoryEvent] at hdir_is_dir
+      | .cluster1 _ | .cluster2 _ => simp at hvd_cluster
+    | .proxy _ => simp[hcid] at hvd_cluster
+  | .directoryEvent _ => simp at hvd_cluster
+
+lemma Behaviour.cluster_directory_matching_global_cache_same_entry {e_gdown e_cdir b}
+  (hdir_is_dir : e_cdir.isDirectoryEvent)
+  (hcdir_matching_cluster : Event.Shim.Global.ToCluster.matchingCluster n e_gdown e_cdir)
+  (hpred : ∃ e_pred ∈ b, immediateFinishesBeforeAtClusterDirectoryNotEncap n b e_pred e_gdown)
+  : hpred.choose.sameEntry n e_cdir := by
+      constructor
+      . case sameStruct =>
+        simp[Event.sameStructure]
+
+        have hcdir_cluster_of_gcache := hcdir_matching_cluster.atCorrCluster
+        simp[Event.correspondingClusterOfGlobalCache] at hcdir_cluster_of_gcache
+
+        have hpred_cluster_of_gcache := hpred.choose_spec.right.finishBefore.gCacheOfCDir
+        simp[Event.reqAtCorrespondingGCacheOfCDir] at hpred_cluster_of_gcache
+
+        match e_gdown with
+        | .cacheEvent ce_g =>
+          simp_all
+          match hcid : ce_g.cid with
+          | .cache pci =>
+            simp_all[]
+            match pci with
+            | .globalP fin2 =>
+              match fin2 with
+              | 0 | 1 =>
+                simp at hcdir_cluster_of_gcache
+                match e_cdir with
+                | .directoryEvent de =>
+                  -- simp
+                  simp[Event.protocol] at hcdir_cluster_of_gcache
+                  nth_rw 1 [Event.struct]
+                  simp [hcdir_cluster_of_gcache]
+                  -- Now open up `hpred.choose`
+                  match he_pred : hpred.choose with
+                  | .directoryEvent de_pred =>
+                    simp[he_pred] at hpred_cluster_of_gcache
+                    match hpred_p : Event.protocol n (Event.directoryEvent de_pred) with
+                    | .cluster1
+                    | .cluster2 =>
+                      simp[hpred_p] at hpred_cluster_of_gcache
+                      simp[Event.reqAtGlobalCacheCid] at hpred_cluster_of_gcache
+                      match hgcid : ce_g.cid with
+                      | .cache pci =>
+                        simp[hgcid] at hpred_cluster_of_gcache
+                        match pci with
+                        | .globalP gfin2 =>
+                          simp at hpred_cluster_of_gcache
+                          rw[hpred_cluster_of_gcache] at hgcid
+
+                          simp[Event.struct]
+                          simp[Event.protocol] at hpred_p
+                          rw[hpred_p]
+
+                          -- second goal
+                          try (
+                            absurd hcid
+                            simp[hgcid]
+                          )
+                        | .cluster1 _ | .cluster2 _=>
+                          simp at hpred_cluster_of_gcache
+                      | .proxy _ =>
+                        simp[hgcid] at hpred_cluster_of_gcache
+                      -- sorry
+                    | .global =>
+                      simp[hpred_p] at hpred_cluster_of_gcache
+                  | .cacheEvent _ =>
+                    simp[he_pred] at hpred_cluster_of_gcache
+                | .cacheEvent ce => simp[Event.isDirectoryEvent] at hdir_is_dir
+            | .cluster1 _ | .cluster2 _ => simp at hcdir_cluster_of_gcache
+          | .proxy _ => simp[hcid] at hcdir_cluster_of_gcache
+        | .directoryEvent _ => simp at hcdir_cluster_of_gcache
+      . case sameAddr =>
+        have hcdir_addr_eq_gcache := hcdir_matching_cluster.sameAddr
+        have hpred_addr_eq_gcache := hpred.choose_spec.right.finishBefore.finBefore.sameAddr
+        simp_all[Event.sameAddr]
+
+lemma Behaviour.immediateBottomPredecessor_of_immediateFinishesBeforeAtClusterDirectoryNotEncap_and_matchingCluster_encap
+  -- (hcdir_first_event_at_dir : )
+  /- Will need a hypothesis that `e_cdir` is encapsulated by `e_gdown`,
+  and no other Event `e` is encapsulated by `e_gdown` at the coresponding cluster directory -/
+  (hcdir_is_dir : e_cdir.isDirectoryEvent)
+  (hcdir_matching_cluster : Event.Shim.Global.ToCluster.matchingCluster n e_gdown e_cdir)
+  (hpred : ∃ e_pred ∈ b, immediateFinishesBeforeAtClusterDirectoryNotEncap n b e_pred e_gdown)
+  : ImmediateBottomPredecessor n b hpred.choose e_cdir := by
+  constructor
+  . case isImmPred =>
+    -- all directory events are ordered. in the `e_cdir`.OrderedBefore `e_pred` case, show a contradiction.
+    -- have hpred_spec := himm_finish_nonempty.choose_spec.right
+    constructor
+    . case bPred =>
+      constructor
+      . case sameEntry => exact
+          Behaviour.cluster_directory_matching_global_cache_same_entry n hcdir_is_dir hcdir_matching_cluster hpred
+
+      . case isPred =>
+        sorry
+      . case predInB =>
+        sorry
+      . case succInB =>
+        sorry
+    . case noIntermediate =>
+      sorry
+  . case isBottomPred => sorry
+  . case isBottomSucc => sorry
+
+-- consider the immediate successor event encapsulated in e_gdown.
+lemma Behaviour.state_imm_before_cluster_dir_event_eq_stateBefore_cluster_dir_event {b init e_gdown}
+  -- (hcdir_first_event_at_dir : )
+  (e_cdir : Event n)
+  (hcdir_is_dir : e_cdir.isDirectoryEvent)
+  (hcdir_matching_cluster : Event.Shim.Global.ToCluster.matchingCluster n e_gdown e_cdir)
+  : stateBefore n b (InitialSystemState.stateAt n init e_cdir) e_cdir
+    =
+    eventToEntryState n b init (immediateFinishesBeforeAtClusterDirectoryEventsNotEncap n b e_gdown).toOption
+    (Struct.directory (Event.clusterDirProtocolCorrespondingToGlobalCache n e_gdown))
+  := by
+  /- show the set of events from `immediateFinishesBeforeAtClusterDirectoryEventsNotEncap` is the same as the list of events before `e_cdir`.
+  Need some assumptions;
+  1. ∀ `e`, `e_gdown.Encapsulates e`, `e_cdir`.OrderedBefore `e`. (or anything equivalent to saying this `e_cdir` is the first encap'd dir event.)
+  Then (likely in a few helper lemmas) show that if there are no events in set `immediateFinishesBeforeAtClusterDirectoryEventsNotEncap`, then
+  the list of events before `e_cdir` is empty. -/
+  simp[stateBefore]
+
+  simp[immediateFinishesBeforeAtClusterDirectoryEventsNotEncap]
+  have himm_finish_before_subsingleton := Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap_is_subsingleton n b e_gdown
+  by_cases Nonempty (immediateFinishesBeforeAtClusterDirectoryEventsNotEncap n b e_gdown)
+  . case pos himm_finish_nonempty =>
+    simp[] at himm_finish_nonempty
+    simp[immediateFinishesBeforeAtClusterDirectoryEventsNotEncap] at himm_finish_nonempty
+
+    let e_pred := himm_finish_nonempty.choose
+    have hpred_same_entry_cdir : e_pred.sameEntry n e_cdir :=
+      Behaviour.cluster_directory_matching_global_cache_same_entry n hcdir_is_dir hcdir_matching_cluster himm_finish_nonempty
+    -- show `e_pred` is the immediate predecessor to `e_cdir`
+    have hpred_imm_pred_e_cdir : ImmediateBottomPredecessor n b e_pred e_cdir :=
+      Behaviour.immediateBottomPredecessor_of_immediateFinishesBeforeAtClusterDirectoryNotEncap_and_matchingCluster_encap n
+        hcdir_is_dir hcdir_matching_cluster himm_finish_nonempty
+
+    rw [Behaviour.upTo_immediatePredecessor_eq n hpred_imm_pred_e_cdir]
+
+    --
+    -- simp[himm_finish_before_subsingleton]
+    have t := Set.mem_setOf.mpr himm_finish_nonempty.choose_spec.right
+    rw[Behaviour.immediate_finishes_before_cluster_not_encap_singleton_of_nonempty_and_subsingleton n himm_finish_before_subsingleton himm_finish_nonempty]
+
+    rw[Set.toOption_singleton'' himm_finish_nonempty.choose]
+    (
+    show {himm_finish_nonempty.choose} = {himm_finish_nonempty.choose}
+    rfl)
+    -- subst e_pred
+
+    simp[eventToEntryState, stateAfter]
+
+    have := InitialSystemState.same_entry_eq
+    rw[InitialSystemState.same_entry_eq n hpred_same_entry_cdir]
+  . case neg himm_finish_empty =>
+    rw [Set.not_nonempty_iff_eq_empty'] at himm_finish_empty
+    rw[← immediateFinishesBeforeAtClusterDirectoryEventsNotEncap]
+    rw[himm_finish_empty]
+    simp[eventToEntryState, Set.toOption]
+
+    rw[Behaviour.placeholder]
+    simp [List.stateAfter]
+
+    -- show initial states are the same
+    apply Behaviour.InitialSystemState_eq_of_cluster_directory_corresponding_to_global_cache
+    . case hdir_is_dir => sorry
+    . case hcdir_matching_cluster => sorry
+
+    sorry
+    sorry
+    sorry
+
+lemma Behaviour.noCoherentRead.corresponding_cluster_dir_state_le_stateAfter_fwd_sw_downgrade_on_cluster_Vd
+  {b : Behaviour n} {init : InitialSystemState n} {init_cdir_state : EntryState n}
+  {e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down : Event n} {e_gdown : Event n}
+  (hsc_write : e_gdown.isSCWrite) (hgdown : e_gdown.isGlobalDowngrade)
+  (hdir_on_vd : Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_gdown Vd)
+  (hfwd_sw_down_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVd n b init  e_gdown e_dir_shim_vd_down e_dir_shim_vc_down)
+  /-
+  (hprev_cluster_state_cmp_swmr :
+    ∀ e_gcache ∈ b, e_gcache.isGlobalCache →
+    Behaviour.stateBefore.globalCacheEvent.satisfiesCompoundSWMR' n b init e_gcache)-/
+  :
+  EntryState.state n (Behaviour.stateAfter n b (InitialSystemState.stateAt n init e_dir_shim_vc_down) e_dir_shim_vc_down) ≤
+  EntryState.cache n (Behaviour.stateAfter n b (InitialSystemState.stateAt n init e_gdown) e_gdown)
+  := by
+  /- Strategy:
+  1. Link the state finishing before (not encapsulated) at the cluster directory = Vd
+    to the state before `e_dir_shim_vd_down`.
+  2. show that with an Acquire, Acquire Dir event, Vd Dir downgrade, and Vc Dir downgrade, the state after e_dir_shim_vc_down is `I`.
+    (a) Show that the Vd Dir Downgrade `e_dir_shim_vd_down` sets the Directory State to `Vc`.
+    (b) Show that the Vc Dir Downgrade `e_dir_shim_vc_down` sets the Directory State to `I`.
+  3. show that the stateAfter the SC Write Downgrade `e_gdown` is `I`.
+  QED.
+  -/
+
+  -- cache state after a Fwd Get SW Downgrade is I.
+  rw[Behaviour.stateAfter_fwd_sw_downgrade_eq_i n hgdown.isGlobal.reqAtCache hgdown.isDown hsc_write]
+
+  simp[Behaviour.stateAfter]
+
+  -- Now show that the state after an Acquire + Directory Vd Downgrade + Directory Vc Downgrade is I.
+  rw[Behaviour.upTo_immediatePredecessor_eq n hfwd_sw_down_translation.vdWBDirImmBeforeVcInvalDir]
+
+  simp only [ List.append_assoc, ]
+  rw[ Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore']
+  /- But taking the `List.stateAfter` of the `eventsUpToEvent n b e_dir_shim_vd_down` and `e_dir_shim_vd_down`
+  is the same as taking the `List.stateAfter` of the state of the last finishing (not encap'd) event before `e_dir_shim_vd_down`
+  -/
+  simp [Shim.Global.toCluster.clusterDirStateBefore, latestDirectoryState.Before.GlobalCache, stateOfSubsingletonEventSet] at hdir_on_vd
+
+  have hvd_vc_same_entry : e_dir_shim_vd_down.sameEntry n e_dir_shim_vc_down := by
+    have hvd_imm_pred_vc := hfwd_sw_down_translation.vdWBDirImmBeforeVcInvalDir
+    simp[ImmediateBottomPredecessor,] at hvd_imm_pred_vc
+    have hvd_same_struct_vc := hvd_imm_pred_vc.isImmPred.sameStructure
+    exact hvd_imm_pred_vc.isImmPred.bPred.sameEntry
+  rw[← InitialSystemState.same_entry_eq n hvd_vc_same_entry]
+  rw[Behaviour.state_imm_before_cluster_dir_event_eq_stateBefore_cluster_dir_event n e_dir_shim_vd_down]
+
+  -- apply Behaviour.state_imm_before_cluster_dir_event_eq_stateBefore_cluster_dir_event
+  sorry
+  sorry
+  sorry
+  sorry
+
+lemma CompoundProtocol.noCoherentRead.global_sc_write_downgrade_on_Vd_le_cluster_dir_state
+  {b : Behaviour n} {init : InitialSystemState n}
+  (e_gdown : Event n) (hgdown_in_b : e_gdown ∈ b)
+  (hgdown : e_gdown.isGlobalDowngrade)
+  (hgdown_write_spec : Event.isSCWriteGlobalDowngrade n e_gdown)
+  (hdir_on_vd : Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_gdown Vd)
+  (hgdown_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVd.wrapper n b init e_gdown)
+  : Behaviour.dirEventStateLeGlobalCacheState' n b init e_gdown := by
+  simp[Behaviour.dirEventStateLeGlobalCacheState']
+
+  simp[Behaviour.latestDirectoryStateOfGlobalCache]
+  simp[Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents]
+
+  let htranslation_spec := hgdown_translation.choose_spec.right.choose_spec.right
+  let hvc_inval_in_b := hgdown_translation.choose_spec.right.choose_spec.left
+
+  /- Identify the event that finishes the last, right before `e_gdown` does. -/
+  -- (hgdown_in_b : e_gdown ∈ b) (hgdown : e_gdown.isGlobalDowngrade) (hvc_down_in_b : e_dir_shim_vc_down ∈ b)
+  -- (hfwd_sw_down_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW n b init e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down)
+  have hevict_imm_finish_before_gdown := Behaviour.noCoherentRead.cluster_dir_vc_downgrade_event_immediately_finish_before_of_global_write_downgrade_on_cluster_Vd n
+    hgdown_in_b hgdown hvc_inval_in_b htranslation_spec
+  let e_dir_shim_vc_down := hgdown_translation.choose_spec.right.choose
+  let e_dir_shim_vc_down_in_b := hgdown_translation.choose_spec.right.choose_spec.left
+  rw[Behaviour.event_immediate_finish_before_gdown_singleton n e_dir_shim_vc_down_in_b hevict_imm_finish_before_gdown]
+  simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToState, -- Set.toOption,
+    -- nonempty_subtype, Set.mem_singleton_iff, exists_eq, ↓reduceDIte, ge_iff_le
+    ]
+
+  /- Simp into the state after the coherent read is ≤ the state after the coherent read downgrade. -/
+  have hcdir_fin_before_gdown_singleton := Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_cdir_singleton n b e_gdown hevict_imm_finish_before_gdown
+  have hsingleton := Set.toOption_singleton' e_dir_shim_vc_down hcdir_fin_before_gdown_singleton
+  rw[hcdir_fin_before_gdown_singleton] at hsingleton
+  rw[hsingleton]
+  simp
+
+  sorry
 
 /- adding lemmas for Case `noCoherentRead`, `SC Write Downgrade` on `Vc` state. -/
 
