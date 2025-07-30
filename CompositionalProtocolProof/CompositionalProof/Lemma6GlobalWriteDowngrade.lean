@@ -1540,9 +1540,13 @@ lemma CompoundProtocol.globalDowngrade.satisfies_compound_swmr
             . case hgdown => exact hgdown
             . case hgdown_write_spec => exact hgdown_write_spec
             . case hgdown_translation => exact htranslation
-          . case onDirVd hdir_on_vd htranslation => sorry
-          . case onDirVc hdir_on_vc htranslation => sorry
+          . case onDirVd hdir_on_vd htranslation =>
+            sorry
+          . case onDirVc hdir_on_vc htranslation =>
+            sorry
         . case scReadDowngrade hgdown_read_spec hgdown_translation =>
           cases hgdown_translation
-          . case onDirSW hdir_on_sw htranslation => sorry
-          . case onDirVd hdir_on_vd htranslation => sorry
+          . case onDirSW hdir_on_sw htranslation =>
+            sorry
+          . case onDirVd hdir_on_vd htranslation =>
+            sorry
