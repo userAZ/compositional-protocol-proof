@@ -10,7 +10,7 @@ variable (n : Nat)
 
 /-- Directory Event Has permissions. -/
 def Behaviour.dirEventStateLeGlobalCacheState (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : Prop :=
-  e_dir.req.MRS ≤ b.globalCacheStateOfDirEventState n init e_dir
+  e_dir.req.MRS ≤ (b.globalCacheStateOfDirEventState n init e_dir).state
 
 /-- Def 2.47,a: Compound SWMR: directory event has permissions in global cache. -/
 structure CompoundSWMR.stateAfterClusterDirEventLeGlobalCache (b : Behaviour n) (init : InitialSystemState n) (e_cdir : Event n) : Prop where
@@ -19,7 +19,7 @@ structure CompoundSWMR.stateAfterClusterDirEventLeGlobalCache (b : Behaviour n) 
 
 /-- The corresponding directory has state permissions ≤ the state after a global cache event -/
 def Behaviour.dirEventStateLeGlobalCacheState' (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : Prop :=
-  b.latestDirectoryStateOfGlobalCache n init e_gcache ≤ (b.stateAfter n (init.stateAt n e_gcache) e_gcache).cache
+  (b.latestDirectoryStateOfGlobalCache n init e_gcache).state ≤ (b.stateAfter n (init.stateAt n e_gcache) e_gcache).cache
 
 /-- Def 2.47,b: Compound SWMR: global cache downgrade events (or all global cache events) have corresponding state in
 the directory that's ≤ global cache event. (i.e. corresponding dir event state finish immediately before global cache event
@@ -48,7 +48,7 @@ before considering `e_gdown`'s translation events to the Cluster Directory. -/
 
 /-- The corresponding directory has state permissions ≤ the state after a global cache event -/
 def Behaviour.dirEventState.Before.LeGlobalCacheState' (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : Prop :=
-  Behaviour.latestDirectoryState.Before.GlobalCache n b init e_gcache ≤ (b.stateBefore n (init.stateAt n e_gcache) e_gcache).cache
+  (Behaviour.latestDirectoryState.Before.GlobalCache n b init e_gcache).state ≤ (b.stateBefore n (init.stateAt n e_gcache) e_gcache).cache
 
 structure CompoundSWMR.stateAfterClusterDirEvent.Before.LeGlobalCache' (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : Prop where
   gCache : e_gcache.isGlobalCache

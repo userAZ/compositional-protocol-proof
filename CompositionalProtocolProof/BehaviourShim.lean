@@ -85,25 +85,25 @@ def Event.globalCidCorrespondingToClusterDir (e_dir : Event n) : CacheId n :=
 
 /-- Assumption: The set of events from projecting the events at `cid` is singleton. -/
 noncomputable def Behaviour.stateOfSubsingletonEventSet
-  (b : Behaviour n) (init : InitialSystemState n) (struct : Struct n) (s : Set (Event n)) : State :=
-  b.eventToState n init s.toOption struct
+  (b : Behaviour n) (init : InitialSystemState n) (struct : Struct n) (s : Set (Event n)) : EntryState n :=
+  b.eventToEntryState n init s.toOption struct
 
-noncomputable def Behaviour.globalCacheStateOfDirectoryEvent (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : State :=
+noncomputable def Behaviour.globalCacheStateOfDirectoryEvent (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : EntryState n :=
   let global_cache_cid := Struct.cache (e_dir.globalCidCorrespondingToClusterDir n)
   let global_event_imm_finish_before_dir := b.immediateFinishesBeforeAtGlobalCacheNotEncapEvents n e_dir
   b.stateOfSubsingletonEventSet n init global_cache_cid global_event_imm_finish_before_dir
 
 def Behaviour.clusterDirNoPermsInGlobalCache (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : Prop :=
   -- clusterDir : e_dir.isClusterDir
-  ¬ e_dir.req.MRS ≤ b.globalCacheStateOfDirectoryEvent n init e_dir
+  ¬ e_dir.req.MRS ≤ (b.globalCacheStateOfDirectoryEvent n init e_dir).state
 
 def Behaviour.clusterDirHasPermsInGlobalCache (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : Prop :=
   -- clusterDir : e_dir.isClusterDir
-  e_dir.req.MRS ≤ b.globalCacheStateOfDirectoryEvent n init e_dir
+  e_dir.req.MRS ≤ (b.globalCacheStateOfDirectoryEvent n init e_dir).state
 
 lemma Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncapEvents_is_singleton (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n)
   -- [TODO] state that hinit_i : all initial states are in I.
-  (hinit_i : sorry) (hcdir_has_perms : e_dir.req.MRS ≤ b.globalCacheStateOfDirectoryEvent n init e_dir)
+  (hinit_i : sorry) (hcdir_has_perms : e_dir.req.MRS ≤ (b.globalCacheStateOfDirectoryEvent n init e_dir).state )
   : (b.immediateFinishesBeforeAtGlobalCacheNotEncapEvents n e_dir).Subsingleton := by
   sorry
 
@@ -313,18 +313,18 @@ def Event.clusterDirProtocolCorrespondingToGlobalCache (e_gcache : Event n) : Pr
     | .proxy _ => panic! "Error: Expected `e_gcache` to be a Global _Cache_ Event, not a _Proxy_ Cache Event."
   | .directoryEvent _ => panic! "Error: Expected `e_gcache` to be a Global _Cache_ Event, not a Directory Event."
 
-noncomputable def Behaviour.globalCacheStateOfDirEventState (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : State :=
+noncomputable def Behaviour.globalCacheStateOfDirEventState (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : EntryState n :=
   let global_cache_cid := Struct.cache (e_dir.globalCidCorrespondingToClusterDir n)
   let global_event_imm_finish_before_dir := (b.immediateFinishesBeforeAtGlobalCacheEvents n e_dir)
   b.stateOfSubsingletonEventSet n init global_cache_cid global_event_imm_finish_before_dir
 
-noncomputable def Behaviour.latestDirectoryStateOfGlobalCache (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : State :=
+noncomputable def Behaviour.latestDirectoryStateOfGlobalCache (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : EntryState n :=
   let cluster_dir_struct := Struct.directory (e_gcache.clusterDirProtocolCorrespondingToGlobalCache n)
   let cluster_dir_imm_finish_before_global := b.immediateFinishesBeforeAtClusterDirectoryEvents n e_gcache
   b.stateOfSubsingletonEventSet n init cluster_dir_struct cluster_dir_imm_finish_before_global
 
 /-- The state at the Cluster Directory before a corresopnding Global Cache Event `e_gcache`.-/
-noncomputable def Behaviour.latestDirectoryState.Before.GlobalCache (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : State :=
+noncomputable def Behaviour.latestDirectoryState.Before.GlobalCache (b : Behaviour n) (init : InitialSystemState n) (e_gcache : Event n) : EntryState n :=
   let cluster_dir_struct := Struct.directory (e_gcache.clusterDirProtocolCorrespondingToGlobalCache n)
   let cluster_dir_imm_finish_before_global_not_encap := b.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap n e_gcache
   b.stateOfSubsingletonEventSet n init cluster_dir_struct cluster_dir_imm_finish_before_global_not_encap
@@ -466,7 +466,7 @@ inductive Behaviour.Shim.Global.bothWriteRead.Down (b : Behaviour n) (init : Ini
   : Behaviour.Shim.Global.bothWriteRead.Down b init p e_gdown
 
 def Behaviour.Shim.Global.toCluster.clusterDirStateBefore (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) (s : State) : Prop :=
-  Behaviour.latestDirectoryState.Before.GlobalCache n b init e_gdown = s
+  Behaviour.latestDirectoryState.Before.GlobalCache n b init e_gdown = Sum.inl s
 
 /-- Helper for (Shim) Axiom 16: a Global `Write` Downgrade to a Cluster Protocol with no Coherent Read on Vd state
 is translated to a Directory state check, directory downgrades from Vd to Vc, and Vc to I. -/
