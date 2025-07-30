@@ -1633,12 +1633,6 @@ lemma Behaviour.placeholder {b e_gdown e_cdir}
   : (eventsUpToEvent n b e_cdir) = [] := by
   sorry
 
-lemma Behaviour.placeholder'' {b e_gdown e_cdir}
-  (h : ∀ e ∈ b, Event.reqAtCorrespondingGCacheOfCDir n e e_gdown → e_gdown.Encapsulates n e → ¬ e.OrderedBefore n e_cdir)
-  (himm_finish_before_empty : ¬ immediateFinishesBeforeAtClusterDirectoryEventsNotEncap n b e_gdown = ∅)
-  : (eventsUpToEvent n b e_cdir) = [] := by
-  sorry
-
 lemma Behaviour.immediate_finishes_before_cluster_not_encap_singleton_of_nonempty_and_subsingleton
   (himm_finish_before_subsingleton : (immediateFinishesBeforeAtClusterDirectoryEventsNotEncap n b e_gdown).Subsingleton)
   (himm_finish_nonempty : ∃ e_pred ∈ b, immediateFinishesBeforeAtClusterDirectoryNotEncap n b e_pred e_gdown)
@@ -1646,7 +1640,6 @@ lemma Behaviour.immediate_finishes_before_cluster_not_encap_singleton_of_nonempt
   have t := Set.mem_setOf.mpr himm_finish_nonempty.choose_spec.right
 
   sorry
-
 
 lemma Set.toOption_singleton'' {α} {s : Set α} (e : α) {hsingleton : s = {e}} : s.toOption = some e := by
   simp only [toOption, Option.dite_none_right_eq_some,]
