@@ -352,6 +352,11 @@ def InitialSystemState.stateAtStruct (init : InitialSystemState n) (struct : Str
   | .directory pi => (init.directoryStates pi).toState
   | .cache cid => init.cacheStates cid
 
+def InitialSystemState.entryStateAtStruct (init : InitialSystemState n) (struct : Struct n) : EntryState n :=
+  match struct with
+  | .directory pi => Sum.inr (init.directoryStates pi)
+  | .cache cid => Sum.inl (init.cacheStates cid)
+
 /-- Events are at the same Cache. -/
 def Event.sameCid (e₁ e₂ : Event n) : Prop :=
   match e₁, e₂ with
