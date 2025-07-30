@@ -307,6 +307,24 @@ structure Event.sameEntry (e₁ e₂ : Event n) : Prop where
   sameStruct : e₁.sameStructure n e₂
   sameAddr : e₁.sameAddr n e₂
 
+lemma InitialSystemState.same_entry_eq {init e₁ e₂}
+  (h : e₁.sameEntry n e₂)
+  : (InitialSystemState.stateAt n init e₁) = (InitialSystemState.stateAt n init e₂) := by
+  have hsame_struct := h.sameStruct
+  simp[Event.sameStructure] at hsame_struct
+  simp[Event.struct] at hsame_struct
+
+  match e₁, e₂ with
+  | .directoryEvent de₁, .directoryEvent de₂
+  | .cacheEvent ce₁, .cacheEvent ce₂ =>
+    simp at hsame_struct
+    simp [stateAt]
+    rw[hsame_struct]
+  | .directoryEvent de₁, .cacheEvent ce₂
+  | .cacheEvent ce₁, .directoryEvent de₂ =>
+    simp at hsame_struct
+
+
 noncomputable def CacheEvent.SucceedingState (e : CacheEvent n) (s : State) : State :=
   match e.down with
   | false => e.req.RequestState s
