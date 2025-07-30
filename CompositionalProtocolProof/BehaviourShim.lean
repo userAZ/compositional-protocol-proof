@@ -210,6 +210,10 @@ def Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap : Behaviou
 | b, e_succ => {e_pred ∈ b | b.immediateFinishesBeforeAtClusterDirectoryNotEncap n e_pred e_succ}
 -- [NOTE] prove the above is subsingleton?
 
+lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap_is_subsingleton (b : Behaviour n) (e_succ : Event n)
+  : (b.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap n e_succ).Subsingleton := by
+  sorry
+
 -- END: State before a global downgrade is translated satisfies Compound SWMR:
 
 lemma Behaviour.contradiction_of_two_directory_events_immediate_finishes_before_successor_event
