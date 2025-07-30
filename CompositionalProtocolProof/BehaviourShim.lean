@@ -475,7 +475,7 @@ structure Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVd (b :
   vdWBDirImmBeforeVcInvalDir : b.ImmediateBottomPredecessor n e_dir_shim_vd_down e_dir_shim_vc_down
   gDownEncapVcInvalDir : Event.Shim.Global.ToCluster.translateDirectoryEvent n e_gdown e_dir_shim_vc_down ValidRequest.isNcWeakRead True
   -- `e_gdown` only encapsulates these 2 directory events at the corresponding cluster
-  onlyWriteEvictDir : ∀ e_cdir ∈ b, Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_cdir →
+  onlyVdVcDir : ∀ e_cdir ∈ b, Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_cdir →
     e_cdir = e_dir_shim_vd_down ∨ e_cdir = e_dir_shim_vc_down
 
 def Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVd.wrapper (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) : Prop :=
@@ -492,7 +492,7 @@ structure Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW (b :
   vdWBDirImmBeforeVcInvalDir : b.ImmediateBottomPredecessor n e_dir_shim_vd_down e_dir_shim_vc_down
   gDownEncapVcInvalDir : Event.Shim.Global.ToCluster.translateDirectoryEvent n e_gdown e_dir_shim_vc_down ValidRequest.isNcWeakRead True
   -- `e_gdown` only encapsulates these 3 directory events at the corresponding cluster
-  onlyWriteEvictDir : ∀ e_cdir ∈ b, Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_cdir →
+  onlyAcqVdVcDir : ∀ e_cdir ∈ b, Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_cdir →
     e_cdir = e_dir_shim_acq ∨ e_cdir = e_dir_shim_vd_down ∨ e_cdir = e_dir_shim_vc_down
 
 def Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW.wrapper (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) : Prop :=
@@ -502,7 +502,7 @@ def Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW.wrapper (b
 structure Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVc (b : Behaviour n) (init : InitialSystemState n) (e_gdown e_dir_shim_vc_down : Event n) : Prop where
   gDownEncapVcInvalDir : Event.Shim.Global.ToCluster.translateDirectoryEvent n e_gdown e_dir_shim_vc_down ValidRequest.isNcWeakRead True
   -- `e_gdown` only encapsulates this 1 directory event at the corresponding cluster
-  onlyWriteEvictDir : ∀ e_cdir ∈ b, Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_cdir →
+  onlyVcDir : ∀ e_cdir ∈ b, Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_cdir →
     e_cdir = e_dir_shim_vc_down
 
 def Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirVc.wrapper (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) : Prop :=
