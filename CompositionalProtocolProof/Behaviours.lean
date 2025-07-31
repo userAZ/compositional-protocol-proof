@@ -2091,6 +2091,32 @@ lemma Behaviour.eventsAtEventEntry_imm_pred_equiv
 noncomputable def Behaviour.eventsUpToEvent (b : Behaviour n) (e : Event n) : List (Event n) :=
   b.eventsAtEventEntry n e |>.upToEvent n e
 
+lemma Behaviour.eventsUpToEntry_at_e_entry (b : Behaviour n) (e : Event n) :
+  ∀ e' ∈ b.eventsUpToEvent n e, b.eventAtEntry n e' e.struct e.addr := by
+  intro e' he'_in_up_to
+  apply eventsAtEventEntry_at_e_entry
+  . case a =>
+    simp[eventsUpToEvent] at he'_in_up_to
+    simp[List.upToEvent] at he'_in_up_to
+    apply List.mem_of_mem_take
+    . case h =>
+      exact he'_in_up_to
+
+lemma Behaviour.eventsUpToEvent_ordered_before_sorted (b : Behaviour n) (e : Event n)
+  : (b.eventsUpToEvent n e).Sorted (Event.OrderedBefore n) := by
+  simp[List.Sorted]
+  rw[List.pairwise_iff_getElem]
+  simp[eventsUpToEvent]
+  simp[List.upToEvent]
+  intro i j hi_lt_len hj_lt_len hi_lt_j
+
+  have hes_sorted := Behaviour.eventsAtEventEntry_ordered_before_sorted n b e
+  simp[List.Sorted] at hes_sorted
+  rw[List.pairwise_iff_getElem] at hes_sorted
+  apply hes_sorted
+  . case _hij =>
+    exact hi_lt_j
+
 lemma Behaviour.predecessor_of_e_in_eventsUpToEvent_e {e'} (b : Behaviour n) (e : Event n)
   (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e)
   (he_is_dir : e.isDirectoryEvent)
@@ -2142,6 +2168,15 @@ lemma Behaviour.predecessor_of_e_in_eventsUpToEvent_e {e'} (b : Behaviour n) (e 
 
   -- apply Behaviour.predecessor_of_e_in_eventsAtEventEntry_e
   sorry
+
+lemma Behaviour.eventsUpToEvent_in_b (b : Behaviour n) (e : Event n)
+  : ∀ e' ∈ b.eventsUpToEvent n e, e' ∈ b := by
+  simp[eventsUpToEvent]
+  simp[List.upToEvent]
+  intro e' he'_in_es_upto_event
+  apply b.eventsAtEventEntry_in_b
+  . case a => exact List.mem_of_mem_take he'_in_es_upto_event
+
 lemma Behaviour.eventsUpToEvent_at_cache_all_cache (b : Behaviour n) (e : Event n) (he_cache : e.isCacheEvent)
   : ∀ e' ∈ b.eventsUpToEvent n e, e'.isCacheEvent := by
   simp[eventsUpToEvent]
@@ -2168,7 +2203,7 @@ lemma Behaviour.eventsUpToEvent_no_dups (b : Behaviour n) (e : Event n)
   . case a => exact List.take_sublist (List.idxOf e (eventsAtEventEntry n b e)) (eventsAtEventEntry n b e)
   . case a => exact b.eventsAtEventEntry_no_dups n e
 
-lemma Behaviour.eventsUpToEntry_at_e_entry (b : Behaviour n) (e : Event n) :
+lemma Behaviour.eventsUpToEntry_at_e_entry' {b : Behaviour n} {e : Event n} :
   ∀ e' ∈ b.eventsUpToEvent n e, b.eventAtEntry n e' e.struct e.addr := by
   intro e' he'_in_up_to
   apply eventsAtEventEntry_at_e_entry
