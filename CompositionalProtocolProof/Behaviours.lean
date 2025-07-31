@@ -1071,6 +1071,40 @@ instance EventAtEntry.instIsTotal {n} {b} {st} {addr} :
     rw[← he₂_at_c]
     simp[Event.struct]
 
+lemma Behaviour.directory_event_is_bottom (b : Behaviour n) (e : Event n)
+  : e.isDirectoryEvent → b.IsBottomEvent n e := by
+  intro he_is_dir
+  simp[IsBottomEvent]
+  simp[IsNotEncapAtSameStruct]
+  intro e' he'_in_b he'_encap_same_struct
+  have hsame_struct := he'_encap_same_struct.sameEntry.sameStruct
+  simp[Event.sameStructure] at hsame_struct
+  match e with
+  | .directoryEvent de =>
+    match e' with
+    | .directoryEvent de' =>
+      -- simp
+      have he'_encap_e := he'_encap_same_struct.encap
+      simp[Event.Encapsulates, Event.oStart, Event.oEnd] at he'_encap_e
+      have hordered := b.orderedAtEntry.dir_ordered de de'
+      cases hordered.ordered
+      . case inl hde_de' =>
+        simp[DirectoryEvent.OrderedBefore] at hde_de'
+        absurd hde_de'
+        simp[Nat.le_iff_lt_or_eq]
+        apply Or.intro_left
+        calc de'.oStart < de.oStart := he'_encap_e.left
+          _ < de.oEnd := de.oWellFormed
+      . case inr hde'_de =>
+        simp[DirectoryEvent.OrderedBefore] at hde'_de
+        absurd hde'_de
+        simp[Nat.le_iff_lt_or_eq]
+        apply Or.intro_left
+        calc de.oStart < de.oEnd := de.oWellFormed
+          _ < de'.oEnd := he'_encap_e.right
+    | .cacheEvent _ => simp[Event.struct] at hsame_struct
+  | .cacheEvent _ => simp [Event.isDirectoryEvent] at he_is_dir
+
 def Behaviour.bottomEventsAtEntry' (b : Behaviour n) (addr : Addr) (st : Struct n) : Set (EventAtEntry n b st addr) :=
   {e : EventAtEntry n b st addr | e.val ∈ b.es ∧ e.val.isBottomAtEntry n b st addr}
 
