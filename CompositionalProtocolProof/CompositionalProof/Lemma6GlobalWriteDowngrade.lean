@@ -2107,6 +2107,26 @@ lemma Behaviour.cluster_directory_matching_global_cache_same_entry {e_gdown e_cd
         have hpred_addr_eq_gcache := hpred.choose_spec.right.finishBefore.finBefore.sameAddr
         simp_all[Event.sameAddr]
 
+/-- Helper Lemma: If an Event `e_pred` Finishes Before `e_gdown`,
+and it's ordered after `e_cdir` that's encapsulated by `e_gdown`,
+then `e_gdown.Encapsulates e_pred`-/
+lemma Behaviour.gdown_encap_finish_before_cdir
+  (hdpred : e_pred = Event.directoryEvent de_pred)
+  (hdcdir : e_cdir = Event.directoryEvent de_cdir)
+  (hpred_finish_before_gdown : Event.finishesBefore n e_pred e_gdown)
+  (hcdir_ob_pred : DirectoryEvent.OrderedBefore n de_cdir de_pred)
+  (hgdown_encap_cdir : e_gdown.Encapsulates n e_cdir)
+  : e_gdown.Encapsulates n e_pred := by
+  simp[DirectoryEvent.OrderedBefore] at hcdir_ob_pred
+  simp[Event.Encapsulates]
+  apply And.intro
+  . case left =>
+    calc e_gdown.oStart < e_cdir.oStart := hgdown_encap_cdir.left
+      _ < e_cdir.oEnd := e_cdir.oWellFormed
+      _ < e_pred.oStart := by simp[hdcdir,hdpred,Event.oEnd,Event.oStart,hcdir_ob_pred]
+  . case right =>
+    simp[Event.finishesBefore] at hpred_finish_before_gdown
+    exact hpred_finish_before_gdown
 lemma Behaviour.immediateBottomPredecessor_of_immediateFinishesBeforeAtClusterDirectoryNotEncap_and_matchingCluster_encap
   -- (hcdir_first_event_at_dir : )
   /- Will need a hypothesis that `e_cdir` is encapsulated by `e_gdown`,
