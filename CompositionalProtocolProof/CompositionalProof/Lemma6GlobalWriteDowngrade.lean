@@ -86,20 +86,6 @@ lemma Behaviour.same_corresponding_gcache_same_struct {b : Behaviour n} {e_cdir 
         | .cluster1, .global =>
           all_goals simp [hde_e, hde_c, Event.reqAtGlobalCacheCid] at hcdir_at_gcache he_at_gcache
 
-lemma Behaviour.contradiction_of_directory_event_ends_eq {de de2}
-  {he_eq_cdir_end : Event.oEnd n (Event.directoryEvent de) = Event.oEnd n (Event.directoryEvent de2) }
-  {hde_ob_cdir : DirectoryEvent.OrderedBefore n de de2}
-  : False := by
-  simp[DirectoryEvent.OrderedBefore] at hde_ob_cdir
-  have hde_before_cdir_end : de.oEnd < de2.oEnd := by
-    calc de.oEnd < de2.oStart := hde_ob_cdir
-      _ < de2.oEnd := de2.oWellFormed
-  absurd hde_before_cdir_end
-  simp[Nat.le_iff_lt_or_eq,]
-  apply Or.intro_right
-  simp[Event.oEnd] at he_eq_cdir_end
-  simp[he_eq_cdir_end]
-
 lemma Behaviour.event_immediate_finish_before_gdown_singleton
   {b : Behaviour n} {e_cdir e_gdown : Event n} (he_cdir_in_b : e_cdir ∈ b) (he_cdir_satisfies : immediateFinishesBeforeAtClusterDirectory n b e_cdir e_gdown)
   : {e_pred | e_pred ∈ b ∧ Behaviour.immediateFinishesBeforeAtClusterDirectory n b e_pred e_gdown} = {e_cdir} := by

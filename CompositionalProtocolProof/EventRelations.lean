@@ -76,6 +76,20 @@ lemma Event.contradiction_of_ordered_both_ways
     _ < e.oStart := he'_ob_e
     _ < e.oEnd := e.oWellFormed
 
+lemma Event.contradiction_of_directory_event_ends_eq {de de2}
+  {he_eq_cdir_end : Event.oEnd n (Event.directoryEvent de) = Event.oEnd n (Event.directoryEvent de2) }
+  {hde_ob_cdir : DirectoryEvent.OrderedBefore n de de2}
+  : False := by
+  simp[DirectoryEvent.OrderedBefore] at hde_ob_cdir
+  have hde_before_cdir_end : de.oEnd < de2.oEnd := by
+    calc de.oEnd < de2.oStart := hde_ob_cdir
+      _ < de2.oEnd := de2.oWellFormed
+  absurd hde_before_cdir_end
+  simp[Nat.le_iff_lt_or_eq,]
+  apply Or.intro_right
+  simp[Event.oEnd] at he_eq_cdir_end
+  simp[he_eq_cdir_end]
+
 def Event.Predecessor : Event n → Event n → Prop
 | e_pred, e_succ => e_pred.OrderedBefore n e_succ
 
