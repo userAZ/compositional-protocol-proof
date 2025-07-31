@@ -144,11 +144,11 @@ lemma Behaviour.event_immediate_finish_before_gdown_singleton
           simp[DirectoryEvent.Ordered] at hordered
           cases hordered
           . case inl hde_ob_cdir =>
-            apply Behaviour.contradiction_of_directory_event_ends_eq
+            apply Event.contradiction_of_directory_event_ends_eq
             . case he_eq_cdir_end => exact he_eq_cdir_end
             . case hde_ob_cdir => exact hde_ob_cdir
           . case inr hcdir_ob_de =>
-            apply Behaviour.contradiction_of_directory_event_ends_eq
+            apply Event.contradiction_of_directory_event_ends_eq
             . case he_eq_cdir_end =>
               apply Eq.symm
               exact he_eq_cdir_end
