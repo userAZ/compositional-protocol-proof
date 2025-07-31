@@ -2481,6 +2481,43 @@ lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap_is_direc
         simp[hcid] at h
     | .directoryEvent _ => simp[Event.isCacheEvent] at hgdown_cache
 
+/-- Helper Lemma: An event `e` at the corresponding Cluster Directory to `e_gdown`, (`Event.reqAtCorrespondingGCacheOfCDir`)
+satisfies a similar definition `Event.correspondingClusterOfGlobalCache` -/
+lemma Behaviour.event_reqAtCorrespondingGCacheOfCDir_is_correspondingClusterOfGlobalCache
+  (he_req_corr_gcache : Event.reqAtCorrespondingGCacheOfCDir n event e_gdown)
+  : Event.correspondingClusterOfGlobalCache n e_gdown event (Event.protocol n) := by
+  simp [Event.reqAtCorrespondingGCacheOfCDir] at he_req_corr_gcache
+  simp [Event.correspondingClusterOfGlobalCache]
+
+  match event with
+  | .directoryEvent de =>
+    simp[Event.protocol] at he_req_corr_gcache
+    match hde_inst : de.pInst with
+    | .cluster1 | .cluster2 =>
+      simp[hde_inst] at he_req_corr_gcache
+      simp[Event.reqAtGlobalCacheCid] at he_req_corr_gcache
+
+      -- now match on e_gdown
+      match e_gdown with
+      | .cacheEvent cgdown =>
+        simp_all
+        match hgcid : cgdown.cid with
+        | .cache pci =>
+          simp_all [hgcid]
+          match pci with
+          | .globalP fin2 =>
+            match fin2 with
+            | 0 | 1 => simp_all[hde_inst, Event.protocol]
+          | .cluster1 _ | .cluster2 _ =>
+            simp at he_req_corr_gcache
+        | .proxy _ =>
+          simp [hgcid] at he_req_corr_gcache
+      | .directoryEvent _ =>
+        simp at he_req_corr_gcache
+    | .global =>
+      simp[hde_inst] at he_req_corr_gcache
+  | .cacheEvent _ => simp[] at he_req_corr_gcache
+
 lemma Behaviour.noCoherentRead.corresponding_cluster_dir_state_le_stateAfter_fwd_sw_downgrade_on_cluster_Vd
   {b : Behaviour n} {init : InitialSystemState n} -- {init_cdir_state : EntryState n}
   {e_dir_shim_vd_down e_dir_shim_vc_down : Event n} {e_gdown : Event n}
