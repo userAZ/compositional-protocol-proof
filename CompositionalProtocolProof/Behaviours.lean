@@ -2126,8 +2126,6 @@ lemma Behaviour.predecessor_of_e_in_eventsUpToEvent_e {e'} (b : Behaviour n) (e 
 
   simp [List.upToEvent]
   have := Behaviour.predecessor_of_e_in_eventsAtEventEntry_e n b e he_in_b he_bottom he_is_dir he'_pred_e
-  -- have t := List.mem_of_mem_take this
-
 
   rw [List.mem_take_iff_getElem]
   have hsorted := Behaviour.eventsAtEventEntry_ordered_before_sorted n b e
@@ -2137,7 +2135,7 @@ lemma Behaviour.predecessor_of_e_in_eventsUpToEvent_e {e'} (b : Behaviour n) (e 
   let hidx_of_e' := List.idxOf e' (eventsAtEventEntry n b e)
   use hidx_of_e'
 
-  have test :
+  have hidxe'_lt_min :
     hidx_of_e' < min (List.idxOf e (eventsAtEventEntry n b e)) (eventsAtEventEntry n b e).length
     := by
     simp
@@ -2158,16 +2156,30 @@ lemma Behaviour.predecessor_of_e_in_eventsUpToEvent_e {e'} (b : Behaviour n) (e 
 
         absurd contra
         intro he_ob_e'
-        have he'_ob_e := he'_pred_e
-        sorry
+        have he'_ob_e := he'_pred_e.isPred
+        simp[Event.Predecessor] at he'_ob_e
+        apply Event.contradiction_of_ordered_both_ways n he_ob_e' he'_ob_e
       . case inr he_eq_e'_idx =>
-        sorry
+        -- these are the same event, contradiction.
+        have he_in_es := Behaviour.bottom_e_in_b_impl_in_eventsAtEventEntry n b e he_in_b he_bottom
+        have he_idx_lt_len := List.idxOf_lt_length_of_mem he_in_es
+        have heq : (eventsAtEventEntry n b e)[List.idxOf e (eventsAtEventEntry n b e)] =
+          (eventsAtEventEntry n b e)[List.idxOf e' (eventsAtEventEntry n b e)] := by
+          simp[he_eq_e'_idx]
+        rw[List.getElem_idxOf] at heq
+        rw[List.getElem_idxOf] at heq
+
+        have he'_ob_e := he'_pred_e.isPred
+        simp[Event.Predecessor] at he'_ob_e
+        rw[heq] at he'_ob_e
+
+        apply Event.contradiction_of_reflexive_ordered_before n he'_ob_e
     . case right =>
       apply List.idxOf_lt_length_of_mem
       . case h => exact this
 
-  -- apply Behaviour.predecessor_of_e_in_eventsAtEventEntry_e
-  sorry
+  use hidxe'_lt_min
+  apply List.getElem_idxOf
 
 lemma Behaviour.eventsUpToEvent_in_b (b : Behaviour n) (e : Event n)
   : ∀ e' ∈ b.eventsUpToEvent n e, e' ∈ b := by
