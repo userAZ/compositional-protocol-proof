@@ -2112,6 +2112,8 @@ lemma Behaviour.immediateBottomPredecessor_of_immediateFinishesBeforeAtClusterDi
   /- Will need a hypothesis that `e_cdir` is encapsulated by `e_gdown`,
   and no other Event `e` is encapsulated by `e_gdown` at the coresponding cluster directory -/
   (hcdir_is_dir : e_cdir.isDirectoryEvent)
+  (hcdir_in_b : e_cdir ∈ b)
+  -- (h : ∀ e ∈ b, Event.reqAtCorrespondingGCacheOfCDir n e e_gdown → e_gdown.Encapsulates n e → ¬ e.OrderedBefore n e_cdir)
   (hcdir_matching_cluster : Event.Shim.Global.ToCluster.matchingCluster n e_gdown e_cdir)
   (hpred : ∃ e_pred ∈ b, immediateFinishesBeforeAtClusterDirectoryNotEncap n b e_pred e_gdown)
   : ImmediateBottomPredecessor n b hpred.choose e_cdir := by
@@ -2122,25 +2124,30 @@ lemma Behaviour.immediateBottomPredecessor_of_immediateFinishesBeforeAtClusterDi
     constructor
     . case bPred =>
       constructor
-      . case sameEntry => exact
-          Behaviour.cluster_directory_matching_global_cache_same_entry n hcdir_is_dir hcdir_matching_cluster hpred
-
+      . case sameEntry =>
+        apply Behaviour.cluster_directory_matching_global_cache_same_entry n hcdir_is_dir hcdir_matching_cluster hpred
       . case isPred =>
+        simp[Event.Predecessor, Event.OrderedBefore]
+        -- [] prove lemma to say that corresponding to a CDir as well means hpred.choose is a DirectoryEvent.
+        have test := hpred.choose_spec.right
         sorry
-      . case predInB =>
-        sorry
-      . case succInB =>
-        sorry
+      . case predInB => exact hpred.choose_spec.left
+      . case succInB => exact hcdir_in_b
     . case noIntermediate =>
+      simp[NoIntermediatePredecessor]
+      /- this implies there is another "immediate finishes before at cluster not encap" (`immediateFinishesBeforeAtClusterDirectoryNotEncap`)
+      like `hpred.choose`, but `hpred.choose` is the immediate.
+      -/
       sorry
   . case isBottomPred => sorry
-  . case isBottomSucc => sorry
+  . case isBottomSucc => exact Behaviour.directory_event_is_bottom n b e_cdir (by simp[hcdir_is_dir])
 
 -- consider the immediate successor event encapsulated in e_gdown.
 lemma Behaviour.state_imm_before_cluster_dir_event_eq_stateBefore_cluster_dir_event {b init e_gdown}
   -- (hcdir_first_event_at_dir : )
   (e_cdir : Event n)
   (hcdir_is_dir : e_cdir.isDirectoryEvent)
+  (hcdir_in_b : e_cdir ∈ b)
   (hcdir_matching_cluster : Event.Shim.Global.ToCluster.matchingCluster n e_gdown e_cdir)
   : stateBefore n b (InitialSystemState.stateAt n init e_cdir) e_cdir
     =
@@ -2167,7 +2174,7 @@ lemma Behaviour.state_imm_before_cluster_dir_event_eq_stateBefore_cluster_dir_ev
     -- show `e_pred` is the immediate predecessor to `e_cdir`
     have hpred_imm_pred_e_cdir : ImmediateBottomPredecessor n b e_pred e_cdir :=
       Behaviour.immediateBottomPredecessor_of_immediateFinishesBeforeAtClusterDirectoryNotEncap_and_matchingCluster_encap n
-        hcdir_is_dir hcdir_matching_cluster himm_finish_nonempty
+        hcdir_is_dir hcdir_in_b hcdir_matching_cluster himm_finish_nonempty
 
     rw [Behaviour.upTo_immediatePredecessor_eq n hpred_imm_pred_e_cdir]
 
@@ -2197,8 +2204,8 @@ lemma Behaviour.state_imm_before_cluster_dir_event_eq_stateBefore_cluster_dir_ev
 
     -- show initial states are the same
     apply Behaviour.InitialSystemState_eq_of_cluster_directory_corresponding_to_global_cache
-    . case hdir_is_dir => sorry
-    . case hcdir_matching_cluster => sorry
+    . case hdir_is_dir => exact hcdir_is_dir
+    . case hcdir_matching_cluster => exact hcdir_matching_cluster
 
     sorry
     sorry
