@@ -2172,6 +2172,24 @@ lemma Behaviour.event_at_same_entry_correspond_to_egdown_also_at_gCacheOfCDir {e
     | .proxy _ =>
       simp [hgcid] at hcdir_corr_gdown
   | .directoryEvent _ => simp [] at hcdir_corr_gdown
+
+/-- Helper Lemma : If an event `e` that's at the same entry as `e_cdir`,
+and `e_cdir` is at the corresponding Cluster to `e_gdown`,
+then `e` is a directory event. -/
+lemma Behaviour.event_at_same_entry_as_cdir_correspond_to_gdown_is_directory_event
+  {e : Event n}
+  (hpred_corr_to_gdown : Event.reqAtCorrespondingGCacheOfCDir n e e_gdown)
+  (hcdir_is_dir : e_cdir.isDirectoryEvent)
+  (hcdir_corr_gdown : Event.correspondingClusterOfGlobalCache n e_gdown e_cdir (Event.protocol n))
+  : e.isDirectoryEvent := by
+  simp[Event.reqAtCorrespondingGCacheOfCDir] at hpred_corr_to_gdown
+  match hdpred : e, hdcdir : e_cdir with
+  | .directoryEvent de_pred, .directoryEvent de_cdir => simp[Event.isDirectoryEvent]
+  | .cacheEvent _, .cacheEvent _
+  | .directoryEvent _, .cacheEvent _
+  | .cacheEvent _, .directoryEvent _ =>
+    simp [hdpred, Event.isDirectoryEvent] at hpred_corr_to_gdown hcdir_is_dir
+
 lemma Behaviour.immediateBottomPredecessor_of_immediateFinishesBeforeAtClusterDirectoryNotEncap_and_matchingCluster_encap
   -- (hcdir_first_event_at_dir : )
   /- Will need a hypothesis that `e_cdir` is encapsulated by `e_gdown`,
