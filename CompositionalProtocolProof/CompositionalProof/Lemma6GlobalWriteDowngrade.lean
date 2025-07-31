@@ -2518,6 +2518,18 @@ lemma Behaviour.event_reqAtCorrespondingGCacheOfCDir_is_correspondingClusterOfGl
       simp[hde_inst] at he_req_corr_gcache
   | .cacheEvent _ => simp[] at he_req_corr_gcache
 
+/-- Helper Lemma: an event `e` satisfying `Event.reqAtCorrespondingGCacheOfCDir` at `e_gdown`
+is a DirectoryEvent. -/
+lemma Behaviour.reqAtCorrespondingGCacheOfCDir_is_directory_event
+  (he_req_corr_gcache : Event.reqAtCorrespondingGCacheOfCDir n e e_gdown)
+  : e.isDirectoryEvent := by
+  simp[Event.isDirectoryEvent]
+  simp[Event.reqAtCorrespondingGCacheOfCDir] at he_req_corr_gcache
+
+  match e with
+  | .directoryEvent de => simp
+  | .cacheEvent _ => simp[] at he_req_corr_gcache
+
 lemma Behaviour.noCoherentRead.corresponding_cluster_dir_state_le_stateAfter_fwd_sw_downgrade_on_cluster_Vd
   {b : Behaviour n} {init : InitialSystemState n} -- {init_cdir_state : EntryState n}
   {e_dir_shim_vd_down e_dir_shim_vc_down : Event n} {e_gdown : Event n}
