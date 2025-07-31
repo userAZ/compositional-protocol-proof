@@ -32,7 +32,7 @@ structure Event.EncapAtSameStructure (e_bottom e : Event n) : Prop where
   encap : e_bottom.Encapsulates n e
   sameEntry : Event.sameEntry n e_bottom e
 
-abbrev Behaviour.IsNotEncapAtSameStruct (b : Behaviour n) (e : Event n) : Prop := ∀ e' ∈ b.es, ¬ e'.EncapAtSameStructure n e
+abbrev Behaviour.IsNotEncapAtSameStruct (b : Behaviour n) (e : Event n) : Prop := ∀ e' ∈ b, ¬ e'.EncapAtSameStructure n e
 
 def Behaviour.IsBottomEvent (b : Behaviour n) (e : Event n) : Prop := b.IsNotEncapAtSameStruct n e
 
@@ -947,7 +947,7 @@ lemma Behaviour.bottomEventsAtEntry_totally_ordered (b : Behaviour) (addr : Addr
 -- [TODO] Use EventAtEntry to define a total order.
 -- Note: because you put the event first it makes this hard to curry...
 structure Behaviour.eventAtEntry (b : Behaviour n) (e : Event n) (st : Struct n) (addr : Addr) : Prop where
-  eInB : e ∈ b.es
+  eInB : e ∈ b
   eAtStruct : e.struct = st
   eAtAddr : e.addr = addr
   -- eBottom : b.IsBottomEvent n e
