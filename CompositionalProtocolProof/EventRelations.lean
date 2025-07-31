@@ -55,6 +55,27 @@ lemma DirectoryEvent.ordered_events {de₁ de₂ : DirectoryEvent n} {e₁ e₂ 
   | .cacheEvent _, .directoryEvent _ => contradiction
   | .cacheEvent _, .cacheEvent _ => contradiction
 
+lemma Event.contradiction_of_reflexive_ordered_before
+  (he_ob_e : Event.OrderedBefore n e e)
+  : False := by
+  simp[Event.OrderedBefore] at he_ob_e
+  absurd he_ob_e
+  simp[Nat.le_iff_lt_or_eq]
+  apply Or.intro_left
+  exact e.oWellFormed
+
+lemma Event.contradiction_of_ordered_both_ways
+  (he_ob_e' : Event.OrderedBefore n e e')
+  (he'_ob_e : Event.OrderedBefore n e' e)
+  : False := by
+  absurd he_ob_e'
+  simp[OrderedBefore]
+  simp[Nat.le_iff_lt_or_eq]
+  apply Or.intro_left
+  calc e'.oStart < e'.oEnd := e'.oWellFormed
+    _ < e.oStart := he'_ob_e
+    _ < e.oEnd := e.oWellFormed
+
 def Event.Predecessor : Event n → Event n → Prop
 | e_pred, e_succ => e_pred.OrderedBefore n e_succ
 
