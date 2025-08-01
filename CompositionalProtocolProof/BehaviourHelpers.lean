@@ -162,6 +162,38 @@ lemma Behaviour.gdown_encap_finish_before_cdir
     simp[Event.finishesBefore] at hpred_finish_before_gdown
     exact hpred_finish_before_gdown
 
+lemma Behaviour.directory_acq_from_sw_state_eq_stateAfter_vd_append_rest
+  {es : List (Event n)} {e_dir_shim_acq : Event n}
+  (hacq_is_dir : e_dir_shim_acq.isDirectoryEvent)
+  (hacq_not_down : ¬ e_dir_shim_acq.down)
+  (hacq_is_acq_or_weak_write : e_dir_shim_acq.req.isAcquire ∨ e_dir_shim_acq.req.isNcWeakWrite)
+  -- (hfwd_sw_down_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW n b init e_gdown e_shim_acq e_dir_shim_acq e_dir_shim_vd_down e_dir_shim_vc_down)
+  :
+  List.stateAfter n ([e_dir_shim_acq] ++ es) (Sum.inr (DirectoryState.SW ⟨SW, by simp⟩ owner)) = List.stateAfter n es (Sum.inr (DirectoryState.Vd ⟨Vd, by simp⟩))
+  -- (List.stateAfter n ([e_dir_shim_vd_down] ++ [e_dir_shim_vc_down]) (Sum.inr (DirectoryState.Vd a✝)))
+  := by
+  rw[List.stateAfter.eq_def]
+  simp[Event.SucceedingState]
+  -- e_dir_shim_vd_down is a directory event
+  match e_dir_shim_acq with
+  | .directoryEvent de_shim_acq =>
+    simp [DirectoryEvent.SucceedingState]
+    simp[Event.down] at hacq_not_down
+    -- resolve to the case that `e_vd_down` is indeed a downgrade
+    simp[hacq_not_down]
+
+    simp[Event.req, ValidRequest.isAcquire, ValidRequest.isNcWeakWrite] at hacq_is_acq_or_weak_write
+    cases hacq_is_acq_or_weak_write
+    . case inl hacq_is_acq =>
+      -- resolve to case where we apply a Vd downgrade at the directory
+      simp[hacq_is_acq]
+      simp[EntryState.directory]
+    . case inr hacq_is_nc_weak_write =>
+      -- resolve to case where we apply a Vd downgrade at the directory
+      simp[hacq_is_nc_weak_write]
+  | .cacheEvent _ =>
+    simp[Event.isDirectoryEvent] at hacq_is_dir
+
 /- Something like this is probably the best way to break down the 3 lemmas -/
 lemma Behaviour.directory_vd_downgrade_from_vd_state_eq_stateAfter_vc_append_rest
   {es : List (Event n)} {e_dir_shim_vd_down : Event n}
