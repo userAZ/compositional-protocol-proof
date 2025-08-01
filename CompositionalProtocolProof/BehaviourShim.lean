@@ -377,7 +377,7 @@ structure Event.isSCWriteGlobalDowngrade (e : Event n) : Prop where
 
 structure Event.isSCReadGlobalDowngrade (e : Event n) : Prop where
   isGlobalDown : e.isGlobalCache
-  isSCWrite : e.isSCRead
+  isSCRead : e.isSCRead
 
 /-- A directory event `e` is made on state `s` -/
 def Behaviour.dirEventMadeOn (b : Behaviour n) (init : InitialSystemState n) (e : Event n) (s : State) : Prop :=
