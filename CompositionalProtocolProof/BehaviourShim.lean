@@ -112,14 +112,18 @@ lemma Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncapEvents_is_singleton 
 def Behaviour.existsGlobalCacheAccessOfDirEvent (b : Behaviour n) (e_dir : Event n) : Prop :=
   ∃ e_greq ∈ b, Event.clusterDirEncapCorrespondingGlobalCache n b e_dir e_greq
 
+def Event.clusterDirNotEncapCorrespondingGlobalCache (b : Behaviour n) (e_dir : Event n) : Prop :=
+  ∀ e_gcache ∈ b, e_dir.reqAtCorrespondingGCacheOfCDir n e_gcache →
+    e_gcache.isGlobalCache → ¬ e_dir.Encapsulates n e_gcache
+
 /-- (Shim) Axiom 15: Cluster Directory Events are translated to Request Events at the corresponding Cache in the Global Protocol. -/
 inductive Behaviour.Shim.ClusterToGlobal (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n)
 | encapGlobalCache (no_global_cache_perms : b.clusterDirNoPermsInGlobalCache n init e_dir)
   (request_global_cache : b.existsGlobalCacheAccessOfDirEvent n e_dir)
   : Behaviour.Shim.ClusterToGlobal b init e_dir
 | noGlobalCache (has_global_cache_perms : b.clusterDirHasPermsInGlobalCache n init e_dir)
-  (no_global_cache_request : ¬b.existsGlobalCacheAccessOfDirEvent n e_dir)
-  : Behaviour.Shim.ClusterToGlobal  b init e_dir
+  (no_global_cache_request : e_dir.clusterDirNotEncapCorrespondingGlobalCache n b)
+  : Behaviour.Shim.ClusterToGlobal b init e_dir
 
 /- For Stating the Global Cache State a Directory Event has corresponding permissions of. -/
 structure Behaviour.globalCacheFinishesBeforeClusterDirectory (b : Behaviour n) (e_gcache e_cdir : Event n) where
