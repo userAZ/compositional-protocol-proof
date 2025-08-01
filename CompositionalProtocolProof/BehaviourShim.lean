@@ -40,9 +40,11 @@ structure Event.globalCacheEventOfClusterDir (e_greq e_dir : Event n) where
   gReq : e_dir.reqAtCorrespondingGCacheOfCDir n e_greq -- Global Cache Request corresponds to e_dir's cluster
   matchingOp : e_greq.req = ⟨⟨e_dir.req.val.rw, true, .SC⟩, by simp[Request.IsValid']⟩
 
-structure Event.clusterDirEncapCorrespondingGlobalCache (e_dir e_greq : Event n) : Prop where
+structure Event.clusterDirEncapCorrespondingGlobalCache (b : Behaviour n) (e_dir e_greq : Event n) : Prop where
   encapGlobalCache : e_dir.Encapsulates n e_greq
   gReqOfCDir : e_greq.globalCacheEventOfClusterDir n e_dir
+  onlyGlobalReq : ∀ e_gcache ∈ b, e_dir.reqAtCorrespondingGCacheOfCDir n e_gcache →
+    e_gcache.isGlobalCache → e_dir.Encapsulates n e_gcache → e_gcache = e_greq
 
 -- state the previous state of the corresponding global cache does not have sufficient state for a directory access.
 
@@ -108,14 +110,7 @@ lemma Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncapEvents_is_singleton 
   sorry
 
 def Behaviour.existsGlobalCacheAccessOfDirEvent (b : Behaviour n) (e_dir : Event n) : Prop :=
-  ∃ e_greq ∈ b, Event.clusterDirEncapCorrespondingGlobalCache n e_dir e_greq
-  /- [TODO] add field to state that any (bottom) event in the global directory, encapsulated by `e_cdir` is it's translated `e_greq` -/
-  -- onlyGlobalReq : ∀ e_cdir ∈ b, Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_cdir →
-  --   e_cdir = e_dir_shim_vd_down
-
-structure Behaviour.Shim.ClusterToGlobalAxiom (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) where
-  no_global_perms_then_request : e_dir.isClusterDir → b.clusterDirNoPermsInGlobalCache n init e_dir → b.existsGlobalCacheAccessOfDirEvent n e_dir
-  has_global_perms_no_request : e_dir.isClusterDir → b.clusterDirHasPermsInGlobalCache n init e_dir → ¬b.existsGlobalCacheAccessOfDirEvent n e_dir
+  ∃ e_greq ∈ b, Event.clusterDirEncapCorrespondingGlobalCache n b e_dir e_greq
 
 /-- (Shim) Axiom 15: Cluster Directory Events are translated to Request Events at the corresponding Cache in the Global Protocol. -/
 inductive Behaviour.Shim.ClusterToGlobal (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n)
