@@ -109,6 +109,9 @@ lemma Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncapEvents_is_singleton 
 
 def Behaviour.existsGlobalCacheAccessOfDirEvent (b : Behaviour n) (e_dir : Event n) : Prop :=
   ∃ e_greq ∈ b, Event.clusterDirEncapCorrespondingGlobalCache n e_dir e_greq
+  /- [TODO] add field to state that any (bottom) event in the global directory, encapsulated by `e_cdir` is it's translated `e_greq` -/
+  -- onlyGlobalReq : ∀ e_cdir ∈ b, Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_cdir →
+  --   e_cdir = e_dir_shim_vd_down
 
 structure Behaviour.Shim.ClusterToGlobalAxiom (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) where
   no_global_perms_then_request : e_dir.isClusterDir → b.clusterDirNoPermsInGlobalCache n init e_dir → b.existsGlobalCacheAccessOfDirEvent n e_dir

@@ -1,11 +1,22 @@
 import CompositionalProtocolProof.CompoundSWMR
 import CompositionalProtocolProof.CompoundProtocol
+import CompositionalProtocolProof.BehaviourHelpers
 import CompositionalProtocolProof.BehaviourRelationDefs
 import CompositionalProtocolProof.CompositionalProof.ProofBasic
+import CompositionalProtocolProof.CompositionalProof.ProofBasicHelperLemmas
 
 import CompositionalProtocolProof.CompositionalProof.Lemma5GlobalRequest
 
 variable (n : Nat)
+
+lemma CompoundProtocol.clusterDirectoryEvent.satisfies_compound_swmr
+  (cmp : CompoundProtocol n)
+  (b : Behaviour n) (init : InitialSystemState n)
+  (e_cdir : Event n) (hcdir_in_b : e_gdown ∈ b)
+  -- (hcdir : e_cdir.isClusterDirectory)
+  -- (hcdir : e_cdir.notDowngrade)
+  : CompoundSWMR n b init e_cdir := by
+  sorry
 
 /-- Lemma 4 : A Cluster Request Event leaves a protocol in Compound SWMR. -/
 lemma Behaviour.cluster_request_enforces_compound_swmr
