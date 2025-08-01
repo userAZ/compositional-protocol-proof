@@ -530,6 +530,8 @@ inductive Behaviour.Shim.Global.ToCluster.noCoherentRead.WriteDowngradeTranslati
 is translated to a Directory state check, directory downgrades from Vd to Vc, and Vc to I. -/
 structure Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirVd (b : Behaviour n) (init : InitialSystemState n) (e_gdown e_dir_shim_vd_down : Event n) : Prop where
   gDownEncapVdWBDir : Event.Shim.Global.ToCluster.translateDirectoryEvent n e_gdown e_dir_shim_vd_down ValidRequest.isNcWeakWrite True
+  onlyVdDir : ∀ e_cdir ∈ b, Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_cdir →
+    e_cdir = e_dir_shim_vd_down
 
 def Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirVd.wrapper (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) : Prop :=
   ∃ e_shim_acq ∈ b, ∃ e_dir_shim_acq ∈ b, ∃ e_dir_shim_vd_down ∈ b,
@@ -542,6 +544,8 @@ structure Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirSW (b : 
   acq : Event.Shim.Global.ToCluster.translateProxyEvent n e_gdown e_shim_acq ValidRequest.isAcquire False
   acqDirImmBeforeVdWBDir : b.ImmediateBottomPredecessor n e_dir_shim_acq e_dir_shim_vd_down
   gDownEncapVdWBDir : Event.Shim.Global.ToCluster.translateDirectoryEvent n e_gdown e_dir_shim_vd_down ValidRequest.isNcWeakWrite True
+  onlyAcqVdDir : ∀ e_cdir ∈ b, Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_cdir →
+    e_cdir = e_dir_shim_acq ∨ e_cdir = e_dir_shim_vd_down
 
 def Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirSW.wrapper (b : Behaviour n) (init : InitialSystemState n) (e_gdown : Event n) : Prop :=
   ∃ e_shim_acq ∈ b, ∃ e_dir_shim_acq ∈ b, ∃ e_dir_shim_vd_down ∈ b,
