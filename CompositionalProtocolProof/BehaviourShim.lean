@@ -565,7 +565,7 @@ inductive Behaviour.Shim.Global.noCoherentRead.Down (b : Behaviour n) (init : In
 | scWriteDowngrade (hwrite_down : e_gdown.isSCWriteGlobalDowngrade)
   (translation : Behaviour.Shim.Global.ToCluster.noCoherentRead.WriteDowngradeTranslation n b init e_gdown)
   : Behaviour.Shim.Global.noCoherentRead.Down b init p e_gdown
-| scReadDowngrade  (hread_down : e_gdown.isSCReadGlobalDowngrade)
+| scReadDowngrade  (hread_down : e_gdown.isSCReadGlobalDowngrade) (hmade_on_sw : b.cacheStateMadeOn n init e_gdown = SW)
   (translation : Behaviour.Shim.Global.ToCluster.noCoherentRead.ReadDowngradeTranslation n b init e_gdown)
   : Behaviour.Shim.Global.noCoherentRead.Down b init p e_gdown
 
