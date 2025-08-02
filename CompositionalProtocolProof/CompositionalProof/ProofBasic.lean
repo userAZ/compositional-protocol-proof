@@ -101,10 +101,6 @@ structure Behaviour.allCorresponding.ClusterDirAndGlobalDowngrade.satisfyCompoun
 
 /- Defs firsted used in Lemma 6/7 -/
 
-def CompoundProtocol.globalCidToProtocol (cmp : CompoundProtocol n) (g_cid : Fin 2) : Protocol n := match g_cid with
-  | 0 => cmp.cluster1
-  | 1 => cmp.cluster2
-
 def ProtocolCacheInstance.globalCacheEventCid (pci : ProtocolCacheInstance n) : Fin 2 := match pci with
   | .globalP fin_2 => fin_2
   | .cluster1 _ => 3 -- Attempt to be smart; Using a value that's not a Fin 2 should produce an error.
@@ -117,9 +113,6 @@ def CacheEvent.globalCacheEventCid (ce_greq : CacheEvent n) : Fin 2 := match ce_
 def Event.globalCacheEventCid (e_greq : Event n) : Fin 2 := match e_greq with
   | .cacheEvent ce => ce.globalCacheEventCid
   | .directoryEvent _ => 3
-
-def CompoundProtocol.clusterProtocolCorrespondingToGlobalProtocol (cmp : CompoundProtocol n) (e_greq : Event n) : Protocol n :=
-  cmp.globalCidToProtocol n (e_greq.globalCacheEventCid n)
 
 
 -- Not sure if I want to use the below defs. remove later
