@@ -221,8 +221,7 @@ lemma Behaviour.global_cache_lastest_state_of_event_not_encap_eq_global_cache_la
 
 lemma Behaviour.satisfies_compound_swmr_of_cluster_directory_with_global_perms
   {b : Behaviour n} (init : InitialSystemState n)
-  (e_cdir : Event n) (hcdir_in_b : e_cdir ∈ b)
-  (hhas_global_perms : Behaviour.clusterDirHasPermsInGlobalCache n b init e_cdir)
+  (e_cdir : Event n) (hhas_global_perms : Behaviour.clusterDirHasPermsInGlobalCache n b init e_cdir)
   (hno_encap : Event.clusterDirNotEncapCorrespondingGlobalCache n b e_cdir)
   : Behaviour.dirEventStateLeGlobalCacheState n b init e_cdir := by
   simp[dirEventStateLeGlobalCacheState]
@@ -265,7 +264,6 @@ lemma CompoundProtocol.clusterDirectoryEvent.satisfies_compound_swmr
         . case htranslation => exact htranslation
       . case noGlobalCache hhas_global_perms hno_encap =>
         apply Behaviour.satisfies_compound_swmr_of_cluster_directory_with_global_perms
-        . case hcdir_in_b => exact hcdir_in_b
         . case hhas_global_perms => exact hhas_global_perms
         . case hno_encap => exact hno_encap
 
