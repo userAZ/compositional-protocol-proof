@@ -95,6 +95,15 @@ lemma Behaviour.stateBefore_dir_event_is_dir_state {b init_state e_dir_coh_read}
   . case hinit_dir => exact hinit_dir
   . case hall_dir => exact hall_dir
 
+/-- The initial state of a CacheEvent will be a CacheState. -/
+lemma InitialSystemState.stateAt_event_isCacheEvent_EntryState_is_cache_state
+  {e : Event n} (he_cache : e.isCacheEvent)
+  : (InitialSystemState.stateAt n init e).isCacheState := by
+  simp[InitialSystemState.stateAt]
+  match e with
+  | .cacheEvent ce => simp[EntryState.isCacheState]
+  | .directoryEvent _ => simp[Event.isCacheEvent] at he_cache
+
 lemma Behaviour.stateAfter_cache_event_is_cache_state {b init_state e} {es : List (Event n)} (he_is_cache : e.isCacheEvent) (hinit_cache : init_state.isCacheState)
   (hall_at_entry : ∀ e' ∈ es, eventAtEntry n b e' (Event.struct n e) (Event.addr n e))
   : (List.stateAfter n es init_state).isCacheState := by
