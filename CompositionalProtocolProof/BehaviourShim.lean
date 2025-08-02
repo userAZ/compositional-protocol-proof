@@ -778,3 +778,7 @@ inductive Behaviour.Shim.GlobalToCluster (b : Behaviour n) (init : InitialSystem
 | noCoherentRead (hcorrespond : e_gdown.correspondingClusterOfGlobalCache n p Protocol.pi)
   (hno_coherent_read : p.noCoherentRead n) (downTranslation : Behaviour.Shim.Global.noCoherentRead.Down n b init p e_gdown)
   : Behaviour.Shim.GlobalToCluster b init p e_gdown
+
+structure ShimAxioms where
+  clusterToGlobal : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_dir : Event n, e_dir.isDirectoryEvent → Behaviour.Shim.ClusterToGlobal n b init e_dir
+  globalToCluster : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ p : Protocol n, ∀ e_gdown ∈ b, Behaviour.Shim.GlobalToCluster n b init p e_gdown
