@@ -99,6 +99,138 @@ lemma Behaviour.satisfies_compound_swmr_of_cluster_directory_with_no_global_perm
   apply Behaviour.translated_global_request_of_cluster_directory_event_state_greater_than_directory
   . case htranslation_spec => exact htranslation_spec
 
+lemma Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncap_eq_immediateFinishesBeforeAtGlobalCache_if_no_encap.mp {b e_cdir}
+  (hno_encap : Event.clusterDirNotEncapCorrespondingGlobalCache n b e_cdir)
+  {e : Event n}
+  (he_in_not_encap_set : e ∈ {e_pred | e_pred ∈ b ∧ immediateFinishesBeforeAtGlobalCacheNotEncap n b e_pred e_cdir})
+  : e ∈ {e_pred | e_pred ∈ b ∧ immediateFinishesBeforeAtGlobalCache n b e_pred e_cdir} := by
+  simp_all --at he_in_not_encap_set
+  obtain ⟨he_in_b, he_fin_before_not_encap⟩ := he_in_not_encap_set
+  case intro =>
+  constructor
+  . case finishBefore =>
+    constructor
+    . case finBefore =>
+      constructor
+      . case endBefore => exact he_fin_before_not_encap.finishBefore.finBefore.endBefore
+      . case sameAddr => exact he_fin_before_not_encap.finishBefore.finBefore.sameAddr
+      . case predInB => exact he_fin_before_not_encap.finishBefore.finBefore.predInB
+      . case succInB => exact he_fin_before_not_encap.finishBefore.finBefore.succInB
+    . case gCacheOfCDir => exact he_fin_before_not_encap.finishBefore.gCacheOfCDir
+  . case noIntermediate =>
+    simp[noIntermediateFinishesBeforeOfSameEntry]
+    intro e_inter hinter_in_b hinter_fin_before_btn
+    /- Strategy: We know cache events are ordered, (`e` and `e_inter`) must be ordered, contradicting `hinter_fin_before_btn` -/
+
+    have he_has_no_inter := he_fin_before_not_encap.noIntermediate
+    simp[noIntermediateFinishesBeforeNotEncapOfSameEntry] at he_has_no_inter
+    have hinter_not_inter_e := he_has_no_inter e_inter hinter_in_b
+    apply he_has_no_inter
+
+    . case a => exact hinter_in_b
+    . case a =>
+      constructor
+      . case noInter => exact hinter_fin_before_btn
+      . case noEncap =>
+        simp[Event.clusterDirNotEncapCorrespondingGlobalCache] at hno_encap
+        apply hno_encap
+        . case a => exact hinter_in_b
+        . case a =>
+          apply Behaviour.same_struct_as_event_reqAtCorrespondingGCacheOfCDir_also_corresponds
+          . case hsame_struct => exact hinter_fin_before_btn.sameCidInterPred
+          . case hevent_corr => exact he_fin_before_not_encap.finishBefore.gCacheOfCDir
+        . case a =>
+          apply Behaviour.global_cache_event_of_same_struct_as_global_cache_event
+          . case hsame_struct => exact hinter_fin_before_btn.sameCidInterPred
+          . case he_global_cache =>
+            apply Behaviour.global_cache_event_of_reqAtCorrespondingGCacheOfCDir_event_isGlobalCache
+            . case he_corr_gcache => exact he_fin_before_not_encap.finishBefore.gCacheOfCDir
+
+lemma Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncap_eq_immediateFinishesBeforeAtGlobalCache_if_no_encap.mpr {b e_cdir}
+  (hno_encap : Event.clusterDirNotEncapCorrespondingGlobalCache n b e_cdir)
+  {e : Event n}
+  (he_in_set : e ∈ {e_pred | e_pred ∈ b ∧ immediateFinishesBeforeAtGlobalCache n b e_pred e_cdir})
+  : e ∈ {e_pred | e_pred ∈ b ∧ immediateFinishesBeforeAtGlobalCacheNotEncap n b e_pred e_cdir} := by
+  simp_all --at he_in_not_encap_set
+  obtain ⟨he_in_b, he_fin_before⟩ := he_in_set
+  case intro =>
+  constructor
+  . case finishBefore =>
+    constructor
+    . case finBefore =>
+      constructor
+      . case endBefore => exact he_fin_before.finishBefore.finBefore.endBefore
+      . case notEncap =>
+        apply hno_encap
+        . case a => exact he_in_b
+        . case a => exact he_fin_before.finishBefore.gCacheOfCDir
+        . case a =>
+          apply Behaviour.global_cache_event_of_reqAtCorrespondingGCacheOfCDir_event_isGlobalCache
+          . case he_corr_gcache => exact he_fin_before.finishBefore.gCacheOfCDir
+      . case sameAddr => exact he_fin_before.finishBefore.finBefore.sameAddr
+      . case predInB => exact he_fin_before.finishBefore.finBefore.predInB
+      . case succInB => exact he_fin_before.finishBefore.finBefore.succInB
+    . case gCacheOfCDir => exact he_fin_before.finishBefore.gCacheOfCDir
+  . case noIntermediate =>
+    simp[noIntermediateFinishesBeforeNotEncapOfSameEntry]
+    intro e_inter hinter_in_b hinter_fin_before_btn
+    /- Strategy: We know cache events are ordered, (`e` and `e_inter`) must be ordered, contradicting `hinter_fin_before_btn` -/
+
+    have he_has_no_inter := he_fin_before.noIntermediate
+    simp[noIntermediateFinishesBeforeOfSameEntry] at he_has_no_inter
+    have hinter_not_inter_e := he_has_no_inter e_inter hinter_in_b
+    apply he_has_no_inter
+
+    . case a => exact hinter_in_b
+    . case a =>
+      constructor
+      . case sameCidInterPred => exact hinter_fin_before_btn.noInter.sameCidInterPred
+      . case sameAddr => exact hinter_fin_before_btn.noInter.sameAddr
+      . case interPred => exact hinter_fin_before_btn.noInter.interPred
+      . case interSucc => exact hinter_fin_before_btn.noInter.interSucc
+
+
+lemma Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncap_eq_immediateFinishesBeforeAtGlobalCache_if_no_encap
+  {b : Behaviour n} {e_cdir : Event n}
+  (hno_encap : Event.clusterDirNotEncapCorrespondingGlobalCache n b e_cdir)
+  : {e_pred | e_pred ∈ b ∧ immediateFinishesBeforeAtGlobalCacheNotEncap n b e_pred e_cdir} =
+  {e_pred | e_pred ∈ b ∧ immediateFinishesBeforeAtGlobalCache n b e_pred e_cdir} := by
+  apply Set.ext
+  case h =>
+  intro e
+  apply Iff.intro
+  . case mp =>
+    apply Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncap_eq_immediateFinishesBeforeAtGlobalCache_if_no_encap.mp
+    . case hno_encap => exact hno_encap
+  . case mpr =>
+    apply Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncap_eq_immediateFinishesBeforeAtGlobalCache_if_no_encap.mpr
+    . case hno_encap => exact hno_encap
+
+lemma Behaviour.global_cache_lastest_state_of_event_not_encap_eq_global_cache_lastest_state_of_event_if_no_encap
+  {b : Behaviour n} (init : InitialSystemState n)
+  (e_cdir : Event n) (hno_encap : Event.clusterDirNotEncapCorrespondingGlobalCache n b e_cdir)
+  : EntryState.state n (globalCacheStateOfDirectoryEvent n b init e_cdir) = EntryState.state n (globalCacheStateOfDirEventState n b init e_cdir) := by
+  simp [globalCacheStateOfDirectoryEvent, globalCacheStateOfDirEventState]
+
+  -- This is true because events in both sets satisfy the same condition `p` (not encap,)
+  simp[immediateFinishesBeforeAtGlobalCacheNotEncapEvents]
+  simp[immediateFinishesBeforeAtGlobalCacheEvents]
+
+  rw[Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncap_eq_immediateFinishesBeforeAtGlobalCache_if_no_encap n
+    hno_encap]
+
+lemma Behaviour.satisfies_compound_swmr_of_cluster_directory_with_global_perms
+  {b : Behaviour n} (init : InitialSystemState n)
+  (e_cdir : Event n) (hcdir_in_b : e_cdir ∈ b)
+  (hhas_global_perms : Behaviour.clusterDirHasPermsInGlobalCache n b init e_cdir)
+  (hno_encap : Event.clusterDirNotEncapCorrespondingGlobalCache n b e_cdir)
+  : Behaviour.dirEventStateLeGlobalCacheState n b init e_cdir := by
+  simp[dirEventStateLeGlobalCacheState]
+
+  rw[← Behaviour.global_cache_lastest_state_of_event_not_encap_eq_global_cache_lastest_state_of_event_if_no_encap n init e_cdir hno_encap]
+  simp [ clusterDirHasPermsInGlobalCache] at hhas_global_perms
+  simp[hhas_global_perms]
+
 /-- Lemma 4: A global downgrade `e_gdown` leaves it's corresponding cluster directory
 in state `s` ≤ `e_gdown.MRS` -/
 lemma CompoundProtocol.clusterDirectoryEvent.satisfies_compound_swmr
@@ -107,7 +239,6 @@ lemma CompoundProtocol.clusterDirectoryEvent.satisfies_compound_swmr
   (init : InitialSystemState n)
   (hcdir_in_b : e_cdir ∈ b)
   (hcdir_cluster_dir : e_cdir.isClusterDir)
-  (hcdir_not_down : ¬ e_cdir.down)
   : CompoundSWMR n b init e_cdir := by
   apply CompoundSWMR.cDir
   . case cdir_satisfies_cmp_swmr =>
@@ -133,7 +264,10 @@ lemma CompoundProtocol.clusterDirectoryEvent.satisfies_compound_swmr
         . case hcdir_in_b => exact hcdir_in_b
         . case htranslation => exact htranslation
       . case noGlobalCache hhas_global_perms hno_encap =>
-        sorry
+        apply Behaviour.satisfies_compound_swmr_of_cluster_directory_with_global_perms
+        . case hcdir_in_b => exact hcdir_in_b
+        . case hhas_global_perms => exact hhas_global_perms
+        . case hno_encap => exact hno_encap
 
 /-
 /-- Lemma 4 : A Cluster Request Event leaves a protocol in Compound SWMR. -/
