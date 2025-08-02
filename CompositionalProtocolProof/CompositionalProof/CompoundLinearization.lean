@@ -1,8 +1,9 @@
 import CompositionalProtocolProof.CompoundSWMR
-import CompositionalProtocolProof.CompoundProtocol
+-- import CompositionalProtocolProof.CompoundProtocol
+import CompositionalProtocolProof.BehaviourShim
 
 import CompositionalProtocolProof.CompositionalProof.ProofBasic
-import CompositionalProtocolProof.CompositionalProof.Lemma8CompoundEnforcesSWMR
+-- import CompositionalProtocolProof.CompositionalProof.Lemma8CompoundEnforcesSWMR
 
 variable (n : Nat)
 
@@ -67,10 +68,10 @@ def Behaviour.Shim.ClusterToGlobal.hasPerms.globalDirectoryEvent (b : Behaviour 
   | .encapGlobalCache _ _ => False
 
 open Classical in
-def Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (e_cdir e_glin : Event n) : Prop :=
+def Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent (shimAxioms : ShimAxioms n) (b : Behaviour n) (init : InitialSystemState n) (e_cdir e_glin : Event n) : Prop :=
   by classical exact
   if h : e_cdir.isDirectoryEvent then
-    match (cmp.shimAxioms.clusterToGlobal b init e_cdir h) with
+    match (shimAxioms.clusterToGlobal b init e_cdir h) with
     | .noGlobalCache _ _ => False
     | .encapGlobalCache _ encap_gcache_req =>
       ∃ gcache_linearization : b.linearizationEventOfRequest n init encap_gcache_req.choose,
@@ -87,15 +88,15 @@ inductive CompoundProtocol.clusterDirectoryCorrespondingGlobalDirectoryEvent (b 
   : CompoundProtocol.clusterDirectoryCorrespondingGlobalDirectoryEvent b init e_cdir e_cdir_shim e_glin
 
 -- A directory linearization event has a corresponding event in the global protocol
-inductive CompoundProtocol.clusterDirectoryLinearizationEvent (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (e_cdir e_glin : Event n) : Prop
+inductive CompoundProtocol.clusterDirectoryLinearizationEvent (shimAxioms : ShimAxioms n) (b : Behaviour n) (init : InitialSystemState n) (e_cdir e_glin : Event n) : Prop
 | previousGlobalCacheGotPerms
-  (has_gcache_perms : e_cdir.req.MRS ≤ b.globalCacheStateOfDirectoryEvent n init e_cdir)
+  (has_gcache_perms : e_cdir.req.MRS ≤ (b.globalCacheStateOfDirectoryEvent n init e_cdir).state)
   (e_cdir_is_e_glin : e_glin = e_cdir)
-  : CompoundProtocol.clusterDirectoryLinearizationEvent cmp b init e_cdir e_glin
+  : CompoundProtocol.clusterDirectoryLinearizationEvent shimAxioms b init e_cdir e_glin
 | getGlobalCachePerms
-  (no_gcache_perms : ¬ e_cdir.req.MRS ≤ b.globalCacheStateOfDirectoryEvent n init e_cdir)
-  (cdir_request_gcache : Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent n cmp b init e_cdir e_glin)
-  : CompoundProtocol.clusterDirectoryLinearizationEvent cmp b init e_cdir e_glin
+  (no_gcache_perms : ¬ e_cdir.req.MRS ≤ (b.globalCacheStateOfDirectoryEvent n init e_cdir).state)
+  (cdir_request_gcache : Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent n shimAxioms b init e_cdir e_glin)
+  : CompoundProtocol.clusterDirectoryLinearizationEvent shimAxioms b init e_cdir e_glin
 
 def Behaviour.reqLinearizesAtCache (b : Behaviour n) (init : InitialSystemState n) (e_creq : Event n) (e_creq_lin : b.linearizationEventOfRequest n init e_creq) : Prop :=
   match e_creq_lin with
@@ -107,20 +108,23 @@ def Behaviour.reqLinearizesAtDir (b : Behaviour n) (init : InitialSystemState n)
   | .requestLin _ => False
   | .dirLin _ => True
 
-def CompoundProtocol.compoundLinearization.OfReqEncapDirAccess (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
+def CompoundProtocol.compoundLinearization.OfReqEncapDirAccess (shimAxioms : ShimAxioms n) (b : Behaviour n) (init : InitialSystemState n)
   (e_creq e_glin : Event n) (e_creq_lin : b.linearizationEventOfRequest n init e_creq) : Prop :=
   match e_creq_lin with
   | .requestLin _ => False
   | .dirLin lin_at_dir =>
     CompoundProtocol.clusterDirectoryLinearizationEvent
-      n cmp b init (lin_at_dir.choose_spec.right.reqLinearizeAtDir.choose) e_glin
+      n shimAxioms b init (lin_at_dir.choose_spec.right.reqLinearizeAtDir.choose) e_glin
 
 /-- Definition 2.48 -/
-inductive CompoundProtocol.clusterRequestLinearizationEvent (cmp : CompoundProtocol n)
+inductive ClusterRequestLinearizationEvent (shimAxioms : ShimAxioms n)
   (b : Behaviour n) (init : InitialSystemState n) (e_creq : Event n) (e_creq_lin : b.linearizationEventOfRequest n init e_creq) : Prop
 | clusterCacheLin (cluster_cache : e_creq.clusterNonProxyCacheEvent) (lin_at_cache : b.reqLinearizesAtCache n init e_creq e_creq_lin)
   (e_creq_is_e_glin : ∃ e_glin ∈ b, e_glin = e_creq)
-  : CompoundProtocol.clusterRequestLinearizationEvent cmp b init e_creq e_creq_lin
+  : ClusterRequestLinearizationEvent shimAxioms b init e_creq e_creq_lin
 | clusterDirLin (cluster_cache : e_creq.clusterNonProxyCacheEvent) (lin_at_dir : b.reqLinearizesAtDir n init e_creq e_creq_lin)
-  (e_glin_deeper : ∃ e_glin ∈ b, CompoundProtocol.compoundLinearization.OfReqEncapDirAccess n cmp b init e_creq e_glin e_creq_lin)
-  : CompoundProtocol.clusterRequestLinearizationEvent cmp b init e_creq e_creq_lin
+  (e_glin_deeper : ∃ e_glin ∈ b, CompoundProtocol.compoundLinearization.OfReqEncapDirAccess n shimAxioms b init e_creq e_glin e_creq_lin)
+  : ClusterRequestLinearizationEvent shimAxioms b init e_creq e_creq_lin
+
+
+-- [ TODO ] Want to put Compound Linearization event into the Compound Protocol Def.
