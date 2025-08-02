@@ -1,5 +1,4 @@
 import CompositionalProtocolProof.CompoundSWMR
-import CompositionalProtocolProof.CompoundProtocol
 import CompositionalProtocolProof.BehaviourRelationDefs
 
 variable (n : Nat)
