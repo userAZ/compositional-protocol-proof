@@ -325,6 +325,7 @@ structure CacheEvent.AreOrdered (e₁ e₂ : CacheEvent n) : Prop where
   sameCacheEntry : e₁.sameCacheEntry n e₂
   ordered: e₁.encapsulatedOrOrdered n e₂
 
+/-- Encapsulated at the `same` cache entry means it's a downgrade. -/
 def CacheEvent.encapsulatedIsDowngrade (e₁ e₂ : CacheEvent n) : Prop :=
   e₁.Encapsulates n e₂ → e₂.down
 /-
