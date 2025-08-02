@@ -11,6 +11,7 @@ Totally Ordered. -/
 structure Event.AtEntryOrdered where
   dir_ordered : ∀ (e₁ e₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n e₁ e₂
   cache_ordered : ∀ (e₁ e₂ : CacheEvent n), CacheEvent.AreOrdered n e₁ e₂
+  cache_encap_rule : ∀ (e₁ e₂ : CacheEvent n), CacheEvent.encapsulatedIsDowngrade n e₁ e₂
 
 structure Behaviour where
   es : Set (Event n)
