@@ -293,6 +293,31 @@ def CacheEvent.encapsulatedOrBefore (e₁ e₂ : CacheEvent n) : Prop := e₁.En
 def CacheEvent.encapsulatedOrOrdered (e₁ e₂ : CacheEvent n) : Prop :=
   e₁.encapsulatedOrBefore n e₂ ∨ e₂.encapsulatedOrBefore n e₁
 
+/-- If two cache events end at the same time, we show a contradiction
+due to the fact that CacheEvents are Ordered. -/
+lemma Event.contradiction_of_cache_event_ends_eq {ce ce_greq}
+  {he_eq_greq_end : (Event.cacheEvent ce).oEnd = (Event.cacheEvent ce_greq).oEnd n}
+  {hce_ob_greq : CacheEvent.encapsulatedOrBefore n ce ce_greq}
+  : False := by
+  simp[CacheEvent.encapsulatedOrBefore] at hce_ob_greq
+  cases hce_ob_greq
+  . case inl hce_encap_by_ce_greq =>
+    have hde_before_greq_end : ce.oEnd < ce_greq.oEnd := hce_encap_by_ce_greq.right
+    absurd hde_before_greq_end
+    simp[Nat.le_iff_lt_or_eq,]
+    apply Or.intro_right
+    simp[Event.oEnd] at he_eq_greq_end
+    simp[he_eq_greq_end]
+  . case inr hce_ob_ce_greq =>
+    have hde_before_greq_end : ce.oEnd < ce_greq.oEnd := by
+      calc ce.oEnd < ce_greq.oStart := hce_ob_ce_greq
+        _ < ce_greq.oEnd := ce_greq.oWellFormed
+    absurd hde_before_greq_end
+    simp[Nat.le_iff_lt_or_eq,]
+    apply Or.intro_right
+    simp[Event.oEnd] at he_eq_greq_end
+    simp[he_eq_greq_end]
+
 /-- Axiom 2.0: all cache events e₁ e₂ are ordered, either by:
 1. e₁ is encapsulated by e₂, or
 2. e₁ is ordered before e₂ -/
