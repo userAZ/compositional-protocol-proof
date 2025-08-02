@@ -62,6 +62,329 @@ lemma Behaviour.same_corresponding_gcache_same_struct {b : Behaviour n} {e_cdir 
         | .cluster1, .global =>
           all_goals simp [hde_e, hde_c, Event.reqAtGlobalCacheCid] at hcdir_at_gcache he_at_gcache
 
+/- BEGIN added for Lemma 4 -/
+
+lemma Behaviour.event_immediate_finish_before_greq_singleton
+  {b : Behaviour n} {e_cdir e_greq : Event n} (he_greq_in_b : e_greq ∈ b) (he_greq_satisfies : immediateFinishesBeforeAtGlobalCache n b e_greq e_cdir)
+  : {e_gpred | e_gpred ∈ b ∧ Behaviour.immediateFinishesBeforeAtGlobalCache n b e_gpred e_cdir} = {e_greq} := by
+  apply Set.ext
+  intro e
+  apply Iff.intro
+  . case h.mp =>
+    simp
+    intro he_in_b he_is_imm_pred
+    by_contra he_ne_greq
+    have hgreq_no_inter := he_greq_satisfies.noIntermediate
+    simp[Behaviour.noIntermediateFinishesBeforeOfSameEntry] at hgreq_no_inter
+    have he_no_inter := he_is_imm_pred.noIntermediate
+    simp[Behaviour.noIntermediateFinishesBeforeOfSameEntry] at he_no_inter
+
+    -- start by showing `e_cdir` has no intermediate
+    have he_not_inter_cdir := hgreq_no_inter e he_in_b
+    apply he_not_inter_cdir
+    constructor
+    . case sameCidInterPred =>
+      apply Behaviour.same_corresponding_cdir_same_struct
+      . case he_greq_satisfies => exact he_greq_satisfies
+      . case he_is_imm_pred => exact he_is_imm_pred
+    . case sameAddr =>
+      have hcdir_addr := he_greq_satisfies.finishBefore.finBefore.sameAddr
+      have he_addr := he_is_imm_pred.finishBefore.finBefore.sameAddr
+      simp[Event.sameAddr] at hcdir_addr he_addr
+      simp[hcdir_addr, he_addr]
+    . case interPred =>
+      by_contra hcdir_not_finish_before_e
+      simp[Event.finishesBefore] at hcdir_not_finish_before_e
+      simp[Nat.le_iff_lt_or_eq] at hcdir_not_finish_before_e
+      cases hcdir_not_finish_before_e
+      . case inl he_lt_cdir_end =>
+        have hcdir_not_inter_e := he_no_inter e_greq he_greq_in_b
+        apply hcdir_not_inter_e
+        constructor
+        . case sameCidInterPred =>
+          apply Eq.symm
+          apply Behaviour.same_corresponding_cdir_same_struct
+          . case he_greq_satisfies => exact he_greq_satisfies
+          . case he_is_imm_pred => exact he_is_imm_pred
+        . case sameAddr =>
+          have hcdir_addr := he_greq_satisfies.finishBefore.finBefore.sameAddr
+          have he_addr := he_is_imm_pred.finishBefore.finBefore.sameAddr
+          simp[Event.sameAddr] at hcdir_addr he_addr
+          simp[hcdir_addr, he_addr]
+        . case interPred => simp[Event.finishesBefore, he_lt_cdir_end]
+        . case interSucc => simp[he_greq_satisfies.finishBefore.finBefore.endBefore]
+      . case inr he_eq_greq_end =>
+        -- Contradiction, all directory events are ordered.
+        match he : e, hgreq : e_greq with
+        | .cacheEvent ce, .cacheEvent ce_greq =>
+          simp[Event.oEnd] at he_eq_greq_end
+          have hordered := b.orderedAtEntry.cache_ordered ce ce_greq |>.ordered
+          simp[DirectoryEvent.Ordered] at hordered
+          cases hordered
+          . case inl hce_ob_greq =>
+            apply Event.contradiction_of_cache_event_ends_eq
+            . case he_eq_greq_end => exact he_eq_greq_end
+            . case hce_ob_greq => exact hce_ob_greq
+          . case inr hgreq_ob_de =>
+            apply Event.contradiction_of_cache_event_ends_eq
+            . case he_eq_greq_end =>
+              apply Eq.symm
+              exact he_eq_greq_end
+            . case hce_ob_greq => exact hgreq_ob_de
+        | .cacheEvent ce, .directoryEvent de_cdir
+        | .directoryEvent de, .cacheEvent ce_cdir
+        | .directoryEvent de, .directoryEvent de_greq
+          =>
+          have hgreq_at_gcache := he_greq_satisfies.finishBefore.gCacheOfCDir
+          have he_at_gcache := he_is_imm_pred.finishBefore.gCacheOfCDir
+          simp[Event.reqAtCorrespondingGCacheOfCDir] at hgreq_at_gcache he_at_gcache
+
+          match e_cdir with
+          | .directoryEvent dcdir =>
+            simp[Event.protocol] at hgreq_at_gcache he_at_gcache
+            match hcdir_protocol : dcdir.pInst with
+            | .cluster1 | .cluster2 =>
+              simp[hcdir_protocol, Event.reqAtGlobalCacheCid] at hgreq_at_gcache he_at_gcache
+            | .global => simp[hcdir_protocol] at hgreq_at_gcache he_at_gcache
+          | .cacheEvent _ => simp at hgreq_at_gcache he_at_gcache
+    . case interSucc => exact he_is_imm_pred.finishBefore.finBefore.endBefore
+  . case h.mpr =>
+    simp
+    intro he_eq_e_cdir
+    simp[he_eq_e_cdir, he_greq_in_b]
+    exact he_greq_satisfies
+
+/- Checkpoint -/
+
+lemma Behaviour.global_request_cache_translation_encap_corresponding_request
+  {b : Behaviour n} {e_cdir e_greq : Event n}
+  (htranslation : Event.clusterDirEncapCorrespondingGlobalCache n b e_cdir e_greq)
+  : Event.reqAtCorrespondingGCacheOfCDir n e_cdir e_greq := by
+  have hdir_of_corr_greq := htranslation.gReqOfCDir.gReq
+  simp[Event.reqAtCorrespondingGCacheOfCDir, Event.protocol] at hdir_of_corr_greq
+  exact hdir_of_corr_greq
+
+lemma Behaviour.same_struct_as_event_reqAtCorrespondingGCacheOfCDir_also_corresponds
+  (hsame_struct : Event.struct n e' = Event.struct n e)
+  (hevent_corr : Event.reqAtCorrespondingGCacheOfCDir n e_cdir e)
+  : Event.reqAtCorrespondingGCacheOfCDir n e_cdir e' := by
+  have hsame_struct := hsame_struct
+  have hevent_corr := hevent_corr
+  simp_all[Event.reqAtCorrespondingGCacheOfCDir]
+  match e_cdir with
+  | .directoryEvent de_cdir =>
+    simp_all[Event.protocol]
+    match hcdir_protocol : de_cdir.pInst with
+    | .cluster1 | .cluster2 =>
+      simp_all[Event.reqAtGlobalCacheCid]
+      match e, e' with
+      | .cacheEvent ce, .cacheEvent ce' =>
+        simp_all[Event.struct]
+      | .directoryEvent ce, .cacheEvent ce'
+      | .cacheEvent ce, .directoryEvent ce'
+      | .directoryEvent ce, .directoryEvent ce' =>
+        simp_all[Event.struct]
+    | .global => simp_all[]
+  | .cacheEvent _ => simp_all[]
+
+lemma Behaviour.global_cache_event_of_same_struct_as_global_cache_event
+  (hsame_struct : Event.struct n e' = Event.struct n e)
+  (he_global_cache : Event.isGlobalCache n e)
+  : e'.isGlobalCache := by
+  constructor
+  . case reqAtCache =>
+    have := he_global_cache.reqAtCache
+    simp_all[Event.isCacheEvent, Event.struct]
+    match e, e' with
+    | .cacheEvent ce, .cacheEvent ce'
+    | .directoryEvent ce, .cacheEvent ce'
+    | .cacheEvent ce, .directoryEvent ce'
+    | .directoryEvent ce, .directoryEvent ce' => simp_all
+  . case notAtGProxy =>
+    have := he_global_cache.notAtGProxy
+    simp_all[Event.reqAtGlobalCache, Event.struct]
+    match e, e' with
+    | .cacheEvent ce, .cacheEvent ce'
+    | .directoryEvent ce, .cacheEvent ce'
+    | .cacheEvent ce, .directoryEvent ce'
+    | .directoryEvent ce, .directoryEvent ce' => simp_all
+  . case reqGlobal =>
+    have := he_global_cache.reqGlobal
+    simp_all[Event.protocol, Event.struct]
+    match e, e' with
+    | .cacheEvent ce, .cacheEvent ce'
+    | .directoryEvent ce, .cacheEvent ce'
+    | .cacheEvent ce, .directoryEvent ce'
+    | .directoryEvent ce, .directoryEvent ce' => simp_all
+
+lemma Event.cdir_encap_inter_of_inter_encap_or_before_cache
+  (he'_fin_before_e : Event.finishesBefore n e' e)
+  -- (hsame_struct : Event.struct n e' = Event.struct n e)
+  (he : e = Event.cacheEvent ce)
+  (he' : e' = Event.cacheEvent ce')
+  (hcdir_encap_e' : Event.Encapsulates n e_cdir e')
+  (hce_encap_or_before_ce' : CacheEvent.encapsulatedOrBefore n ce ce')
+  : Event.Encapsulates n e_cdir (Event.cacheEvent ce) := by
+  cases hce_encap_or_before_ce'
+  . case inl hce_encap_by_ce' =>
+    simp[CacheEvent.EncapsulatedBy, CacheEvent.Encapsulates] at hce_encap_by_ce'
+    simp[Encapsulates]
+    apply And.intro
+    . case left =>
+      calc e_cdir.oStart < e'.oStart := hcdir_encap_e'.left
+        _ < (Event.cacheEvent ce).oStart := (by simp [he', oStart, hce_encap_by_ce'.left])
+    . case right =>
+      calc (Event.cacheEvent ce).oEnd < (Event.cacheEvent ce').oEnd := by simp[oEnd, hce_encap_by_ce'.right]
+        _ < e_cdir.oEnd := by simp[← he', hcdir_encap_e'.right]
+  . case inr hce_ob_ce' =>
+    simp [finishesBefore, he, he', oEnd] at he'_fin_before_e
+    absurd he'_fin_before_e
+    simp [Nat.le_iff_lt_or_eq]
+    apply Or.intro_left
+    . case h =>
+      simp [CacheEvent.OrderedBefore] at hce_ob_ce'
+      calc ce.oEnd < ce'.oStart := hce_ob_ce'
+        _ < ce'.oEnd := ce'.oWellFormed
+
+lemma Event.cdir_encap_inter_of_cache_encap_or_before_inter
+  (b : Behaviour n)
+  (he_fin_before_cdir : Event.finishesBefore n e e_cdir)
+  (he'_not_down : ¬Event.down n e' = true)
+  -- (hsame_struct : Event.struct n e' = Event.struct n e)
+  -- (he'_fin_before_e : Event.finishesBefore n e_greq e_inter)
+  -- (hcdir_encap_greq : Event.Encapsulates n e_cdir e_greq)
+  (he : e = Event.cacheEvent ce)
+  (he' : e' = Event.cacheEvent ce')
+  (hcdir_encap_e' : Event.Encapsulates n e_cdir e')
+  (hce'_encap_or_before_ce : CacheEvent.encapsulatedOrBefore n ce' ce)
+  : Event.Encapsulates n e_cdir (Event.cacheEvent ce) := by
+  cases hce'_encap_or_before_ce
+  . case inl hce'_encap_by_ce =>
+    simp[CacheEvent.EncapsulatedBy,] at hce'_encap_by_ce
+    have hce'_is_downgrade := b.orderedAtEntry.cache_encap_rule ce ce' hce'_encap_by_ce
+    absurd hce'_is_downgrade
+    simp[he', down] at he'_not_down
+    simp [he'_not_down]
+  . case inr hce'_ob_ce =>
+    simp[Encapsulates]
+    apply And.intro
+    . case left =>
+      simp [CacheEvent.OrderedBefore, ] at hce'_ob_ce
+      calc e_cdir.oStart < e'.oStart := hcdir_encap_e'.left
+        _ < e'.oEnd := e'.oWellFormed
+        _ < (Event.cacheEvent ce).oStart := (by simp [he', oEnd, oStart, hce'_ob_ce])
+    . case right =>
+      simp[finishesBefore] at he_fin_before_cdir
+      calc (Event.cacheEvent ce).oEnd < e_cdir.oEnd := by simp[← he, he_fin_before_cdir]
+
+lemma Behaviour.encapsulates_of_same_struct
+  (b : Behaviour n)
+  (he'_not_down : ¬Event.down n e' = true)
+  (he_fin_before_cdir : Event.finishesBefore n e e_cdir)
+  (he'_fin_before_e : Event.finishesBefore n e' e)
+  (hsame_struct : Event.struct n e' = Event.struct n e)
+  (hcdir_encap_e' : Event.Encapsulates n e_cdir e')
+  (he_global_cache : Event.isGlobalCache n e)
+  (he'_global_cache : Event.isGlobalCache n e')
+  : Event.Encapsulates n e_cdir e := by
+  have he_cache := he_global_cache.reqAtCache
+  have he'_cache := he'_global_cache.reqAtCache
+  match he : e, he' : e' with
+  | .cacheEvent ce, .cacheEvent ce' =>
+    have hordered := b.orderedAtEntry.cache_ordered ce ce' |>.ordered
+    cases hordered
+    . case inl hce_encap_or_before_ce' =>
+      apply Event.cdir_encap_inter_of_inter_encap_or_before_cache
+      . case he'_fin_before_e => exact he'_fin_before_e
+      . case he => rfl
+      . case he' => rfl
+      . case hcdir_encap_e' => exact hcdir_encap_e'
+      . case hce_encap_or_before_ce' => exact hce_encap_or_before_ce'
+    . case inr hce'_encap_or_before_ce =>
+      apply Event.cdir_encap_inter_of_cache_encap_or_before_inter
+      . case b => exact b
+      . case he_fin_before_cdir => exact he_fin_before_cdir
+      . case he'_not_down => exact he'_not_down
+      . case he => rfl
+      . case he' => rfl
+      . case hcdir_encap_e' => exact hcdir_encap_e'
+      . case hce'_encap_or_before_ce => exact hce'_encap_or_before_ce
+  | .directoryEvent ce, .cacheEvent ce'
+  | .cacheEvent ce, .directoryEvent ce'
+  | .directoryEvent ce, .directoryEvent ce' =>
+    simp_all[Event.isCacheEvent]
+
+lemma Behaviour.contradiction_of_intermediate_finishes_before_event_and_translation_encaps_one_global_cache_event
+  (e_inter : Event n)
+  (hinter_in_b : e_inter ∈ b)
+  (hinter_imm_fin_btn : Event.intermediateFinishesBeforeOfSameEntry n e_inter e_greq e_cdir)
+  (hcdir_encap_greq : Event.Encapsulates n e_cdir e_greq)
+  (htranslation : Event.clusterDirEncapCorrespondingGlobalCache n b e_cdir e_greq)
+  : False := by
+  have hinter_corr_cdir : Event.reqAtCorrespondingGCacheOfCDir n e_cdir e_inter := by
+    apply Behaviour.same_struct_as_event_reqAtCorrespondingGCacheOfCDir_also_corresponds
+    . case hsame_struct => exact hinter_imm_fin_btn.sameCidInterPred
+    . case hevent_corr => exact htranslation.gReqOfCDir.gReq
+  have hinter_is_global_cache : Event.isGlobalCache n e_inter := by
+    apply Behaviour.global_cache_event_of_same_struct_as_global_cache_event
+    . case hsame_struct => exact hinter_imm_fin_btn.sameCidInterPred
+    . case he_global_cache => exact htranslation.gReqOfCDir.reqGlobalCache
+  have hcdir_encap_inter : Event.Encapsulates n e_cdir e_inter := by
+    apply Behaviour.encapsulates_of_same_struct
+    . case b => exact b
+    . case he'_not_down => exact htranslation.gReqOfCDir.notDowngrade
+    . case he_fin_before_cdir => exact hinter_imm_fin_btn.interSucc
+    . case he'_fin_before_e => exact hinter_imm_fin_btn.interPred
+    . case hsame_struct => simp[Eq.symm, hinter_imm_fin_btn.sameCidInterPred]
+    . case hcdir_encap_e' => exact hcdir_encap_greq
+    . case he_global_cache => exact hinter_is_global_cache
+    . case he'_global_cache => exact htranslation.gReqOfCDir.reqGlobalCache
+  have hinter_eq_greq := htranslation.onlyGlobalReq e_inter (by simp[hinter_in_b])
+    hinter_corr_cdir hinter_is_global_cache hcdir_encap_inter
+
+  absurd hinter_imm_fin_btn.interPred
+  simp[Event.finishesBefore]
+  simp[Nat.le_iff_lt_or_eq]
+  apply Or.intro_right
+  -- rw [show e_inter = e_greq from (htranslation.onlyGlobalReq e_inter sorry sorry sorry sorry)]
+  rw[hinter_eq_greq]
+
+lemma Behaviour.clusterToGlobal.global_req_noIntermediateFinishesBeforeOfSameEntry_from_cluster_dir_translation
+  {b : Behaviour n} {e_cdir e_greq : Event n}
+  (htranslation : Event.clusterDirEncapCorrespondingGlobalCache n b e_cdir e_greq)
+  : noIntermediateFinishesBeforeOfSameEntry n b e_greq e_cdir := by
+  simp[noIntermediateFinishesBeforeOfSameEntry]
+  intro e_inter hinter_in_b hinter_imm_fin_btn
+  apply Behaviour.contradiction_of_intermediate_finishes_before_event_and_translation_encaps_one_global_cache_event
+  . case hinter_in_b => exact hinter_in_b
+  . case hinter_imm_fin_btn => exact hinter_imm_fin_btn
+  . case hcdir_encap_greq => exact htranslation.encapGlobalCache
+  . case htranslation => exact htranslation
+
+lemma Behaviour.clusterToGlobal.global_cache_event_immediately_finish_before_of_cluster_directory
+  {b : Behaviour n} {e_cdir e_greq : Event n}
+  (hcdir_in_b : e_cdir ∈ b) (hgreq_in_b : e_greq ∈ b)
+  (htranslation : Event.clusterDirEncapCorrespondingGlobalCache n b e_cdir e_greq)
+  : immediateFinishesBeforeAtGlobalCache n b e_greq e_cdir := by
+  -- have := htranslation.gReqOfCDir.notDowngrade
+  constructor
+  . case finishBefore =>
+    constructor
+    . case finBefore =>
+      constructor
+      . case endBefore => simp[Event.finishesBefore, htranslation.encapGlobalCache.right]
+      . case sameAddr => simp[Event.sameAddr, htranslation.gReqOfCDir.sameAddr]
+      . case predInB => exact hgreq_in_b
+      . case succInB => exact hcdir_in_b
+    . case gCacheOfCDir =>
+      apply Behaviour.global_request_cache_translation_encap_corresponding_request
+      . case htranslation => exact htranslation
+  . case noIntermediate =>
+    apply Behaviour.clusterToGlobal.global_req_noIntermediateFinishesBeforeOfSameEntry_from_cluster_dir_translation
+    . case htranslation => exact htranslation
+
+/- END added for Lemma 4 -/
+
 lemma Behaviour.event_immediate_finish_before_gdown_singleton
   {b : Behaviour n} {e_cdir e_gdown : Event n} (he_cdir_in_b : e_cdir ∈ b) (he_cdir_satisfies : immediateFinishesBeforeAtClusterDirectory n b e_cdir e_gdown)
   : {e_pred | e_pred ∈ b ∧ Behaviour.immediateFinishesBeforeAtClusterDirectory n b e_pred e_gdown} = {e_cdir} := by
