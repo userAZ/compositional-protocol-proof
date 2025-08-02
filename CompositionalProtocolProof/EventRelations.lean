@@ -325,6 +325,8 @@ structure CacheEvent.AreOrdered (e₁ e₂ : CacheEvent n) : Prop where
   sameCacheEntry : e₁.sameCacheEntry n e₂
   ordered: e₁.encapsulatedOrOrdered n e₂
 
+def CacheEvent.encapsulatedIsDowngrade (e₁ e₂ : CacheEvent n) : Prop :=
+  e₁.Encapsulates n e₂ → e₂.down
 /-
 def Event.isDirectoryEvent : Event → Prop
 | .directoryEvent _ => true
