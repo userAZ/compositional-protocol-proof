@@ -265,8 +265,206 @@ lemma Behaviour.contradiction_of_two_ordered_directory_events_immediate_finishes
     . case hcdir => exact hcdir
     . case he => exact he
 
+/- BEGIN added for Lemma 4 -/
+lemma Behaviour.same_corresponding_cdir_same_struct {b : Behaviour n} {e_greq e_cdir e : Event n}
+  (he_greq_satisfies : immediateFinishesBeforeAtGlobalCache n b e_greq e_cdir)
+  (he_is_imm_pred : immediateFinishesBeforeAtGlobalCache n b e e_cdir)
+  : Event.struct n e = Event.struct n e_greq := by
+      have hgreq_at_gcache := he_greq_satisfies.finishBefore.gCacheOfCDir
+      have he_at_gcache := he_is_imm_pred.finishBefore.gCacheOfCDir
+      simp[Event.reqAtCorrespondingGCacheOfCDir] at hgreq_at_gcache he_at_gcache
+      simp[Event.protocol] at hgreq_at_gcache he_at_gcache
+      simp [Event.struct]
+      match he : e, hegreq : e_greq, hegdown : e_cdir with
+      | .cacheEvent ce, .cacheEvent ce_greq, .directoryEvent de_cdir =>
+        simp
+        simp[Event.protocol] at hgreq_at_gcache he_at_gcache
+        match hcdir_protocol : de_cdir.pInst with
+        | .cluster1 | .cluster2 =>
+          simp[hcdir_protocol, Event.reqAtGlobalCacheCid] at hgreq_at_gcache he_at_gcache
+          match hce : ce.cid, hce_greq : ce_greq.cid with
+          | .cache pci_c, .cache pci_greq =>
+            match hpci_c : pci_c, hpci_greq : pci_greq with
+            | .globalP fin2_c, .globalP fin2_grep
+            | .cluster1 _, .cluster1 _
+            | .cluster2 _, .cluster2 _ =>
+              simp_all[]
+            | .globalP fin2_c, .cluster1 _
+            | .globalP fin2_c, .cluster2 _
+            | .cluster1 _, .cluster2 _
+            | .cluster2 _, .cluster1 _
+            | .cluster2 _, .globalP fin2_greq
+            | .cluster1 _, .globalP fin2_greq =>
+              simp_all
+          | .proxy pi_c, .proxy pci_greq
+          | .cache pi_c, .proxy pci_greq
+          | .proxy pi_c, .cache pci_greq
+            =>
+            simp[hce, hce_greq] at hgreq_at_gcache he_at_gcache
+        | .global => simp[hcdir_protocol] at hgreq_at_gcache he_at_gcache
+      | .cacheEvent ce_e, .directoryEvent de_c, .cacheEvent ce_g
+      | .cacheEvent ce_e, .cacheEvent ce_c, .cacheEvent ce_g
+      | .directoryEvent de_e, .cacheEvent ce_c, .cacheEvent ce_g
+      | .cacheEvent ce_e, .directoryEvent de_c, .directoryEvent de_cdir
+      | .directoryEvent de_e, .directoryEvent de_c, .cacheEvent ce_g
+      | .directoryEvent de_e, .cacheEvent ce_c, .directoryEvent de_cdir
+      | .directoryEvent de_e, .directoryEvent de_c, .directoryEvent de_cdir
+        =>
+        simp_all
+        try
+        match hde_pinst : de_cdir.pInst with
+        | .cluster1
+        | .cluster2 =>
+          simp_all[hde_pinst, Event.reqAtGlobalCacheCid]
+        | .global =>
+          simp_all[hde_pinst, Event.reqAtGlobalCacheCid]
 
-/- Will need this lemma later.-/
+lemma Behaviour.contradiction_of_two_encapsulated_cache_events_immediate_finishes_before_successor_event
+  {b : Behaviour n} {ce ce_greq : CacheEvent n} {e_succ : Event n}
+  (hgreq_encap_by_ce : CacheEvent.EncapsulatedBy n ce_greq ce)
+  (he_in_b :Event.cacheEvent ce ∈ b)
+  (hgreq : immediateFinishesBeforeAtGlobalCache n b (Event.cacheEvent ce_greq) e_succ)
+  (he :immediateFinishesBeforeAtGlobalCache n b (Event.cacheEvent ce) e_succ)
+  : False := by
+  simp[CacheEvent.EncapsulatedBy, CacheEvent.Encapsulates] at hgreq_encap_by_ce
+  have greq_not_intermediate := hgreq.noIntermediate (Event.cacheEvent ce) he_in_b
+  apply greq_not_intermediate
+  constructor
+  . case sameCidInterPred =>
+    apply Behaviour.same_corresponding_cdir_same_struct
+    . case he_greq_satisfies => exact hgreq
+    . case he_is_imm_pred => exact he
+  . case sameAddr =>
+    have hgreq_same_addr_succ := hgreq.finishBefore.finBefore.sameAddr
+    have he_same_addr_succ := he.finishBefore.finBefore.sameAddr
+    simp[Event.sameAddr] at hgreq_same_addr_succ he_same_addr_succ
+    simp[hgreq_same_addr_succ, he_same_addr_succ]
+  . case interPred =>
+    simp[Event.finishesBefore, Event.oEnd,]
+    exact hgreq_encap_by_ce.right
+  . case interSucc => exact he.finishBefore.finBefore.endBefore
+
+lemma Behaviour.contradiction_of_two_cache_events_ordered_before_eachother_immediate_finishes_before_successor_event
+  {b : Behaviour n} {ce ce_greq : CacheEvent n} {e_succ : Event n}
+  (hce_ob_greq : CacheEvent.OrderedBefore n ce ce_greq)
+  -- (he_in_b :Event.cacheEvent ce ∈ b)
+  (hgreq_in_b :Event.cacheEvent ce_greq ∈ b)
+  (hgreq : immediateFinishesBeforeAtGlobalCache n b (Event.cacheEvent ce_greq) e_succ)
+  (he :immediateFinishesBeforeAtGlobalCache n b (Event.cacheEvent ce) e_succ)
+  : False := by
+  have he_not_intermediate := he.noIntermediate (Event.cacheEvent ce_greq) hgreq_in_b
+  apply he_not_intermediate
+  constructor
+  . case sameCidInterPred =>
+    apply Behaviour.same_corresponding_cdir_same_struct
+    . case he_greq_satisfies => exact he
+    . case he_is_imm_pred => exact hgreq
+  . case sameAddr =>
+    have hgreq_same_addr_succ := hgreq.finishBefore.finBefore.sameAddr
+    have he_same_addr_succ := he.finishBefore.finBefore.sameAddr
+    simp[Event.sameAddr] at hgreq_same_addr_succ he_same_addr_succ
+    simp[hgreq_same_addr_succ, he_same_addr_succ]
+  . case interPred =>
+    simp[Event.finishesBefore, Event.oEnd,]
+    calc ce.oEnd < ce_greq.oStart := hce_ob_greq
+      _ < ce_greq.oEnd := ce_greq.oWellFormed
+  . case interSucc => exact hgreq.finishBefore.finBefore.endBefore
+
+
+lemma Behaviour.contradiction_of_two_encap_or_ordered_cache_events_immediate_finishes_before_successor_event'
+  {b : Behaviour n} {ce ce_greq : CacheEvent n} {e_succ : Event n}
+  (hordered : CacheEvent.encapsulatedOrBefore n ce ce_greq)
+  -- (he_in_b :Event.cacheEvent ce ∈ b)
+  (hgreq_in_b :Event.cacheEvent ce_greq ∈ b)
+  (hgreq : immediateFinishesBeforeAtGlobalCache n b (Event.cacheEvent ce_greq) e_succ)
+  (he :immediateFinishesBeforeAtGlobalCache n b (Event.cacheEvent ce) e_succ)
+  : False := by
+  cases hordered
+  . case inl hce_encap_by_greq =>
+    apply Behaviour.contradiction_of_two_encapsulated_cache_events_immediate_finishes_before_successor_event
+    . case hgreq_encap_by_ce => exact hce_encap_by_greq
+    . case he_in_b => exact hgreq_in_b
+    . case hgreq => exact he
+    . case he => exact hgreq
+  . case inr hce_ob_greq =>
+    apply Behaviour.contradiction_of_two_cache_events_ordered_before_eachother_immediate_finishes_before_successor_event
+    . case hce_ob_greq => exact hce_ob_greq
+    . case hgreq_in_b => exact hgreq_in_b
+    . case hgreq => exact hgreq
+    . case he => exact he
+
+lemma Behaviour.contradiction_of_two_encap_or_ordered_cache_events_immediate_finishes_before_successor_event
+  {b : Behaviour n} {ce ce_greq : CacheEvent n} {e_succ : Event n}
+  (hordered : CacheEvent.encapsulatedOrOrdered n ce ce_greq)
+  -- (he_in_b :Event.cacheEvent ce ∈ b)
+  (hgreq : immediateFinishesBeforeAtGlobalCache n b (Event.cacheEvent ce_greq) e_succ)
+  (he : immediateFinishesBeforeAtGlobalCache n b (Event.cacheEvent ce) e_succ)
+  : False := by
+  cases hordered
+  . case inl hce_encap_or_ob_ce_greq =>
+    apply Behaviour.contradiction_of_two_encap_or_ordered_cache_events_immediate_finishes_before_successor_event'
+    . case hordered => exact hce_encap_or_ob_ce_greq
+    . case hgreq_in_b => exact hgreq.finishBefore.finBefore.predInB
+    . case hgreq => exact hgreq
+    . case he => exact he
+  . case inr hce_greq_encap_or_ob_ce =>
+    apply Behaviour.contradiction_of_two_encap_or_ordered_cache_events_immediate_finishes_before_successor_event'
+    . case hordered => exact hce_greq_encap_or_ob_ce
+    . case hgreq_in_b => exact he.finishBefore.finBefore.predInB
+    . case hgreq => exact he
+    . case he => exact hgreq
+
+lemma Behaviour.immediateFinishesBeforeAtGlobalCacheEvents_is_greq_singleton (b : Behaviour n)
+  (e_succ : Event n) (h : b.immediateFinishesBeforeAtGlobalCache n e_greq e_succ)
+  : (b.immediateFinishesBeforeAtGlobalCacheEvents n e_succ) = {e_greq} := by
+  simp[immediateFinishesBeforeAtGlobalCacheEvents]
+  apply Set.ext
+  case h =>
+  intro e
+  apply Iff.intro
+  . case mp =>
+    intro he_in_finish_befores
+    simp_all
+    obtain ⟨he_in_b,he_imm_fin_before⟩ := he_in_finish_befores
+    case intro =>
+    by_contra he_ne_cdir
+    -- Show for either case of `e.OrderedBefore e_cdir` or `e_cdir.OrderedBefore e`, there's a Contradiction:
+    have hgreq_at_corresponding_cdir := h.finishBefore.gCacheOfCDir
+    have he_at_corresponding_cdir := he_imm_fin_before.finishBefore.gCacheOfCDir
+    simp[Event.reqAtCorrespondingGCacheOfCDir] at hgreq_at_corresponding_cdir he_at_corresponding_cdir
+    match e, e_greq with
+    | .cacheEvent ce, .cacheEvent ce_greq =>
+      -- Contradiction; Both `e` and `e_cdir` can't both be immediate finish-before `e_succ` events.
+      have hordered := b.orderedAtEntry.cache_ordered ce ce_greq |>.ordered
+      -- simp[DirectoryEvent.Ordered] at hordered
+      apply Behaviour.contradiction_of_two_encap_or_ordered_cache_events_immediate_finishes_before_successor_event
+      . case hordered => exact hordered
+      . case hgreq => exact h
+      . case he => exact he_imm_fin_before
+    | .directoryEvent de, .directoryEvent de_cdir
+    | .directoryEvent _, .cacheEvent _ | .cacheEvent _, .directoryEvent _
+      =>
+      match e_succ with
+      | .directoryEvent dsucc =>
+        simp[Event.protocol] at hgreq_at_corresponding_cdir he_at_corresponding_cdir
+        match hcdir_protocol : dsucc.pInst with
+        | .cluster1 | .cluster2 =>
+          simp[hcdir_protocol, Event.reqAtGlobalCacheCid] at hgreq_at_corresponding_cdir he_at_corresponding_cdir
+        | .global => simp[hcdir_protocol] at hgreq_at_corresponding_cdir he_at_corresponding_cdir
+      | .cacheEvent _ => simp at hgreq_at_corresponding_cdir he_at_corresponding_cdir
+  . case mpr =>
+    intro he_in_greq
+    simp[]
+    apply And.intro
+    . case left =>
+      simp at he_in_greq; rw[he_in_greq]
+      exact h.finishBefore.finBefore.predInB
+    . case right =>
+      simp at he_in_greq; rw[he_in_greq]
+      exact h
+
+/- END added for Lemma 4 -/
+
 lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_cdir_singleton {e_cdir} (b : Behaviour n)
   (e_succ : Event n) (h : b.immediateFinishesBeforeAtClusterDirectory n e_cdir e_succ)
   : (b.immediateFinishesBeforeAtClusterDirectoryEvents n e_succ) = {e_cdir} := by
