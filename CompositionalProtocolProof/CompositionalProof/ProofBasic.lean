@@ -57,7 +57,7 @@ def Behaviour.globalDowngradeEvent.satisfiesCompoundSMWR (b : Behaviour n) (init
 
 /-- Goal for Lemma 4. Split for Lemma 5. -/
 def Behaviour.globalCacheEvent.satisfiesCompoundSMWR (b : Behaviour n) (init : InitialSystemState n) (e_cdir : Event n) : Prop :=
-    ∀ e_gcache ∈ b, e_gcache.isGlobalCache → e_cdir.clusterDirEncapCorrespondingGlobalCache n e_gcache →
+    ∀ e_gcache ∈ b, e_gcache.isGlobalCache → e_cdir.clusterDirEncapCorrespondingGlobalCache n b e_gcache →
     ∀ e_gdir ∈ b, e_gdir.isGlobalDir → b.dirEventCorrespondingToCacheEvent n init e_gcache e_gdir →
     Behaviour.globalDowngradeEvent.satisfiesCompoundSMWR n b init e_gcache e_gdir
 
