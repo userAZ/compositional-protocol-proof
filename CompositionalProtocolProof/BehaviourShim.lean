@@ -39,6 +39,7 @@ structure Event.globalCacheEventOfClusterDir (e_greq e_dir : Event n) where
   sameAddr : e_dir.addr = e_greq.addr
   gReq : e_dir.reqAtCorrespondingGCacheOfCDir n e_greq -- Global Cache Request corresponds to e_dir's cluster
   matchingOp : e_greq.req = ⟨⟨e_dir.req.val.rw, true, .SC⟩, by simp[Request.IsValid']⟩
+  notDowngrade : ¬ e_greq.down
 
 structure Event.clusterDirEncapCorrespondingGlobalCache (b : Behaviour n) (e_dir e_greq : Event n) : Prop where
   encapGlobalCache : e_dir.Encapsulates n e_greq
