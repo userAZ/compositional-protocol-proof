@@ -187,6 +187,148 @@ lemma Behaviour.same_struct_as_event_reqAtCorrespondingGCacheOfCDir_also_corresp
     | .global => simp_all[]
   | .cacheEvent _ => simp_all[]
 
+/-- Helper Lemma : If an event `e` is at a global cluster corresponding to a Cluster Directory,
+then `e` is a `GlobalCache` -/
+lemma Behaviour.global_cache_event_of_reqAtCorrespondingGCacheOfCDir_event_isGlobalCache
+  (he_corr_gcache : Event.reqAtCorrespondingGCacheOfCDir n e_cdir e)
+  : e.isGlobalCache := by
+  constructor
+  . case reqAtCache =>
+    simp_all[Event.isCacheEvent, Event.struct, Event.reqAtCorrespondingGCacheOfCDir]
+    match e_cdir with
+    | .directoryEvent dcdir =>
+      simp_all[Event.protocol]
+      match hcdir_protocol : dcdir.pInst with
+      | .cluster1 | .cluster2 =>
+        simp_all[Event.reqAtGlobalCacheCid]
+        match e with
+        | .cacheEvent ce
+        | .directoryEvent ce =>
+          simp_all
+      | .global => simp_all
+    | .cacheEvent _ => simp_all
+  . case notAtGProxy =>
+    simp_all[Event.isCacheEvent, Event.struct, Event.reqAtCorrespondingGCacheOfCDir]
+    match e_cdir with
+    | .directoryEvent dcdir =>
+      simp_all[Event.protocol]
+      match hcdir_protocol : dcdir.pInst with
+      | .cluster1 | .cluster2 =>
+        simp_all[Event.reqAtGlobalCacheCid, Event.reqAtGlobalCache]
+        match e with
+        | .cacheEvent ce
+        | .directoryEvent ce =>
+          simp_all
+          try
+          match hcid : ce.cid with
+          | .cache pci =>
+            simp_all[hcid]
+            match pci with
+            | .globalP fin2 | .cluster1 _ | .cluster2 _ =>
+              simp_all
+          | .proxy _ => simp_all
+
+      | .global => simp_all
+    | .cacheEvent _ => simp_all
+  . case reqGlobal =>
+    simp_all[Event.isCacheEvent, Event.struct, Event.reqAtCorrespondingGCacheOfCDir]
+    match e_cdir with
+    | .directoryEvent dcdir =>
+      simp_all[Event.protocol]
+      match hcdir_protocol : dcdir.pInst with
+      | .cluster1 | .cluster2 =>
+        simp_all[Event.reqAtGlobalCacheCid, Event.reqAtGlobalCache]
+        match e with
+        | .cacheEvent ce
+        | .directoryEvent ce =>
+          simp_all
+          try
+          match hcid : ce.cid with
+          | .cache pci =>
+            simp_all[hcid]
+            match pci with
+            | .globalP fin2 | .cluster1 _ | .cluster2 _ =>
+              simp_all
+          | .proxy _ => simp_all
+
+      | .global => simp_all
+    | .cacheEvent _ => simp_all
+
+/-- Helper Lemma : If an event `e` is at a global cluster corresponding to a Cluster Directory,
+and `e'` is at the same Structure as `e`, then `e'` is a `GlobalCache` -/
+lemma Behaviour.global_cache_event_of_same_struct_as_reqAtCorrespondingGCacheOfCDir_event
+  (hsame_struct : Event.struct n e' = Event.struct n e)
+  -- (he_global_cache : Event.isGlobalCache n e)
+  (he_corr_gcache : Event.reqAtCorrespondingGCacheOfCDir n e_cdir e)
+  : e'.isGlobalCache := by
+  constructor
+  . case reqAtCache =>
+    simp_all[Event.isCacheEvent, Event.struct, Event.reqAtCorrespondingGCacheOfCDir]
+    match e_cdir with
+    | .directoryEvent dcdir =>
+      simp_all[Event.protocol]
+      match hcdir_protocol : dcdir.pInst with
+      | .cluster1 | .cluster2 =>
+        simp_all[Event.reqAtGlobalCacheCid]
+        match e, e' with
+        | .cacheEvent ce, .cacheEvent ce'
+        | .directoryEvent ce, .cacheEvent ce'
+        | .cacheEvent ce, .directoryEvent ce'
+        | .directoryEvent ce, .directoryEvent ce' =>
+          simp_all
+      | .global => simp_all
+    | .cacheEvent _ => simp_all
+  . case notAtGProxy =>
+    simp_all[Event.isCacheEvent, Event.struct, Event.reqAtCorrespondingGCacheOfCDir]
+    match e_cdir with
+    | .directoryEvent dcdir =>
+      simp_all[Event.protocol]
+      match hcdir_protocol : dcdir.pInst with
+      | .cluster1 | .cluster2 =>
+        simp_all[Event.reqAtGlobalCacheCid, Event.reqAtGlobalCache]
+        match e, e' with
+        | .cacheEvent ce, .cacheEvent ce'
+        | .directoryEvent ce, .cacheEvent ce'
+        | .cacheEvent ce, .directoryEvent ce'
+        | .directoryEvent ce, .directoryEvent ce' =>
+          simp_all
+          try
+          match hcid : ce.cid with
+          | .cache pci =>
+            simp_all[hcid]
+            match pci with
+            | .globalP fin2 | .cluster1 _ | .cluster2 _ =>
+              simp_all
+          | .proxy _ => simp_all
+
+      | .global => simp_all
+    | .cacheEvent _ => simp_all
+  . case reqGlobal =>
+    simp_all[Event.isCacheEvent, Event.struct, Event.reqAtCorrespondingGCacheOfCDir]
+    match e_cdir with
+    | .directoryEvent dcdir =>
+      simp_all[Event.protocol]
+      match hcdir_protocol : dcdir.pInst with
+      | .cluster1 | .cluster2 =>
+        simp_all[Event.reqAtGlobalCacheCid, Event.reqAtGlobalCache]
+        match e, e' with
+        | .cacheEvent ce, .cacheEvent ce'
+        | .directoryEvent ce, .cacheEvent ce'
+        | .cacheEvent ce, .directoryEvent ce'
+        | .directoryEvent ce, .directoryEvent ce' =>
+          simp_all
+          try
+          match hcid : ce.cid with
+          | .cache pci =>
+            simp_all[hcid]
+            match pci with
+            | .globalP fin2 | .cluster1 _ | .cluster2 _ =>
+              simp_all
+          | .proxy _ => simp_all
+
+      | .global => simp_all
+    | .cacheEvent _ => simp_all
+
 lemma Behaviour.global_cache_event_of_same_struct_as_global_cache_event
   (hsame_struct : Event.struct n e' = Event.struct n e)
   (he_global_cache : Event.isGlobalCache n e)
