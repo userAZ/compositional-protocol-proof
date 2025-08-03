@@ -117,15 +117,24 @@ def CompoundProtocol.compoundLinearization.OfReqEncapDirAccess (shimAxioms : Shi
     CompoundProtocol.clusterDirectoryLinearizationEvent
       n shimAxioms b init (lin_at_dir.choose_spec.right.reqLinearizeAtDir.choose) e_glin
 
+/-- Helper for Definition 2.48 -/
+structure Behaviour.eventCompoundLinearizes.atCache (b : Behaviour n) (init : InitialSystemState n) (e_creq e_cmplin : Event n) (e_creq_lin : b.linearizationEventOfRequest n init e_creq) : Prop where
+  cluster_cache : e_creq.clusterNonProxyCacheEvent
+  lin_at_cache : b.reqLinearizesAtCache n init e_creq e_creq_lin
+  e_creq_is_e_glin : e_cmplin = e_creq
+
+structure Behaviour.eventCompoundLinearizes.atDirectoryOrBeyond (shimAxioms : ShimAxioms n) (b : Behaviour n) (init : InitialSystemState n) (e_creq e_cmplin : Event n) (e_creq_lin : b.linearizationEventOfRequest n init e_creq) : Prop where
+  cluster_cache : e_creq.clusterNonProxyCacheEvent
+  lin_at_dir : b.reqLinearizesAtDir n init e_creq e_creq_lin
+  e_glin_deeper : CompoundProtocol.compoundLinearization.OfReqEncapDirAccess n shimAxioms b init e_creq e_cmplin e_creq_lin
+
 /-- Definition 2.48 -/
-inductive ClusterRequestLinearizationEvent (shimAxioms : ShimAxioms n)
-  (b : Behaviour n) (init : InitialSystemState n) (e_creq : Event n) (e_creq_lin : b.linearizationEventOfRequest n init e_creq) : Prop
-| clusterCacheLin (cluster_cache : e_creq.clusterNonProxyCacheEvent) (lin_at_cache : b.reqLinearizesAtCache n init e_creq e_creq_lin)
-  (e_creq_is_e_glin : ∃ e_glin ∈ b, e_glin = e_creq)
-  : ClusterRequestLinearizationEvent shimAxioms b init e_creq e_creq_lin
-| clusterDirLin (cluster_cache : e_creq.clusterNonProxyCacheEvent) (lin_at_dir : b.reqLinearizesAtDir n init e_creq e_creq_lin)
-  (e_glin_deeper : ∃ e_glin ∈ b, CompoundProtocol.compoundLinearization.OfReqEncapDirAccess n shimAxioms b init e_creq e_glin e_creq_lin)
-  : ClusterRequestLinearizationEvent shimAxioms b init e_creq e_creq_lin
-
-
--- [ TODO ] Want to put Compound Linearization event into the Compound Protocol Def.
+inductive ClusterRequestLinearizationEvent (shim_axioms : ShimAxioms n)
+  (b : Behaviour n) (init : InitialSystemState n) (e_creq : Event n) (e_creq_lin : b.linearizationEventOfRequest n init e_creq)
+| clusterCacheLin (cluster_req_linearize_at_cache : ∃ e_cmplin ∈ b, Behaviour.eventCompoundLinearizes.atCache n b init e_creq e_cmplin e_creq_lin)
+  : ClusterRequestLinearizationEvent shim_axioms b init e_creq e_creq_lin
+| clusterDirLin (cluster_req_linearize_at_directory_or_beyond : ∃ e_cmplin ∈ b, Behaviour.eventCompoundLinearizes.atDirectoryOrBeyond n shim_axioms b init e_creq e_cmplin e_creq_lin)
+  : ClusterRequestLinearizationEvent shim_axioms b init e_creq e_creq_lin
+def Behaviour.clusterRequestLinearizationEvent.wrapper := ∀ shim_axioms : ShimAxioms n,
+  ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_creq : Event n, ∀ e_creq_lin : b.linearizationEventOfRequest n init e_creq,
+  ClusterRequestLinearizationEvent n shim_axioms b init e_creq e_creq_lin
