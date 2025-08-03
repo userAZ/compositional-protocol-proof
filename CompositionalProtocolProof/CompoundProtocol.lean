@@ -13,10 +13,9 @@ structure CompoundProtocol where
   globalSWMR : global.requests.isSWMR
   cluster1WellFormed : cluster1.pi = .cluster1
   cluster2WellFormed : cluster2.pi = .cluster2
-  linearizationOfEvent : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b,
+  linearizationOfEvent : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req : Event n,
     Behaviour.linearizationEventOfRequest n b init e_req
-  compoundLinearizationEvent : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_creq ∈ b, ∀ e_creq_lin : b.linearizationEventOfRequest n init e_creq,
-    ClusterRequestLinearizationEvent n shimAxioms b init e_creq e_creq_lin
+  compoundLinearizationEvent : Behaviour.clusterRequestLinearizationEvent.wrapper n
 
 def CompoundProtocol.globalCidToProtocol (cmp : CompoundProtocol n) (g_cid : Fin 2) : Protocol n := match g_cid with
   | 0 => cmp.cluster1
