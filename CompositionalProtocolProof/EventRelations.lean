@@ -551,3 +551,15 @@ structure Event.baseEncapBroadcastBefore (other_addr : Addr) (e_base e_original 
 structure Event.baseEncapBroadcastAfter (other_addr : Addr) (e_base e_original e_cast_copy e_dir : Event n) : Prop where
   broadcastEncapInBase : e_base.baseEncapBroadcast n other_addr e_original e_cast_copy
   afterDir : e_dir.OrderedBefore n e_cast_copy
+/-- The protocol instance of an event. -/
+def Event.protocol (e_req : Event n) : ProtocolInstance := match e_req with
+  | .cacheEvent ce => match ce.cid with
+    | .proxy pi => pi
+    | .cache pci => match pci with
+      | .globalP _ => .global
+      | .cluster1 _ => .cluster1
+      | .cluster2 _ => .cluster2
+  | .directoryEvent de => de.pInst
+
+/-- State if two Events are of the same protocol -/
+def Event.sameProtocol (e_req e_dir : Event n) : Prop := e_req.protocol = e_dir.protocol
