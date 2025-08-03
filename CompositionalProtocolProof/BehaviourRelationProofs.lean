@@ -1531,13 +1531,18 @@ structure Behaviour.requestWithCoherentPermLin : Prop where
     b.requestWithCoherentPermsLinearizes n init e_req e_lin
 -/
 
+structure Behaviour.requestLinearizesAtDirectory (b : Behaviour n) (init : InitialSystemState n) (e_req e_dir e_lin : Event n) where
+  isDir : e_dir.isDirectoryEvent
+  reqCorrespondsToDir : b.dirAccessOfRequest n init e_req e_dir
+  dirIsLin : e_lin = e_dir
+
 /-- Def. Prop constraints for Def 2.37 case where the request has doesn't have coherent permissions and there exists a corresponding Directory
 Event, defined by Lemma 3. -/
 structure Behaviour.requestWithoutCoherentPermsLinearizesAtDir (b : Behaviour n) (init : InitialSystemState n) (e_req e_lin : Event n)
   -- (hreq_in_b : e_req ∈ b) (hreq_encap_dir : axRequestAccessesDirectory n) (hdir_before_after : has_perms_or_vd_exists_e_dir_before_or_after n)
   : Prop where
   reqOnNonCoherentOrNoPerms : b.eventOnNonCoherentState n init e_req ∨ b.eventOnStateNoPerms n init e_req
-  reqLinearizeAtDir : ∃ e_dir ∈ b, e_dir.isDirectoryEvent ∧ b.dirAccessOfRequest n init e_req e_dir ∧ e_lin = e_dir
+  reqLinearizeAtDir : ∃ e_dir ∈ b, b.requestLinearizesAtDirectory n init e_req e_dir e_lin
 
 /-
 /-- Def. Wrapper structure : Prop. for Def 2.37-/
