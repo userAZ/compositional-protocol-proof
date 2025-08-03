@@ -1,5 +1,6 @@
 import CompositionalProtocolProof.CompoundSWMR
 -- import CompositionalProtocolProof.CompoundProtocol
+import CompositionalProtocolProof.BehaviourRelationDefs
 import CompositionalProtocolProof.BehaviourShim
 
 import CompositionalProtocolProof.CompositionalProof.ProofBasic
