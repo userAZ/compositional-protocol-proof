@@ -8,15 +8,6 @@ noncomputable def Behaviour.linearizationEventOfRequest.linearizationEvent {b : 
   | .requestLin lin_e => lin_e.choose
   | .dirLin lin_e => lin_e.choose
 
-structure Event.orderedBeforeToSameEntry (e_lin₂ e_lin₃ : Event n) : Prop where
-  e₂e₃Before : e_lin₂.OrderedBefore n e_lin₃
-  e₂e₃sameEntry : e_lin₂.sameEntry n e_lin₃
-
-structure Event.lazyLinearizationOrder (e_lin₁ e_lin₂ e_lin₃ : Event n) : Prop where
-  e₁e₂sameProtocol : e_lin₁.sameProtocol n e_lin₂
-  e₂e₃sameProtocol : e_lin₂.sameProtocol n e_lin₃
-  e₁e₃FinishesBefore : e_lin₁.finishesBefore n e_lin₃
-
 /-- Def 2.39: A Request Pair is in PPO -/
 def Event.LinearizationOrder (b : Behaviour n) (init : InitialSystemState n)
   (e₁ e₂ : Event n) (lin : Behaviour.linearizationEventOfRequestWrapper n)

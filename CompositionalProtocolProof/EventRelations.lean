@@ -551,6 +551,12 @@ structure Event.baseEncapBroadcastBefore (other_addr : Addr) (e_base e_original 
 structure Event.baseEncapBroadcastAfter (other_addr : Addr) (e_base e_original e_cast_copy e_dir : Event n) : Prop where
   broadcastEncapInBase : e_base.baseEncapBroadcast n other_addr e_original e_cast_copy
   afterDir : e_dir.OrderedBefore n e_cast_copy
+
+/-- Def. two events are ordered before to the same entry.-/
+structure Event.orderedBeforeToSameEntry (e_lin₂ e_lin₃ : Event n) : Prop where
+  e₂e₃Before : e_lin₂.OrderedBefore n e_lin₃
+  e₂e₃sameEntry : e_lin₂.sameEntry n e_lin₃
+
 /-- The protocol instance of an event. -/
 def Event.protocol (e_req : Event n) : ProtocolInstance := match e_req with
   | .cacheEvent ce => match ce.cid with
@@ -563,3 +569,11 @@ def Event.protocol (e_req : Event n) : ProtocolInstance := match e_req with
 
 /-- State if two Events are of the same protocol -/
 def Event.sameProtocol (e_req e_dir : Event n) : Prop := e_req.protocol = e_dir.protocol
+
+/-- Define Lazy Linearization Order: For Linearization Events `e₁` `e₂` and `e₃`,
+If `e₂` is Ordered Before `e₃`, and `e₁` finishes linearizing before `e₃`,
+then we say `e₁` lazily linearizses before `e₃`. -/
+structure Event.lazyLinearizationOrder (e_lin₁ e_lin₂ e_lin₃ : Event n) : Prop where
+  e₁e₂sameProtocol : e_lin₁.sameProtocol n e_lin₂
+  e₂e₃sameProtocol : e_lin₂.sameProtocol n e_lin₃
+  e₁e₃FinishesBefore : e_lin₁.finishesBefore n e_lin₃
