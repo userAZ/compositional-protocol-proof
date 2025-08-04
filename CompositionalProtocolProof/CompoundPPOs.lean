@@ -635,6 +635,83 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_two_events_that_encapsulate
             e₁.OrderedBefore n e₂ := he₁_ob_e₂
             e₂.Encapsulates n hcluster_dir_lin_e₂.choose := he₂_encap_e₂_cmp_lin
 
+/- Non-Coherent Release: Weak request ordered before a release -/
+
+lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_read_and_non_coherent_release
+  {b : Behaviour n}{init : InitialSystemState n}
+  {cmp : CompoundProtocol n} {e₁ e₂ : Event n}
+  {he₁_ob_e₂ : e₁.OrderedBefore n e₂}
+  (hsame_protocol : e₁.sameProtocol n e₂)
+  (he₁_req : Event.req n e₁ = ⟨{ rw := .r, coherent := false, consistency := Consistency.Weak }, property_weak⟩)
+  (he₂_req : Event.req n e₂ = ⟨{ rw := ReadWrite.w, coherent := false, consistency := Consistency.Rel }, property_rel⟩)
+  (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
+  : CompoundLinearizationOrder n cmp b init e₁ e₂ := by
+  sorry
+
+lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_write_and_non_coherent_release
+  {b : Behaviour n}{init : InitialSystemState n}
+  {cmp : CompoundProtocol n} {e₁ e₂ : Event n}
+  {he₁_ob_e₂ : e₁.OrderedBefore n e₂}
+  (hsame_protocol : e₁.sameProtocol n e₂)
+  (he₁_req : Event.req n e₁ = ⟨{ rw := .w, coherent := false, consistency := Consistency.Weak }, property_weak⟩)
+  (he₂_req : Event.req n e₂ = ⟨{ rw := ReadWrite.w, coherent := false, consistency := Consistency.Rel }, property_rel⟩)
+  (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
+  : CompoundLinearizationOrder n cmp b init e₁ e₂ := by
+  sorry
+
+lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_non_coherent_release
+  {b : Behaviour n}{init : InitialSystemState n}
+  {cmp : CompoundProtocol n} {e₁ e₂ : Event n}
+  {he₁_ob_e₂ : e₁.OrderedBefore n e₂}
+  (hsame_protocol : e₁.sameProtocol n e₂)
+  (he₁_req : Event.req n e₁ = ⟨{ rw := rw, coherent := false, consistency := Consistency.Weak }, property_weak⟩)
+  (he₂_req : Event.req n e₂ = ⟨{ rw := ReadWrite.w, coherent := false, consistency := Consistency.Rel }, property_rel⟩)
+  (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
+  : CompoundLinearizationOrder n cmp b init e₁ e₂ := by
+  cases rw
+  . case r =>
+    apply CompoundProtocol.CompoundLinearizationOrder_of_weak_read_and_non_coherent_release
+    . case he₁_ob_e₂ => exact he₁_ob_e₂
+    . case hsame_protocol => exact hsame_protocol
+    . case he₁_req => exact he₁_req
+    . case he₂_req => exact he₂_req
+    . case he₁_not_down => exact he₁_not_down
+    . case he₂_not_down => exact he₂_not_down
+  . case w =>
+    apply CompoundProtocol.CompoundLinearizationOrder_of_weak_write_and_non_coherent_release
+    . case he₁_ob_e₂ => exact he₁_ob_e₂
+    . case hsame_protocol => exact hsame_protocol
+    . case he₁_req => exact he₁_req
+    . case he₂_req => exact he₂_req
+    . case he₁_not_down => exact he₁_not_down
+    . case he₂_not_down => exact he₂_not_down
+
+/- Coherent Release: Weak request ordered before a release -/
+
+lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_coherent_release
+  {b : Behaviour n}{init : InitialSystemState n}
+  {cmp : CompoundProtocol n} {e₁ e₂ : Event n}
+  {he₁_ob_e₂ : e₁.OrderedBefore n e₂}
+  (hsame_protocol : e₁.sameProtocol n e₂)
+  (he₁_req : Event.req n e₁ = ⟨{ rw := rw, coherent := false, consistency := Consistency.Weak }, property_weak⟩)
+  (he₂_req : Event.req n e₂ = ⟨{ rw := ReadWrite.w, coherent := true, consistency := Consistency.Rel }, property_rel⟩)
+  (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
+  : CompoundLinearizationOrder n cmp b init e₁ e₂ := by
+  sorry
+
+/- Acquire: Acquire ordered before a Weak Request -/
+
+lemma CompoundProtocol.CompoundLinearizationOrder_of_acquire_and_weak_request
+  {b : Behaviour n}{init : InitialSystemState n}
+  {cmp : CompoundProtocol n} {e₁ e₂ : Event n}
+  {he₁_ob_e₂ : e₁.OrderedBefore n e₂}
+  (hsame_protocol : e₁.sameProtocol n e₂)
+  (he₁_req : Event.req n e₁ = ⟨{ rw := .r, coherent := false, consistency := .Acq }, property_acq⟩)
+  (he₂_req : Event.req n e₂ = ⟨{ rw := rw, coherent := false, consistency := .Weak }, property_weak⟩)
+  (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
+  : CompoundLinearizationOrder n cmp b init e₁ e₂ := by
+  sorry
+
 /-- Lemma 11 (thm 1)-/
 lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b : Behaviour n} {init : InitialSystemState n}
   (cmp : CompoundProtocol n) (e₁ e₂ : Event n) (hsame_protocol : e₁.sameProtocol n e₂) (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
@@ -656,7 +733,13 @@ lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b 
     . case he₁_not_down => exact he₁_not_down
     . case he₂_not_down => exact he₂_not_down
   | ⟨⟨_,false,.Weak⟩,_⟩, ⟨⟨.w,false,.Rel⟩,_⟩ => -- Weak requests are ordered before a Non-Coherent Release
-    sorry
+    apply CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_non_coherent_release
+    . case he₁_ob_e₂ => exact he₁_ob_e₂
+    . case hsame_protocol => exact hsame_protocol
+    . case he₁_req => exact he₁_req
+    . case he₂_req => exact he₂_req
+    . case he₁_not_down => exact he₁_not_down
+    . case he₂_not_down => exact he₂_not_down
   | ⟨⟨_,false,.Weak⟩,_⟩, ⟨⟨.w,true,.Rel⟩,_⟩ => -- Weak requests are ordered before a Coherent Release
     sorry
   | ⟨⟨.w,true,.Weak⟩,_⟩, ⟨⟨.w,true,.Rel⟩,_⟩ => -- a Coherent Weak Write is ordered before a Coherent Release
