@@ -1,10 +1,9 @@
 import CompositionalProtocolProof.BehaviourRelationProofs
 import CompositionalProtocolProof.CompositionalProof.CompoundLinearization
 import CompositionalProtocolProof.CompoundProtocol
+import CompositionalProtocolProof.CompositionalProof.ProofBasicHelperLemmas
 
 variable (n : Nat)
-
-/- -------------------------------------- -/
 
 /- State that for any PPO pair of requests in the same cluster, they satisfy compound linearization order. -/
 
@@ -85,6 +84,90 @@ lemma Event.contradiction_of_has_perms_and_no_perms {b init e rw property}
           simp[Event.req] at he_req
           simp[CacheEvent.isNcWeakRead, ValidRequest.isNcWeakRead,
             he_req] at hweak_read
+        | .directoryEvent _ => simp[] at hweak_read
+
+lemma Event.contradiction_of_nc_release_request_has_perms_and_no_perms {b init e}
+  (he_req : e.req.isNcRelease)
+  (he_not_down : ¬ e.down)
+  (he_has_perms : Behaviour.reqHasPerms n b init e)
+  (he_no_perms : Behaviour.reqMissingPerms n b init e)
+  : False := by
+    cases he_has_perms
+    . case hasPerms his_coherent hhas_perms =>
+      simp[Behaviour.hasPerms] at hhas_perms
+      simp[isCoherent] at his_coherent
+      match e with
+      | .cacheEvent ce =>
+        simp[ValidRequest.isCoherent, Request.isCoherent] at his_coherent
+        simp[Event.req, ValidRequest.isNcRelease,] at he_req
+        simp[he_req] at his_coherent
+      | .directoryEvent _ => simp[] at his_coherent
+    . case ncRelAcqWeakWriteHasCoherentPerms hrel_acq_ww hcoherent_perms =>
+      cases he_no_perms
+      . case downgrade hdown hevict => contradiction
+      . case noPermsForNonNcRelAcqWeakWrite hnot_down hnotrel_acq_ww hno_perms => contradiction
+      . case ncRelAcqWeakWriteNotOnCoherentState hnot_down hacq_rel hacq_rel_ww_no_perms =>
+        simp[Behaviour.acqRelWeakWriteNoPerms] at hacq_rel_ww_no_perms
+        apply hacq_rel_ww_no_perms
+        . case a =>
+          simp[Behaviour.eventOnCoherentState, ]
+          have hmade_on_coherent_state := hcoherent_perms.onCoherentState
+          simp[ Behaviour.reqMadeOnCoherentState, Behaviour.stateReqMadeOn] at hmade_on_coherent_state
+          simp[hmade_on_coherent_state]
+        . case a =>
+          simp[Behaviour.eventOnStateHasPerms]
+          have hhas_perms := hcoherent_perms.hasPerms
+          simp[Behaviour.hasPerms] at hhas_perms
+          simp[hhas_perms]
+    . case ncWeakReadHasPermsNotVd hweak_read hhas_perms_not_vd =>
+        simp[Event.isNcWeakRead,] at hweak_read
+        match e with
+        | .cacheEvent ce =>
+          simp[Event.req, ValidRequest.isNcRelease, ] at he_req
+          simp[CacheEvent.isNcWeakRead, ValidRequest.isNcWeakRead, ] at hweak_read
+          simp[hweak_read] at he_req
+        | .directoryEvent _ => simp[] at hweak_read
+
+lemma Event.contradiction_of_acquire_request_has_perms_and_no_perms {b init e}
+  (he_req : e.req.isAcquire)
+  (he_not_down : ¬ e.down)
+  (he_has_perms : Behaviour.reqHasPerms n b init e)
+  (he_no_perms : Behaviour.reqMissingPerms n b init e)
+  : False := by
+    cases he_has_perms
+    . case hasPerms his_coherent hhas_perms =>
+      simp[Behaviour.hasPerms] at hhas_perms
+      simp[isCoherent] at his_coherent
+      match e with
+      | .cacheEvent ce =>
+        simp[ValidRequest.isCoherent, Request.isCoherent] at his_coherent
+        simp[Event.req, ValidRequest.isAcquire,] at he_req
+        simp[he_req] at his_coherent
+      | .directoryEvent _ => simp[] at his_coherent
+    . case ncRelAcqWeakWriteHasCoherentPerms hrel_acq_ww hcoherent_perms =>
+      cases he_no_perms
+      . case downgrade hdown hevict => contradiction
+      . case noPermsForNonNcRelAcqWeakWrite hnot_down hnotrel_acq_ww hno_perms => contradiction
+      . case ncRelAcqWeakWriteNotOnCoherentState hnot_down hacq_rel hacq_rel_ww_no_perms =>
+        simp[Behaviour.acqRelWeakWriteNoPerms] at hacq_rel_ww_no_perms
+        apply hacq_rel_ww_no_perms
+        . case a =>
+          simp[Behaviour.eventOnCoherentState, ]
+          have hmade_on_coherent_state := hcoherent_perms.onCoherentState
+          simp[ Behaviour.reqMadeOnCoherentState, Behaviour.stateReqMadeOn] at hmade_on_coherent_state
+          simp[hmade_on_coherent_state]
+        . case a =>
+          simp[Behaviour.eventOnStateHasPerms]
+          have hhas_perms := hcoherent_perms.hasPerms
+          simp[Behaviour.hasPerms] at hhas_perms
+          simp[hhas_perms]
+    . case ncWeakReadHasPermsNotVd hweak_read hhas_perms_not_vd =>
+        simp[Event.isNcWeakRead,] at hweak_read
+        match e with
+        | .cacheEvent ce =>
+          simp[Event.req, ValidRequest.isAcquire, ] at he_req
+          simp[CacheEvent.isNcWeakRead, ValidRequest.isNcWeakRead, ] at hweak_read
+          simp[hweak_read] at he_req
         | .directoryEvent _ => simp[] at hweak_read
 
 lemma Event.contradiction_of_coherent_request_has_perms_and_no_perms {b init e}
@@ -176,6 +259,138 @@ lemma CompoundProtocol.e_encap_dir_lin_encap_global_dir_lin
       simp[hgreq_req] at hweak_req
     | .directoryEvent _ => simp[] at hweak_req
 
+lemma CompoundProtocol.nc_release_request_encapsulates_compound_linearization_event
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+  {e_generated_lin : Event n} -- ∃ linearization event of e₁ (not compound linearization event)
+  {e_generated_cdir : Event n} -- ∃ cluster Directory Event, that connects request `e₁` to the directory
+  (he_req : e.req.isNcRelease)
+  (he_not_down : ¬ e.down)
+  (hdir_lin : Behaviour.requestWithoutCoherentPermsLinearizesAtDir n b init e e_generated_lin)
+  (he_has_no_perms : Behaviour.reqMissingPerms n b init e)
+  (he_req_at_cdir : Behaviour.requestLinearizesAtDirectory n b init e e_generated_cdir e_generated_lin)
+  (he_lin_dir : clusterDirectoryLinearizationEvent n cmp.shimAxioms b init e_generated_cdir e_generated_cmp_lin)
+  : e.Encapsulates n e_generated_cmp_lin := by
+
+  have he_cdir_spec := he_req_at_cdir.reqCorrespondsToDir
+  cases he_cdir_spec
+  . case encapDir he_missing_perms he_encap_corr_dir =>
+    have he_encap_dir := he_encap_corr_dir.reqEncapDir
+
+    have hreq_corr_to_dir := he_req_at_cdir
+    cases he_lin_dir
+    . case previousGlobalCacheGotPerms hgcache_has_perms hcdir_is_glin =>
+      simp[hcdir_is_glin]
+      exact he_encap_dir
+    . case getGlobalCachePerms hcdir_no_perms_in_gcache hcdir_requests_gcache =>
+      simp[Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent] at hcdir_requests_gcache
+      simp[he_req_at_cdir.isDir] at hcdir_requests_gcache
+
+      split at hcdir_requests_gcache
+      . case h_1 _ _ _ _ =>
+        exfalso; exact hcdir_requests_gcache
+      . case h_2 _ _ htranslation _ =>
+        have := htranslation.choose_spec.right
+        have hdir_encap_gcache := htranslation.choose_spec.right
+        -- .encapGlobalCache
+        simp[Behaviour.compoundLinearizationEvent.globalCacheNoPermsReqDirectory] at hcdir_requests_gcache
+        obtain ⟨hgcache_lin,hgcache_lin_cases⟩ := hcdir_requests_gcache
+        split at hgcache_lin_cases
+        . case h_1 hgcache_lin_event hat_dir =>
+          have := hat_dir.choose_spec.right.reqLinearizeAtDir.choose_spec.right.reqCorrespondsToDir
+          simp[hgcache_lin_cases]
+          -- lemma here.
+          -- calc e.Encapsulates n e_generated_cdir := he_encap_dir
+            -- Event.Encapsulates n _ e_
+          apply CompoundProtocol.e_encap_dir_lin_encap_global_dir_lin
+          . case htranslation => exact htranslation.choose_spec.right
+          . case he_encap_corr_dir => exact he_encap_corr_dir
+          . case hgenerated_cdir_encap_greq => exact hdir_encap_gcache
+          . case hgreq_encap_corr_gdir => exact hat_dir.choose_spec.right
+          . case hgcache_lin_at_gdir => exact hat_dir.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+        . case h_2 hgcache_lin_event hat_cache =>
+          exfalso; exact hgcache_lin_cases
+  . case orderBeforeDir he_has_perms hexists_pred_get_perms hpred_encap_dir =>
+    exfalso
+    apply Event.contradiction_of_nc_release_request_has_perms_and_no_perms
+    . case he_req => exact he_req
+    . case he_not_down => exact he_not_down
+    . case he_has_perms => exact he_has_perms
+    . case he_no_perms => exact he_has_no_perms
+  . case orderAfterDir hweak_read hsuccessor_dir =>
+    have hweak_req := hweak_read.weakReq
+    simp[Event.isNcWeak, Event.isNonCoherent, Event.isWeak] at hweak_req
+    match e with
+    | .cacheEvent ce =>
+      simp[Event.req, ValidRequest.isNcRelease,] at he_req
+      simp[he_req] at hweak_req
+    | .directoryEvent _ => simp[] at hweak_req
+
+lemma CompoundProtocol.acquire_request_encapsulates_compound_linearization_event
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+  {e_generated_lin : Event n} -- ∃ linearization event of e₁ (not compound linearization event)
+  {e_generated_cdir : Event n} -- ∃ cluster Directory Event, that connects request `e₁` to the directory
+  (he_req : e.req.isAcquire)
+  (he_not_down : ¬ e.down)
+  (hdir_lin : Behaviour.requestWithoutCoherentPermsLinearizesAtDir n b init e e_generated_lin)
+  (he_has_no_perms : Behaviour.reqMissingPerms n b init e)
+  (he_req_at_cdir : Behaviour.requestLinearizesAtDirectory n b init e e_generated_cdir e_generated_lin)
+  (he_lin_dir : clusterDirectoryLinearizationEvent n cmp.shimAxioms b init e_generated_cdir e_generated_cmp_lin)
+  : e.Encapsulates n e_generated_cmp_lin := by
+
+  have he_cdir_spec := he_req_at_cdir.reqCorrespondsToDir
+  cases he_cdir_spec
+  . case encapDir he_missing_perms he_encap_corr_dir =>
+    have he_encap_dir := he_encap_corr_dir.reqEncapDir
+
+    have hreq_corr_to_dir := he_req_at_cdir
+    cases he_lin_dir
+    . case previousGlobalCacheGotPerms hgcache_has_perms hcdir_is_glin =>
+      simp[hcdir_is_glin]
+      exact he_encap_dir
+    . case getGlobalCachePerms hcdir_no_perms_in_gcache hcdir_requests_gcache =>
+      simp[Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent] at hcdir_requests_gcache
+      simp[he_req_at_cdir.isDir] at hcdir_requests_gcache
+
+      split at hcdir_requests_gcache
+      . case h_1 _ _ _ _ =>
+        exfalso; exact hcdir_requests_gcache
+      . case h_2 _ _ htranslation _ =>
+        have := htranslation.choose_spec.right
+        have hdir_encap_gcache := htranslation.choose_spec.right
+        -- .encapGlobalCache
+        simp[Behaviour.compoundLinearizationEvent.globalCacheNoPermsReqDirectory] at hcdir_requests_gcache
+        obtain ⟨hgcache_lin,hgcache_lin_cases⟩ := hcdir_requests_gcache
+        split at hgcache_lin_cases
+        . case h_1 hgcache_lin_event hat_dir =>
+          have := hat_dir.choose_spec.right.reqLinearizeAtDir.choose_spec.right.reqCorrespondsToDir
+          simp[hgcache_lin_cases]
+          -- lemma here.
+          -- calc e.Encapsulates n e_generated_cdir := he_encap_dir
+            -- Event.Encapsulates n _ e_
+          apply CompoundProtocol.e_encap_dir_lin_encap_global_dir_lin
+          . case htranslation => exact htranslation.choose_spec.right
+          . case he_encap_corr_dir => exact he_encap_corr_dir
+          . case hgenerated_cdir_encap_greq => exact hdir_encap_gcache
+          . case hgreq_encap_corr_gdir => exact hat_dir.choose_spec.right
+          . case hgcache_lin_at_gdir => exact hat_dir.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+        . case h_2 hgcache_lin_event hat_cache =>
+          exfalso; exact hgcache_lin_cases
+  . case orderBeforeDir he_has_perms hexists_pred_get_perms hpred_encap_dir =>
+    exfalso
+    apply Event.contradiction_of_nc_release_request_has_perms_and_no_perms
+    . case he_req => exact he_req
+    . case he_not_down => exact he_not_down
+    . case he_has_perms => exact he_has_perms
+    . case he_no_perms => exact he_has_no_perms
+  . case orderAfterDir hweak_read hsuccessor_dir =>
+    have hweak_req := hweak_read.weakReq
+    simp[Event.isNcWeak, Event.isNonCoherent, Event.isWeak] at hweak_req
+    match e with
+    | .cacheEvent ce =>
+      simp[Event.req, ValidRequest.isAcquire,] at he_req
+      simp[he_req] at hweak_req
+    | .directoryEvent _ => simp[] at hweak_req
+
 lemma CompoundProtocol.coherent_request_encapsulates_compound_linearization_event
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
   {e_generated_lin : Event n} -- ∃ linearization event of e₁ (not compound linearization event)
@@ -242,11 +457,16 @@ lemma CompoundProtocol.coherent_request_encapsulates_compound_linearization_even
       simp[he_req] at hweak_req
     | .directoryEvent _ => simp[] at hweak_req
 
-lemma CompoundProtocol.CompoundLinearizationOrder_of_coherent_events
+inductive Event.ncReleaseOrAcquireOrCoherent (e : Event n)
+| ncRelease (nc_rel : e.req.isNcRelease) : Event.ncReleaseOrAcquireOrCoherent e
+| acquire (acq : e.req.isAcquire) : Event.ncReleaseOrAcquireOrCoherent e
+| coherent (coherent : e.req.isCoherent) : Event.ncReleaseOrAcquireOrCoherent e
+
+lemma CompoundProtocol.CompoundLinearizationOrder_of_two_events_that_encapsulate_their_cmp_linearization_event
   {cmp : CompoundProtocol n}
   {he₁_ob_e₂ : e₁.OrderedBefore n e₂}
-  (he₁_coherent : e₁.req.isCoherent)
-  (he₂_coherent : e₂.req.isCoherent)
+  (he₁_req : e₁.ncReleaseOrAcquireOrCoherent n)
+  (he₂_req : e₂.ncReleaseOrAcquireOrCoherent n)
   (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
   : CompoundLinearizationOrder n cmp b init e₁ e₂ := by
     match he₁_lin : cmp.compoundLinearizationEvent cmp.shimAxioms b init e₁ (cmp.linearizationOfEvent b init e₁)
@@ -274,12 +494,28 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_coherent_events
         have hreq_without_perms_lin_at_dir := hdir_lin.choose_spec.right
         have hreq_lin_at_dir := hdir_lin.choose_spec.right.reqLinearizeAtDir.choose_spec.right
         have he₁_encap_e₁_cmp_lin : e₁.Encapsulates n hcluster_dir_lin_e₁.choose := by
-          apply CompoundProtocol.coherent_request_encapsulates_compound_linearization_event n he₁_coherent
-          . case he_not_down => exact he₁_not_down
-          . case hdir_lin => exact hreq_without_perms_lin_at_dir
-          . case he_has_no_perms => exact hreq_without_perms_lin_at_dir.reqHasNoPerms
-          . case he_req_at_cdir => exact hreq_lin_at_dir
-          . case he_lin_dir => exact he₁_lin_dir
+          cases he₁_req
+          . case ncRelease hnc_rel =>
+            apply CompoundProtocol.nc_release_request_encapsulates_compound_linearization_event n hnc_rel
+            . case he_not_down => exact he₁_not_down
+            . case hdir_lin => exact hreq_without_perms_lin_at_dir
+            . case he_has_no_perms => exact hreq_without_perms_lin_at_dir.reqHasNoPerms
+            . case he_req_at_cdir => exact hreq_lin_at_dir
+            . case he_lin_dir => exact he₁_lin_dir
+          . case acquire hacq =>
+            apply CompoundProtocol.acquire_request_encapsulates_compound_linearization_event n hacq
+            . case he_not_down => exact he₁_not_down
+            . case hdir_lin => exact hreq_without_perms_lin_at_dir
+            . case he_has_no_perms => exact hreq_without_perms_lin_at_dir.reqHasNoPerms
+            . case he_req_at_cdir => exact hreq_lin_at_dir
+            . case he_lin_dir => exact he₁_lin_dir
+          . case coherent hcoherent =>
+            apply CompoundProtocol.coherent_request_encapsulates_compound_linearization_event n hcoherent
+            . case he_not_down => exact he₁_not_down
+            . case hdir_lin => exact hreq_without_perms_lin_at_dir
+            . case he_has_no_perms => exact hreq_without_perms_lin_at_dir.reqHasNoPerms
+            . case he_req_at_cdir => exact hreq_lin_at_dir
+            . case he_lin_dir => exact he₁_lin_dir
 
         calc hcluster_dir_lin_e₁.choose.EncapsulatedBy n e₁ := he₁_encap_e₁_cmp_lin
           Event.OrderedBefore n e₁ e₂ := he₁_ob_e₂
@@ -300,12 +536,28 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_coherent_events
         have hreq_without_perms_lin_at_dir := hdir_lin.choose_spec.right
         have hreq_lin_at_dir := hdir_lin.choose_spec.right.reqLinearizeAtDir.choose_spec.right
         have he₂_encap_e₂_cmp_lin : e₂.Encapsulates n hcluster_dir_lin_e₂.choose := by
-          apply CompoundProtocol.coherent_request_encapsulates_compound_linearization_event n he₂_coherent
-          . case he_not_down => exact he₂_not_down
-          . case hdir_lin => exact hreq_without_perms_lin_at_dir
-          . case he_has_no_perms => exact hreq_without_perms_lin_at_dir.reqHasNoPerms
-          . case he_req_at_cdir => exact hreq_lin_at_dir
-          . case he_lin_dir => exact he₂_lin_dir
+          cases he₂_req
+          . case ncRelease hnc_rel =>
+            apply CompoundProtocol.nc_release_request_encapsulates_compound_linearization_event n hnc_rel
+            . case he_not_down => exact he₂_not_down
+            . case hdir_lin => exact hreq_without_perms_lin_at_dir
+            . case he_has_no_perms => exact hreq_without_perms_lin_at_dir.reqHasNoPerms
+            . case he_req_at_cdir => exact hreq_lin_at_dir
+            . case he_lin_dir => exact he₂_lin_dir
+          . case acquire hacq =>
+            apply CompoundProtocol.acquire_request_encapsulates_compound_linearization_event n hacq
+            . case he_not_down => exact he₂_not_down
+            . case hdir_lin => exact hreq_without_perms_lin_at_dir
+            . case he_has_no_perms => exact hreq_without_perms_lin_at_dir.reqHasNoPerms
+            . case he_req_at_cdir => exact hreq_lin_at_dir
+            . case he_lin_dir => exact he₂_lin_dir
+          . case coherent hcoherent =>
+            apply CompoundProtocol.coherent_request_encapsulates_compound_linearization_event n hcoherent
+            . case he_not_down => exact he₂_not_down
+            . case hdir_lin => exact hreq_without_perms_lin_at_dir
+            . case he_has_no_perms => exact hreq_without_perms_lin_at_dir.reqHasNoPerms
+            . case he_req_at_cdir => exact hreq_lin_at_dir
+            . case he_lin_dir => exact he₂_lin_dir
 
         calc Event.OrderedBefore n e₁ e₂ := he₁_ob_e₂
           e₂.Encapsulates n hcluster_dir_lin_e₂.choose := he₂_encap_e₂_cmp_lin
@@ -330,26 +582,59 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_coherent_events
           have hreq_without_perms_lin_at_dir₁ := hdir_lin₁.choose_spec.right
           have hreq_lin_at_dir₁ := hdir_lin₁.choose_spec.right.reqLinearizeAtDir.choose_spec.right
           have he₁_encap_e₁_cmp_lin : e₁.Encapsulates n hcluster_dir_lin_e₁.choose := by
-            apply CompoundProtocol.coherent_request_encapsulates_compound_linearization_event n he₁_coherent
-            . case he_not_down => exact he₁_not_down
-            . case hdir_lin => exact hreq_without_perms_lin_at_dir₁
-            . case he_has_no_perms => exact hreq_without_perms_lin_at_dir₁.reqHasNoPerms
-            . case he_req_at_cdir => exact hreq_lin_at_dir₁
-            . case he_lin_dir => exact he₁_lin_dir
+            cases he₁_req
+            . case ncRelease hnc_rel =>
+              apply CompoundProtocol.nc_release_request_encapsulates_compound_linearization_event n hnc_rel
+              . case he_not_down => exact he₁_not_down
+              . case hdir_lin => exact hreq_without_perms_lin_at_dir₁
+              . case he_has_no_perms => exact hreq_without_perms_lin_at_dir₁.reqHasNoPerms
+              . case he_req_at_cdir => exact hreq_lin_at_dir₁
+              . case he_lin_dir => exact he₁_lin_dir
+            . case acquire hacq =>
+              apply CompoundProtocol.acquire_request_encapsulates_compound_linearization_event n hacq
+              . case he_not_down => exact he₁_not_down
+              . case hdir_lin => exact hreq_without_perms_lin_at_dir₁
+              . case he_has_no_perms => exact hreq_without_perms_lin_at_dir₁.reqHasNoPerms
+              . case he_req_at_cdir => exact hreq_lin_at_dir₁
+              . case he_lin_dir => exact he₁_lin_dir
+            . case coherent hcoherent =>
+              apply CompoundProtocol.coherent_request_encapsulates_compound_linearization_event n hcoherent
+              . case he_not_down => exact he₁_not_down
+              . case hdir_lin => exact hreq_without_perms_lin_at_dir₁
+              . case he_has_no_perms => exact hreq_without_perms_lin_at_dir₁.reqHasNoPerms
+              . case he_req_at_cdir => exact hreq_lin_at_dir₁
+              . case he_lin_dir => exact he₁_lin_dir
 
           have hreq_without_perms_lin_at_dir₂ := hdir_lin₂.choose_spec.right
           have hreq_lin_at_dir₂ := hdir_lin₂.choose_spec.right.reqLinearizeAtDir.choose_spec.right
           have he₂_encap_e₂_cmp_lin : e₂.Encapsulates n hcluster_dir_lin_e₂.choose := by
-            apply CompoundProtocol.coherent_request_encapsulates_compound_linearization_event n he₂_coherent
-            . case he_not_down => exact he₂_not_down
-            . case hdir_lin => exact hreq_without_perms_lin_at_dir₂
-            . case he_has_no_perms => exact hreq_without_perms_lin_at_dir₂.reqHasNoPerms
-            . case he_req_at_cdir => exact hreq_lin_at_dir₂
-            . case he_lin_dir => exact he₂_lin_dir
+            cases he₂_req
+            . case ncRelease hnc_rel =>
+              apply CompoundProtocol.nc_release_request_encapsulates_compound_linearization_event n hnc_rel
+              . case he_not_down => exact he₂_not_down
+              . case hdir_lin => exact hreq_without_perms_lin_at_dir₂
+              . case he_has_no_perms => exact hreq_without_perms_lin_at_dir₂.reqHasNoPerms
+              . case he_req_at_cdir => exact hreq_lin_at_dir₂
+              . case he_lin_dir => exact he₂_lin_dir
+            . case acquire hacq =>
+              apply CompoundProtocol.acquire_request_encapsulates_compound_linearization_event n hacq
+              . case he_not_down => exact he₂_not_down
+              . case hdir_lin => exact hreq_without_perms_lin_at_dir₂
+              . case he_has_no_perms => exact hreq_without_perms_lin_at_dir₂.reqHasNoPerms
+              . case he_req_at_cdir => exact hreq_lin_at_dir₂
+              . case he_lin_dir => exact he₂_lin_dir
+            . case coherent hcoherent =>
+              apply CompoundProtocol.coherent_request_encapsulates_compound_linearization_event n hcoherent
+              . case he_not_down => exact he₂_not_down
+              . case hdir_lin => exact hreq_without_perms_lin_at_dir₂
+              . case he_has_no_perms => exact hreq_without_perms_lin_at_dir₂.reqHasNoPerms
+              . case he_req_at_cdir => exact hreq_lin_at_dir₂
+              . case he_lin_dir => exact he₂_lin_dir
 
           calc hcluster_dir_lin_e₁.choose.EncapsulatedBy n e₁ := he₁_encap_e₁_cmp_lin
             e₁.OrderedBefore n e₂ := he₁_ob_e₂
             e₂.Encapsulates n hcluster_dir_lin_e₂.choose := he₂_encap_e₂_cmp_lin
+
 /-- Lemma 11 (thm 1)-/
 lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b : Behaviour n} {init : InitialSystemState n}
   (cmp : CompoundProtocol n) (e₁ e₂ : Event n) (hsame_protocol : e₁.sameProtocol n e₂) (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
@@ -360,10 +645,14 @@ lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b 
 
   match he₁_req : e₁.req, he₂_req : e₂.req with
   | ⟨⟨rw₁,true,.SC⟩,_⟩, ⟨⟨rw₂,true,.SC⟩,_⟩ => -- All SC requests are ordered
-    apply CompoundProtocol.CompoundLinearizationOrder_of_coherent_events
+    apply CompoundProtocol.CompoundLinearizationOrder_of_two_events_that_encapsulate_their_cmp_linearization_event
     . case he₁_ob_e₂ => exact he₁_ob_e₂
-    . case he₁_coherent => simp[ValidRequest.isCoherent, Request.isCoherent, he₁_req]
-    . case he₂_coherent => simp[ValidRequest.isCoherent, Request.isCoherent, he₂_req]
+    . case he₁_req =>
+      apply Event.ncReleaseOrAcquireOrCoherent.coherent
+      simp [ValidRequest.isCoherent, Request.isCoherent, he₁_req]
+    . case he₂_req =>
+      apply Event.ncReleaseOrAcquireOrCoherent.coherent
+      simp [ValidRequest.isCoherent, Request.isCoherent, he₂_req]
     . case he₁_not_down => exact he₁_not_down
     . case he₂_not_down => exact he₂_not_down
   | ⟨⟨_,false,.Weak⟩,_⟩, ⟨⟨.w,false,.Rel⟩,_⟩ => -- Weak requests are ordered before a Non-Coherent Release
@@ -371,26 +660,75 @@ lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b 
   | ⟨⟨_,false,.Weak⟩,_⟩, ⟨⟨.w,true,.Rel⟩,_⟩ => -- Weak requests are ordered before a Coherent Release
     sorry
   | ⟨⟨.w,true,.Weak⟩,_⟩, ⟨⟨.w,true,.Rel⟩,_⟩ => -- a Coherent Weak Write is ordered before a Coherent Release
-    apply CompoundProtocol.CompoundLinearizationOrder_of_coherent_events
+    apply CompoundProtocol.CompoundLinearizationOrder_of_two_events_that_encapsulate_their_cmp_linearization_event
     . case he₁_ob_e₂ => exact he₁_ob_e₂
-    . case he₁_coherent => simp[ValidRequest.isCoherent, Request.isCoherent, he₁_req]
-    . case he₂_coherent => simp[ValidRequest.isCoherent, Request.isCoherent, he₂_req]
+    . case he₁_req =>
+      apply Event.ncReleaseOrAcquireOrCoherent.coherent
+      simp [ValidRequest.isCoherent, Request.isCoherent, he₁_req]
+    . case he₂_req =>
+      apply Event.ncReleaseOrAcquireOrCoherent.coherent
+      simp [ValidRequest.isCoherent, Request.isCoherent, he₂_req]
     . case he₁_not_down => exact he₁_not_down
     . case he₂_not_down => exact he₂_not_down
   | ⟨⟨.w,false,.Rel⟩,_⟩, ⟨⟨.r,false,.Acq⟩,_⟩ => -- a Non-Coherent Release is ordered before an Acquire
-    sorry
+    apply CompoundProtocol.CompoundLinearizationOrder_of_two_events_that_encapsulate_their_cmp_linearization_event
+    . case he₁_ob_e₂ => exact he₁_ob_e₂
+    . case he₁_req =>
+      apply Event.ncReleaseOrAcquireOrCoherent.ncRelease
+      exact he₁_req
+    . case he₂_req =>
+      apply Event.ncReleaseOrAcquireOrCoherent.acquire
+      exact he₂_req
+    . case he₁_not_down => exact he₁_not_down
+    . case he₂_not_down => exact he₂_not_down
   | ⟨⟨.w,true,.Rel⟩,_⟩, ⟨⟨.r,false,.Acq⟩,_⟩ => -- a Coherent Release is ordered before an Acquire
-    sorry
+    apply CompoundProtocol.CompoundLinearizationOrder_of_two_events_that_encapsulate_their_cmp_linearization_event
+    . case he₁_ob_e₂ => exact he₁_ob_e₂
+    . case he₁_req =>
+      apply Event.ncReleaseOrAcquireOrCoherent.coherent
+      simp[ValidRequest.isCoherent, Request.isCoherent, he₁_req]
+    . case he₂_req =>
+      apply Event.ncReleaseOrAcquireOrCoherent.acquire
+      exact he₂_req
+    . case he₁_not_down => exact he₁_not_down
+    . case he₂_not_down => exact he₂_not_down
   | ⟨⟨.r,false,.Acq⟩,_⟩, ⟨⟨.w,false,.Rel⟩,_⟩ => -- an Acquire is ordered before a Non-Coherent Release
-    sorry
+    apply CompoundProtocol.CompoundLinearizationOrder_of_two_events_that_encapsulate_their_cmp_linearization_event
+    . case he₁_ob_e₂ => exact he₁_ob_e₂
+    . case he₁_req =>
+      apply Event.ncReleaseOrAcquireOrCoherent.acquire
+      exact he₁_req
+    . case he₂_req =>
+      apply Event.ncReleaseOrAcquireOrCoherent.ncRelease
+      exact he₂_req
+    . case he₁_not_down => exact he₁_not_down
+    . case he₂_not_down => exact he₂_not_down
   | ⟨⟨.r,false,.Acq⟩,_⟩, ⟨⟨.w,true,.Rel⟩,_⟩ => -- an Acquire is ordered before a Coherent Release
-    sorry
+    apply CompoundProtocol.CompoundLinearizationOrder_of_two_events_that_encapsulate_their_cmp_linearization_event
+    . case he₁_ob_e₂ => exact he₁_ob_e₂
+    . case he₁_req =>
+      apply Event.ncReleaseOrAcquireOrCoherent.acquire
+      exact he₁_req
+    . case he₂_req =>
+      apply Event.ncReleaseOrAcquireOrCoherent.coherent
+      simp[ValidRequest.isCoherent, Request.isCoherent, he₂_req]
+    . case he₁_not_down => exact he₁_not_down
+    . case he₂_not_down => exact he₂_not_down
   | ⟨⟨.r,false,.Acq⟩,_⟩, ⟨⟨_,false,.Weak⟩,_⟩ => -- an Acquire is ordered before a weak non-coherent request
     sorry
   | ⟨⟨.r,false,.Acq⟩,_⟩, ⟨⟨.w,true,.Weak⟩,_⟩ => -- an Acquire is ordered before a weak non-coherent request
-    sorry
+    apply CompoundProtocol.CompoundLinearizationOrder_of_two_events_that_encapsulate_their_cmp_linearization_event
+    . case he₁_ob_e₂ => exact he₁_ob_e₂
+    . case he₁_req =>
+      apply Event.ncReleaseOrAcquireOrCoherent.acquire
+      exact he₁_req
+    . case he₂_req =>
+      apply Event.ncReleaseOrAcquireOrCoherent.coherent
+      simp[ValidRequest.isCoherent, Request.isCoherent, he₂_req]
+    . case he₁_not_down => exact he₁_not_down
+    . case he₂_not_down => exact he₂_not_down
   | _, _ => -- Ordering is not required in all other cases
-    -- simp[he₁_req, he₂_req, ValidRequest.isPPOPair] at he₁_ppo_e₂_constraint
+    -- simp at he₁_ppo_e₂_constraint
     sorry
     /-
 (Subtype.mk (Request.mk ReadWrite.w true Consistency.Weak) _), (Subtype.mk (Request.mk ReadWrite.w true Consistency.Weak) (And.intro _ (And.intro _ (And.intro _ (And.intro _ _)))))
