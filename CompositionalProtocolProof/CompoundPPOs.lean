@@ -44,7 +44,48 @@ lemma CompoundProtocol.compound_linearization_order_of_events_ordered_before_and
 
   simp[he₁_lin_cache, he₂_lin_cache, he₁_ob_e₂]
 
-lemma CompoundProtocol.placeholder
+lemma Event.contradiction_of_has_perms_and_no_perms {b init e rw property}
+  (he_req : e.req = ⟨⟨rw, true, .SC⟩, property⟩)
+  (he_not_down : ¬ e.down)
+  (he_has_perms : Behaviour.reqHasPerms n b init e)
+  (he_no_perms : Behaviour.reqMissingPerms n b init e)
+  : False := by
+    cases he_has_perms
+    . case hasPerms his_coherent hhas_perms =>
+      simp[Behaviour.hasPerms] at hhas_perms
+      cases he_no_perms
+      . case downgrade he₁_down hgreq_on_mrs =>
+        absurd he₁_down
+        simp [he_not_down]
+      . case noPermsForNonNcRelAcqWeakWrite hnot_down hrel hno_perms =>
+        simp[Behaviour.eventOnStateNoPerms, Behaviour.eventOnStateHasPerms] at hno_perms
+        absurd hhas_perms
+        simp[hno_perms]
+      . case ncRelAcqWeakWriteNotOnCoherentState hnot_down hrel_acq hno_perms =>
+        simp[Event.isNcRelAcq, Event.isAcquire, Event.isNcRelease,] at hrel_acq
+        match e with
+        | .cacheEvent ce =>
+          simp[Event.req] at he_req
+          simp[CacheEvent.isAcquire, CacheEvent.isNcRelease, ValidRequest.isAcquire, ValidRequest.isNcRelease,
+            he_req] at hrel_acq
+        | .directoryEvent _ => simp[] at hrel_acq
+    . case ncRelAcqWeakWriteHasCoherentPerms hrel_acq_ww hcoherent_perms =>
+        simp[Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNcRelease, Event.isNcWeakWrite] at hrel_acq_ww
+        match e with
+        | .cacheEvent ce =>
+          simp[Event.req] at he_req
+          simp[CacheEvent.isAcquire, CacheEvent.isNcRelease, CacheEvent.isNcWeakWrite,
+            ValidRequest.isAcquire, ValidRequest.isNcRelease, ValidRequest.isNcWeakWrite,
+            he_req] at hrel_acq_ww
+        | .directoryEvent _ => simp[] at hrel_acq_ww
+    . case ncWeakReadHasPermsNotVd hweak_read hhas_perms_not_vd =>
+        simp[Event.isNcWeakRead,] at hweak_read
+        match e with
+        | .cacheEvent ce =>
+          simp[Event.req] at he_req
+          simp[CacheEvent.isNcWeakRead, ValidRequest.isNcWeakRead,
+            he_req] at hweak_read
+        | .directoryEvent _ => simp[] at hweak_read
   {cmp : CompoundProtocol n}
   (hcluster_dir_lin_e₁ : ∃ e_cmplin ∈ b,
   Behaviour.eventCompoundLinearizes.atDirectoryOrBeyond n cmp.shimAxioms b init e₁ e_cmplin
