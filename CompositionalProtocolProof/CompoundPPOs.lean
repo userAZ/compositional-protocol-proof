@@ -86,6 +86,110 @@ lemma Event.contradiction_of_has_perms_and_no_perms {b init e rw property}
           simp[CacheEvent.isNcWeakRead, ValidRequest.isNcWeakRead,
             he_req] at hweak_read
         | .directoryEvent _ => simp[] at hweak_read
+
+lemma CompoundProtocol.e_sc_dir_lin_encap_global_dir_lin
+  {b : Behaviour n} {init : InitialSystemState n}
+  {e_generated_cdir : Event n} -- ∃ cluster Directory Event, that connects request `e₁` to the directory
+  (htranslation : Event.clusterDirEncapCorrespondingGlobalCache n b e_generated_cdir e_translated_greq)
+  (he_encap_corr_dir : Behaviour.cacheEncapsulatesCorrespondingDirEvent n b (InitialSystemState.stateAt n init e) true e e_generated_cdir)
+  (hgenerated_cdir_encap_greq :
+    Event.clusterDirEncapCorrespondingGlobalCache n b e_generated_cdir e_translated_greq)
+  (hgreq_encap_corr_gdir :
+    Behaviour.requestWithoutCoherentPermsLinearizesAtDir n b init e_translated_greq e_translated_greq_lin /- rename hat_dir.choose to e_translated_greq_lin -/)
+  (hgcache_lin_at_gdir :
+    Behaviour.requestLinearizesAtDirectory n b init e_translated_greq e_gdir e_translated_greq_lin)
+  : e.Encapsulates n e_translated_greq_lin := by
+  have hglin_is_gdir := hgcache_lin_at_gdir.dirIsLin
+  rw[hglin_is_gdir]
+
+  have hgreq_lin := hgcache_lin_at_gdir.reqCorrespondsToDir
+  cases hgreq_lin
+  . case encapDir hgreq_no_perms hgreq_encap_gdir =>
+    calc e.Encapsulates n e_generated_cdir := he_encap_corr_dir.reqEncapDir
+      Event.Encapsulates n _ e_translated_greq := hgenerated_cdir_encap_greq.encapGlobalCache
+      Event.Encapsulates n _ e_gdir := hgreq_encap_gdir.reqEncapDir
+  . case orderBeforeDir hgreq_has_perms _ _ =>
+    exfalso
+    apply Event.contradiction_of_has_perms_and_no_perms
+    . case he_req => exact htranslation.gReqOfCDir.matchingOp
+    . case he_not_down => exact htranslation.gReqOfCDir.notDowngrade
+    . case he_has_perms => exact hgreq_has_perms
+    . case he_no_perms => exact hgreq_encap_corr_gdir.reqHasNoPerms
+  . case orderAfterDir hweak_read_vd himm_successor =>
+    have hweak_req := hweak_read_vd.weakReq
+    have hgreq_req := htranslation.gReqOfCDir.matchingOp
+    simp[Event.isNcWeak, Event.isNonCoherent, Event.isWeak] at hweak_req
+    match e_translated_greq with
+    | .cacheEvent ce =>
+      simp[Event.req] at hgreq_req
+      simp[hgreq_req] at hweak_req
+    | .directoryEvent _ => simp[] at hweak_req
+
+lemma CompoundProtocol.sc_request_encapsulates_compound_linearization_event
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+  {e_generated_lin : Event n} -- ∃ linearization event of e₁ (not compound linearization event)
+  {e_generated_cdir : Event n} -- ∃ cluster Directory Event, that connects request `e₁` to the directory
+  (he_req : Event.req n e = ⟨{ rw := rw, coherent := true, consistency := Consistency.SC }, property⟩)
+  (he_not_down : ¬ e.down)
+  (hdir_lin : Behaviour.requestWithoutCoherentPermsLinearizesAtDir n b init e e_generated_lin)
+  (he_has_no_perms : Behaviour.reqMissingPerms n b init e)
+  (he_req_at_cdir : Behaviour.requestLinearizesAtDirectory n b init e e_generated_cdir e_generated_lin)
+  (he_lin_dir : clusterDirectoryLinearizationEvent n cmp.shimAxioms b init e_generated_cdir e_generated_cmp_lin)
+  : e.Encapsulates n e_generated_cmp_lin := by
+
+  have he_cdir_spec := he_req_at_cdir.reqCorrespondsToDir
+  cases he_cdir_spec
+  . case encapDir he_missing_perms he_encap_corr_dir =>
+    have he_encap_dir := he_encap_corr_dir.reqEncapDir
+
+    have hreq_corr_to_dir := he_req_at_cdir
+    cases he_lin_dir
+    . case previousGlobalCacheGotPerms hgcache_has_perms hcdir_is_glin =>
+      simp[hcdir_is_glin]
+      exact he_encap_dir
+    . case getGlobalCachePerms hcdir_no_perms_in_gcache hcdir_requests_gcache =>
+      simp[Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent] at hcdir_requests_gcache
+      simp[he_req_at_cdir.isDir] at hcdir_requests_gcache
+
+      split at hcdir_requests_gcache
+      . case h_1 _ _ _ _ =>
+        exfalso; exact hcdir_requests_gcache
+      . case h_2 _ _ htranslation _ =>
+        have := htranslation.choose_spec.right
+        have hdir_encap_gcache := htranslation.choose_spec.right
+        -- .encapGlobalCache
+        simp[Behaviour.compoundLinearizationEvent.globalCacheNoPermsReqDirectory] at hcdir_requests_gcache
+        obtain ⟨hgcache_lin,hgcache_lin_cases⟩ := hcdir_requests_gcache
+        split at hgcache_lin_cases
+        . case h_1 hgcache_lin_event hat_dir =>
+          have := hat_dir.choose_spec.right.reqLinearizeAtDir.choose_spec.right.reqCorrespondsToDir
+          simp[hgcache_lin_cases]
+          -- lemma here.
+          -- calc e.Encapsulates n e_generated_cdir := he_encap_dir
+            -- Event.Encapsulates n _ e_
+          apply CompoundProtocol.e_sc_dir_lin_encap_global_dir_lin
+          . case htranslation => exact htranslation.choose_spec.right
+          . case he_encap_corr_dir => exact he_encap_corr_dir
+          . case hgenerated_cdir_encap_greq => exact hdir_encap_gcache
+          . case hgreq_encap_corr_gdir => exact hat_dir.choose_spec.right
+          . case hgcache_lin_at_gdir => exact hat_dir.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+        . case h_2 hgcache_lin_event hat_cache =>
+          exfalso; exact hgcache_lin_cases
+  . case orderBeforeDir he_has_perms hexists_pred_get_perms hpred_encap_dir =>
+    exfalso
+    apply Event.contradiction_of_has_perms_and_no_perms
+    . case he_req => exact he_req
+    . case he_not_down => exact he_not_down
+    . case he_has_perms => exact he_has_perms
+    . case he_no_perms => exact he_has_no_perms
+  . case orderAfterDir hweak_read hsuccessor_dir =>
+    have hweak_req := hweak_read.weakReq
+    simp[Event.isNcWeak, Event.isNonCoherent, Event.isWeak] at hweak_req
+    match e with
+    | .cacheEvent ce =>
+      simp[Event.req] at he_req
+      simp[he_req] at hweak_req
+    | .directoryEvent _ => simp[] at hweak_req
   {cmp : CompoundProtocol n}
   (hcluster_dir_lin_e₁ : ∃ e_cmplin ∈ b,
   Behaviour.eventCompoundLinearizes.atDirectoryOrBeyond n cmp.shimAxioms b init e₁ e_cmplin
