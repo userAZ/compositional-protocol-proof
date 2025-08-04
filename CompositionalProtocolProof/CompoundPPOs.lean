@@ -242,11 +242,11 @@ lemma CompoundProtocol.coherent_request_encapsulates_compound_linearization_even
       simp[he_req] at hweak_req
     | .directoryEvent _ => simp[] at hweak_req
 
-lemma CompoundProtocol.CompoundLinearizationOrder_of_two_sc_events
+lemma CompoundProtocol.CompoundLinearizationOrder_of_coherent_events
   {cmp : CompoundProtocol n}
   {he₁_ob_e₂ : e₁.OrderedBefore n e₂}
-  (he₁_req : Event.req n e₁ = ⟨{ rw := rw₁, coherent := true, consistency := Consistency.SC }, property₁⟩)
-  (he₂_req : Event.req n e₂ = ⟨{ rw := rw₂, coherent := true, consistency := Consistency.SC }, property₂⟩)
+  (he₁_coherent : e₁.req.isCoherent)
+  (he₂_coherent : e₂.req.isCoherent)
   (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
   : CompoundLinearizationOrder n cmp b init e₁ e₂ := by
     match he₁_lin : cmp.compoundLinearizationEvent cmp.shimAxioms b init e₁ (cmp.linearizationOfEvent b init e₁)
@@ -274,7 +274,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_two_sc_events
         have hreq_without_perms_lin_at_dir := hdir_lin.choose_spec.right
         have hreq_lin_at_dir := hdir_lin.choose_spec.right.reqLinearizeAtDir.choose_spec.right
         have he₁_encap_e₁_cmp_lin : e₁.Encapsulates n hcluster_dir_lin_e₁.choose := by
-          apply CompoundProtocol.sc_request_encapsulates_compound_linearization_event n he₁_req
+          apply CompoundProtocol.coherent_request_encapsulates_compound_linearization_event n he₁_coherent
           . case he_not_down => exact he₁_not_down
           . case hdir_lin => exact hreq_without_perms_lin_at_dir
           . case he_has_no_perms => exact hreq_without_perms_lin_at_dir.reqHasNoPerms
@@ -300,7 +300,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_two_sc_events
         have hreq_without_perms_lin_at_dir := hdir_lin.choose_spec.right
         have hreq_lin_at_dir := hdir_lin.choose_spec.right.reqLinearizeAtDir.choose_spec.right
         have he₂_encap_e₂_cmp_lin : e₂.Encapsulates n hcluster_dir_lin_e₂.choose := by
-          apply CompoundProtocol.sc_request_encapsulates_compound_linearization_event n he₂_req
+          apply CompoundProtocol.coherent_request_encapsulates_compound_linearization_event n he₂_coherent
           . case he_not_down => exact he₂_not_down
           . case hdir_lin => exact hreq_without_perms_lin_at_dir
           . case he_has_no_perms => exact hreq_without_perms_lin_at_dir.reqHasNoPerms
@@ -330,7 +330,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_two_sc_events
           have hreq_without_perms_lin_at_dir₁ := hdir_lin₁.choose_spec.right
           have hreq_lin_at_dir₁ := hdir_lin₁.choose_spec.right.reqLinearizeAtDir.choose_spec.right
           have he₁_encap_e₁_cmp_lin : e₁.Encapsulates n hcluster_dir_lin_e₁.choose := by
-            apply CompoundProtocol.sc_request_encapsulates_compound_linearization_event n he₁_req
+            apply CompoundProtocol.coherent_request_encapsulates_compound_linearization_event n he₁_coherent
             . case he_not_down => exact he₁_not_down
             . case hdir_lin => exact hreq_without_perms_lin_at_dir₁
             . case he_has_no_perms => exact hreq_without_perms_lin_at_dir₁.reqHasNoPerms
@@ -340,7 +340,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_two_sc_events
           have hreq_without_perms_lin_at_dir₂ := hdir_lin₂.choose_spec.right
           have hreq_lin_at_dir₂ := hdir_lin₂.choose_spec.right.reqLinearizeAtDir.choose_spec.right
           have he₂_encap_e₂_cmp_lin : e₂.Encapsulates n hcluster_dir_lin_e₂.choose := by
-            apply CompoundProtocol.sc_request_encapsulates_compound_linearization_event n he₂_req
+            apply CompoundProtocol.coherent_request_encapsulates_compound_linearization_event n he₂_coherent
             . case he_not_down => exact he₂_not_down
             . case hdir_lin => exact hreq_without_perms_lin_at_dir₂
             . case he_has_no_perms => exact hreq_without_perms_lin_at_dir₂.reqHasNoPerms
@@ -360,10 +360,14 @@ lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b 
 
   match he₁_req : e₁.req, he₂_req : e₂.req with
   | ⟨⟨rw₁,true,.SC⟩,_⟩, ⟨⟨rw₂,true,.SC⟩,_⟩ => -- All SC requests are ordered
-    apply CompoundProtocol.CompoundLinearizationOrder_of_two_sc_events
+    apply CompoundProtocol.CompoundLinearizationOrder_of_coherent_events
     . case he₁_ob_e₂ => exact he₁_ob_e₂
-    . case he₁_req => exact he₁_req
-    . case he₂_req => exact he₂_req
+    . case he₁_coherent =>
+      simp[ValidRequest.isCoherent, Request.isCoherent]
+      simp[he₁_req]
+    . case he₂_coherent =>
+      simp[ValidRequest.isCoherent, Request.isCoherent]
+      simp[he₂_req]
     . case he₁_not_down => exact he₁_not_down
     . case he₂_not_down => exact he₂_not_down
   | ⟨⟨_,false,.Weak⟩,_⟩, ⟨⟨.w,false,.Rel⟩,_⟩ => -- Weak requests are ordered before a Non-Coherent Release
@@ -371,7 +375,16 @@ lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b 
   | ⟨⟨_,false,.Weak⟩,_⟩, ⟨⟨.w,true,.Rel⟩,_⟩ => -- Weak requests are ordered before a Coherent Release
     sorry
   | ⟨⟨.w,true,.Weak⟩,_⟩, ⟨⟨.w,true,.Rel⟩,_⟩ => -- a Coherent Weak Write is ordered before a Coherent Release
-    sorry
+    apply CompoundProtocol.CompoundLinearizationOrder_of_coherent_events
+    . case he₁_ob_e₂ => exact he₁_ob_e₂
+    . case he₁_coherent =>
+      simp[ValidRequest.isCoherent, Request.isCoherent]
+      simp[he₁_req]
+    . case he₂_coherent =>
+      simp[ValidRequest.isCoherent, Request.isCoherent]
+      simp[he₂_req]
+    . case he₁_not_down => exact he₁_not_down
+    . case he₂_not_down => exact he₂_not_down
   | ⟨⟨.w,false,.Rel⟩,_⟩, ⟨⟨.r,false,.Acq⟩,_⟩ => -- a Non-Coherent Release is ordered before an Acquire
     sorry
   | ⟨⟨.w,true,.Rel⟩,_⟩, ⟨⟨.r,false,.Acq⟩,_⟩ => -- a Coherent Release is ordered before an Acquire
