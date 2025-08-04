@@ -87,7 +87,58 @@ lemma Event.contradiction_of_has_perms_and_no_perms {b init e rw property}
             he_req] at hweak_read
         | .directoryEvent _ => simp[] at hweak_read
 
-lemma CompoundProtocol.e_sc_dir_lin_encap_global_dir_lin
+lemma Event.contradiction_of_coherent_request_has_perms_and_no_perms {b init e}
+  (he_req : e.req.isCoherent)
+  (he_not_down : ¬ e.down)
+  (he_has_perms : Behaviour.reqHasPerms n b init e)
+  (he_no_perms : Behaviour.reqMissingPerms n b init e)
+  : False := by
+    cases he_has_perms
+    . case hasPerms his_coherent hhas_perms =>
+      simp[Behaviour.hasPerms] at hhas_perms
+      cases he_no_perms
+      . case downgrade he₁_down hgreq_on_mrs =>
+        absurd he₁_down
+        simp [he_not_down]
+      . case noPermsForNonNcRelAcqWeakWrite hnot_down hrel hno_perms =>
+        simp[Behaviour.eventOnStateNoPerms, Behaviour.eventOnStateHasPerms] at hno_perms
+        absurd hhas_perms
+        simp[hno_perms]
+      . case ncRelAcqWeakWriteNotOnCoherentState hnot_down hrel_acq hno_perms =>
+        simp[Event.isNcRelAcq, Event.isAcquire, Event.isNcRelease,] at hrel_acq
+        match e with
+        | .cacheEvent ce =>
+          simp[Event.req, ValidRequest.isCoherent, Request.isCoherent] at he_req
+          simp[CacheEvent.isAcquire, CacheEvent.isNcRelease, ValidRequest.isAcquire, ValidRequest.isNcRelease,]
+            at hrel_acq
+          cases hrel_acq
+          . case inl hce_req_acq => simp[hce_req_acq] at he_req
+          . case inr hce_req_nc_rel => simp[hce_req_nc_rel] at he_req
+        | .directoryEvent _ => simp[] at hrel_acq
+    . case ncRelAcqWeakWriteHasCoherentPerms hrel_acq_ww hcoherent_perms =>
+        simp[Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNcRelease, Event.isNcWeakWrite] at hrel_acq_ww
+        match e with
+        | .cacheEvent ce =>
+          simp[Event.req, ValidRequest.isCoherent, Request.isCoherent] at he_req
+          simp[CacheEvent.isAcquire, CacheEvent.isNcRelease, CacheEvent.isNcWeakWrite,
+            ValidRequest.isAcquire, ValidRequest.isNcRelease, ValidRequest.isNcWeakWrite,] at hrel_acq_ww
+          cases hrel_acq_ww
+          . case inl hce_acq => simp[hce_acq] at he_req
+          . case inr hnc_rel_ww =>
+            cases hnc_rel_ww
+            . case inl hnc_rel => simp[hnc_rel] at he_req
+            . case inr hww => simp[hww] at he_req
+        | .directoryEvent _ => simp[] at hrel_acq_ww
+    . case ncWeakReadHasPermsNotVd hweak_read hhas_perms_not_vd =>
+        simp[Event.isNcWeakRead,] at hweak_read
+        match e with
+        | .cacheEvent ce =>
+          simp[Event.req, ValidRequest.isCoherent, Request.isCoherent] at he_req
+          simp[CacheEvent.isNcWeakRead, ValidRequest.isNcWeakRead, ] at hweak_read
+          simp[hweak_read] at he_req
+        | .directoryEvent _ => simp[] at hweak_read
+
+lemma CompoundProtocol.e_encap_dir_lin_encap_global_dir_lin
   {b : Behaviour n} {init : InitialSystemState n}
   {e_generated_cdir : Event n} -- ∃ cluster Directory Event, that connects request `e₁` to the directory
   (htranslation : Event.clusterDirEncapCorrespondingGlobalCache n b e_generated_cdir e_translated_greq)
