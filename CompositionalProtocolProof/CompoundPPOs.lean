@@ -176,11 +176,11 @@ lemma CompoundProtocol.e_encap_dir_lin_encap_global_dir_lin
       simp[hgreq_req] at hweak_req
     | .directoryEvent _ => simp[] at hweak_req
 
-lemma CompoundProtocol.sc_request_encapsulates_compound_linearization_event
+lemma CompoundProtocol.coherent_request_encapsulates_compound_linearization_event
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
   {e_generated_lin : Event n} -- ∃ linearization event of e₁ (not compound linearization event)
   {e_generated_cdir : Event n} -- ∃ cluster Directory Event, that connects request `e₁` to the directory
-  (he_req : Event.req n e = ⟨{ rw := rw, coherent := true, consistency := Consistency.SC }, property⟩)
+  (he_req : e.req.isCoherent)
   (he_not_down : ¬ e.down)
   (hdir_lin : Behaviour.requestWithoutCoherentPermsLinearizesAtDir n b init e e_generated_lin)
   (he_has_no_perms : Behaviour.reqMissingPerms n b init e)
@@ -218,7 +218,7 @@ lemma CompoundProtocol.sc_request_encapsulates_compound_linearization_event
           -- lemma here.
           -- calc e.Encapsulates n e_generated_cdir := he_encap_dir
             -- Event.Encapsulates n _ e_
-          apply CompoundProtocol.e_sc_dir_lin_encap_global_dir_lin
+          apply CompoundProtocol.e_encap_dir_lin_encap_global_dir_lin
           . case htranslation => exact htranslation.choose_spec.right
           . case he_encap_corr_dir => exact he_encap_corr_dir
           . case hgenerated_cdir_encap_greq => exact hdir_encap_gcache
@@ -228,7 +228,7 @@ lemma CompoundProtocol.sc_request_encapsulates_compound_linearization_event
           exfalso; exact hgcache_lin_cases
   . case orderBeforeDir he_has_perms hexists_pred_get_perms hpred_encap_dir =>
     exfalso
-    apply Event.contradiction_of_has_perms_and_no_perms
+    apply Event.contradiction_of_coherent_request_has_perms_and_no_perms
     . case he_req => exact he_req
     . case he_not_down => exact he_not_down
     . case he_has_perms => exact he_has_perms
@@ -238,7 +238,7 @@ lemma CompoundProtocol.sc_request_encapsulates_compound_linearization_event
     simp[Event.isNcWeak, Event.isNonCoherent, Event.isWeak] at hweak_req
     match e with
     | .cacheEvent ce =>
-      simp[Event.req] at he_req
+      simp[Event.req, ValidRequest.isCoherent, Request.isCoherent] at he_req
       simp[he_req] at hweak_req
     | .directoryEvent _ => simp[] at hweak_req
 
