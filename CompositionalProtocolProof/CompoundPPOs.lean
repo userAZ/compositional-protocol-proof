@@ -362,12 +362,8 @@ lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b 
   | ⟨⟨rw₁,true,.SC⟩,_⟩, ⟨⟨rw₂,true,.SC⟩,_⟩ => -- All SC requests are ordered
     apply CompoundProtocol.CompoundLinearizationOrder_of_coherent_events
     . case he₁_ob_e₂ => exact he₁_ob_e₂
-    . case he₁_coherent =>
-      simp[ValidRequest.isCoherent, Request.isCoherent]
-      simp[he₁_req]
-    . case he₂_coherent =>
-      simp[ValidRequest.isCoherent, Request.isCoherent]
-      simp[he₂_req]
+    . case he₁_coherent => simp[ValidRequest.isCoherent, Request.isCoherent, he₁_req]
+    . case he₂_coherent => simp[ValidRequest.isCoherent, Request.isCoherent, he₂_req]
     . case he₁_not_down => exact he₁_not_down
     . case he₂_not_down => exact he₂_not_down
   | ⟨⟨_,false,.Weak⟩,_⟩, ⟨⟨.w,false,.Rel⟩,_⟩ => -- Weak requests are ordered before a Non-Coherent Release
@@ -377,12 +373,8 @@ lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b 
   | ⟨⟨.w,true,.Weak⟩,_⟩, ⟨⟨.w,true,.Rel⟩,_⟩ => -- a Coherent Weak Write is ordered before a Coherent Release
     apply CompoundProtocol.CompoundLinearizationOrder_of_coherent_events
     . case he₁_ob_e₂ => exact he₁_ob_e₂
-    . case he₁_coherent =>
-      simp[ValidRequest.isCoherent, Request.isCoherent]
-      simp[he₁_req]
-    . case he₂_coherent =>
-      simp[ValidRequest.isCoherent, Request.isCoherent]
-      simp[he₂_req]
+    . case he₁_coherent => simp[ValidRequest.isCoherent, Request.isCoherent, he₁_req]
+    . case he₂_coherent => simp[ValidRequest.isCoherent, Request.isCoherent, he₂_req]
     . case he₁_not_down => exact he₁_not_down
     . case he₂_not_down => exact he₂_not_down
   | ⟨⟨.w,false,.Rel⟩,_⟩, ⟨⟨.r,false,.Acq⟩,_⟩ => -- a Non-Coherent Release is ordered before an Acquire
