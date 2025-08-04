@@ -68,6 +68,12 @@ def Behaviour.Shim.ClusterToGlobal.hasPerms.globalDirectoryEvent (b : Behaviour 
     Behaviour.compoundLinearizationEvent.OfGlobalCacheEvent n gcache_linearization e_glin
   | .encapGlobalCache _ _ => False
 
+def Behaviour.compoundLinearizationEvent.globalCacheNoPermsReqDirectory {b : Behaviour n} {init : InitialSystemState n} {e_gcache : Event n}
+  (gcache's_lin_event : b.linearizationEventOfRequest n init e_gcache) (e_glin : Event n) : Prop :=
+  match gcache's_lin_event with
+  | .dirLin dir_glin => e_glin = dir_glin.choose
+  | .requestLin _ => False
+
 open Classical in
 def Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent (shimAxioms : ShimAxioms n) (b : Behaviour n) (init : InitialSystemState n) (e_cdir e_glin : Event n) : Prop :=
   by classical exact
@@ -76,7 +82,7 @@ def Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent (shimAxioms : Shim
     | .noGlobalCache _ _ => False
     | .encapGlobalCache _ encap_gcache_req =>
       ∃ gcache_linearization : b.linearizationEventOfRequest n init encap_gcache_req.choose,
-      Behaviour.compoundLinearizationEvent.OfGlobalCacheEvent n gcache_linearization e_glin
+      Behaviour.compoundLinearizationEvent.globalCacheNoPermsReqDirectory n gcache_linearization e_glin
   else
     panic! "Error: Expected e_cdir to be a Directory Event."
 
