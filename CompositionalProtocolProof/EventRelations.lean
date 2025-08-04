@@ -135,6 +135,23 @@ lemma Event.order_encap_trans {e₁ e₂ e₃ : Event n} : e₁ < e₂ → e₂.
 
 instance Event.instTransOrderEncap : Trans (Event.OrderedBefore n) (Event.Encapsulates n) (Event.OrderedBefore n) := {trans := Event.order_encap_trans n}
 
+lemma Event.encap_encap_trans {e₁ e₂ e₃ : Event n} : e₁.Encapsulates n e₂ → e₂.Encapsulates n e₃ → e₁.Encapsulates n e₃ := by
+  unfold Encapsulates;
+  -- unfold OrderedBefore.instLT
+  simp
+  -- unfold Event.OrderedBefore;
+  -- unfold Encapsulates
+  intro he₁_lt_e₂_start he₂_lt_e₁_end he₂_lt_e₃_start he₃_lt_e₂_end
+  apply And.intro
+  . case left =>
+    calc e₁.oStart < e₂.oStart := he₁_lt_e₂_start
+      _ < e₃.oStart := he₂_lt_e₃_start
+  . case right =>
+    calc e₃.oEnd < e₂.oEnd := he₃_lt_e₂_end
+      _ < e₁.oEnd := he₂_lt_e₁_end
+
+instance Event.instTransEncapEncap : Trans (Event.Encapsulates n) (Event.Encapsulates n) (Event.Encapsulates n) := {trans := Event.encap_encap_trans n}
+
 abbrev Event.EncapsulatedBy (e₁ e₂ : Event n) : Prop := e₂.Encapsulates n e₁
 
 lemma Event.encap_by_order_trans {e₁ e₂ e₃ : Event n} : e₁.EncapsulatedBy n e₂ → e₂ < e₃ → e₁ < e₃ := by
