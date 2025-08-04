@@ -377,7 +377,7 @@ lemma CompoundProtocol.acquire_request_encapsulates_compound_linearization_event
           exfalso; exact hgcache_lin_cases
   . case orderBeforeDir he_has_perms hexists_pred_get_perms hpred_encap_dir =>
     exfalso
-    apply Event.contradiction_of_nc_release_request_has_perms_and_no_perms
+    apply Event.contradiction_of_acquire_request_has_perms_and_no_perms
     . case he_req => exact he_req
     . case he_not_down => exact he_not_down
     . case he_has_perms => exact he_has_perms
