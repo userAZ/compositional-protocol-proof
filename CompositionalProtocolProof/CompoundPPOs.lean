@@ -299,6 +299,22 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_two_sc_events
           calc hcluster_dir_lin_e₁.choose.EncapsulatedBy n e₁ := he₁_encap_e₁_cmp_lin
             e₁.OrderedBefore n e₂ := he₁_ob_e₂
             e₂.Encapsulates n hcluster_dir_lin_e₂.choose := he₂_encap_e₂_cmp_lin
+/-- Lemma 11 (thm 1)-/
+lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b : Behaviour n} {init : InitialSystemState n}
+  (cmp : CompoundProtocol n) (e₁ e₂ : Event n) (hsame_protocol : e₁.sameProtocol n e₂) (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
+  : e₁.OrderedBefore n e₂ → e₁.isPPOPair n e₂ → cmp.CompoundLinearizationOrder n b init e₁ e₂ := by
+  intro he₁_ob_e₂ he₁_ppo_e₂_cache_ppo
+  -- Work through the cases of all PPO Pairs, and show that `e₁` and `e₂` linearize in order.
+  have he₁_ppo_e₂_constraint := he₁_ppo_e₂_cache_ppo.requestPPO
+
+  match he₁_req : e₁.req, he₂_req : e₂.req with
+  | ⟨⟨rw₁,true,.SC⟩,_⟩, ⟨⟨rw₂,true,.SC⟩,_⟩ => -- All SC requests are ordered
+    apply CompoundProtocol.CompoundLinearizationOrder_of_two_sc_events
+    . case he₁_ob_e₂ => exact he₁_ob_e₂
+    . case he₁_req => exact he₁_req
+    . case he₂_req => exact he₂_req
+    . case he₁_not_down => exact he₁_not_down
+    . case he₂_not_down => exact he₂_not_down
   | ⟨⟨_,false,.Weak⟩,_⟩, ⟨⟨.w,false,.Rel⟩,_⟩ => -- Weak requests are ordered before a Non-Coherent Release
     sorry
   | ⟨⟨_,false,.Weak⟩,_⟩, ⟨⟨.w,true,.Rel⟩,_⟩ => -- Weak requests are ordered before a Coherent Release
