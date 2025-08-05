@@ -691,6 +691,99 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_read_and_non_coherent_
   : CompoundLinearizationOrder n cmp b init e₁ e₂ := by
   sorry
 
+lemma CompoundProtocol.weak_write_and_nc_release_linearize_at_directory
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+  -- {e_generated_lin : Event n} -- ∃ linearization event of e₁ (not compound linearization event)
+  -- {e_generated_cdir : Event n} -- ∃ cluster Directory Event, that connects request `e₁` to the directory
+  (hww_addr_ne_rel : e_ww.addr ≠ e_nc_rel.addr)
+  (hww_eq_rel_cid : e_ww.sameCid n e_nc_rel)
+  (he_ww_ob_e_nc_rel : e_ww.OrderedBefore n e_nc_rel)
+
+  (he_ww_in_b : e_ww ∈ b)
+  (he_ww_cache : e_ww.isCacheEvent)
+  (he_req_ww : Event.req n e_ww = ⟨{ rw := .w, coherent := false, consistency := Consistency.Weak }, property_ww⟩)
+  (he_not_down_ww : ¬ e_ww.down)
+  (hdir_lin_ww : Behaviour.requestWithoutCoherentPermsLinearizesAtDir n b init e_ww e_generated_lin_ww)
+  (he_has_no_perms_ww : Behaviour.reqMissingPerms n b init e_ww)
+  (he_req_at_cdir_ww : Behaviour.requestLinearizesAtDirectory n b init e_ww e_generated_cdir_ww e_generated_lin_ww)
+  (he_lin_dir_ww : clusterDirectoryLinearizationEvent n cmp.shimAxioms b init e_generated_cdir_ww e_generated_cmp_lin_ww)
+
+  (hnc_rel_in_b : e_nc_rel ∈ b)
+  (he_nc_rel_cache : e_nc_rel.isCacheEvent)
+  (hnc_rel_cdir_in_b : e_generated_cdir_nc_rel ∈ b)
+  (he_req_nc_rel : Event.req n e_nc_rel = ⟨{ rw := .w, coherent := false, consistency := .Rel }, property_rel⟩)
+  (he_not_down_nc_rel : ¬ e_nc_rel.down)
+  (hdir_lin_nc_rel : Behaviour.requestWithoutCoherentPermsLinearizesAtDir n b init e_nc_rel e_generated_lin_nc_rel)
+  (he_has_no_perms_nc_rel : Behaviour.reqMissingPerms n b init e_nc_rel)
+  (he_req_at_cdir_nc_rel : Behaviour.requestLinearizesAtDirectory n b init e_nc_rel e_generated_cdir_nc_rel e_generated_lin_nc_rel)
+  (he_lin_dir_nc_rel : clusterDirectoryLinearizationEvent n cmp.shimAxioms b init e_generated_cdir_nc_rel e_generated_cmp_lin_nc_rel)
+  : e_generated_cmp_lin_ww.OrderedBefore n e_generated_cmp_lin_nc_rel /- hcluster_dir_lin_e₁.choose abbrev e_generated_cmp_lin -/ := by
+
+  have hww_cdir_spec := he_req_at_cdir_ww.reqCorrespondsToDir
+  cases hww_cdir_spec
+  . case encapDir hww_missing_perms hww_encap_corr_dir =>
+    -- a Weak Write Cache Request Event (`e_ww`) do not encap a directory event. show a contradiction
+    cases hww_missing_perms
+    . case downgrade hww_is_down hww_evict_on_mrs => contradiction
+    . case noPermsForNonNcRelAcqWeakWrite hww_not_down hww_not_rel_acq_ww hww_no_perms =>
+      simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite,
+        Event.isNcRelease, Event.isAcquire, Event.isNcWeakWrite] at hww_not_rel_acq_ww
+      have hnot_ww := hww_not_rel_acq_ww.right.right
+      match e_ww with
+      | .cacheEvent ce_ww =>
+        simp[Event.req, ] at he_req_ww
+        simp[CacheEvent.isNcWeakWrite, ValidRequest.isNcWeakWrite,] at hnot_ww
+        contradiction
+      | .directoryEvent _ => simp[Event.isCacheEvent] at he_ww_cache
+    . case ncRelAcqWeakWriteNotOnCoherentState hww_not_down hww_is_rel_acq hrel_acq_no_perms =>
+      simp[Event.isNcRelAcq, Event.isAcquire, Event.isNcRelease] at hww_is_rel_acq
+      match e_ww with
+      | .cacheEvent ce_ww =>
+        simp [Event.req] at he_req_ww hww_is_rel_acq
+        simp[CacheEvent.isAcquire, CacheEvent.isNcRelease,
+          ValidRequest.isAcquire, ValidRequest.isNcRelease] at hww_is_rel_acq
+        simp[he_req_ww] at hww_is_rel_acq
+      | .directoryEvent _ => simp at hww_is_rel_acq
+  . case orderBeforeDir he_has_perms hexists_pred_get_perms hpred_encap_dir =>
+    exfalso
+    apply Event.contradiction_of_weak_write_request_has_perms_and_no_perms
+    . case he_req => exact he_req_ww
+    . case he_not_down => exact he_not_down_ww
+    . case he_has_perms => exact he_has_perms
+    . case he_no_perms => exact he_has_no_perms_ww
+  . case orderAfterDir hweak_read hsuccessor_dir =>
+    simp[Behaviour.immBottomSuccOnVdEncapCorrDir] at hsuccessor_dir
+    have hww_successor_wb := hsuccessor_dir.choose_spec.right
+    simp [Behaviour.ImmediateBottomSuccSatisfyingProp] at hww_successor_wb
+    simp [Behaviour.succOnVdWithCorrespondingDir, ] at hww_successor_wb
+
+    -- have hww := hww_successor_wb.isImmBottomSucc.noIntermediateSatP
+
+    have hww_successor_sat_p := hww_successor_wb.satisfyP
+    simp[Event.PropOnEvent] at hww_successor_sat_p
+    have := hww_successor_sat_p.encapCorresponding
+
+    /- A release has WBs to other addresses, so the successor is either the WB, or an event before. -/
+
+    have hrel_ax := cmp.cluster1.reqAxioms.relAcqSelfBroadcast.ncReleaseWBs b init e_nc_rel hnc_rel_in_b
+    let hrel_wb_template := hrel_ax.choose
+    have hrel_wb_ax := hrel_ax.choose_spec.right e_generated_cdir_nc_rel hnc_rel_cdir_in_b
+    have hrel_wb_cast := hrel_wb_ax.broadcastWB.broadcast.broadcastToEntries e_ww.addr hww_addr_ne_rel
+    have hrel_wb_cast_spec := hrel_wb_cast.choose_spec.right
+
+    /- We know that `e_ww.OrderedBefore e_wb` -/
+    have hww_ob_wb : e_ww.OrderedBefore n hrel_wb_cast.choose := by
+      calc e_ww.OrderedBefore n e_nc_rel := he_ww_ob_e_nc_rel
+        e_nc_rel.Encapsulates n hrel_wb_cast.choose := hrel_wb_cast_spec.broadcastEncapInBase.baseEncapCast
+
+    /- We know that `e_wb.OrderedBefore e_rel_lin` -/
+    have hwb_ob_rel_lin : hrel_wb_cast.choose.OrderedBefore n e_generated_cdir_nc_rel := hrel_wb_cast.choose_spec.right.beforeDir
+
+    /- Then do cases, either `e_wb` is the `immediate successor`-/
+
+    /- At the end, use `e_generated_cdir_nc_rel` to state that the `cdir` are the `e_generated_cmp_lin`. -/
+    sorry
+
 lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_write_and_non_coherent_release
   {b : Behaviour n}{init : InitialSystemState n}
   {cmp : CompoundProtocol n} {e₁ e₂ : Event n}
