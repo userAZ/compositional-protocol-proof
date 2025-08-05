@@ -691,6 +691,315 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_read_and_non_coherent_
   : CompoundLinearizationOrder n cmp b init e₁ e₂ := by
   sorry
 
+-- BEGIN attempt to prove that a weak write `e_ww` linearizes before or at a VdWriteBack where `e_ww.OrderedBefore e_wb`
+
+inductive Event.isAcqNcRelCRelVdWB (e : Event n) : Prop
+| acq (isAcq : e.isAcquire) : Event.isAcqNcRelCRelVdWB e
+| ncRel (isNcRel : e.isNcRelease) : Event.isAcqNcRelCRelVdWB e
+| CRel (isCRel : e.isCRelease) : Event.isAcqNcRelCRelVdWB e
+| VdWB (isVdWB : e.isVdWriteBack) : Event.isAcqNcRelCRelVdWB e
+| scW (isSCW : e.isSCWrite) : Event.isAcqNcRelCRelVdWB e
+| scR (isSCR : e.isSCRead) : Event.isAcqNcRelCRelVdWB e
+
+lemma Behaviour.lllll
+  (hhead_bottom : IsBottomEvent n b head)
+  : (¬ImmediateBottomSuccSatisfyingProp n b e_ww head fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
+  → ¬ (head.isAcqNcRelCRelVdWB ∧ (stateBefore n b (InitialSystemState.stateAt n init head) head = VdEntry n)) := by
+  intro hnot hacq_rel_etc
+  obtain ⟨l, hmade_on_vd⟩ := hacq_rel_etc
+  apply hnot
+  constructor
+  . case isImmBottomSucc =>
+    constructor
+    . case isSucc =>
+      -- carry this fwd from previous Lemmas
+      sorry
+    . case noIntermediateSatP =>
+      simp[NoIntermediatePredecessorSatisfyingProp]
+      simp[noBottomIntermediatePredecessorAtSuccSatisfyingProp]
+      simp[succOnVdWithCorrespondingDir]
+
+      intro e he_in_b he_bottom_same he_btn_sat
+      have := he_btn_sat
+      sorry
+    . case sameEntry =>
+      sorry
+    . case predInB =>
+      sorry
+    . case succInB =>
+      sorry
+  . case isBottom =>
+    exact hhead_bottom
+  . case satisfyP =>
+    simp[Event.PropOnEvent]
+    constructor
+    . case stateBeforeAsVd =>
+      exact hmade_on_vd
+    . case encapCorresponding =>
+      -- holds by axiom 6
+      sorry
+
+lemma Behaviour.llll
+  (hall_cache : ∀ e ∈ l_tail, Event.isCacheEvent n e)
+  (hall_not : ∀ e ∈ l_tail,
+    ¬ImmediateBottomSuccSatisfyingProp n b e_ww e
+      fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
+  : (match List.stateAfter n l_tail (Sum.inl Vd) with
+  | Sum.inl cache_state => cache_state
+  | Sum.inr val => default) =
+  Vd := by
+  induction l_tail with
+  | nil =>
+    simp[List.stateAfter]
+  | cons head l_tail' ih' =>
+    simp[List.stateAfter]
+    simp[Event.SucceedingState]
+    have hhead_cache := hall_cache head (by simp[])
+    match hhead : head with
+    | .cacheEvent ce_head =>
+      -- apply ih'
+      simp[CacheEvent.SucceedingState]
+      have := hall_not head (by simp[hhead])
+      --
+      sorry
+    | .directoryEvent _ =>
+      simp[Event.isCacheEvent] at hhead_cache
+
+lemma Behaviour.lll
+  (e_ww : Event n)
+  (hww : e_ww.isNcWeakWrite)
+  (hww_not_down : ¬ e_ww.down)
+  (hww_in_es_upto : e_ww ∈ l)
+  (hinit_i : init_state = IEntry n)
+  (hall_cache : ∀ e ∈ l, e.isCacheEvent)
+  (hall_not : ∀ e ∈ l,
+    ¬ImmediateBottomSuccSatisfyingProp n b e_ww e
+      fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
+  : EntryState.cache n (List.stateAfter n l init_state) = Vd := by
+  induction l generalizing init_state with
+  | nil =>
+    simp[] at hww_in_es_upto
+    -- sorry
+  | cons head l_tail ih =>
+    simp[List.stateAfter]
+    -- simp
+    simp at hww_in_es_upto
+    cases hww_in_es_upto
+    . case cons.inl hww_head =>
+      --
+      simp [Event.SucceedingState]
+      match hhead : head with
+      | .cacheEvent ce_head =>
+        --
+        simp[CacheEvent.SucceedingState]
+        simp[hww_head, Event.down] at hww_not_down
+        simp[hww_not_down]
+        simp[ValidRequest.RequestState]
+
+        simp[hww_head, Event.isNcWeakWrite, CacheEvent.isNcWeakWrite, ValidRequest.isNcWeakWrite] at hww
+        simp[hww]
+        simp[hinit_i]
+        simp[EntryState.cache]
+        -- simp[List.stateAfter]
+        sorry
+      | .directoryEvent _ =>
+        have hhead_is_cache := hall_cache head (by simp[hhead])
+        simp[Event.isCacheEvent, hhead] at hhead_is_cache
+    . case cons.inr hww_tail =>
+      apply ih
+      . case hww_in_es_upto =>
+        exact hww_tail
+      . case hinit_i => sorry
+      . case hall_cache => sorry
+      . case hall_not =>
+        intro e he_in_tail
+        apply hall_not
+        . case a =>
+          simp[he_in_tail]
+
+lemma Behaviour.ll
+  : (stateBefore n b init_state/-(InitialSystemState.stateAt n init e_wb)-/ e_wb).cache = Vd := by
+  simp[stateBefore]
+
+  sorry
+
+lemma Behaviour.all_predecessors_do_not_write_back_or_get_coherent_perms
+  -- (hl : l = head :: l_tail)
+  {l_tail : List (Event n)}
+  (e_wb : Event n)
+  (hww : e_ww.isNcWeakWrite)
+  (hww_is_head : e_ww = head)
+  /-
+  (hno_tail_sat : ∀ e ∈ l_tail,
+    ¬ImmediateBottomSuccSatisfyingProp n b e_ww e
+      fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)-/
+  -- maybe try adding the fact that the state after all of them is Vd?
+  (hno_tail_sat : ∀ e ∈ b, e.OrderedBefore n e_wb →
+    ¬ImmediateBottomSuccSatisfyingProp n b e_ww e
+      fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
+
+  (hno_tail_sat : ∀ e ∈ b, e.OrderedBefore n e_wb →
+    (stateAfter n b some_init e = VdEntry n) →
+    ¬ImmediateBottomSuccSatisfyingProp n b e_ww e
+      fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
+  -- all predecessors to `e_wb` are in hno_tail_sat
+  : ImmediateBottomSuccSatisfyingProp n b e_ww e_wb
+      fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww := by
+  /- because no predecessor to `e_wb` satisfies -/
+  constructor
+  . case isImmBottomSucc =>
+    constructor
+    . case isSucc =>
+      simp[Event.Successor, Event.Predecessor]
+      sorry
+    . case noIntermediateSatP =>
+      simp[NoIntermediatePredecessorSatisfyingProp]
+      simp[noBottomIntermediatePredecessorAtSuccSatisfyingProp]
+      sorry
+    . case sameEntry =>
+      sorry
+    . case predInB =>
+      sorry
+    . case succInB =>
+      sorry
+  . case isBottom =>
+    simp[IsBottomEvent]
+    simp[IsNotEncapAtSameStruct]
+    sorry
+  . case satisfyP =>
+    simp[Event.PropOnEvent]
+    constructor
+    . case stateBeforeAsVd =>
+      sorry
+    . case encapCorresponding =>
+      sorry
+
+lemma Behaviour.weak_write_succ_wb_in_eventsUpToEvent_wb
+  {cmp : CompoundProtocol n}
+  {b : Behaviour n}
+  {l : List (Event n)}
+  (e_wb : Event n)
+  (hsucc_wb : -- ∃ e_succ ∈ b.es,
+  Behaviour.ImmediateBottomSuccSatisfyingProp n b e_ww e_succ_wb fun x =>
+    Behaviour.succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
+  (hww_ob_wb : e_ww.OrderedBefore n e_wb)
+  (hww_is_weak_write : e_ww.isNcWeakWrite)
+  (hwb_is_vdwb : e_wb.isVdWriteBack)
+  (hww_same_entry_wb : e_ww.sameEntry n e_wb)
+  (hww_in_es_upto_wb : e_ww ∈ l)
+  -- (hes_not_empty : (eventsUpToEvent n b e_wb) ≠ [])
+  : e_succ_wb ∈ l ∨ e_succ_wb = e_wb := by
+  -- simp[eventsUpToEvent]
+  -- have : l ≠ [] := by
+  --   by_contra h_empty
+  --   absurd hww_in_es_upto_wb
+  --   simp [h_empty]
+  induction l with
+  | nil =>
+    simp at hww_in_es_upto_wb
+  | cons head l_tail ih =>
+    --
+    have hsucc_not_head : e_succ_wb ≠ head := by
+      /- Strategy: 1. e_ww is in head, 2. all list elements are Sorted by OrderedBefore,
+      3. eww.OrderedBefore e_succ_wb from "ImmediateBottomSucc".
+      so e_succ_wb must be after head (because head = e_ww) -/
+      sorry
+    simp[hsucc_not_head]
+    simp at hww_in_es_upto_wb
+    cases hww_in_es_upto_wb
+    . case cons.inl hww_is_head =>
+      /-
+      by_cases hno_tail_sat : ∀ e ∈ b, e.OrderedBefore n e_wb →
+        ¬ImmediateBottomSuccSatisfyingProp n b e_ww e
+          fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww
+      . case pos =>
+        sorry
+      . case neg =>
+        simp at hno_tail_sat
+        sorry-/
+      --
+      by_cases hno_tail_sat : ∀ e ∈ l_tail, ¬(
+        Behaviour.ImmediateBottomSuccSatisfyingProp n b e_ww e fun x =>
+        Behaviour.succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
+      . case pos =>
+        /- None of the entries in `l_tail` satisfy the Prop. so `e_wb` -/
+        have hsucc_wb_not_in_tail : e_succ_wb ∉ l_tail := by
+          by_contra hsucc_wb_in_l_tail
+          apply hno_tail_sat
+          . case a =>
+            exact hsucc_wb_in_l_tail
+          . case a =>
+            exact hsucc_wb
+        simp[hsucc_wb_not_in_tail]
+        /- Hard part, so all the events in l_tail don't satsify this property.
+        Now show that e_wb is the only one that satisfies this property. -/
+        have hwb_is_imm_succ : ImmediateBottomSuccSatisfyingProp n b e_ww e_wb
+          fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww :=
+          sorry
+          -- Behaviour.all_predecessors_do_not_write_back_or_get_coherent_perms n
+          --   e_wb hww_is_weak_write hww_is_head sorry -- hno_tail_sat
+        rw [show e_succ_wb = e_wb from
+          Behaviour.immediate_bottom_successor_satisfying_p_unique
+          n b e_ww e_succ_wb e_wb (fun x =>
+            Behaviour.succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
+          hsucc_wb hwb_is_imm_succ
+          ]
+      . case neg =>
+        simp at hno_tail_sat
+        obtain ⟨x, hx_in_tail, hx_succ_wb⟩ := hno_tail_sat
+        apply Or.intro_left
+        /- x is e_succ_wb, because "immediate Successor" is a unique relation. -/
+        rw [show e_succ_wb = x from
+          Behaviour.immediate_bottom_successor_satisfying_p_unique
+          n b e_ww e_succ_wb x (fun x =>
+            Behaviour.succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
+          hsucc_wb hx_succ_wb
+          ]
+        exact hx_in_tail
+    . case cons.inr hww_is_tail =>
+      apply ih
+      show e_ww ∈ l_tail
+      exact hww_is_tail
+
+lemma CompoundProtocol.weak_write_OrderedBefore_vd_write_back
+  {b : Behaviour n}
+  (hsucc_wb : -- ∃ e_succ ∈ b.es,
+  Behaviour.ImmediateBottomSuccSatisfyingProp n b e_ww e_succ_wb fun x =>
+    Behaviour.succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
+  (hww_ob_wb : e_ww.OrderedBefore n e_wb)
+  (hww_is_weak_write : e_ww.isNcWeakWrite)
+  (hwb_is_vdwb : e_wb.isVdWriteBack)
+  (hww_same_entry_wb : e_ww.sameEntry n e_wb)
+  : e_succ_wb = e_wb ∨ e_succ_wb.OrderedBefore n e_wb := by
+  /- Strategy:
+  1. consider eventsUpToEvent `e_wb`. reverse induction on the list -/
+  -- have hsucc_wb_in_eventsUpToEvent_wb : e_succ_wb ∈ (Behaviour.eventsUpToEvent n b e_wb) ∨ e_succ_wb = e_wb := by
+  --   sorry
+
+  by_contra hnot_eq_or_ordered_before
+  simp at hnot_eq_or_ordered_before
+  have hsucc_wb_after_e_wb : e_wb.OrderedBefore n e_succ_wb := by
+    by_contra hnot_ordered_after
+    simp[Event.OrderedBefore, Nat.le_iff_lt_or_eq] at hnot_ordered_after
+    obtain ⟨hsucc_wb_ne_wb, hsucc_wb_not_ob_wb⟩ := hnot_eq_or_ordered_before
+    case intro =>
+    cases hnot_ordered_after
+    . case inl hsucc_ob_wb =>
+      sorry
+    . case inr h =>
+      sorry
+
+  let es_upto_wb := Behaviour.eventsUpToEvent n b e_wb
+  simp[Behaviour.eventsUpToEvent] at es_upto_wb
+  induction Behaviour.eventsUpToEvent n b e_wb with
+  | nil =>
+    --
+    sorry
+  | cons h t ih =>
+    sorry
+
+-- END attempt to prove that a weak write `e_ww` linearizes before or at a VdWriteBack where `e_ww.OrderedBefore e_wb`
+
 lemma CompoundProtocol.weak_write_and_nc_release_linearize_at_directory
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
   -- {e_generated_lin : Event n} -- ∃ linearization event of e₁ (not compound linearization event)
