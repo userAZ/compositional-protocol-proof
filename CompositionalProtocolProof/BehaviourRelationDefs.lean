@@ -366,6 +366,8 @@ structure Behaviour.acqInvalOtherEntries (b : Behaviour n) (e_req e_inval e_dir 
   isDir : e_dir.isDirectoryEvent
   dirCorresponds : b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e_req) true e_dir e_req
   isVcInval : e_inval.isVcInval
+  isCache : e_inval.isCacheEvent
+  sameCid : e_inval.cid = e_req.cid
   acqEncapDir : e_req.Encapsulates n e_dir
   broadcastInval : b.broadcastToOtherEntriesAfterDir n e_req e_inval e_dir
 
@@ -375,6 +377,8 @@ structure Behaviour.relWriteBackOtherEntries (b : Behaviour n) (e_req e_wb e_dir
   isDir : e_dir.isDirectoryEvent
   dirCorresponds : b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e_req) true e_dir e_req
   isVdWriteBack : e_wb.isVdWriteBack
+  isCache : e_wb.isCacheEvent
+  sameCid : e_wb.cid = e_req.cid
   relEncapDir : e_req.Encapsulates n e_dir
   broadcastWB : b.broadcastToOtherEntriesBeforeDir n e_req e_wb e_dir
 
