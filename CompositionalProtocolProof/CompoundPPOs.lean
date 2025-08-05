@@ -704,7 +704,7 @@ inductive Event.isAcqNcRelCRelVdWB (e : Event n) : Prop
 lemma Behaviour.lllll
   (hhead_bottom : IsBottomEvent n b head)
   : (¬ImmediateBottomSuccSatisfyingProp n b e_ww head fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
-  → ¬ (head.isAcqNcRelCRelVdWB ∧ (stateBefore n b (InitialSystemState.stateAt n init head) head = VdEntry n)) := by
+  → ¬ (head.isAcqNcRelCRelVdWB ∧ ((stateBefore n b (InitialSystemState.stateAt n init head) head).cache = Vd)) := by
   intro hnot hacq_rel_etc
   obtain ⟨l, hmade_on_vd⟩ := hacq_rel_etc
   apply hnot
