@@ -394,9 +394,9 @@ structure Behaviour.coherentRelDowngradeWriteBackOthers (b : Behaviour n) (e_dow
 
 /-- Axiom 13. Release and Acquire Broadcast WriteBacks and Invalidations to other cache entries Axiom. -/
 structure Behaviour.relAcqBroadcast : Prop where
-  acquireInvals : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∀ e_inval ∈ b.es, ∀ e_dir ∈ b.es, b.acqInvalOtherEntries n e_req e_inval e_dir init
-  ncReleaseWBs : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b.es, ∀ e_wb ∈ b.es, ∀ e_dir ∈ b.es, b.relWriteBackOtherEntries n e_req e_wb e_dir init
-  downgradeWB : ∀ b : Behaviour n, ∀ e_down ∈ b.es, ∀ e_wb ∈ b.es, ∀ p_i : Protocol.interface, b.coherentRelDowngradeWriteBackOthers n e_down e_wb p_i
+  acquireInvals : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b, ∃ e_inval ∈ b, ∀ e_dir ∈ b, b.acqInvalOtherEntries n e_req e_inval e_dir init
+  ncReleaseWBs : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b, ∃ e_wb ∈ b, ∀ e_dir ∈ b, b.relWriteBackOtherEntries n e_req e_wb e_dir init
+  downgradeWB : ∀ b : Behaviour n, ∀ e_down ∈ b, ∀ e_wb ∈ b, ∀ p_i : Protocol.interface, b.coherentRelDowngradeWriteBackOthers n e_down e_wb p_i
 
 /- ------------- Work in progress for Lemma 3. May or may not need. ------------- -/
 /-
