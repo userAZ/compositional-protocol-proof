@@ -748,6 +748,8 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_acquire_and_weak_request
   {b : Behaviour n}{init : InitialSystemState n}
   {cmp : CompoundProtocol n} {e₁ e₂ : Event n}
   {he₁_ob_e₂ : e₁.OrderedBefore n e₂}
+  (he₁_cache : e₁.isCacheEvent)
+  (he₂_cache : e₂.isCacheEvent)
   (hsame_protocol : e₁.sameProtocol n e₂)
   (he₁_req : Event.req n e₁ = ⟨{ rw := .r, coherent := false, consistency := .Acq }, property_acq⟩)
   (he₂_req : Event.req n e₂ = ⟨{ rw := rw, coherent := false, consistency := .Weak }, property_weak⟩)
