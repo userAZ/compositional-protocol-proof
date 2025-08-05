@@ -696,11 +696,81 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_write_and_non_coherent
   {cmp : CompoundProtocol n} {e₁ e₂ : Event n}
   {he₁_ob_e₂ : e₁.OrderedBefore n e₂}
   (hsame_protocol : e₁.sameProtocol n e₂)
-  (he₁_req : Event.req n e₁ = ⟨{ rw := .w, coherent := false, consistency := Consistency.Weak }, property_weak⟩)
-  (he₂_req : Event.req n e₂ = ⟨{ rw := ReadWrite.w, coherent := false, consistency := Consistency.Rel }, property_rel⟩)
+  (he₁_cache : e₁.isCacheEvent)
+  (he₂_cache : e₂.isCacheEvent)
+  (he₁_req : Event.req n e₁ = ⟨{ rw := .w, coherent := false, consistency := .Weak }, property_weak⟩)
+  (he₂_req : Event.req n e₂ = ⟨{ rw := .w, coherent := false, consistency := .Rel }, property_rel⟩)
   (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
   : CompoundLinearizationOrder n cmp b init e₁ e₂ := by
-  sorry
+    match he₁_lin : cmp.compoundLinearizationEvent cmp.shimAxioms b init e₁ (cmp.linearizationOfEvent b init e₁)
+      , he₂_lin : cmp.compoundLinearizationEvent cmp.shimAxioms b init e₂ (cmp.linearizationOfEvent b init e₂)
+      with
+    | .clusterCacheLin hcluster_cache_lin_e₁, .clusterCacheLin hcluster_cache_lin_e₂ =>
+      apply CompoundProtocol.compound_linearization_order_of_events_ordered_before_and_linearizes_at_cache
+      . case he₁_ob_e₂ => exact he₁_ob_e₂
+      . case he₁_lin => exact he₁_lin
+      . case he₂_lin => exact he₂_lin
+    | .clusterDirLin hcluster_dir_lin_e₁, .clusterCacheLin hcluster_cache_lin_e₂ =>
+      simp[CompoundLinearizationOrder]
+      apply Or.intro_left
+      simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
+
+      have he₁_lin_dir := hcluster_dir_lin_e₁.choose_spec.right.e_glin_deeper
+      have he₂_lin_cache := hcluster_cache_lin_e₂.choose_spec.right.e_creq_is_e_glin
+
+      simp[he₂_lin_cache]
+
+      simp[compoundLinearization.OfReqEncapDirAccess] at he₁_lin_dir
+      split at he₁_lin_dir
+      . case h_1 hcreq_lin h hrequest_lin => exfalso; exact he₁_lin_dir
+      . case h_2 hcreq_lin hdir_lin hrequest_lin =>
+        /- Show this is bogus; Weak Write on SW, and SW isn't a state in the protocol. -/
+        sorry
+    | .clusterCacheLin hcluster_cache_lin_e₁, .clusterDirLin hcluster_dir_lin_e₂ =>
+      simp[CompoundLinearizationOrder]
+      apply Or.intro_left
+      simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
+
+      have he₁_lin_cache := hcluster_cache_lin_e₁.choose_spec.right.e_creq_is_e_glin
+      have he₂_lin_dir := hcluster_dir_lin_e₂.choose_spec.right.e_glin_deeper
+
+      simp[he₁_lin_cache]
+
+      simp[compoundLinearization.OfReqEncapDirAccess] at he₂_lin_dir
+      split at he₂_lin_dir
+      . case h_1 hcreq_lin h hrequest_lin => exfalso; exact he₂_lin_dir
+      . case h_2 hcreq_lin hdir_lin hrequest_lin =>
+        /- Show this is bogus; Weak Write on SW, and SW isn't a state in the protocol. -/
+        sorry
+    | .clusterDirLin hcluster_dir_lin_e₁, .clusterDirLin hcluster_dir_lin_e₂ =>
+      simp[CompoundLinearizationOrder]
+      apply Or.intro_left
+      simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
+
+      have he₁_lin_dir := hcluster_dir_lin_e₁.choose_spec.right.e_glin_deeper
+      have he₂_lin_dir := hcluster_dir_lin_e₂.choose_spec.right.e_glin_deeper
+
+      simp[compoundLinearization.OfReqEncapDirAccess] at he₁_lin_dir he₂_lin_dir
+      split at he₁_lin_dir
+      . case h_1 _ h _ => exfalso; exact he₁_lin_dir
+      . case h_2 _ hdir_lin₁ _ =>
+        split at he₂_lin_dir
+        . case h_1 _ h _ => exfalso; exact he₂_lin_dir
+        . case h_2 _ hdir_lin₂ _ =>
+          have hreq₁_lin_at_dir := hdir_lin₁.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+          have hreq₂_lin_at_dir := hdir_lin₂.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+
+          have hreq_without_perms_lin_at_dir₁ := hdir_lin₁.choose_spec.right
+          have hreq_lin_at_dir₁ := hdir_lin₁.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+          have he₁_encap_e₁_cmp_lin : e₁.Encapsulates n hcluster_dir_lin_e₁.choose := by
+            sorry
+
+          have hreq_without_perms_lin_at_dir₂ := hdir_lin₂.choose_spec.right
+          have hreq_lin_at_dir₂ := hdir_lin₂.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+          have he₂_encap_e₂_cmp_lin : e₂.Encapsulates n hcluster_dir_lin_e₂.choose := by
+            sorry
+
+          sorry
 
 lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_non_coherent_release
   {b : Behaviour n}{init : InitialSystemState n}
