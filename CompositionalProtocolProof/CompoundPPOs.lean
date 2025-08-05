@@ -735,6 +735,8 @@ lemma Behaviour.lllll
     constructor
     . case stateBeforeAsVd =>
       exact hmade_on_vd
+    . case isRelAcqOrVdWB =>
+      sorry
     . case encapCorresponding =>
       -- holds by axiom 6
       sorry
@@ -870,6 +872,8 @@ lemma Behaviour.all_predecessors_do_not_write_back_or_get_coherent_perms
     simp[Event.PropOnEvent]
     constructor
     . case stateBeforeAsVd =>
+      sorry
+    . case isRelAcqOrVdWB =>
       sorry
     . case encapCorresponding =>
       sorry
@@ -1179,6 +1183,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_non_cohere
   {cmp : CompoundProtocol n} {e₁ e₂ : Event n}
   {he₁_ob_e₂ : e₁.OrderedBefore n e₂}
   (hsame_protocol : e₁.sameProtocol n e₂)
+  (he₁_cache : e₁.isCacheEvent) (he₂_cache : e₂.isCacheEvent)
   (he₁_req : Event.req n e₁ = ⟨{ rw := rw, coherent := false, consistency := Consistency.Weak }, property_weak⟩)
   (he₂_req : Event.req n e₂ = ⟨{ rw := ReadWrite.w, coherent := false, consistency := Consistency.Rel }, property_rel⟩)
   (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
@@ -1196,6 +1201,8 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_non_cohere
     apply CompoundProtocol.CompoundLinearizationOrder_of_weak_write_and_non_coherent_release
     . case he₁_ob_e₂ => exact he₁_ob_e₂
     . case hsame_protocol => exact hsame_protocol
+    . case he₁_cache => exact he₁_cache
+    . case he₂_cache => exact he₂_cache
     . case he₁_req => exact he₁_req
     . case he₂_req => exact he₂_req
     . case he₁_not_down => exact he₁_not_down
@@ -1232,6 +1239,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_acquire_and_weak_request
 /-- Lemma 11 (thm 1)-/
 lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b : Behaviour n} {init : InitialSystemState n}
   (cmp : CompoundProtocol n) (e₁ e₂ : Event n) (hsame_protocol : e₁.sameProtocol n e₂) (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
+  (he₁_cache : e₁.isCacheEvent) (he₂_cache : e₂.isCacheEvent)
   : e₁.OrderedBefore n e₂ → e₁.isPPOPair n e₂ → cmp.CompoundLinearizationOrder n b init e₁ e₂ := by
   intro he₁_ob_e₂ he₁_ppo_e₂_cache_ppo
   -- Work through the cases of all PPO Pairs, and show that `e₁` and `e₂` linearize in order.
@@ -1253,6 +1261,8 @@ lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b 
     apply CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_non_coherent_release
     . case he₁_ob_e₂ => exact he₁_ob_e₂
     . case hsame_protocol => exact hsame_protocol
+    . case he₁_cache => exact he₁_cache
+    . case he₂_cache => exact he₂_cache
     . case he₁_req => exact he₁_req
     . case he₂_req => exact he₂_req
     . case he₁_not_down => exact he₁_not_down
