@@ -520,7 +520,7 @@ structure Behaviour.ncWeakReqOnVd (b : Behaviour n) (init : InitialSystemState n
 
 /-- Succeeding Request Event on Vd that accesses the Directory -/
 structure Behaviour.reqOnVdWithCorrespondingDir (b : Behaviour n) (init : InitialSystemState n) (e_req e_dir : Event n) : Prop where
-  stateBeforeAsVd : b.stateBefore n (init.stateAt n e_req) e_req = VdEntry n
+  stateBeforeAsVd : (b.stateBefore n (init.stateAt n e_req) e_req).cache = Vd
   isRelAcqOrVdWB : e_req.isAcquire ∨ e_req.isNcRelease ∨ e_req.isCRelease ∨ e_req.isVdWriteBack
     ∨ e_req.isSCWrite ∨ e_req.isSCRead
   -- [NOTE]: Remebmer to use Axiom 6 to solve this.
