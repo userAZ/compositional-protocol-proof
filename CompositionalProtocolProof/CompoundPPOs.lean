@@ -741,7 +741,7 @@ lemma Behaviour.lllll
       -- holds by axiom 6
       sorry
 
-lemma Behaviour.llll
+lemma Behaviour.stateAfter_Vd_of_no_immediate_successor
   (hall_cache : ∀ e ∈ l_tail, Event.isCacheEvent n e)
   (hall_not : ∀ e ∈ l_tail,
     ¬ImmediateBottomSuccSatisfyingProp n b e_ww e
@@ -767,7 +767,7 @@ lemma Behaviour.llll
     | .directoryEvent _ =>
       simp[Event.isCacheEvent] at hhead_cache
 
-lemma Behaviour.lll
+lemma Behaviour.state_after_eventsUpToEvent_is_Vd_if_all_list_events_not_immediate_successor
   (e_ww : Event n)
   (hww : e_ww.isNcWeakWrite)
   (hww_not_down : ¬ e_ww.down)
@@ -803,7 +803,13 @@ lemma Behaviour.lll
         simp[hinit_i]
         simp[EntryState.cache]
         -- simp[List.stateAfter]
-        sorry
+        apply Behaviour.stateAfter_Vd_of_no_immediate_successor
+        . case hall_cache => sorry
+        . case hall_not => sorry
+        . case b => sorry
+        . case e_ww => exact e_ww
+        . case init => sorry
+        . case e_generated_cdir_ww => sorry
       | .directoryEvent _ =>
         have hhead_is_cache := hall_cache head (by simp[hhead])
         simp[Event.isCacheEvent, hhead] at hhead_is_cache
@@ -872,7 +878,17 @@ lemma Behaviour.all_predecessors_do_not_write_back_or_get_coherent_perms
     simp[Event.PropOnEvent]
     constructor
     . case stateBeforeAsVd =>
-      sorry
+      apply Behaviour.state_after_eventsUpToEvent_is_Vd_if_all_list_events_not_immediate_successor
+      . case hww => sorry
+      . case hww_not_down => sorry
+      . case hww_in_es_upto => sorry
+      . case hinit_i => sorry
+      . case hall_cache => sorry
+      . case hall_not => sorry
+      . case b => sorry
+      . case init => sorry
+      . case e_generated_cdir_ww => sorry
+      . case e_ww => sorry
     . case isRelAcqOrVdWB =>
       sorry
     . case encapCorresponding =>
