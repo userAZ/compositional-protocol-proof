@@ -128,6 +128,49 @@ lemma Event.contradiction_of_nc_release_request_has_perms_and_no_perms {b init e
           simp[hweak_read] at he_req
         | .directoryEvent _ => simp[] at hweak_read
 
+lemma Event.contradiction_of_weak_write_request_has_perms_and_no_perms {b init e}
+  -- (he_req : e.req.isAcquire)
+  (he_req : Event.req n e = ⟨{ rw := .w, coherent := false, consistency := Consistency.Weak }, property_weak⟩)
+  (he_not_down : ¬ e.down)
+  (he_has_perms : Behaviour.reqHasPerms n b init e)
+  (he_no_perms : Behaviour.reqMissingPerms n b init e)
+  : False := by
+    cases he_has_perms
+    . case hasPerms his_coherent hhas_perms =>
+      simp[Behaviour.hasPerms] at hhas_perms
+      simp[isCoherent] at his_coherent
+      match e with
+      | .cacheEvent ce =>
+        simp[ValidRequest.isCoherent, Request.isCoherent] at his_coherent
+        simp[Event.req, ValidRequest.isAcquire,] at he_req
+        simp[he_req] at his_coherent
+      | .directoryEvent _ => simp[] at his_coherent
+    . case ncRelAcqWeakWriteHasCoherentPerms hrel_acq_ww hcoherent_perms =>
+      cases he_no_perms
+      . case downgrade hdown hevict => contradiction
+      . case noPermsForNonNcRelAcqWeakWrite hnot_down hnotrel_acq_ww hno_perms => contradiction
+      . case ncRelAcqWeakWriteNotOnCoherentState hnot_down hacq_rel hacq_rel_ww_no_perms =>
+        simp[Behaviour.acqRelWeakWriteNoPerms] at hacq_rel_ww_no_perms
+        apply hacq_rel_ww_no_perms
+        . case a =>
+          simp[Behaviour.eventOnCoherentState, ]
+          have hmade_on_coherent_state := hcoherent_perms.onCoherentState
+          simp[ Behaviour.reqMadeOnCoherentState, Behaviour.stateReqMadeOn] at hmade_on_coherent_state
+          simp[hmade_on_coherent_state]
+        . case a =>
+          simp[Behaviour.eventOnStateHasPerms]
+          have hhas_perms := hcoherent_perms.hasPerms
+          simp[Behaviour.hasPerms] at hhas_perms
+          simp[hhas_perms]
+    . case ncWeakReadHasPermsNotVd hweak_read hhas_perms_not_vd =>
+      simp[Event.isNcWeakRead,] at hweak_read
+      match e with
+      | .cacheEvent ce =>
+        simp[Event.req, ValidRequest.isAcquire, ] at he_req
+        simp[CacheEvent.isNcWeakRead, ValidRequest.isNcWeakRead, ] at hweak_read
+        simp[hweak_read] at he_req
+      | .directoryEvent _ => simp[] at hweak_read
+
 lemma Event.contradiction_of_acquire_request_has_perms_and_no_perms {b init e}
   (he_req : e.req.isAcquire)
   (he_not_down : ¬ e.down)
