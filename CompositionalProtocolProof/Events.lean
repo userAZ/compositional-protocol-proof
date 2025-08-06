@@ -267,6 +267,9 @@ def Event.isNcWeakRead : Event n → Prop
 | .cacheEvent ce => ce.isNcWeakRead
 | .directoryEvent _ => false
 
+def Event.isNcWeakRead' : Event n → Prop
+| e => e.req.isNcWeakRead
+
 def CacheEvent.isNcWeakWrite : CacheEvent n → Prop
 | ce => ce.req.isNcWeakWrite
 
