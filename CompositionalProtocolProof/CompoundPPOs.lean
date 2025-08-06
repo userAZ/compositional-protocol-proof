@@ -1140,8 +1140,12 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_write_and_non_coherent
   {cmp : CompoundProtocol n} {e₁ e₂ : Event n}
   {he₁_ob_e₂ : e₁.OrderedBefore n e₂}
   (hsame_protocol : e₁.sameProtocol n e₂)
+  (he₁_in_b : e₁ ∈ b)
+  (he₂_in_b : e₂ ∈ b)
+  (hsame_cid : e₁.sameCid n e₂)
   (he₁_cache : e₁.isCacheEvent)
   (he₂_cache : e₂.isCacheEvent)
+  (hdiff_addr : e₁.addr ≠ e₂.addr)
   (he₁_req : Event.req n e₁ = ⟨{ rw := .w, coherent := false, consistency := .Weak }, property_weak⟩)
   (he₂_req : Event.req n e₂ = ⟨{ rw := .w, coherent := false, consistency := .Rel }, property_rel⟩)
   (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
@@ -1189,6 +1193,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_write_and_non_coherent
     | .clusterDirLin hcluster_dir_lin_e₁, .clusterDirLin hcluster_dir_lin_e₂ =>
       simp[CompoundLinearizationOrder]
       apply Or.intro_left
+      case h =>
       simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
 
       have he₁_lin_dir := hcluster_dir_lin_e₁.choose_spec.right.e_glin_deeper
@@ -1204,23 +1209,49 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_write_and_non_coherent
           have hreq₁_lin_at_dir := hdir_lin₁.choose_spec.right.reqLinearizeAtDir.choose_spec.right
           have hreq₂_lin_at_dir := hdir_lin₂.choose_spec.right.reqLinearizeAtDir.choose_spec.right
 
-          have hreq_without_perms_lin_at_dir₁ := hdir_lin₁.choose_spec.right
-          have hreq_lin_at_dir₁ := hdir_lin₁.choose_spec.right.reqLinearizeAtDir.choose_spec.right
-          have he₁_encap_e₁_cmp_lin : e₁.Encapsulates n hcluster_dir_lin_e₁.choose := by
-            sorry
-
-          have hreq_without_perms_lin_at_dir₂ := hdir_lin₂.choose_spec.right
-          have hreq_lin_at_dir₂ := hdir_lin₂.choose_spec.right.reqLinearizeAtDir.choose_spec.right
-          have he₂_encap_e₂_cmp_lin : e₂.Encapsulates n hcluster_dir_lin_e₂.choose := by
-            sorry
-
-          sorry
+          apply CompoundProtocol.weak_write_and_nc_release_linearize_at_directory
+          . case hww_addr_ne_rel => exact hdiff_addr
+          . case hww_eq_rel_cid => exact hsame_cid
+          . case he_ww_ob_e_nc_rel => exact he₁_ob_e₂
+          . case he_ww_in_b => exact he₁_in_b
+          . case he_ww_cache => exact he₁_cache
+          . case he_req_ww => exact he₁_req
+          . case he_not_down_ww => exact he₁_not_down
+          . case he_has_no_perms_ww =>
+            have he₁_no_perms := hdir_lin₁.choose_spec.right.reqHasNoPerms
+            exact he₁_no_perms
+          . case he_req_at_cdir_ww =>
+            have he₁_lin_at_dir := hdir_lin₁.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+            exact he₁_lin_at_dir
+          . case he_lin_dir_ww => exact he₁_lin_dir
+          . case hgenerated_cdir_ww_in_b =>
+            exact hdir_lin₁.choose_spec.right.reqLinearizeAtDir.choose_spec.left
+          . case hnc_rel_in_b => exact he₂_in_b
+          . case he_nc_rel_cache =>
+            exact he₂_cache
+          . case hnc_rel_cdir_in_b =>
+            exact hdir_lin₂.choose_spec.right.reqLinearizeAtDir.choose_spec.left
+          . case he_req_nc_rel =>
+            exact he₂_req
+          . case he_not_down_nc_rel =>
+            exact he₂_not_down
+          . case hdir_lin_nc_rel =>
+            exact hdir_lin₂.choose_spec.right
+          . case he_has_no_perms_nc_rel =>
+            exact hdir_lin₂.choose_spec.right.reqHasNoPerms
+          . case he_req_at_cdir_nc_rel =>
+            exact hdir_lin₂.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+          . case he_lin_dir_nc_rel =>
+            exact he₂_lin_dir
 
 lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_non_coherent_release
   {b : Behaviour n}{init : InitialSystemState n}
   {cmp : CompoundProtocol n} {e₁ e₂ : Event n}
   {he₁_ob_e₂ : e₁.OrderedBefore n e₂}
   (hsame_protocol : e₁.sameProtocol n e₂)
+  (he₁_in_b : e₁ ∈ b) (he₂_in_b : e₂ ∈ b)
+  (hsame_cid : e₁.sameCid n e₂)
+  (hdiff_addr : e₁.addr ≠ e₂.addr)
   (he₁_cache : e₁.isCacheEvent) (he₂_cache : e₂.isCacheEvent)
   (he₁_req : Event.req n e₁ = ⟨{ rw := rw, coherent := false, consistency := Consistency.Weak }, property_weak⟩)
   (he₂_req : Event.req n e₂ = ⟨{ rw := ReadWrite.w, coherent := false, consistency := Consistency.Rel }, property_rel⟩)
@@ -1239,8 +1270,12 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_non_cohere
     apply CompoundProtocol.CompoundLinearizationOrder_of_weak_write_and_non_coherent_release
     . case he₁_ob_e₂ => exact he₁_ob_e₂
     . case hsame_protocol => exact hsame_protocol
+    . case he₁_in_b => exact he₁_in_b
+    . case he₂_in_b => exact he₂_in_b
+    . case hsame_cid => exact hsame_cid
     . case he₁_cache => exact he₁_cache
     . case he₂_cache => exact he₂_cache
+    . case hdiff_addr => exact hdiff_addr
     . case he₁_req => exact he₁_req
     . case he₂_req => exact he₂_req
     . case he₁_not_down => exact he₁_not_down
@@ -1278,6 +1313,9 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_acquire_and_weak_request
 lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b : Behaviour n} {init : InitialSystemState n}
   (cmp : CompoundProtocol n) (e₁ e₂ : Event n) (hsame_protocol : e₁.sameProtocol n e₂) (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
   (he₁_cache : e₁.isCacheEvent) (he₂_cache : e₂.isCacheEvent)
+  (he₁_in_b : e₁ ∈ b) (he₂_in_b : e₂ ∈ b)
+  (hsame_cid : e₁.sameCid n e₂)
+  (hdiff_addr : e₁.addr ≠ e₂.addr)
   : e₁.OrderedBefore n e₂ → e₁.isPPOPair n e₂ → cmp.CompoundLinearizationOrder n b init e₁ e₂ := by
   intro he₁_ob_e₂ he₁_ppo_e₂_cache_ppo
   -- Work through the cases of all PPO Pairs, and show that `e₁` and `e₂` linearize in order.
@@ -1299,6 +1337,10 @@ lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b 
     apply CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_non_coherent_release
     . case he₁_ob_e₂ => exact he₁_ob_e₂
     . case hsame_protocol => exact hsame_protocol
+    . case he₁_in_b => exact he₁_in_b
+    . case he₂_in_b => exact he₂_in_b
+    . case hsame_cid => exact hsame_cid
+    . case hdiff_addr => exact hdiff_addr
     . case he₁_cache => exact he₁_cache
     . case he₂_cache => exact he₂_cache
     . case he₁_req => exact he₁_req
