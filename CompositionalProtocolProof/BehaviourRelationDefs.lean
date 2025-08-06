@@ -532,7 +532,7 @@ def Behaviour.succOnVdWithCorrespondingDir (b : Behaviour n) (init : InitialSyst
 
 /-- Def. Prop. there exists an immediate bottom successor on Vd State, encapsulating a corresponding directory event. -/
 def Behaviour.immBottomSuccOnVdEncapCorrDir (b : Behaviour n) (init : InitialSystemState n) (e_req e_dir : Event n) : Prop :=
-  ∃ e_succ ∈ b.es, b.ImmediateBottomSuccSatisfyingProp n e_req e_succ (b.succOnVdWithCorrespondingDir n init · e_dir)
+  ∃ e_succ ∈ b, b.ImmediateBottomSuccSatisfyingProp n e_req e_succ (b.succOnVdWithCorrespondingDir n init · e_dir)
 
 /-- Trying something new: separately state the cases of where -/
 inductive Behaviour.dirAccessOfRequest (b : Behaviour n) (init : InitialSystemState n) (e_req e_dir : Event n) : Prop
