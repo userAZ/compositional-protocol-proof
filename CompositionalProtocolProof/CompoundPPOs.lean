@@ -264,6 +264,45 @@ lemma Event.contradiction_of_coherent_request_has_perms_and_no_perms {b init e}
           simp[hweak_read] at he_req
         | .directoryEvent _ => simp[] at hweak_read
 
+/-- [useful] Very useful -/
+lemma CompoundProtocol.dir_lin_encap_global_dir_lin
+  {b : Behaviour n} {init : InitialSystemState n}
+  {e_generated_cdir : Event n} -- ∃ cluster Directory Event, that connects request `e₁` to the directory
+  -- (htranslation : Event.clusterDirEncapCorrespondingGlobalCache n b e_generated_cdir e_translated_greq)
+  -- (he_encap_corr_dir : Behaviour.cacheEncapsulatesCorrespondingDirEvent n b (InitialSystemState.stateAt n init e) true e e_generated_cdir)
+  (hgenerated_cdir_encap_greq :
+    Event.clusterDirEncapCorrespondingGlobalCache n b e_generated_cdir e_translated_greq)
+  (hgreq_encap_corr_gdir :
+    Behaviour.requestWithoutCoherentPermsLinearizesAtDir n b init e_translated_greq e_translated_greq_lin /- rename hat_dir.choose to e_translated_greq_lin -/)
+  (hgcache_lin_at_gdir :
+    Behaviour.requestLinearizesAtDirectory n b init e_translated_greq e_gdir e_translated_greq_lin)
+  : e_generated_cdir.Encapsulates n e_translated_greq_lin := by
+  have hglin_is_gdir := hgcache_lin_at_gdir.dirIsLin
+  rw[hglin_is_gdir]
+
+  have hgreq_lin := hgcache_lin_at_gdir.reqCorrespondsToDir
+  cases hgreq_lin
+  . case encapDir hgreq_no_perms hgreq_encap_gdir =>
+    calc Event.Encapsulates n _ e_translated_greq := hgenerated_cdir_encap_greq.encapGlobalCache
+      Event.Encapsulates n _ e_gdir := hgreq_encap_gdir.reqEncapDir
+  . case orderBeforeDir hgreq_has_perms _ _ =>
+    exfalso
+    apply Event.contradiction_of_has_perms_and_no_perms
+    . case he_req => exact hgenerated_cdir_encap_greq.gReqOfCDir.matchingOp
+    . case he_not_down => exact hgenerated_cdir_encap_greq.gReqOfCDir.notDowngrade
+    . case he_has_perms => exact hgreq_has_perms
+    . case he_no_perms => exact hgreq_encap_corr_gdir.reqHasNoPerms
+  . case orderAfterDir hweak_read_vd himm_successor =>
+    have hweak_req := hweak_read_vd.weakReq
+    have hgreq_req := hgenerated_cdir_encap_greq.gReqOfCDir.matchingOp
+    simp[Event.isNcWeak, Event.isNonCoherent, Event.isWeak] at hweak_req
+    match e_translated_greq with
+    | .cacheEvent ce =>
+      simp[Event.req] at hgreq_req
+      simp[hgreq_req] at hweak_req
+    | .directoryEvent _ => simp[] at hweak_req
+
+
 lemma CompoundProtocol.e_encap_dir_lin_encap_global_dir_lin
   {b : Behaviour n} {init : InitialSystemState n}
   {e_generated_cdir : Event n} -- ∃ cluster Directory Event, that connects request `e₁` to the directory
