@@ -740,288 +740,24 @@ inductive Event.isAcqNcRelCRelVdWB (e : Event n) : Prop
 | scW (isSCW : e.isSCWrite) : Event.isAcqNcRelCRelVdWB e
 | scR (isSCR : e.isSCRead) : Event.isAcqNcRelCRelVdWB e
 
-lemma Behaviour.lllll
-  (hhead_bottom : IsBottomEvent n b head)
-  : (¬ImmediateBottomSuccSatisfyingProp n b e_ww head fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
-  → ¬ (head.isAcqNcRelCRelVdWB ∧ ((stateBefore n b (InitialSystemState.stateAt n init head) head).cache = Vd)) := by
-  intro hnot hacq_rel_etc
-  obtain ⟨l, hmade_on_vd⟩ := hacq_rel_etc
-  apply hnot
-  constructor
-  . case isImmBottomSucc =>
-    constructor
-    . case isSucc =>
-      -- carry this fwd from previous Lemmas
-      sorry
-    . case noIntermediateSatP =>
-      simp[NoIntermediatePredecessorSatisfyingProp]
-      simp[noBottomIntermediatePredecessorAtSuccSatisfyingProp]
-      simp[succOnVdWithCorrespondingDir]
+def Event.isAcqNcRelCRelVdWB' (e : Event n) : Prop :=
+  e.isAcquire ∨ e.isNcRelease ∨ e.isCRelease ∨ e.isVdWriteBack ∨ e.isSCWrite ∨ e.isSCRead
 
-      intro e he_in_b he_bottom_same he_btn_sat
-      have := he_btn_sat
-      sorry
-    . case sameEntry =>
-      sorry
-    . case predInB =>
-      sorry
-    . case succInB =>
-      sorry
-  . case isBottom =>
-    exact hhead_bottom
-  . case satisfyP =>
-    simp[Event.PropOnEvent]
-    constructor
-    . case stateBeforeAsVd =>
-      exact hmade_on_vd
-    . case isRelAcqOrVdWB =>
-      sorry
-    . case encapCorresponding =>
-      -- holds by axiom 6
-      sorry
-
-lemma Behaviour.stateAfter_Vd_of_no_immediate_successor
-  (hall_cache : ∀ e ∈ l_tail, Event.isCacheEvent n e)
-  (hall_not : ∀ e ∈ l_tail,
-    ¬ImmediateBottomSuccSatisfyingProp n b e_ww e
-      fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
-  : (match List.stateAfter n l_tail (Sum.inl Vd) with
-  | Sum.inl cache_state => cache_state
-  | Sum.inr val => default) =
-  Vd := by
-  induction l_tail with
-  | nil =>
-    simp[List.stateAfter]
-  | cons head l_tail' ih' =>
-    simp[List.stateAfter]
-    simp[Event.SucceedingState]
-    have hhead_cache := hall_cache head (by simp[])
-    match hhead : head with
-    | .cacheEvent ce_head =>
-      -- apply ih'
-      simp[CacheEvent.SucceedingState]
-      have := hall_not head (by simp[hhead])
-      --
-      sorry
-    | .directoryEvent _ =>
-      simp[Event.isCacheEvent] at hhead_cache
-
-lemma Behaviour.state_after_eventsUpToEvent_is_Vd_if_all_list_events_not_immediate_successor
-  (e_ww : Event n)
-  (hww : e_ww.isNcWeakWrite)
-  (hww_not_down : ¬ e_ww.down)
-  (hww_in_es_upto : e_ww ∈ l)
-  (hinit_i : init_state = IEntry n)
-  (hall_cache : ∀ e ∈ l, e.isCacheEvent)
-  (hall_not : ∀ e ∈ l,
-    ¬ImmediateBottomSuccSatisfyingProp n b e_ww e
-      fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
-  : EntryState.cache n (List.stateAfter n l init_state) = Vd := by
-  induction l generalizing init_state with
-  | nil =>
-    simp[] at hww_in_es_upto
-    -- sorry
-  | cons head l_tail ih =>
-    simp[List.stateAfter]
-    -- simp
-    simp at hww_in_es_upto
-    cases hww_in_es_upto
-    . case cons.inl hww_head =>
-      --
-      simp [Event.SucceedingState]
-      match hhead : head with
-      | .cacheEvent ce_head =>
-        --
-        simp[CacheEvent.SucceedingState]
-        simp[hww_head, Event.down] at hww_not_down
-        simp[hww_not_down]
-        simp[ValidRequest.RequestState]
-
-        simp[hww_head, Event.isNcWeakWrite, CacheEvent.isNcWeakWrite, ValidRequest.isNcWeakWrite] at hww
-        simp[hww]
-        simp[hinit_i]
-        simp[EntryState.cache]
-        -- simp[List.stateAfter]
-        apply Behaviour.stateAfter_Vd_of_no_immediate_successor
-        . case hall_cache => sorry
-        . case hall_not => sorry
-        . case b => sorry
-        . case e_ww => exact e_ww
-        . case init => sorry
-        . case e_generated_cdir_ww => sorry
-      | .directoryEvent _ =>
-        have hhead_is_cache := hall_cache head (by simp[hhead])
-        simp[Event.isCacheEvent, hhead] at hhead_is_cache
-    . case cons.inr hww_tail =>
-      apply ih
-      . case hww_in_es_upto =>
-        exact hww_tail
-      . case hinit_i => sorry
-      . case hall_cache => sorry
-      . case hall_not =>
-        intro e he_in_tail
-        apply hall_not
-        . case a =>
-          simp[he_in_tail]
-
-lemma Behaviour.ll
-  : (stateBefore n b init_state/-(InitialSystemState.stateAt n init e_wb)-/ e_wb).cache = Vd := by
-  simp[stateBefore]
-
+lemma CompoundProtocol.state_before_Vd_of_no_btn_events_on_vd_produce_vd
+  (hww_ob_wb : e_ww.OrderedBefore n e_wb)
+  (hno_tail_sat : ∀ e ∈ b,
+  Event.OrderedBetween n e e_ww e_wb →
+    -- Behaviour.stateAfter n b (InitialSystemState.stateAt n init e) e = VdEntry n →
+    Behaviour.stateBefore n b (InitialSystemState.stateAt n init e) e = VdEntry n →
+    ¬Event.isAcqNcRelCRelVdWB' n e)
+  : List.stateAfter n (Behaviour.eventsUpToEvent n b e_wb) (InitialSystemState.stateAt n init e_wb) = VdEntry n := by
+  /- This means the immediate predecessor is not `¬Event.isAcqNcRelCRelVdWB'`, so the state after is Vd. -/
   sorry
 
-lemma Behaviour.all_predecessors_do_not_write_back_or_get_coherent_perms
-  -- (hl : l = head :: l_tail)
-  {l_tail : List (Event n)}
-  (e_wb : Event n)
-  (hww : e_ww.isNcWeakWrite)
-  (hww_is_head : e_ww = head)
-  /-
-  (hno_tail_sat : ∀ e ∈ l_tail,
-    ¬ImmediateBottomSuccSatisfyingProp n b e_ww e
-      fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)-/
-  -- maybe try adding the fact that the state after all of them is Vd?
-  (hno_tail_sat : ∀ e ∈ b, e.OrderedBefore n e_wb →
-    ¬ImmediateBottomSuccSatisfyingProp n b e_ww e
-      fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
 
-  (hno_tail_sat : ∀ e ∈ b, e.OrderedBefore n e_wb →
-    (stateAfter n b some_init e = VdEntry n) →
-    ¬ImmediateBottomSuccSatisfyingProp n b e_ww e
-      fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
-  -- all predecessors to `e_wb` are in hno_tail_sat
-  : ImmediateBottomSuccSatisfyingProp n b e_ww e_wb
-      fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww := by
-  /- because no predecessor to `e_wb` satisfies -/
-  constructor
-  . case isImmBottomSucc =>
-    constructor
-    . case isSucc =>
-      simp[Event.Successor, Event.Predecessor]
-      sorry
-    . case noIntermediateSatP =>
-      simp[NoIntermediatePredecessorSatisfyingProp]
-      simp[noBottomIntermediatePredecessorAtSuccSatisfyingProp]
-      sorry
-    . case sameEntry =>
-      sorry
-    . case predInB =>
-      sorry
-    . case succInB =>
-      sorry
-  . case isBottom =>
-    simp[IsBottomEvent]
-    simp[IsNotEncapAtSameStruct]
-    sorry
-  . case satisfyP =>
-    simp[Event.PropOnEvent]
-    constructor
-    . case stateBeforeAsVd =>
-      apply Behaviour.state_after_eventsUpToEvent_is_Vd_if_all_list_events_not_immediate_successor
-      . case hww => sorry
-      . case hww_not_down => sorry
-      . case hww_in_es_upto => sorry
-      . case hinit_i => sorry
-      . case hall_cache => sorry
-      . case hall_not => sorry
-      . case b => sorry
-      . case init => sorry
-      . case e_generated_cdir_ww => sorry
-      . case e_ww => sorry
-    . case isRelAcqOrVdWB =>
-      sorry
-    . case encapCorresponding =>
-      sorry
-
-lemma Behaviour.weak_write_succ_wb_in_eventsUpToEvent_wb
-  {cmp : CompoundProtocol n}
-  {b : Behaviour n}
-  {l : List (Event n)}
-  (e_wb : Event n)
-  (hsucc_wb : -- ∃ e_succ ∈ b.es,
-  Behaviour.ImmediateBottomSuccSatisfyingProp n b e_ww e_succ_wb fun x =>
-    Behaviour.succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
-  (hww_ob_wb : e_ww.OrderedBefore n e_wb)
-  (hww_is_weak_write : e_ww.isNcWeakWrite)
-  (hwb_is_vdwb : e_wb.isVdWriteBack)
-  (hww_same_entry_wb : e_ww.sameEntry n e_wb)
-  (hww_in_es_upto_wb : e_ww ∈ l)
-  -- (hes_not_empty : (eventsUpToEvent n b e_wb) ≠ [])
-  : e_succ_wb ∈ l ∨ e_succ_wb = e_wb := by
-  -- simp[eventsUpToEvent]
-  -- have : l ≠ [] := by
-  --   by_contra h_empty
-  --   absurd hww_in_es_upto_wb
-  --   simp [h_empty]
-  induction l with
-  | nil =>
-    simp at hww_in_es_upto_wb
-  | cons head l_tail ih =>
-    --
-    have hsucc_not_head : e_succ_wb ≠ head := by
-      /- Strategy: 1. e_ww is in head, 2. all list elements are Sorted by OrderedBefore,
-      3. eww.OrderedBefore e_succ_wb from "ImmediateBottomSucc".
-      so e_succ_wb must be after head (because head = e_ww) -/
-      sorry
-    simp[hsucc_not_head]
-    simp at hww_in_es_upto_wb
-    cases hww_in_es_upto_wb
-    . case cons.inl hww_is_head =>
-      /-
-      by_cases hno_tail_sat : ∀ e ∈ b, e.OrderedBefore n e_wb →
-        ¬ImmediateBottomSuccSatisfyingProp n b e_ww e
-          fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww
-      . case pos =>
-        sorry
-      . case neg =>
-        simp at hno_tail_sat
-        sorry-/
-      --
-      by_cases hno_tail_sat : ∀ e ∈ l_tail, ¬(
-        Behaviour.ImmediateBottomSuccSatisfyingProp n b e_ww e fun x =>
-        Behaviour.succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
-      . case pos =>
-        /- None of the entries in `l_tail` satisfy the Prop. so `e_wb` -/
-        have hsucc_wb_not_in_tail : e_succ_wb ∉ l_tail := by
-          by_contra hsucc_wb_in_l_tail
-          apply hno_tail_sat
-          . case a =>
-            exact hsucc_wb_in_l_tail
-          . case a =>
-            exact hsucc_wb
-        simp[hsucc_wb_not_in_tail]
-        /- Hard part, so all the events in l_tail don't satsify this property.
-        Now show that e_wb is the only one that satisfies this property. -/
-        have hwb_is_imm_succ : ImmediateBottomSuccSatisfyingProp n b e_ww e_wb
-          fun x => succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww :=
-          sorry
-          -- Behaviour.all_predecessors_do_not_write_back_or_get_coherent_perms n
-          --   e_wb hww_is_weak_write hww_is_head sorry -- hno_tail_sat
-        rw [show e_succ_wb = e_wb from
-          Behaviour.immediate_bottom_successor_satisfying_p_unique
-          n b e_ww e_succ_wb e_wb (fun x =>
-            Behaviour.succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
-          hsucc_wb hwb_is_imm_succ
-          ]
-      . case neg =>
-        simp at hno_tail_sat
-        obtain ⟨x, hx_in_tail, hx_succ_wb⟩ := hno_tail_sat
-        apply Or.intro_left
-        /- x is e_succ_wb, because "immediate Successor" is a unique relation. -/
-        rw [show e_succ_wb = x from
-          Behaviour.immediate_bottom_successor_satisfying_p_unique
-          n b e_ww e_succ_wb x (fun x =>
-            Behaviour.succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
-          hsucc_wb hx_succ_wb
-          ]
-        exact hx_in_tail
-    . case cons.inr hww_is_tail =>
-      apply ih
-      show e_ww ∈ l_tail
-      exact hww_is_tail
-
-lemma CompoundProtocol.weak_write_OrderedBefore_vd_write_back
-  {b : Behaviour n}
+lemma CompoundProtocol.weak_write_OrderedBefore_vd_write_back'
+  {b : Behaviour n} {init : InitialSystemState n}
+  (hww_stateAfter_Vd : (Behaviour.stateAfter n b (init.stateAt n e_ww) e_ww).cache = Vd)
   (hsucc_wb : -- ∃ e_succ ∈ b.es,
   Behaviour.ImmediateBottomSuccSatisfyingProp n b e_ww e_succ_wb fun x =>
     Behaviour.succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
@@ -1034,30 +770,147 @@ lemma CompoundProtocol.weak_write_OrderedBefore_vd_write_back
   1. consider eventsUpToEvent `e_wb`. reverse induction on the list -/
   -- have hsucc_wb_in_eventsUpToEvent_wb : e_succ_wb ∈ (Behaviour.eventsUpToEvent n b e_wb) ∨ e_succ_wb = e_wb := by
   --   sorry
-
-  by_contra hnot_eq_or_ordered_before
-  simp at hnot_eq_or_ordered_before
-  have hsucc_wb_after_e_wb : e_wb.OrderedBefore n e_succ_wb := by
-    by_contra hnot_ordered_after
-    simp[Event.OrderedBefore, Nat.le_iff_lt_or_eq] at hnot_ordered_after
-    obtain ⟨hsucc_wb_ne_wb, hsucc_wb_not_ob_wb⟩ := hnot_eq_or_ordered_before
-    case intro =>
-    cases hnot_ordered_after
-    . case inl hsucc_ob_wb =>
-      sorry
-    . case inr h =>
-      sorry
-
-  let es_upto_wb := Behaviour.eventsUpToEvent n b e_wb
-  simp[Behaviour.eventsUpToEvent] at es_upto_wb
-  induction Behaviour.eventsUpToEvent n b e_wb with
-  | nil =>
+  by_cases hno_tail_sat : ∀ e ∈ b, e.OrderedBetween n e_ww e_wb →
+    -- (b.stateAfter n (init.stateAt n e) e) = VdEntry n →
+    (b.stateBefore n (init.stateAt n e) e) = VdEntry n →
+    ¬(e.isAcqNcRelCRelVdWB')
+  . case pos =>
     --
-    sorry
-  | cons h t ih =>
-    sorry
+    have he_wb_imm_succ : Behaviour.ImmediateBottomSuccSatisfyingProp n b e_ww e_wb fun x =>
+      Behaviour.succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww := by
+      constructor
+      . case isImmBottomSucc =>
+        constructor
+        . case isSucc =>
+          sorry
+        . case noIntermediateSatP =>
+          simp[Behaviour.NoIntermediatePredecessorSatisfyingProp, Behaviour.noBottomIntermediatePredecessorAtSuccSatisfyingProp]
+          intro e he_in_b he_bot_same_entry he_btn_sat_prop
+          obtain ⟨he_ordered_btn,he_sat_prop⟩ := he_btn_sat_prop
+          simp [Behaviour.succOnVdWithCorrespondingDir, ] at he_sat_prop
+          have he_is_rel_acq_etc := he_sat_prop.isRelAcqOrVdWB
+          have := he_sat_prop
+          absurd he_is_rel_acq_etc
+          apply hno_tail_sat
+          . case mk.a => exact he_in_b
+          . case mk.a => exact he_ordered_btn
+            /-
+          . case mk.a =>
+            -- have he_before_vd := he_sat_prop.stateBeforeAsVd
+            simp[Behaviour.stateAfter]
+            rw[Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore]
+            simp [he_sat_prop.stateBeforeAsVd]
+            sorry-/
+          . case mk.a =>
+            simp[he_sat_prop.stateBeforeAsVd]
+        . case sameEntry =>
+          sorry
+        . case predInB =>
+          sorry
+        . case succInB =>
+          sorry
+      . case isBottom =>
+        sorry
+      . case satisfyP =>
+        --
+        simp [Event.PropOnEvent]
+        simp [Behaviour.succOnVdWithCorrespondingDir]
+        constructor
+        . case stateBeforeAsVd =>
+          simp [Behaviour.stateBefore]
+          sorry
+        . case isRelAcqOrVdWB =>
+          sorry
+        . case encapCorresponding =>
+          sorry
+    rw [show e_succ_wb = e_wb from
+      Behaviour.immediate_bottom_successor_satisfying_p_unique
+      n b e_ww e_succ_wb e_wb (fun x =>
+        Behaviour.succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww)
+      hsucc_wb he_wb_imm_succ
+      ]
+    apply Or.intro_left
+    rfl
+  . case neg =>
+    simp at hno_tail_sat
+    obtain ⟨x, hx_in_b, hx_ob_wb, hx_stateBefore_Vd, hx_rel_acq_etc⟩ := hno_tail_sat
+    case intro.intro.intro.intro =>
+    apply Or.intro_right
+    have hshrinking : ({e ∈ (b.es.finSetEvents n b.finite) | e_ww.OrderedBefore n e ∧ e.OrderedBefore n x})
+      ⊂ ({e ∈ (b.es.finSetEvents n b.finite) | e_ww.OrderedBefore n e ∧ e.OrderedBefore n e_wb}) := by
+      simp[Set.finSetEvents, Set.Finite.toFinset]
+      simp[Finset.ssubset_iff]
+      use x
+      apply And.intro
+      . case h.left =>
+        intro hxb hww_ob_x hx_ob_x
+        apply Event.contradiction_of_reflexive_ordered_before
+        . case he_ob_e => exact hx_ob_x
+      . case h.right =>
+        apply Finset.insert_subset
+        . case ha =>
+          simp[Membership.mem] at hx_in_b
+          simp
+          apply And.intro
+          . case left =>
+            simp[Membership.mem]
+            simp[hx_in_b]
+          . case right =>
+            simp[hx_ob_wb.pred, hx_ob_wb.succ]
+        . case hs =>
+          simp[Finset.subset_iff]
+          intro y hyb hww_ob_y hy_ob_x
+          simp[hyb, hww_ob_y]
+          calc Event.OrderedBefore n y x := hy_ob_x
+            Event.OrderedBefore n x e_wb := hx_ob_wb.succ
+    have hshrinking' := Finset.card_lt_card hshrinking
+    have hx_is_succ_wb_or_ob_x : e_succ_wb = x ∨ e_succ_wb.OrderedBefore n x := by
+      apply CompoundProtocol.weak_write_OrderedBefore_vd_write_back'
+      . case hww_stateAfter_Vd => exact hww_stateAfter_Vd
+      . case hsucc_wb => exact hsucc_wb
+      . case hww_ob_wb => exact hx_ob_wb.pred
+      . case hww_is_weak_write => exact hww_is_weak_write
+      . case hwb_is_vdwb => exact sorry
+      . case hww_same_entry_wb => exact sorry
+
+    cases hx_is_succ_wb_or_ob_x
+    . case h.inl he_succ_wb_eq_x =>
+      simp[he_succ_wb_eq_x, hx_ob_wb.succ]
+    . case h.inr hsucc_wb_ob_x =>
+      calc e_succ_wb.OrderedBefore n x := hsucc_wb_ob_x
+        x.OrderedBefore n e_wb := hx_ob_wb.succ
+termination_by sizeOf ({e' ∈ (b.es.finSetEvents n b.finite) | e_ww.OrderedBefore n e' ∧ e'.OrderedBefore n e_wb}).card
 
 -- END attempt to prove that a weak write `e_ww` linearizes before or at a VdWriteBack where `e_ww.OrderedBefore e_wb`
+
+lemma CompoundProtocol.cdir_encap_glin_of_cdir_linearize_at_dir
+  {cmp : CompoundProtocol n}
+  {e_generated_cdir : Event n}
+  (he_req_at_cdir : Behaviour.requestLinearizesAtDirectory n b init e e_generated_cdir e_generated_lin)
+  (hnc_rel_cluster_to_global_translation : Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent n
+    cmp.shimAxioms b init e_generated_cdir e_generated_cmp_lin)
+  : e_generated_cdir.Encapsulates n e_generated_cmp_lin := by
+  simp[Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent] at hnc_rel_cluster_to_global_translation
+  simp[he_req_at_cdir.isDir] at hnc_rel_cluster_to_global_translation
+
+  split at hnc_rel_cluster_to_global_translation
+  . case h_1 _ _ _ _ =>
+    exfalso; exact hnc_rel_cluster_to_global_translation
+  . case h_2 _ _ htranslation _ =>
+    simp[Behaviour.compoundLinearizationEvent.globalCacheNoPermsReqDirectory] at hnc_rel_cluster_to_global_translation
+    obtain ⟨hgcache_lin,hgcache_lin_cases⟩ := hnc_rel_cluster_to_global_translation
+    split at hgcache_lin_cases
+    . case h_1 hgcache_lin_event hat_dir =>
+      have := hat_dir.choose_spec.right.reqLinearizeAtDir.choose_spec.right.reqCorrespondsToDir
+      simp[hgcache_lin_cases]
+      have hgreq_lin_at_gdir := hat_dir.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+      have hgreq_spec := hat_dir.choose_spec.right
+      apply CompoundProtocol.dir_lin_encap_global_dir_lin
+      . case hgenerated_cdir_encap_greq => exact htranslation.choose_spec.right
+      . case hgreq_encap_corr_gdir => exact hgreq_spec
+      . case hgcache_lin_at_gdir => exact hgreq_lin_at_gdir
+    . case h_2 hgcache_lin_event hat_cache =>
+      exfalso; exact hgcache_lin_cases
 
 lemma CompoundProtocol.weak_write_and_nc_release_linearize_at_directory
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
@@ -1071,10 +924,11 @@ lemma CompoundProtocol.weak_write_and_nc_release_linearize_at_directory
   (he_ww_cache : e_ww.isCacheEvent)
   (he_req_ww : Event.req n e_ww = ⟨{ rw := .w, coherent := false, consistency := Consistency.Weak }, property_ww⟩)
   (he_not_down_ww : ¬ e_ww.down)
-  (hdir_lin_ww : Behaviour.requestWithoutCoherentPermsLinearizesAtDir n b init e_ww e_generated_lin_ww)
+  -- (hdir_lin_ww : Behaviour.requestWithoutCoherentPermsLinearizesAtDir n b init e_ww e_generated_lin_ww)
   (he_has_no_perms_ww : Behaviour.reqMissingPerms n b init e_ww)
   (he_req_at_cdir_ww : Behaviour.requestLinearizesAtDirectory n b init e_ww e_generated_cdir_ww e_generated_lin_ww)
   (he_lin_dir_ww : clusterDirectoryLinearizationEvent n cmp.shimAxioms b init e_generated_cdir_ww e_generated_cmp_lin_ww)
+  (hgenerated_cdir_ww_in_b : e_generated_cdir_ww ∈ b)
 
   (hnc_rel_in_b : e_nc_rel ∈ b)
   (he_nc_rel_cache : e_nc_rel.isCacheEvent)
@@ -1119,9 +973,10 @@ lemma CompoundProtocol.weak_write_and_nc_release_linearize_at_directory
     . case he_not_down => exact he_not_down_ww
     . case he_has_perms => exact he_has_perms
     . case he_no_perms => exact he_has_no_perms_ww
-  . case orderAfterDir hweak_read hsuccessor_dir =>
+  . case orderAfterDir hweak_req_on_vd hsuccessor_dir =>
     simp[Behaviour.immBottomSuccOnVdEncapCorrDir] at hsuccessor_dir
-    have hww_successor_wb := hsuccessor_dir.choose_spec.right
+    obtain ⟨e_succ_wb, hsucc_wb_in_b, hww_successor_wb⟩ := hsuccessor_dir
+    -- have hww_successor_wb := hsuccessor_dir.choose_spec.right
     simp [Behaviour.ImmediateBottomSuccSatisfyingProp] at hww_successor_wb
     simp [Behaviour.succOnVdWithCorrespondingDir, ] at hww_successor_wb
 
@@ -1134,23 +989,151 @@ lemma CompoundProtocol.weak_write_and_nc_release_linearize_at_directory
     /- A release has WBs to other addresses, so the successor is either the WB, or an event before. -/
 
     have hrel_ax := cmp.cluster1.reqAxioms.relAcqSelfBroadcast.ncReleaseWBs b init e_nc_rel hnc_rel_in_b
-    let hrel_wb_template := hrel_ax.choose
-    have hrel_wb_ax := hrel_ax.choose_spec.right e_generated_cdir_nc_rel hnc_rel_cdir_in_b
+    obtain ⟨e_rel_wb_original, hwb_original_in_b, hrel_wb_original_spec⟩ := cmp.cluster1.reqAxioms.relAcqSelfBroadcast.ncReleaseWBs b init e_nc_rel hnc_rel_in_b
+    have hrel_wb_ax := hrel_wb_original_spec e_generated_cdir_nc_rel hnc_rel_cdir_in_b
     have hrel_wb_cast := hrel_wb_ax.broadcastWB.broadcast.broadcastToEntries e_ww.addr hww_addr_ne_rel
-    have hrel_wb_cast_spec := hrel_wb_cast.choose_spec.right
+    obtain ⟨e_rel_wb, hrel_wb_in_b, hrel_wb_cast_spec⟩ := hrel_wb_cast
 
     /- We know that `e_ww.OrderedBefore e_wb` -/
-    have hww_ob_wb : e_ww.OrderedBefore n hrel_wb_cast.choose := by
+    have hww_ob_wb : e_ww.OrderedBefore n e_rel_wb := by
       calc e_ww.OrderedBefore n e_nc_rel := he_ww_ob_e_nc_rel
-        e_nc_rel.Encapsulates n hrel_wb_cast.choose := hrel_wb_cast_spec.broadcastEncapInBase.baseEncapCast
+        e_nc_rel.Encapsulates n e_rel_wb := hrel_wb_cast_spec.broadcastEncapInBase.baseEncapCast
 
     /- We know that `e_wb.OrderedBefore e_rel_lin` -/
-    have hwb_ob_rel_lin : hrel_wb_cast.choose.OrderedBefore n e_generated_cdir_nc_rel := hrel_wb_cast.choose_spec.right.beforeDir
+    have hwb_ob_rel_lin : e_rel_wb.OrderedBefore n e_generated_cdir_nc_rel := hrel_wb_cast_spec.beforeDir
 
     /- Then do cases, either `e_wb` is the `immediate successor`-/
+    -- have himm_succ_wb : Behaviour.ImmediateBottomSuccSatisfyingProp n b e_ww e_succ_wb fun x =>
+    --   Behaviour.succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww := by
+    --   sorry
+    have hsucc_wb_before_or_eq_e_rel_wb : e_succ_wb = e_rel_wb ∨ e_succ_wb.OrderedBefore n e_rel_wb := by
+      apply CompoundProtocol.weak_write_OrderedBefore_vd_write_back'
+      . case hww_stateAfter_Vd => sorry
+      . case hsucc_wb => exact hww_successor_wb
+      . case hww_ob_wb => exact hww_ob_wb
+      . case hww_is_weak_write =>
+        simp[Event.isNcWeakWrite,]
+        match e_ww with
+        | .cacheEvent cww =>
+          simp[CacheEvent.isNcWeakWrite,]
+          simp[Event.req] at he_req_ww
+          simp[he_req_ww, ValidRequest.isNcWeakWrite]
+        | .directoryEvent _ =>
+          simp[Event.isCacheEvent] at he_ww_cache
+      . case hwb_is_vdwb =>
+        have hrel_wb_spec := hrel_wb_original_spec e_generated_cdir_ww hgenerated_cdir_ww_in_b
+        have hrel_wb_original_vd_wb := hrel_wb_spec.isVdWriteBack
+        have hrel_wb_orig_vd_wb := hrel_wb_spec.isVdWriteBack
+        simp [Event.isVdWriteBack] at hrel_wb_orig_vd_wb
+
+        have hrel_wb_copy_of_original := hrel_wb_cast_spec.broadcastEncapInBase.castOriginal
+        simp[Event.copyOfForCasting] at hrel_wb_copy_of_original
+        match hwb_orig : e_rel_wb_original, hrel_wb : e_rel_wb with
+        | .cacheEvent ce_wb_original, .cacheEvent ce_wb =>
+          simp at hrel_wb_orig_vd_wb
+          simp[] at hrel_wb_copy_of_original
+          have hwb_orig_same_req := hrel_wb_copy_of_original.sameReq
+          have hwb_orig_same_down := hrel_wb_copy_of_original.sameDown
+          simp[Event.isVdWriteBack,]
+          constructor
+          . case isDown => simp[hwb_orig_same_down, hrel_wb_orig_vd_wb.isDown]
+          . case isWeakWrite => simp[hwb_orig_same_req, hrel_wb_orig_vd_wb.isWeakWrite]
+        | .directoryEvent ce_wb_original, .cacheEvent ce_wb
+        | .directoryEvent ce_wb_original, .directoryEvent ce_wb
+        | .cacheEvent ce_wb_original, .directoryEvent ce_wb =>
+          simp [] at hrel_wb_copy_of_original
+      . case hww_same_entry_wb =>
+        sorry
+    case intro.intro.intro.intro.intro.intro =>
+
+    /- `e_succ_wb` has the linearization event -/
+    have hsuccessor_wb_spec := hww_successor_wb.satisfyP
+    simp[Event.PropOnEvent, ] at hsuccessor_wb_spec
+    have hsucc_wb_encap_generated_dir := hsuccessor_wb_spec.encapCorresponding.reqEncapDir
+
+    /- First consider where is the compound linearization event of `e_ww`, later do the same for `e_nc_rel` -/
+    cases he_lin_dir_ww
+    . case previousGlobalCacheGotPerms hww_has_gcache_perms hww_cmp_lin_eq_generated_cdir =>
+      rw[hww_cmp_lin_eq_generated_cdir]
+
+      /- Now determine where is the compound linearization event of `e_nc_rel` -/
+      cases he_lin_dir_nc_rel
+      . case previousGlobalCacheGotPerms hnc_rel_has_gcache_perms hnc_rel_cmp_lin_eq_generated_cdir =>
+        rw[hnc_rel_cmp_lin_eq_generated_cdir]
+        obtain ⟨e_rel_dir, hrel_dir_in_b, hrel_dir_spec⟩ := hdir_lin_nc_rel.reqLinearizeAtDir
+
+        cases hsucc_wb_before_or_eq_e_rel_wb
+        . case inl hsucc_wb_eq_rel_wb =>
+          calc e_generated_cdir_ww.EncapsulatedBy n e_succ_wb := hsucc_wb_encap_generated_dir
+            e_succ_wb = e_rel_wb := hsucc_wb_eq_rel_wb
+            e_rel_wb.OrderedBefore n e_generated_cdir_nc_rel := hwb_ob_rel_lin
+        . case inr hsucc_wb_ob_rel_wb =>
+          calc e_generated_cdir_ww.EncapsulatedBy n e_succ_wb := hsucc_wb_encap_generated_dir
+            e_succ_wb.OrderedBefore n e_rel_wb := hsucc_wb_ob_rel_wb
+            e_rel_wb.OrderedBefore n e_generated_cdir_nc_rel := hwb_ob_rel_lin
+      . case getGlobalCachePerms hnc_rel_no_gcache_perms hnc_rel_cluster_to_global_translation =>
+        have hgenerated_cdir_nc_rel_encap_glin : Event.Encapsulates n e_generated_cdir_nc_rel e_generated_cmp_lin_nc_rel :=
+          CompoundProtocol.cdir_encap_glin_of_cdir_linearize_at_dir n
+          he_req_at_cdir_nc_rel hnc_rel_cluster_to_global_translation
+
+        cases hsucc_wb_before_or_eq_e_rel_wb
+        . case inl hsucc_wb_eq_rel_wb =>
+          calc e_generated_cdir_ww.EncapsulatedBy n e_succ_wb := hsucc_wb_encap_generated_dir
+            e_succ_wb = e_rel_wb := hsucc_wb_eq_rel_wb
+            e_rel_wb.OrderedBefore n e_generated_cdir_nc_rel := hwb_ob_rel_lin
+            e_generated_cdir_nc_rel.Encapsulates n e_generated_cmp_lin_nc_rel := hgenerated_cdir_nc_rel_encap_glin
+        . case inr hsucc_wb_ob_rel_wb =>
+          calc e_generated_cdir_ww.EncapsulatedBy n e_succ_wb := hsucc_wb_encap_generated_dir
+            e_succ_wb.OrderedBefore n e_rel_wb := hsucc_wb_ob_rel_wb
+            e_rel_wb.OrderedBefore n e_generated_cdir_nc_rel := hwb_ob_rel_lin
+            e_generated_cdir_nc_rel.Encapsulates n e_generated_cmp_lin_nc_rel := hgenerated_cdir_nc_rel_encap_glin
+    . case getGlobalCachePerms hww_no_gcache_perms hww_cluster_to_global_translation =>
+      have hgenerated_cdir_ww_encap_glin : Event.Encapsulates n e_generated_cdir_ww e_generated_cmp_lin_ww :=
+        CompoundProtocol.cdir_encap_glin_of_cdir_linearize_at_dir n
+        he_req_at_cdir_ww hww_cluster_to_global_translation
+      simp[Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent] at hww_cluster_to_global_translation
+      simp[he_req_at_cdir_ww.isDir] at hww_cluster_to_global_translation
+
+      cases he_lin_dir_nc_rel
+      . case previousGlobalCacheGotPerms hnc_rel_has_gcache_perms hnc_rel_cmp_lin_eq_generated_cdir =>
+        rw[hnc_rel_cmp_lin_eq_generated_cdir]
+        obtain ⟨e_rel_dir, hrel_dir_in_b, hrel_dir_spec⟩ := hdir_lin_nc_rel.reqLinearizeAtDir
+
+        cases hsucc_wb_before_or_eq_e_rel_wb
+        . case inl hsucc_wb_eq_rel_wb =>
+          calc
+            e_generated_cmp_lin_ww.EncapsulatedBy n e_generated_cdir_ww := hgenerated_cdir_ww_encap_glin
+            e_generated_cdir_ww.EncapsulatedBy n e_succ_wb := hsucc_wb_encap_generated_dir
+            e_succ_wb = e_rel_wb := hsucc_wb_eq_rel_wb
+            e_rel_wb.OrderedBefore n e_generated_cdir_nc_rel := hwb_ob_rel_lin
+        . case inr hsucc_wb_ob_rel_wb =>
+          calc
+            e_generated_cmp_lin_ww.EncapsulatedBy n e_generated_cdir_ww := hgenerated_cdir_ww_encap_glin
+            e_generated_cdir_ww.EncapsulatedBy n e_succ_wb := hsucc_wb_encap_generated_dir
+            e_succ_wb.OrderedBefore n e_rel_wb := hsucc_wb_ob_rel_wb
+            e_rel_wb.OrderedBefore n e_generated_cdir_nc_rel := hwb_ob_rel_lin
+      . case getGlobalCachePerms hnc_rel_no_gcache_perms hnc_rel_cluster_to_global_translation =>
+        have hgenerated_cdir_nc_rel_encap_glin : Event.Encapsulates n e_generated_cdir_nc_rel e_generated_cmp_lin_nc_rel :=
+          CompoundProtocol.cdir_encap_glin_of_cdir_linearize_at_dir n
+          he_req_at_cdir_nc_rel hnc_rel_cluster_to_global_translation
+
+        cases hsucc_wb_before_or_eq_e_rel_wb
+        . case inl hsucc_wb_eq_rel_wb =>
+          calc
+            e_generated_cmp_lin_ww.EncapsulatedBy n e_generated_cdir_ww := hgenerated_cdir_ww_encap_glin
+            e_generated_cdir_ww.EncapsulatedBy n e_succ_wb := hsucc_wb_encap_generated_dir
+            e_succ_wb = e_rel_wb := hsucc_wb_eq_rel_wb
+            e_rel_wb.OrderedBefore n e_generated_cdir_nc_rel := hwb_ob_rel_lin
+            e_generated_cdir_nc_rel.Encapsulates n e_generated_cmp_lin_nc_rel := hgenerated_cdir_nc_rel_encap_glin
+        . case inr hsucc_wb_ob_rel_wb =>
+          calc
+            e_generated_cmp_lin_ww.EncapsulatedBy n e_generated_cdir_ww := hgenerated_cdir_ww_encap_glin
+            e_generated_cdir_ww.EncapsulatedBy n e_succ_wb := hsucc_wb_encap_generated_dir
+            e_succ_wb.OrderedBefore n e_rel_wb := hsucc_wb_ob_rel_wb
+            e_rel_wb.OrderedBefore n e_generated_cdir_nc_rel := hwb_ob_rel_lin
+            e_generated_cdir_nc_rel.Encapsulates n e_generated_cmp_lin_nc_rel := hgenerated_cdir_nc_rel_encap_glin
 
     /- At the end, use `e_generated_cdir_nc_rel` to state that the `cdir` are the `e_generated_cmp_lin`. -/
-    sorry
 
 lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_write_and_non_coherent_release
   {b : Behaviour n}{init : InitialSystemState n}
