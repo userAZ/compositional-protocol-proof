@@ -341,6 +341,42 @@ lemma CompoundProtocol.e_encap_dir_lin_encap_global_dir_lin
       simp[hgreq_req] at hweak_req
     | .directoryEvent _ => simp[] at hweak_req
 
+/-- Very useful. -/
+lemma CompoundProtocol.request_encapsulates_compound_linearization_event
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+  {e_generated_cdir : Event n} -- ∃ cluster Directory Event, that connects request `e₁` to the directory
+  (hgenerated_cdir_is_dir : e_generated_cdir.isDirectoryEvent)
+  (he_encap_corr_dir : Behaviour.cacheEncapsulatesCorrespondingDirEvent n b (InitialSystemState.stateAt n init e) true e e_generated_cdir)
+  (hcdir_requests_gcache : Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent n cmp.shimAxioms b init e_generated_cdir e_generated_cmp_lin)
+  : e.Encapsulates n e_generated_cmp_lin := by
+      simp[Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent] at hcdir_requests_gcache
+      simp[hgenerated_cdir_is_dir] at hcdir_requests_gcache
+
+      split at hcdir_requests_gcache
+      . case h_1 _ _ _ _ =>
+        exfalso; exact hcdir_requests_gcache
+      . case h_2 _ _ htranslation _ =>
+        have := htranslation.choose_spec.right
+        have hdir_encap_gcache := htranslation.choose_spec.right
+        -- .encapGlobalCache
+        simp[Behaviour.compoundLinearizationEvent.globalCacheNoPermsReqDirectory] at hcdir_requests_gcache
+        obtain ⟨hgcache_lin,hgcache_lin_cases⟩ := hcdir_requests_gcache
+        split at hgcache_lin_cases
+        . case h_1 hgcache_lin_event hat_dir =>
+          have := hat_dir.choose_spec.right.reqLinearizeAtDir.choose_spec.right.reqCorrespondsToDir
+          simp[hgcache_lin_cases]
+          -- lemma here.
+          -- calc e.Encapsulates n e_generated_cdir := he_encap_dir
+            -- Event.Encapsulates n _ e_
+          apply CompoundProtocol.e_encap_dir_lin_encap_global_dir_lin
+          . case htranslation => exact htranslation.choose_spec.right
+          . case he_encap_corr_dir => exact he_encap_corr_dir
+          . case hgenerated_cdir_encap_greq => exact hdir_encap_gcache
+          . case hgreq_encap_corr_gdir => exact hat_dir.choose_spec.right
+          . case hgcache_lin_at_gdir => exact hat_dir.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+        . case h_2 hgcache_lin_event hat_cache =>
+          exfalso; exact hgcache_lin_cases
+
 lemma CompoundProtocol.nc_release_request_encapsulates_compound_linearization_event
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
   {e_generated_lin : Event n} -- ∃ linearization event of e₁ (not compound linearization event)
