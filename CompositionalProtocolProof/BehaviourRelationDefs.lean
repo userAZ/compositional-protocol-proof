@@ -94,11 +94,19 @@ structure Behaviour.evictEncapsulatesCorrespondingDirEvent (b : Behaviour n) (in
 structure Behaviour.evictEncapCorrespondingDirEvent (b : Behaviour n) (init : EntryState n) (rel_wb : Bool) (e_req : Event n) : Prop where
   evictEncapCorrDir : ∃ e_dir ∈ b.es, b.evictEncapsulatesCorrespondingDirEvent n init rel_wb e_req e_dir
 
+structure Event.acqEncapInvalAfterDir (e_req e_dir e_inval : Event n) (addr : Addr) : Prop where
+  dirBeforeInval : e_dir.OrderedBefore n e_inval
+  vcInval : e_inval.isVcInval
+  acqEncapInval : e_req.Encapsulates n e_inval
+  sameCid : e_req.cid = e_inval.cid
+  otherAddr : e_inval.addr = addr
+  cacheEvent : e_inval.isCacheEvent
+
 /--Axiom 4. Acquire invalidates other Vc cache entries after it's directory access. -/
 structure Behaviour.acquireInvalidates (b : Behaviour n) (e_req e_dir : Event n) : Prop where
   isAcquire : e_req.isAcquire
   encapDirEvent : ∀ init : EntryState n, b.reqEncapCorrespondingDirEvent n init true e_req
-  invalOther : ∀ addr ≠ e_req.addr, ∃ e_inval ∈ b.es, e_dir.OrderedBefore n e_inval ∧ e_inval.isVcInval
+  invalOther : ∀ addr ≠ e_req.addr, ∃ e_inval ∈ b, e_req.acqEncapInvalAfterDir n e_dir e_inval addr
 
 /-- Wrapper for Axiom 4. An Acquire invalidates Vc entries. -/
 def Behaviour.acqInvalWrapper : Prop := ∀ b : Behaviour n, ∀ e_req e_dir : Event n,
