@@ -1446,7 +1446,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_write_or_read_and_non_
   (he₁_cache : e₁.isCacheEvent)
   (he₂_cache : e₂.isCacheEvent)
   (hdiff_addr : e₁.addr ≠ e₂.addr)
-  (he₁_req : Event.req n e₁ = ⟨{ rw := .w, coherent := false, consistency := .Weak }, property_weak⟩)
+  (he₁_req : Event.req n e₁ = ⟨{ rw := rw, coherent := false, consistency := .Weak }, property_weak⟩)
   (he₂_req : Event.req n e₂ = ⟨{ rw := .w, coherent := false, consistency := .Rel }, property_rel⟩)
   (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
   : CompoundLinearizationOrder n cmp b init e₁ e₂ := by
@@ -1472,7 +1472,8 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_write_or_read_and_non_
       split at he₁_lin_dir
       . case h_1 hcreq_lin h hrequest_lin => exfalso; exact he₁_lin_dir
       . case h_2 hcreq_lin hdir_lin hrequest_lin =>
-        /- Show this is bogus; Weak Write on SW, and SW isn't a state in the protocol. -/
+        /- Show this is bogus; nc release on SW, and SW isn't a state in the protocol. -/
+        -- [TODO] add a
         sorry
     | .clusterCacheLin hcluster_cache_lin_e₁, .clusterDirLin hcluster_dir_lin_e₂ =>
       simp[CompoundLinearizationOrder]
@@ -1509,7 +1510,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_write_or_read_and_non_
           have hreq₁_lin_at_dir := hdir_lin₁.choose_spec.right.reqLinearizeAtDir.choose_spec.right
           have hreq₂_lin_at_dir := hdir_lin₂.choose_spec.right.reqLinearizeAtDir.choose_spec.right
 
-          apply CompoundProtocol.weak_write_and_nc_release_linearize_at_directory
+          apply CompoundProtocol.weak_write_or_read_and_nc_release_linearize_at_directory
           . case hww_addr_ne_rel => exact hdiff_addr
           . case hww_eq_rel_cid => exact hsame_cid
           . case he_ww_ob_e_nc_rel => exact he₁_ob_e₂
