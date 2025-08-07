@@ -223,7 +223,7 @@ def Behaviour.requestAccessesDirectoryWrapper (b : Behaviour n) (e : Event n) (i
 
 /-- Axiom 6 Structure Wrapper for use in Lemmas. -/
 def Behaviour.axRequestAccessesDirectory : Prop :=
-  ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e ∈ b.es, b.requestAccessesDirectoryWrapper n e init
+  ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e ∈ b, b.requestAccessesDirectoryWrapper n e init
 
 structure Behaviour.vdStateBeforeWBOrGetSW (b : Behaviour n) (init : InitialSystemState n) (e : Event n) : Prop where
   onVd : (b.stateBefore n (init.stateAt n e) e).cache = Vd
