@@ -16,9 +16,28 @@ def CompoundProtocol.acquire_invalidation_OrderedBefore_weak_read_predecessor_th
   (hww_same_entry_wb : e_ww.sameEntry n e_inval) →
   e_inval.OrderedBefore n e_pred
 
+/-- Additional Axiom : after a weak request, if a Vd WriteBack `e_wb` is ordered after, and we know there's an event `e_succ_wb` that
+writesback to the directory for the weak request, then we know `e_succ_wb` is either the  `e_wb` or `e_succ_wb` is ordered before `e_wb` -/
+def CompoundProtocol.writeback_successor_eq_vd_writeback_or_OrderedBefore_of_weak_write_OrderedBefore_vd_write_back
+  (b : Behaviour n) (init : InitialSystemState n) : Prop
+  :=
+  {e_ww e_succ_wb e_generated_cdir_ww e_wb : Event n} →
+  (hww_stateAfter_Vd : ((b.stateBefore n (init.stateAt n e_ww) e_ww).cache n = Vd) ∨ (Behaviour.stateAfter n b (init.stateAt n e_ww) e_ww).cache = Vd) →
+  (hsucc_wb : -- ∃ e_succ ∈ b.es,
+  Behaviour.ImmediateBottomSuccSatisfyingProp n b e_ww e_succ_wb fun x =>
+    Behaviour.succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww) →
+  (hww_ob_wb : e_ww.OrderedBefore n e_wb) →
+  (hww_is_weak_write_or_read : e_ww.isNcWeakWrite ∨ e_ww.isNcWeakRead) →
+  (hwb_is_vdwb : e_wb.isVdWriteBack) →
+  (hww_same_entry_wb : e_ww.sameEntry n e_wb) →
+  e_succ_wb = e_wb ∨ e_succ_wb.OrderedBefore n e_wb
+
 def AcquireInvalOrderedBeforeReadPred.wrapper : Prop := ∀ b : Behaviour n, ∀ init : InitialSystemState n,
   ∀ e_inval ∈ b, ∀ e_pred ∈ b, ∀ e_ww ∈ b,
   CompoundProtocol.acquire_invalidation_OrderedBefore_weak_read_predecessor_that_gets_perms n b init e_inval e_pred e_ww
+
+def weakRequestOrderedBeforeVdWriteBackIsWriteBackOrOrderedBefore.wrapper : Prop := ∀ b : Behaviour n, ∀ init : InitialSystemState n,
+  CompoundProtocol.writeback_successor_eq_vd_writeback_or_OrderedBefore_of_weak_write_OrderedBefore_vd_write_back n b init
 
 /-- Axioms 4-14 -/
 structure RequestAxioms where
@@ -34,6 +53,7 @@ structure RequestAxioms where
   relAcqSelfBroadcast : Behaviour.relAcqBroadcast n
   swmr : SWMR.wrapper n
   acquireInvalBeforeReadPredecessor : AcquireInvalOrderedBeforeReadPred.wrapper n
+  vdWriteBackAfterWeakRequestLinearizationEventEqOrOrderedBefore : weakRequestOrderedBeforeVdWriteBackIsWriteBackOrOrderedBefore.wrapper n
 
 structure Protocol where
   pi : ProtocolInstance -- Which `cluster` is this protocol associated with
