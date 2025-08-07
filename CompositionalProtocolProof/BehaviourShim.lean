@@ -220,14 +220,145 @@ structure Behaviour.immediateFinishesBeforeAtClusterDirectoryNotEncap (b : Behav
   notEncap : ¬ e_succ.Encapsulates n e_pred
   noIntermediate : b.noIntermediateFinishesBeforeOfSameEntryNotEncap n e_pred e_succ
 
+lemma Behaviour.same_corresponding_gcache_same_struct_of_immediateFinishesBeforeAtClusterDirectoryNotEncap {b : Behaviour n} {e_cdir e_gdown e : Event n}
+  (he_cdir_satisfies : immediateFinishesBeforeAtClusterDirectoryNotEncap n b e_cdir e_gdown)
+  (he_is_imm_pred : immediateFinishesBeforeAtClusterDirectoryNotEncap n b e e_gdown)
+  : Event.struct n e = Event.struct n e_cdir := by
+      have hcdir_at_gcache := he_cdir_satisfies.finishBefore.gCacheOfCDir
+      have he_at_gcache := he_is_imm_pred.finishBefore.gCacheOfCDir
+      simp[Event.reqAtCorrespondingGCacheOfCDir] at hcdir_at_gcache he_at_gcache
+      simp[Event.protocol] at hcdir_at_gcache he_at_gcache
+      simp [Event.struct]
+      match he : e, hecdir : e_cdir, hegdown : e_gdown with
+      | .directoryEvent de, .directoryEvent de_c, .cacheEvent ce =>
+        simp
+        match hde : de.pInst, hde_c : de_c.pInst with
+        | .global, .global
+        | .cluster1, .cluster1
+        | .cluster2, .cluster2 => simp
+        | .global, .cluster1
+        | .global, .cluster2
+        | .cluster1, .cluster2
+        | .cluster2, .cluster1
+        | .cluster2, .global
+        | .cluster1, .global =>
+          match hcid : ce.cid with
+          | .proxy pi =>
+            simp [hde, hde_c, Event.reqAtGlobalCacheCid, hcid] at hcdir_at_gcache he_at_gcache
+          | .cache pci =>
+            match pci with
+            | .globalP fin2 =>
+              simp_all [hde, hde_c, Event.reqAtGlobalCacheCid, hcid]
+            | .cluster1 fin | .cluster2 fin =>
+              simp [hde, hde_c, Event.reqAtGlobalCacheCid, hcid] at hcdir_at_gcache he_at_gcache
+      | .cacheEvent ce_e, .directoryEvent de_c, .cacheEvent ce_g
+      | .cacheEvent ce_e, .cacheEvent ce_c, .cacheEvent ce_g
+      | .directoryEvent de_e, .cacheEvent ce_c, .cacheEvent ce_g
+      | .cacheEvent ce_e, .directoryEvent de_c, .directoryEvent de_g
+      | .cacheEvent ce_e, .cacheEvent ce_c, .directoryEvent de_g
+      | .directoryEvent de_e, .cacheEvent ce_c, .directoryEvent de_g
+      | .directoryEvent de_e, .directoryEvent de_c, .directoryEvent de_g
+        =>
+        all_goals simp [he, hecdir, Event.reqAtGlobalCacheCid, hegdown] at hcdir_at_gcache he_at_gcache
+        all_goals try simp
+        try
+        match hde_e : de_e.pInst, hde_c : de_c.pInst with
+        | .global, .global
+        | .cluster1, .cluster1
+        | .cluster2, .cluster2
+        | .global, .cluster1
+        | .global, .cluster2
+        | .cluster1, .cluster2
+        | .cluster2, .cluster1
+        | .cluster2, .global
+        | .cluster1, .global =>
+          all_goals simp [hde_e, hde_c, Event.reqAtGlobalCacheCid] at hcdir_at_gcache he_at_gcache
+
 /-- The Latest Cluster Directory Event corresponding to a Global Cache Event -/
 def Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap : Behaviour n → Event n → Set (Event n)
 | b, e_succ => {e_pred ∈ b | b.immediateFinishesBeforeAtClusterDirectoryNotEncap n e_pred e_succ}
 -- [NOTE] prove the above is subsingleton?
 
+lemma Behaviour.contradiction_of_de₁_orderedBefore_de₂_immediateFinishesBeforeAtClusterDirectoryEventsNotEncap
+  (he₁_imm_finish_before_at_cluster : immediateFinishesBeforeAtClusterDirectoryNotEncap n b (Event.directoryEvent de₁) e_succ)
+  (he₂_imm_finish_before_at_cluster : immediateFinishesBeforeAtClusterDirectoryNotEncap n b (Event.directoryEvent de₂) e_succ)
+  (he₂_in_b : Event.directoryEvent de₂ ∈ b)
+  (hde₁_ob_de₂ : DirectoryEvent.OrderedBefore n de₁ de₂)
+  : False := by
+  apply he₁_imm_finish_before_at_cluster.noIntermediate
+  . case a => exact he₂_in_b
+  . case a =>
+    constructor
+    . case interFinish =>
+      constructor
+      . case sameCidInterPred =>
+        apply Behaviour.same_corresponding_gcache_same_struct_of_immediateFinishesBeforeAtClusterDirectoryNotEncap
+        . case he_cdir_satisfies => exact he₁_imm_finish_before_at_cluster
+        . case he_is_imm_pred => exact he₂_imm_finish_before_at_cluster
+      . case sameAddr =>
+        have he₁_addr := he₁_imm_finish_before_at_cluster.finishBefore.finBefore.sameAddr
+        have he₂_addr := he₂_imm_finish_before_at_cluster.finishBefore.finBefore.sameAddr
+        simp_all [Event.sameAddr]
+      . case interPred =>
+        simp[Event.finishesBefore, Event.oEnd]
+        calc de₁.oEnd < de₂.oStart := hde₁_ob_de₂
+          _ < de₂.oEnd := de₂.oWellFormed
+      . case interSucc =>
+        exact he₂_imm_finish_before_at_cluster.finishBefore.finBefore.endBefore
+    . case notEncap => exact he₂_imm_finish_before_at_cluster.notEncap
+
+lemma Behaviour.contradiction_of_ordered_directory_events_immediateFinishesBeforeAtClusterDirectoryEventsNotEncap
+  (he₁_in_b : Event.directoryEvent de₁ ∈ b)
+  (he₁_imm_finish_before_at_cluster : immediateFinishesBeforeAtClusterDirectoryNotEncap n b (Event.directoryEvent de₁) e_succ)
+  (he₂_in_b : Event.directoryEvent de₂ ∈ b)
+  (he₂_imm_finish_before_at_cluster : immediateFinishesBeforeAtClusterDirectoryNotEncap n b (Event.directoryEvent de₂) e_succ)
+  (hde₁_ordered_de₂ : DirectoryEvent.Ordered n de₁ de₂)
+  : Event.directoryEvent de₁ = Event.directoryEvent de₂ := by
+  exfalso
+  cases hde₁_ordered_de₂
+  . case inl hde₁_ob_de₂ =>
+    -- show that e₂ is an intermediate to e₁, contradiction.
+    apply Behaviour.contradiction_of_de₁_orderedBefore_de₂_immediateFinishesBeforeAtClusterDirectoryEventsNotEncap
+    . case he₁_imm_finish_before_at_cluster => exact he₁_imm_finish_before_at_cluster
+    . case he₂_imm_finish_before_at_cluster => exact he₂_imm_finish_before_at_cluster
+    . case he₂_in_b => exact he₂_in_b
+    . case hde₁_ob_de₂ => exact hde₁_ob_de₂
+  . case inr hde₂_ob_de₁ =>
+    apply Behaviour.contradiction_of_de₁_orderedBefore_de₂_immediateFinishesBeforeAtClusterDirectoryEventsNotEncap
+    . case he₁_imm_finish_before_at_cluster => exact he₂_imm_finish_before_at_cluster
+    . case he₂_imm_finish_before_at_cluster => exact he₁_imm_finish_before_at_cluster
+    . case he₂_in_b => exact he₁_in_b
+    . case hde₁_ob_de₂ => exact hde₂_ob_de₁
+
 lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap_is_subsingleton (b : Behaviour n) (e_succ : Event n)
   : (b.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap n e_succ).Subsingleton := by
-  sorry
+  simp[immediateFinishesBeforeAtClusterDirectoryEventsNotEncap]
+  -- simp[immediateFinishesBeforeAtClusterDirectoryNotEncap]
+  simp only [Set.Subsingleton, Set.mem_setOf_eq,]
+  intro e₁ ⟨he₁_in_b,he₁_imm_finish_before_at_cluster⟩
+  intro e₂ ⟨he₂_in_b,he₂_imm_finish_before_at_cluster⟩
+
+  cases e₁
+  . case cacheEvent ce₁ =>
+    have he₁_directory_event : (Event.cacheEvent ce₁).isDirectoryEvent := Behaviour.reqAtCorrespondingGCacheOfCDir_is_directory_event n
+      he₁_imm_finish_before_at_cluster.finishBefore.gCacheOfCDir
+    simp [Event.isDirectoryEvent] at he₁_directory_event
+  . case directoryEvent de₁ =>
+    cases e₂
+    . case cacheEvent ce₂ =>
+      have he₂_directory_event : (Event.cacheEvent ce₂).isDirectoryEvent := Behaviour.reqAtCorrespondingGCacheOfCDir_is_directory_event n
+        he₂_imm_finish_before_at_cluster.finishBefore.gCacheOfCDir
+      simp [Event.isDirectoryEvent] at he₂_directory_event
+    . case directoryEvent de₂ =>
+      have hde_ordered_ax := b.orderedAtEntry.dir_ordered
+      have hde₁_ordered_de₂ := hde_ordered_ax de₁ de₂ |>.ordered
+
+      apply Behaviour.contradiction_of_ordered_directory_events_immediateFinishesBeforeAtClusterDirectoryEventsNotEncap
+      . case he₁_in_b => exact he₁_in_b
+      . case he₁_imm_finish_before_at_cluster => exact he₁_imm_finish_before_at_cluster
+      . case he₂_in_b => exact he₂_in_b
+      . case he₂_imm_finish_before_at_cluster => exact he₂_imm_finish_before_at_cluster
+      . case hde₁_ordered_de₂ => exact hde₁_ordered_de₂
 
 -- END: State before a global downgrade is translated satisfies Compound SWMR:
 
