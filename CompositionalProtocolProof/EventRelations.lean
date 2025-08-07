@@ -555,6 +555,7 @@ def Event.copyOfForCasting (e_original e_cast_copy : Event n) : Prop := match e_
 
 /-- Def. Copy an `e_original`, to a `e_cast_copy` at an Addr `other_addr`, where `e_cast_copy` is encapsulated by `e_base`. -/
 structure Event.baseEncapBroadcast (other_addr : Addr) (e_base e_original e_cast_copy : Event n) : Prop where
+  castAtCache : e_cast_copy.isCacheEvent
   castOriginal : e_original.copyOfForCasting n e_cast_copy
   toOtherAddr : e_cast_copy.addr = other_addr
   baseEncapCast : e_base.Encapsulates n e_cast_copy
