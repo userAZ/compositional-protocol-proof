@@ -1541,6 +1541,9 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_write_or_read_and_non_
   (he₁_req : Event.req n e₁ = ⟨{ rw := rw, coherent := false, consistency := .Weak }, property_weak⟩)
   (he₂_req : Event.req n e₂ = ⟨{ rw := .w, coherent := false, consistency := .Rel }, property_rel⟩)
   (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
+  (hweak_write_and_non_coherent_rel_cannot_linearize_at_cache :
+    e₁.req.isNcRelease ∧ e₂.req.isWeak ∨ e₁.req.isWeak ∧ e₂.req.isNcRelease → (∃ e ∈ [e₁, e₂], (∃ e_cmplin ∈ b,
+    Behaviour.eventCompoundLinearizes.atCache n b init e e_cmplin (cmp.linearizationOfEvent b init e)) ) → False)
   : CompoundLinearizationOrder n cmp b init e₁ e₂ := by
     match he₁_lin : cmp.compoundLinearizationEvent cmp.shimAxioms b init e₁ (cmp.linearizationOfEvent b init e₁)
       , he₂_lin : cmp.compoundLinearizationEvent cmp.shimAxioms b init e₂ (cmp.linearizationOfEvent b init e₂)
@@ -1551,38 +1554,27 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_write_or_read_and_non_
       . case he₁_lin => exact he₁_lin
       . case he₂_lin => exact he₂_lin
     | .clusterDirLin hcluster_dir_lin_e₁, .clusterCacheLin hcluster_cache_lin_e₂ =>
-      simp[CompoundLinearizationOrder]
-      apply Or.intro_left
-      simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
-
-      have he₁_lin_dir := hcluster_dir_lin_e₁.choose_spec.right.e_glin_deeper
-      have he₂_lin_cache := hcluster_cache_lin_e₂.choose_spec.right.e_creq_is_e_glin
-
-      simp[he₂_lin_cache]
-
-      simp[compoundLinearization.OfReqEncapDirAccess] at he₁_lin_dir
-      split at he₁_lin_dir
-      . case h_1 hcreq_lin h hrequest_lin => exfalso; exact he₁_lin_dir
-      . case h_2 hcreq_lin hdir_lin hrequest_lin =>
-        /- Show this is bogus; nc release on SW, and SW isn't a state in the protocol. -/
-        -- [TODO] add a
-        sorry
+      exfalso
+      apply hweak_write_and_non_coherent_rel_cannot_linearize_at_cache
+      . case a =>
+        apply Or.intro_right
+        simp[ValidRequest.isWeak, ValidRequest.isNcRelease]
+        simp[he₁_req, he₂_req]
+      . case a =>
+        use e₂
+        simp
+        exact hcluster_cache_lin_e₂
     | .clusterCacheLin hcluster_cache_lin_e₁, .clusterDirLin hcluster_dir_lin_e₂ =>
-      simp[CompoundLinearizationOrder]
-      apply Or.intro_left
-      simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
-
-      have he₁_lin_cache := hcluster_cache_lin_e₁.choose_spec.right.e_creq_is_e_glin
-      have he₂_lin_dir := hcluster_dir_lin_e₂.choose_spec.right.e_glin_deeper
-
-      simp[he₁_lin_cache]
-
-      simp[compoundLinearization.OfReqEncapDirAccess] at he₂_lin_dir
-      split at he₂_lin_dir
-      . case h_1 hcreq_lin h hrequest_lin => exfalso; exact he₂_lin_dir
-      . case h_2 hcreq_lin hdir_lin hrequest_lin =>
-        /- Show this is bogus; Weak Write on SW, and SW isn't a state in the protocol. -/
-        sorry
+      exfalso
+      apply hweak_write_and_non_coherent_rel_cannot_linearize_at_cache
+      . case a =>
+        apply Or.intro_right
+        simp[ValidRequest.isWeak, ValidRequest.isNcRelease]
+        simp[he₁_req, he₂_req]
+      . case a =>
+        use e₁
+        simp
+        exact hcluster_cache_lin_e₁
     | .clusterDirLin hcluster_dir_lin_e₁, .clusterDirLin hcluster_dir_lin_e₂ =>
       simp[CompoundLinearizationOrder]
       apply Or.intro_left
@@ -1770,6 +1762,9 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_non_cohere
   (he₁_req : Event.req n e₁ = ⟨{ rw := rw, coherent := false, consistency := Consistency.Weak }, property_weak⟩)
   (he₂_req : Event.req n e₂ = ⟨{ rw := ReadWrite.w, coherent := false, consistency := Consistency.Rel }, property_rel⟩)
   (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
+  (hweak_write_and_non_coherent_rel_cannot_linearize_at_cache :
+    e₁.req.isNcRelease ∧ e₂.req.isWeak ∨ e₁.req.isWeak ∧ e₂.req.isNcRelease → (∃ e ∈ [e₁, e₂], (∃ e_cmplin ∈ b,
+    Behaviour.eventCompoundLinearizes.atCache n b init e e_cmplin (cmp.linearizationOfEvent b init e)) ) → False)
   : CompoundLinearizationOrder n cmp b init e₁ e₂ := by
   apply CompoundProtocol.CompoundLinearizationOrder_of_weak_write_or_read_and_non_coherent_release
   . case he₁_ob_e₂ => exact he₁_ob_e₂
@@ -1784,6 +1779,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_non_cohere
   . case he₂_req => exact he₂_req
   . case he₁_not_down => exact he₁_not_down
   . case he₂_not_down => exact he₂_not_down
+  . case hweak_write_and_non_coherent_rel_cannot_linearize_at_cache => exact hweak_write_and_non_coherent_rel_cannot_linearize_at_cache
 
 /- Coherent Release: Weak request ordered before a release -/
 
@@ -2116,6 +2112,9 @@ lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b 
   (hsame_cid : e₁.sameCid n e₂)
   (hsame_cid' : e₁.cid = e₂.cid)
   (hdiff_addr : e₁.addr ≠ e₂.addr)
+  (hweak_write_and_non_coherent_rel_cannot_linearize_at_cache :
+    e₁.req.isNcRelease ∧ e₂.req.isWeak ∨ e₁.req.isWeak ∧ e₂.req.isNcRelease → (∃ e ∈ [e₁, e₂], (∃ e_cmplin ∈ b,
+    Behaviour.eventCompoundLinearizes.atCache n b init e e_cmplin (cmp.linearizationOfEvent b init e)) ) → False)
   : e₁.OrderedBefore n e₂ → e₁.isPPOPair n e₂ → cmp.CompoundLinearizationOrder n b init e₁ e₂ := by
   intro he₁_ob_e₂ he₁_ppo_e₂_cache_ppo
   -- Work through the cases of all PPO Pairs, and show that `e₁` and `e₂` linearize in order.
@@ -2147,6 +2146,7 @@ lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b 
     . case he₂_req => exact he₂_req
     . case he₁_not_down => exact he₁_not_down
     . case he₂_not_down => exact he₂_not_down
+    . case hweak_write_and_non_coherent_rel_cannot_linearize_at_cache => exact hweak_write_and_non_coherent_rel_cannot_linearize_at_cache
   | ⟨⟨_,false,.Weak⟩,_⟩, ⟨⟨.w,true,.Rel⟩,_⟩ => -- Weak requests are ordered before a Coherent Release
     apply CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_coherent_release
     . case he₁_ob_e₂ => exact he₁_ob_e₂
