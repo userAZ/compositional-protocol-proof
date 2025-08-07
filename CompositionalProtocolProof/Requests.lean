@@ -104,6 +104,7 @@ def ValidRequest.isNonCoherent (vr : ValidRequest) := ¬ vr.val.coherent
 def ValidRequest.isWeak (vr : ValidRequest) := vr.val.consistency = .Weak
 def ValidRequest.isNcWeakRead (vr : ValidRequest) := vr = ⟨⟨.r, false, .Weak⟩, by simp[Request.IsValid']⟩
 def ValidRequest.isNcWeakWrite (vr : ValidRequest) := vr = ⟨⟨.w, false, .Weak⟩, by simp[Request.IsValid']⟩
+def ValidRequest.isCWeakWrite (vr : ValidRequest) := vr = ⟨⟨.w, true, .Weak⟩, by simp[Request.IsValid']⟩
 
 def ValidRequest.isSCWrite (vr : ValidRequest) := vr = ⟨⟨.w, true, .SC⟩,by simp[Request.IsValid']⟩
 def ValidRequest.isSCRead (vr : ValidRequest) := vr = ⟨⟨.r, true, .SC⟩, by simp [Request.IsValid']⟩
