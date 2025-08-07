@@ -390,12 +390,15 @@ structure Behaviour.relWriteBackOtherEntries (b : Behaviour n) (e_req e_wb e_dir
   relEncapDir : e_req.Encapsulates n e_dir
   broadcastWB : b.broadcastToOtherEntriesBeforeDir n e_req e_wb e_dir
 
-/-- Def. (Lazy) Coherent Release WritesBack Other Entries in Vd when receiving a downgrade.
-We assume it to be Lazy if it's Protocol Interface contains a Non-Coherent Weak Write. -/
-structure Behaviour.coherentRelDowngradeWriteBackOthers (b : Behaviour n) (e_down e_wb : Event n) (p_i : Protocol.interface) : Prop where
+structure Behaviour.broadcastWbFromDowngrade (b : Behaviour n) (e_down e_wb : Event n) where
   isVdWriteBack : e_wb.isVdWriteBack
   broadcastWB : b.broadcastToOtherEntries n e_down e_wb
   gotDowngrade : e_down.down -- Assume it arrives on SW state.
+
+/-- Def. (Lazy) Coherent Release WritesBack Other Entries in Vd when receiving a downgrade.
+We assume it to be Lazy if it's Protocol Interface contains a Non-Coherent Weak Write. -/
+structure Behaviour.coherentRelDowngradeWriteBackOthers (b : Behaviour n) (e_down e_wb : Event n) (p_i : Protocol.interface) : Prop where
+  broadcastWBs : b.broadcastWbFromDowngrade n e_down e_wb
   -- Coherent Release is Lazy, because we have a Non-Coherent WeakWrite in the Protocol Interface
   cRelInPI : CoherentRelease ∈ (e_down.interfaceMatchingProtocol n p_i).val
   ncWeakWriteInPI : NonCoherentWeakWrite ∈ (e_down.interfaceMatchingProtocol n p_i).val
