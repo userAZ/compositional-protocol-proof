@@ -1108,6 +1108,7 @@ lemma CompoundProtocol.weak_write_or_read_and_nc_release_linearize_at_directory
     have hrel_wb_ax := hrel_wb_original_spec e_generated_cdir_nc_rel hnc_rel_cdir_in_b
     have hrel_wb_cast := hrel_wb_ax.broadcastWB.broadcast.broadcastToEntries e_ww.addr hww_addr_ne_rel
     obtain ⟨e_rel_wb, hrel_wb_in_b, hrel_wb_cast_spec⟩ := hrel_wb_cast
+    case intro.intro.intro.intro.intro.intro =>
 
     /- We know that `e_ww.OrderedBefore e_wb` -/
     have hww_ob_wb : e_ww.OrderedBefore n e_rel_wb := by
@@ -1118,11 +1119,75 @@ lemma CompoundProtocol.weak_write_or_read_and_nc_release_linearize_at_directory
     have hwb_ob_rel_lin : e_rel_wb.OrderedBefore n e_generated_cdir_nc_rel := hrel_wb_cast_spec.beforeDir
 
     /- Then do cases, either `e_wb` is the `immediate successor`-/
-    -- have himm_succ_wb : Behaviour.ImmediateBottomSuccSatisfyingProp n b e_ww e_succ_wb fun x =>
-    --   Behaviour.succOnVdWithCorrespondingDir n b init x e_generated_cdir_ww := by
-    --   sorry
-    have hsucc_wb_before_or_eq_e_rel_wb : e_succ_wb = e_rel_wb ∨ e_succ_wb.OrderedBefore n e_rel_wb := by
-      apply CompoundProtocol.weak_write_OrderedBefore_vd_write_back'
+    have hww_is_weak_write_or_read : e_ww.isNcWeakWrite ∨ e_ww.isNcWeakRead := by
+      simp[Event.isNcWeakWrite, Event.isNcWeakRead]
+      match e_ww with
+      | .cacheEvent cww =>
+        cases rw
+        . case r =>
+          simp[CacheEvent.isNcWeakRead,]
+          simp[Event.req] at he_req_ww
+          simp[he_req_ww, ValidRequest.isNcWeakRead]
+        . case w =>
+          simp[CacheEvent.isNcWeakWrite,]
+          simp[Event.req] at he_req_ww
+          simp[he_req_ww, ValidRequest.isNcWeakWrite]
+      | .directoryEvent _ =>
+        simp[Event.isCacheEvent] at he_ww_cache
+    have hwb_is_vdwb : e_rel_wb.isVdWriteBack := by
+      have hrel_wb_spec := hrel_wb_original_spec e_generated_cdir_ww hgenerated_cdir_ww_in_b
+      have hrel_wb_original_vd_wb := hrel_wb_spec.isVdWriteBack
+      have hrel_wb_orig_vd_wb := hrel_wb_spec.isVdWriteBack
+      simp [Event.isVdWriteBack] at hrel_wb_orig_vd_wb
+
+      have hrel_wb_copy_of_original := hrel_wb_cast_spec.broadcastEncapInBase.castOriginal
+      simp[Event.copyOfForCasting] at hrel_wb_copy_of_original
+      match hwb_orig : e_rel_wb_original, hrel_wb : e_rel_wb with
+      | .cacheEvent ce_wb_original, .cacheEvent ce_wb =>
+        simp at hrel_wb_orig_vd_wb
+        simp[] at hrel_wb_copy_of_original
+        have hwb_orig_same_req := hrel_wb_copy_of_original.sameReq
+        have hwb_orig_same_down := hrel_wb_copy_of_original.sameDown
+        simp[Event.isVdWriteBack,]
+        constructor
+        . case isDown => simp[hwb_orig_same_down, hrel_wb_orig_vd_wb.isDown]
+        . case isWeakWrite => simp[hwb_orig_same_req, hrel_wb_orig_vd_wb.isWeakWrite]
+      | .directoryEvent ce_wb_original, .cacheEvent ce_wb
+      | .directoryEvent ce_wb_original, .directoryEvent ce_wb
+      | .cacheEvent ce_wb_original, .directoryEvent ce_wb =>
+        simp [] at hrel_wb_copy_of_original
+    have hww_same_entry_wb : e_ww.sameEntry n e_rel_wb := by
+      constructor
+      . case sameStruct =>
+        simp[Event.sameStructure, Event.struct]
+        have hrel_wb_of_original := hrel_wb_cast_spec.broadcastEncapInBase.castOriginal
+        simp[Event.copyOfForCasting] at hrel_wb_of_original
+        match e_rel_wb_original, e_rel_wb with
+        | .cacheEvent cwb_orig, .cacheEvent cwb =>
+          have hrel_wb_spec := hrel_wb_original_spec e_generated_cdir_ww hgenerated_cdir_ww_in_b
+          have horig_and_wb_same_cache := hrel_wb_of_original.sameCache
+          have horig_and_ww_same_cache := hrel_wb_spec.sameCid
+          simp[Event.cid] at horig_and_ww_same_cache
+          match e_ww, e_nc_rel with
+          | .cacheEvent cww, .cacheEvent cnc_rel =>
+            simp
+            simp [Event.sameCid] at hww_eq_rel_cid
+            simp[horig_and_wb_same_cache, horig_and_ww_same_cache, hww_eq_rel_cid]
+          | .directoryEvent _ , .cacheEvent _
+          | .cacheEvent _ , .directoryEvent _
+          | .directoryEvent _ , .directoryEvent _ =>
+            simp[Event.isCacheEvent] at he_ww_cache he_nc_rel_cache
+        | .directoryEvent _, .directoryEvent _
+        | .cacheEvent _, .directoryEvent _
+        | .directoryEvent _, .cacheEvent _ =>
+          simp at hrel_wb_of_original
+      . case sameAddr => simp[Event.sameAddr, hrel_wb_cast_spec.broadcastEncapInBase.toOtherAddr]
+    have hsucc_wb_before_or_eq_e_rel_wb : e_succ_wb = e_rel_wb ∨ e_succ_wb.OrderedBefore n e_rel_wb :=
+      cmp.cluster1.reqAxioms.vdWriteBackAfterWeakRequestLinearizationEventEqOrOrderedBefore
+      b init hweak_req_on_vd.reqOnOrAfterVd hww_successor_wb hww_ob_wb
+      hww_is_weak_write_or_read hwb_is_vdwb hww_same_entry_wb
+    /-
+      by apply CompoundProtocol.weak_write_OrderedBefore_vd_write_back'
       . case hww_stateAfter_Vd => sorry
       . case hsucc_wb => exact hww_successor_wb
       . case hww_ob_wb => exact hww_ob_wb
@@ -1164,8 +1229,7 @@ lemma CompoundProtocol.weak_write_or_read_and_nc_release_linearize_at_directory
         | .cacheEvent ce_wb_original, .directoryEvent ce_wb =>
           simp [] at hrel_wb_copy_of_original
       . case hww_same_entry_wb =>
-        sorry
-    case intro.intro.intro.intro.intro.intro =>
+        sorry-/
 
     /- `e_succ_wb` has the linearization event -/
     have hsuccessor_wb_spec := hww_successor_wb.satisfyP
