@@ -1914,7 +1914,7 @@ def Event.interfaceMatchingProtocol' (e : Event n) (cmp : CompoundProtocol n) : 
     | .cluster1 => cmp.cluster1.requests
     | .cluster2 => cmp.cluster2.requests
 
-lemma CompoundProtocol.lazy_coherent_release_ordering
+lemma CompoundProtocol.lazy_coherent_release_ordering'
   {cmp : CompoundProtocol n}
   {he₁_ob_e₂ : e₁.OrderedBefore n e₂}
   (hsame_protocol : e₁.sameProtocol n e₂)
@@ -1928,16 +1928,21 @@ lemma CompoundProtocol.lazy_coherent_release_ordering
   (hweak_req_cluster_lin_at_dir : Behaviour.requestLinearizesAtDirectory n b init e₁ e_weak_req_generated_dir e_generated_weak_req_cluster_lin)
   (hweak_req_on_vd : Behaviour.ncWeakReqOnVd n b init e₁)
   (hsucc_encap_dir : Behaviour.immBottomSuccOnVdEncapCorrDir n b init e₁ e_weak_req_generated_dir)
-  : lazyCompoundLinearizationOrder n b init e₂ e_generated_weak_req_cmplin := by
-  simp[lazyCompoundLinearizationOrder]
-  intro e₃ he₃_in_b e₂_alt_dir e₂_alt_dir_in_b he₂_alt_dir_spec e₃_dir he₃_dir_in_b he₃_dir_spec
-  intro he₂_dir_imm_pred_e₃_dir
-  intro he₂_eq_e₃_addr he₂_dir_eq_e₃_dir_addr
-
-  have he₃_dir_downgrade := cmp.cluster1.reqAxioms.nonCohReqDowngrades b init e₃ he₃_in_b e₃_dir he₃_dir_in_b
-  obtain ⟨e₃_downgrade, he₃_down_in_b, he₃_down_spec⟩ := he₃_dir_downgrade.fwdPrevOwner
-
+  {e₃ : Event n}
+  (he₃_in_b : e₃ ∈ b)
+  {e₂_alt_dir : Event n}
+  (e₂_alt_dir_in_b : e₂_alt_dir ∈ b)
+  (he₂_alt_dir_spec : Behaviour.cacheEncapsulatesCorrespondingDirEvent n b (InitialSystemState.stateAt n init e₂) true e₂ e₂_alt_dir)
+  {e₃_dir : Event n}
+  -- (he₃_dir_in_b : e₃_dir ∈ b)
+  (he₃_dir_spec : Behaviour.cacheEncapsulatesCorrespondingDirEvent n b (InitialSystemState.stateAt n init e₃) true e₃ e₃_dir)
+  (he₂_dir_imm_pred_e₃_dir : Behaviour.ImmediateBottomPredecessor n b e₂_alt_dir e₃_dir)
+  (he₂_eq_e₃_addr : Event.addr n e₂ = Event.addr n e₃)
+  (he₂_dir_eq_e₃_dir_addr : Event.addr n e₂_alt_dir = Event.addr n e₃_dir)
+  (he₃_dir_downgrade : ∃ e_down ∈ b, Behaviour.requestDowngradePrevOwner n b init e₃ e₃_dir e_down)
+  : Event.finishesBefore n e_generated_weak_req_cmplin e₃_dir := by
   /- Use to show the e₃_down is at the previou owner e₂. -/
+  obtain ⟨e₃_downgrade, he₃_down_in_b, he₃_down_spec⟩ := he₃_dir_downgrade
   have he₃_down_at_prev_owner_e₂ := he₃_down_spec.atPrevOwner
 
   /- Use to show that the downgrade `e₃_down` causes Vd Writebacks `e₃_wb`. -/
@@ -2131,6 +2136,126 @@ lemma CompoundProtocol.lazy_coherent_release_ordering
         e₃_wb.oStart < e₃_wb.oEnd := e₃_wb.oWellFormed
         e₃_wb.oEnd < e₃_downgrade.oEnd := he₃_wb_encapsulated_by_e₃_downgrade.right
         e₃_downgrade.oEnd < e₃_dir.oEnd := he₃_down_spec.dirEncapDowngrade.right
+
+lemma CompoundProtocol.lazy_coherent_release_ordering
+  {cmp : CompoundProtocol n}
+  {he₁_ob_e₂ : e₁.OrderedBefore n e₂}
+  (hsame_protocol : e₁.sameProtocol n e₂)
+  (he₁cid_eq_e₂cid : e₁.cid = e₂.cid)
+  (hdiff_addr : e₁.addr ≠ e₂.addr)
+  (he₁_cache : e₁.isCacheEvent) (he₂_cache : e₂.isCacheEvent)
+  (he₁_req : Event.req n e₁ = ⟨{ rw := rw, coherent := false, consistency := Consistency.Weak }, property_weak⟩)
+  (he₂_req : Event.req n e₂ = ⟨{ rw := ReadWrite.w, coherent := true, consistency := Consistency.Rel }, property_rel⟩)
+  (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
+  (hweak_req_lin_dir : clusterDirectoryLinearizationEvent n cmp.shimAxioms b init e_weak_req_generated_dir e_generated_weak_req_cmplin)
+  (hweak_req_cluster_lin_at_dir : Behaviour.requestLinearizesAtDirectory n b init e₁ e_weak_req_generated_dir e_generated_weak_req_cluster_lin)
+  (hweak_req_on_vd : Behaviour.ncWeakReqOnVd n b init e₁)
+  (hsucc_encap_dir : Behaviour.immBottomSuccOnVdEncapCorrDir n b init e₁ e_weak_req_generated_dir)
+  : lazyCompoundLinearizationOrder n b init e₂ e_generated_weak_req_cmplin := by
+  simp[lazyCompoundLinearizationOrder]
+  intro e₃ he₃_in_b e₂_alt_dir e₂_alt_dir_in_b he₂_alt_dir_spec e₃_dir he₃_dir_in_b he₃_dir_spec
+  intro he₂_dir_imm_pred_e₃_dir
+  intro he₂_eq_e₃_addr he₂_dir_eq_e₃_dir_addr
+
+  by_cases e₃_dir.req.NonCoherent
+  . case pos he₃_dir_non_coherent =>
+    have he₃_dir_downgrade := cmp.cluster1.reqAxioms.nonCohReqDowngrades b init e₃ he₃_in_b e₃_dir he₃_dir_in_b
+    -- obtain ⟨e₃_downgrade, he₃_down_in_b, he₃_down_spec⟩ := he₃_dir_downgrade.fwdPrevOwner
+
+    apply CompoundProtocol.lazy_coherent_release_ordering'
+    . case he₁_ob_e₂ => exact he₁_ob_e₂
+    . case hsame_protocol => exact hsame_protocol
+    . case he₁cid_eq_e₂cid => exact he₁cid_eq_e₂cid
+    . case hdiff_addr => exact hdiff_addr
+    . case he₁_cache => exact he₁_cache
+    . case he₂_cache => exact he₂_cache
+    . case he₁_req => exact he₁_req
+    . case he₂_req => exact he₂_req
+    . case he₁_not_down => exact he₁_not_down
+    . case he₂_not_down => exact he₂_not_down
+    . case hweak_req_lin_dir => exact hweak_req_lin_dir
+    . case hweak_req_cluster_lin_at_dir => exact hweak_req_cluster_lin_at_dir
+    . case hweak_req_on_vd => exact hweak_req_on_vd
+    . case hsucc_encap_dir => exact hsucc_encap_dir
+    . case he₃_in_b => exact he₃_in_b
+    . case e₂_alt_dir_in_b => exact e₂_alt_dir_in_b
+    . case he₂_alt_dir_spec => exact he₂_alt_dir_spec
+    . case he₃_dir_spec => exact he₃_dir_spec
+    . case he₂_dir_imm_pred_e₃_dir => exact he₂_dir_imm_pred_e₃_dir
+    . case he₂_eq_e₃_addr => exact he₂_eq_e₃_addr
+    . case he₂_dir_eq_e₃_dir_addr => exact he₂_dir_eq_e₃_dir_addr
+    . case he₃_dir_downgrade => exact he₃_dir_downgrade.fwdPrevOwner
+
+  . case neg he₃_dir_coherent =>
+    have he₃_dir_downgrade := cmp.cluster1.reqAxioms.coherentWriteDowngrades b init e₃ he₃_in_b e₃_dir he₃_dir_in_b
+    obtain ⟨he₃_dir_state_before_sw, e₃_downgrade, he₃_down_in_b, he₃_down_spec_with_grant⟩ := he₃_dir_downgrade.downgradeOtherCaches
+    . case cWriteOnSW.mk.intro.intro =>
+      obtain ⟨_,_,he₃_down_spec⟩ := he₃_down_spec_with_grant
+
+      have he₃_req_downgrade_prev_owner : ∃ e_down ∈ b, Behaviour.requestDowngradePrevOwner n b init e₃ e₃_dir e_down := by
+        use e₃_downgrade
+        apply And.intro
+        . case left =>
+          exact he₃_down_in_b
+        . case right =>
+          exact he₃_down_spec.downgradePrevOwner
+
+      apply CompoundProtocol.lazy_coherent_release_ordering'
+      . case he₁_ob_e₂ => exact he₁_ob_e₂
+      . case hsame_protocol => exact hsame_protocol
+      . case he₁cid_eq_e₂cid => exact he₁cid_eq_e₂cid
+      . case hdiff_addr => exact hdiff_addr
+      . case he₁_cache => exact he₁_cache
+      . case he₂_cache => exact he₂_cache
+      . case he₁_req => exact he₁_req
+      . case he₂_req => exact he₂_req
+      . case he₁_not_down => exact he₁_not_down
+      . case he₂_not_down => exact he₂_not_down
+      . case hweak_req_lin_dir => exact hweak_req_lin_dir
+      . case hweak_req_cluster_lin_at_dir => exact hweak_req_cluster_lin_at_dir
+      . case hweak_req_on_vd => exact hweak_req_on_vd
+      . case hsucc_encap_dir => exact hsucc_encap_dir
+      . case he₃_in_b => exact he₃_in_b
+      . case e₂_alt_dir_in_b => exact e₂_alt_dir_in_b
+      . case he₂_alt_dir_spec => exact he₂_alt_dir_spec
+      . case he₃_dir_spec => exact he₃_dir_spec
+      . case he₂_dir_imm_pred_e₃_dir => exact he₂_dir_imm_pred_e₃_dir
+      . case he₂_eq_e₃_addr => exact he₂_eq_e₃_addr
+      . case he₂_dir_eq_e₃_dir_addr => exact he₂_dir_eq_e₃_dir_addr
+      . case he₃_dir_downgrade => exact he₃_req_downgrade_prev_owner
+    . case cWriteOnMR hfwd_to_sharers =>
+      have he₃_stateBefore_mr := hfwd_to_sharers.cWriteOnMR
+
+      simp[Behaviour.stateBefore] at he₃_stateBefore_mr
+      rw[Behaviour.upTo_immediatePredecessor_eq n he₂_dir_imm_pred_e₃_dir] at he₃_stateBefore_mr
+      rw[Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore] at he₃_stateBefore_mr
+      simp[List.stateAfter] at he₃_stateBefore_mr
+      simp[Event.SucceedingState] at he₃_stateBefore_mr
+      cases e₂_alt_dir
+      . case cacheEvent _ =>
+        have he₂_dir := he₂_alt_dir_spec.isDir
+        simp [Event.isDirectoryEvent] at he₂_dir
+      . case directoryEvent de₂_alt_dir =>
+        simp [DirectoryEvent.SucceedingState] at he₃_stateBefore_mr
+        have he₂_alt_dir_of_e₂ := he₂_alt_dir_spec.dirCorresponds
+        have he₂_alt_dir_down := he₂_alt_dir_of_e₂.sameDown
+        simp [Event.down] at he₂_alt_dir_down
+        simp [he₂_alt_dir_down] at he₃_stateBefore_mr
+        cases e₂
+        . case cacheEvent ce₂ =>
+          simp[Event.down] at he₂_not_down
+          simp [he₂_not_down] at he₃_stateBefore_mr
+
+          have he₂_alt_dir_req := he₂_alt_dir_of_e₂.dirReq
+          simp [Event.req, Behaviour.reqToDirOfRequestEvent] at he₂_alt_dir_req
+          simp [Event.req] at he₂_req
+          simp [he₂_req] at he₂_alt_dir_req
+          simp[Event.reqToDirOfRequestEvent, Event.req, Event.down, he₂_not_down] at he₂_alt_dir_req
+          simp [he₂_req] at he₂_alt_dir_req
+
+          simp [he₂_alt_dir_req, EntryState.state, DirectoryState.toState, ] at he₃_stateBefore_mr
+        . case directoryEvent _ =>
+          simp[Event.isCacheEvent] at he₂_cache
 
 lemma CompoundProtocol.weak_request_to_directory_and_coherent_release_at_cache
   {cmp : CompoundProtocol n}
