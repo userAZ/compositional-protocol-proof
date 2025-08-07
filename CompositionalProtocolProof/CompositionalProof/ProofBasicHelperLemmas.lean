@@ -1028,18 +1028,6 @@ lemma Behaviour.event_reqAtCorrespondingGCacheOfCDir_is_correspondingClusterOfGl
       simp[hde_inst] at he_req_corr_gcache
   | .cacheEvent _ => simp[] at he_req_corr_gcache
 
-/-- Helper Lemma: an event `e` satisfying `Event.reqAtCorrespondingGCacheOfCDir` at `e_gdown`
-is a DirectoryEvent. -/
-lemma Behaviour.reqAtCorrespondingGCacheOfCDir_is_directory_event
-  (he_req_corr_gcache : Event.reqAtCorrespondingGCacheOfCDir n e e_gdown)
-  : e.isDirectoryEvent := by
-  simp[Event.isDirectoryEvent]
-  simp[Event.reqAtCorrespondingGCacheOfCDir] at he_req_corr_gcache
-
-  match e with
-  | .directoryEvent de => simp
-  | .cacheEvent _ => simp[] at he_req_corr_gcache
-
 lemma Behaviour.event_in_eventsUpToEvent_correspond_to_egdown_also_at_gCacheOfCDir
   (hcdir_is_dir : e_cdir.isDirectoryEvent)
   (hcdir_corr_gdown : Event.correspondingClusterOfGlobalCache n e_gdown e_cdir (Event.protocol n))
