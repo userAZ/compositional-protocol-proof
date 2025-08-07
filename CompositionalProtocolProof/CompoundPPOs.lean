@@ -14,17 +14,45 @@ noncomputable def ClusterRequestLinearizationEvent.linearizationEvent {cmp : Com
 
 -- Goal: compound linearization events are in PPO
 
+structure Behaviour.coherentWriteSucceededByDirectoryRequest (b : Behaviour n) (init : InitialSystemState n) (e₂ e₃ : Event n) where
+  e₂CoherentWrite : e₂.isCoherentWrite
+  e₂NotDown : e₂.isCoherentWrite
+  diffCache : e₃.cid ≠ e₂.cid
+  sameProtocol : e₃.sameProtocol n e₂
+  e₃NotDown : ¬e₃.down
+  e₃MissingPerms : b.reqMissingPerms n init e₃
+
+structure Event.rccOStyleDowngrade (b : Behaviour n) (e₂ e₃_dir e₃_downgrade e₃_wb : Event n) where
+  dirEncapDowngrade : e₃_dir.Encapsulates n e₃_downgrade
+  dirIsDir : e₃_dir.isDirectoryEvent
+  downIsDown : e₃_downgrade.down
+  downCoherentWeakWrite : e₃_downgrade.isCWeakWrite
+  downAtE₂ : e₃_downgrade.cid = e₂.cid
+  downgradeBroadcastWb : Behaviour.broadcastWbFromDowngrade n b e₃_downgrade e₃_wb
+
+structure Event.writeBackAtEvent (e₁ e₃_wb e₃_downgrade : Event n) where
+  isVdWb : e₃_wb.isVdWriteBack
+  sameEntryAsEvent : e₃_wb.sameEntry n e₁
+  downEncapWb : e₃_downgrade.Encapsulates n e₃_wb
+
+def CompoundProtocol.lazyCompoundLinearizationOrder (b : Behaviour n) (init : InitialSystemState n)
+  (e₁ e₂ e_lin₁ /-e_lin₂-/ : Event n)
+  : Prop :=
+  ∀ e₃ ∈ b,
+    ∀ e₂_dir ∈ b, b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e₂) true e₂ e₂_dir →
+    ∀ e₃_dir ∈ b, b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e₃) true e₃ e₃_dir →
+    b.ImmediateBottomPredecessor n e₂_dir e₃_dir →
+    ∀ e₃_downgrade ∈ b, ∀ e₃_wb ∈ b, e₁.writeBackAtEvent n e₃_wb e₃_downgrade →
+    Event.rccOStyleDowngrade n b e₂ e₃_dir e₃_downgrade e₃_wb →
+    e_lin₁.finishesBefore n e₃_dir
+
 def CompoundProtocol.CompoundLinearizationOrder (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
   (e₁ e₂ : Event n) -- (cmp_lin : Behaviour.clusterRequestLinearizationEvent.wrapper n)
   : Prop :=
   let e_lin₁ := cmp.compoundLinearizationEvent cmp.shimAxioms b init e₁ (cmp.linearizationOfEvent b init e₁) |>.linearizationEvent
   let e_lin₂ := cmp.compoundLinearizationEvent cmp.shimAxioms b init e₂ (cmp.linearizationOfEvent b init e₂) |>.linearizationEvent
   e_lin₁.OrderedBefore n e_lin₂
-  ∨ ∀ e₃ ∈ b,
-    match cmp.compoundLinearizationEvent cmp.shimAxioms b init e₃ (cmp.linearizationOfEvent b init e₃) with
-    | .clusterCacheLin _ => False -- Cannot have another request `e₃` linearize with cache permissions
-    | .clusterDirLin e_lin₃ =>
-      e_lin₂.OrderedBefore n e_lin₃.choose → e_lin₁.lazyLinearizationOrder n e_lin₂ e_lin₃.choose
+  ∨ CompoundProtocol.lazyCompoundLinearizationOrder n b init e₁ e₂ e_lin₁
 
 lemma CompoundProtocol.compound_linearization_order_of_events_ordered_before_and_linearizes_at_cache
   {cmp : CompoundProtocol n}
