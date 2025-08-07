@@ -303,7 +303,7 @@ structure Behaviour.coherentWriteDowngradeOthers (b : Behaviour n) (init : Initi
 
 /-- Axiom 9, Coherent-Write request to Directory results in Downgrade at other caches axiom. -/
 def Behaviour.coherentWriteDirDowngradeOthers : Prop := ∀ b : Behaviour n, ∀ init : InitialSystemState n,
-  ∀ e_req ∈ b.es, ∀ e_dir ∈ b.es, b.coherentWriteDowngradeOthers n init e_req e_dir
+  ∀ e_req ∈ b.es, ∀ e_dir ∈ b, b.coherentWriteDowngradeOthers n init e_req e_dir
 
 /- Def. Which directory states will a Coherent Read Request cause downgrades at other caches. Includes Props on Downgrade Events to
 other caches. -/
@@ -346,7 +346,7 @@ def Behaviour.nonCoherentRequestDowngradeOthers : Prop :=
 
 /-- Def.a (broadcast before e_dir) For all other entry addresses, an event `e_original` is copied and broadcast to other entries. -/
 structure Behaviour.broadcastEventBefore (b : Behaviour n) (addr : Addr) (e_base e_original e_dir: Event n) : Prop where
-  broadcastToEntries : ∀ addr' ≠ addr, ∃ e_cast_copy ∈ b.es, e_base.baseEncapBroadcastBefore n addr' e_original e_cast_copy e_dir
+  broadcastToEntries : ∀ addr' ≠ addr, ∃ e_cast_copy ∈ b, e_base.baseEncapBroadcastBefore n addr' e_original e_cast_copy e_dir
 
 /-- Def.b (broadcast after e_dir) For all other entry addresses, an event `e_original` is copied and broadcast to other entries. -/
 structure Behaviour.broadcastEventAfter (b : Behaviour n) (addr : Addr) (e_base e_original e_dir : Event n) : Prop where
@@ -354,7 +354,7 @@ structure Behaviour.broadcastEventAfter (b : Behaviour n) (addr : Addr) (e_base 
 
 /-- Def.c (broadcast after e_dir) For all other entry addresses, an event `e_original` is copied and broadcast to other entries. -/
 structure Behaviour.broadcastEvent (b : Behaviour n) (addr : Addr) (e_base e_original : Event n) : Prop where
-  broadcastToEntries : ∀ addr' ≠ addr, ∃ e_cast_copy ∈ b.es, e_base.baseEncapBroadcast n addr' e_original e_cast_copy
+  broadcastToEntries : ∀ addr' ≠ addr, ∃ e_cast_copy ∈ b, e_base.baseEncapBroadcast n addr' e_original e_cast_copy
 
 /-- Def 2.36.a Broadcast Event `e` to Other Cache Entries, Ordered Before an encapsulated Directory Event. -/
 structure Behaviour.broadcastToOtherEntriesBeforeDir (b : Behaviour n) (e_base e_original e_dir : Event n) : Prop where
