@@ -1787,16 +1787,324 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_non_cohere
 
 /- Coherent Release: Weak request ordered before a release -/
 
+lemma CompoundProtocol.weak_request_to_directory_and_coherent_release_at_cache
+  {cmp : CompoundProtocol n}
+  {he₁_ob_e₂ : e₁.OrderedBefore n e₂}
+  (hsame_protocol : e₁.sameProtocol n e₂)
+  (hdiff_addr : e₁.addr ≠ e₂.addr)
+  /-
+  (he₁_lin : cmp.compoundLinearizationEvent cmp.shimAxioms b init e₁ (cmp.linearizationOfEvent b init e₁) =
+    ClusterRequestLinearizationEvent.clusterDirLin hcluster_dir_lin_e₁)
+  (he₂_lin : cmp.compoundLinearizationEvent cmp.shimAxioms b init e₂ (cmp.linearizationOfEvent b init e₂) =
+    ClusterRequestLinearizationEvent.clusterCacheLin hcluster_cache_lin_e₂)-/
+  -- (he₂_lin_cache : e_generated_c_rel_cmplin = e₂)
+  (he₁_cache : e₁.isCacheEvent) (he₂_cache : e₂.isCacheEvent)
+  (he₁_req : Event.req n e₁ = ⟨{ rw := rw, coherent := false, consistency := Consistency.Weak }, property_weak⟩)
+  (he₂_req : Event.req n e₂ = ⟨{ rw := ReadWrite.w, coherent := true, consistency := Consistency.Rel }, property_rel⟩)
+  (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
+  -- (hcrel_lin_at_cache : Behaviour.eventCompoundLinearizes.atCache n b init e₂ e_generated_c_rel_cmplin (cmp.linearizationOfEvent b init e₂))
+  (hweak_req_lin_dir : Behaviour.eventCompoundLinearizes.atDirectoryOrBeyond n cmp.shimAxioms b init e₁ e_generated_weak_req_cmplin
+    (cmp.linearizationOfEvent b init e₁))
+  (hweak_req_cluster_lin : Behaviour.requestWithoutCoherentPermsLinearizesAtDir n b init e₁ e_generated_weak_req_cluster_lin)
+  (hweak_req_cluster_lin_at_dir : Behaviour.requestLinearizesAtDirectory n b init e₁ e_weak_req_generated_dir e_generated_weak_req_cluster_lin)
+  (hweak_req_lin_dir : clusterDirectoryLinearizationEvent n cmp.shimAxioms b init e_weak_req_generated_dir e_generated_weak_req_cmplin)
+  : Event.OrderedBefore n e_generated_weak_req_cmplin e₂ ∨
+  lazyCompoundLinearizationOrder n b init e₁ e₂ e_generated_weak_req_cmplin
+  := by
+  /- Weak Request linearizes at Directory; Coherent Release linearizes at Cache -/
+  /- Start by identifying where does e₁ linearize with respect to itself? -/
+
+  cases hweak_req_cluster_lin_at_dir.reqCorrespondsToDir
+  . case encapDir hweak_req_missing_perms hweak_req_encap_dir =>
+    cases rw
+    . case r =>
+      apply Or.intro_left
+      cases hweak_req_lin_dir
+      . case previousGlobalCacheGotPerms hweak_has_gperm hweak_cdir_eq_gen_cmp_lin =>
+        rw[hweak_cdir_eq_gen_cmp_lin]
+        calc e_weak_req_generated_dir.EncapsulatedBy n e₁ := hweak_req_encap_dir.reqEncapDir
+          e₁.OrderedBefore n e₂ := he₁_ob_e₂
+      . case getGlobalCachePerms hno_gperms hweak_cdir_translate_gcache =>
+        have he_weak_read_encap_cmp_lin : e₁.Encapsulates n e_generated_weak_req_cmplin := by
+          apply CompoundProtocol.request_encapsulates_compound_linearization_event n
+          . case hgenerated_cdir_is_dir => exact hweak_req_cluster_lin_at_dir.isDir
+          . case he_encap_corr_dir => exact hweak_req_encap_dir
+          . case hcdir_requests_gcache => exact hweak_cdir_translate_gcache
+        calc e_generated_weak_req_cmplin.EncapsulatedBy n e₁ := he_weak_read_encap_cmp_lin
+          e₁.OrderedBefore n e₂ := he₁_ob_e₂
+    . case w =>
+      exfalso
+      apply CompoundProtocol.contradiction_of_weak_write_encapsulating_corresponding_directory_event
+      . case he_cache => exact he₁_cache
+      . case he_req => exact he₁_req
+      . case he_not_down => exact he₁_not_down
+      . case hreq_missing_perms => exact hweak_req_missing_perms
+  . case orderBeforeDir hweak_has_perms hexists_pred_get_perms hpred_corr_dir =>
+    cases rw
+    . case r =>
+      apply Or.intro_left
+      simp [Behaviour.reqHasPermsSoDirPred] at hexists_pred_get_perms
+      have hpred_spec := hexists_pred_get_perms.choose_spec.right
+      simp[Behaviour.immBottomPredHasNoPermsAndLeavesStateAtLeast, Behaviour.ImmediateBottomPredSatisfyingProp] at hpred_spec
+
+      cases hweak_req_lin_dir
+      . case previousGlobalCacheGotPerms hweak_has_gperm hweak_cdir_eq_gen_cmp_lin =>
+        rw[hweak_cdir_eq_gen_cmp_lin]
+        calc e_weak_req_generated_dir.EncapsulatedBy n hexists_pred_get_perms.choose := hpred_corr_dir.reqEncapDir
+          hexists_pred_get_perms.choose.OrderedBefore n e₁ := hpred_spec.isImmPred.bPred.isPred
+          e₁.OrderedBefore n e₂ := he₁_ob_e₂
+      . case getGlobalCachePerms hno_gperms hweak_cdir_translate_gcache =>
+        have he_pred_encap_cmp_lin : hexists_pred_get_perms.choose.Encapsulates n e_generated_weak_req_cmplin := by
+          apply CompoundProtocol.request_encapsulates_compound_linearization_event n
+          . case hgenerated_cdir_is_dir => exact hweak_req_cluster_lin_at_dir.isDir
+          . case he_encap_corr_dir => exact hpred_corr_dir
+          . case hcdir_requests_gcache => exact hweak_cdir_translate_gcache
+        calc e_generated_weak_req_cmplin.EncapsulatedBy n hexists_pred_get_perms.choose := he_pred_encap_cmp_lin
+          hexists_pred_get_perms.choose.OrderedBefore n e₁ := hpred_spec.isImmPred.bPred.isPred
+          e₁.OrderedBefore n e₂ := he₁_ob_e₂
+    . case w =>
+      exfalso
+      apply Event.contradiction_of_weak_write_request_has_perms_and_no_perms
+      . case he_req => exact he₁_req
+      . case he_not_down => exact he₁_not_down
+      . case he_has_perms => exact hweak_has_perms
+      . case he_no_perms => exact hweak_req_cluster_lin.reqHasNoPerms
+  . case orderAfterDir hweak_req_on_vd hsucc_encap_dir =>
+    apply Or.intro_right
+    --
+    simp[lazyCompoundLinearizationOrder]
+    intro e₃ he₃_in_b e₂_alt_dir e₂_alt_dir_in_b he₂_alt_dir_spec e₃_dir e₃_dir_in_b he₃_dir_spec
+    intro he₂_dir_imm_pred_e₃_dir
+    intro e₃_downgrade he₃_downgrade_in_b
+    intro e₃_wb he₃_wb_in_b he₃_wb_spec
+    intro he₃_rcco_downgrade_at_e₂_spec
+
+
+    have hww_is_weak_write_or_read : e₁.isNcWeakWrite ∨ e₁.isNcWeakRead := by
+      simp[Event.isNcWeakWrite, Event.isNcWeakRead]
+      match e₁ with
+      | .cacheEvent cww =>
+        cases rw
+        . case r =>
+          simp[CacheEvent.isNcWeakRead,]
+          simp[Event.req] at he₁_req
+          simp[he₁_req, ValidRequest.isNcWeakRead]
+        . case w =>
+          simp[CacheEvent.isNcWeakWrite,]
+          simp[Event.req] at he₁_req
+          simp[he₁_req, ValidRequest.isNcWeakWrite]
+      | .directoryEvent _ =>
+        simp[Event.isCacheEvent] at he₁_cache
+    have hwb_is_vdwb : e₃_wb.isVdWriteBack := by simp[he₃_wb_spec.isVdWb]
+    have hww_same_entry_wb : e₁.sameEntry n e₃_wb := by
+      constructor
+      . case sameStruct =>
+        simp[Event.sameStructure]
+        have he₁_e₃_spec_same_struct := he₃_wb_spec.sameEntryAsEvent.sameStruct
+        simp[Event.sameStructure] at he₁_e₃_spec_same_struct
+        simp [he₁_e₃_spec_same_struct]
+      . case sameAddr =>
+        simp[Event.sameAddr,]
+        have he₁_e₃_spec_same_addr :=  he₃_wb_spec.sameEntryAsEvent.sameAddr
+        simp[Event.sameAddr] at he₁_e₃_spec_same_addr
+        simp [he₁_e₃_spec_same_addr]
+    have hww_ob_wb : e₁.OrderedBefore n e₃_wb := by
+      simp[Behaviour.ImmediateBottomPredecessor] at he₂_dir_imm_pred_e₃_dir
+      calc e₁.OrderedBefore n e₂ := he₁_ob_e₂
+        e₂.Encapsulates n e₂_alt_dir := he₂_alt_dir_spec.reqEncapDir
+        e₂_alt_dir.OrderedBefore n e₃_dir := he₂_dir_imm_pred_e₃_dir.isImmPred.bPred.isPred
+        e₃_dir.Encapsulates n e₃_downgrade := he₃_rcco_downgrade_at_e₂_spec.dirEncapDowngrade
+        e₃_downgrade.Encapsulates n e₃_wb := he₃_wb_spec.downEncapWb
+    have hsucc_wb_before_or_eq_e_rel_wb : hsucc_encap_dir.choose = e₃_wb ∨ hsucc_encap_dir.choose.OrderedBefore n e₃_wb :=
+      cmp.cluster1.reqAxioms.vdWriteBackAfterWeakRequestLinearizationEventEqOrOrderedBefore
+      b init hweak_req_on_vd.reqOnOrAfterVd hsucc_encap_dir.choose_spec.right hww_ob_wb
+      hww_is_weak_write_or_read hwb_is_vdwb hww_same_entry_wb
+
+    have hsucc_wb_encap_dir := hsucc_encap_dir.choose_spec.right
+    rw[Behaviour.ImmediateBottomSuccSatisfyingProp] at hsucc_wb_encap_dir
+    have hsucc_wb_encap_dir' := hsucc_wb_encap_dir.satisfyP
+    rw[Event.PropOnEvent] at hsucc_wb_encap_dir'
+
+    cases hweak_req_lin_dir
+    . case previousGlobalCacheGotPerms hweak_has_gperm hweak_cdir_eq_gen_cmp_lin =>
+      rw[hweak_cdir_eq_gen_cmp_lin]
+
+      cases hsucc_wb_before_or_eq_e_rel_wb
+      . case inl hsucc_wb_eq_e₃_wb =>
+        simp [Event.finishesBefore]
+        have hsucc_eq_e₃_wb_end : hsucc_encap_dir.choose.oEnd = e₃_wb.oEnd := by rw[hsucc_wb_eq_e₃_wb]
+        calc
+          e_weak_req_generated_dir.oEnd < hsucc_encap_dir.choose.oEnd := hsucc_wb_encap_dir'.encapCorresponding.reqEncapDir.right
+          hsucc_encap_dir.choose.oEnd = e₃_wb.oEnd := hsucc_eq_e₃_wb_end
+          e₃_wb.oEnd < e₃_downgrade.oEnd := he₃_wb_spec.downEncapWb.right
+          e₃_downgrade.oEnd < e₃_dir.oEnd := he₃_rcco_downgrade_at_e₂_spec.dirEncapDowngrade.right
+      . case inr hsucc_wb_ob_e₃_wb =>
+        calc
+          e_weak_req_generated_dir.oEnd < hsucc_encap_dir.choose.oEnd := hsucc_wb_encap_dir'.encapCorresponding.reqEncapDir.right
+          hsucc_encap_dir.choose.oEnd < e₃_wb.oStart := hsucc_wb_ob_e₃_wb
+          e₃_wb.oStart < e₃_wb.oEnd := e₃_wb.oWellFormed
+          e₃_wb.oEnd < e₃_downgrade.oEnd := he₃_wb_spec.downEncapWb.right
+          e₃_downgrade.oEnd < e₃_dir.oEnd := he₃_rcco_downgrade_at_e₂_spec.dirEncapDowngrade.right
+    . case getGlobalCachePerms hno_gperms hweak_cdir_translate_gcache =>
+      have he_pred_encap_cmp_lin : hsucc_encap_dir.choose.Encapsulates n e_generated_weak_req_cmplin := by
+        apply CompoundProtocol.request_encapsulates_compound_linearization_event n
+        . case hgenerated_cdir_is_dir => exact hweak_req_cluster_lin_at_dir.isDir
+        . case he_encap_corr_dir => exact hsucc_wb_encap_dir'.encapCorresponding
+        . case hcdir_requests_gcache => exact hweak_cdir_translate_gcache
+
+      cases hsucc_wb_before_or_eq_e_rel_wb
+      . case inl hsucc_wb_eq_e₃_wb =>
+        simp [Event.finishesBefore]
+        have hsucc_eq_e₃_wb_end : hsucc_encap_dir.choose.oEnd = e₃_wb.oEnd := by rw[hsucc_wb_eq_e₃_wb]
+        calc
+          e_generated_weak_req_cmplin.oEnd < hsucc_encap_dir.choose.oEnd := he_pred_encap_cmp_lin.right
+          hsucc_encap_dir.choose.oEnd = e₃_wb.oEnd := hsucc_eq_e₃_wb_end
+          e₃_wb.oEnd < e₃_downgrade.oEnd := he₃_wb_spec.downEncapWb.right
+          e₃_downgrade.oEnd < e₃_dir.oEnd := he₃_rcco_downgrade_at_e₂_spec.dirEncapDowngrade.right
+      . case inr hsucc_wb_ob_e₃_wb =>
+        calc
+          e_generated_weak_req_cmplin.oEnd < hsucc_encap_dir.choose.oEnd := he_pred_encap_cmp_lin.right
+          hsucc_encap_dir.choose.oEnd < e₃_wb.oStart := hsucc_wb_ob_e₃_wb
+          e₃_wb.oStart < e₃_wb.oEnd := e₃_wb.oWellFormed
+          e₃_wb.oEnd < e₃_downgrade.oEnd := he₃_wb_spec.downEncapWb.right
+          e₃_downgrade.oEnd < e₃_dir.oEnd := he₃_rcco_downgrade_at_e₂_spec.dirEncapDowngrade.right
+
 lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_coherent_release
   {b : Behaviour n}{init : InitialSystemState n}
   {cmp : CompoundProtocol n} {e₁ e₂ : Event n}
   {he₁_ob_e₂ : e₁.OrderedBefore n e₂}
   (hsame_protocol : e₁.sameProtocol n e₂)
+  (hdiff_addr : e₁.addr ≠ e₂.addr)
+  (he₁_cache : e₁.isCacheEvent) (he₂_cache : e₂.isCacheEvent)
   (he₁_req : Event.req n e₁ = ⟨{ rw := rw, coherent := false, consistency := Consistency.Weak }, property_weak⟩)
   (he₂_req : Event.req n e₂ = ⟨{ rw := ReadWrite.w, coherent := true, consistency := Consistency.Rel }, property_rel⟩)
   (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
   : CompoundLinearizationOrder n cmp b init e₁ e₂ := by
-  sorry
+  match he₁_lin : cmp.compoundLinearizationEvent cmp.shimAxioms b init e₁ (cmp.linearizationOfEvent b init e₁)
+    , he₂_lin : cmp.compoundLinearizationEvent cmp.shimAxioms b init e₂ (cmp.linearizationOfEvent b init e₂)
+    with
+  | .clusterCacheLin hcluster_cache_lin_e₁, .clusterCacheLin hcluster_cache_lin_e₂ =>
+    apply CompoundProtocol.compound_linearization_order_of_events_ordered_before_and_linearizes_at_cache
+    . case he₁_ob_e₂ => exact he₁_ob_e₂
+    . case he₁_lin => exact he₁_lin
+    . case he₂_lin => exact he₂_lin
+  | .clusterDirLin hcluster_dir_lin_e₁, .clusterCacheLin hcluster_cache_lin_e₂ =>
+    simp[CompoundLinearizationOrder]
+    -- apply Or.intro_left
+    simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
+
+    have he₁_lin_dir := hcluster_dir_lin_e₁.choose_spec.right.e_glin_deeper
+    have he₂_lin_cache := hcluster_cache_lin_e₂.choose_spec.right.e_creq_is_e_glin
+
+    simp[he₂_lin_cache]
+
+    rw[compoundLinearization.OfReqEncapDirAccess.eq_def] at he₁_lin_dir
+    split at he₁_lin_dir
+    . case h_1 _ _ => exfalso; exact he₁_lin_dir
+    . case h_2 _ hdir_lin_weak _ =>
+      --
+      apply CompoundProtocol.weak_request_to_directory_and_coherent_release_at_cache
+      . case he₁_ob_e₂ => exact he₁_ob_e₂
+      . case hsame_protocol => exact hsame_protocol
+      . case hdiff_addr => exact hdiff_addr
+      -- . case he₂_lin_cache => exact he₂_lin_cache
+      . case he₁_cache => exact he₁_cache
+      . case he₂_cache => exact he₂_cache
+      . case he₁_req => exact he₁_req
+      . case he₂_req => exact he₂_req
+      . case he₁_not_down => exact he₁_not_down
+      . case he₂_not_down => exact he₂_not_down
+      -- . case hcrel_lin_at_cache => exact hcluster_cache_lin_e₂.choose_spec.right
+      . case hweak_req_lin_dir => exact hcluster_dir_lin_e₁.choose_spec.right
+      . case hweak_req_cluster_lin => exact hdir_lin_weak.choose_spec.right
+      . case hweak_req_cluster_lin_at_dir => exact hdir_lin_weak.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+      . case hweak_req_lin_dir => exact he₁_lin_dir
+  | .clusterCacheLin hcluster_cache_lin_e₁, .clusterDirLin hcluster_dir_lin_e₂ =>
+    simp[CompoundLinearizationOrder]
+    apply Or.intro_left
+    simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
+
+    have he₁_lin_cache := hcluster_cache_lin_e₁.choose_spec.right.e_creq_is_e_glin
+    have he₂_lin_dir := hcluster_dir_lin_e₂.choose_spec.right.e_glin_deeper
+
+    simp[he₁_lin_cache]
+
+    simp[compoundLinearization.OfReqEncapDirAccess] at he₂_lin_dir
+    split at he₂_lin_dir
+    . case h_1 _ _ => exfalso; exact he₂_lin_dir
+    . case h_2 _ hdir_lin_rel _ =>
+      /- Weak Request linearizes before Coherent Release linearizes. -/
+      have he_rel_without_perms_lin_at_dir := hdir_lin_rel.choose_spec.right
+      have he_rel_lin_at_dir := hdir_lin_rel.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+      have he_rel_encap_e_rel_cmp_lin : e₂.Encapsulates n hcluster_dir_lin_e₂.choose := by
+        apply CompoundProtocol.coherent_request_encapsulates_compound_linearization_event n
+        . case he_req => simp[ValidRequest.isCoherent, Request.isCoherent, he₂_req]
+        . case he_not_down => exact he₂_not_down
+        . case hdir_lin => exact he_rel_without_perms_lin_at_dir
+        . case he_has_no_perms => exact he_rel_without_perms_lin_at_dir.reqHasNoPerms
+        . case he_req_at_cdir => exact he_rel_lin_at_dir
+        . case he_lin_dir => exact he₂_lin_dir
+
+      calc e₁.OrderedBefore n e₂ := he₁_ob_e₂
+        e₂.Encapsulates n hcluster_dir_lin_e₂.choose := he_rel_encap_e_rel_cmp_lin
+  | .clusterDirLin hcluster_dir_lin_e₁, .clusterDirLin hcluster_dir_lin_e₂ =>
+    simp[CompoundLinearizationOrder]
+    -- apply Or.intro_left
+    -- case h =>
+    simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
+
+    have he₁_lin_dir := hcluster_dir_lin_e₁.choose_spec.right.e_glin_deeper
+    have he₂_lin_dir := hcluster_dir_lin_e₂.choose_spec.right.e_glin_deeper
+
+    simp[compoundLinearization.OfReqEncapDirAccess] at he₁_lin_dir he₂_lin_dir
+    split at he₁_lin_dir
+    . case h_1 _ h _ => exfalso; exact he₁_lin_dir
+    . case h_2 _ hdir_lin₁_weak _ =>
+      split at he₂_lin_dir
+      . case h_1 _ h _ => exfalso; exact he₂_lin_dir
+      . case h_2 _ hdir_lin₂ _ =>
+        have hreq₁_lin_at_dir := hdir_lin₁_weak.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+        have hreq₂_lin_at_dir := hdir_lin₂.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+
+        have he_rel_without_perms_lin_at_dir := hdir_lin₂.choose_spec.right
+        have he_rel_lin_at_dir := hdir_lin₂.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+        have he_rel_encap_e_rel_cmp_lin : e₂.Encapsulates n hcluster_dir_lin_e₂.choose := by
+          apply CompoundProtocol.coherent_request_encapsulates_compound_linearization_event n
+          . case he_req => simp[ValidRequest.isCoherent, Request.isCoherent, he₂_req]
+          . case he_not_down => exact he₂_not_down
+          . case hdir_lin => exact he_rel_without_perms_lin_at_dir
+          . case he_has_no_perms => exact he_rel_without_perms_lin_at_dir.reqHasNoPerms
+          . case he_req_at_cdir => exact he_rel_lin_at_dir
+          . case he_lin_dir => exact he₂_lin_dir
+
+        have he₁_lin_before_e₂_or_lazy_cmp_lin : Event.OrderedBefore n hcluster_dir_lin_e₁.choose e₂ ∨
+          lazyCompoundLinearizationOrder n b init e₁ e₂ hcluster_dir_lin_e₁.choose
+          := by
+          apply CompoundProtocol.weak_request_to_directory_and_coherent_release_at_cache
+          . case he₁_ob_e₂ => exact he₁_ob_e₂
+          . case hsame_protocol => exact hsame_protocol
+          . case hdiff_addr => exact hdiff_addr
+          -- . case he₂_lin_cache => exact he₂_lin_cache
+          . case he₁_cache => exact he₁_cache
+          . case he₂_cache => exact he₂_cache
+          . case he₁_req => exact he₁_req
+          . case he₂_req => exact he₂_req
+          . case he₁_not_down => exact he₁_not_down
+          . case he₂_not_down => exact he₂_not_down
+          -- . case hcrel_lin_at_cache => exact hcluster_cache_lin_e₂.choose_spec.right
+          . case hweak_req_lin_dir => exact hcluster_dir_lin_e₁.choose_spec.right
+          . case hweak_req_cluster_lin => exact hdir_lin₁_weak.choose_spec.right
+          . case hweak_req_cluster_lin_at_dir => exact hdir_lin₁_weak.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+          . case hweak_req_lin_dir => exact he₁_lin_dir
+
+        cases he₁_lin_before_e₂_or_lazy_cmp_lin
+        . case inl he₁_lin_before_e₂ =>
+          apply Or.intro_left
+          calc hcluster_dir_lin_e₁.choose.OrderedBefore n e₂ := he₁_lin_before_e₂
+            e₂.Encapsulates n hcluster_dir_lin_e₂.choose := he_rel_encap_e_rel_cmp_lin
+        . case inr hlazy_cmp_lin =>
+          apply Or.intro_right
+          exact hlazy_cmp_lin
 
 /- Acquire: Acquire ordered before a Weak Request -/
 
@@ -1840,7 +2148,16 @@ lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b 
     . case he₁_not_down => exact he₁_not_down
     . case he₂_not_down => exact he₂_not_down
   | ⟨⟨_,false,.Weak⟩,_⟩, ⟨⟨.w,true,.Rel⟩,_⟩ => -- Weak requests are ordered before a Coherent Release
-    sorry
+    apply CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_coherent_release
+    . case he₁_ob_e₂ => exact he₁_ob_e₂
+    . case hsame_protocol => exact hsame_protocol
+    . case hdiff_addr => exact hdiff_addr
+    . case he₁_cache => exact he₁_cache
+    . case he₂_cache => exact he₂_cache
+    . case he₁_req => exact he₁_req
+    . case he₂_req => exact he₂_req
+    . case he₁_not_down => exact he₁_not_down
+    . case he₂_not_down => exact he₂_not_down
   | ⟨⟨.w,true,.Weak⟩,_⟩, ⟨⟨.w,true,.Rel⟩,_⟩ => -- a Coherent Weak Write is ordered before a Coherent Release
     apply CompoundProtocol.CompoundLinearizationOrder_of_two_events_that_encapsulate_their_cmp_linearization_event
     . case he₁_ob_e₂ => exact he₁_ob_e₂
