@@ -23,6 +23,18 @@ def Event.reqAtCorrespondingGCacheOfCDir (e_dir e_greq : Event n) : Prop :=
     | .global => False
   | .cacheEvent _ => False
 
+/-- Helper Lemma: an event `e` satisfying `Event.reqAtCorrespondingGCacheOfCDir` at `e_gdown`
+is a DirectoryEvent. -/
+lemma Behaviour.reqAtCorrespondingGCacheOfCDir_is_directory_event
+  (he_req_corr_gcache : Event.reqAtCorrespondingGCacheOfCDir n e e_gdown)
+  : e.isDirectoryEvent := by
+  simp[Event.isDirectoryEvent]
+  simp[Event.reqAtCorrespondingGCacheOfCDir] at he_req_corr_gcache
+
+  match e with
+  | .directoryEvent de => simp
+  | .cacheEvent _ => simp[] at he_req_corr_gcache
+
 structure Event.isGlobalCache (e_greq : Event n) : Prop where
   reqAtCache : e_greq.isCacheEvent
   notAtGProxy : e_greq.reqAtGlobalCache
