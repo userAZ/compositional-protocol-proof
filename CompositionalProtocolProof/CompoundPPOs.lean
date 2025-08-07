@@ -1629,6 +1629,35 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_write_or_read_and_non_
           . case he_lin_dir_nc_rel =>
             exact he₂_lin_dir
 
+lemma CompoundProtocol.contradiction_of_weak_write_encapsulating_corresponding_directory_event
+  (he_cache : e.isCacheEvent)
+  (he_req : Event.req n e = ⟨{ rw := .w, coherent := false, consistency := .Weak }, property_weak⟩)
+  (he_not_down : ¬ e.down)
+  (hreq_missing_perms : Behaviour.reqMissingPerms n b init e)
+  : False := by
+  cases hreq_missing_perms
+  . case downgrade hww_is_down hww_on_mrs_state =>
+    contradiction
+  . case noPermsForNonNcRelAcqWeakWrite hnot_down hww_not_rel_acq_ww hno_perms =>
+    simp[Event.notNcRelAcqWeakWrite, Event.isNcRelAcqWeakWrite,
+      Event.isNcRelease, Event.isAcquire, Event.isNcWeakWrite] at hww_not_rel_acq_ww
+    have hnot_ww := hww_not_rel_acq_ww.right.right
+    match e with
+    | .cacheEvent ce =>
+      simp[Event.req, ] at he_req
+      simp[CacheEvent.isNcWeakWrite, ValidRequest.isNcWeakWrite,] at hnot_ww
+      contradiction
+    | .directoryEvent _ => simp[Event.isCacheEvent] at he_cache
+  . case ncRelAcqWeakWriteNotOnCoherentState hww_not_down hww_is_rel_acq hrel_acq_no_perms =>
+    simp[Event.isNcRelAcq, Event.isAcquire, Event.isNcRelease] at hww_is_rel_acq
+    match e with
+    | .cacheEvent ce =>
+      simp [Event.req] at he_req hww_is_rel_acq
+      simp[CacheEvent.isAcquire, CacheEvent.isNcRelease,
+        ValidRequest.isAcquire, ValidRequest.isNcRelease] at hww_is_rel_acq
+      simp[he_req] at hww_is_rel_acq
+    | .directoryEvent _ => simp at hww_is_rel_acq
+
 lemma CompoundProtocol.CompoundLinearizationOrder_of_acquire_and_weak_request
   {b : Behaviour n}{init : InitialSystemState n}
   {cmp : CompoundProtocol n} {e₁ e₂ : Event n}
