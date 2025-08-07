@@ -87,11 +87,6 @@ structure Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncap (b : Behaviour 
 def Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncapEvents : Behaviour n → Event n → Set (Event n)
 | b, e_succ => {e_pred ∈ b | b.immediateFinishesBeforeAtGlobalCacheNotEncap n e_pred e_succ}
 
-/- Prove if needed -/
-lemma Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncapEvents_is_subsingleton (b : Behaviour n) (e_succ : Event n)
-  : (b.immediateFinishesBeforeAtGlobalCacheNotEncapEvents n e_succ).Subsingleton := by
-  sorry
-
 def Event.globalCidCorrespondingToClusterDir (e_dir : Event n) : CacheId n :=
   match e_dir.protocol with
   | .cluster1 => CacheId.cache (ProtocolCacheInstance.globalP 0)
@@ -115,12 +110,6 @@ def Behaviour.clusterDirNoPermsInGlobalCache (b : Behaviour n) (init : InitialSy
 def Behaviour.clusterDirHasPermsInGlobalCache (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : Prop :=
   -- clusterDir : e_dir.isClusterDir
   e_dir.req.MRS ≤ (b.globalCacheStateOfDirectoryEvent n init e_dir).state
-
-lemma Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncapEvents_is_singleton (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n)
-  -- [TODO] state that hinit_i : all initial states are in I.
-  (hinit_i : sorry) (hcdir_has_perms : e_dir.req.MRS ≤ (b.globalCacheStateOfDirectoryEvent n init e_dir).state )
-  : (b.immediateFinishesBeforeAtGlobalCacheNotEncapEvents n e_dir).Subsingleton := by
-  sorry
 
 def Behaviour.existsGlobalCacheAccessOfDirEvent (b : Behaviour n) (e_dir : Event n) : Prop :=
   ∃ e_greq ∈ b, Event.clusterDirEncapCorrespondingGlobalCache n b e_dir e_greq
@@ -152,11 +141,6 @@ structure Behaviour.immediateFinishesBeforeAtGlobalCache (b : Behaviour n) (e_pr
 def Behaviour.immediateFinishesBeforeAtGlobalCacheEvents : Behaviour n → Event n → Set (Event n)
 | b, e_succ => {e_pred ∈ b | b.immediateFinishesBeforeAtGlobalCache n e_pred e_succ}
 
-/- Prove if needed -/
-lemma Behaviour.immediateFinishesBeforeAtGlobalCacheEvents_is_subsingleton (b : Behaviour n) (e_succ : Event n)
-  : (b.immediateFinishesBeforeAtGlobalCacheEvents n e_succ).Subsingleton := by
-  sorry
-
 structure Behaviour.clusterDirectoryFinishesBeforeGlobalCache (b : Behaviour n) (e_cdir e_gcache : Event n) where
   finBefore : b.finishesBefore n e_cdir e_gcache
   gCacheOfCDir : Event.reqAtCorrespondingGCacheOfCDir n e_cdir e_gcache
@@ -169,11 +153,6 @@ structure Behaviour.immediateFinishesBeforeAtClusterDirectory (b : Behaviour n) 
 /-- The Latest Cluster Directory Event corresponding to a Global Cache Event -/
 def Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents : Behaviour n → Event n → Set (Event n)
 | b, e_succ => {e_pred ∈ b | b.immediateFinishesBeforeAtClusterDirectory n e_pred e_succ}
-
-/- Prove if needed -/
-lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_subsingleton (b : Behaviour n) (e_succ : Event n)
-  : (b.immediateFinishesBeforeAtClusterDirectoryEvents n e_succ).Subsingleton := by
-  sorry
 
 lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_same_struct {b : Behaviour n} {e_cdir e e_succ : Event n}
   (hcdir : immediateFinishesBeforeAtClusterDirectory n b e_cdir e_succ)
