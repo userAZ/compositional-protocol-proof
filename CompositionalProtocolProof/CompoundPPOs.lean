@@ -35,30 +35,14 @@ structure Event.writeBackAtEvent (e₁ e₃_wb e₃_downgrade : Event n) where
   sameEntryAsEvent : e₃_wb.sameEntry n e₁
   downEncapWb : e₃_downgrade.Encapsulates n e₃_wb
 
-def CompoundProtocol.lazyCompoundLinearizationOrder' (b : Behaviour n) (init : InitialSystemState n)
-  (e₁ e₂ e_lin₁ /-e_lin₂-/ : Event n)
-  : Prop :=
-  ∀ e₃ ∈ b,
-    ∀ e₂_dir ∈ b, b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e₂) true e₂ e₂_dir →
-    ∀ e₃_dir ∈ b, b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e₃) true e₃ e₃_dir →
-    e₂.addr = e₃.addr → e₂_dir.addr = e₃_dir.addr →
-    b.ImmediateBottomPredecessor n e₂_dir e₃_dir →
-    ∀ e₃_downgrade ∈ b, ∀ e₃_wb ∈ b, e₁.writeBackAtEvent n e₃_wb e₃_downgrade →
-    Event.rccOStyleDowngrade n b e₂ e₃_dir e₃_downgrade e₃_wb →
-    e_lin₁.finishesBefore n e₃_dir
-
 def CompoundProtocol.lazyCompoundLinearizationOrder (b : Behaviour n) (init : InitialSystemState n)
-  (e₂ e_lin₁ /-e_lin₂-/ : Event n)
+  (e₂ e_lin₁ : Event n)
   : Prop :=
   ∀ e₃ ∈ b,
     ∀ e₂_dir ∈ b, b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e₂) true e₂ e₂_dir →
     ∀ e₃_dir ∈ b, b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e₃) true e₃ e₃_dir →
     b.ImmediateBottomPredecessor n e₂_dir e₃_dir →
     e₂.addr = e₃.addr → e₂_dir.addr = e₃_dir.addr →
-    -- ∃ e₃_downgrade ∈ b, b.requestDowngradePrevOwner n init e₃ e₃_dir e₃_downgrade →
-    -- ∀ e₃_wb ∈ b,
-    -- e₁.writeBackAtEvent n e₃_wb e₃_downgrade →
-    -- Event.rccOStyleDowngrade n b e₂ e₃_dir e₃_downgrade e₃_wb →
     e_lin₁.finishesBefore n e₃_dir
 
 def CompoundProtocol.CompoundLinearizationOrder (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
