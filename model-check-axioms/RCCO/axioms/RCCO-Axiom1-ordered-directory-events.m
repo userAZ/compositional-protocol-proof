@@ -168,10 +168,12 @@
       
       OBJ_cacheL1C1: array[OBJSET_cacheL1C1] of MACH_cacheL1C1;
       
+      -- [Axiom Check] Axiom 1: ordered directory events.
       ENTRY_directoryL1C1: record
         State: s_directoryL1C1;
         cl: ClValue;
         ownerL1C1: Machines;
+        orderedDirFlag : boolean;
       end;
       
       EVENT_ENTRY_directoryL1C1: record
@@ -1195,6 +1197,11 @@
           cbe.ownerL1C1 := inmsg.src;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O;
+
+          -- [Axiom 1]
+          assert (cbe.orderedDirFlag) ">[Axiom 1] ERROR: Ending Directory Event I to O, expected the directory event to have it's Flag Set!\n";
+          undefine cbe.orderedDirFlag;
+          assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: End Directory Event I to O, expected the directory event to have ended (Flag unset)!\n";
           return true;
         
         else return false;
@@ -1210,6 +1217,11 @@
           Send_resp(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_V;
+
+          -- [Axiom 1]
+          assert (cbe.orderedDirFlag) ">[Axiom 1] ERROR: Ending Directory Event V to O, expected no directory event to have it's Flag Set!\n";
+          undefine cbe.orderedDirFlag;
+          assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: End Directory Event V to O, expected no directory event to have ended (Flag unset)!\n";
           return true;
         
         else return false;
@@ -1218,6 +1230,10 @@
       case directoryL1C1_I:
       switch inmsg.mtype
         case GetOL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: Start Directory Event I to O, expected no directory event already started!\n";
+          cbe.orderedDirFlag := true;
+
           -- [Cluster to Global Shim]
           -- transient state for global shim request.
           -- [Shim Axiom 15]
@@ -1227,6 +1243,10 @@
           return false;
 
         case GetVL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: Start Directory Event I to V, expected no directory event already started!\n";
+          cbe.orderedDirFlag := true;
+
           -- put "I to V shim transient\n";
           -- [Shim Axiom 15]
           shim_to_global_msg.mtype := GetVL1C1;
@@ -1235,6 +1255,11 @@
           return false;
         
         case PutOL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: Start Directory Event I to I (PutO), expected no directory event already started!\n";
+          -- Put O starts and ends immediately.
+          -- cbe.orderedDirFlag := true;
+
           -- [NOTE] the directory on I can just consume the PutO
           msg := AckL1C1(adr,PutO_AckL1C1,m,inmsg.src);
           Send_fwd(msg, m);
@@ -1248,6 +1273,10 @@
       case directoryL1C1_O:
       switch inmsg.mtype
         case GetOL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: Start Directory Event I to O, expected no directory event already started!\n";
+          cbe.orderedDirFlag := true;
+
           msg := RequestL1C1(adr,Fwd_GetOL1C1,inmsg.src,cbe.ownerL1C1);
           Send_fwd(msg, m);
           cbe.ownerL1C1 := inmsg.src;
@@ -1256,6 +1285,10 @@
           return true;
         
         case GetVL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: Start Directory Event I to O, expected no directory event already started!\n";
+          cbe.orderedDirFlag := true;
+
           msg := RequestL1C1(adr,Fwd_GetOL1C1,inmsg.src,cbe.ownerL1C1);
           Send_fwd(msg, m);
           Clear_perm(adr, m);
@@ -1263,6 +1296,11 @@
           return true;
         
         case PutOL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: Start Directory Event I to O, expected no directory event already started!\n";
+          -- PutO starts and ends immediately at the directory
+          -- cbe.orderedDirFlag := true;
+
           msg := AckL1C1(adr,PutO_AckL1C1,m,inmsg.src);
           Send_fwd(msg, m);
           if !(cbe.ownerL1C1 = inmsg.src) then
@@ -1287,6 +1325,10 @@
           Send_resp(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O;
+          -- [Axiom 1]: Directory Event Ends.
+          assert (cbe.orderedDirFlag) ">[Axiom 1] ERROR: Ending Directory Event O to O, expected the directory event to have it's Flag Set!\n";
+          undefine cbe.orderedDirFlag;
+          assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: End Directory Event O to O, expected the directory event to have ended (Flag unset)!\n";
           return true;
         
         else return false;
@@ -1300,6 +1342,10 @@
           Send_resp(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_V;
+          -- [Axiom 1]: Directory Event Ends.
+          assert (cbe.orderedDirFlag) ">[Axiom 1] ERROR: Ending Directory Event O to V, expected the directory event to have it's Flag set!\n";
+          undefine cbe.orderedDirFlag;
+          assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: End Directory Event O to V, expected the directory event to have ended (Flag unset)!\n";
           return true;
         
         else return false;
@@ -1316,6 +1362,11 @@
           cbe.ownerL1C1 := inmsg.src;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O;
+
+          -- [Axiom 1]: Directory Event Ends.
+          assert (cbe.orderedDirFlag) ">[Axiom 1] ERROR: Ending Directory Event V to O, expected the directory event to have it's Flag set!\n";
+          undefine cbe.orderedDirFlag;
+          assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: End Directory Event V to O, expected the directory event to have ended (Flag unset)!\n";
           return true;
         
         else return false;
@@ -1324,6 +1375,10 @@
       case directoryL1C1_V:
       switch inmsg.mtype
         case GetOL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: Start Directory Event V to O, expected no directory event already started!\n";
+          cbe.orderedDirFlag := true;
+
           -- go to transient
           -- put "V to O shim transient\n";
           -- [Shim Axiom 15]
@@ -1333,6 +1388,11 @@
           return false;
         
         case GetVL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: Start Directory Event V to V, expected no directory event already started!\n";
+          -- This DirectoryEvent starts and ends immediately.
+          --cbe.orderedDirFlag := true;
+
           msg := RespL1C1(adr,GetV_AckL1C1,m,inmsg.src,cbe.cl);
           Send_resp(msg, m);
           Clear_perm(adr, m);
@@ -1340,6 +1400,11 @@
           return true;
         
         case PutOL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: Start Directory Event V gets a PutO, expected no directory event already started!\n";
+          -- This Directory Event starts and ends immediately
+          --cbe.orderedDirFlag := true;
+
           msg := AckL1C1(adr,PutO_AckL1C1,m,inmsg.src);
           Send_fwd(msg, m);
           Clear_perm(adr, m);
@@ -1360,6 +1425,12 @@
           if !(cbe.ownerL1C1 = msg_PutOL1.src) then
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
+
+            -- [Axiom 1]
+            assert (cbe.orderedDirFlag) ">[Axiom 1] ERROR: Ending Directory Event O gets Proxy Downgrade (Release), expected no directory event Flag to be Set!\n";
+            undefine cbe.orderedDirFlag;
+            assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: End Directory Event O gets Proxy Downgrade (Release), expected no directory event Flag to be Set!\n";
+
             -- [Shim Axiom 16]: Global to Cluster downgrade translation
             assert (cbe.State = directoryL1C1_I) ">[Shim Axiom 16] Global to Cluster Downgrade. Expected Directory State to go to I after getting a WriteBack Response from Cache.\n";
             return true;
@@ -1368,6 +1439,12 @@
             cbe.cl := msg_PutOL1.cl;
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
+
+            -- [Axiom 1]
+            assert (cbe.orderedDirFlag) ">[Axiom 1] ERROR: Ending Directory Event O gets Proxy Downgrade (Release), expected no directory event Flag to be Set!\n";
+            undefine cbe.orderedDirFlag;
+            assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: End Directory Event O gets Proxy Downgrade (Release), expected no directory event Flag to be Set!\n";
+
             -- [Shim Axiom 16]: Global to Cluster downgrade translation
             assert (cbe.State = directoryL1C1_I) ">[Shim Axiom 16] Global to Cluster Downgrade. Expected Directory State to go to I after getting a WriteBack Response from Cache.\n";
             return true;
@@ -1387,6 +1464,12 @@
             cbe.cl := msg_PutOL1.cl;
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
+
+            -- [Axiom 1]
+            assert (cbe.orderedDirFlag) ">[Axiom 1] ERROR: Ending Directory Event O gets Proxy Downgrade (Store), expected no directory event Flag to be Set!\n";
+            undefine cbe.orderedDirFlag;
+            assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: End Directory Event O gets Proxy Downgrade (Store), expected no directory event to have ended (Flag unset)!\n";
+
             -- [Shim Axiom 16]: Global to Cluster downgrade translation
             assert (cbe.State = directoryL1C1_I) ">[Shim Axiom 16] Global to Cluster Downgrade. Expected Directory State to go to I after getting a WriteBack Response from Cache.\n";
             return true;
@@ -1394,6 +1477,12 @@
           if !(cbe.ownerL1C1 = msg_PutOL1.src) then
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
+
+            -- [Axiom 1]
+            assert (cbe.orderedDirFlag) ">[Axiom 1] ERROR: Ending Directory Event O gets Proxy Downgrade (Store), expected no directory event Flag to be Set!\n";
+            undefine cbe.orderedDirFlag;
+            assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: End Directory Event O gets Proxy Downgrade (Store), expected no directory event to have ended (Flag unset)!\n";
+
             -- [Shim Axiom 16]: Global to Cluster downgrade translation
             assert (cbe.State = directoryL1C1_I) ">[Shim Axiom 16] Global to Cluster Downgrade. Expected Directory State to go to I after getting a WriteBack Response from Cache.\n";
             return true;
@@ -1554,6 +1643,10 @@
       rule "directoryL1C1_I_release"
         cbe.State = directoryL1C1_I 
       ==>
+        -- [Axiom 1]
+        assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: Start Directory Event I proxy Downgrade (release), expected no directory event already started!\n";
+        -- cbe.orderedDirFlag := true;
+
         FSM_Access_directoryL1C1_I_release(adr, m);
         
       endrule;
@@ -1561,6 +1654,10 @@
       rule "directoryL1C1_I_store"
         cbe.State = directoryL1C1_I 
       ==>
+        -- [Axiom 1]
+        assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: Start Directory Event I proxy Downgrade (store), expected no directory event already started!\n";
+        -- cbe.orderedDirFlag := true;
+
         FSM_Access_directoryL1C1_I_store(adr, m);
         
       endrule;
@@ -1568,6 +1665,10 @@
       rule "directoryL1C1_V_release"
         cbe.State = directoryL1C1_V 
       ==>
+        -- [Axiom 1]
+        assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: Start Directory Event V proxy Downgrade (release), expected no directory event already started!\n";
+        -- cbe.orderedDirFlag := true;
+
         -- [Shim Axiom 16]: Global to Cluster downgrade translation
         FSM_Access_directoryL1C1_I_release(adr, m);
         
@@ -1576,6 +1677,10 @@
       rule "directoryL1C1_V_store"
         cbe.State = directoryL1C1_V 
       ==>
+        -- [Axiom 1]
+        assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: Start Directory Event V proxy Downgrade (store), expected no directory event already started!\n";
+        -- cbe.orderedDirFlag := true;
+
         -- [Shim Axiom 16]: Global to Cluster downgrade translation
         FSM_Access_directoryL1C1_I_store(adr, m);
         
@@ -1584,6 +1689,10 @@
       rule "directoryL1C1_O_release"
         cbe.State = directoryL1C1_O & network_ready() 
       ==>
+        -- [Axiom 1]
+        assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: Start Directory Event O proxy Downgrade (release), expected no directory event already started!\n";
+        cbe.orderedDirFlag := true;
+
         FSM_Access_directoryL1C1_O_release(adr, m);
         -- [Shim Axiom 16]: Global to Cluster downgrade translation
         assert (cbe.State != directoryL1C1_O) "Global to Cluster translation on O; directory still on O state; But expected to be on a transient state to handle the downgrade.";
@@ -1593,6 +1702,10 @@
       rule "directoryL1C1_O_store"
         cbe.State = directoryL1C1_O & network_ready() 
       ==>
+        -- [Axiom 1]
+        assert isundefined(cbe.orderedDirFlag) ">[Axiom 1] ERROR: Start Directory Event O proxy Downgrade (store), expected no directory event already started!\n";
+        cbe.orderedDirFlag := true;
+
         FSM_Access_directoryL1C1_O_store(adr, m);
         -- [Shim Axiom 16]: Global to Cluster downgrade translation
         assert (cbe.State != directoryL1C1_O) "Global to Cluster translation on O; directory still on O state; But expected to be on a transient state to handle the downgrade.";
