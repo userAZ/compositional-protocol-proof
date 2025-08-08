@@ -70,22 +70,6 @@
       };
       
       ------Backend/Murphi/MurphiModular/Types/Enums/SubEnums/GenArchEnums
-      s_directoryL1C1: enum {
-        directoryL1C1_dV_x_pI_acquire_GetV_Ack,
-        directoryL1C1_dO_GetV_x_pI_load,
-        directoryL1C1_dO_GetV_x_pI_acquire,
-        directoryL1C1_dO_GetO_x_pI_store,
-        directoryL1C1_dO_GetO_x_pI_release,
-        directoryL1C1_V,
-        directoryL1C1_O_GetV,
-        directoryL1C1_O_GetO,
-        directoryL1C1_O
-      };
-      
-      e_directoryL1C1: enum {
-        directoryL1C1_acq_eventL1C1
-      };
-      
       s_cacheL1C1: enum {
         cacheL1C1_V_store,
         cacheL1C1_V_release,
@@ -107,13 +91,27 @@
         cacheL1C1_acq_eventL1C1
       };
       
+      s_directoryL1C1: enum {
+        directoryL1C1_dO_GetO_x_pI_store,
+        directoryL1C1_dO_GetO_x_pI_release,
+        directoryL1C1_V,
+        directoryL1C1_O_GetV,
+        directoryL1C1_O_GetO,
+        directoryL1C1_O,
+        directoryL1C1_I
+      };
+      
+      e_directoryL1C1: enum {
+        directoryL1C1_acq_eventL1C1
+      };
+      
     ----Backend/Murphi/MurphiModular/Types/GenMachineSets
       -- Cluster: C1
-      OBJSET_directoryL1C1: enum{directoryL1C1};
       OBJSET_cacheL1C1: scalarset(3);
-      C1Machines: union{OBJSET_directoryL1C1, OBJSET_cacheL1C1};
+      OBJSET_directoryL1C1: enum{directoryL1C1};
+      C1Machines: union{OBJSET_cacheL1C1, OBJSET_directoryL1C1};
       
-      Machines: union{OBJSET_directoryL1C1, OBJSET_cacheL1C1};
+      Machines: union{OBJSET_cacheL1C1, OBJSET_directoryL1C1};
     
     ----Backend/Murphi/MurphiModular/Types/GenCheckTypes
       ------Backend/Murphi/MurphiModular/Types/CheckTypes/GenPermType
@@ -200,8 +198,8 @@
     
     
       g_perm: PermMonitor;
-      i_directoryL1C1: OBJ_directoryL1C1;
       i_cacheL1C1: OBJ_cacheL1C1;
+      i_directoryL1C1: OBJ_directoryL1C1;
   
 --Backend/Murphi/MurphiModular/GenFunctions
 
@@ -221,7 +219,7 @@
     begin
       for i:OBJSET_directoryL1C1 do
         for a:Address do
-          i_directoryL1C1[i].cb[a].State := directoryL1C1_V;
+          i_directoryL1C1[i].cb[a].State := directoryL1C1_I;
           i_directoryL1C1[i].cb[a].cl := 0;
           undefine i_directoryL1C1[i].cb[a].ownerL1C1;
     
@@ -231,8 +229,8 @@
     
       procedure ResetMachine_();
       begin
-      ResetMachine_directoryL1C1();
       ResetMachine_cacheL1C1();
+      ResetMachine_directoryL1C1();
       
       end;
   ----Backend/Murphi/MurphiModular/Functions/GenEventFunc
@@ -568,8 +566,8 @@
     
     procedure ResetEvent_();
     begin
-      ResetEvent_directoryL1C1();
       ResetEvent_cacheL1C1();
+      ResetEvent_directoryL1C1();
     
     end;
   ----Backend/Murphi/MurphiModular/Functions/GenPermFunc
@@ -658,11 +656,11 @@
       cnt_req[dst] := cnt_req[dst] - 1;
     end;
     
-    function resp_network_ready(): boolean;
+    function req_network_ready(): boolean;
     begin
           for dst:Machines do
             for src: Machines do
-              if cnt_resp[dst] >= (O_NET_MAX-5) then
+              if cnt_req[dst] >= (O_NET_MAX-5) then
                 return false;
               endif;
             endfor;
@@ -670,11 +668,11 @@
     
           return true;
     end;
-    function req_network_ready(): boolean;
+    function resp_network_ready(): boolean;
     begin
           for dst:Machines do
             for src: Machines do
-              if cnt_req[dst] >= (O_NET_MAX-5) then
+              if cnt_resp[dst] >= (O_NET_MAX-5) then
                 return false;
               endif;
             endfor;
@@ -696,12 +694,12 @@
     end;
     function network_ready(): boolean;
     begin
-            if !resp_network_ready() then
+            if !req_network_ready() then
             return false;
           endif;
     
     
-          if !req_network_ready() then
+          if !resp_network_ready() then
             return false;
           endif;
     
@@ -933,35 +931,58 @@
     endalias;
     end;
     
+    procedure FSM_Access_directoryL1C1_I_acq_eventL1C1(adr:Address; m:OBJSET_directoryL1C1);
+    begin
+    alias cbe: i_directoryL1C1[m].cb[adr] do
+      ServeRemoteEvent_directoryL1C1(directoryL1C1_acq_eventL1C1, m, adr);
+      cbe.State := directoryL1C1_I;
+    endalias;
+    end;
+    
+    procedure FSM_Access_directoryL1C1_I_release(adr:Address; m:OBJSET_directoryL1C1);
+    var msg_GetOL1: Message;
+    var msg_GetO_AckL1: Message;
+    var msg_PutOL1: Message;
+    var msg_PutO_AckL1: Message;
+    begin
+    alias cbe: i_directoryL1C1[m].cb[adr] do
+      msg_GetOL1 := RequestL1C1(adr, GetOL1C1, m, m);
+      msg_GetO_AckL1 := RespL1C1(adr, GetO_AckL1C1, m, msg_GetOL1.src, cbe.cl);
+      cbe.ownerL1C1 := msg_GetOL1.src;
+      cbe.cl := msg_GetO_AckL1.cl;
+      Set_perm(store, adr, m);msg_PutOL1 := RespL1C1(adr, PutOL1C1, m, m, cbe.cl);
+      msg_PutO_AckL1 := AckL1C1(adr, PutO_AckL1C1, m, msg_PutOL1.src);
+      if !(cbe.ownerL1C1 = msg_PutOL1.src) then
+      cbe.State := directoryL1C1_I;
+      endif
+    endalias;
+    end;
+    
+    procedure FSM_Access_directoryL1C1_I_store(adr:Address; m:OBJSET_directoryL1C1);
+    var msg_GetOL1: Message;
+    var msg_GetO_AckL1: Message;
+    var msg_PutOL1: Message;
+    var msg_PutO_AckL1: Message;
+    begin
+    alias cbe: i_directoryL1C1[m].cb[adr] do
+      msg_GetOL1 := RequestL1C1(adr, GetOL1C1, m, m);
+      msg_GetO_AckL1 := RespL1C1(adr, GetO_AckL1C1, m, msg_GetOL1.src, cbe.cl);
+      cbe.ownerL1C1 := msg_GetOL1.src;
+      cbe.cl := msg_GetO_AckL1.cl;
+      msg_PutOL1 := RespL1C1(adr, PutOL1C1, m, m, cbe.cl);
+      msg_PutO_AckL1 := AckL1C1(adr, PutO_AckL1C1, m, msg_PutOL1.src);
+      if (cbe.ownerL1C1 = msg_PutOL1.src) then
+      cbe.cl := msg_PutOL1.cl;
+      cbe.State := directoryL1C1_I;
+      endif
+    endalias;
+    end;
+    
     procedure FSM_Access_directoryL1C1_O_acq_eventL1C1(adr:Address; m:OBJSET_directoryL1C1);
     begin
     alias cbe: i_directoryL1C1[m].cb[adr] do
       ServeRemoteEvent_directoryL1C1(directoryL1C1_acq_eventL1C1, m, adr);
       cbe.State := directoryL1C1_O;
-    endalias;
-    end;
-    
-    procedure FSM_Access_directoryL1C1_O_acquire(adr:Address; m:OBJSET_directoryL1C1);
-    var msg_GetVL1: Message;
-    var msg: Message;
-    begin
-    alias cbe: i_directoryL1C1[m].cb[adr] do
-      msg_GetVL1 := RequestL1C1(adr, GetVL1C1, m, m);
-      msg := RequestL1C1(adr, Fwd_GetOL1C1, msg_GetVL1.src, cbe.ownerL1C1);
-      Send_fwd(msg, m);
-      cbe.State := directoryL1C1_dO_GetV_x_pI_acquire;
-    endalias;
-    end;
-    
-    procedure FSM_Access_directoryL1C1_O_load(adr:Address; m:OBJSET_directoryL1C1);
-    var msg_GetVL1: Message;
-    var msg: Message;
-    begin
-    alias cbe: i_directoryL1C1[m].cb[adr] do
-      msg_GetVL1 := RequestL1C1(adr, GetVL1C1, m, m);
-      msg := RequestL1C1(adr, Fwd_GetOL1C1, msg_GetVL1.src, cbe.ownerL1C1);
-      Send_fwd(msg, m);
-      cbe.State := directoryL1C1_dO_GetV_x_pI_load;
     endalias;
     end;
     
@@ -988,85 +1009,6 @@
       Send_fwd(msg, m);
       cbe.ownerL1C1 := msg_GetOL1.src;
       cbe.State := directoryL1C1_dO_GetO_x_pI_store;
-    endalias;
-    end;
-    
-    procedure FSM_Access_directoryL1C1_V_acq_eventL1C1(adr:Address; m:OBJSET_directoryL1C1);
-    begin
-    alias cbe: i_directoryL1C1[m].cb[adr] do
-      ServeRemoteEvent_directoryL1C1(directoryL1C1_acq_eventL1C1, m, adr);
-      cbe.State := directoryL1C1_V;
-    endalias;
-    end;
-    
-    procedure FSM_Access_directoryL1C1_V_acquire(adr:Address; m:OBJSET_directoryL1C1);
-    var msg_GetVL1: Message;
-    var msg_GetV_AckL1: Message;
-    begin
-    alias cbe: i_directoryL1C1[m].cb[adr] do
-      msg_GetVL1 := RequestL1C1(adr, GetVL1C1, m, m);
-      msg_GetV_AckL1 := RespL1C1(adr, GetV_AckL1C1, m, msg_GetVL1.src, cbe.cl);
-      cbe.cl := msg_GetV_AckL1.cl;
-      IssueEvent_directoryL1C1(directoryL1C1_acq_eventL1C1, m, adr);
-      cbe.State := directoryL1C1_dV_x_pI_acquire_GetV_Ack;
-    endalias;
-    end;
-    
-    procedure FSM_Access_directoryL1C1_V_load(adr:Address; m:OBJSET_directoryL1C1);
-    var msg_GetVL1: Message;
-    var msg_GetV_AckL1: Message;
-    begin
-    alias cbe: i_directoryL1C1[m].cb[adr] do
-      msg_GetVL1 := RequestL1C1(adr, GetVL1C1, m, m);
-      msg_GetV_AckL1 := RespL1C1(adr, GetV_AckL1C1, m, msg_GetVL1.src, cbe.cl);
-      cbe.cl := msg_GetV_AckL1.cl;
-      cbe.State := directoryL1C1_V;
-    endalias;
-    end;
-    
-    procedure FSM_Access_directoryL1C1_V_release(adr:Address; m:OBJSET_directoryL1C1);
-    var msg_GetOL1: Message;
-    var msg_GetO_AckL1: Message;
-    var msg_PutOL1: Message;
-    var msg_PutO_AckL1: Message;
-    begin
-    alias cbe: i_directoryL1C1[m].cb[adr] do
-      msg_GetOL1 := RequestL1C1(adr, GetOL1C1, m, m);
-      msg_GetO_AckL1 := RespL1C1(adr, GetO_AckL1C1, m, msg_GetOL1.src, cbe.cl);
-      cbe.ownerL1C1 := msg_GetOL1.src;
-      cbe.cl := msg_GetO_AckL1.cl;
-      Set_perm(store, adr, m);msg_PutOL1 := RespL1C1(adr, PutOL1C1, m, m, cbe.cl);
-      msg_PutO_AckL1 := AckL1C1(adr, PutO_AckL1C1, m, msg_PutOL1.src);
-      if (cbe.ownerL1C1 = msg_PutOL1.src) then
-      cbe.cl := msg_PutOL1.cl;
-      cbe.State := directoryL1C1_V;
-      endif
-    endalias;
-    end;
-    
-    procedure FSM_Access_directoryL1C1_V_store(adr:Address; m:OBJSET_directoryL1C1);
-    var msg_GetOL1: Message;
-    var msg_GetO_AckL1: Message;
-    var msg_PutOL1: Message;
-    var msg_PutO_AckL1: Message;
-    begin
-    alias cbe: i_directoryL1C1[m].cb[adr] do
-      msg_GetOL1 := RequestL1C1(adr, GetOL1C1, m, m);
-      msg_GetO_AckL1 := RespL1C1(adr, GetO_AckL1C1, m, msg_GetOL1.src, cbe.cl);
-      cbe.ownerL1C1 := msg_GetOL1.src;
-      cbe.cl := msg_GetO_AckL1.cl;
-      msg_PutOL1 := RespL1C1(adr, PutOL1C1, m, m, cbe.cl);
-      msg_PutO_AckL1 := AckL1C1(adr, PutO_AckL1C1, m, msg_PutOL1.src);
-      if !(cbe.ownerL1C1 = msg_PutOL1.src) then
-      cbe.State := directoryL1C1_V;
-      endif
-    endalias;
-    end;
-    
-    procedure FSM_Access_directoryL1C1_dV_x_pI_acquire_GetV_Ack_acq_eventL1C1(adr:Address; m:OBJSET_directoryL1C1);
-    begin
-    alias cbe: i_directoryL1C1[m].cb[adr] do
-      Set_perm(load, adr, m);cbe.State := directoryL1C1_V;
     endalias;
     end;
     
@@ -1228,11 +1170,37 @@
     var msg_GetO_AckL1: Message;
     var msg_PutOL1: Message;
     var msg_PutO_AckL1: Message;
-    var msg_GetV_AckL1: Message;
     begin
       alias adr: inmsg.adr do
       alias cbe: i_directoryL1C1[m].cb[adr] do
     switch cbe.State
+      case directoryL1C1_I:
+      switch inmsg.mtype
+        case GetOL1C1:
+          msg := RespL1C1(adr,GetO_AckL1C1,m,inmsg.src,cbe.cl);
+          Send_resp(msg, m);
+          cbe.ownerL1C1 := inmsg.src;
+          Clear_perm(adr, m);
+          cbe.State := directoryL1C1_O;
+          return true;
+        
+        case GetVL1C1:
+          msg := RespL1C1(adr,GetV_AckL1C1,m,inmsg.src,cbe.cl);
+          Send_resp(msg, m);
+          Clear_perm(adr, m);
+          cbe.State := directoryL1C1_V;
+          return true;
+        
+        case PutOL1C1:
+          msg := AckL1C1(adr,PutO_AckL1C1,m,inmsg.src);
+          Send_fwd(msg, m);
+          Clear_perm(adr, m);
+          cbe.State := directoryL1C1_I;
+          return true;
+        
+        else return false;
+      endswitch;
+      
       case directoryL1C1_O:
       switch inmsg.mtype
         case GetOL1C1:
@@ -1254,14 +1222,14 @@
           msg := AckL1C1(adr,PutO_AckL1C1,m,inmsg.src);
           Send_fwd(msg, m);
           if !(cbe.ownerL1C1 = inmsg.src) then
-            Clear_perm(adr, m); Set_perm(load, adr, m);
-            cbe.State := directoryL1C1_V;
+            Clear_perm(adr, m);
+            cbe.State := directoryL1C1_I;
             return true;
           endif;
           if (cbe.ownerL1C1 = inmsg.src) then
             cbe.cl := inmsg.cl;
-            Clear_perm(adr, m); Set_perm(load, adr, m);
-            cbe.State := directoryL1C1_V;
+            Clear_perm(adr, m);
+            cbe.State := directoryL1C1_I;
             return true;
           endif;
         
@@ -1286,7 +1254,7 @@
           cbe.cl := inmsg.cl;
           msg := RespL1C1(adr,GetV_AckL1C1,m,inmsg.src,cbe.cl);
           Send_resp(msg, m);
-          Clear_perm(adr, m); Set_perm(load, adr, m);
+          Clear_perm(adr, m);
           cbe.State := directoryL1C1_V;
           return true;
         
@@ -1306,14 +1274,14 @@
         case GetVL1C1:
           msg := RespL1C1(adr,GetV_AckL1C1,m,inmsg.src,cbe.cl);
           Send_resp(msg, m);
-          Clear_perm(adr, m); Set_perm(load, adr, m);
+          Clear_perm(adr, m);
           cbe.State := directoryL1C1_V;
           return true;
         
         case PutOL1C1:
           msg := AckL1C1(adr,PutO_AckL1C1,m,inmsg.src);
           Send_fwd(msg, m);
-          Clear_perm(adr, m); Set_perm(load, adr, m);
+          Clear_perm(adr, m);
           cbe.State := directoryL1C1_V;
           return true;
         
@@ -1329,14 +1297,14 @@
           msg_PutOL1 := RespL1C1(adr,PutOL1C1,m,m,cbe.cl);
           msg_PutO_AckL1 := AckL1C1(adr,PutO_AckL1C1,m,msg_PutOL1.src);
           if !(cbe.ownerL1C1 = msg_PutOL1.src) then
-            Clear_perm(adr, m); Set_perm(load, adr, m);
-            cbe.State := directoryL1C1_V;
+            Clear_perm(adr, m);
+            cbe.State := directoryL1C1_I;
             return true;
           endif;
           if (cbe.ownerL1C1 = msg_PutOL1.src) then
             cbe.cl := msg_PutOL1.cl;
-            Clear_perm(adr, m); Set_perm(load, adr, m);
-            cbe.State := directoryL1C1_V;
+            Clear_perm(adr, m);
+            cbe.State := directoryL1C1_I;
             return true;
           endif;
         
@@ -1350,50 +1318,18 @@
           cbe.cl := msg_GetO_AckL1.cl;
           msg_PutOL1 := RespL1C1(adr,PutOL1C1,m,m,cbe.cl);
           msg_PutO_AckL1 := AckL1C1(adr,PutO_AckL1C1,m,msg_PutOL1.src);
-          if !(cbe.ownerL1C1 = msg_PutOL1.src) then
-            Clear_perm(adr, m); Set_perm(load, adr, m);
-            cbe.State := directoryL1C1_V;
-            return true;
-          endif;
           if (cbe.ownerL1C1 = msg_PutOL1.src) then
             cbe.cl := msg_PutOL1.cl;
-            Clear_perm(adr, m); Set_perm(load, adr, m);
-            cbe.State := directoryL1C1_V;
+            Clear_perm(adr, m);
+            cbe.State := directoryL1C1_I;
+            return true;
+          endif;
+          if !(cbe.ownerL1C1 = msg_PutOL1.src) then
+            Clear_perm(adr, m);
+            cbe.State := directoryL1C1_I;
             return true;
           endif;
         
-        else return false;
-      endswitch;
-      
-      case directoryL1C1_dO_GetV_x_pI_acquire:
-      switch inmsg.mtype
-        case WB_AckL1C1:
-          cbe.cl := inmsg.cl;
-          msg_GetV_AckL1 := RespL1C1(adr,GetV_AckL1C1,m,inmsg.src,cbe.cl);
-          cbe.cl := msg_GetV_AckL1.cl;
-          IssueEvent_directoryL1C1(directoryL1C1_acq_eventL1C1, m, adr);
-          Clear_perm(adr, m);
-          cbe.State := directoryL1C1_dV_x_pI_acquire_GetV_Ack;
-          return true;
-        
-        else return false;
-      endswitch;
-      
-      case directoryL1C1_dO_GetV_x_pI_load:
-      switch inmsg.mtype
-        case WB_AckL1C1:
-          cbe.cl := inmsg.cl;
-          msg_GetV_AckL1 := RespL1C1(adr,GetV_AckL1C1,m,inmsg.src,cbe.cl);
-          cbe.cl := msg_GetV_AckL1.cl;
-          Clear_perm(adr, m); Set_perm(load, adr, m);
-          cbe.State := directoryL1C1_V;
-          return true;
-        
-        else return false;
-      endswitch;
-      
-      case directoryL1C1_dV_x_pI_acquire_GetV_Ack:
-      switch inmsg.mtype
         else return false;
       endswitch;
       
@@ -1528,6 +1464,20 @@
     ruleset adr:Address do
       alias cbe:i_directoryL1C1[m].cb[adr] do
     
+      rule "directoryL1C1_I_release"
+        cbe.State = directoryL1C1_I 
+      ==>
+        FSM_Access_directoryL1C1_I_release(adr, m);
+        
+      endrule;
+    
+      rule "directoryL1C1_I_store"
+        cbe.State = directoryL1C1_I 
+      ==>
+        FSM_Access_directoryL1C1_I_store(adr, m);
+        
+      endrule;
+    
       rule "directoryL1C1_O_release"
         cbe.State = directoryL1C1_O & network_ready() 
       ==>
@@ -1535,52 +1485,10 @@
         
       endrule;
     
-      rule "directoryL1C1_O_acquire"
-        cbe.State = directoryL1C1_O & network_ready() & TestAtomicEvent_directoryL1C1(m)
-      ==>
-        FSM_Access_directoryL1C1_O_acquire(adr, m);
-        LockAtomicEvent_directoryL1C1(m, adr);
-      endrule;
-    
       rule "directoryL1C1_O_store"
         cbe.State = directoryL1C1_O & network_ready() 
       ==>
         FSM_Access_directoryL1C1_O_store(adr, m);
-        
-      endrule;
-    
-      rule "directoryL1C1_O_load"
-        cbe.State = directoryL1C1_O & network_ready() 
-      ==>
-        FSM_Access_directoryL1C1_O_load(adr, m);
-        
-      endrule;
-    
-      rule "directoryL1C1_V_release"
-        cbe.State = directoryL1C1_V 
-      ==>
-        FSM_Access_directoryL1C1_V_release(adr, m);
-        
-      endrule;
-    
-      rule "directoryL1C1_V_acquire"
-        cbe.State = directoryL1C1_V & TestAtomicEvent_directoryL1C1(m)
-      ==>
-        FSM_Access_directoryL1C1_V_acquire(adr, m);
-        LockAtomicEvent_directoryL1C1(m, adr);
-      endrule;
-    
-      rule "directoryL1C1_V_store"
-        cbe.State = directoryL1C1_V 
-      ==>
-        FSM_Access_directoryL1C1_V_store(adr, m);
-        
-      endrule;
-    
-      rule "directoryL1C1_V_load"
-        cbe.State = directoryL1C1_V 
-      ==>
-        FSM_Access_directoryL1C1_V_load(adr, m);
         
       endrule;
     
@@ -1635,6 +1543,11 @@
     ruleset adr:Address do
       alias cbe:i_cacheL1C1[m].cb[adr] do
     
+    rule "cacheL1C1_I_UnlockAtomicEvent_"
+      cbe.State = cacheL1C1_I
+    ==>
+      UnlockAtomicEvent_cacheL1C1(m, adr);
+    endrule;
     rule "cacheL1C1_V_UnlockAtomicEvent_"
       cbe.State = cacheL1C1_V
     ==>
@@ -1645,11 +1558,6 @@
     ==>
       UnlockAtomicEvent_cacheL1C1(m, adr);
     endrule;
-    rule "cacheL1C1_I_UnlockAtomicEvent_"
-      cbe.State = cacheL1C1_I
-    ==>
-      UnlockAtomicEvent_cacheL1C1(m, adr);
-    endrule;
     
       endalias;
     endruleset;
@@ -1658,6 +1566,12 @@
     ruleset m:OBJSET_directoryL1C1 do
     ruleset adr:Address do
       alias cbe:i_directoryL1C1[m].cb[adr] do
+    
+      rule "directoryL1C1_I_acq_eventL1C1"
+        cbe.State = directoryL1C1_I & CheckRemoteEvent_directoryL1C1(directoryL1C1_acq_eventL1C1, m, adr) 
+      ==>
+        FSM_Access_directoryL1C1_I_acq_eventL1C1(adr, m);
+      endrule;
     
       rule "directoryL1C1_O_acq_eventL1C1"
         cbe.State = directoryL1C1_O & CheckRemoteEvent_directoryL1C1(directoryL1C1_acq_eventL1C1, m, adr) 
@@ -1665,19 +1579,6 @@
         FSM_Access_directoryL1C1_O_acq_eventL1C1(adr, m);
       endrule;
     
-      rule "directoryL1C1_V_acq_eventL1C1"
-        cbe.State = directoryL1C1_V & CheckRemoteEvent_directoryL1C1(directoryL1C1_acq_eventL1C1, m, adr) 
-      ==>
-        FSM_Access_directoryL1C1_V_acq_eventL1C1(adr, m);
-      endrule;
-    
-      rule "directoryL1C1_dV_x_pI_acquire_GetV_Ack_acq_eventL1C1"
-        cbe.State = directoryL1C1_dV_x_pI_acquire_GetV_Ack & CheckInitEvent_directoryL1C1(directoryL1C1_acq_eventL1C1, m, adr) 
-      ==>
-        ServeInitEvent_directoryL1C1(directoryL1C1_acq_eventL1C1, m, adr);
-        FSM_Access_directoryL1C1_dV_x_pI_acquire_GetV_Ack_acq_eventL1C1(adr, m);
-      endrule;
-    
     
       endalias;
     endruleset;
@@ -1687,8 +1588,8 @@
     ruleset adr:Address do
       alias cbe:i_directoryL1C1[m].cb[adr] do
     
-    rule "directoryL1C1_V_UnlockAtomicEvent_"
-      cbe.State = directoryL1C1_V
+    rule "directoryL1C1_I_UnlockAtomicEvent_"
+      cbe.State = directoryL1C1_I
     ==>
       UnlockAtomicEvent_directoryL1C1(m, adr);
     endrule;
