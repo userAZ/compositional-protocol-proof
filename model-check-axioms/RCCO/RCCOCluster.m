@@ -1178,6 +1178,7 @@
     var msg_GetO_AckL1: Message;
     var msg_PutOL1: Message;
     var msg_PutO_AckL1: Message;
+    var shim_to_global_msg : Message;
     begin
       alias adr: inmsg.adr do
       alias cbe: i_directoryL1C1[m].cb[adr] do
@@ -1219,13 +1220,17 @@
         case GetOL1C1:
           -- [Cluster to Global Shim]
           -- transient state for global shim request.
-          -- [TODO] add Shim Global request here;
-          -- put "I to O shim transient\n";
+          -- [Shim Axiom 15]
+          shim_to_global_msg.mtype := GetOL1C1;
+          assert (shim_to_global_msg.mtype = GetOL1C1) "A Directory O request on I -> Produce Global Get M\n";
           cbe.State := directoryL1C1_I_to_O_shim_transient;
           return false;
 
         case GetVL1C1:
           -- put "I to V shim transient\n";
+          -- [Shim Axiom 15]
+          shim_to_global_msg.mtype := GetVL1C1;
+          assert (shim_to_global_msg.mtype = GetVL1C1) "A Directory V request on I -> Produce Global Get S\n";
           cbe.State := directoryL1C1_I_to_V_shim_transient;
           return false;
         
@@ -1321,6 +1326,9 @@
         case GetOL1C1:
           -- go to transient
           -- put "V to O shim transient\n";
+          -- [Shim Axiom 15]
+          shim_to_global_msg.mtype := GetOL1C1;
+          assert (shim_to_global_msg.mtype = GetOL1C1) "A Directory O request on V -> Produce Global Get M\n";
           cbe.State := directoryL1C1_V_to_O_shim_transient;
           return false;
         
