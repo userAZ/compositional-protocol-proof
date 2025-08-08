@@ -1360,12 +1360,16 @@
           if !(cbe.ownerL1C1 = msg_PutOL1.src) then
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
+            -- [Shim Axiom 16]: Global to Cluster downgrade translation
+            assert (cbe.State = directoryL1C1_I) ">[Shim Axiom 16] Global to Cluster Downgrade. Expected Directory State to go to I after getting a WriteBack Response from Cache.\n";
             return true;
           endif;
           if (cbe.ownerL1C1 = msg_PutOL1.src) then
             cbe.cl := msg_PutOL1.cl;
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
+            -- [Shim Axiom 16]: Global to Cluster downgrade translation
+            assert (cbe.State = directoryL1C1_I) ">[Shim Axiom 16] Global to Cluster Downgrade. Expected Directory State to go to I after getting a WriteBack Response from Cache.\n";
             return true;
           endif;
         
@@ -1383,11 +1387,15 @@
             cbe.cl := msg_PutOL1.cl;
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
+            -- [Shim Axiom 16]: Global to Cluster downgrade translation
+            assert (cbe.State = directoryL1C1_I) ">[Shim Axiom 16] Global to Cluster Downgrade. Expected Directory State to go to I after getting a WriteBack Response from Cache.\n";
             return true;
           endif;
           if !(cbe.ownerL1C1 = msg_PutOL1.src) then
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
+            -- [Shim Axiom 16]: Global to Cluster downgrade translation
+            assert (cbe.State = directoryL1C1_I) ">[Shim Axiom 16] Global to Cluster Downgrade. Expected Directory State to go to I after getting a WriteBack Response from Cache.\n";
             return true;
           endif;
         
@@ -1557,10 +1565,28 @@
         
       endrule;
     
+      rule "directoryL1C1_V_release"
+        cbe.State = directoryL1C1_V 
+      ==>
+        -- [Shim Axiom 16]: Global to Cluster downgrade translation
+        FSM_Access_directoryL1C1_I_release(adr, m);
+        
+      endrule;
+    
+      rule "directoryL1C1_V_store"
+        cbe.State = directoryL1C1_V 
+      ==>
+        -- [Shim Axiom 16]: Global to Cluster downgrade translation
+        FSM_Access_directoryL1C1_I_store(adr, m);
+        
+      endrule;
+    
       rule "directoryL1C1_O_release"
         cbe.State = directoryL1C1_O & network_ready() 
       ==>
         FSM_Access_directoryL1C1_O_release(adr, m);
+        -- [Shim Axiom 16]: Global to Cluster downgrade translation
+        assert (cbe.State != directoryL1C1_O) "Global to Cluster translation on O; directory still on O state; But expected to be on a transient state to handle the downgrade.";
         
       endrule;
     
@@ -1568,6 +1594,8 @@
         cbe.State = directoryL1C1_O & network_ready() 
       ==>
         FSM_Access_directoryL1C1_O_store(adr, m);
+        -- [Shim Axiom 16]: Global to Cluster downgrade translation
+        assert (cbe.State != directoryL1C1_O) "Global to Cluster translation on O; directory still on O state; But expected to be on a transient state to handle the downgrade.";
         
       endrule;
     
