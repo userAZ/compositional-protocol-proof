@@ -92,6 +92,14 @@
       };
       
       s_directoryL1C1: enum {
+        -- [Shim state translations]
+        directoryL1C1_I_to_O_shim_transient,
+        directoryL1C1_I_to_V_shim_transient,
+        directoryL1C1_V_to_O_shim_transient,
+        directoryL1C1_I_to_O_shim_complete,
+        directoryL1C1_I_to_V_shim_complete,
+        directoryL1C1_V_to_O_shim_complete,
+        -- [HeteroGen]
         directoryL1C1_dO_GetO_x_pI_store,
         directoryL1C1_dO_GetO_x_pI_release,
         directoryL1C1_V,
@@ -1170,13 +1178,18 @@
     var msg_GetO_AckL1: Message;
     var msg_PutOL1: Message;
     var msg_PutO_AckL1: Message;
+    var shim_to_global_msg : Message;
     begin
       alias adr: inmsg.adr do
       alias cbe: i_directoryL1C1[m].cb[adr] do
     switch cbe.State
-      case directoryL1C1_I:
+      -- [Shim Transient]
+      case directoryL1C1_I_to_O_shim_complete:
       switch inmsg.mtype
         case GetOL1C1:
+          -- [Cluster to Global Shim]
+          -- transient state for global shim request.
+          -- put "I to O shim complete\n";
           msg := RespL1C1(adr,GetO_AckL1C1,m,inmsg.src,cbe.cl);
           Send_resp(msg, m);
           cbe.ownerL1C1 := inmsg.src;
@@ -1184,14 +1197,45 @@
           cbe.State := directoryL1C1_O;
           return true;
         
+        else return false;
+      endswitch;
+
+      case directoryL1C1_I_to_V_shim_complete:
+      switch inmsg.mtype
         case GetVL1C1:
+          -- [Cluster to Global Shim]
+          -- transient state for global shim request.
+          -- put "I to V shim complete\n";
           msg := RespL1C1(adr,GetV_AckL1C1,m,inmsg.src,cbe.cl);
           Send_resp(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_V;
           return true;
         
+        else return false;
+      endswitch;
+
+      case directoryL1C1_I:
+      switch inmsg.mtype
+        case GetOL1C1:
+          -- [Cluster to Global Shim]
+          -- transient state for global shim request.
+          -- [Shim Axiom 15]
+          shim_to_global_msg.mtype := GetOL1C1;
+          assert (shim_to_global_msg.mtype = GetOL1C1) "A Directory O request on I -> Produce Global Get M\n";
+          cbe.State := directoryL1C1_I_to_O_shim_transient;
+          return false;
+
+        case GetVL1C1:
+          -- put "I to V shim transient\n";
+          -- [Shim Axiom 15]
+          shim_to_global_msg.mtype := GetVL1C1;
+          assert (shim_to_global_msg.mtype = GetVL1C1) "A Directory V request on I -> Produce Global Get S\n";
+          cbe.State := directoryL1C1_I_to_V_shim_transient;
+          return false;
+        
         case PutOL1C1:
+          -- [NOTE] the directory on I can just consume the PutO
           msg := AckL1C1(adr,PutO_AckL1C1,m,inmsg.src);
           Send_fwd(msg, m);
           Clear_perm(adr, m);
@@ -1261,15 +1305,32 @@
         else return false;
       endswitch;
       
-      case directoryL1C1_V:
+      case directoryL1C1_V_to_O_shim_complete:
       switch inmsg.mtype
         case GetOL1C1:
+          -- [Cluster to Global Shim]
+          -- transient state for global shim request.
+          -- put "V to O shim complete\n";
           msg := RespL1C1(adr,GetO_AckL1C1,m,inmsg.src,cbe.cl);
           Send_resp(msg, m);
           cbe.ownerL1C1 := inmsg.src;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O;
           return true;
+        
+        else return false;
+      endswitch;
+
+      case directoryL1C1_V:
+      switch inmsg.mtype
+        case GetOL1C1:
+          -- go to transient
+          -- put "V to O shim transient\n";
+          -- [Shim Axiom 15]
+          shim_to_global_msg.mtype := GetOL1C1;
+          assert (shim_to_global_msg.mtype = GetOL1C1) "A Directory O request on V -> Produce Global Get M\n";
+          cbe.State := directoryL1C1_V_to_O_shim_transient;
+          return false;
         
         case GetVL1C1:
           msg := RespL1C1(adr,GetV_AckL1C1,m,inmsg.src,cbe.cl);
@@ -1299,12 +1360,16 @@
           if !(cbe.ownerL1C1 = msg_PutOL1.src) then
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
+            -- [Shim Axiom 16]: Global to Cluster downgrade translation
+            assert (cbe.State = directoryL1C1_I) ">[Shim Axiom 16] Global to Cluster Downgrade. Expected Directory State to go to I after getting a WriteBack Response from Cache.\n";
             return true;
           endif;
           if (cbe.ownerL1C1 = msg_PutOL1.src) then
             cbe.cl := msg_PutOL1.cl;
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
+            -- [Shim Axiom 16]: Global to Cluster downgrade translation
+            assert (cbe.State = directoryL1C1_I) ">[Shim Axiom 16] Global to Cluster Downgrade. Expected Directory State to go to I after getting a WriteBack Response from Cache.\n";
             return true;
           endif;
         
@@ -1322,11 +1387,15 @@
             cbe.cl := msg_PutOL1.cl;
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
+            -- [Shim Axiom 16]: Global to Cluster downgrade translation
+            assert (cbe.State = directoryL1C1_I) ">[Shim Axiom 16] Global to Cluster Downgrade. Expected Directory State to go to I after getting a WriteBack Response from Cache.\n";
             return true;
           endif;
           if !(cbe.ownerL1C1 = msg_PutOL1.src) then
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
+            -- [Shim Axiom 16]: Global to Cluster downgrade translation
+            assert (cbe.State = directoryL1C1_I) ">[Shim Axiom 16] Global to Cluster Downgrade. Expected Directory State to go to I after getting a WriteBack Response from Cache.\n";
             return true;
           endif;
         
@@ -1464,6 +1533,24 @@
     ruleset adr:Address do
       alias cbe:i_directoryL1C1[m].cb[adr] do
     
+      rule "directoryL1C1_I_to_O_shim_global_complete"
+        cbe.State = directoryL1C1_I_to_O_shim_transient
+      ==>
+        cbe.State := directoryL1C1_I_to_O_shim_complete;
+      endrule;
+    
+      rule "directoryL1C1_I_to_V_shim_global_complete"
+        cbe.State = directoryL1C1_I_to_V_shim_transient
+      ==>
+        cbe.State := directoryL1C1_I_to_V_shim_complete;
+      endrule;
+    
+      rule "directoryL1C1_V_to_O_shim_global_complete"
+        cbe.State = directoryL1C1_V_to_O_shim_transient
+      ==>
+        cbe.State := directoryL1C1_V_to_O_shim_complete;
+      endrule;
+
       rule "directoryL1C1_I_release"
         cbe.State = directoryL1C1_I 
       ==>
@@ -1478,10 +1565,28 @@
         
       endrule;
     
+      rule "directoryL1C1_V_release"
+        cbe.State = directoryL1C1_V 
+      ==>
+        -- [Shim Axiom 16]: Global to Cluster downgrade translation
+        FSM_Access_directoryL1C1_I_release(adr, m);
+        
+      endrule;
+    
+      rule "directoryL1C1_V_store"
+        cbe.State = directoryL1C1_V 
+      ==>
+        -- [Shim Axiom 16]: Global to Cluster downgrade translation
+        FSM_Access_directoryL1C1_I_store(adr, m);
+        
+      endrule;
+    
       rule "directoryL1C1_O_release"
         cbe.State = directoryL1C1_O & network_ready() 
       ==>
         FSM_Access_directoryL1C1_O_release(adr, m);
+        -- [Shim Axiom 16]: Global to Cluster downgrade translation
+        assert (cbe.State != directoryL1C1_O) "Global to Cluster translation on O; directory still on O state; But expected to be on a transient state to handle the downgrade.";
         
       endrule;
     
@@ -1489,6 +1594,8 @@
         cbe.State = directoryL1C1_O & network_ready() 
       ==>
         FSM_Access_directoryL1C1_O_store(adr, m);
+        -- [Shim Axiom 16]: Global to Cluster downgrade translation
+        assert (cbe.State != directoryL1C1_O) "Global to Cluster translation on O; directory still on O state; But expected to be on a transient state to handle the downgrade.";
         
       endrule;
     
