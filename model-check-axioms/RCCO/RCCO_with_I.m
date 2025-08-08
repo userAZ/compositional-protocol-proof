@@ -1478,6 +1478,20 @@
         
       endrule;
     
+      rule "directoryL1C1_V_release"
+        cbe.State = directoryL1C1_V 
+      ==>
+        FSM_Access_directoryL1C1_I_release(adr, m);
+        
+      endrule;
+    
+      rule "directoryL1C1_V_store"
+        cbe.State = directoryL1C1_V 
+      ==>
+        FSM_Access_directoryL1C1_I_store(adr, m);
+        
+      endrule;
+    
       rule "directoryL1C1_O_release"
         cbe.State = directoryL1C1_O & network_ready() 
       ==>
