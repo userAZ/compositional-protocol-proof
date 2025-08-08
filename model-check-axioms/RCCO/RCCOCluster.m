@@ -92,6 +92,14 @@
       };
       
       s_directoryL1C1: enum {
+        -- [Shim state translations]
+        directoryL1C1_I_to_O_shim_transient,
+        directoryL1C1_I_to_V_shim_transient,
+        directoryL1C1_V_to_O_shim_transient,
+        directoryL1C1_I_to_O_shim_complete,
+        directoryL1C1_I_to_V_shim_complete,
+        directoryL1C1_V_to_O_shim_complete,
+        -- [HeteroGen]
         directoryL1C1_dO_GetO_x_pI_store,
         directoryL1C1_dO_GetO_x_pI_release,
         directoryL1C1_V,
@@ -1174,9 +1182,13 @@
       alias adr: inmsg.adr do
       alias cbe: i_directoryL1C1[m].cb[adr] do
     switch cbe.State
-      case directoryL1C1_I:
+      -- [Shim Transient]
+      case directoryL1C1_I_to_O_shim_complete:
       switch inmsg.mtype
         case GetOL1C1:
+          -- [Cluster to Global Shim]
+          -- transient state for global shim request.
+          -- put "I to O shim complete\n";
           msg := RespL1C1(adr,GetO_AckL1C1,m,inmsg.src,cbe.cl);
           Send_resp(msg, m);
           cbe.ownerL1C1 := inmsg.src;
@@ -1184,14 +1196,41 @@
           cbe.State := directoryL1C1_O;
           return true;
         
+        else return false;
+      endswitch;
+
+      case directoryL1C1_I_to_V_shim_complete:
+      switch inmsg.mtype
         case GetVL1C1:
+          -- [Cluster to Global Shim]
+          -- transient state for global shim request.
+          -- put "I to V shim complete\n";
           msg := RespL1C1(adr,GetV_AckL1C1,m,inmsg.src,cbe.cl);
           Send_resp(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_V;
           return true;
         
+        else return false;
+      endswitch;
+
+      case directoryL1C1_I:
+      switch inmsg.mtype
+        case GetOL1C1:
+          -- [Cluster to Global Shim]
+          -- transient state for global shim request.
+          -- [TODO] add Shim Global request here;
+          -- put "I to O shim transient\n";
+          cbe.State := directoryL1C1_I_to_O_shim_transient;
+          return false;
+
+        case GetVL1C1:
+          -- put "I to V shim transient\n";
+          cbe.State := directoryL1C1_I_to_V_shim_transient;
+          return false;
+        
         case PutOL1C1:
+          -- [NOTE] the directory on I can just consume the PutO
           msg := AckL1C1(adr,PutO_AckL1C1,m,inmsg.src);
           Send_fwd(msg, m);
           Clear_perm(adr, m);
@@ -1261,15 +1300,29 @@
         else return false;
       endswitch;
       
-      case directoryL1C1_V:
+      case directoryL1C1_V_to_O_shim_complete:
       switch inmsg.mtype
         case GetOL1C1:
+          -- [Cluster to Global Shim]
+          -- transient state for global shim request.
+          -- put "V to O shim complete\n";
           msg := RespL1C1(adr,GetO_AckL1C1,m,inmsg.src,cbe.cl);
           Send_resp(msg, m);
           cbe.ownerL1C1 := inmsg.src;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O;
           return true;
+        
+        else return false;
+      endswitch;
+
+      case directoryL1C1_V:
+      switch inmsg.mtype
+        case GetOL1C1:
+          -- go to transient
+          -- put "V to O shim transient\n";
+          cbe.State := directoryL1C1_V_to_O_shim_transient;
+          return false;
         
         case GetVL1C1:
           msg := RespL1C1(adr,GetV_AckL1C1,m,inmsg.src,cbe.cl);
@@ -1464,6 +1517,24 @@
     ruleset adr:Address do
       alias cbe:i_directoryL1C1[m].cb[adr] do
     
+      rule "directoryL1C1_I_to_O_shim_global_complete"
+        cbe.State = directoryL1C1_I_to_O_shim_transient
+      ==>
+        cbe.State := directoryL1C1_I_to_O_shim_complete;
+      endrule;
+    
+      rule "directoryL1C1_I_to_V_shim_global_complete"
+        cbe.State = directoryL1C1_I_to_V_shim_transient
+      ==>
+        cbe.State := directoryL1C1_I_to_V_shim_complete;
+      endrule;
+    
+      rule "directoryL1C1_V_to_O_shim_global_complete"
+        cbe.State = directoryL1C1_V_to_O_shim_transient
+      ==>
+        cbe.State := directoryL1C1_V_to_O_shim_complete;
+      endrule;
+
       rule "directoryL1C1_I_release"
         cbe.State = directoryL1C1_I 
       ==>
