@@ -143,9 +143,11 @@
     
     ----Backend/Murphi/MurphiModular/Types/GenMachines
       
+      -- [Axiom 2]: Cache Events are ordered, or encapsulated a downgrade event.
       ENTRY_cacheL1C1: record
         State: s_cacheL1C1;
         cl: ClValue;
+        orderedCacheFlag : boolean;
       end;
       
       EVENT_ENTRY_cacheL1C1: record
@@ -1055,6 +1057,11 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_V;
+
+          -- [Axiom 2]
+          assert (cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Ending Cache Event I to V (load), expected the Cache Event to have it's Flag Set!\n";
+          undefine cbe.orderedCacheFlag;
+          assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: End Cache Event I to V (load), expected the Cache Event to have ended (Flag unset)!\n";
           return true;
         
         else return false;
@@ -1067,6 +1074,11 @@
           Set_perm(store, adr, m);
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_O;
+
+          -- [Axiom 2]
+          assert (cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Ending Cache Event I to O (Release), expected the Cache Event to have it's Flag Set!\n";
+          undefine cbe.orderedCacheFlag;
+          assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: End Cache Event I to O (Release), expected the Cache Event to have ended (Flag unset)!\n";
           return true;
         
         else return false;
@@ -1078,6 +1090,11 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_O;
+
+          -- [Axiom 2]
+          assert (cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Ending Cache Event I to O (store), expected the Cache Event to have it's Flag Set!\n";
+          undefine cbe.orderedCacheFlag;
+          assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: End Cache Event I to O (store), expected the Cache Event to have ended (Flag unset)!\n";
           return true;
         
         else return false;
@@ -1090,6 +1107,11 @@
           Send_resp(msg, m);
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_V;
+
+          if !isundefined(cbe.orderedCacheFlag) then
+            assert (cbe.orderedCacheFlag) ">[Axiom 2] ERROR: O to I (putO); Got a downgrade (fwd_GetO), expected the Cache Event to have it's Flag Set!\n";
+            assert (inmsg.mtype = Fwd_GetOL1C1) ">[Axiom 2] ERROR: O to I (putO); Cache Event can only encapsulate a Fwd Downgrade!\n";
+          endif;
           return true;
         
         else return false;
@@ -1107,6 +1129,11 @@
         case PutO_AckL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 2]
+          assert (cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Ending Cache Event O to I (evict), expected the Cache Event to have it's Flag Set!\n";
+          undefine cbe.orderedCacheFlag;
+          assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: End Cache Event O to I (evict), expected the Cache Event to have ended (Flag unset)!\n";
           return true;
         
         else return false;
@@ -1117,6 +1144,11 @@
         case PutO_AckL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 2]
+          assert (cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Ending Cache Event O-evict then fwd-downgrade to V to I to V (Evict O, receive PutO Ack), expected the Cache Event to have it's Flag Set!\n";
+          undefine cbe.orderedCacheFlag;
+          assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: End Cache Event I to V (Acquire), expected the Cache Event to have ended (Flag unset)!\n";
           return true;
         
         else return false;
@@ -1151,6 +1183,11 @@
           Set_perm(store, adr, m);
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_O;
+
+          -- [Axiom 2]
+          assert (cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Ending Cache Event V to O (Release), expected the Cache Event to have it's Flag Set!\n";
+          undefine cbe.orderedCacheFlag;
+          assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: End Cache Event V to O (Release), expected the Cache Event to have ended (Flag unset)!\n";
           return true;
         
         else return false;
@@ -1162,6 +1199,11 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_O;
+
+          -- [Axiom 2]
+          assert (cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Ending Cache Event V to O (store), expected the Cache Event to have it's Flag Set!\n";
+          undefine cbe.orderedCacheFlag;
+          assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: End Cache Event V to O (store), expected the Cache Event to have ended (Flag unset)!\n";
           return true;
         
         else return false;
@@ -1429,6 +1471,10 @@
       rule "cacheL1C1_I_acquire"
         cbe.State = cacheL1C1_I & network_ready() & TestAtomicEvent_cacheL1C1(m)
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Start Cache Event I to V (Acquire), expected no Cache Event already started!\n";
+        cbe.orderedCacheFlag := true;
+
         FSM_Access_cacheL1C1_I_acquire(adr, m);
         LockAtomicEvent_cacheL1C1(m, adr);
       endrule;
@@ -1436,6 +1482,10 @@
       rule "cacheL1C1_I_release"
         cbe.State = cacheL1C1_I & network_ready() 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Start Cache Event I to O (Release), expected no Cache Event already started!\n";
+        cbe.orderedCacheFlag := true;
+
         FSM_Access_cacheL1C1_I_release(adr, m);
         
       endrule;
@@ -1443,6 +1493,10 @@
       rule "cacheL1C1_I_load"
         cbe.State = cacheL1C1_I & network_ready() 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Start Cache Event I to V (load), expected no Cache Event already started!\n";
+        cbe.orderedCacheFlag := true;
+
         FSM_Access_cacheL1C1_I_load(adr, m);
         
       endrule;
@@ -1450,6 +1504,10 @@
       rule "cacheL1C1_I_store"
         cbe.State = cacheL1C1_I & network_ready() 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Start Cache Event I to O (store), expected no Cache Event already started!\n";
+        cbe.orderedCacheFlag := true;
+
         FSM_Access_cacheL1C1_I_store(adr, m);
         
       endrule;
@@ -1457,6 +1515,10 @@
       rule "cacheL1C1_O_acquire"
         cbe.State = cacheL1C1_O 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Start Cache Event O (to O, no change) (acquire), expected no Cache Event already started!\n";
+        -- cbe.orderedCacheFlag := true;
+
         FSM_Access_cacheL1C1_O_acquire(adr, m);
         
       endrule;
@@ -1464,6 +1526,10 @@
       rule "cacheL1C1_O_evict"
         cbe.State = cacheL1C1_O & network_ready() 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Start Cache Event I to O (store), expected no Cache Event already started!\n";
+        cbe.orderedCacheFlag := true;
+
         FSM_Access_cacheL1C1_O_evict(adr, m);
         
       endrule;
@@ -1471,6 +1537,10 @@
       rule "cacheL1C1_O_load"
         cbe.State = cacheL1C1_O 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Start Cache Event O (to O, no change) (load), expected no Cache Event already started!\n";
+        -- cbe.orderedCacheFlag := true;
+
         FSM_Access_cacheL1C1_O_load(adr, m);
         
       endrule;
@@ -1478,6 +1548,10 @@
       rule "cacheL1C1_O_release"
         cbe.State = cacheL1C1_O 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Start Cache Event O (to O, no change) (Release), expected no Cache Event already started!\n";
+        -- cbe.orderedCacheFlag := true;
+
         FSM_Access_cacheL1C1_O_release(adr, m);
         
       endrule;
@@ -1485,6 +1559,10 @@
       rule "cacheL1C1_O_store"
         cbe.State = cacheL1C1_O 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Start Cache Event O (to O, no change) (store), expected no Cache Event already started!\n";
+        -- cbe.orderedCacheFlag := true;
+
         FSM_Access_cacheL1C1_O_store(adr, m);
         
       endrule;
@@ -1492,6 +1570,10 @@
       rule "cacheL1C1_V_store"
         cbe.State = cacheL1C1_V & network_ready() 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Start Cache Event V to O (store), expected no Cache Event already started!\n";
+        cbe.orderedCacheFlag := true;
+
         FSM_Access_cacheL1C1_V_store(adr, m);
         
       endrule;
@@ -1499,6 +1581,10 @@
       rule "cacheL1C1_V_acquire"
         cbe.State = cacheL1C1_V & network_ready() & TestAtomicEvent_cacheL1C1(m)
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Start Cache Event V (to V, no change) (Acquire), expected no Cache Event already started!\n";
+        cbe.orderedCacheFlag := true;
+
         FSM_Access_cacheL1C1_V_acquire(adr, m);
         LockAtomicEvent_cacheL1C1(m, adr);
       endrule;
@@ -1506,6 +1592,10 @@
       rule "cacheL1C1_V_release"
         cbe.State = cacheL1C1_V & network_ready() 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Start Cache Event V to O (Release), expected no Cache Event already started!\n";
+        cbe.orderedCacheFlag := true;
+
         FSM_Access_cacheL1C1_V_release(adr, m);
         
       endrule;
@@ -1513,6 +1603,10 @@
       rule "cacheL1C1_V_load"
         cbe.State = cacheL1C1_V 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Start Cache Event V (to V, no change) (load), expected no Cache Event already started!\n";
+        -- cbe.orderedCacheFlag := true;
+
         FSM_Access_cacheL1C1_V_load(adr, m);
         
       endrule;
@@ -1520,6 +1614,10 @@
       rule "cacheL1C1_V_evict"
         cbe.State = cacheL1C1_V 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Start Cache Event V to I (v evict), expected no Cache Event already started!\n";
+        -- cbe.orderedCacheFlag := true;
+
         FSM_Access_cacheL1C1_V_evict(adr, m);
         
       endrule;
@@ -1609,28 +1707,50 @@
     ruleset adr:Address do
       alias cbe:i_cacheL1C1[m].cb[adr] do
     
+      -- [NOTE] this might be the Acquire Invalidations
       rule "cacheL1C1_I_acq_eventL1C1"
         cbe.State = cacheL1C1_I & CheckRemoteEvent_cacheL1C1(cacheL1C1_acq_eventL1C1, m, adr) 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Start Cache Event I (to I, no change) (Acquire's Vc Invalidate), expected no Cache Event already started!\n";
+        -- cbe.orderedCacheFlag := true;
+
         FSM_Access_cacheL1C1_I_acq_eventL1C1(adr, m);
       endrule;
     
+      -- [NOTE] [TODO] examine where are the Acquire Invalidations happening
       rule "cacheL1C1_I_acquire_GetV_Ack_acq_eventL1C1"
         cbe.State = cacheL1C1_I_acquire_GetV_Ack & CheckInitEvent_cacheL1C1(cacheL1C1_acq_eventL1C1, m, adr) 
       ==>
         ServeInitEvent_cacheL1C1(cacheL1C1_acq_eventL1C1, m, adr);
         FSM_Access_cacheL1C1_I_acquire_GetV_Ack_acq_eventL1C1(adr, m);
+
+        -- [Axiom 2]
+        assert (cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Ending Cache Event I to V (Acquire), expected the Cache Event to have it's Flag Set!\n";
+        undefine cbe.orderedCacheFlag;
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: End Cache Event I to V (Acquire), expected the Cache Event to have ended (Flag unset)!\n";
       endrule;
     
       rule "cacheL1C1_O_acq_eventL1C1"
         cbe.State = cacheL1C1_O & CheckRemoteEvent_cacheL1C1(cacheL1C1_acq_eventL1C1, m, adr) 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Start Cache Event O (to O, no change) (Acquire's Vc Invalidate), expected no Cache Event already started!\n";
+        -- cbe.orderedCacheFlag := true;
+
         FSM_Access_cacheL1C1_O_acq_eventL1C1(adr, m);
       endrule;
     
+      -- [NOTE] for Axiom , these are what execute the Acquire Invalidations. Procedures like `FSM_Access_cacheL1C1_V_acq_eventL1C1`
+      -- will handle consuming the downgrades produced by Acquire `FSM_Access_cacheL1C1_V_acq_eventL1C1` above in
+      -- rule "cacheL1C1_I_acquire_GetV_Ack_acq_eventL1C1"
       rule "cacheL1C1_V_acq_eventL1C1"
         cbe.State = cacheL1C1_V & CheckRemoteEvent_cacheL1C1(cacheL1C1_acq_eventL1C1, m, adr) 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Start Cache Event V to I (Acquire's Vc Invalidate), expected no Cache Event already started!\n";
+        -- cbe.orderedCacheFlag := true;
+
         FSM_Access_cacheL1C1_V_acq_eventL1C1(adr, m);
       endrule;
     
@@ -1639,6 +1759,11 @@
       ==>
         ServeInitEvent_cacheL1C1(cacheL1C1_acq_eventL1C1, m, adr);
         FSM_Access_cacheL1C1_V_acquire_GetV_Ack_acq_eventL1C1(adr, m);
+
+        -- [Axiom 2]
+        assert (cbe.orderedCacheFlag) ">[Axiom 2] ERROR: Ending Cache Event V to V (Acquire), expected the Cache Event to have it's Flag Set!\n";
+        undefine cbe.orderedCacheFlag;
+        assert isundefined(cbe.orderedCacheFlag) ">[Axiom 2] ERROR: End Cache Event V to V (Acquire), expected the Cache Event to have ended (Flag unset)!\n";
       endrule;
     
     
