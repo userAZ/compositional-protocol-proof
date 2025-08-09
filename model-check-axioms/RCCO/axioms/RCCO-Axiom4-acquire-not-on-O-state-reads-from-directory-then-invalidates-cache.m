@@ -146,6 +146,8 @@
       ENTRY_cacheL1C1: record
         State: s_cacheL1C1;
         cl: ClValue;
+        acquireNotOnOFlag : boolean;
+        acquireDirectoryFirstFlag : boolean;
       end;
       
       EVENT_ENTRY_cacheL1C1: record
@@ -794,6 +796,10 @@
       msg := RequestL1C1(adr, GetVL1C1, m, directoryL1C1);
       Send_req(msg, m);
       cbe.State := cacheL1C1_I_acquire;
+
+      -- [Axiom 4] Acquire not on O makes a request (encapsulates an event) at the directory
+      assert isundefined(cbe.acquireNotOnOFlag) ">[Axiom 4] why is the Acquire flag set before we started an acquire?\n";
+      cbe.acquireNotOnOFlag := true;
     endalias;
     end;
     
@@ -885,6 +891,16 @@
     alias cbe: i_cacheL1C1[m].cb[adr] do
       ServeRemoteEvent_cacheL1C1(cacheL1C1_acq_eventL1C1, m, adr);
       cbe.State := cacheL1C1_I;
+      -- [Axiom 4] Assert that this downgrade has happened after the Acquire has read from dir.
+      for a:Address do
+        -- find the acquiring cache, assert it has it's directory-already-accessed flag set.
+        alias find_acquring_cbe: i_cacheL1C1[m].cb[adr] do
+          if find_acquring_cbe.State = cacheL1C1_I_acquire |
+            find_acquring_cbe.State = cacheL1C1_V_acquire then
+            assert (find_acquring_cbe.acquireDirectoryFirstFlag) ">[Axiom 4] V-Invalidate expected the Acquire-Already-Accessed-Directory flag to be set!\n";
+          endif;
+        endalias;
+      endfor;
     endalias;
     end;
     
@@ -895,6 +911,10 @@
       msg := RequestL1C1(adr, GetVL1C1, m, directoryL1C1);
       Send_req(msg, m);
       cbe.State := cacheL1C1_V_acquire;
+
+      -- [Axiom 4] Acquire not on O makes a request (encapsulates an event) at the directory
+      assert isundefined(cbe.acquireNotOnOFlag) ">[Axiom 4] why is the Acquire flag set before we started an acquire?\n";
+      cbe.acquireNotOnOFlag := true;
     endalias;
     end;
     
@@ -1210,6 +1230,18 @@
           Send_resp(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_V;
+
+          -- [Axiom 3]: Assert the cache requested a GetV
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            if corresponding_cache_cbe.State = cacheL1C1_I_acquire |
+              corresponding_cache_cbe.State = cacheL1C1_V_acquire then
+              -- cache must have started an Acquire request.
+              assert (corresponding_cache_cbe.acquireNotOnOFlag) ">[Axiom 4] Acquiring Cache expected to have started an Acquire (Flag supposed to be set)!\n" ;
+              -- Undefine the flag, until next acquire.
+              undefine corresponding_cache_cbe.acquireNotOnOFlag;
+              corresponding_cache_cbe.acquireDirectoryFirstFlag := true;
+            endif;
+          endalias;
           return true;
         
         else return false;
@@ -1260,6 +1292,17 @@
           Send_fwd(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O_GetV;
+          -- [Axiom 3]: Assert the cache requested a GetV
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            if corresponding_cache_cbe.State = cacheL1C1_I_acquire |
+              corresponding_cache_cbe.State = cacheL1C1_V_acquire then
+              -- cache must have started an Acquire request.
+              assert (corresponding_cache_cbe.acquireNotOnOFlag) ">[Axiom 4] Acquiring Cache expected to have started an Acquire (Flag supposed to be set)!\n" ;
+              -- Undefine the flag, until next acquire.
+              undefine corresponding_cache_cbe.acquireNotOnOFlag;
+              corresponding_cache_cbe.acquireDirectoryFirstFlag := true;
+            endif;
+          endalias;
           return true;
         
         case PutOL1C1:
@@ -1337,6 +1380,17 @@
           Send_resp(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_V;
+          -- [Axiom 3]: Assert the cache requested a GetV
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            if corresponding_cache_cbe.State = cacheL1C1_I_acquire |
+              corresponding_cache_cbe.State = cacheL1C1_V_acquire then
+              -- cache must have started an Acquire request.
+              assert (corresponding_cache_cbe.acquireNotOnOFlag) ">[Axiom 4] Acquiring Cache expected to have started an Acquire (Flag supposed to be set)!\n" ;
+              -- Undefine the flag, until next acquire.
+              undefine corresponding_cache_cbe.acquireNotOnOFlag;
+              corresponding_cache_cbe.acquireDirectoryFirstFlag := true;
+            endif;
+          endalias;
           return true;
         
         case PutOL1C1:
@@ -1620,6 +1674,10 @@
       ==>
         ServeInitEvent_cacheL1C1(cacheL1C1_acq_eventL1C1, m, adr);
         FSM_Access_cacheL1C1_I_acquire_GetV_Ack_acq_eventL1C1(adr, m);
+
+        -- [Axiom 4]
+        assert (cbe.acquireDirectoryFirstFlag) ">[Axiom 4] Finishing an Acquire, expected it to have gone to the Directory already!\n";
+        undefine cbe.acquireDirectoryFirstFlag;
       endrule;
     
       rule "cacheL1C1_O_acq_eventL1C1"
@@ -1639,6 +1697,10 @@
       ==>
         ServeInitEvent_cacheL1C1(cacheL1C1_acq_eventL1C1, m, adr);
         FSM_Access_cacheL1C1_V_acquire_GetV_Ack_acq_eventL1C1(adr, m);
+
+        -- [Axiom 4]
+        assert (cbe.acquireDirectoryFirstFlag) ">[Axiom 4] Finishing an Acquire, expected it to have gone to the Directory already!\n";
+        undefine cbe.acquireDirectoryFirstFlag;
       endrule;
     
     
