@@ -146,6 +146,8 @@
       ENTRY_cacheL1C1: record
         State: s_cacheL1C1;
         cl: ClValue;
+        -- [Axiom 6]
+        requestToDirFlag : boolean;
       end;
       
       EVENT_ENTRY_cacheL1C1: record
@@ -794,6 +796,12 @@
       msg := RequestL1C1(adr, GetVL1C1, m, directoryL1C1);
       Send_req(msg, m);
       cbe.State := cacheL1C1_I_acquire;
+
+      -- [Axiom 6] when a request goes to directory
+      assert (cbe.State != cacheL1C1_O) ">[Axiom 6] A request goes to directory if it doesn't have permissions. But we have O perimssions!\n";
+
+      assert isundefined(cbe.requestToDirFlag) ">[Axiom 6] Starting Request, expected flag to be unset!\n";
+      cbe.requestToDirFlag := true;
     endalias;
     end;
     
@@ -804,6 +812,12 @@
       msg := RequestL1C1(adr, GetVL1C1, m, directoryL1C1);
       Send_req(msg, m);
       cbe.State := cacheL1C1_I_load;
+
+      -- [Axiom 6] when a request goes to directory
+      assert (cbe.State != cacheL1C1_O) ">[Axiom 6] A request goes to directory if it doesn't have permissions. But we have O perimssions!\n";
+
+      assert isundefined(cbe.requestToDirFlag) ">[Axiom 6] Starting Request, expected flag to be unset!\n";
+      cbe.requestToDirFlag := true;
     endalias;
     end;
     
@@ -814,6 +828,12 @@
       msg := RequestL1C1(adr, GetOL1C1, m, directoryL1C1);
       Send_req(msg, m);
       cbe.State := cacheL1C1_I_release;
+
+      -- [Axiom 6] when a request goes to directory
+      assert (cbe.State != cacheL1C1_O) ">[Axiom 6] A request goes to directory if it doesn't have permissions. But we have O perimssions!\n";
+
+      assert isundefined(cbe.requestToDirFlag) ">[Axiom 6] Starting Request, expected flag to be unset!\n";
+      cbe.requestToDirFlag := true;
     endalias;
     end;
     
@@ -824,6 +844,12 @@
       msg := RequestL1C1(adr, GetOL1C1, m, directoryL1C1);
       Send_req(msg, m);
       cbe.State := cacheL1C1_I_store;
+
+      -- [Axiom 6] when a request goes to directory
+      assert (cbe.State != cacheL1C1_O) ">[Axiom 6] A request goes to directory if it doesn't have permissions. But we have O perimssions!\n";
+
+      assert isundefined(cbe.requestToDirFlag) ">[Axiom 6] Starting Request, expected flag to be unset!\n";
+      cbe.requestToDirFlag := true;
     endalias;
     end;
     
@@ -853,6 +879,12 @@
     var msg: Message;
     begin
     alias cbe: i_cacheL1C1[m].cb[adr] do
+      -- [Axiom 6] when a request goes to directory
+      assert (cbe.State = cacheL1C1_O) ">[Axiom 6] An Evict goes to directory if it has permissions for the state we're evicting from. But we don't have O perimssions!\n";
+
+      assert isundefined(cbe.requestToDirFlag) ">[Axiom 6] Starting Request, expected flag to be unset!\n";
+      cbe.requestToDirFlag := true;
+
       msg := RespL1C1(adr, PutOL1C1, m, directoryL1C1, cbe.cl);
       Send_req(msg, m);
       cbe.State := cacheL1C1_O_evict;
@@ -895,6 +927,12 @@
       msg := RequestL1C1(adr, GetVL1C1, m, directoryL1C1);
       Send_req(msg, m);
       cbe.State := cacheL1C1_V_acquire;
+
+      -- [Axiom 6] when a request goes to directory
+      assert (cbe.State != cacheL1C1_O) ">[Axiom 6] A request goes to directory if it doesn't have permissions. But we have O perimssions!\n";
+
+      assert isundefined(cbe.requestToDirFlag) ">[Axiom 6] Starting Request, expected flag to be unset!\n";
+      cbe.requestToDirFlag := true;
     endalias;
     end;
     
@@ -919,6 +957,12 @@
       msg := RequestL1C1(adr, GetOL1C1, m, directoryL1C1);
       Send_req(msg, m);
       cbe.State := cacheL1C1_V_release;
+
+      -- [Axiom 6] when a request goes to directory
+      assert (cbe.State != cacheL1C1_O) ">[Axiom 6] A request goes to directory if it doesn't have permissions. But we have O perimssions!\n";
+
+      assert isundefined(cbe.requestToDirFlag) ">[Axiom 6] Starting Request, expected flag to be unset!\n";
+      cbe.requestToDirFlag := true;
     endalias;
     end;
     
@@ -929,6 +973,12 @@
       msg := RequestL1C1(adr, GetOL1C1, m, directoryL1C1);
       Send_req(msg, m);
       cbe.State := cacheL1C1_V_store;
+
+      -- [Axiom 6] when a request goes to directory
+      assert (cbe.State != cacheL1C1_O) ">[Axiom 6] A request goes to directory if it doesn't have permissions. But we have O perimssions!\n";
+
+      assert isundefined(cbe.requestToDirFlag) ">[Axiom 6] Starting Request, expected flag to be unset!\n";
+      cbe.requestToDirFlag := true;
     endalias;
     end;
     
@@ -1195,6 +1245,17 @@
           cbe.ownerL1C1 := inmsg.src;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O;
+
+          -- [Axiom 6]: When a cache request accesses the directory
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_I_release |
+              corresponding_cache_cbe.State = cacheL1C1_I_store |
+              corresponding_cache_cbe.State = cacheL1C1_V_release |
+              corresponding_cache_cbe.State = cacheL1C1_V_store
+              ) ">[Axiom 6] corresponding cache must be attempting a Release or Store!\n";
+            assert (corresponding_cache_cbe.requestToDirFlag) ">[Axiom 6] Dir: Expected start flag to be set!\n";
+            undefine corresponding_cache_cbe.requestToDirFlag;
+          endalias;
           return true;
         
         else return false;
@@ -1210,6 +1271,16 @@
           Send_resp(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_V;
+
+          -- [Axiom 6]: Cache Request to Directory
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_I_acquire |
+              corresponding_cache_cbe.State = cacheL1C1_I_load |
+              corresponding_cache_cbe.State = cacheL1C1_V_acquire
+              ) ">[Axiom 6] corresponding cache must be attempting an Acquire or Load!\n";
+            assert (corresponding_cache_cbe.requestToDirFlag) ">[Axiom 6] Dir: Expected start flag to be set!\n";
+            undefine corresponding_cache_cbe.requestToDirFlag;
+          endalias;
           return true;
         
         else return false;
@@ -1240,6 +1311,15 @@
           Send_fwd(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
+
+          -- [Axiom 6]: Cache Accesses Dir
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_O_evict |
+              corresponding_cache_cbe.State = cacheL1C1_O_evict_x_V
+              ) ">[Axiom 6] corresponding cache must be attempting Evict From O!\n";
+            assert (corresponding_cache_cbe.requestToDirFlag) ">[Axiom 6] Dir: Expected start flag to be set!\n";
+            undefine corresponding_cache_cbe.requestToDirFlag;
+          endalias;
           return true;
         
         else return false;
@@ -1253,6 +1333,17 @@
           cbe.ownerL1C1 := inmsg.src;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O_GetO;
+
+          -- [Axiom 6]: Cache Accesses directory
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_I_release |
+              corresponding_cache_cbe.State = cacheL1C1_I_store |
+              corresponding_cache_cbe.State = cacheL1C1_V_release |
+              corresponding_cache_cbe.State = cacheL1C1_V_store
+              ) ">[Axiom 6] corresponding cache must be attempting a Release or Store!\n";
+            assert (corresponding_cache_cbe.requestToDirFlag) ">[Axiom 6] Dir: Expected start flag to be set!\n";
+            undefine corresponding_cache_cbe.requestToDirFlag;
+          endalias;
           return true;
         
         case GetVL1C1:
@@ -1260,9 +1351,27 @@
           Send_fwd(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O_GetV;
+
+          -- [Axiom 6] Cache Accesses directory
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_I_acquire |
+              corresponding_cache_cbe.State = cacheL1C1_I_load |
+              corresponding_cache_cbe.State = cacheL1C1_V_acquire
+              ) ">[Axiom 6] corresponding cache must be attempting an Acquire or Load!\n";
+            assert (corresponding_cache_cbe.requestToDirFlag) ">[Axiom 6] Dir: Expected start flag to be set!\n";
+            undefine corresponding_cache_cbe.requestToDirFlag;
+          endalias;
           return true;
         
         case PutOL1C1:
+          -- [Axiom 6]: Cache Accesses directory
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_O_evict |
+              corresponding_cache_cbe.State = cacheL1C1_O_evict_x_V
+              ) ">[Axiom 6] corresponding cache must be attempting Evict From O!\n";
+            assert (corresponding_cache_cbe.requestToDirFlag) ">[Axiom 6] Dir: Expected start flag to be set!\n";
+            undefine corresponding_cache_cbe.requestToDirFlag;
+          endalias;
           msg := AckL1C1(adr,PutO_AckL1C1,m,inmsg.src);
           Send_fwd(msg, m);
           if !(cbe.ownerL1C1 = inmsg.src) then
@@ -1316,6 +1425,17 @@
           cbe.ownerL1C1 := inmsg.src;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O;
+
+          -- [Axiom 6]: Cache Gets Directory
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_I_release |
+              corresponding_cache_cbe.State = cacheL1C1_I_store |
+              corresponding_cache_cbe.State = cacheL1C1_V_release |
+              corresponding_cache_cbe.State = cacheL1C1_V_store
+              ) ">[Axiom 6] corresponding cache must be attempting a Release or Store!\n";
+            assert (corresponding_cache_cbe.requestToDirFlag) ">[Axiom 6] Dir: Expected start flag to be set!\n";
+            undefine corresponding_cache_cbe.requestToDirFlag;
+          endalias;
           return true;
         
         else return false;
@@ -1337,9 +1457,28 @@
           Send_resp(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_V;
+
+          -- [Axiom 6]: Assert the cache requested a GetV
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_I_acquire |
+              corresponding_cache_cbe.State = cacheL1C1_I_load |
+              corresponding_cache_cbe.State = cacheL1C1_V_acquire
+              ) ">[Axiom 6] corresponding cache must be attempting an Acquire or Load!\n";
+            assert (corresponding_cache_cbe.requestToDirFlag) ">[Axiom 6] Dir: Expected start flag to be set!\n";
+            undefine corresponding_cache_cbe.requestToDirFlag;
+          endalias;
           return true;
         
         case PutOL1C1:
+          -- [Axiom 6]: Assert the cache requested Evict From O
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_O_evict |
+              corresponding_cache_cbe.State = cacheL1C1_O_evict_x_V
+              ) ">[Axiom 6] corresponding cache must be attempting Evict From O!\n";
+            assert (corresponding_cache_cbe.requestToDirFlag) ">[Axiom 6] Dir: Expected start flag to be set!\n";
+            undefine corresponding_cache_cbe.requestToDirFlag;
+          endalias;
+
           msg := AckL1C1(adr,PutO_AckL1C1,m,inmsg.src);
           Send_fwd(msg, m);
           Clear_perm(adr, m);
