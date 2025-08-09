@@ -794,6 +794,9 @@
       msg := RequestL1C1(adr, GetVL1C1, m, directoryL1C1);
       Send_req(msg, m);
       cbe.State := cacheL1C1_I_acquire;
+
+      -- [Axiom 3] Cache request and request received at directory correspond.
+      assert (msg.mtype = GetVL1C1) ">[Axiom 3] Acquire on I should send a GetV, but we didn't set a GetV!";
     endalias;
     end;
     
@@ -804,6 +807,9 @@
       msg := RequestL1C1(adr, GetVL1C1, m, directoryL1C1);
       Send_req(msg, m);
       cbe.State := cacheL1C1_I_load;
+
+      -- [Axiom 3] Cache request and request received at directory correspond.
+      assert (msg.mtype = GetVL1C1) ">[Axiom 3] Load on I should send a GetV, but we didn't set a GetV!";
     endalias;
     end;
     
@@ -814,6 +820,9 @@
       msg := RequestL1C1(adr, GetOL1C1, m, directoryL1C1);
       Send_req(msg, m);
       cbe.State := cacheL1C1_I_release;
+
+      -- [Axiom 3] Cache request and request received at directory correspond.
+      assert (msg.mtype = GetOL1C1) ">[Axiom 3] Release on I should send a GetO, but we didn't set a GetO!";
     endalias;
     end;
     
@@ -824,6 +833,9 @@
       msg := RequestL1C1(adr, GetOL1C1, m, directoryL1C1);
       Send_req(msg, m);
       cbe.State := cacheL1C1_I_store;
+
+      -- [Axiom 3] Cache request and request received at directory correspond.
+      assert (msg.mtype = GetOL1C1) ">[Axiom 3] Store on I should send a GetO, but we didn't set a GetO!";
     endalias;
     end;
     
@@ -856,6 +868,9 @@
       msg := RespL1C1(adr, PutOL1C1, m, directoryL1C1, cbe.cl);
       Send_req(msg, m);
       cbe.State := cacheL1C1_O_evict;
+
+      -- [Axiom 3] Cache request and request received at directory correspond.
+      assert (msg.mtype = PutOL1C1) ">[Axiom 3] Store on I should send a GetO, but we didn't set a GetO!";
     endalias;
     end;
     
@@ -895,6 +910,9 @@
       msg := RequestL1C1(adr, GetVL1C1, m, directoryL1C1);
       Send_req(msg, m);
       cbe.State := cacheL1C1_V_acquire;
+
+      -- [Axiom 3] Cache request and request received at directory correspond.
+      assert (msg.mtype = GetVL1C1) ">[Axiom 3] Acquire on V should send a GetV, but we didn't set a GetV!";
     endalias;
     end;
     
@@ -919,6 +937,9 @@
       msg := RequestL1C1(adr, GetOL1C1, m, directoryL1C1);
       Send_req(msg, m);
       cbe.State := cacheL1C1_V_release;
+
+      -- [Axiom 3] Cache request and request received at directory correspond.
+      assert (msg.mtype = GetOL1C1) ">[Axiom 3] Release on O should send a GetO, but we didn't set a GetO!";
     endalias;
     end;
     
@@ -929,6 +950,9 @@
       msg := RequestL1C1(adr, GetOL1C1, m, directoryL1C1);
       Send_req(msg, m);
       cbe.State := cacheL1C1_V_store;
+
+      -- [Axiom 3] Cache request and request received at directory correspond.
+      assert (msg.mtype = GetOL1C1) ">[Axiom 3] Store on O should send a GetO, but we didn't set a GetO!";
     endalias;
     end;
     
@@ -1195,6 +1219,15 @@
           cbe.ownerL1C1 := inmsg.src;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O;
+
+          -- [Axiom 3]: Assert the cache requested a GetO
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_I_release |
+              corresponding_cache_cbe.State = cacheL1C1_I_store |
+              corresponding_cache_cbe.State = cacheL1C1_V_release |
+              corresponding_cache_cbe.State = cacheL1C1_V_store
+              ) ">[Axiom 3] corresponding cache must be attempting a Release or Store!\n";
+          endalias;
           return true;
         
         else return false;
@@ -1210,6 +1243,17 @@
           Send_resp(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_V;
+
+          -- [Axiom 3]
+          -- [Axiom 3]: Assert we do a GetV (read)
+          assert (cbe.State = directoryL1C1_V) "A Directory V request on I -> Produce Global Get S\n";
+          -- [Axiom 3]: Assert the cache requested a GetV
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_I_acquire |
+              corresponding_cache_cbe.State = cacheL1C1_I_load |
+              corresponding_cache_cbe.State = cacheL1C1_V_acquire
+              ) ">[Axiom 3] corresponding cache must be attempting an Acquire or Load!\n";
+          endalias;
           return true;
         
         else return false;
@@ -1232,6 +1276,9 @@
           shim_to_global_msg.mtype := GetVL1C1;
           assert (shim_to_global_msg.mtype = GetVL1C1) "A Directory V request on I -> Produce Global Get S\n";
           cbe.State := directoryL1C1_I_to_V_shim_transient;
+
+          -- [Axiom 3]: Assert we do a GetV (read)
+          assert (shim_to_global_msg.mtype = GetVL1C1) "A Directory V request on I -> Produce Global Get S\n";
           return false;
         
         case PutOL1C1:
@@ -1240,6 +1287,13 @@
           Send_fwd(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
+
+          -- [Axiom 3]: Assert the cache requested Evict From O
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_O_evict |
+              corresponding_cache_cbe.State = cacheL1C1_O_evict_x_V
+              ) ">[Axiom 3] corresponding cache must be attempting Evict From O!\n";
+          endalias;
           return true;
         
         else return false;
@@ -1253,6 +1307,15 @@
           cbe.ownerL1C1 := inmsg.src;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O_GetO;
+
+          -- [Axiom 3]: Assert the cache requested a GetO
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_I_release |
+              corresponding_cache_cbe.State = cacheL1C1_I_store |
+              corresponding_cache_cbe.State = cacheL1C1_V_release |
+              corresponding_cache_cbe.State = cacheL1C1_V_store
+              ) ">[Axiom 3] corresponding cache must be attempting a Release or Store!\n";
+          endalias;
           return true;
         
         case GetVL1C1:
@@ -1260,9 +1323,24 @@
           Send_fwd(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O_GetV;
+
+          -- [Axiom 3] corresponding cache made a corresponding request!
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_I_acquire |
+              corresponding_cache_cbe.State = cacheL1C1_I_load |
+              corresponding_cache_cbe.State = cacheL1C1_V_acquire
+              ) ">[Axiom 3] corresponding cache must be attempting an Acquire or Load!\n";
+          endalias;
           return true;
         
         case PutOL1C1:
+          -- [Axiom 3]: Assert the cache requested Evict From O
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_O_evict |
+              corresponding_cache_cbe.State = cacheL1C1_O_evict_x_V
+              ) ">[Axiom 3] corresponding cache must be attempting Evict From O!\n";
+          endalias;
+
           msg := AckL1C1(adr,PutO_AckL1C1,m,inmsg.src);
           Send_fwd(msg, m);
           if !(cbe.ownerL1C1 = inmsg.src) then
@@ -1316,6 +1394,15 @@
           cbe.ownerL1C1 := inmsg.src;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O;
+
+          -- [Axiom 3]: Assert the cache requested a GetO
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_I_release |
+              corresponding_cache_cbe.State = cacheL1C1_I_store |
+              corresponding_cache_cbe.State = cacheL1C1_V_release |
+              corresponding_cache_cbe.State = cacheL1C1_V_store
+              ) ">[Axiom 3] corresponding cache must be attempting a Release or Store!\n";
+          endalias;
           return true;
         
         else return false;
@@ -1337,9 +1424,24 @@
           Send_resp(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_V;
+
+          -- [Axiom 3]: Assert the cache requested a GetV
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_I_acquire |
+              corresponding_cache_cbe.State = cacheL1C1_I_load |
+              corresponding_cache_cbe.State = cacheL1C1_V_acquire
+              ) ">[Axiom 3] corresponding cache must be attempting an Acquire or Load!\n";
+          endalias;
           return true;
         
         case PutOL1C1:
+          -- [Axiom 3]: Assert the cache requested Evict From O
+          alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (corresponding_cache_cbe.State = cacheL1C1_O_evict |
+              corresponding_cache_cbe.State = cacheL1C1_O_evict_x_V
+              ) ">[Axiom 3] corresponding cache must be attempting Evict From O!\n";
+          endalias;
+
           msg := AckL1C1(adr,PutO_AckL1C1,m,inmsg.src);
           Send_fwd(msg, m);
           Clear_perm(adr, m);
