@@ -172,6 +172,8 @@
         State: s_directoryL1C1;
         cl: ClValue;
         ownerL1C1: Machines;
+        coherentWriteFlag : boolean;
+        previous_ownerL1C1: Machines;
       end;
       
       EVENT_ENTRY_directoryL1C1: record
@@ -999,8 +1001,16 @@
     var msg: Message;
     begin
     alias cbe: i_directoryL1C1[m].cb[adr] do
+      -- [Axiom 12] non-coherent access at directory on Coherent-Writable State sends a downgrade
+      assert isundefined(cbe.coherentWriteFlag) ">[Axiom 12] directory on O; getting a request contending for O data. Expected to not overlap with another event!\n";
+      cbe.coherentWriteFlag := true;
+      cbe.previous_ownerL1C1 := cbe.ownerL1C1;
+
       msg_GetOL1 := RequestL1C1(adr, GetOL1C1, m, m);
       msg := RequestL1C1(adr, Fwd_GetOL1C1, msg_GetOL1.src, cbe.ownerL1C1);
+
+      assert (msg.dst = cbe.ownerL1C1) ">[Axiom 9] Directory: O request's fwd-downgrade on O must be to the Owner!\n";
+
       Send_fwd(msg, m);
       cbe.ownerL1C1 := msg_GetOL1.src;
       cbe.State := directoryL1C1_dO_GetO_x_pI_release;
@@ -1012,8 +1022,16 @@
     var msg: Message;
     begin
     alias cbe: i_directoryL1C1[m].cb[adr] do
+      -- [Axiom 12] non-coherent access at directory on Coherent-Writable State sends a downgrade
+      assert isundefined(cbe.coherentWriteFlag) ">[Axiom 12] directory on O; getting a request contending for O data. Expected to not overlap with another event!\n";
+      cbe.coherentWriteFlag := true;
+      cbe.previous_ownerL1C1 := cbe.ownerL1C1;
+
       msg_GetOL1 := RequestL1C1(adr, GetOL1C1, m, m);
       msg := RequestL1C1(adr, Fwd_GetOL1C1, msg_GetOL1.src, cbe.ownerL1C1);
+
+      assert (msg.dst = cbe.ownerL1C1) ">[Axiom 9] Directory: O request's fwd-downgrade on O must be to the Owner!\n";
+
       Send_fwd(msg, m);
       cbe.ownerL1C1 := msg_GetOL1.src;
       cbe.State := directoryL1C1_dO_GetO_x_pI_store;
@@ -1090,6 +1108,14 @@
           Send_resp(msg, m);
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_V;
+
+          -- [Axiom 9 / 12]
+          alias dir_cbe: i_directoryL1C1[directoryL1C1].cb[adr] do
+            assert (dir_cbe.coherentWriteFlag) ">[Axiom 9/12] Cache: Got downgrade, expected Directory to have sent it!\n";
+            assert (dir_cbe.previous_ownerL1C1 = m) ">[Axiom 9/12] Cache: downgrade, expected downgrade to be for `previous` Owner?!\n";
+            undefine dir_cbe.coherentWriteFlag;
+            undefine dir_cbe.previous_ownerL1C1;
+          endalias;
           return true;
         
         else return false;
@@ -1102,6 +1128,14 @@
           Send_resp(msg, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_O_evict_x_V;
+
+          -- [Axiom 9 / 12]
+          alias dir_cbe: i_directoryL1C1[directoryL1C1].cb[adr] do
+            assert (dir_cbe.coherentWriteFlag) ">[Axiom 9/12] Cache (evicting): Got downgrade, expected Directory to have sent it!\n";
+            assert (dir_cbe.previous_ownerL1C1 = m) ">[Axiom 9/12] Cache (evicting): downgrade, expected downgrade to be for `previous` Owner?!\n";
+            undefine dir_cbe.coherentWriteFlag;
+            undefine dir_cbe.previous_ownerL1C1;
+          endalias;
           return true;
         
         case PutO_AckL1C1:
@@ -1248,7 +1282,15 @@
       case directoryL1C1_O:
       switch inmsg.mtype
         case GetOL1C1:
+          -- [Axiom 9] coherent write at directory on Coherent-Writable State sends a downgrade
+          assert isundefined(cbe.coherentWriteFlag) ">[Axiom 9]";
+          cbe.coherentWriteFlag := true;
+          cbe.previous_ownerL1C1 := cbe.ownerL1C1;
+
           msg := RequestL1C1(adr,Fwd_GetOL1C1,inmsg.src,cbe.ownerL1C1);
+
+          assert (msg.dst = cbe.ownerL1C1) ">[Axiom 9] Directory: O request's fwd-downgrade on O must be to the Owner!\n";
+
           Send_fwd(msg, m);
           cbe.ownerL1C1 := inmsg.src;
           Clear_perm(adr, m);
@@ -1256,7 +1298,15 @@
           return true;
         
         case GetVL1C1:
+          -- [Axiom 12] non-coherent access at directory on Coherent-Writable State sends a downgrade
+          assert isundefined(cbe.coherentWriteFlag) ">[Axiom 12]";
+          cbe.coherentWriteFlag := true;
+          cbe.previous_ownerL1C1 := cbe.ownerL1C1;
+
           msg := RequestL1C1(adr,Fwd_GetOL1C1,inmsg.src,cbe.ownerL1C1);
+
+          assert (msg.dst = cbe.ownerL1C1) ">[Axiom 12] Directory: O request's fwd-downgrade on O must be to the Owner!\n";
+
           Send_fwd(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O_GetV;
