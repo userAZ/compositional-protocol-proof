@@ -604,6 +604,18 @@
       endfor;
     end;
     
+    -- [Axiom 14]
+    function IsSetCheck_perm(acc_type: PermissionType; adr: Address; m: Machines) : boolean;
+    begin
+      alias l_perm_set:g_perm[m][adr] do
+      if MultiSetCount(i:l_perm_set, l_perm_set[i] = acc_type) = 1 then
+        return true;
+          --MultisetAdd(acc_type, l_perm_set);
+      else
+        return false;
+      endif;
+      endalias;
+    end;
   
   ----Backend/Murphi/MurphiModular/Functions/GenFIFOFunc
   ----Backend/Murphi/MurphiModular/Functions/GenNetworkFunc
@@ -856,6 +868,7 @@
       msg := RespL1C1(adr, PutOL1C1, m, directoryL1C1, cbe.cl);
       Send_req(msg, m);
       cbe.State := cacheL1C1_O_evict;
+      Clear_perm(adr, m);
     endalias;
     end;
     
@@ -1266,8 +1279,9 @@
           msg := AckL1C1(adr,PutO_AckL1C1,m,inmsg.src);
           Send_fwd(msg, m);
           if !(cbe.ownerL1C1 = inmsg.src) then
-            Clear_perm(adr, m);
-            cbe.State := directoryL1C1_I;
+            -- Don't do anything.
+            -- Clear_perm(adr, m);
+            -- cbe.State := directoryL1C1_I;
             return true;
           endif;
           if (cbe.ownerL1C1 = inmsg.src) then
@@ -1785,3 +1799,27 @@
   endstartstate;
 
 --Backend/Murphi/MurphiModular/GenInvariant
+
+-- [Axiom 14]
+/*
+ruleset adr:Address do
+  invariant "Single-Writer-Multiple-Reader (SWMR)"
+    forall c1:OBJSET_cacheL1C1 do
+    forall c2:OBJSET_cacheL1C1 do
+      ( c1 != c2 & IsSetCheck_perm(store,adr,c1) ) ->
+      ( !IsSetCheck_perm(store,adr,c2))
+    endforall
+    endforall;
+endruleset;
+*/
+
+ruleset adr:Address do
+  invariant "Single-Writer-Multiple-Reader (SWMR) Version 2"
+    forall c1:OBJSET_cacheL1C1 do
+    forall c2:OBJSET_cacheL1C1 do
+      ( c1 != c2
+      & i_cacheL1C1[c1].cb[adr].State  = cacheL1C1_O ) ->
+      ( i_cacheL1C1[c2].cb[adr].State != cacheL1C1_O )
+    endforall
+    endforall;
+endruleset;
