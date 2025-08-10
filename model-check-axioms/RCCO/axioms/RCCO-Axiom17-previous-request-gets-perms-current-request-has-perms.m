@@ -146,6 +146,8 @@
       ENTRY_cacheL1C1: record
         State: s_cacheL1C1;
         cl: ClValue;
+        -- [Axiom 17]
+        predPermsFlag : boolean;
       end;
       
       EVENT_ENTRY_cacheL1C1: record
@@ -831,6 +833,10 @@
     begin
     alias cbe: i_cacheL1C1[m].cb[adr] do
       Set_perm(load, adr, m);cbe.State := cacheL1C1_V;
+
+      -- [Axiom 17]
+      assert isundefined(cbe.predPermsFlag) ">[Axiom 17] From I to V (acquire). There should not be a previous request event to get permissions on I state?\n";
+      cbe.predPermsFlag := true;
     endalias;
     end;
     
@@ -886,6 +892,10 @@
     alias cbe: i_cacheL1C1[m].cb[adr] do
       ServeRemoteEvent_cacheL1C1(cacheL1C1_acq_eventL1C1, m, adr);
       cbe.State := cacheL1C1_I;
+
+      -- [Axiom 17]
+      assert (cbe.predPermsFlag) ">[Axiom 17] (Acq inval) V Evict to I. There should have been a request to have gotten permissions to be on V state?\n";
+      undefine cbe.predPermsFlag;
     endalias;
     end;
     
@@ -1056,6 +1066,10 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_V;
+
+          -- [Axiom 17]
+          assert isundefined(cbe.predPermsFlag) ">[Axiom 17] From I to V (load). There should not be a previous request event to get permissions on I state?\n";
+          cbe.predPermsFlag := true;
           return true;
         
         else return false;
@@ -1068,6 +1082,10 @@
           Set_perm(store, adr, m);
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_O;
+
+          -- [Axiom 17]
+          assert isundefined(cbe.predPermsFlag) ">[Axiom 17] From I to O (Release). There should not be a previous request event to get permissions on I state?\n";
+          cbe.predPermsFlag := true;
           return true;
         
         else return false;
@@ -1079,6 +1097,10 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_O;
+
+          -- [Axiom 17]
+          assert isundefined(cbe.predPermsFlag) ">[Axiom 17] From I to O (Store). There should not be a previous request event to get permissions on I state?\n";
+          cbe.predPermsFlag := true;
           return true;
         
         else return false;
@@ -1108,6 +1130,10 @@
         case PutO_AckL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 17]
+          assert (cbe.predPermsFlag) ">[Axiom 17] O Evict. There should have been a request to have gotten permissions to be on O state?\n";
+          undefine cbe.predPermsFlag;
           return true;
         
         else return false;
@@ -1118,6 +1144,10 @@
         case PutO_AckL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 17]
+          assert (cbe.predPermsFlag) ">[Axiom 17] O_x_V Evict. There should have been a request to have gotten permissions to be on O state?\n";
+          undefine cbe.predPermsFlag;
           return true;
         
         else return false;
@@ -1163,6 +1193,10 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_O;
+
+          -- [Axiom 17]
+          assert (cbe.predPermsFlag) ">[Axiom 17] From V to O (Store). There should have been a previous request event to get permissions on I state?\n";
+          -- cbe.predPermsFlag := true;
           return true;
         
         else return false;
@@ -1458,6 +1492,8 @@
       ==>
         FSM_Access_cacheL1C1_O_acquire(adr, m);
         
+        -- [Axiom 17]
+        assert (cbe.predPermsFlag) ">[Axiom 17] acquire on O. There should have been a request to have gotten permissions to be on O release?\n";
       endrule;
     
       rule "cacheL1C1_O_evict"
@@ -1465,6 +1501,8 @@
       ==>
         FSM_Access_cacheL1C1_O_evict(adr, m);
         
+        -- [Axiom 17]
+        assert (cbe.predPermsFlag) ">[Axiom 17] evict on O. There should have been a request to have gotten permissions to be on O release?\n";
       endrule;
     
       rule "cacheL1C1_O_load"
@@ -1472,6 +1510,8 @@
       ==>
         FSM_Access_cacheL1C1_O_load(adr, m);
         
+        -- [Axiom 17]
+        assert (cbe.predPermsFlag) ">[Axiom 17] load on O. There should have been a request to have gotten permissions to be on O release?\n";
       endrule;
     
       rule "cacheL1C1_O_release"
@@ -1479,6 +1519,8 @@
       ==>
         FSM_Access_cacheL1C1_O_release(adr, m);
         
+        -- [Axiom 17]
+        assert (cbe.predPermsFlag) ">[Axiom 17] release on O. There should have been a request to have gotten permissions to be on O release?\n";
       endrule;
     
       rule "cacheL1C1_O_store"
@@ -1486,6 +1528,8 @@
       ==>
         FSM_Access_cacheL1C1_O_store(adr, m);
         
+        -- [Axiom 17]
+        assert (cbe.predPermsFlag) ">[Axiom 17] store on O. There should have been a request to have gotten permissions to be on O state?\n";
       endrule;
     
       rule "cacheL1C1_V_store"
@@ -1514,6 +1558,8 @@
       ==>
         FSM_Access_cacheL1C1_V_load(adr, m);
         
+        -- [Axiom 17]
+        assert (cbe.predPermsFlag) ">[Axiom 17] load on V. There should have been a request to have gotten permissions to be on V state?\n";
       endrule;
     
       rule "cacheL1C1_V_evict"
@@ -1521,6 +1567,9 @@
       ==>
         FSM_Access_cacheL1C1_V_evict(adr, m);
         
+        -- [Axiom 17]
+        assert (cbe.predPermsFlag) ">[Axiom 17] V Evict to I. There should have been a request to have gotten permissions to be on V state?\n";
+        undefine cbe.predPermsFlag;
       endrule;
     
     
