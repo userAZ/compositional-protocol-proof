@@ -172,6 +172,7 @@
         State: s_directoryL1C1;
         cl: ClValue;
         ownerL1C1: Machines;
+        -- [Axiom 9/12]
         coherentWriteFlag : boolean;
         previous_ownerL1C1: Machines;
       end;
