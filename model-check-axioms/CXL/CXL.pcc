@@ -781,12 +781,13 @@ Architecture directory {
                 // Thus we re-use the RdShared.src from the HostReq,
                 // that is sent back to the Host in the RspSHitSE
                 
-                //if (RspSHitSE.src != ID) {
-                msg1 = HostRsp(GO_S, ID, RspSHitSE.src);
-                H2D_response.send(msg1);
-                msg2 = DataFull(HostDataMsg, ID, RspSHitSE.src, cl);
-                H2D_data.send(msg2);
-                //}
+                // Guard to reuse as Proxy Cache response. The Proxy Cache won't need a response to itself
+                if (RspSHitSE.src != ID) {
+                  msg1 = HostRsp(GO_S, ID, RspSHitSE.src);
+                  H2D_response.send(msg1);
+                  msg2 = DataFull(HostDataMsg, ID, RspSHitSE.src, cl);
+                  H2D_data.send(msg2);
+                }
                 State = S;
                 break;
             /// NOTE: Must wait in order
@@ -831,12 +832,17 @@ Architecture directory {
             when RspIFwdM:
                 await {
                     when DevDataMsg:
-                        cl = DevDataMsg.cl;
-                        msg1 = HostRsp(GO_M, ID, owner);
-                        H2D_response.send(msg1);
-                        msg2 = DataFull(HostDataMsg, ID, owner, DevDataMsg.cl);
-                        H2D_data.send(msg2);
-                        State = M;
+                        // Guard to reuse as Proxy Cache response. The Proxy Cache won't need a response to itself, and the Dir can go to I.
+                        if (owner != ID) {
+                            cl = DevDataMsg.cl;
+                            msg1 = HostRsp(GO_M, ID, owner);
+                            H2D_response.send(msg1);
+                            msg2 = DataFull(HostDataMsg, ID, owner, DevDataMsg.cl);
+                            H2D_data.send(msg2);
+                            State = M;
+                        } else {
+                            State = I;
+                        }
                         // owner = RdOwn.src;
                         break;
                 }
