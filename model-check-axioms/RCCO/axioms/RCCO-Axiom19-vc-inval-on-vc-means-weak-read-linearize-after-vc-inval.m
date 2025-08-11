@@ -146,6 +146,9 @@
       ENTRY_cacheL1C1: record
         State: s_cacheL1C1;
         cl: ClValue;
+        -- [Axiom 19]
+        vcInvalFlag : boolean;
+        getPermsAfterVcInvalFlag : boolean;
       end;
       
       EVENT_ENTRY_cacheL1C1: record
@@ -886,6 +889,10 @@
     alias cbe: i_cacheL1C1[m].cb[adr] do
       ServeRemoteEvent_cacheL1C1(cacheL1C1_acq_eventL1C1, m, adr);
       cbe.State := cacheL1C1_I;
+
+      -- [Axiom 19]
+      cbe.vcInvalFlag := true;
+      undefine cbe.getPermsAfterVcInvalFlag;
     endalias;
     end;
     
@@ -1430,6 +1437,13 @@
       ==>
         FSM_Access_cacheL1C1_I_acquire(adr, m);
         LockAtomicEvent_cacheL1C1(m, adr);
+
+        -- [Axiom 19]
+        if !isundefined(cbe.vcInvalFlag) then
+          if cbe.vcInvalFlag then
+            cbe.getPermsAfterVcInvalFlag := true;
+          endif;
+        endif;
       endrule;
     
       rule "cacheL1C1_I_release"
@@ -1437,6 +1451,12 @@
       ==>
         FSM_Access_cacheL1C1_I_release(adr, m);
         
+        -- [Axiom 19]
+        if !isundefined(cbe.vcInvalFlag) then
+          if cbe.vcInvalFlag then
+            cbe.getPermsAfterVcInvalFlag := true;
+          endif;
+        endif;
       endrule;
     
       rule "cacheL1C1_I_load"
@@ -1444,6 +1464,12 @@
       ==>
         FSM_Access_cacheL1C1_I_load(adr, m);
         
+        -- [Axiom 19]
+        if !isundefined(cbe.vcInvalFlag) then
+          if cbe.vcInvalFlag then
+            cbe.getPermsAfterVcInvalFlag := true;
+          endif;
+        endif;
       endrule;
     
       rule "cacheL1C1_I_store"
@@ -1451,6 +1477,12 @@
       ==>
         FSM_Access_cacheL1C1_I_store(adr, m);
         
+        -- [Axiom 19]
+        if !isundefined(cbe.vcInvalFlag) then
+          if cbe.vcInvalFlag then
+            cbe.getPermsAfterVcInvalFlag := true;
+          endif;
+        endif;
       endrule;
     
       rule "cacheL1C1_O_acquire"
@@ -1514,6 +1546,12 @@
       ==>
         FSM_Access_cacheL1C1_V_load(adr, m);
         
+        -- [Axiom 19]
+        if !isundefined(cbe.vcInvalFlag) then
+          if cbe.vcInvalFlag then
+            assert ((!isundefined(cbe.getPermsAfterVcInvalFlag)) -> cbe.getPermsAfterVcInvalFlag) ">[Axiom 19] Load on V state. Vc-Inval-Flag is set, but why isn't the `getPermsAfterVcInval` flag set?\n";
+          endif;
+        endif;
       endrule;
     
       rule "cacheL1C1_V_evict"
@@ -1521,6 +1559,9 @@
       ==>
         FSM_Access_cacheL1C1_V_evict(adr, m);
         
+        -- [Axiom 19]
+        cbe.vcInvalFlag := true;
+        undefine cbe.getPermsAfterVcInvalFlag;
       endrule;
     
     
