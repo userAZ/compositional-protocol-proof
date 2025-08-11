@@ -1308,8 +1308,6 @@
           msg := AckL1C1(adr,PutO_AckL1C1,m,inmsg.src);
           Send_fwd(msg, m);
           if !(cbe.ownerL1C1 = inmsg.src) then
-            Clear_perm(adr, m);
-            cbe.State := directoryL1C1_I;
             return true;
           endif;
           if (cbe.ownerL1C1 = inmsg.src) then
