@@ -1058,7 +1058,9 @@
       msg := RequestL1C1(adr, Fwd_GetOL1C1, msg_GetOL1.src, cbe.ownerL1C1);
       Send_fwd(msg, m);
       cbe.ownerL1C1 := msg_GetOL1.src;
-      cbe.State := directoryL1C1_dO_GetO_x_pI_release;
+      Clear_perm(adr, m);
+      cbe.State := directoryL1C1_O_GetO; -- Reuse DirectoryL1C1_O_GetO
+      -- cbe.State := directoryL1C1_dO_GetO_x_pI_store;
     endalias;
     end;
     
@@ -1359,8 +1361,6 @@
           msg := AckL1C1(adr,PutO_AckL1C1,m,inmsg.src);
           Send_fwd(msg, m);
           if !(cbe.ownerL1C1 = inmsg.src) then
-            Clear_perm(adr, m);
-            cbe.State := directoryL1C1_I;
             return true;
           endif;
           if (cbe.ownerL1C1 = inmsg.src) then
@@ -1376,10 +1376,14 @@
       case directoryL1C1_O_GetO:
       switch inmsg.mtype
         case WB_AckL1C1:
-          msg := RespL1C1(adr,GetO_AckL1C1,m,inmsg.src,inmsg.cl);
-          Send_resp(msg, m);
+          if (inmsg.src != directoryL1C1) then
+            msg := RespL1C1(adr,GetO_AckL1C1,m,inmsg.src,inmsg.cl);
+            Send_resp(msg, m);
+            cbe.State := directoryL1C1_O;
+          else
+            cbe.State := directoryL1C1_I;
+          endif;
           Clear_perm(adr, m);
-          cbe.State := directoryL1C1_O;
           return true;
         
         else return false;
@@ -1657,6 +1661,7 @@
       --   cbe.State := directoryL1C1_V_to_O_shim_complete;
       -- endrule;
 
+      /*
       rule "directoryL1C1_I_release"
         cbe.State = directoryL1C1_I 
       ==>
@@ -1670,6 +1675,7 @@
         FSM_Access_directoryL1C1_I_store(adr, m);
         
       endrule;
+      */
     
       rule "directoryL1C1_V_release"
         cbe.State = directoryL1C1_V 
