@@ -902,6 +902,7 @@
       msg := RespL1C1(adr, PutOL1C1, m, directoryL1C1, cbe.cl);
       Send_req(msg, m);
       cbe.State := cacheL1C1_O_evict;
+      Clear_perm(adr,m);
     endalias;
     end;
     
@@ -964,6 +965,7 @@
     begin
     alias cbe: i_cacheL1C1[m].cb[adr] do
       cbe.State := cacheL1C1_I;
+      Clear_perm(adr,m);
     endalias;
     end;
     
