@@ -690,6 +690,229 @@
     endalias;
     end;
     
+    procedure FSM_Access_directoryL1C1_S_store(adr:Address; m:OBJSET_directoryL1C1);
+    var inmsg: Message;
+    var msg: Message;
+    var msg1: Message;
+    begin
+    alias cbe: i_directoryL1C1[m].cb[adr] do
+      inmsg := DevReqL1C1(adr, RdOwnL1C1, m, m);
+      Clear_perm(adr, m);
+      -- cbe.State := directoryL1C1_M_RdOwn;
+      -- cbe.State := directoryL1C1_dE_RdOwn_x_pI_store;
+
+      cbe.ownerL1C1 := inmsg.src;
+      cbe.acksExpectedL1C1 := VectorCount_cacheL1C1(cbe.cacheL1C1);
+      if !(IsElement_cacheL1C1(cbe.cacheL1C1, inmsg.src)) then
+        if (IsElement_cacheL1C1(cbe.cacheL1C1, inmsg.dst)) then
+          cbe.acksExpectedL1C1 := cbe.acksExpectedL1C1-1;
+          cbe.acksReceivedL1C1 := 0;
+          if !(cbe.acksExpectedL1C1 != 0) then
+            msg := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+            Send_H2D_response(msg, m);
+            msg1 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
+            Send_H2D_data(msg1, m);
+            if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+              Clear_perm(adr, m);
+              cbe.State := directoryL1C1_I;
+              -- cbe.State := directoryL1C1_M;
+              -- return true;
+            endif;
+            if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              Clear_perm(adr, m);
+              cbe.State := directoryL1C1_I;
+              -- cbe.State := directoryL1C1_M;
+              -- return true;
+            endif;
+          endif;
+          if (cbe.acksExpectedL1C1 != 0) then
+            if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+              msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
+              Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
+              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              Clear_perm(adr, m);
+              cbe.State := directoryL1C1_SM_Acks;
+              -- return true;
+            endif;
+            if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+              RemoveElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
+              msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
+              Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
+              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
+              Clear_perm(adr, m);
+              cbe.State := directoryL1C1_SM_Acks;
+              -- return true;
+            endif;
+          endif;
+        endif;
+        if !(IsElement_cacheL1C1(cbe.cacheL1C1, inmsg.dst)) then
+          cbe.acksReceivedL1C1 := 0;
+          if (cbe.acksExpectedL1C1 != 0) then
+            if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+              RemoveElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
+              msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
+              Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
+              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
+              Clear_perm(adr, m);
+              cbe.State := directoryL1C1_SM_Acks;
+              -- return true;
+            endif;
+            if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+              msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
+              Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
+              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              Clear_perm(adr, m);
+              cbe.State := directoryL1C1_SM_Acks;
+              -- return true;
+            endif;
+          endif;
+          if !(cbe.acksExpectedL1C1 != 0) then
+            msg := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+            Send_H2D_response(msg, m);
+            msg1 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
+            Send_H2D_data(msg1, m);
+            if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              Clear_perm(adr, m);
+              cbe.State := directoryL1C1_I;
+              -- cbe.State := directoryL1C1_M;
+              -- return true;
+            endif;
+            if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+              Clear_perm(adr, m);
+              cbe.State := directoryL1C1_I;
+              -- cbe.State := directoryL1C1_M;
+              -- return true;
+            endif;
+          endif;
+        endif;
+      endif;
+      if (IsElement_cacheL1C1(cbe.cacheL1C1, inmsg.src)) then
+        cbe.acksExpectedL1C1 := cbe.acksExpectedL1C1-1;
+        if (IsElement_cacheL1C1(cbe.cacheL1C1, inmsg.dst)) then
+          cbe.acksExpectedL1C1 := cbe.acksExpectedL1C1-1;
+          cbe.acksReceivedL1C1 := 0;
+          if !(cbe.acksExpectedL1C1 != 0) then
+            msg := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+            Send_H2D_response(msg, m);
+            msg1 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
+            Send_H2D_data(msg1, m);
+            if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+              Clear_perm(adr, m);
+              cbe.State := directoryL1C1_I;
+              -- cbe.State := directoryL1C1_M;
+              -- return true;
+            endif;
+            if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              Clear_perm(adr, m);
+              cbe.State := directoryL1C1_I;
+              -- cbe.State := directoryL1C1_M;
+              -- return true;
+            endif;
+          endif;
+          if (cbe.acksExpectedL1C1 != 0) then
+            if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+              RemoveElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
+              msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
+              Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
+              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
+              Clear_perm(adr, m);
+              cbe.State := directoryL1C1_SM_Acks;
+              -- return true;
+            endif;
+            if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+              msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
+              Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
+              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              Clear_perm(adr, m);
+              cbe.State := directoryL1C1_SM_Acks;
+              -- return true;
+            endif;
+          endif;
+        endif;
+        if !(IsElement_cacheL1C1(cbe.cacheL1C1, inmsg.dst)) then
+          cbe.acksReceivedL1C1 := 0;
+          if (cbe.acksExpectedL1C1 != 0) then
+            if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+              msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
+              Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
+              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              Clear_perm(adr, m);
+              cbe.State := directoryL1C1_SM_Acks;
+              -- return true;
+            endif;
+            if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+              RemoveElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
+              msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
+              Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
+              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
+              Clear_perm(adr, m);
+              cbe.State := directoryL1C1_SM_Acks;
+              -- return true;
+            endif;
+          endif;
+          if !(cbe.acksExpectedL1C1 != 0) then
+            msg := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+            Send_H2D_response(msg, m);
+            msg1 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
+            Send_H2D_data(msg1, m);
+            if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+              Clear_perm(adr, m);
+              cbe.State := directoryL1C1_I;
+              -- cbe.State := directoryL1C1_M;
+              -- return true;
+            endif;
+            if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              Clear_perm(adr, m);
+              cbe.State := directoryL1C1_I;
+              -- cbe.State := directoryL1C1_M;
+              -- return true;
+            endif;
+          endif;
+        endif;
+      endif;
+    endalias;
+    end;
+    
+    procedure FSM_Access_directoryL1C1_M_load(adr:Address; m:OBJSET_directoryL1C1);
+    var msg_RdSharedL1: Message;
+    var msg: Message;
+    begin
+    alias cbe: i_directoryL1C1[m].cb[adr] do
+      msg_RdSharedL1 := DevReqL1C1(adr, RdSharedL1C1, m, m);
+      msg := HostReqL1C1(adr, SnpDataL1C1, msg_RdSharedL1.src, cbe.ownerL1C1);
+      Send_H2D_request(msg, m);
+      AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
+      if !(msg_RdSharedL1.src != m) then
+      cbe.requesterL1C1 := msg_RdSharedL1.src;
+      cbe.State := directoryL1C1_M_RdShared;
+      -- cbe.State := directoryL1C1_dE_RdShared_x_pI_load;
+      endif
+    endalias;
+    end;
+    
+    procedure FSM_Access_directoryL1C1_M_store(adr:Address; m:OBJSET_directoryL1C1);
+    var msg_RdOwnL1: Message;
+    var msg: Message;
+    begin
+    alias cbe: i_directoryL1C1[m].cb[adr] do
+      msg_RdOwnL1 := DevReqL1C1(adr, RdOwnL1C1, m, m);
+      msg := HostReqL1C1(adr, SnpInvML1C1, msg_RdOwnL1.src, cbe.ownerL1C1);
+      Send_H2D_request(msg, m);
+      cbe.ownerL1C1 := msg_RdOwnL1.src;
+      Clear_perm(adr, m);
+      cbe.State := directoryL1C1_M_RdOwn;
+      -- cbe.State := directoryL1C1_dE_RdOwn_x_pI_store;
+    endalias;
+    end;
+    
     procedure FSM_Access_directoryL1C1_E_load(adr:Address; m:OBJSET_directoryL1C1);
     var msg_RdSharedL1: Message;
     var msg: Message;
@@ -812,11 +1035,13 @@
           if !(inmsg.src = cbe.ownerL1C1) then
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_E;
+            undefine cbe.requesterL1C1;
             return true;
           endif;
           if (inmsg.src = cbe.ownerL1C1) then
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
+            undefine cbe.requesterL1C1;
             return true;
           endif;
         
@@ -833,6 +1058,7 @@
             Send_H2D_response(msg, m);
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_E;
+            undefine cbe.requesterL1C1;
             return true;
           endif;
         
@@ -871,6 +1097,7 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
+          undefine cbe.requesterL1C1;
           return true;
         
         else return false;
@@ -891,9 +1118,11 @@
             Send_H2D_data(msg2, m);
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_M;
+            undefine cbe.requesterL1C1;
           else
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
+            undefine cbe.requesterL1C1;
           endif;
           return true;
         
@@ -911,9 +1140,11 @@
             Send_H2D_data(msg2, m);
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_M;
+            undefine cbe.requesterL1C1;
           else
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
+            undefine cbe.requesterL1C1;
           endif;
           return true;
         
@@ -936,6 +1167,7 @@
           endif;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_S;
+          undefine cbe.requesterL1C1;
           return true;
         
         else return false;
@@ -952,12 +1184,14 @@
             Send_H2D_data(msg2, m);
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_S;
+            undefine cbe.requesterL1C1;
             return true;
           endif;
           if !(cbe.requesterL1C1 != m) then
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_S;
             return true;
+            undefine cbe.requesterL1C1;
           endif;
         
         else return false;
@@ -970,6 +1204,7 @@
           Send_H2D_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
+          undefine cbe.requesterL1C1;
           return true;
         
         case DirtyEvictL1C1:
@@ -977,6 +1212,7 @@
           Send_H2D_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
+          undefine cbe.requesterL1C1;
           return true;
         
         case RdOwnL1C1:
@@ -987,6 +1223,7 @@
           Send_H2D_data(msg1, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_E;
+          undefine cbe.requesterL1C1;
           return true;
         
         case RdSharedL1C1:
@@ -997,6 +1234,7 @@
           Send_H2D_data(msg1, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_S;
+          undefine cbe.requesterL1C1;
           return true;
         
         else return false;
@@ -1010,11 +1248,13 @@
             Send_H2D_response(msg, m);
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_M;
+            undefine cbe.requesterL1C1;
             return true;
           endif;
           if !(inmsg.src != cbe.ownerL1C1) then
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_M;
+            undefine cbe.requesterL1C1;
             return true;
           endif;
         
@@ -1024,6 +1264,7 @@
             Send_H2D_response(msg, m);
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_M;
+            undefine cbe.requesterL1C1;
             return true;
           endif;
           if (inmsg.src = cbe.ownerL1C1) then
@@ -1061,6 +1302,7 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
+          undefine cbe.requesterL1C1;
           return true;
         
         else return false;
@@ -1079,13 +1321,19 @@
       case directoryL1C1_M_RdOwn_RspIFwdM:
       switch inmsg.mtype
         case DevDataMsgL1C1:
-          msg1 := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
-          Send_H2D_response(msg1, m);
-          msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,cbe.ownerL1C1,inmsg.cl);
-          Send_H2D_data(msg2, m);
-          cbe.cl := inmsg.cl;
-          Clear_perm(adr, m);
-          cbe.State := directoryL1C1_M;
+          if (cbe.ownerL1C1 != directoryL1C1) then
+            msg1 := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+            Send_H2D_response(msg1, m);
+            msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,cbe.ownerL1C1,inmsg.cl);
+            Send_H2D_data(msg2, m);
+            cbe.cl := inmsg.cl;
+            Clear_perm(adr, m);
+            cbe.State := directoryL1C1_M;
+            undefine cbe.requesterL1C1;
+          else
+            cbe.State := directoryL1C1_I;
+            undefine cbe.requesterL1C1;
+          endif;
           return true;
         
         else return false;
@@ -1104,13 +1352,19 @@
       case directoryL1C1_M_RdShared_RspSFwdM:
       switch inmsg.mtype
         case DevDataMsgL1C1:
-          msg1 := HostRspL1C1(adr,GO_SL1C1,m,cbe.requesterL1C1);
-          Send_H2D_response(msg1, m);
-          msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,cbe.requesterL1C1,inmsg.cl);
-          Send_H2D_data(msg2, m);
+          if (cbe.requesterL1C1 != directoryL1C1) then
+            msg1 := HostRspL1C1(adr,GO_SL1C1,m,cbe.requesterL1C1);
+            Send_H2D_response(msg1, m);
+            msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,cbe.requesterL1C1,inmsg.cl);
+            Send_H2D_data(msg2, m);
+          --else
+          endif;
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_S;
+
+          undefine cbe.requesterL1C1;
+          -- cbe.State := directoryL1C1_I;
           return true;
         
         else return false;
@@ -1132,6 +1386,7 @@
               RemoveElement_cacheL1C1(cbe.cacheL1C1, inmsg.src);
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_S;
+              undefine cbe.requesterL1C1;
               return true;
             endif;
           endif;
@@ -1140,6 +1395,7 @@
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_S;
             return true;
+            undefine cbe.requesterL1C1;
           endif;
         
         case DirtyEvictL1C1:
@@ -1150,12 +1406,14 @@
               RemoveElement_cacheL1C1(cbe.cacheL1C1, inmsg.src);
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_S;
+              undefine cbe.requesterL1C1;
               return true;
             endif;
             if (VectorCount_cacheL1C1(cbe.cacheL1C1) = 1) then
               RemoveElement_cacheL1C1(cbe.cacheL1C1, inmsg.src);
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_I;
+              undefine cbe.requesterL1C1;
               return true;
             endif;
           endif;
@@ -1163,6 +1421,7 @@
             RemoveElement_cacheL1C1(cbe.cacheL1C1, inmsg.src);
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_S;
+            undefine cbe.requesterL1C1;
             return true;
           endif;
         
@@ -1181,12 +1440,14 @@
                 if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_M;
+                  undefine cbe.requesterL1C1;
                   return true;
                 endif;
                 if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
                   ClearVector_cacheL1C1(cbe.cacheL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_M;
+                  undefine cbe.requesterL1C1;
                   return true;
                 endif;
               endif;
@@ -1242,11 +1503,13 @@
                   ClearVector_cacheL1C1(cbe.cacheL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_M;
+                  undefine cbe.requesterL1C1;
                   return true;
                 endif;
                 if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_M;
+                  undefine cbe.requesterL1C1;
                   return true;
                 endif;
               endif;
@@ -1265,12 +1528,14 @@
                 if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_M;
+                  undefine cbe.requesterL1C1;
                   return true;
                 endif;
                 if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
                   ClearVector_cacheL1C1(cbe.cacheL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_M;
+                  undefine cbe.requesterL1C1;
                   return true;
                 endif;
               endif;
@@ -1325,12 +1590,14 @@
                 if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_M;
+                  undefine cbe.requesterL1C1;
                   return true;
                 endif;
                 if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
                   ClearVector_cacheL1C1(cbe.cacheL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_M;
+                  undefine cbe.requesterL1C1;
                   return true;
                 endif;
               endif;
@@ -1345,6 +1612,7 @@
           AddElement_cacheL1C1(cbe.cacheL1C1, inmsg.src);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_S;
+          undefine cbe.requesterL1C1;
           return true;
         
         else return false;
@@ -1360,20 +1628,30 @@
             return true;
           endif;
           if (cbe.acksReceivedL1C1 = cbe.acksExpectedL1C1) then
-            msg1 := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
-            Send_H2D_response(msg1, m);
-            msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,cbe.ownerL1C1,cbe.cl);
-            Send_H2D_data(msg2, m);
-            if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
-              Clear_perm(adr, m);
-              cbe.State := directoryL1C1_M;
+            undefine cbe.acksReceivedL1C1;
+            -- Proxy Inval Guard
+            if (cbe.ownerL1C1 = directoryL1C1) then
+              cbe.State := directoryL1C1_I;
+              undefine cbe.requesterL1C1;
               return true;
-            endif;
-            if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
-              ClearVector_cacheL1C1(cbe.cacheL1C1);
-              Clear_perm(adr, m);
-              cbe.State := directoryL1C1_M;
-              return true;
+            else
+              msg1 := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+              Send_H2D_response(msg1, m);
+              msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,cbe.ownerL1C1,cbe.cl);
+              Send_H2D_data(msg2, m);
+              if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+                Clear_perm(adr, m);
+                cbe.State := directoryL1C1_M;
+                undefine cbe.requesterL1C1;
+                return true;
+              endif;
+              if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+                ClearVector_cacheL1C1(cbe.cacheL1C1);
+                Clear_perm(adr, m);
+                cbe.State := directoryL1C1_M;
+                undefine cbe.requesterL1C1;
+                return true;
+              endif;
             endif;
           endif;
         
@@ -1760,7 +2038,36 @@
         FSM_Access_directoryL1C1_E_load(adr, m);
         
       endrule;
+
+      rule "directoryL1C1_E_store"
+        cbe.State = directoryL1C1_E & network_ready() 
+      ==>
+        FSM_Access_directoryL1C1_E_store(adr, m);
+        
+      endrule;
     
+      -- [TODOs]
+
+      rule "directoryL1C1_M_load"
+        cbe.State = directoryL1C1_M & network_ready() 
+      ==>
+        FSM_Access_directoryL1C1_M_load(adr, m);
+        
+      endrule;
+
+      rule "directoryL1C1_M_store"
+        cbe.State = directoryL1C1_M & network_ready() 
+      ==>
+        FSM_Access_directoryL1C1_M_store(adr, m);
+        
+      endrule;
+    
+      rule "directoryL1C1_S_store"
+        cbe.State = directoryL1C1_S & network_ready() 
+      ==>
+        FSM_Access_directoryL1C1_S_store(adr, m);
+        
+      endrule;
       /*
       rule "directoryL1C1_I_store"
         cbe.State = directoryL1C1_I 
