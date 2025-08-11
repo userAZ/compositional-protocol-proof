@@ -1,0 +1,1117 @@
+# NrCaches 3
+
+// These are virtual networks
+Network {
+  Unordered D2H_request;
+  Unordered D2H_response;
+  Ordered D2H_data;
+  Unordered H2D_request;
+  Unordered H2D_response;
+  Ordered H2D_data;
+};
+
+Cache {
+    State I; // State is a var, I is the default value
+    Data cl; // Data is a var, cl is the name.
+} set[NrCaches] cache;
+
+Directory {
+    State I;
+    Data cl;
+    int[0..NrCaches] acksReceived = 0; // Acks for invaling sharers
+    int[0..NrCaches] acksExpected = 0;
+    set[NrCaches] ID cache; // A "List" of caches (for sharers)
+    ID owner;
+    ID requester;
+} directory;
+
+// Messages 'types' all have
+// (message name, Current Cache ID, and Destination ID, message fields)
+
+// AZ NOTE: Protogen specific things:
+// NOTE: A message name, ex. DataMsg can only be of 1 type (DataFull)
+// NOTE: Message Names can only be sent by 1 controller type (Cache, xor Dir)
+
+/// NOTE: Protogen needs messages to arrive in the order?
+
+// Now, Question: can messages be sent on multiple networks?
+
+
+// ---------------------- D2H ---------------------
+
+/////// D2H Request ////////
+// This cache entry is the "address". i.e. addr is implicit in Protogen
+// RdShared, RdOwn, RdAny, RdOwnNoData,
+// ItoMWr, WrCur,
+// CleanEvict, DirtyEvict, DleanEvictNoData,
+// WOWrInv, WOWrInvF, WrInv,
+// CLFlush, CacheFlush
+Message DevReq{};
+
+// Message read{};
+// Message read0{};
+// Message read0_write{};
+// Message write{};
+
+/////// D2H Response ////////
+// RspIHitI, RspVHitV, RspIHitSE, RspSHitSE, RspSFwdM, RspIFwdM, RspVFwdV
+Message DevRsp{};
+
+/////// D2H / H2D Data ////////
+// Message DataLower { Data cl_lower; }; // 32B??
+// Message DataUpper { Data cl_upper; }; // 32B??
+
+// Protogen requires 1 msg type on 1 network??
+Message DataFull { Data cl; }; // 64B
+
+// ---------------------- H2D ---------------------
+
+/////// H2D Request ///////
+// SnpData, SnpInv, SnpCur
+Message HostReq{};
+
+/////// H2D Response ///////
+// WritePull, GO_M, GO_E, GO_S, GO_I,
+// Do i actually expect to use an error message?
+// GO_Err?
+Message HostRsp{};
+
+// ------------------------------------------------
+
+// Cache Controller
+Architecture cache {
+
+    Stable{I, S, E, M} //, ENoData, M_x_S_evict, M_x_I_evict
+
+// NOTE: Swich Data lower/upper to just data for now. Similar to below
+
+// TODO: Add some local cache event that causes RdCurr??
+// TODO: Add some local cache event that causes RdAny??
+// --------- (checkpoint) Start here -----------
+// --------- Start here -----------
+
+    // I ////////////////////////////////////////////////////////
+    // TODO:
+    // How do we only allow 1 store at a time?
+    Process(I,evict){
+    }
+
+    Process(I, store, State){
+        // NOTE: If we could distinguish between different stores sizes,
+        // we could specify RdOwn vs. RdOwnNoData.
+
+        // Need some changes.
+        // Also need (1) QID, and (2) to allocate a queue entry??
+        // TODO: Is this something to model? Or just at a high level..?
+        // Ignore above.
+
+        // Assume we issue RdOwn
+        msg = DevReq(RdOwn, ID, directory.ID);
+        D2H_request.send(msg);
+
+        // TODO: Technically should also handle awaiting a GO_M as well
+        await{
+            when GO_E: // Refer to msg by it's name
+                await {
+                    when HostDataMsg:
+                        State = E;
+                        cl = HostDataMsg.cl;
+                        break;
+                    // when DataLower:
+                    //      await {
+                    //          when DataUpper:
+                    //              State = E;
+                    //              // TODO: How to combine lower and upper data?
+                    //              // Or should we just assume we only have
+                    //              // 1 data packet
+                    //              cl = DataLower.cl_lower + DataUpper.cl_upper;
+                    //              break;
+                    //            }
+                }
+            when GO_M:
+                await {
+                    when HostDataMsg:
+                        State = M;
+                        cl = HostDataMsg.cl;
+                        break;
+                }
+            /// NOTE: commented out for now, protogen doesn't like
+            /// interleaved await orderings?
+            /// when HostDataMsg:
+            ///     cl = HostDataMsg.cl;
+
+            ///     await {
+            ///         when GO_E:
+            ///             State = E;
+            ///             break;
+            ///         when GO_M:
+            ///             State = M;
+            ///             break;
+            ///     }
+
+            // when DataLower:
+            //     await {
+            //         when GO_E: // Refer to msg by it's name
+            //             await {
+            //                 when DataUpper:
+            //                     State = E;
+            //                     cl = DataLower.cl_lower + DataUpper.cl_upper;
+            //                     break;
+            //             }
+            //         when DataUpper: // Refer to msg by it's name
+            //             await {
+            //                 when GO_E:
+            //                     State = E;
+            //                     cl = DataLower.cl_lower + DataUpper.cl_upper;
+            //                     break;
+            //             }
+            //     }
+        }
+    }
+
+    Process(I, load, State){
+        msg = DevReq(RdShared, ID, directory.ID);
+        D2H_request.send(msg);
+
+        // manually expanded the options of getting S or E
+        await{
+            when GO_S: // Refer to msg by it's name
+                await {
+                    when HostDataMsg:
+                        cl = HostDataMsg.cl;
+                        State = S;
+                        break;
+                    // when DataLower:
+                    //      await {
+                    //          when DataUpper:
+                    //              State = S;
+                    //              // TODO: How to combine lower and upper data?
+                    //              // Or should we just assume we only have
+                    //              // 1 data packet
+                    //              cl = DataLower.cl_lower + DataUpper.cl_upper;
+                    //              break;
+                    //            }
+                }
+            // when GO_E: // Refer to msg by it's name
+            //     await {
+            //         when DataLower:
+            //              await {
+            //                  when DataUpper:
+            //                      State = E;
+            //                      // TODO: How to combine lower and upper data?
+            //                      // Or should we just assume we only have
+            //                      // 1 data packet
+            //                      cl = DataLower.cl_lower + DataUpper.cl_upper;
+            //                      break;
+            //                    }
+            //     }
+
+            /// NOTE: Protogen needs messages to arrive in the order
+            /// they're sent in the SSP
+            /// when HostDataMsg:
+            ///     cl = HostDataMsg.cl;
+
+            ///     await {
+            ///         when GO_S:
+            ///             State = S;
+            ///             break;
+            ///     }
+
+            // when DataLower:
+            //     await {
+            //         when GO_S: // Refer to msg by it's name
+            //             await {
+            //                 when DataUpper:
+            //                     State = S;
+            //                     cl = DataLower.cl_lower + DataUpper.cl_upper;
+            //                     break;
+            //             }
+            //         // when GO_E: // Refer to msg by it's name
+            //         //     await {
+            //         //         when DataUpper:
+            //         //             State = E;
+            //         //             cl = DataLower.cl_lower + DataUpper.cl_upper;
+            //         //             break;
+            //         //     }
+            //         when DataUpper: // Refer to msg by it's name
+            //             await {
+            //                 when GO_S:
+            //                     State = S;
+            //                     cl = DataLower.cl_lower + DataUpper.cl_upper;
+            //                     break;
+            //                 // when GO_E:
+            //                 //     State = E;
+            //                 //     cl = DataLower.cl_lower + DataUpper.cl_upper;
+            //                 //     break;
+            //             }
+            //     }
+        }
+    }
+
+    // S ////////////////////////////////////////////////////////
+    Process(S, load){
+    }
+
+    Process(S, store, State){
+        msg = DevReq(RdOwn, ID, directory.ID);
+        D2H_request.send(msg);
+
+        await{
+            when GO_M: // Refer to msg by it's name
+                await {
+                    when HostDataMsg:
+                        State = M;
+                        cl = HostDataMsg.cl;
+                        break;
+                    // when DataLower:
+                    //      await {
+                    //          when DataUpper:
+                    //              State = M;
+                    //              // TODO: How to combine lower and upper data?
+                    //              // Or should we just assume we only have
+                    //              // 1 data packet
+                    //              cl = DataLower.cl_lower + DataUpper.cl_upper;
+                    //              break;
+                    //            }
+                }
+
+            // In case i have to manually handle this case....
+            //when SnpInv:
+            //    // NOTE: now in IMI state
+            //    msg1 = DevRsp(RspIHitSE, ID, directory.ID);
+            //    D2H_response.send(msg1);
+
+            //    await {
+            //        when GO_M:
+            //            await {
+            //                when HostDataMsg:
+            //                    State = I;
+            //                    break;
+            //            }
+            //    }
+
+            /// NOTE: commented out for now, protogen doesn't like
+            /// interleaved await orderings?
+            /// when HostDataMsg:
+            ///     cl = HostDataMsg.cl;
+
+            ///     await {
+            ///         when GO_M:
+            ///             State = M;
+            ///             break;
+            ///     }
+            // when DataLower:
+            //     await {
+            //         when GO_M: // Refer to msg by it's name
+            //             await {
+            //                 when DataUpper:
+            //                     State = M;
+            //                     cl = DataLower.cl_lower + DataUpper.cl_upper;
+            //                     break;
+            //             }
+            //         when DataUpper: // Refer to msg by it's name
+            //             await {
+            //                 when GO_M:
+            //                     State = M;
+            //                     cl = DataLower.cl_lower + DataUpper.cl_upper;
+            //                     break;
+            //             }
+            //     }
+        }
+
+    }
+
+    Process(S, SnpInvS, I){
+        // What should the source ID be?
+        // TODO: Account for using the cache ID here.
+        msg = DevRsp(RspIHitSE, ID, directory.ID);
+        D2H_response.send(msg);
+    }
+
+    // evict/replacement
+    Process(S, evict, State){
+        msg = DevReq(CleanEvictNoData, ID, directory.ID);
+        D2H_request.send(msg);
+
+        await{
+            when GO_I:
+                State = I;
+                break;
+            when SnpInvS:
+                msg1 = DevRsp(RspIHitSE, ID, directory.ID);
+                D2H_response.send(msg1);
+                await{
+                    // Could also not send/await a GO_I
+                    // between host/device
+                    when GO_I:
+                        State = I;
+                        break;
+                }
+        }
+    }
+
+    // E ////////////////////////////////////////////////////////
+    Process(E, load){
+    }
+
+    Process(E, store, M){
+    }
+
+    Process(E, SnpData, S){
+        msg = DevRsp(RspSHitSE, SnpData.src, directory.ID);
+        D2H_response.send(msg);
+
+        // TODO: Do we send data if we're in E?
+        // no reason to if it's in the directory/mem?
+        // NOPE! no need to. it's a Hit response, so no data.
+
+        State = S;
+    }
+
+    Process(E, SnpInvM, I){
+        // NOTE: why send from the SnpInv.src?
+        // Because Protogen doesn't store the original requester
+        // So we have to be clever here and re-use the
+        // original requester's ID here.
+        msg = DevRsp(RspIHitSE, SnpInvM.src, directory.ID);
+        D2H_response.send(msg);
+        // TODO: Do we send data if we're in E?
+        // no reason to if it's in the directory/mem?
+
+        State = I;
+    }
+
+    // TODO: Look in Host, see what to do if a
+    // CleanEvictNoData or DirtyEvict Msg is received when
+    // the host has gotten RdShared / RdOwn
+    // evict / replacement
+    // Two interleavings: Evict first, then shared, (simple, just stall)
+    // Or: Shared/own then evict,
+    Process(E, evict, State){
+        msg = DevReq(CleanEvictNoData, ID, directory.ID);
+        D2H_request.send(msg);
+
+        // NOTE: a trick to stop murphi from thinking this is
+        // in writeable state, since this blocks anyways
+        // NOTE: This doesn't work
+        // State = I;
+
+        await{
+            when GO_I: // Not GO_WritePull_Drop
+                State = I;
+                break;
+            when SnpData:
+                msg1 = DevRsp(RspSHitSE, SnpData.src, directory.ID);
+                D2H_response.send(msg1);
+                await {
+                    when GO_I: // Not GO_WritePull_Drop
+                        State = I;
+                        break;
+                    when SnpInvS:
+                        msg1 = DevRsp(RspIHitSE, SnpInvS.src, directory.ID);
+                        D2H_response.send(msg1);
+                        await {
+                            when GO_I:
+                                State = I;
+                                break;
+                        }
+                }
+            when SnpInvM:
+                msg1 = DevRsp(RspIHitSE, SnpInvM.src, directory.ID);
+                D2H_response.send(msg1);
+                await {
+                    when GO_I: // Not GO_WritePull_Drop
+                        State = I;
+                        break;
+                }
+        }
+    }
+
+    // M ////////////////////////////////////////////////////////
+    Process(M, load){
+    }
+
+    Process(M, store){
+    }
+
+    Process(M, SnpData, S){
+        msg = DevRsp(RspSFwdM, SnpData.src, directory.ID);
+        D2H_response.send(msg);
+        msg1 = DataFull(DevDataMsg, SnpData.src, directory.ID, cl);
+        D2H_data.send(msg1);
+        // msg1 = DataLower(Data, ID, SnpData.src, cl_lower);
+        // D2H_data.send(msg1);
+        // msg2 = DataLower(Data, ID, SnpData.src, cl_upper);
+        // D2H_data.send(msg2);
+    }
+
+    Process(M, SnpInvM, I){
+        msg = DevRsp(RspIFwdM, SnpInvM.src, directory.ID);
+        D2H_response.send(msg);
+        msg1 = DataFull(DevDataMsg, SnpInvM.src, directory.ID, cl);
+        D2H_data.send(msg1);
+        //msg = DataLower(Data, ID, SnpInvM.src, cl);
+        //D2H_response.send(msg);
+    }
+
+    // Process(M_x_S_evict,load){
+    // }
+    // Process(M_x_S_evict,store){
+    // }
+    // Process(M_x_S_evict,evict){
+    // }
+
+    // Process(M_x_S_evict,GO_I,State){
+    //     State = I;
+    // }
+    // Process(M_x_S_evict,SnpInvS,State){
+    //     msg = DevRsp(RspIHitSE, SnpInvS.src, directory.ID);
+    //     D2H_response.send(msg);
+    //     await {
+    //         when GO_I:
+    //             State = I;
+    //             break;
+    //     }
+    // }
+
+    // Process(M_x_I_evict,GO_I,State){
+    //     State = I;
+    // }
+    // Process(M_x_I_evict,load){
+    // }
+    // Process(M_x_I_evict,store){
+    // }
+    // Process(M_x_I_evict,evict){
+    // }
+
+    // evict / replacement
+    Process(M, evict, State){
+        msg = DevReq(DirtyEvict, ID, directory.ID);
+        D2H_request.send(msg);
+
+        // NOTE: a trick to stop murphi from thinking this is
+        // in writeable state, since this blocks anyways
+        // NOTE: This doesn't work.
+        //State = I;
+
+        await{
+            when GO_WritePull:
+                msg1 = DataFull(DevDataMsg, ID, directory.ID, cl);
+                D2H_data.send(msg1);
+                // msg1 = DataLower(Data, ID, directory.ID, cl);
+                // D2H_data.send(msg1);
+                // msg2 = DataLower(Data, ID, directory.ID, cl);
+                // D2H_data.send(msg2);
+                State = I;
+                break;
+
+            when SnpData:
+                msg1 = DevRsp(RspSFwdM, SnpData.src, directory.ID);
+                D2H_response.send(msg1);
+                msg2 = DataFull(DevDataMsg, SnpData.src, directory.ID, cl);
+                D2H_data.send(msg2);
+                // msg2 = DataLower(Data, ID, directory.ID, cl);
+                // D2H_data.send(msg2);
+                // msg3 = DataUpper(Data, ID, directory.ID, cl);
+                // D2H_data.send(msg3);
+
+                //State = M_x_S_evict;
+
+                await {
+                    when GO_I:
+                        State = I;
+                        break;
+                    when SnpInvS:
+                        msg3 = DevRsp(RspIHitSE, SnpInvS.src, directory.ID);
+                        D2H_response.send(msg3);
+                        await {
+                            when GO_I:
+                                State = I;
+                                break;
+                        }
+                }
+
+            when SnpInvM:
+                msg1 = DevRsp(RspIFwdM, SnpInvM.src, directory.ID);
+                D2H_response.send(msg1);
+                msg2 = DataFull(DevDataMsg, SnpInvM.src, directory.ID, cl);
+                D2H_data.send(msg2);
+                // msg2 = DataLower(Data, ID, directory.ID, cl);
+                // D2H_data.send(msg2);
+                // msg3 = DataUpper(Data, ID, directory.ID, cl);
+                // D2H_data.send(msg3);
+                
+                //State = M_x_I_evict;
+
+                await {
+                    when GO_I:
+                        break;
+                }
+        }
+    }
+}
+
+Architecture directory {
+
+    Stable{I, S, E, M, SM_Acks, E_DEvict, M_DEvict, E_RspSFwdM}
+
+    // I ////////////////////////////////////////////////////////
+
+    Process(I, RdShared, S){
+        cache.add(RdShared.src);
+        msg = HostRsp(GO_S, ID, RdShared.src);
+        H2D_response.send(msg);
+        msg1 = DataFull(HostDataMsg, ID, RdShared.src, cl);
+        H2D_data.send(msg1);
+        // msg1 = DataLower(HostDataMsg, ID, RdShared.src, cl_lower);
+        // H2D_response.send(msg1);
+        // msg2 = DataLower(HostDataMsg, ID, RdShared.src, cl_lower);
+        // H2D_response.send(msg2);
+
+        // owner = RdShared.src;
+    }
+
+    Process(I, RdOwn, E){
+        owner = RdOwn.src;
+        msg = HostRsp(GO_E, ID, RdOwn.src);
+        H2D_response.send(msg);
+        msg1 = DataFull(HostDataMsg, ID, RdOwn.src, cl);
+        H2D_data.send(msg1);
+        // msg1 = DataLower(HostDataMsg, ID, RdOwn.src, cl_lower);
+        // H2D_response.send(msg1);
+        // msg2 = DataLower(HostDataMsg, ID, RdOwn.src, cl_lower);
+        // H2D_response.send(msg2);
+
+    }
+
+    /// Process(I, RdCurr){
+    ///     msg1 = DataFull(HostDataMsg, ID, RdCurr.src, cl);
+    ///     H2D_response.send(msg1);
+    ///     // msg1 = DataLower(HostDataMsg, ID, RdCurr.src, cl_lower);
+    ///     // H2D_response.send(msg1);
+    ///     // msg2 = DataLower(HostDataMsg, ID, RdCurr.src, cl_lower);
+    ///     // H2D_response.send(msg2);
+    /// }
+
+    Process(I, CleanEvictNoData) {
+        msg = HostRsp(GO_I, ID, CleanEvictNoData.src);
+        H2D_response.send(msg);
+    }
+
+    Process(I, DirtyEvict) {
+        msg = HostRsp(GO_I, ID, DirtyEvict.src);
+        H2D_response.send(msg);
+    }
+
+    // S ////////////////////////////////////////////////////////
+    Process(S, RdShared){
+        msg = HostRsp(GO_S, ID, RdShared.src);
+        H2D_response.send(msg);
+        msg1 = DataFull(HostDataMsg, ID, RdShared.src, cl);
+        H2D_data.send(msg1);
+        // msg1 = DataLower(Data, ID, RdShared.src, cl_lower);
+        // H2D_data.send(msg1);
+        // msg2 = DataLower(Data, ID, RdShared.src, cl_upper);
+        // H2D_data.send(msg2);
+
+        cache.add(RdShared.src);
+
+        State = S; // is this necessary?? it stays in S?
+    }
+
+    Process(S, RdOwn){
+        owner = RdOwn.src;
+        // NOTE: subtract 1 from count, since the directory
+        // is getting counted in the list of sharers...
+        acksExpected = cache.count();
+
+        if cache.contains(RdOwn.src) {
+            acksExpected = acksExpected - 1;
+        }
+        // [Aug 10] Fight protogen nonsense where it adds directory to sharers. 
+        if cache.contains(RdOwn.dst) {
+            acksExpected = acksExpected - 1;
+        }
+        // else {
+        //     // msg1 = DataLower(GO_M, ID, RdOwn.src, cl_lower);
+        //     // H2D_response.send(msg1);
+        //     // msg2 = DataLower(GO_M, ID, RdOwn.src, cl_lower);
+        //     // H2D_response.send(msg2);
+        // }
+
+        acksReceived = 0;
+
+         if acksExpected != 0 {
+
+            // Broadcast Invalidation messages
+            if cache.contains(owner) {
+                cache.del(owner);
+                msg = HostReq(SnpInvS, ID, ID);
+                H2D_request.mcast(msg, cache);
+                cache.clear();
+                cache.add(owner);
+            } else {
+                msg = HostReq(SnpInvS, ID, ID);
+                H2D_request.mcast(msg, cache);
+                cache.clear();
+            }
+
+            State = SM_Acks;
+
+
+        } else {
+            msg = HostRsp(GO_M, ID, owner);
+            H2D_response.send(msg);
+            msg1 = DataFull(HostDataMsg, ID, RdOwn.src, cl);
+            H2D_data.send(msg1);
+
+            if cache.contains(owner) {
+                cache.clear();
+                State = M;
+                break;
+            } else {
+                State = M;
+                break;
+            }
+
+        }
+
+    }
+
+    Process(SM_Acks,RspIHitSE) {
+        //await {
+        //    when RspIHitSE:
+                acksReceived = acksReceived + 1;
+                if (acksReceived == acksExpected) {
+                    // Transition to M.
+                    msg1 = HostRsp(GO_M, ID, owner);
+                    H2D_response.send(msg1);
+                    msg2 = DataFull(HostDataMsg, ID, owner, cl);
+                    H2D_data.send(msg2);
+
+                    if cache.contains(owner) {
+                        cache.clear();
+                        State = M;
+                        break;
+                    } else {
+                        State = M;
+                        break;
+                    }
+
+                }
+        //}
+
+    }
+
+    Process(S, CleanEvictNoData, State){
+        msg = HostRsp(GO_I, ID, CleanEvictNoData.src);
+        H2D_response.send(msg);
+
+        if cache.contains(CleanEvictNoData.src) {
+            if (cache.count() == 1) {
+                State = I;
+            }
+        }
+
+        cache.del(CleanEvictNoData.src);
+    }
+
+    Process(S, DirtyEvict, State){
+        msg = HostRsp(GO_I, ID, CleanEvictNoData.src);
+        H2D_response.send(msg);
+
+        // The device/cache that had the line in M first, should
+        // may have sent a DirtyEvict msg,
+        // could it have been blocked, and served
+        // only when it's the last `sharer'?
+        if cache.contains(DirtyEvict.src) {
+            if (cache.count() == 1) {
+                State = I;
+            }
+        }
+
+        cache.del(DirtyEvict.src);
+
+    }
+
+// TODO: Ensure RdShared RdOwn transactions return GO msgs.
+
+    Process(E_RspSFwdM, DevDataMsg){
+        if (requester != ID) {
+          msg1 = HostRsp(GO_S, ID, requester);
+          H2D_response.send(msg1);
+          cl = DevDataMsg.cl;
+          msg2 = DataFull(HostDataMsg, ID, requester, DevDataMsg.cl);
+          H2D_data.send(msg2);
+        }
+        State = S;
+    }
+
+    // E ////////////////////////////////////////////////////////
+    Process(E, RdShared){
+        msg = HostReq(SnpData, RdShared.src, owner);
+        H2D_request.send(msg);
+
+        cache.add(owner);
+        if (RdShared.src != ID) {
+          cache.add(RdShared.src);
+        }
+
+        requester = RdShared.src;
+
+        await {
+            when RspSFwdM:
+                State = E_RspSFwdM;
+                break;
+                // await {
+                //     when DevDataMsg:
+                //         msg1 = HostRsp(GO_S, ID, requester);
+                //         H2D_response.send(msg1);
+                //         cl = DevDataMsg.cl;
+                //         msg2 = DataFull(HostDataMsg, ID, requester, DevDataMsg.cl);
+                //         H2D_data.send(msg2);
+                //         State = S;
+                //         break;
+                // }
+            when RspSHitSE:
+                // NOTE: Note that the RdShared src id is
+                // actually lost at this point, because
+                // protogen clears the msg when it starts processing
+                // it and awaiting the next message.
+                // Thus we re-use the RdShared.src from the HostReq,
+                // that is sent back to the Host in the RspSHitSE
+                
+                //if (RspSHitSE.src != ID) {
+                msg1 = HostRsp(GO_S, ID, RspSHitSE.src);
+                H2D_response.send(msg1);
+                msg2 = DataFull(HostDataMsg, ID, RspSHitSE.src, cl);
+                H2D_data.send(msg2);
+                //}
+                State = S;
+                break;
+            /// NOTE: Must wait in order
+            /// when DevDataMsg:
+            ///     cl = DevDataMsg.cl;
+
+            ///     await {
+            ///         when RspSHitM:
+            ///             // cl = DevDataMsg.cl;
+            ///             msg2 = HostRsp(GO_S, ID, RdShared.src);
+            ///             H2D_response.send(msg2);
+            ///             
+            ///             msg1 = DataFull(HostDataMsg, ID, RdShared.src, DevDataMsg.cl);
+            ///             H2D_data.send(msg1);
+
+            ///             State = S;
+            ///             break;
+            ///    }
+
+            // Stall, don't worry about receiving evicts
+            // when CleanEvictNoData:
+            //     // handle this case? or just await
+            //     await RspSHitSE:
+        }
+    }
+
+    Process(E, RdOwn){
+        msg = HostReq(SnpInvM, RdOwn.src, owner);
+        H2D_request.send(msg);
+
+        owner = RdOwn.src;
+
+        await {
+            when RspIHitSE:
+                msg1 = HostRsp(GO_M, ID, RspIHitSE.src);
+                H2D_response.send(msg1);
+                msg2 = DataFull(HostDataMsg, ID, RspIHitSE.src, cl);
+                H2D_data.send(msg2);
+                // owner = RdOwn.src;
+                State = M;
+                break;
+            when RspIFwdM:
+                await {
+                    when DevDataMsg:
+                        cl = DevDataMsg.cl;
+                        msg1 = HostRsp(GO_M, ID, owner);
+                        H2D_response.send(msg1);
+                        msg2 = DataFull(HostDataMsg, ID, owner, DevDataMsg.cl);
+                        H2D_data.send(msg2);
+                        State = M;
+                        // owner = RdOwn.src;
+                        break;
+                }
+                // NOTE: Protogen didn't like receiving messages in
+                // interleaved ordering.
+                // This is even with the rest of the protogen file
+                // `working'
+            /// when DevDataMsg:
+            ///     cl = DevDataMsg.cl;
+            ///     msg2 = DataFull(HostDataMsg, ID, owner, DevDataMsg.cl);
+            ///     H2D_data.send(msg2);
+            ///     await {
+            ///         when RspIFwdM:
+            ///             msg1 = HostRsp(GO_M, ID, owner);
+            ///             H2D_response.send(msg1);
+            ///             State = M;
+            ///             // owner = RdOwn.src;
+            ///             break;
+            ///     }
+
+        }
+    }
+
+    /// Process(E, RdCurr) {
+    ///     msg = HostReq(SnpCur, ID, owner);
+    ///     H2D_request.send(msg);
+
+    ///     requester = RdCurr.src;
+
+    ///     await {
+
+    ///         when RspVHitV: // Hit in E, don't fwd data.
+    ///             msg1 = DataFull(HostDataMsg, ID, requester, cl);
+    ///             H2D_data.send(msg1);
+    ///             break;
+
+    ///         when RspVFwdV: // Hit in M, fwd data.
+    ///             await {
+    ///                 when DevDataMsg:
+    ///                     msg1 = DataFull(HostDataMsg, ID, requester, DevDataMsg.cl);
+    ///                     H2D_data.send(msg1);
+    ///                     break;
+    ///             }
+
+                // NOTE: leave ordering of interleaving for now, add back when
+                // RdCurr is working..
+    ///         when DevDataMsg:
+    ///             msg1 = DataFull(HostDataMsg, ID, requester, DevDataMsg.cl);
+    ///             H2D_data.send(msg1);
+
+    ///             await {
+    ///                 when RspVFwdV:
+    ///                     break;
+    ///             }
+    ///     }
+    /// }
+
+    Process(E, CleanEvictNoData){
+        msg = HostRsp(GO_I, ID, CleanEvictNoData.src);
+        H2D_response.send(msg);
+
+        if (CleanEvictNoData.src == owner) {
+            State = I;
+        }
+    }
+
+    // Must have sliently upgraded to M
+    Process(E, DirtyEvict){
+        if (DirtyEvict.src == owner) {
+            msg = HostRsp(GO_WritePull, ID, DirtyEvict.src);
+            H2D_response.send(msg);
+
+            State = E_DEvict;
+        } else {
+            msg = HostRsp(GO_I, ID, DirtyEvict.src);
+            H2D_response.send(msg);
+        }
+    }
+
+    Process(E_DEvict, DevDataMsg) {
+        //await {
+        //    when DevDataMsg:
+                cl = DevDataMsg.cl;
+                State = I;
+        //        break;
+        //     when DataLower:
+        //         await {
+        //             when DataUpper:
+        //                 cl = DataLower.cl_lower + DataUpper.cl_upper
+        //                 State = I;
+        //                 break;
+        //         }
+        //}
+    }
+
+    // M ////////////////////////////////////////////////////////
+    // RdShared, transition to S
+    Process(M, RdShared){
+        msg = HostReq(SnpData, RdShared.src, owner);
+        H2D_request.send(msg);
+
+        cache.add(owner);
+        cache.add(RdShared.src);
+
+        // NOTE: The Requester isn't actually the owner,
+        // I just need a way to save the requester's ID!
+        // NOTE: Updated to have requester variable...
+        requester = RdShared.src;
+
+        await {
+            when RspSFwdM:
+                await {
+                    when DevDataMsg:
+                        // What happens if i use RdShared.src??
+                        msg1 = HostRsp(GO_S, ID, requester);
+                        H2D_response.send(msg1);
+                        msg2 = DataFull(HostDataMsg, ID, requester, DevDataMsg.cl);
+                        H2D_data.send(msg2);
+                        cl = DevDataMsg.cl;
+                        State = S;
+                        break;
+                    // when DataLower:
+                    //     await {
+                    //         when DataLower:
+                    //             State = S;
+                    //             msg1 = DataLower(Data, RdShared.src, owner, DataLower.cl_lower);
+                    //             H2D_data.send(msg1);
+                    //             msg2 = DataUpper(Data, RdShared.src, owner, DataUpper.cl_upper);
+                    //             H2D_data.send(msg2);
+                    //             break;
+                    //     }
+
+                }
+            /// NOTE: commented out for now, protogen doesn't like
+            /// interleaved await orderings?
+            /// when DevDataMsg:
+            ///     msg1 = DataFull(HostDataMsg, RdShared.src, owner, DevDataMsg.cl);
+            ///     H2D_data.send(msg1);
+            ///     await {
+            ///         when RspSHitM:
+            ///             msg2 = HostRsp(GO_S, RdShared.src, owner);
+            ///             H2D_response.send(msg2);
+            ///             State = S;
+            ///             break;
+            ///     }
+        }
+    }
+
+    Process(M, RdOwn){
+        msg = HostReq(SnpInvM, RdOwn.src, owner);
+        H2D_request.send(msg);
+        owner = RdOwn.src;
+
+        await {
+            when RspIFwdM:
+                await {
+                    when DevDataMsg:
+                       // NOTE: Must use DevDataMsg, since
+                       // RspIFwdM is cleared first in Protogen's Murphi
+                       // output.
+                       msg1 = HostRsp(GO_M, ID, owner);
+                       H2D_response.send(msg1);
+                       msg2 = DataFull(HostDataMsg, ID, owner, DevDataMsg.cl);
+                       H2D_data.send(msg2);
+                       cl = DevDataMsg.cl;
+                       State = M;
+                       break;
+                    //when DataLower:
+                    //    await {
+                    //        when DataUpper:
+                    //            msg2 = DataLower(Data,  DataLower DataUpper);
+                    //            H2D_data.send(msg2);
+                    //            cl = DataLower.cl_lower + DataUppwer.cl_upper;
+                    //            State = E;
+                    //            break;
+                    //    }
+                }
+            /// when DevDataMsg:
+            ///     msg2 = DataFull(HostDataMsg, ID, RdOwn.src, DevDataMsg.cl);
+            ///     H2D_data.send(msg2);
+            ///     cl = DevDataMsg.cl;
+
+            ///     await {
+            ///         when RspIHitM:
+            ///            msg1 = HostRsp(GO_M, ID, RdOwn.src);
+            ///            H2D_response.send(msg1);
+            ///            State = M;
+            ///            break;
+            ///     }
+        }
+    }
+
+    // Shouldn't be able to have this happen.
+    // Process(M, CleanEvictNoData){
+    //     msg = HostRsp(GO_I, ID, CleanEvictNoData.src);
+    //     H2D_response.send(msg);
+    // }
+
+    // TODO: What does WrCur mean about it writes in cache if found there?
+    // Does it mean the device's cache?
+    // Process(M, WrCur) {
+    //     // This assumes the device didn't just drop the line for any reason,
+    //     // crash or power outage...
+    //     // Does it get written to host cache???
+    //     msg = HostReq(GO_WritePull, ID, WrCur.ID);
+    // }
+
+    /// Process(M, RdCurr) {
+    ///     msg = HostReq(SnpCur, ID, owner);
+    ///     H2D_request.send(msg);
+
+    ///     requester = RdCurr.src;
+
+    ///     await {
+    ///         when RspVFwdV:
+    ///             await {
+    ///                 when DevDataMsg:
+    ///                     msg1 = DataFull(HostDataMsg, ID, requester, DevDataMsg.cl);
+    ///                     H2D_data.send(msg1);
+    ///                     break;
+    ///             }
+
+                // NOTE: leave interleaved ordering for later
+    ///         when DevDataMsg:
+    ///             msg1 = DataFull(HostDataMsg, ID, requester, DevDataMsg.cl);
+    ///             H2D_data.send(msg1);
+    ///             await {
+    ///                 when RspVFwdV:
+    ///                     break;
+    ///             }
+    ///     }
+    /// }
+
+    Process(M, DirtyEvict){
+        if (DirtyEvict.src == owner) {
+          msg = HostRsp(GO_WritePull, ID, DirtyEvict.src);
+          H2D_response.send(msg);
+
+          State = M_DEvict;
+        } else {
+          // For the case of racing Evict & GetM
+          msg = HostRsp(GO_I, ID, DirtyEvict.src);
+          H2D_response.send(msg);
+        }
+    }
+
+    Process(M_DEvict, DevDataMsg){
+        //await {
+            // when RdCurr:
+            //     // wait for
+            //     when Data:
+            //         cl = Data.cl
+            //         break;
+            // when DevDataMsg:
+                State = I;
+                cl = DevDataMsg.cl;
+            //     break;
+
+            // when DataLower:
+            //     await {
+            //         when DataUpper:
+            //             cl = DataLower.cl_lower + DataUpper.cl_upper
+            //             break;
+            //     }
+        //}
+    }
+
+    // For the case of racing Evict & GetM
+    Process(M, CleanEvictNoData) {
+        if (CleanEvictNoData.src != owner) {
+            msg = HostRsp(GO_I, ID, DirtyEvict.src);
+            H2D_response.send(msg);
+        } else {
+            // Error?
+        }
+    }
+
+}
