@@ -80,6 +80,7 @@
       ------Backend/Murphi/MurphiModular/Types/Enums/SubEnums/GenArchEnums
       s_directoryL1C1: enum {
         directoryL1C1_dE_RdShared_x_pI_load,
+        directoryL1C1_dE_RdOwn_x_pI_store,
         directoryL1C1_SM_Acks,
         directoryL1C1_S,
         directoryL1C1_M_RdShared_RspSFwdM,
@@ -260,6 +261,18 @@
       endfor;
     end;
     
+    -- [Axiom 14]
+    function IsSetCheck_perm(acc_type: PermissionType; adr: Address; m: Machines) : boolean;
+    begin
+      alias l_perm_set:g_perm[m][adr] do
+      if MultiSetCount(i:l_perm_set, l_perm_set[i] = acc_type) = 1 then
+        return true;
+          --MultisetAdd(acc_type, l_perm_set);
+      else
+        return false;
+      endif;
+      endalias;
+    end;
   
   ----Backend/Murphi/MurphiModular/Functions/GenVectorFunc
     -- .add()
@@ -578,6 +591,7 @@
     var msg: Message;
     begin
     alias cbe: i_cacheL1C1[m].cb[adr] do
+
       msg := DevReqL1C1(adr, CleanEvictNoDataL1C1, m, directoryL1C1);
       Send_D2H_request(msg, m);
       cbe.State := cacheL1C1_E_evict;
@@ -687,8 +701,24 @@
       AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
       if !(msg_RdSharedL1.src != m) then
       cbe.requesterL1C1 := msg_RdSharedL1.src;
-      cbe.State := directoryL1C1_dE_RdShared_x_pI_load;
+      cbe.State := directoryL1C1_E_RdShared;
+      -- cbe.State := directoryL1C1_dE_RdShared_x_pI_load;
       endif
+    endalias;
+    end;
+    
+    procedure FSM_Access_directoryL1C1_E_store(adr:Address; m:OBJSET_directoryL1C1);
+    var msg_RdOwnL1: Message;
+    var msg: Message;
+    begin
+    alias cbe: i_directoryL1C1[m].cb[adr] do
+      msg_RdOwnL1 := DevReqL1C1(adr, RdOwnL1C1, m, m);
+      msg := HostReqL1C1(adr, SnpInvML1C1, msg_RdOwnL1.src, cbe.ownerL1C1);
+      Send_H2D_request(msg, m);
+      cbe.ownerL1C1 := msg_RdOwnL1.src;
+      Clear_perm(adr, m);
+      cbe.State := directoryL1C1_E_RdOwn;
+      -- cbe.State := directoryL1C1_dE_RdOwn_x_pI_store;
     endalias;
     end;
     
@@ -854,12 +884,17 @@
           return true;
         
         case RspIHitSEL1C1:
-          msg1 := HostRspL1C1(adr,GO_ML1C1,m,inmsg.src);
-          Send_H2D_response(msg1, m);
-          msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
-          Send_H2D_data(msg2, m);
-          Clear_perm(adr, m);
-          cbe.State := directoryL1C1_M;
+          if (cbe.ownerL1C1 != directoryL1C1) then
+            msg1 := HostRspL1C1(adr,GO_ML1C1,m,inmsg.src);
+            Send_H2D_response(msg1, m);
+            msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
+            Send_H2D_data(msg2, m);
+            Clear_perm(adr, m);
+            cbe.State := directoryL1C1_M;
+          else
+            Clear_perm(adr, m);
+            cbe.State := directoryL1C1_I;
+          endif;
           return true;
         
         else return false;
@@ -868,13 +903,18 @@
       case directoryL1C1_E_RdOwn_RspIFwdM:
       switch inmsg.mtype
         case DevDataMsgL1C1:
-          cbe.cl := inmsg.cl;
-          msg1 := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
-          Send_H2D_response(msg1, m);
-          msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,cbe.ownerL1C1,inmsg.cl);
-          Send_H2D_data(msg2, m);
-          Clear_perm(adr, m);
-          cbe.State := directoryL1C1_M;
+          if (cbe.ownerL1C1 != directoryL1C1) then
+            cbe.cl := inmsg.cl;
+            msg1 := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+            Send_H2D_response(msg1, m);
+            msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,cbe.ownerL1C1,inmsg.cl);
+            Send_H2D_data(msg2, m);
+            Clear_perm(adr, m);
+            cbe.State := directoryL1C1_M;
+          else
+            Clear_perm(adr, m);
+            cbe.State := directoryL1C1_I;
+          endif;
           return true;
         
         else return false;
@@ -888,10 +928,12 @@
           return true;
         
         case RspSHitSEL1C1:
-          msg1 := HostRspL1C1(adr,GO_SL1C1,m,inmsg.src);
-          Send_H2D_response(msg1, m);
-          msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
-          Send_H2D_data(msg2, m);
+          if (inmsg.src != directoryL1C1) then
+            msg1 := HostRspL1C1(adr,GO_SL1C1,m,inmsg.src);
+            Send_H2D_response(msg1, m);
+            msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
+            Send_H2D_data(msg2, m);
+          endif;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_S;
           return true;
@@ -1614,8 +1656,9 @@
       case cacheL1C1_M_evict_SnpInvM:
       switch inmsg.mtype
         case GO_IL1C1:
-          Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
-          cbe.State := cacheL1C1_M;
+          Clear_perm(adr, m);
+          -- Go to I
+          cbe.State := cacheL1C1_I;
           return true;
         
         else return false;
@@ -1718,6 +1761,7 @@
         
       endrule;
     
+      /*
       rule "directoryL1C1_I_store"
         cbe.State = directoryL1C1_I 
       ==>
@@ -1738,7 +1782,7 @@
         FSM_Access_directoryL1C1_S_load(adr, m);
         
       endrule;
-    
+      */
     
       endalias;
     endruleset;
@@ -1752,6 +1796,7 @@
         cbe.State = cacheL1C1_E & network_ready() 
       ==>
         FSM_Access_cacheL1C1_E_evict(adr, m);
+        Clear_perm(adr, m);
         
       endrule;
     
@@ -1773,7 +1818,7 @@
         cbe.State = cacheL1C1_I 
       ==>
         FSM_Access_cacheL1C1_I_evict(adr, m);
-        
+      
       endrule;
     
       rule "cacheL1C1_I_store"
@@ -1794,6 +1839,7 @@
         cbe.State = cacheL1C1_M & network_ready() 
       ==>
         FSM_Access_cacheL1C1_M_evict(adr, m);
+        Clear_perm(adr, m);
         
       endrule;
     
@@ -1815,6 +1861,7 @@
         cbe.State = cacheL1C1_S & network_ready() 
       ==>
         FSM_Access_cacheL1C1_S_evict(adr, m);
+        Clear_perm(adr, m);
         
       endrule;
     
@@ -1987,3 +2034,25 @@
   endstartstate;
 
 --Backend/Murphi/MurphiModular/GenInvariant
+
+-- [Axiom 14]
+ruleset adr:Address do
+  invariant "Single-Writer-Multiple-Reader (SWMR)"
+    forall c1:OBJSET_cacheL1C1 do
+    forall c2:OBJSET_cacheL1C1 do
+      ( c1 != c2 & IsSetCheck_perm(store,adr,c1) ) ->
+      ( !IsSetCheck_perm(store,adr,c2))
+    endforall
+    endforall;
+endruleset;
+
+ruleset adr:Address do
+  invariant "Single-Writer-Multiple-Reader (SWMR) Version 2"
+    forall c1:OBJSET_cacheL1C1 do
+    forall c2:OBJSET_cacheL1C1 do
+      ( c1 != c2
+      & i_cacheL1C1[c1].cb[adr].State  = cacheL1C1_M ) ->
+      ( i_cacheL1C1[c2].cb[adr].State != cacheL1C1_M )
+    endforall
+    endforall;
+endruleset;
