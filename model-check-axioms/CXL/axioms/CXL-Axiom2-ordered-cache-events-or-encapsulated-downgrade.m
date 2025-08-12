@@ -172,6 +172,8 @@
       ENTRY_cacheL1C1: record
         State: s_cacheL1C1;
         cl: ClValue;
+        -- [Axiom 2]
+        cacheEventFlag : boolean;
       end;
       
       MACH_cacheL1C1: record
@@ -1701,6 +1703,10 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_S;
+
+          -- [Axiom 2]
+          assert isundefined(cbe.cacheEventFlag) ">[Axiom 2] Peforming a Cache Event. Expected the cacheEventFlag to be unset!\n" ;
+
           return true;
         
         case SnpInvML1C1:
@@ -1708,6 +1714,10 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 2]
+          assert isundefined(cbe.cacheEventFlag) ">[Axiom 2] Peforming a Cache Event. Expected the cacheEventFlag to be unset!\n" ;
+
           return true;
         
         else return false;
@@ -1718,6 +1728,11 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Ending a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          undefine cbe.cacheEventFlag;
+
           return true;
         
         case SnpDataL1C1:
@@ -1725,6 +1740,12 @@
           Send_D2H_response(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_E_evict_SnpData;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Downgrade during a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          assert (inmsg.mtype = SnpDataL1C1 | inmsg.mtype = SnpInvML1C1 | inmsg.mtype = SnpInvSL1C1)
+            ">[Axiom 2] Downgrade during a Cache Event. Expected the encapsulated downgrade to be a downgrade!\n";
+
           return true;
         
         case SnpInvML1C1:
@@ -1732,6 +1753,12 @@
           Send_D2H_response(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_E_evict_SnpInvM;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Downgrade during a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          assert (inmsg.mtype = SnpDataL1C1 | inmsg.mtype = SnpInvML1C1 | inmsg.mtype = SnpInvSL1C1)
+            ">[Axiom 2] Downgrade during a Cache Event. Expected the encapsulated downgrade to be a downgrade!\n";
+
           return true;
         
         else return false;
@@ -1742,6 +1769,11 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Downgrade during a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          undefine cbe.cacheEventFlag;
+
           return true;
         
         case SnpInvSL1C1:
@@ -1749,6 +1781,12 @@
           Send_D2H_response(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_E_evict_SnpData_SnpInvS;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Downgrade during a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          assert (inmsg.mtype = SnpDataL1C1 | inmsg.mtype = SnpInvML1C1 | inmsg.mtype = SnpInvSL1C1)
+            ">[Axiom 2] Downgrade during a Cache Event. Expected the encapsulated downgrade to be a downgrade!\n";
+
           return true;
         
         else return false;
@@ -1759,6 +1797,11 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Downgrade during a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          undefine cbe.cacheEventFlag;
+
           return true;
         
         else return false;
@@ -1769,6 +1812,11 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Downgrade during a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          undefine cbe.cacheEventFlag;
+
           return true;
         
         else return false;
@@ -1795,6 +1843,11 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_S;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Downgrade during a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          undefine cbe.cacheEventFlag;
+
           return true;
         
         else return false;
@@ -1821,6 +1874,11 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(store, adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_E;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Downgrade during a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          undefine cbe.cacheEventFlag;
+
           return true;
         
         else return false;
@@ -1832,6 +1890,11 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_M;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Downgrade during a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          undefine cbe.cacheEventFlag;
+
           return true;
         
         else return false;
@@ -1846,6 +1909,10 @@
           Send_D2H_data(msg1, m);
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_S;
+
+          -- [Axiom 2]
+          assert isundefined(cbe.cacheEventFlag) ">[Axiom 2] Downgrade while no Cache Event. Expected the cacheEventFlag to be unset if there's no CacheEvent!\n";
+
           return true;
         
         case SnpInvML1C1:
@@ -1855,6 +1922,10 @@
           Send_D2H_data(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 2]
+          assert isundefined(cbe.cacheEventFlag) ">[Axiom 2] Downgrade while no Cache Event. Expected the cacheEventFlag to be unset if there's no CacheEvent!\n";
+
           return true;
         
         else return false;
@@ -1867,6 +1938,11 @@
           Send_D2H_data(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Ending a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          undefine cbe.cacheEventFlag;
+
           return true;
         
         case SnpDataL1C1:
@@ -1876,6 +1952,12 @@
           Send_D2H_data(msg2, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_M_evict_SnpData;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Downgrade during a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          assert (inmsg.mtype = SnpDataL1C1 | inmsg.mtype = SnpInvML1C1 | inmsg.mtype = SnpInvSL1C1)
+            ">[Axiom 2] Downgrade during a Cache Event. Expected the encapsulated downgrade to be a downgrade!\n";
+
           return true;
         
         case SnpInvML1C1:
@@ -1885,6 +1967,12 @@
           Send_D2H_data(msg2, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_M_evict_SnpInvM;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Downgrade during a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          assert (inmsg.mtype = SnpDataL1C1 | inmsg.mtype = SnpInvML1C1 | inmsg.mtype = SnpInvSL1C1)
+            ">[Axiom 2] Downgrade during a Cache Event. Expected the encapsulated downgrade to be a downgrade!\n";
+
           return true;
         
         else return false;
@@ -1895,6 +1983,11 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Ending a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          undefine cbe.cacheEventFlag;
+
           return true;
         
         case SnpInvSL1C1:
@@ -1902,6 +1995,12 @@
           Send_D2H_response(msg3, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_M_evict_SnpData_SnpInvS;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Downgrade during a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          assert (inmsg.mtype = SnpDataL1C1 | inmsg.mtype = SnpInvML1C1 | inmsg.mtype = SnpInvSL1C1)
+            ">[Axiom 2] Downgrade during a Cache Event. Expected the encapsulated downgrade to be a downgrade!\n";
+
           return true;
         
         else return false;
@@ -1912,6 +2011,11 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Ending a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          undefine cbe.cacheEventFlag;
+
           return true;
         
         else return false;
@@ -1923,6 +2027,11 @@
           Clear_perm(adr, m);
           -- Go to I
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Ending a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          undefine cbe.cacheEventFlag;
+
           return true;
         
         else return false;
@@ -1935,6 +2044,10 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 2]
+          assert isundefined(cbe.cacheEventFlag) ">[Axiom 2] Peforming a Cache Event. Expected the cacheEventFlag to be unset!\n" ;
+
           return true;
         
         else return false;
@@ -1945,6 +2058,11 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Ending a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          undefine cbe.cacheEventFlag;
+
           return true;
         
         case SnpInvSL1C1:
@@ -1952,6 +2070,12 @@
           Send_D2H_response(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_S_evict_SnpInvS;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Downgrade during a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          assert (inmsg.mtype = SnpDataL1C1 | inmsg.mtype = SnpInvML1C1 | inmsg.mtype = SnpInvSL1C1)
+            ">[Axiom 2] Downgrade during a Cache Event. Expected the encapsulated downgrade to be a downgrade!\n";
+
           return true;
         
         else return false;
@@ -1962,6 +2086,11 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Ending a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          undefine cbe.cacheEventFlag;
+
           return true;
         
         else return false;
@@ -1979,6 +2108,12 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I_store;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Downgrade during a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          assert (inmsg.mtype = SnpDataL1C1 | inmsg.mtype = SnpInvML1C1 | inmsg.mtype = SnpInvSL1C1)
+            ">[Axiom 2] Downgrade during a Cache Event. Expected the encapsulated downgrade to be a downgrade!\n";
+
           return true;
         
         else return false;
@@ -1990,6 +2125,11 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_M;
+
+          -- [Axiom 2]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 2] Ending a Cache Event. Expected the cacheEventFlag to have been set!\n";
+          undefine cbe.cacheEventFlag;
+
           return true;
         
         else return false;
@@ -2088,6 +2228,10 @@
       rule "cacheL1C1_E_evict"
         cbe.State = cacheL1C1_E & network_ready() 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 2]";
+        cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_E_evict(adr, m);
         Clear_perm(adr, m);
         
@@ -2096,6 +2240,9 @@
       rule "cacheL1C1_E_store"
         cbe.State = cacheL1C1_E 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 2]";
+
         FSM_Access_cacheL1C1_E_store(adr, m);
         
       endrule;
@@ -2103,6 +2250,9 @@
       rule "cacheL1C1_E_load"
         cbe.State = cacheL1C1_E 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 2]";
+
         FSM_Access_cacheL1C1_E_load(adr, m);
         
       endrule;
@@ -2110,6 +2260,9 @@
       rule "cacheL1C1_I_evict"
         cbe.State = cacheL1C1_I 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 2]";
+
         FSM_Access_cacheL1C1_I_evict(adr, m);
         
       endrule;
@@ -2117,6 +2270,10 @@
       rule "cacheL1C1_I_store"
         cbe.State = cacheL1C1_I & network_ready() 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 2]";
+        cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_I_store(adr, m);
         
       endrule;
@@ -2124,6 +2281,10 @@
       rule "cacheL1C1_I_load"
         cbe.State = cacheL1C1_I & network_ready() 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 2]";
+        cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_I_load(adr, m);
         
       endrule;
@@ -2131,6 +2292,10 @@
       rule "cacheL1C1_M_evict"
         cbe.State = cacheL1C1_M & network_ready() 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 2]";
+        cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_M_evict(adr, m);
         Clear_perm(adr, m);
         
@@ -2139,6 +2304,10 @@
       rule "cacheL1C1_M_load"
         cbe.State = cacheL1C1_M 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 2]";
+        -- cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_M_load(adr, m);
         
       endrule;
@@ -2146,6 +2315,10 @@
       rule "cacheL1C1_M_store"
         cbe.State = cacheL1C1_M 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 2]";
+        -- cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_M_store(adr, m);
         
       endrule;
@@ -2153,6 +2326,10 @@
       rule "cacheL1C1_S_evict"
         cbe.State = cacheL1C1_S & network_ready() 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 2]";
+        cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_S_evict(adr, m);
         Clear_perm(adr, m);
         
@@ -2161,6 +2338,10 @@
       rule "cacheL1C1_S_store"
         cbe.State = cacheL1C1_S & network_ready() 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 2]";
+        cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_S_store(adr, m);
         
       endrule;
@@ -2168,6 +2349,10 @@
       rule "cacheL1C1_S_load"
         cbe.State = cacheL1C1_S 
       ==>
+        -- [Axiom 2]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 2]";
+        -- cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_S_load(adr, m);
         
       endrule;
