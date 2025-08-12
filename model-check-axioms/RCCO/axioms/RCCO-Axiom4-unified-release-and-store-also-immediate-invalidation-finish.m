@@ -1001,6 +1001,7 @@
     alias cbe: i_directoryL1C1[m].cb[adr] do
       ServeRemoteEvent_directoryL1C1(directoryL1C1_acq_eventL1C1, m, adr);
       cbe.State := directoryL1C1_I;
+      undefine cbe.ownerL1C1;
     endalias;
     end;
     
@@ -1019,7 +1020,8 @@
       msg_PutO_AckL1 := AckL1C1(adr, PutO_AckL1C1, m, msg_PutOL1.src);
       if !(cbe.ownerL1C1 = msg_PutOL1.src) then
       cbe.State := directoryL1C1_I;
-      endif
+      undefine cbe.ownerL1C1;
+      endif;
     endalias;
     end;
     
@@ -1039,6 +1041,7 @@
       if (cbe.ownerL1C1 = msg_PutOL1.src) then
       cbe.cl := msg_PutOL1.cl;
       cbe.State := directoryL1C1_I;
+      undefine cbe.ownerL1C1;
       endif
     endalias;
     end;
@@ -1307,6 +1310,8 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_V;
 
+          undefine cbe.ownerL1C1;
+
           -- [Axiom 3]: Assert the cache requested a GetV
           alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
             if corresponding_cache_cbe.State = cacheL1C1_I_acquire |
@@ -1326,6 +1331,9 @@
           Send_fwd(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
+
+          undefine cbe.ownerL1C1;
+
           return true;
         
         else return false;
@@ -1346,6 +1354,9 @@
           Send_fwd(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O_GetV;
+
+          undefine cbe.ownerL1C1;
+
           -- [Axiom 3]: Assert the cache requested a GetV
           alias corresponding_cache_cbe: i_cacheL1C1[inmsg.src].cb[adr] do
             if corresponding_cache_cbe.State = cacheL1C1_I_acquire |
@@ -1366,6 +1377,7 @@
             return true;
           endif;
           if (cbe.ownerL1C1 = inmsg.src) then
+            undefine cbe.ownerL1C1;
             cbe.cl := inmsg.cl;
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
@@ -1383,6 +1395,7 @@
             Send_resp(msg, m);
             cbe.State := directoryL1C1_O;
           else
+            undefine cbe.ownerL1C1;
             cbe.State := directoryL1C1_I;
           endif;
           Clear_perm(adr, m);
@@ -1399,6 +1412,10 @@
           Send_resp(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_V;
+
+          -- (just in case)
+          undefine cbe.ownerL1C1;
+
           return true;
         
         else return false;
@@ -1434,6 +1451,9 @@
           return true;
         
         case GetVL1C1:
+          -- (just in case)
+          undefine cbe.ownerL1C1;
+
           msg := RespL1C1(adr,GetV_AckL1C1,m,inmsg.src,cbe.cl);
           Send_resp(msg, m);
           Clear_perm(adr, m);
@@ -1452,6 +1472,9 @@
           return true;
         
         case PutOL1C1:
+          -- just in case
+          undefine cbe.ownerL1C1;
+
           msg := AckL1C1(adr,PutO_AckL1C1,m,inmsg.src);
           Send_fwd(msg, m);
           Clear_perm(adr, m);
