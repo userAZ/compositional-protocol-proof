@@ -2112,6 +2112,8 @@
     ruleset adr:Address do
       alias cbe:i_cacheL1C1[m].cb[adr] do
     
+      -- [Axiom 15 CXL as a Global Protocol]
+      -- Treat Store as Coherent Write, and Load as Coherent Read
       rule "cacheL1C1_E_evict"
         cbe.State = cacheL1C1_E & network_ready() 
       ==>
@@ -2127,19 +2129,23 @@
         
       endrule;
     
+      /*
       rule "cacheL1C1_E_load"
         cbe.State = cacheL1C1_E 
       ==>
         FSM_Access_cacheL1C1_E_load(adr, m);
         
       endrule;
+      */
     
+      /*
       rule "cacheL1C1_I_evict"
         cbe.State = cacheL1C1_I 
       ==>
         FSM_Access_cacheL1C1_I_evict(adr, m);
         
       endrule;
+      */
     
       rule "cacheL1C1_I_store"
         cbe.State = cacheL1C1_I & network_ready() 
@@ -2163,6 +2169,7 @@
         
       endrule;
     
+      /*
       rule "cacheL1C1_M_load"
         cbe.State = cacheL1C1_M 
       ==>
@@ -2176,6 +2183,7 @@
         FSM_Access_cacheL1C1_M_store(adr, m);
         
       endrule;
+      */
     
       rule "cacheL1C1_S_evict"
         cbe.State = cacheL1C1_S & network_ready() 
@@ -2192,12 +2200,14 @@
         
       endrule;
     
+      /*
       rule "cacheL1C1_S_load"
         cbe.State = cacheL1C1_S 
       ==>
         FSM_Access_cacheL1C1_S_load(adr, m);
         
       endrule;
+      */
     
     
       endalias;
