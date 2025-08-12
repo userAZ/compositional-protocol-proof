@@ -38,7 +38,7 @@
     U_NET_MAX: 12;
   
   ---- SSP declaration constants
-    NrCachesL1C1: 4;
+    NrCachesL1C1: 2;
   
 --Backend/Murphi/MurphiModular/GenTypes
   type
@@ -124,7 +124,7 @@
     ----Backend/Murphi/MurphiModular/Types/GenMachineSets
       -- Cluster: C1
       OBJSET_directoryL1C1: enum{directoryL1C1};
-      OBJSET_cacheL1C1: scalarset(3);
+      OBJSET_cacheL1C1: scalarset(2);
       C1Machines: union{OBJSET_directoryL1C1, OBJSET_cacheL1C1};
       
       Machines: union{OBJSET_directoryL1C1, OBJSET_cacheL1C1};
@@ -141,6 +141,18 @@
         mtype: MessageType;
         src: Machines;
         dst: Machines;
+        cl: ClValue;
+      end;
+
+      ClusterRequest : enum {
+        FwdStore, -- fwd Coherent Write
+        FwdLoad -- fwd Coherent Read
+      };
+
+      -- [Axiom 16 Global to Cluster]
+      GlobalToClusterRequest: record
+        adr: Address;
+        rtype: ClusterRequest;
         cl: ClValue;
       end;
       
@@ -168,6 +180,28 @@
       end;
       
       OBJ_directoryL1C1: array[OBJSET_directoryL1C1] of MACH_directoryL1C1;
+
+      -- [Axiom 15]
+      s_cdirL1C1 : enum {
+        CD_C_WR, -- Cluster Directory, Coherent Write/Read permissions
+        CD_C_R, -- Cluster Directory, Coherent Read permissions
+        CD_NC_WR, -- Cluster Directory, Non-Coherent Write/Read permissions
+        CD_NC_R, -- Cluster Directory, Non-Coherent Read permissions
+        CD_I -- Cluster Directory, I permissions
+      };
+      cdirMSIRCC : enum {
+        MSI,
+        RCC
+      };
+      ENTRY_cdirL1C1: record
+        State: s_cdirL1C1;
+        cl: ClValue;
+      end;
+      MACH_cdirL1C1: record
+        cb: array[Address] of ENTRY_cdirL1C1;
+      end;
+      -- OBJSET_cdirL1C1: enum{cdirL1C1};
+      OBJ_cdirL1C1: array[OBJSET_cacheL1C1] of MACH_cdirL1C1;
       
       ENTRY_cacheL1C1: record
         State: s_cacheL1C1;
@@ -196,6 +230,9 @@
       g_perm: PermMonitor;
       i_directoryL1C1: OBJ_directoryL1C1;
       i_cacheL1C1: OBJ_cacheL1C1;
+      --[Axiom 15]
+      i_cdirL1C1 : OBJ_cdirL1C1;
+      cdir_type : cdirMSIRCC;
   
 --Backend/Murphi/MurphiModular/GenFunctions
 
@@ -1717,6 +1754,8 @@
     var msg1: Message;
     var msg2: Message;
     var msg3: Message;
+    -- [Axiom 16]
+    var global_to_cluster_msg : GlobalToClusterRequest;
     begin
       alias adr: inmsg.adr do
       alias cbe: i_cacheL1C1[m].cb[adr] do
@@ -1728,6 +1767,23 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_S;
+
+          -- [ Axiom 16 ]
+          alias cdir_cbe:i_cdirL1C1[m].cb[adr] do
+            if cdir_cbe.State = CD_C_WR then
+              if cdir_type = MSI then
+                global_to_cluster_msg.rtype := FwdLoad;
+                assert (inmsg.mtype = SnpDataL1C1 &
+                  global_to_cluster_msg.rtype = FwdLoad) ">[Axiom 16] On a FwdSnpData (FwdGetS), We should send a FwdLoad to the Cluster!\n";
+                cdir_cbe.State := CD_C_R;
+              elsif cdir_type = RCC then
+                global_to_cluster_msg.rtype := FwdLoad;
+                assert (inmsg.mtype = SnpDataL1C1 &
+                  global_to_cluster_msg.rtype = FwdLoad) ">[Axiom 16] On a FwdSnpData (FwdGetS), We should send a FwdLoad to the Cluster!\n";
+                cdir_cbe.State := CD_NC_R;
+              endif;
+            endif; 
+          endalias;
           return true;
         
         case SnpInvML1C1:
@@ -1735,6 +1791,16 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [ Axiom 16 ]
+          alias cdir_cbe:i_cdirL1C1[m].cb[adr] do
+            if cdir_cbe.State != CD_I then
+              global_to_cluster_msg.rtype := FwdStore;
+              assert (inmsg.mtype = SnpInvML1C1 &
+                global_to_cluster_msg.rtype = FwdStore) ">[Axiom 16] On a FwdSnpInv (FwdGetM), We should send a FwdStore to the Cluster!\n";
+              cdir_cbe.State := CD_I;
+            endif; 
+          endalias;
           return true;
         
         else return false;
@@ -1873,6 +1939,23 @@
           Send_D2H_data(msg1, m);
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_S;
+
+          -- [ Axiom 16 ]
+          alias cdir_cbe:i_cdirL1C1[m].cb[adr] do
+            if cdir_cbe.State = CD_C_WR then
+              if cdir_type = MSI then
+                global_to_cluster_msg.rtype := FwdLoad;
+                assert (inmsg.mtype = SnpDataL1C1 &
+                  global_to_cluster_msg.rtype = FwdLoad) ">[Axiom 16] On a FwdSnpData (FwdGetS), We should send a FwdLoad to the Cluster!\n";
+                cdir_cbe.State := CD_C_R;
+              elsif cdir_type = RCC then
+                global_to_cluster_msg.rtype := FwdLoad;
+                assert (inmsg.mtype = SnpDataL1C1 &
+                  global_to_cluster_msg.rtype = FwdLoad) ">[Axiom 16] On a FwdSnpData (FwdGetS), We should send a FwdLoad to the Cluster!\n";
+                cdir_cbe.State := CD_NC_R;
+              endif;
+            endif; 
+          endalias;
           return true;
         
         case SnpInvML1C1:
@@ -1882,6 +1965,16 @@
           Send_D2H_data(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [ Axiom 16 ]
+          alias cdir_cbe:i_cdirL1C1[m].cb[adr] do
+            if cdir_cbe.State != CD_I then
+              global_to_cluster_msg.rtype := FwdStore;
+              assert (inmsg.mtype = SnpInvML1C1 &
+                global_to_cluster_msg.rtype = FwdStore) ">[Axiom 16] On a FwdSnpInv (FwdGetM), We should send a FwdStore to the Cluster!\n";
+              cdir_cbe.State := CD_I;
+            endif; 
+          endalias;
           return true;
         
         else return false;
@@ -1962,6 +2055,16 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [ Axiom 16 ]
+          alias cdir_cbe:i_cdirL1C1[m].cb[adr] do
+            if cdir_cbe.State != CD_I then
+              global_to_cluster_msg.rtype := FwdStore;
+              assert (inmsg.mtype = SnpInvSL1C1 &
+                global_to_cluster_msg.rtype = FwdStore) ">[Axiom 16] On a FwdSnpInv (FwdGetM), We should send a FwdStore to the Cluster!\n";
+              cdir_cbe.State := CD_I;
+            endif; 
+          endalias;
           return true;
         
         else return false;
@@ -2033,11 +2136,50 @@
 
   procedure System_Reset();
   begin
-  Reset_perm();
-  Reset_NET_();
-  ResetMachine_();
+    Reset_perm();
+    Reset_NET_();
+    ResetMachine_();
+
+    -- [Axiom 16]
+    for cdir_idx : OBJSET_cacheL1C1 do
+    for adr : Address do
+    alias cdir_cbe:i_cdirL1C1[cdir_idx].cb[adr] do
+      cdir_cbe.State := CD_C_WR;
+    endalias;
+    endfor;
+    endfor;
+    
+    cdir_type := MSI;
   end;
   
+    -- [Axiom 16] cache state that can be checked by Axiom 15 asserts.
+    ruleset m:OBJSET_cacheL1C1 do
+    ruleset adr:Address do
+      alias cdir_cbe:i_cdirL1C1[m].cb[adr] do
+        rule "Global Cache MSI-Style Internal Cluster Downgrade"
+          cdir_cbe.State != CD_I
+        ==>
+          if (cdir_cbe.State = CD_C_WR) then
+            cdir_cbe.State := CD_C_R;
+          elsif (cdir_cbe.State = CD_C_R) then
+            cdir_cbe.State := CD_I;
+          endif;
+        endrule;
+
+        rule "Global Cache RCC or RCCO-Style Internal Cluster Downgrade"
+          cdir_cbe.State != CD_I
+        ==>
+          if (cdir_cbe.State = CD_C_WR) then
+            cdir_cbe.State := CD_NC_R;
+          elsif (cdir_cbe.State = CD_NC_WR) then
+            cdir_cbe.State := CD_NC_R;
+          elsif (cdir_cbe.State = CD_NC_R) then
+            cdir_cbe.State := CD_I;
+          endif;
+        endrule;
+      endalias;
+    endruleset;
+    endruleset;
 
 --Backend/Murphi/MurphiModular/GenRules
   ----Backend/Murphi/MurphiModular/Rules/GenAccessRuleSet
