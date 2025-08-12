@@ -161,6 +161,9 @@
         cacheL1C1: v_cacheL1C1;
         ownerL1C1: Machines;
         requesterL1C1: Machines;
+
+        -- [Axiom 1] ordered directory events
+        directoryEventFlag : boolean;
       end;
       
       MACH_directoryL1C1: record
@@ -703,6 +706,11 @@
               cbe.State := directoryL1C1_I;
               -- cbe.State := directoryL1C1_M;
               -- return true;
+
+              -- [Axiom 1]
+              assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+              -- cbe.directoryEventFlag := true;
+
             endif;
             if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
               ClearVector_cacheL1C1(cbe.cacheL1C1);
@@ -710,6 +718,11 @@
               cbe.State := directoryL1C1_I;
               -- cbe.State := directoryL1C1_M;
               -- return true;
+
+              -- [Axiom 1]
+              assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+              -- cbe.directoryEventFlag := true;
+
             endif;
           endif;
           if (cbe.acksExpectedL1C1 != 0) then
@@ -720,6 +733,11 @@
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_SM_Acks;
               -- return true;
+
+              -- [Axiom 1]
+              assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+              cbe.directoryEventFlag := true;
+
             endif;
             if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
               RemoveElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
@@ -730,6 +748,11 @@
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_SM_Acks;
               -- return true;
+
+              -- [Axiom 1]
+              assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+              cbe.directoryEventFlag := true;
+
             endif;
           endif;
         endif;
@@ -745,6 +768,11 @@
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_SM_Acks;
               -- return true;
+
+              -- [Axiom 1]
+              assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+              cbe.directoryEventFlag := true;
+
             endif;
             if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
               msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
@@ -753,6 +781,11 @@
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_SM_Acks;
               -- return true;
+
+              -- [Axiom 1]
+              assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+              cbe.directoryEventFlag := true;
+
             endif;
           endif;
           if !(cbe.acksExpectedL1C1 != 0) then
@@ -766,12 +799,22 @@
               cbe.State := directoryL1C1_I;
               -- cbe.State := directoryL1C1_M;
               -- return true;
+
+              -- [Axiom 1]
+              assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+              -- cbe.directoryEventFlag := true;
+
             endif;
             if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_I;
               -- cbe.State := directoryL1C1_M;
               -- return true;
+
+              -- [Axiom 1]
+              assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+              -- cbe.directoryEventFlag := true;
+
             endif;
           endif;
         endif;
@@ -791,6 +834,11 @@
               cbe.State := directoryL1C1_I;
               -- cbe.State := directoryL1C1_M;
               -- return true;
+
+              -- [Axiom 1]
+              assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+              -- cbe.directoryEventFlag := true;
+
             endif;
             if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
               ClearVector_cacheL1C1(cbe.cacheL1C1);
@@ -798,6 +846,11 @@
               cbe.State := directoryL1C1_I;
               -- cbe.State := directoryL1C1_M;
               -- return true;
+
+              -- [Axiom 1]
+              assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+              -- cbe.directoryEventFlag := true;
+
             endif;
           endif;
           if (cbe.acksExpectedL1C1 != 0) then
@@ -810,6 +863,11 @@
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_SM_Acks;
               -- return true;
+
+              -- [Axiom 1]
+              assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+              cbe.directoryEventFlag := true;
+
             endif;
             if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
               msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
@@ -818,6 +876,11 @@
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_SM_Acks;
               -- return true;
+
+              -- [Axiom 1]
+              assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+              cbe.directoryEventFlag := true;
+
             endif;
           endif;
         endif;
@@ -831,6 +894,11 @@
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_SM_Acks;
               -- return true;
+
+              -- [Axiom 1]
+              assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+              -- cbe.directoryEventFlag := true;
+
             endif;
             if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
               RemoveElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
@@ -841,6 +909,11 @@
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_SM_Acks;
               -- return true;
+
+              -- [Axiom 1]
+              assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+              -- cbe.directoryEventFlag := true;
+
             endif;
           endif;
           if !(cbe.acksExpectedL1C1 != 0) then
@@ -853,6 +926,11 @@
               cbe.State := directoryL1C1_I;
               -- cbe.State := directoryL1C1_M;
               -- return true;
+
+              -- [Axiom 1]
+              assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+              -- cbe.directoryEventFlag := true;
+
             endif;
             if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
               ClearVector_cacheL1C1(cbe.cacheL1C1);
@@ -860,6 +938,11 @@
               cbe.State := directoryL1C1_I;
               -- cbe.State := directoryL1C1_M;
               -- return true;
+
+              -- [Axiom 1]
+              assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+              -- cbe.directoryEventFlag := true;
+
             endif;
           endif;
         endif;
@@ -1016,6 +1099,9 @@
       case directoryL1C1_E:
       switch inmsg.mtype
         case CleanEvictNoDataL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+
           msg := HostRspL1C1(adr,GO_IL1C1,m,inmsg.src);
           Send_H2D_response(msg, m);
           if !(inmsg.src = cbe.ownerL1C1) then
@@ -1033,6 +1119,10 @@
         
         case DirtyEvictL1C1:
           if (inmsg.src = cbe.ownerL1C1) then
+            -- [Axiom 1]
+            assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+            cbe.directoryEventFlag := true;
+
             msg := HostRspL1C1(adr,GO_WritePullL1C1,m,inmsg.src);
             Send_H2D_response(msg, m);
             Clear_perm(adr, m);
@@ -1040,6 +1130,9 @@
             return true;
           endif;
           if !(inmsg.src = cbe.ownerL1C1) then
+            -- [Axiom 1]
+            assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+
             msg := HostRspL1C1(adr,GO_IL1C1,m,inmsg.src);
             Send_H2D_response(msg, m);
             Clear_perm(adr, m);
@@ -1049,6 +1142,10 @@
           endif;
         
         case RdOwnL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+          cbe.directoryEventFlag := true;
+
           msg := HostReqL1C1(adr,SnpInvML1C1,inmsg.src,cbe.ownerL1C1);
           Send_H2D_request(msg, m);
           cbe.ownerL1C1 := inmsg.src;
@@ -1057,6 +1154,10 @@
           return true;
         
         case RdSharedL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+          cbe.directoryEventFlag := true;
+
           msg := HostReqL1C1(adr,SnpDataL1C1,inmsg.src,cbe.ownerL1C1);
           Send_H2D_request(msg, m);
           AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
@@ -1080,6 +1181,10 @@
       case directoryL1C1_E_DEvict:
       switch inmsg.mtype
         case DevDataMsgL1C1:
+          -- [Axiom 1]
+          assert !isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory ending an event. Why is the directoryEventFlag not set?\n";
+          undefine cbe.directoryEventFlag;
+
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
@@ -1110,6 +1215,11 @@
             cbe.State := directoryL1C1_I;
             undefine cbe.requesterL1C1;
           endif;
+
+          -- [Axiom 1]
+          assert !isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory ending an event. Why is the directoryEventFlag not set?\n";
+          undefine cbe.directoryEventFlag;
+
           return true;
         
         else return false;
@@ -1132,6 +1242,11 @@
             cbe.State := directoryL1C1_I;
             undefine cbe.requesterL1C1;
           endif;
+
+          -- [Axiom 1]
+          assert !isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory ending an event. Why is the directoryEventFlag not set?\n";
+          undefine cbe.directoryEventFlag;
+
           return true;
         
         else return false;
@@ -1154,6 +1269,11 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_S;
           undefine cbe.requesterL1C1;
+
+          -- [Axiom 1]
+          assert !isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory ending an event. Why is the directoryEventFlag not set?\n";
+          undefine cbe.directoryEventFlag;
+
           return true;
         
         else return false;
@@ -1162,6 +1282,11 @@
       case directoryL1C1_E_RspSFwdM:
       switch inmsg.mtype
         case DevDataMsgL1C1:
+
+          -- [Axiom 1]
+          assert !isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory ending an event. Why is the directoryEventFlag not set?\n";
+          undefine cbe.directoryEventFlag;
+
           if (cbe.requesterL1C1 != m) then
             msg1 := HostRspL1C1(adr,GO_SL1C1,m,cbe.requesterL1C1);
             Send_H2D_response(msg1, m);
@@ -1191,6 +1316,11 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
           undefine cbe.requesterL1C1;
+
+          -- [Axiom 1]
+          assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+          -- cbe.directoryEventFlag := true;
+
           return true;
         
         case DirtyEvictL1C1:
@@ -1199,6 +1329,11 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
           undefine cbe.requesterL1C1;
+
+          -- [Axiom 1]
+          assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+          -- cbe.directoryEventFlag := true;
+
           return true;
         
         case RdOwnL1C1:
@@ -1210,6 +1345,11 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_E;
           undefine cbe.requesterL1C1;
+
+          -- [Axiom 1]
+          assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+          -- cbe.directoryEventFlag := true;
+
           return true;
         
         case RdSharedL1C1:
@@ -1221,6 +1361,11 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_S;
           undefine cbe.requesterL1C1;
+
+          -- [Axiom 1]
+          assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+          -- cbe.directoryEventFlag := true;
+
           return true;
         
         else return false;
@@ -1229,6 +1374,10 @@
       case directoryL1C1_M:
       switch inmsg.mtype
         case CleanEvictNoDataL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+          -- cbe.directoryEventFlag := true;
+
           if (inmsg.src != cbe.ownerL1C1) then
             msg := HostRspL1C1(adr,GO_IL1C1,m,inmsg.src);
             Send_H2D_response(msg, m);
@@ -1251,6 +1400,11 @@
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_M;
             undefine cbe.requesterL1C1;
+
+            -- [Axiom 1]
+            assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+            -- cbe.directoryEventFlag := true;
+
             return true;
           endif;
           if (inmsg.src = cbe.ownerL1C1) then
@@ -1258,10 +1412,19 @@
             Send_H2D_response(msg, m);
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_M_DEvict;
+
+            -- [Axiom 1]
+            assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+            cbe.directoryEventFlag := true;
+
             return true;
           endif;
         
         case RdOwnL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+          cbe.directoryEventFlag := true;
+
           msg := HostReqL1C1(adr,SnpInvML1C1,inmsg.src,cbe.ownerL1C1);
           Send_H2D_request(msg, m);
           cbe.ownerL1C1 := inmsg.src;
@@ -1270,6 +1433,10 @@
           return true;
         
         case RdSharedL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+          cbe.directoryEventFlag := true;
+
           msg := HostReqL1C1(adr,SnpDataL1C1,inmsg.src,cbe.ownerL1C1);
           Send_H2D_request(msg, m);
           AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
@@ -1289,6 +1456,11 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
           undefine cbe.requesterL1C1;
+
+          -- [Axiom 1]
+          assert !isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory ending an event. Why is the directoryEventFlag not set?\n";
+          undefine cbe.directoryEventFlag;
+
           return true;
         
         else return false;
@@ -1320,6 +1492,11 @@
             cbe.State := directoryL1C1_I;
             undefine cbe.requesterL1C1;
           endif;
+
+          -- [Axiom 1]
+          assert !isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory ending an event. Why is the directoryEventFlag not set?\n";
+          undefine cbe.directoryEventFlag;
+
           return true;
         
         else return false;
@@ -1351,6 +1528,11 @@
 
           undefine cbe.requesterL1C1;
           -- cbe.State := directoryL1C1_I;
+
+          -- [Axiom 1]
+          assert !isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory ending an event. Why is the directoryEventFlag not set?\n";
+          undefine cbe.directoryEventFlag;
+
           return true;
         
         else return false;
@@ -1359,6 +1541,10 @@
       case directoryL1C1_S:
       switch inmsg.mtype
         case CleanEvictNoDataL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+          -- cbe.directoryEventFlag := true;
+
           msg := HostRspL1C1(adr,GO_IL1C1,m,inmsg.src);
           Send_H2D_response(msg, m);
           if (IsElement_cacheL1C1(cbe.cacheL1C1, inmsg.src)) then
@@ -1385,6 +1571,10 @@
           endif;
         
         case DirtyEvictL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+          -- cbe.directoryEventFlag := true;
+
           msg := HostRspL1C1(adr,GO_IL1C1,m,inmsg.src);
           Send_H2D_response(msg, m);
           if (IsElement_cacheL1C1(cbe.cacheL1C1, inmsg.src)) then
@@ -1427,6 +1617,11 @@
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_M;
                   undefine cbe.requesterL1C1;
+
+                  -- [Axiom 1]
+                  assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+                  -- cbe.directoryEventFlag := true;
+
                   return true;
                 endif;
                 if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
@@ -1434,6 +1629,11 @@
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_M;
                   undefine cbe.requesterL1C1;
+
+                  -- [Axiom 1]
+                  assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+                  -- cbe.directoryEventFlag := true;
+
                   return true;
                 endif;
               endif;
@@ -1444,6 +1644,11 @@
                   ClearVector_cacheL1C1(cbe.cacheL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_SM_Acks;
+
+                  -- [Axiom 1]
+                  assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+                  cbe.directoryEventFlag := true;
+
                   return true;
                 endif;
                 if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
@@ -1454,6 +1659,11 @@
                   AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_SM_Acks;
+
+                  -- [Axiom 1]
+                  assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+                  cbe.directoryEventFlag := true;
+
                   return true;
                 endif;
               endif;
@@ -1469,6 +1679,11 @@
                   AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_SM_Acks;
+
+                  -- [Axiom 1]
+                  assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+                  cbe.directoryEventFlag := true;
+
                   return true;
                 endif;
                 if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
@@ -1477,6 +1692,11 @@
                   ClearVector_cacheL1C1(cbe.cacheL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_SM_Acks;
+
+                  -- [Axiom 1]
+                  assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+                  cbe.directoryEventFlag := true;
+
                   return true;
                 endif;
               endif;
@@ -1490,12 +1710,22 @@
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_M;
                   undefine cbe.requesterL1C1;
+
+                  -- [Axiom 1]
+                  assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+                  -- cbe.directoryEventFlag := true;
+
                   return true;
                 endif;
                 if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_M;
                   undefine cbe.requesterL1C1;
+
+                  -- [Axiom 1]
+                  assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+                  -- cbe.directoryEventFlag := true;
+
                   return true;
                 endif;
               endif;
@@ -1515,6 +1745,11 @@
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_M;
                   undefine cbe.requesterL1C1;
+
+                  -- [Axiom 1]
+                  assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+                  -- cbe.directoryEventFlag := true;
+
                   return true;
                 endif;
                 if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
@@ -1522,6 +1757,11 @@
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_M;
                   undefine cbe.requesterL1C1;
+
+                  -- [Axiom 1]
+                  assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+                  -- cbe.directoryEventFlag := true;
+
                   return true;
                 endif;
               endif;
@@ -1534,6 +1774,11 @@
                   AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_SM_Acks;
+
+                  -- [Axiom 1]
+                  assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+                  cbe.directoryEventFlag := true;
+
                   return true;
                 endif;
                 if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
@@ -1542,6 +1787,11 @@
                   ClearVector_cacheL1C1(cbe.cacheL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_SM_Acks;
+
+                  -- [Axiom 1]
+                  assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+                  cbe.directoryEventFlag := true;
+
                   return true;
                 endif;
               endif;
@@ -1555,6 +1805,11 @@
                   ClearVector_cacheL1C1(cbe.cacheL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_SM_Acks;
+
+                  -- [Axiom 1]
+                  assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+                  cbe.directoryEventFlag := true;
+
                   return true;
                 endif;
                 if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
@@ -1565,6 +1820,11 @@
                   AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_SM_Acks;
+
+                  -- [Axiom 1]
+                  assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+                  cbe.directoryEventFlag := true;
+
                   return true;
                 endif;
               endif;
@@ -1577,6 +1837,11 @@
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_M;
                   undefine cbe.requesterL1C1;
+
+                  -- [Axiom 1]
+                  assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+                  -- cbe.directoryEventFlag := true;
+
                   return true;
                 endif;
                 if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
@@ -1584,6 +1849,11 @@
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_M;
                   undefine cbe.requesterL1C1;
+
+                  -- [Axiom 1]
+                  assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+                  -- cbe.directoryEventFlag := true;
+
                   return true;
                 endif;
               endif;
@@ -1591,6 +1861,10 @@
           endif;
         
         case RdSharedL1C1:
+          -- [Axiom 1]
+          assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+          -- cbe.directoryEventFlag := true;
+
           msg := HostRspL1C1(adr,GO_SL1C1,m,inmsg.src);
           Send_H2D_response(msg, m);
           msg1 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
@@ -1618,6 +1892,11 @@
             -- Proxy Inval Guard
             if (cbe.ownerL1C1 = directoryL1C1) then
               cbe.State := directoryL1C1_I;
+
+              -- [Axiom 1]
+              assert !isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory ending an event. Why is the directoryEventFlag not set?\n";
+              undefine cbe.directoryEventFlag;
+
               undefine cbe.requesterL1C1;
               return true;
             else
@@ -1629,6 +1908,11 @@
                 Clear_perm(adr, m);
                 cbe.State := directoryL1C1_M;
                 undefine cbe.requesterL1C1;
+
+                -- [Axiom 1]
+                assert !isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory ending an event. Why is the directoryEventFlag not set?\n";
+                undefine cbe.directoryEventFlag;
+
                 return true;
               endif;
               if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
@@ -1636,6 +1920,11 @@
                 Clear_perm(adr, m);
                 cbe.State := directoryL1C1_M;
                 undefine cbe.requesterL1C1;
+
+                -- [Axiom 1]
+                assert !isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory ending an event. Why is the directoryEventFlag not set?\n";
+                undefine cbe.directoryEventFlag;
+
                 return true;
               endif;
             endif;
@@ -2021,6 +2310,10 @@
       rule "directoryL1C1_E_load"
         cbe.State = directoryL1C1_E & network_ready() 
       ==>
+        -- [Axiom 1]
+        assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+        cbe.directoryEventFlag := true;
+
         FSM_Access_directoryL1C1_E_load(adr, m);
         
       endrule;
@@ -2028,6 +2321,10 @@
       rule "directoryL1C1_E_store"
         cbe.State = directoryL1C1_E & network_ready() 
       ==>
+        -- [Axiom 1]
+        assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+        cbe.directoryEventFlag := true;
+
         FSM_Access_directoryL1C1_E_store(adr, m);
         
       endrule;
@@ -2037,6 +2334,10 @@
       rule "directoryL1C1_M_load"
         cbe.State = directoryL1C1_M & network_ready() 
       ==>
+        -- [Axiom 1]
+        assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+        cbe.directoryEventFlag := true;
+
         FSM_Access_directoryL1C1_M_load(adr, m);
         
       endrule;
@@ -2044,6 +2345,10 @@
       rule "directoryL1C1_M_store"
         cbe.State = directoryL1C1_M & network_ready() 
       ==>
+        -- [Axiom 1]
+        assert isundefined(cbe.directoryEventFlag) ">[Axiom 1] Directory starting an event. Why is the directory Event Flag set?\n";
+        cbe.directoryEventFlag := true;
+
         FSM_Access_directoryL1C1_M_store(adr, m);
         
       endrule;
@@ -2051,6 +2356,7 @@
       rule "directoryL1C1_S_store"
         cbe.State = directoryL1C1_S & network_ready() 
       ==>
+        -- [Axiom 1] asserts in procedure below
         FSM_Access_directoryL1C1_S_store(adr, m);
         
       endrule;
