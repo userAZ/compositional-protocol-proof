@@ -38,7 +38,7 @@
     U_NET_MAX: 12;
   
   ---- SSP declaration constants
-    NrCachesL1C1: 4;
+    NrCachesL1C1: 2;
   
 --Backend/Murphi/MurphiModular/GenTypes
   type
@@ -124,7 +124,7 @@
     ----Backend/Murphi/MurphiModular/Types/GenMachineSets
       -- Cluster: C1
       OBJSET_directoryL1C1: enum{directoryL1C1};
-      OBJSET_cacheL1C1: scalarset(3);
+      OBJSET_cacheL1C1: scalarset(2);
       C1Machines: union{OBJSET_directoryL1C1, OBJSET_cacheL1C1};
       
       Machines: union{OBJSET_directoryL1C1, OBJSET_cacheL1C1};
@@ -172,6 +172,8 @@
       ENTRY_cacheL1C1: record
         State: s_cacheL1C1;
         cl: ClValue;
+        -- [Axiom 3]
+        cacheEventFlag : boolean;
       end;
       
       MACH_cacheL1C1: record
@@ -1022,12 +1024,36 @@
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_E;
             undefine cbe.requesterL1C1;
+
+            -- [Axiom 3]
+            alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+              assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Cache Event!\n";
+              assert (cache_cbe.State = cacheL1C1_E_evict |
+                cache_cbe.State = cacheL1C1_S_evict |
+                cache_cbe.State = cacheL1C1_S_evict_SnpInvS |
+                cache_cbe.State = cacheL1C1_E_evict_SnpData |
+                cache_cbe.State = cacheL1C1_E_evict_SnpData_SnpInvS |
+                cache_cbe.State = cacheL1C1_E_evict_SnpInvM
+                ) ">[Axiom 3] Dir: Expected Cache on E state to be Evicting!\n";
+            endalias;
+
             return true;
           endif;
           if (inmsg.src = cbe.ownerL1C1) then
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
             undefine cbe.requesterL1C1;
+
+            -- [Axiom 3]
+            alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+              assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Cache Event!\n";
+              assert (cache_cbe.State = cacheL1C1_E_evict |
+                cache_cbe.State = cacheL1C1_E_evict_SnpData |
+                cache_cbe.State = cacheL1C1_E_evict_SnpData_SnpInvS |
+                cache_cbe.State = cacheL1C1_E_evict_SnpInvM
+                ) ">[Axiom 3] Dir: Expected Cache on E state to be Evicting!\n";
+            endalias;
+
             return true;
           endif;
         
@@ -1037,6 +1063,17 @@
             Send_H2D_response(msg, m);
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_E_DEvict;
+
+            -- [Axiom 3]
+            alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+              assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Cache Event!\n";
+              assert (cache_cbe.State = cacheL1C1_M_evict |
+                cache_cbe.State = cacheL1C1_M_evict_SnpData |
+                cache_cbe.State = cacheL1C1_M_evict_SnpData_SnpInvS |
+                cache_cbe.State = cacheL1C1_M_evict_SnpInvM
+                ) ">[Axiom 3] Dir: Expected Cache on M state to be Evicting!\n";
+            endalias;
+
             return true;
           endif;
           if !(inmsg.src = cbe.ownerL1C1) then
@@ -1045,6 +1082,17 @@
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_E;
             undefine cbe.requesterL1C1;
+
+            -- [Axiom 3]
+            alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+              assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Cache Event!\n";
+              assert (cache_cbe.State = cacheL1C1_M_evict |
+                cache_cbe.State = cacheL1C1_M_evict_SnpData |
+                cache_cbe.State = cacheL1C1_M_evict_SnpData_SnpInvS |
+                cache_cbe.State = cacheL1C1_M_evict_SnpInvM
+                ) ">[Axiom 3] Dir: Expected Cache on M state to be Evicting!\n";
+            endalias;
+
             return true;
           endif;
         
@@ -1054,9 +1102,25 @@
           cbe.ownerL1C1 := inmsg.src;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_E_RdOwn;
+
+          -- [Axiom 3]
+          alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Cache Event!\n";
+            assert (cache_cbe.State = cacheL1C1_S_store |
+              cache_cbe.State = cacheL1C1_I_store
+              -- cache_cbe.State = cacheL1C1_M_store
+              ) ">[Axiom 3] Dir: Expected Cache on a transient state getting E/M Ownership!\n";
+          endalias;
+
           return true;
         
         case RdSharedL1C1:
+          -- [Axiom 3]
+          alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Cache Event!\n";
+            assert (cache_cbe.State = cacheL1C1_I_load) ">[Axiom 3] Dir: Expected Cache on transient state I-load to request RdShared!\n";
+          endalias;
+
           msg := HostReqL1C1(adr,SnpDataL1C1,inmsg.src,cbe.ownerL1C1);
           Send_H2D_request(msg, m);
           AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
@@ -1191,6 +1255,16 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
           undefine cbe.requesterL1C1;
+
+          -- [Axiom 3]
+          alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Cache Event!\n";
+            assert (cache_cbe.State = cacheL1C1_E_evict_SnpData_SnpInvS |
+              cache_cbe.State = cacheL1C1_E_evict_SnpInvM |
+              cache_cbe.State = cacheL1C1_S_evict_SnpInvS
+              ) ">[Axiom 3] Dir: Expected Cache on an Evicting transient state from E or S to request Clean Evict!\n";
+          endalias;
+
           return true;
         
         case DirtyEvictL1C1:
@@ -1199,6 +1273,15 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
           undefine cbe.requesterL1C1;
+
+          -- [Axiom 3]
+          alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Dirty Event!\n";
+            assert (cache_cbe.State = cacheL1C1_M_evict_SnpInvM |
+              cache_cbe.State = cacheL1C1_M_evict_SnpData_SnpInvS
+              ) ">[Axiom 3] Dir: Expected Cache on an Evicting transient state from M to request Dirty Evict!\n";
+          endalias;
+
           return true;
         
         case RdOwnL1C1:
@@ -1210,6 +1293,15 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_E;
           undefine cbe.requesterL1C1;
+
+          -- [Axiom 3]
+          alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Dirty Event!\n";
+            assert (cache_cbe.State = cacheL1C1_S_store |
+              cache_cbe.State = cacheL1C1_I_store
+              ) ">[Axiom 3] Dir: Expected Cache on an Evicting transient state from M to request Dirty Evict!\n";
+          endalias;
+
           return true;
         
         case RdSharedL1C1:
@@ -1221,6 +1313,13 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_S;
           undefine cbe.requesterL1C1;
+
+          -- [Axiom 3]
+          alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Dirty Event!\n";
+            assert (cache_cbe.State = cacheL1C1_I_load) ">[Axiom 3] Dir: Expected Cache on an Evicting transient state from M to request Dirty Evict!\n";
+          endalias;
+
           return true;
         
         else return false;
@@ -1229,6 +1328,17 @@
       case directoryL1C1_M:
       switch inmsg.mtype
         case CleanEvictNoDataL1C1:
+
+          -- [Axiom 3]
+          alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Clean Event!\n";
+            assert (cache_cbe.State = cacheL1C1_E_evict_SnpInvM |
+              cache_cbe.State = cacheL1C1_E_evict_SnpData |
+              cache_cbe.State = cacheL1C1_E_evict_SnpData_SnpInvS |
+              cache_cbe.State = cacheL1C1_S_evict_SnpInvS
+              ) ">[Axiom 3] Dir: Expected Cache on an Evicting transient state from E to request Clean Evict!\n";
+          endalias;
+
           if (inmsg.src != cbe.ownerL1C1) then
             msg := HostRspL1C1(adr,GO_IL1C1,m,inmsg.src);
             Send_H2D_response(msg, m);
@@ -1245,6 +1355,16 @@
           endif;
         
         case DirtyEvictL1C1:
+
+          -- [Axiom 3]
+          alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Clean Event!\n";
+            assert (cache_cbe.State = cacheL1C1_M_evict |
+              cache_cbe.State = cacheL1C1_M_evict_SnpInvM |
+              cache_cbe.State = cacheL1C1_M_evict_SnpData_SnpInvS
+              ) ">[Axiom 3] Dir: Expected Cache on an Evicting transient state from E to request Clean Evict!\n";
+          endalias;
+
           if !(inmsg.src = cbe.ownerL1C1) then
             msg := HostRspL1C1(adr,GO_IL1C1,m,inmsg.src);
             Send_H2D_response(msg, m);
@@ -1267,6 +1387,15 @@
           cbe.ownerL1C1 := inmsg.src;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_M_RdOwn;
+
+          -- [Axiom 3]
+          alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Clean Event!\n";
+            assert (cache_cbe.State = cacheL1C1_I_store |
+              cache_cbe.State = cacheL1C1_S_store
+              ) ">[Axiom 3] Dir: Expected Cache on an Evicting transient state from E to request Clean Evict!\n";
+          endalias;
+
           return true;
         
         case RdSharedL1C1:
@@ -1277,6 +1406,14 @@
           cbe.requesterL1C1 := inmsg.src;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_M_RdShared;
+
+          -- [Axiom 3]
+          alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Clean Event!\n";
+            assert (cache_cbe.State = cacheL1C1_I_load
+              ) ">[Axiom 3] Dir: Expected Cache on an Evicting transient state from E to request Clean Evict!\n";
+          endalias;
+
           return true;
         
         else return false;
@@ -1359,6 +1496,18 @@
       case directoryL1C1_S:
       switch inmsg.mtype
         case CleanEvictNoDataL1C1:
+
+          -- [Axiom 3]
+          alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Clean Event!\n";
+            assert (cache_cbe.State = cacheL1C1_E_evict_SnpData |
+              cache_cbe.State = cacheL1C1_E_evict_SnpData_SnpInvS |
+              cache_cbe.State = cacheL1C1_E_evict_SnpInvM |
+              cache_cbe.State = cacheL1C1_S_evict |
+              cache_cbe.State = cacheL1C1_S_evict_SnpInvS
+              ) ">[Axiom 3] Dir: Expected Cache on an Evicting transient state from E to request Clean Evict!\n";
+          endalias;
+
           msg := HostRspL1C1(adr,GO_IL1C1,m,inmsg.src);
           Send_H2D_response(msg, m);
           if (IsElement_cacheL1C1(cbe.cacheL1C1, inmsg.src)) then
@@ -1385,6 +1534,16 @@
           endif;
         
         case DirtyEvictL1C1:
+          -- [Axiom 3]
+          alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Clean Event!\n";
+            assert (cache_cbe.State = cacheL1C1_M_evict |
+              cache_cbe.State = cacheL1C1_M_evict_SnpData |
+              cache_cbe.State = cacheL1C1_M_evict_SnpData_SnpInvS |
+              cache_cbe.State = cacheL1C1_M_evict_SnpInvM
+              ) ">[Axiom 3] Dir: Expected Cache on an Evicting transient state from E to request Clean Evict!\n";
+          endalias;
+
           msg := HostRspL1C1(adr,GO_IL1C1,m,inmsg.src);
           Send_H2D_response(msg, m);
           if (IsElement_cacheL1C1(cbe.cacheL1C1, inmsg.src)) then
@@ -1412,6 +1571,14 @@
           endif;
         
         case RdOwnL1C1:
+          -- [Axiom 3]
+          alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Clean Event!\n";
+            assert (cache_cbe.State = cacheL1C1_I_store |
+              cache_cbe.State = cacheL1C1_S_store
+              ) ">[Axiom 3] Dir: Expected Cache on an Evicting transient state from E to request Clean Evict!\n";
+          endalias;
+
           cbe.ownerL1C1 := inmsg.src;
           cbe.acksExpectedL1C1 := VectorCount_cacheL1C1(cbe.cacheL1C1);
           if !(IsElement_cacheL1C1(cbe.cacheL1C1, inmsg.src)) then
@@ -1591,6 +1758,13 @@
           endif;
         
         case RdSharedL1C1:
+          -- [Axiom 3]
+          alias cache_cbe:i_cacheL1C1[inmsg.src].cb[adr] do
+            assert (cache_cbe.cacheEventFlag) ">[Axiom 3] Dir: Expected Cache to have started a Clean Event!\n";
+            assert (cache_cbe.State = cacheL1C1_I_load
+              ) ">[Axiom 3] Dir: Expected Cache on an Evicting transient state from E to request Clean Evict!\n";
+          endalias;
+
           msg := HostRspL1C1(adr,GO_SL1C1,m,inmsg.src);
           Send_H2D_response(msg, m);
           msg1 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
@@ -1718,6 +1892,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 3]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache Event ending. Why is cache event flag not set?\n";
+          undefine cbe.cacheEventFlag;
           return true;
         
         case SnpDataL1C1:
@@ -1742,6 +1920,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 3]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache Event ending. Why is cache event flag not set?\n";
+          undefine cbe.cacheEventFlag;
           return true;
         
         case SnpInvSL1C1:
@@ -1759,6 +1941,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 3]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache Event ending. Why is cache event flag not set?\n";
+          undefine cbe.cacheEventFlag;
           return true;
         
         else return false;
@@ -1769,6 +1955,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 3]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache Event ending. Why is cache event flag not set?\n";
+          undefine cbe.cacheEventFlag;
           return true;
         
         else return false;
@@ -1795,6 +1985,10 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_S;
+
+          -- [Axiom 3]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache Event ending. Why is cache event flag not set?\n";
+          undefine cbe.cacheEventFlag;
           return true;
         
         else return false;
@@ -1821,6 +2015,10 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(store, adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_E;
+
+          -- [Axiom 3]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache Event ending. Why is cache event flag not set?\n";
+          undefine cbe.cacheEventFlag;
           return true;
         
         else return false;
@@ -1832,6 +2030,10 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_M;
+
+          -- [Axiom 3]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache Event ending. Why is cache event flag not set?\n";
+          undefine cbe.cacheEventFlag;
           return true;
         
         else return false;
@@ -1867,6 +2069,10 @@
           Send_D2H_data(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 3]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache Event ending. Why is cache event flag not set?\n";
+          undefine cbe.cacheEventFlag;
           return true;
         
         case SnpDataL1C1:
@@ -1895,6 +2101,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 3]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache Event ending. Why is cache event flag not set?\n";
+          undefine cbe.cacheEventFlag;
           return true;
         
         case SnpInvSL1C1:
@@ -1912,6 +2122,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 3]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache Event ending. Why is cache event flag not set?\n";
+          undefine cbe.cacheEventFlag;
           return true;
         
         else return false;
@@ -1923,6 +2137,10 @@
           Clear_perm(adr, m);
           -- Go to I
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 3]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache Event ending. Why is cache event flag not set?\n";
+          undefine cbe.cacheEventFlag;
           return true;
         
         else return false;
@@ -1945,6 +2163,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 3]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache Event ending. Why is cache event flag not set?\n";
+          undefine cbe.cacheEventFlag;
           return true;
         
         case SnpInvSL1C1:
@@ -1962,6 +2184,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 3]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache Event ending. Why is cache event flag not set?\n";
+          undefine cbe.cacheEventFlag;
           return true;
         
         else return false;
@@ -1990,6 +2216,10 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_M;
+
+          -- [Axiom 3]
+          assert !isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache Event ending. Why is cache event flag not set?\n";
+          undefine cbe.cacheEventFlag;
           return true;
         
         else return false;
@@ -2091,6 +2321,10 @@
         FSM_Access_cacheL1C1_E_evict(adr, m);
         Clear_perm(adr, m);
         
+        -- [Axiom 3]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache event starting. Why is the cacheEventFlag already set?\n";
+        cbe.cacheEventFlag := true;
+
       endrule;
     
       rule "cacheL1C1_E_store"
@@ -2117,6 +2351,10 @@
       rule "cacheL1C1_I_store"
         cbe.State = cacheL1C1_I & network_ready() 
       ==>
+        -- [Axiom 3]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache event starting. Why is the cacheEventFlag already set?\n";
+        cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_I_store(adr, m);
         
       endrule;
@@ -2124,6 +2362,10 @@
       rule "cacheL1C1_I_load"
         cbe.State = cacheL1C1_I & network_ready() 
       ==>
+        -- [Axiom 3]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache event starting. Why is the cacheEventFlag already set?\n";
+        cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_I_load(adr, m);
         
       endrule;
@@ -2131,6 +2373,10 @@
       rule "cacheL1C1_M_evict"
         cbe.State = cacheL1C1_M & network_ready() 
       ==>
+        -- [Axiom 3]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache event starting. Why is the cacheEventFlag already set?\n";
+        cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_M_evict(adr, m);
         Clear_perm(adr, m);
         
@@ -2153,6 +2399,10 @@
       rule "cacheL1C1_S_evict"
         cbe.State = cacheL1C1_S & network_ready() 
       ==>
+        -- [Axiom 3]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache event starting. Why is the cacheEventFlag already set?\n";
+        cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_S_evict(adr, m);
         Clear_perm(adr, m);
         
@@ -2161,6 +2411,10 @@
       rule "cacheL1C1_S_store"
         cbe.State = cacheL1C1_S & network_ready() 
       ==>
+        -- [Axiom 3]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache event starting. Why is the cacheEventFlag already set?\n";
+        cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_S_store(adr, m);
         
       endrule;
