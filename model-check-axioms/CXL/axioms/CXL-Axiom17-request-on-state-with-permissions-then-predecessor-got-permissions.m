@@ -38,7 +38,7 @@
     U_NET_MAX: 12;
   
   ---- SSP declaration constants
-    NrCachesL1C1: 4;
+    NrCachesL1C1: 2;
   
 --Backend/Murphi/MurphiModular/GenTypes
   type
@@ -124,7 +124,7 @@
     ----Backend/Murphi/MurphiModular/Types/GenMachineSets
       -- Cluster: C1
       OBJSET_directoryL1C1: enum{directoryL1C1};
-      OBJSET_cacheL1C1: scalarset(3);
+      OBJSET_cacheL1C1: scalarset(2);
       C1Machines: union{OBJSET_directoryL1C1, OBJSET_cacheL1C1};
       
       Machines: union{OBJSET_directoryL1C1, OBJSET_cacheL1C1};
@@ -172,6 +172,8 @@
       ENTRY_cacheL1C1: record
         State: s_cacheL1C1;
         cl: ClValue;
+        -- [Axiom 17]
+        predecessorGotPermsFlag : boolean;
       end;
       
       MACH_cacheL1C1: record
@@ -1708,6 +1710,10 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 17]
+          assert (cbe.predecessorGotPermsFlag) ">[Axiom 17] On State with permissions, downgrading to I. Expected `cbe.predecessorGotPermsFlag` to have been set before!\n";
+          undefine cbe.predecessorGotPermsFlag;
           return true;
         
         else return false;
@@ -1718,6 +1724,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 17]
+          assert (cbe.predecessorGotPermsFlag) ">[Axiom 17] On State with permissions, downgrading to I. Expected `cbe.predecessorGotPermsFlag` to have been set before!\n";
+          undefine cbe.predecessorGotPermsFlag;
           return true;
         
         case SnpDataL1C1:
@@ -1742,6 +1752,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 17]
+          assert (cbe.predecessorGotPermsFlag) ">[Axiom 17] On State with permissions, downgrading to I. Expected `cbe.predecessorGotPermsFlag` to have been set before!\n";
+          undefine cbe.predecessorGotPermsFlag;
           return true;
         
         case SnpInvSL1C1:
@@ -1759,6 +1773,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 17]
+          assert (cbe.predecessorGotPermsFlag) ">[Axiom 17] On State with permissions, downgrading to I. Expected `cbe.predecessorGotPermsFlag` to have been set before!\n";
+          undefine cbe.predecessorGotPermsFlag;
           return true;
         
         else return false;
@@ -1769,6 +1787,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 17]
+          assert (cbe.predecessorGotPermsFlag) ">[Axiom 17] On State with permissions, downgrading to I. Expected `cbe.predecessorGotPermsFlag` to have been set before!\n";
+          undefine cbe.predecessorGotPermsFlag;
           return true;
         
         else return false;
@@ -1795,6 +1817,10 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_S;
+
+          -- [Axiom 17]
+          assert isundefined(cbe.predecessorGotPermsFlag) ">[Axiom 17] Completing transaction from I state, expected the `predecessorGotPermsFlag` to still be unset!\n";
+          cbe.predecessorGotPermsFlag := true;
           return true;
         
         else return false;
@@ -1821,6 +1847,10 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(store, adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_E;
+
+          -- [Axiom 17]
+          assert isundefined(cbe.predecessorGotPermsFlag) ">[Axiom 17] Completing transaction from I state, expected the `predecessorGotPermsFlag` to still be unset!\n";
+          cbe.predecessorGotPermsFlag := true;
           return true;
         
         else return false;
@@ -1832,6 +1862,10 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_M;
+
+          -- [Axiom 17]
+          assert isundefined(cbe.predecessorGotPermsFlag) ">[Axiom 17] Completing transaction from I state, expected the `predecessorGotPermsFlag` to still be unset!\n";
+          cbe.predecessorGotPermsFlag := true;
           return true;
         
         else return false;
@@ -1855,6 +1889,10 @@
           Send_D2H_data(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 17]
+          assert (cbe.predecessorGotPermsFlag) ">[Axiom 17] On State with permissions, downgrading to I. Expected `cbe.predecessorGotPermsFlag` to have been set before!\n";
+          undefine cbe.predecessorGotPermsFlag;
           return true;
         
         else return false;
@@ -1867,6 +1905,10 @@
           Send_D2H_data(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 17]
+          assert (cbe.predecessorGotPermsFlag) ">[Axiom 17] On State with permissions, downgrading to I. Expected `cbe.predecessorGotPermsFlag` to have been set before!\n";
+          undefine cbe.predecessorGotPermsFlag;
           return true;
         
         case SnpDataL1C1:
@@ -1895,6 +1937,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 17]
+          assert (cbe.predecessorGotPermsFlag) ">[Axiom 17] On State with permissions, downgrading to I. Expected `cbe.predecessorGotPermsFlag` to have been set before!\n";
+          undefine cbe.predecessorGotPermsFlag;
           return true;
         
         case SnpInvSL1C1:
@@ -1912,6 +1958,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 17]
+          assert (cbe.predecessorGotPermsFlag) ">[Axiom 17] On State with permissions, downgrading to I. Expected `cbe.predecessorGotPermsFlag` to have been set before!\n";
+          undefine cbe.predecessorGotPermsFlag;
           return true;
         
         else return false;
@@ -1923,6 +1973,10 @@
           Clear_perm(adr, m);
           -- Go to I
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 17]
+          assert (cbe.predecessorGotPermsFlag) ">[Axiom 17] On State with permissions, downgrading to I. Expected `cbe.predecessorGotPermsFlag` to have been set before!\n";
+          undefine cbe.predecessorGotPermsFlag;
           return true;
         
         else return false;
@@ -1935,6 +1989,10 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 17]
+          assert (cbe.predecessorGotPermsFlag) ">[Axiom 17] On State with permissions, downgrading to I. Expected `cbe.predecessorGotPermsFlag` to have been set before!\n";
+          undefine cbe.predecessorGotPermsFlag;
           return true;
         
         else return false;
@@ -1945,6 +2003,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 17]
+          assert (cbe.predecessorGotPermsFlag) ">[Axiom 17] On State with permissions, downgrading to I. Expected `cbe.predecessorGotPermsFlag` to have been set before!\n";
+          undefine cbe.predecessorGotPermsFlag;
           return true;
         
         case SnpInvSL1C1:
@@ -1962,6 +2024,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 17]
+          assert (cbe.predecessorGotPermsFlag) ">[Axiom 17] On State with permissions, downgrading to I. Expected `cbe.predecessorGotPermsFlag` to have been set before!\n";
+          undefine cbe.predecessorGotPermsFlag;
           return true;
         
         else return false;
@@ -1990,6 +2056,10 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_M;
+
+          -- [Axiom 17]
+          assert isundefined(cbe.predecessorGotPermsFlag) ">[Axiom 17] S to M transition. Expected `predecessorGotPermsFlag` to be unset!\n";
+          cbe.predecessorGotPermsFlag := true;
           return true;
         
         else return false;
@@ -2091,6 +2161,8 @@
         FSM_Access_cacheL1C1_E_evict(adr, m);
         Clear_perm(adr, m);
         
+        -- [Axiom 17]
+        assert !isundefined(cbe.predecessorGotPermsFlag) ">[Axiom 17] Performing op with state permissions. Expected `predecessorGotPermsFlag` to be set!\n";
       endrule;
     
       rule "cacheL1C1_E_store"
@@ -2098,6 +2170,8 @@
       ==>
         FSM_Access_cacheL1C1_E_store(adr, m);
         
+        -- [Axiom 17]
+        assert !isundefined(cbe.predecessorGotPermsFlag) ">[Axiom 17] Performing op with state permissions. Expected `predecessorGotPermsFlag` to be set!\n";
       endrule;
     
       rule "cacheL1C1_E_load"
@@ -2105,6 +2179,8 @@
       ==>
         FSM_Access_cacheL1C1_E_load(adr, m);
         
+        -- [Axiom 17]
+        assert !isundefined(cbe.predecessorGotPermsFlag) ">[Axiom 17] Performing op with state permissions. Expected `predecessorGotPermsFlag` to be set!\n";
       endrule;
     
       rule "cacheL1C1_I_evict"
@@ -2119,6 +2195,8 @@
       ==>
         FSM_Access_cacheL1C1_I_store(adr, m);
         
+        -- [Axiom 17]
+        assert isundefined(cbe.predecessorGotPermsFlag) ">[Axiom 17] Starting transaction on I state. Expected `predecessorGotPermsFlag` to be unset!\n";
       endrule;
     
       rule "cacheL1C1_I_load"
@@ -2126,6 +2204,8 @@
       ==>
         FSM_Access_cacheL1C1_I_load(adr, m);
         
+        -- [Axiom 17]
+        assert isundefined(cbe.predecessorGotPermsFlag) ">[Axiom 17] Starting transaction on I state. Expected `predecessorGotPermsFlag` to be unset!\n";
       endrule;
     
       rule "cacheL1C1_M_evict"
@@ -2134,6 +2214,8 @@
         FSM_Access_cacheL1C1_M_evict(adr, m);
         Clear_perm(adr, m);
         
+        -- [Axiom 17]
+        assert !isundefined(cbe.predecessorGotPermsFlag) ">[Axiom 17] Performing op with state permissions. Expected `predecessorGotPermsFlag` to be set!\n";
       endrule;
     
       rule "cacheL1C1_M_load"
@@ -2141,6 +2223,8 @@
       ==>
         FSM_Access_cacheL1C1_M_load(adr, m);
         
+        -- [Axiom 17]
+        assert !isundefined(cbe.predecessorGotPermsFlag) ">[Axiom 17] Performing op with state permissions. Expected `predecessorGotPermsFlag` to be set!\n";
       endrule;
     
       rule "cacheL1C1_M_store"
@@ -2148,6 +2232,8 @@
       ==>
         FSM_Access_cacheL1C1_M_store(adr, m);
         
+        -- [Axiom 17]
+        assert !isundefined(cbe.predecessorGotPermsFlag) ">[Axiom 17] Performing op with state permissions. Expected `predecessorGotPermsFlag` to be set!\n";
       endrule;
     
       rule "cacheL1C1_S_evict"
@@ -2156,6 +2242,8 @@
         FSM_Access_cacheL1C1_S_evict(adr, m);
         Clear_perm(adr, m);
         
+        -- [Axiom 17]
+        assert !isundefined(cbe.predecessorGotPermsFlag) ">[Axiom 17] Performing op with state permissions. Expected `predecessorGotPermsFlag` to be set!\n";
       endrule;
     
       rule "cacheL1C1_S_store"
@@ -2163,6 +2251,10 @@
       ==>
         FSM_Access_cacheL1C1_S_store(adr, m);
         
+        -- [Axiom 17]
+        assert !isundefined(cbe.predecessorGotPermsFlag) ">[Axiom 17] Starting transaction on S state. Expected `predecessorGotPermsFlag` to be unset!\n";
+        -- Undefine because store doesn't have permissions on S.
+        undefine cbe.predecessorGotPermsFlag;
       endrule;
     
       rule "cacheL1C1_S_load"
@@ -2170,6 +2262,8 @@
       ==>
         FSM_Access_cacheL1C1_S_load(adr, m);
         
+        -- [Axiom 17]
+        assert !isundefined(cbe.predecessorGotPermsFlag) ">[Axiom 17] Performing op with state permissions. Expected `predecessorGotPermsFlag` to be set!\n";
       endrule;
     
     
