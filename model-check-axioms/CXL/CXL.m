@@ -1028,6 +1028,7 @@
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
             undefine cbe.requesterL1C1;
+            undefine cbe.ownerL1C1;
             return true;
           endif;
         
@@ -1084,6 +1085,7 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
           undefine cbe.requesterL1C1;
+          undefine cbe.ownerL1C1;
           return true;
         
         else return false;
@@ -1109,6 +1111,7 @@
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
             undefine cbe.requesterL1C1;
+            undefine cbe.ownerL1C1;
           endif;
           return true;
         
@@ -1131,6 +1134,7 @@
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
             undefine cbe.requesterL1C1;
+            undefine cbe.ownerL1C1;
           endif;
           return true;
         
@@ -1154,6 +1158,7 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_S;
           undefine cbe.requesterL1C1;
+          undefine cbe.ownerL1C1;
           return true;
         
         else return false;
@@ -1171,13 +1176,15 @@
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_S;
             undefine cbe.requesterL1C1;
+            undefine cbe.ownerL1C1;
             return true;
           endif;
           if !(cbe.requesterL1C1 != m) then
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_S;
-            return true;
             undefine cbe.requesterL1C1;
+            undefine cbe.ownerL1C1;
+            return true;
           endif;
         
         else return false;
@@ -1191,6 +1198,7 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
           undefine cbe.requesterL1C1;
+          undefine cbe.ownerL1C1;
           return true;
         
         case DirtyEvictL1C1:
@@ -1199,6 +1207,7 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
           undefine cbe.requesterL1C1;
+          undefine cbe.ownerL1C1;
           return true;
         
         case RdOwnL1C1:
@@ -1221,6 +1230,7 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_S;
           undefine cbe.requesterL1C1;
+          undefine cbe.ownerL1C1;
           return true;
         
         else return false;
@@ -1289,6 +1299,7 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
           undefine cbe.requesterL1C1;
+          undefine cbe.ownerL1C1;
           return true;
         
         else return false;
@@ -1319,6 +1330,7 @@
           else
             cbe.State := directoryL1C1_I;
             undefine cbe.requesterL1C1;
+            undefine cbe.ownerL1C1;
           endif;
           return true;
         
@@ -1350,6 +1362,7 @@
           cbe.State := directoryL1C1_S;
 
           undefine cbe.requesterL1C1;
+          undefine cbe.ownerL1C1;
           -- cbe.State := directoryL1C1_I;
           return true;
         
@@ -1366,6 +1379,7 @@
               RemoveElement_cacheL1C1(cbe.cacheL1C1, inmsg.src);
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_I;
+              undefine cbe.ownerL1C1;
               return true;
             endif;
             if !(VectorCount_cacheL1C1(cbe.cacheL1C1) = 1) then
@@ -1373,6 +1387,7 @@
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_S;
               undefine cbe.requesterL1C1;
+              undefine cbe.ownerL1C1;
               return true;
             endif;
           endif;
@@ -1380,8 +1395,9 @@
             RemoveElement_cacheL1C1(cbe.cacheL1C1, inmsg.src);
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_S;
-            return true;
             undefine cbe.requesterL1C1;
+            undefine cbe.ownerL1C1;
+            return true;
           endif;
         
         case DirtyEvictL1C1:
@@ -1393,6 +1409,7 @@
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_S;
               undefine cbe.requesterL1C1;
+              undefine cbe.ownerL1C1;
               return true;
             endif;
             if (VectorCount_cacheL1C1(cbe.cacheL1C1) = 1) then
@@ -1400,6 +1417,7 @@
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_I;
               undefine cbe.requesterL1C1;
+              undefine cbe.ownerL1C1;
               return true;
             endif;
           endif;
@@ -1408,6 +1426,7 @@
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_S;
             undefine cbe.requesterL1C1;
+            undefine cbe.ownerL1C1;
             return true;
           endif;
         
@@ -1599,6 +1618,7 @@
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_S;
           undefine cbe.requesterL1C1;
+          undefine cbe.ownerL1C1;
           return true;
         
         else return false;
@@ -1619,6 +1639,7 @@
             if (cbe.ownerL1C1 = directoryL1C1) then
               cbe.State := directoryL1C1_I;
               undefine cbe.requesterL1C1;
+              undefine cbe.ownerL1C1;
               return true;
             else
               msg1 := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
@@ -1660,12 +1681,16 @@
               RemoveElement_cacheL1C1(cbe.cacheL1C1, msg_CleanEvictNoDataL1.src);
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_S;
+              undefine cbe.requesterL1C1;
+              undefine cbe.ownerL1C1;
               return true;
             endif;
             if (VectorCount_cacheL1C1(cbe.cacheL1C1) = 1) then
               RemoveElement_cacheL1C1(cbe.cacheL1C1, msg_CleanEvictNoDataL1.src);
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_I;
+              undefine cbe.requesterL1C1;
+              undefine cbe.ownerL1C1;
               return true;
             endif;
           endif;
@@ -1673,6 +1698,8 @@
             RemoveElement_cacheL1C1(cbe.cacheL1C1, msg_CleanEvictNoDataL1.src);
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_S;
+            undefine cbe.requesterL1C1;
+            undefine cbe.ownerL1C1;
             return true;
           endif;
         
