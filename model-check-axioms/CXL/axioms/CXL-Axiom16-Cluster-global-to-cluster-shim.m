@@ -733,6 +733,12 @@
               cbe.State := directoryL1C1_I;
               -- cbe.State := directoryL1C1_M;
               -- return true;
+
+              -- [Axiom 16]
+              if (cbe.ownerL1C1 = directoryL1C1) then 
+                assert (cbe.State = directoryL1C1_I) ">[Axiom 16] Completing FwdStore downgrade should go to I state.\n";
+              endif;
+
             endif;
             if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
               ClearVector_cacheL1C1(cbe.cacheL1C1);
@@ -740,6 +746,12 @@
               cbe.State := directoryL1C1_I;
               -- cbe.State := directoryL1C1_M;
               -- return true;
+
+              -- [Axiom 16]
+              if (cbe.ownerL1C1 = directoryL1C1) then 
+                assert (cbe.State = directoryL1C1_I) ">[Axiom 16] Completing FwdStore downgrade should go to I state.\n";
+              endif;
+
             endif;
           endif;
           if (cbe.acksExpectedL1C1 != 0) then
@@ -796,12 +808,24 @@
               cbe.State := directoryL1C1_I;
               -- cbe.State := directoryL1C1_M;
               -- return true;
+
+              -- [Axiom 16]
+              if (cbe.ownerL1C1 = directoryL1C1) then 
+                assert (cbe.State = directoryL1C1_I) ">[Axiom 16] Completing FwdStore downgrade should go to I state.\n";
+              endif;
+
             endif;
             if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
               Clear_perm(adr, m);
               cbe.State := directoryL1C1_I;
               -- cbe.State := directoryL1C1_M;
               -- return true;
+
+              -- [Axiom 16]
+              if (cbe.ownerL1C1 = directoryL1C1) then 
+                assert (cbe.State = directoryL1C1_I) ">[Axiom 16] Completing FwdStore downgrade should go to I state.\n";
+              endif;
+
             endif;
           endif;
         endif;
@@ -821,6 +845,12 @@
               cbe.State := directoryL1C1_I;
               -- cbe.State := directoryL1C1_M;
               -- return true;
+
+              -- [Axiom 16]
+              if (cbe.ownerL1C1 = directoryL1C1) then 
+                assert (cbe.State = directoryL1C1_I) ">[Axiom 16] Completing FwdStore downgrade should go to I state.\n";
+              endif;
+
             endif;
             if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
               ClearVector_cacheL1C1(cbe.cacheL1C1);
@@ -828,6 +858,12 @@
               cbe.State := directoryL1C1_I;
               -- cbe.State := directoryL1C1_M;
               -- return true;
+
+              -- [Axiom 16]
+              if (cbe.ownerL1C1 = directoryL1C1) then 
+                assert (cbe.State = directoryL1C1_I) ">[Axiom 16] Completing FwdStore downgrade should go to I state.\n";
+              endif;
+
             endif;
           endif;
           if (cbe.acksExpectedL1C1 != 0) then
@@ -883,6 +919,12 @@
               cbe.State := directoryL1C1_I;
               -- cbe.State := directoryL1C1_M;
               -- return true;
+
+              -- [Axiom 16]
+              if (cbe.ownerL1C1 = directoryL1C1) then 
+                assert (cbe.State = directoryL1C1_I) ">[Axiom 16] Completing FwdStore downgrade should go to I state.\n";
+              endif;
+
             endif;
             if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
               ClearVector_cacheL1C1(cbe.cacheL1C1);
@@ -890,6 +932,12 @@
               cbe.State := directoryL1C1_I;
               -- cbe.State := directoryL1C1_M;
               -- return true;
+
+              -- [Axiom 16]
+              if (cbe.ownerL1C1 = directoryL1C1) then 
+                assert (cbe.State = directoryL1C1_I) ">[Axiom 16] Completing FwdStore downgrade should go to I state.\n";
+              endif;
+
             endif;
           endif;
         endif;
@@ -1047,6 +1095,7 @@
     var msg_GO_IL1: Message;
     -- [Axiom 16 Cluster - Global to Cluster]
     var cluster_to_global_shim_msg : ClusterToGlobalRequest;
+    var fwd_from_dir : boolean;
     begin
       alias adr: inmsg.adr do
       alias cbe: i_directoryL1C1[m].cb[adr] do
@@ -1146,10 +1195,23 @@
             cbe.State := directoryL1C1_M;
             undefine cbe.requesterL1C1;
           else
+
+            -- [Axiom 16]
+            fwd_from_dir := false;
+            if (cbe.ownerL1C1 = directoryL1C1) then 
+              fwd_from_dir := true;
+              assert (cbe.State = directoryL1C1_E_RdOwn | cbe.State = directoryL1C1_E_RdOwn_RspIFwdM) ">[Axiom 16] Completing FwdStore downgrade should be on it's way to I state.\n";
+            endif;
+
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
             undefine cbe.requesterL1C1;
             undefine cbe.ownerL1C1;
+
+            -- [Axiom 16]
+            if (fwd_from_dir) then 
+              assert (cbe.State = directoryL1C1_I) ">[Axiom 16] Completing FwdStore downgrade should Go to I state.\n";
+            endif;
           endif;
           return true;
         
@@ -1169,10 +1231,23 @@
             cbe.State := directoryL1C1_M;
             undefine cbe.requesterL1C1;
           else
+
+            -- [Axiom 16]
+            fwd_from_dir := false;
+            if (cbe.ownerL1C1 = directoryL1C1) then 
+              fwd_from_dir := true;
+              assert (cbe.State = directoryL1C1_E_RdOwn | cbe.State = directoryL1C1_E_RdOwn_RspIFwdM) ">[Axiom 16] Completing FwdStore downgrade should be on it's way to I state.\n";
+            endif;
+
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_I;
             undefine cbe.requesterL1C1;
             undefine cbe.ownerL1C1;
+
+            -- [Axiom 16]
+            if (fwd_from_dir) then 
+              assert (cbe.State = directoryL1C1_I) ">[Axiom 16] Completing FwdStore downgrade should Go to I state.\n";
+            endif;
           endif;
           return true;
         
@@ -1187,6 +1262,13 @@
           return true;
         
         case RspSHitSEL1C1:
+          -- [Axiom 16]
+          fwd_from_dir := false;
+          if (inmsg.src = directoryL1C1) then 
+            fwd_from_dir := true;
+            assert (cbe.State = directoryL1C1_E_RdShared | cbe.State = directoryL1C1_E_RspSFwdM) ">[Axiom 16] Completing FwdLoad downgrade should be on it's way to S state.\n";
+          endif;
+
           if (inmsg.src != directoryL1C1) then
             msg1 := HostRspL1C1(adr,GO_SL1C1,m,inmsg.src);
             Send_H2D_response(msg1, m);
@@ -1197,6 +1279,11 @@
           cbe.State := directoryL1C1_S;
           undefine cbe.requesterL1C1;
           undefine cbe.ownerL1C1;
+
+          -- [Axiom 16]
+          if (fwd_from_dir) then 
+            assert (cbe.State = directoryL1C1_S) ">[Axiom 16] Completing FwdLoad downgrade should Go to S state.\n";
+          endif;
           return true;
         
         else return false;
@@ -1218,11 +1305,23 @@
             return true;
           endif;
           if !(cbe.requesterL1C1 != m) then
+            -- [Axiom 16]
+            fwd_from_dir := false;
+            if (inmsg.src = directoryL1C1) then 
+              fwd_from_dir := true;
+              assert (cbe.State = directoryL1C1_E_RdShared | cbe.State = directoryL1C1_E_RspSFwdM) ">[Axiom 16] Completing FwdLoad downgrade should be on it's way to S state.\n";
+            endif;
+
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_S;
             undefine cbe.requesterL1C1;
             undefine cbe.ownerL1C1;
             return true;
+
+            -- [Axiom 16]
+            if (fwd_from_dir) then 
+              assert (cbe.State = directoryL1C1_S) ">[Axiom 16] Completing FwdLoad downgrade should Go to S state.\n";
+            endif;
           endif;
         
         else return false;
@@ -1366,9 +1465,22 @@
             cbe.State := directoryL1C1_M;
             undefine cbe.requesterL1C1;
           else
+
+            -- [Axiom 16]
+            fwd_from_dir := false;
+            if (cbe.ownerL1C1 = directoryL1C1) then 
+              fwd_from_dir := true;
+              assert (cbe.State = directoryL1C1_M_RdOwn | cbe.State = directoryL1C1_M_RdOwn_RspIFwdM) ">[Axiom 16] Completing FwdStore downgrade should be on it's way to I state.\n";
+            endif;
+
             cbe.State := directoryL1C1_I;
             undefine cbe.requesterL1C1;
             undefine cbe.ownerL1C1;
+
+            -- [Axiom 16]
+            if (fwd_from_dir) then 
+              assert (cbe.State = directoryL1C1_I) ">[Axiom 16] Completing FwdStore downgrade should Go to I state.\n";
+            endif;
           endif;
           return true;
         
@@ -1680,7 +1792,7 @@
               undefine cbe.ownerL1C1;
 
               -- [Axiom 16]
-              assert(cbe.State = directoryL1C1_I) ">[Axiom 16] a fwded `store` on `S` state translates to a proxy store (and invalidates any sharers).\n";
+              assert(cbe.State = directoryL1C1_I) ">[Axiom 16] a fwded `store` on `S` state translates to a proxy store (and invalidates any sharers) immediately going to I afterwards.\n";
 
               return true;
             else
