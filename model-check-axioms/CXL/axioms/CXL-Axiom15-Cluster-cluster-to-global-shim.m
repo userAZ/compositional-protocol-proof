@@ -38,7 +38,7 @@
     U_NET_MAX: 12;
   
   ---- SSP declaration constants
-    NrCachesL1C1: 4;
+    NrCachesL1C1: 2;
   
 --Backend/Murphi/MurphiModular/GenTypes
   type
@@ -124,7 +124,7 @@
     ----Backend/Murphi/MurphiModular/Types/GenMachineSets
       -- Cluster: C1
       OBJSET_directoryL1C1: enum{directoryL1C1};
-      OBJSET_cacheL1C1: scalarset(3);
+      OBJSET_cacheL1C1: scalarset(2);
       C1Machines: union{OBJSET_directoryL1C1, OBJSET_cacheL1C1};
       
       Machines: union{OBJSET_directoryL1C1, OBJSET_cacheL1C1};
@@ -141,6 +141,18 @@
         mtype: MessageType;
         src: Machines;
         dst: Machines;
+        cl: ClValue;
+      end;
+
+      GlobalRequest : enum {
+        CoherentWrite,
+        CoherentRead
+      };
+
+      -- [Axiom 15 Cluster]
+      ClusterToGlobalRequest: record
+        adr: Address;
+        rtype: GlobalRequest;
         cl: ClValue;
       end;
       
@@ -168,6 +180,22 @@
       end;
       
       OBJ_directoryL1C1: array[OBJSET_directoryL1C1] of MACH_directoryL1C1;
+
+      -- [Axiom 15]
+      s_gcacheL1C1 : enum {
+        GC_C_WR, -- Global Cache, Coherent Write/Read permissions
+        GC_C_R, -- Global Cache, Coherent Read permissions
+        GC_I -- Global Cache, I permissions
+      };
+      ENTRY_gcacheL1C1: record
+        State: s_gcacheL1C1;
+        cl: ClValue;
+      end;
+      MACH_gcacheL1C1: record
+        cb: array[Address] of ENTRY_gcacheL1C1;
+      end;
+      OBJSET_gcacheL1C1: enum{gcacheL1C1};
+      OBJ_gcacheL1C1: array[OBJSET_gcacheL1C1] of MACH_gcacheL1C1;
       
       ENTRY_cacheL1C1: record
         State: s_cacheL1C1;
@@ -196,6 +224,8 @@
       g_perm: PermMonitor;
       i_directoryL1C1: OBJ_directoryL1C1;
       i_cacheL1C1: OBJ_cacheL1C1;
+      --[Axiom 15]
+      i_gcacheL1C1 : OBJ_gcacheL1C1;
   
 --Backend/Murphi/MurphiModular/GenFunctions
 
@@ -1009,6 +1039,8 @@
     var msg2_HostDataMsgL1: Message;
     var msg_CleanEvictNoDataL1: Message;
     var msg_GO_IL1: Message;
+    -- [Axiom 15 Cluster - Cluster to Global]
+    var cluster_to_global_shim_msg : ClusterToGlobalRequest;
     begin
       alias adr: inmsg.adr do
       alias cbe: i_directoryL1C1[m].cb[adr] do
@@ -1218,6 +1250,18 @@
           Send_H2D_data(msg1, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_E;
+
+          -- [Axiom 15 (CXL as a Cluster) Cluster to Global]
+          alias gcache_cbe:i_gcacheL1C1[gcacheL1C1].cb[adr] do
+            if gcache_cbe.State != GC_C_WR then
+              cluster_to_global_shim_msg.rtype := CoherentWrite;
+              assert (inmsg.mtype = RdOwnL1C1 &
+                cluster_to_global_shim_msg.rtype = CoherentWrite
+              ) ">[Axiom 15 Cluster] Check that a RdOwn at the directory produces a Global request of the same request type (get coherent writable permissions).\n";
+              gcache_cbe.State := GC_C_WR;
+            endif;
+          endalias;
+
           undefine cbe.requesterL1C1;
           return true;
         
@@ -1231,6 +1275,18 @@
           cbe.State := directoryL1C1_S;
           undefine cbe.requesterL1C1;
           undefine cbe.ownerL1C1;
+
+          -- [Axiom 15 (CXL as a Cluster) Cluster to Global]
+          alias gcache_cbe:i_gcacheL1C1[gcacheL1C1].cb[adr] do
+            if gcache_cbe.State = GC_I then
+              cluster_to_global_shim_msg.rtype := CoherentRead;
+              assert (inmsg.mtype = RdSharedL1C1 &
+                cluster_to_global_shim_msg.rtype = CoherentRead
+                ) ">[Axiom 15 Cluster] Check that a RdShared at the directory produces a Global request of the same request type (get coherent readable permissions).\n";
+              gcache_cbe.State := GC_C_R;
+            endif;
+          endalias;
+
           return true;
         
         else return false;
@@ -1431,6 +1487,18 @@
           endif;
         
         case RdOwnL1C1:
+
+          -- [Axiom 15 (CXL as a Cluster) Cluster to Global]
+          alias gcache_cbe:i_gcacheL1C1[gcacheL1C1].cb[adr] do
+            if gcache_cbe.State != GC_C_WR then
+              cluster_to_global_shim_msg.rtype := CoherentWrite;
+              assert (inmsg.mtype = RdOwnL1C1 &
+                cluster_to_global_shim_msg.rtype = CoherentWrite
+                ) ">[Axiom 15 Cluster] Check that a RdOwn at the directory produces a Global request of the same request type (get coherent writable permissions).\n";
+                gcache_cbe.State := GC_C_WR;
+            endif;
+          endalias;
+
           cbe.ownerL1C1 := inmsg.src;
           cbe.acksExpectedL1C1 := VectorCount_cacheL1C1(cbe.cacheL1C1);
           if !(IsElement_cacheL1C1(cbe.cacheL1C1, inmsg.src)) then
@@ -2033,11 +2101,36 @@
 
   procedure System_Reset();
   begin
-  Reset_perm();
-  Reset_NET_();
-  ResetMachine_();
+    Reset_perm();
+    Reset_NET_();
+    ResetMachine_();
+
+    -- [Axiom 15]
+    for adr : Address do
+    alias gcache_cbe:i_gcacheL1C1[gcacheL1C1].cb[adr] do
+      gcache_cbe.State := GC_C_WR;
+    endalias;
+    endfor;
   end;
   
+    -- [Axiom 15] cache state that can be checked by Axiom 15 asserts.
+    ruleset m:OBJSET_directoryL1C1 do
+    ruleset adr:Address do
+      alias cbe:i_directoryL1C1[m].cb[adr] do
+      alias gcache_cbe:i_gcacheL1C1[gcacheL1C1].cb[adr] do
+        rule "Global Cache Downgrade"
+          gcache_cbe.State = GC_C_WR | gcache_cbe.State = GC_C_R
+        ==>
+          if (cbe.State = directoryL1C1_S) & (gcache_cbe.State = GC_C_WR) then
+            gcache_cbe.State := GC_C_R;
+          elsif (cbe.State = directoryL1C1_I) & (gcache_cbe.State != GC_I) then
+            gcache_cbe.State := GC_I;
+          endif;
+        endrule;
+      endalias;
+      endalias;
+    endruleset;
+    endruleset;
 
 --Backend/Murphi/MurphiModular/GenRules
   ----Backend/Murphi/MurphiModular/Rules/GenAccessRuleSet
