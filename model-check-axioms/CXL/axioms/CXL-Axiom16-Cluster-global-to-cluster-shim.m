@@ -38,7 +38,7 @@
     U_NET_MAX: 12;
   
   ---- SSP declaration constants
-    NrCachesL1C1: 4;
+    NrCachesL1C1: 2;
   
 --Backend/Murphi/MurphiModular/GenTypes
   type
@@ -124,7 +124,7 @@
     ----Backend/Murphi/MurphiModular/Types/GenMachineSets
       -- Cluster: C1
       OBJSET_directoryL1C1: enum{directoryL1C1};
-      OBJSET_cacheL1C1: scalarset(3);
+      OBJSET_cacheL1C1: scalarset(2);
       C1Machines: union{OBJSET_directoryL1C1, OBJSET_cacheL1C1};
       
       Machines: union{OBJSET_directoryL1C1, OBJSET_cacheL1C1};
@@ -141,6 +141,18 @@
         mtype: MessageType;
         src: Machines;
         dst: Machines;
+        cl: ClValue;
+      end;
+
+      GlobalRequest : enum {
+        CoherentWrite,
+        CoherentRead
+      };
+
+      -- [Axiom 15 Cluster]
+      ClusterToGlobalRequest: record
+        adr: Address;
+        rtype: GlobalRequest;
         cl: ClValue;
       end;
       
@@ -168,6 +180,22 @@
       end;
       
       OBJ_directoryL1C1: array[OBJSET_directoryL1C1] of MACH_directoryL1C1;
+
+      -- [Axiom 15]
+      s_gcacheL1C1 : enum {
+        GC_C_WR, -- Global Cache, Coherent Write/Read permissions
+        GC_C_R, -- Global Cache, Coherent Read permissions
+        GC_I -- Global Cache, I permissions
+      };
+      ENTRY_gcacheL1C1: record
+        State: s_gcacheL1C1;
+        cl: ClValue;
+      end;
+      MACH_gcacheL1C1: record
+        cb: array[Address] of ENTRY_gcacheL1C1;
+      end;
+      OBJSET_gcacheL1C1: enum{gcacheL1C1};
+      OBJ_gcacheL1C1: array[OBJSET_gcacheL1C1] of MACH_gcacheL1C1;
       
       ENTRY_cacheL1C1: record
         State: s_cacheL1C1;
@@ -196,6 +224,8 @@
       g_perm: PermMonitor;
       i_directoryL1C1: OBJ_directoryL1C1;
       i_cacheL1C1: OBJ_cacheL1C1;
+      --[Axiom 15]
+      i_gcacheL1C1 : OBJ_gcacheL1C1;
   
 --Backend/Murphi/MurphiModular/GenFunctions
 
@@ -864,6 +894,8 @@
           endif;
         endif;
       endif;
+
+      assert(cbe.State = directoryL1C1_I | cbe.State = directoryL1C1_SM_Acks) ">[Axiom 16] a fwded `store` on `M/E` state translates to a proxy store (and invalidates any sharers).\n";
     endalias;
     end;
     
@@ -880,6 +912,7 @@
       cbe.requesterL1C1 := msg_RdSharedL1.src;
       cbe.State := directoryL1C1_M_RdShared;
       -- cbe.State := directoryL1C1_dE_RdShared_x_pI_load;
+      assert(cbe.State = directoryL1C1_M_RdShared) ">[Axiom 16] a fwded `load` on `M/E` state translates to a proxy load (RdShared).\n";
       endif
     endalias;
     end;
@@ -896,6 +929,7 @@
       Clear_perm(adr, m);
       cbe.State := directoryL1C1_M_RdOwn;
       -- cbe.State := directoryL1C1_dE_RdOwn_x_pI_store;
+      assert(cbe.State = directoryL1C1_M_RdOwn) ">[Axiom 16] a fwded `store` on `M/E` state translates to a proxy load (RdOwn).\n";
     endalias;
     end;
     
@@ -912,6 +946,7 @@
       cbe.requesterL1C1 := msg_RdSharedL1.src;
       cbe.State := directoryL1C1_E_RdShared;
       -- cbe.State := directoryL1C1_dE_RdShared_x_pI_load;
+      assert(cbe.State = directoryL1C1_E_RdShared) ">[Axiom 16] a fwded `load` on `M/E` state translates to a proxy load (RdShared).\n";
       endif
     endalias;
     end;
@@ -928,6 +963,7 @@
       Clear_perm(adr, m);
       cbe.State := directoryL1C1_E_RdOwn;
       -- cbe.State := directoryL1C1_dE_RdOwn_x_pI_store;
+      assert(cbe.State = directoryL1C1_E_RdOwn) ">[Axiom 16] a fwded `store` on `M/E` state translates to a proxy load (RdOwn).\n";
     endalias;
     end;
     
@@ -1009,6 +1045,8 @@
     var msg2_HostDataMsgL1: Message;
     var msg_CleanEvictNoDataL1: Message;
     var msg_GO_IL1: Message;
+    -- [Axiom 16 Cluster - Global to Cluster]
+    var cluster_to_global_shim_msg : ClusterToGlobalRequest;
     begin
       alias adr: inmsg.adr do
       alias cbe: i_directoryL1C1[m].cb[adr] do
@@ -1640,6 +1678,10 @@
               cbe.State := directoryL1C1_I;
               undefine cbe.requesterL1C1;
               undefine cbe.ownerL1C1;
+
+              -- [Axiom 16]
+              assert(cbe.State = directoryL1C1_I) ">[Axiom 16] a fwded `store` on `S` state translates to a proxy store (and invalidates any sharers).\n";
+
               return true;
             else
               msg1 := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
@@ -2033,11 +2075,36 @@
 
   procedure System_Reset();
   begin
-  Reset_perm();
-  Reset_NET_();
-  ResetMachine_();
+    Reset_perm();
+    Reset_NET_();
+    ResetMachine_();
+
+    -- [Axiom 15]
+    for adr : Address do
+    alias gcache_cbe:i_gcacheL1C1[gcacheL1C1].cb[adr] do
+      gcache_cbe.State := GC_C_WR;
+    endalias;
+    endfor;
   end;
   
+    -- [Axiom 15] cache state that can be checked by Axiom 15 asserts.
+    ruleset m:OBJSET_directoryL1C1 do
+    ruleset adr:Address do
+      alias cbe:i_directoryL1C1[m].cb[adr] do
+      alias gcache_cbe:i_gcacheL1C1[gcacheL1C1].cb[adr] do
+        rule "Global Cache Downgrade"
+          gcache_cbe.State = GC_C_WR | gcache_cbe.State = GC_C_R
+        ==>
+          if (cbe.State = directoryL1C1_S) & (gcache_cbe.State = GC_C_WR) then
+            gcache_cbe.State := GC_C_R;
+          elsif (cbe.State = directoryL1C1_I) & (gcache_cbe.State != GC_I) then
+            gcache_cbe.State := GC_I;
+          endif;
+        endrule;
+      endalias;
+      endalias;
+    endruleset;
+    endruleset;
 
 --Backend/Murphi/MurphiModular/GenRules
   ----Backend/Murphi/MurphiModular/Rules/GenAccessRuleSet
@@ -2045,14 +2112,15 @@
     ruleset adr:Address do
       alias cbe:i_directoryL1C1[m].cb[adr] do
     
-      rule "directoryL1C1_E_load"
+      -- [Axiom 16] CXL as a Cluster Protocol.
+      rule "directoryL1C1_E_fwd_load"
         cbe.State = directoryL1C1_E & network_ready() 
       ==>
         FSM_Access_directoryL1C1_E_load(adr, m);
         
       endrule;
 
-      rule "directoryL1C1_E_store"
+      rule "directoryL1C1_E_fwd_store"
         cbe.State = directoryL1C1_E & network_ready() 
       ==>
         FSM_Access_directoryL1C1_E_store(adr, m);
@@ -2061,21 +2129,21 @@
     
       -- [TODOs]
 
-      rule "directoryL1C1_M_load"
+      rule "directoryL1C1_M_fwd_load"
         cbe.State = directoryL1C1_M & network_ready() 
       ==>
         FSM_Access_directoryL1C1_M_load(adr, m);
         
       endrule;
 
-      rule "directoryL1C1_M_store"
+      rule "directoryL1C1_M_fwd_store"
         cbe.State = directoryL1C1_M & network_ready() 
       ==>
         FSM_Access_directoryL1C1_M_store(adr, m);
         
       endrule;
     
-      rule "directoryL1C1_S_store"
+      rule "directoryL1C1_S_fwd_store"
         cbe.State = directoryL1C1_S & network_ready() 
       ==>
         FSM_Access_directoryL1C1_S_store(adr, m);
