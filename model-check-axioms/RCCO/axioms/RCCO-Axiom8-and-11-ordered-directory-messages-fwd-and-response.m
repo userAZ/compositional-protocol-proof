@@ -38,7 +38,7 @@
     U_NET_MAX: 12;
   
   ---- SSP declaration constants
-    NrCachesL1C1: 4;
+    NrCachesL1C1: 2;
   
 --Backend/Murphi/MurphiModular/GenTypes
   type
@@ -115,7 +115,7 @@
       
     ----Backend/Murphi/MurphiModular/Types/GenMachineSets
       -- Cluster: C1
-      OBJSET_cacheL1C1: scalarset(3);
+      OBJSET_cacheL1C1: scalarset(2);
       OBJSET_directoryL1C1: enum{directoryL1C1};
       C1Machines: union{OBJSET_cacheL1C1, OBJSET_directoryL1C1};
       
@@ -604,6 +604,21 @@
       endfor;
     end;
     
+    -- [Axiom 11]
+    function MessageIsCoherentGrant(var mt : MessageType) : boolean;
+    begin
+      return (mt = PutO_AckL1C1 |
+        mt = GetO_AckL1C1
+        );
+    end;
+
+    function IsCacheStableState(var s : s_cacheL1C1) : boolean;
+    begin
+      return (s = cacheL1C1_O |
+        s = cacheL1C1_V |
+        s = cacheL1C1_I
+        );
+    end;
   
   ----Backend/Murphi/MurphiModular/Functions/GenFIFOFunc
   ----Backend/Murphi/MurphiModular/Functions/GenNetworkFunc
@@ -1037,6 +1052,9 @@
   ----Backend/Murphi/MurphiModular/StateMachines/GenMessageStateMachines
     function FSM_MSG_cacheL1C1(inmsg:Message; m:OBJSET_cacheL1C1) : boolean;
     var msg: Message;
+    -- [Axiom 11]
+    var msg_type : MessageType;
+    var cache_state : s_cacheL1C1;
     begin
       alias adr: inmsg.adr do
       alias cbe: i_cacheL1C1[m].cb[adr] do
@@ -1081,6 +1099,12 @@
           Set_perm(store, adr, m);
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_O;
+
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsCoherentGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] expected a coherent grant to end a transition.\n";
+
           return true;
         
         else return false;
@@ -1092,6 +1116,12 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_O;
+
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsCoherentGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] expected a coherent grant to end a transition.\n";
+
           return true;
         
         else return false;
@@ -1121,6 +1151,12 @@
         case PutO_AckL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsCoherentGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] expected a coherent grant to end a transition.\n";
+
           return true;
         
         else return false;
@@ -1131,6 +1167,12 @@
         case PutO_AckL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsCoherentGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] expected a coherent grant to end a transition.\n";
+
           return true;
         
         else return false;
@@ -1165,6 +1207,12 @@
           Set_perm(store, adr, m);
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_O;
+
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsCoherentGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] expected a coherent grant to end a transition.\n";
+
           return true;
         
         else return false;
@@ -1176,6 +1224,12 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_O;
+
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsCoherentGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] expected a coherent grant to end a transition.\n";
+
           return true;
         
         else return false;
