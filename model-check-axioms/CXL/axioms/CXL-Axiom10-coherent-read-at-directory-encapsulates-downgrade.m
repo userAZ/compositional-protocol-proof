@@ -38,7 +38,7 @@
     U_NET_MAX: 12;
   
   ---- SSP declaration constants
-    NrCachesL1C1: 4;
+    NrCachesL1C1: 2;
   
 --Backend/Murphi/MurphiModular/GenTypes
   type
@@ -124,7 +124,7 @@
     ----Backend/Murphi/MurphiModular/Types/GenMachineSets
       -- Cluster: C1
       OBJSET_directoryL1C1: enum{directoryL1C1};
-      OBJSET_cacheL1C1: scalarset(3);
+      OBJSET_cacheL1C1: scalarset(2);
       C1Machines: union{OBJSET_directoryL1C1, OBJSET_cacheL1C1};
       
       Machines: union{OBJSET_directoryL1C1, OBJSET_cacheL1C1};
@@ -161,6 +161,8 @@
         cacheL1C1: v_cacheL1C1;
         ownerL1C1: Machines;
         requesterL1C1: Machines;
+        -- [Axiom 9/10]
+        requestOnCoherentState : boolean;
       end;
       
       MACH_directoryL1C1: record
@@ -872,6 +874,10 @@
     var msg: Message;
     begin
     alias cbe: i_directoryL1C1[m].cb[adr] do
+      -- [Axiom 9/10]
+      assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+      cbe.requestOnCoherentState := true;
+
       msg_RdSharedL1 := DevReqL1C1(adr, RdSharedL1C1, m, m);
       msg := HostReqL1C1(adr, SnpDataL1C1, msg_RdSharedL1.src, cbe.ownerL1C1);
       Send_H2D_request(msg, m);
@@ -904,6 +910,10 @@
     var msg: Message;
     begin
     alias cbe: i_directoryL1C1[m].cb[adr] do
+      -- [Axiom 9/10]
+      assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+      cbe.requestOnCoherentState := true;
+
       msg_RdSharedL1 := DevReqL1C1(adr, RdSharedL1C1, m, m);
       msg := HostReqL1C1(adr, SnpDataL1C1, msg_RdSharedL1.src, cbe.ownerL1C1);
       Send_H2D_request(msg, m);
@@ -1057,6 +1067,10 @@
           return true;
         
         case RdSharedL1C1:
+          -- [Axiom 9/10]
+          assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+          cbe.requestOnCoherentState := true;
+
           msg := HostReqL1C1(adr,SnpDataL1C1,inmsg.src,cbe.ownerL1C1);
           Send_H2D_request(msg, m);
           AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
@@ -1270,6 +1284,10 @@
           return true;
         
         case RdSharedL1C1:
+          -- [Axiom 9/10]
+          assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+          cbe.requestOnCoherentState := true;
+
           msg := HostReqL1C1(adr,SnpDataL1C1,inmsg.src,cbe.ownerL1C1);
           Send_H2D_request(msg, m);
           AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
@@ -1701,6 +1719,13 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_S;
+
+          -- [Axiom 9]
+          alias dir_cbe:i_directoryL1C1[directoryL1C1].cb[adr] do
+            assert !isundefined(dir_cbe.requestOnCoherentState)
+              ">[Axiom 10] cache got downgrade, dir must have flag `requestOnCoherentState` set.\n";
+            undefine dir_cbe.requestOnCoherentState;
+          endalias;
           return true;
         
         case SnpInvML1C1:
@@ -1725,6 +1750,13 @@
           Send_D2H_response(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_E_evict_SnpData;
+
+          -- [Axiom 9]
+          alias dir_cbe:i_directoryL1C1[directoryL1C1].cb[adr] do
+            assert !isundefined(dir_cbe.requestOnCoherentState)
+              ">[Axiom 10] cache got downgrade, dir must have flag `requestOnCoherentState` set.\n";
+            undefine dir_cbe.requestOnCoherentState;
+          endalias;
           return true;
         
         case SnpInvML1C1:
@@ -1846,6 +1878,13 @@
           Send_D2H_data(msg1, m);
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_S;
+
+          -- [Axiom 9]
+          alias dir_cbe:i_directoryL1C1[directoryL1C1].cb[adr] do
+            assert !isundefined(dir_cbe.requestOnCoherentState)
+              ">[Axiom 10] cache got downgrade, dir must have flag `requestOnCoherentState` set.\n";
+            undefine dir_cbe.requestOnCoherentState;
+          endalias;
           return true;
         
         case SnpInvML1C1:
@@ -1876,6 +1915,13 @@
           Send_D2H_data(msg2, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_M_evict_SnpData;
+
+          -- [Axiom 9]
+          alias dir_cbe:i_directoryL1C1[directoryL1C1].cb[adr] do
+            assert !isundefined(dir_cbe.requestOnCoherentState)
+              ">[Axiom 10] cache got downgrade, dir must have flag `requestOnCoherentState` set.\n";
+            undefine dir_cbe.requestOnCoherentState;
+          endalias;
           return true;
         
         case SnpInvML1C1:
