@@ -2109,6 +2109,8 @@
           cbe.State := cacheL1C1_I_load_GO_S;
 
           -- [Axiom 11]
+          msg_type := inmsg.mtype;
+          assert MessageIsGrant(msg_type) ">[Axiom 11] Grant starting, expected GO is a coherent grant.\n";
           assert isundefined(cbe.grantFlag) ">[Axiom 11] Grant starting, the `grantFlag` shouldn't be set yet!\n";
           cbe.grantFlag := true;
 
@@ -2152,6 +2154,8 @@
           cbe.State := cacheL1C1_I_store_GO_E;
 
           -- [Axiom 11]
+          msg_type := inmsg.mtype;
+          assert MessageIsGrant(msg_type) ">[Axiom 11] Grant starting, expected GO is a coherent grant.\n";
           assert isundefined(cbe.grantFlag) ">[Axiom 11] Grant starting, the `grantFlag` shouldn't be set yet!\n";
           cbe.grantFlag := true;
 
@@ -2169,6 +2173,8 @@
           cbe.State := cacheL1C1_I_store_GO_M;
 
           -- [Axiom 11]
+          msg_type := inmsg.mtype;
+          assert MessageIsGrant(msg_type) ">[Axiom 11] Grant starting, expected GO is a coherent grant.\n";
           assert isundefined(cbe.grantFlag) ">[Axiom 11] Grant starting, the `grantFlag` shouldn't be set yet!\n";
           cbe.grantFlag := true;
 
@@ -2518,6 +2524,8 @@
           cbe.State := cacheL1C1_S_store_GO_M;
 
           -- [Axiom 11]
+          msg_type := inmsg.mtype;
+          assert MessageIsGrant(msg_type) ">[Axiom 11] Grant starting, expected GO is a coherent grant.\n";
           assert isundefined(cbe.grantFlag) ">[Axiom 11] Grant starting, the `grantFlag` shouldn't be set yet!\n";
           cbe.grantFlag := true;
 
