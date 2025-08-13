@@ -172,6 +172,8 @@
       ENTRY_cacheL1C1: record
         State: s_cacheL1C1;
         cl: ClValue;
+        -- [Axiom 11]
+        grantFlag : boolean;
       end;
       
       MACH_cacheL1C1: record
@@ -1904,6 +1906,9 @@
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_S;
 
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Cannot have a grant interrupted by other events.\n";
+
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
             assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
@@ -1918,6 +1923,9 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Cannot have a grant interrupted by other events.\n";
 
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
@@ -1936,6 +1944,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Grant instantaneously happens.\n";
+
           -- [Axiom 11 Aux]
           msg_type := inmsg.mtype;
           cache_state := cbe.State;
@@ -1956,6 +1968,9 @@
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_E_evict_SnpData;
 
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Cannot have a grant interrupted by other events.\n";
+
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
             assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
@@ -1970,6 +1985,9 @@
           Send_D2H_response(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_E_evict_SnpInvM;
+
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Cannot have a grant interrupted by other events.\n";
 
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
@@ -1988,6 +2006,9 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Grant instantaneously happens.\n";
 
           -- [Axiom 11 Aux]
           msg_type := inmsg.mtype;
@@ -2009,6 +2030,9 @@
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_E_evict_SnpData_SnpInvS;
 
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Cannot have a grant interrupted by other events.\n";
+
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
             assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
@@ -2026,6 +2050,9 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Grant instantaneously happens.\n";
 
           -- [Axiom 11 Aux]
           msg_type := inmsg.mtype;
@@ -2049,6 +2076,9 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Grant instantaneously happens.\n";
 
           -- [Axiom 11 Aux]
           msg_type := inmsg.mtype;
@@ -2078,6 +2108,10 @@
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I_load_GO_S;
 
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Grant starting, the `grantFlag` shouldn't be set yet!\n";
+          cbe.grantFlag := true;
+
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
             assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
@@ -2102,6 +2136,10 @@
           cache_state := cbe.State;
           assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
 
+          -- [Axiom 11]
+          assert !isundefined(cbe.grantFlag) ">[Axiom 11] Grant ending, the `grantFlag` should be set!\n";
+          undefine cbe.grantFlag;
+
           return true;
         
         else return false;
@@ -2112,6 +2150,10 @@
         case GO_EL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I_store_GO_E;
+
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Grant starting, the `grantFlag` shouldn't be set yet!\n";
+          cbe.grantFlag := true;
 
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
@@ -2125,6 +2167,10 @@
         case GO_ML1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I_store_GO_M;
+
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Grant starting, the `grantFlag` shouldn't be set yet!\n";
+          cbe.grantFlag := true;
 
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
@@ -2150,6 +2196,10 @@
           cache_state := cbe.State;
           assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
 
+          -- [Axiom 11]
+          assert !isundefined(cbe.grantFlag) ">[Axiom 11] Grant ending, the `grantFlag` should be set!\n";
+          undefine cbe.grantFlag;
+
           return true;
         
         else return false;
@@ -2167,6 +2217,10 @@
           cache_state := cbe.State;
           assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
 
+          -- [Axiom 11]
+          assert !isundefined(cbe.grantFlag) ">[Axiom 11] Grant ending, the `grantFlag` should be set!\n";
+          undefine cbe.grantFlag;
+
           return true;
         
         else return false;
@@ -2181,6 +2235,9 @@
           Send_D2H_data(msg1, m);
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_S;
+
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Cannot have a grant interrupted by other events.\n";
 
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
@@ -2198,6 +2255,9 @@
           Send_D2H_data(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Cannot have a grant interrupted by other events.\n";
 
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
@@ -2241,6 +2301,9 @@
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_M_evict_SnpData;
 
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Cannot have a grant interrupted by other events.\n";
+
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
             assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
@@ -2257,6 +2320,9 @@
           Send_D2H_data(msg2, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_M_evict_SnpInvM;
+
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Cannot have a grant interrupted by other events.\n";
 
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
@@ -2295,6 +2361,9 @@
           Send_D2H_response(msg3, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_M_evict_SnpData_SnpInvS;
+
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Cannot have a grant interrupted by other events.\n";
 
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
@@ -2363,6 +2432,9 @@
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
 
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Cannot have a grant interrupted by other events.\n";
+
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
             assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
@@ -2400,6 +2472,9 @@
           Send_D2H_response(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_S_evict_SnpInvS;
+
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Cannot have a grant interrupted by other events.\n";
 
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
@@ -2442,6 +2517,10 @@
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_S_store_GO_M;
 
+          -- [Axiom 11]
+          assert isundefined(cbe.grantFlag) ">[Axiom 11] Grant starting, the `grantFlag` shouldn't be set yet!\n";
+          cbe.grantFlag := true;
+
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
             assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
@@ -2480,6 +2559,10 @@
           msg_type := inmsg.mtype;
           cache_state := cbe.State;
           assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
+
+          -- [Axiom 11]
+          assert !isundefined(cbe.grantFlag) ">[Axiom 11] Grant ending, the `grantFlag` should be set!\n";
+          undefine cbe.grantFlag;
 
           return true;
         
