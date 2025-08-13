@@ -38,7 +38,7 @@
     U_NET_MAX: 12;
   
   ---- SSP declaration constants
-    NrCachesL1C1: 4;
+    NrCachesL1C1: 2;
   
 --Backend/Murphi/MurphiModular/GenTypes
   type
@@ -124,7 +124,7 @@
     ----Backend/Murphi/MurphiModular/Types/GenMachineSets
       -- Cluster: C1
       OBJSET_directoryL1C1: enum{directoryL1C1};
-      OBJSET_cacheL1C1: scalarset(3);
+      OBJSET_cacheL1C1: scalarset(2);
       C1Machines: union{OBJSET_directoryL1C1, OBJSET_cacheL1C1};
       
       Machines: union{OBJSET_directoryL1C1, OBJSET_cacheL1C1};
@@ -191,6 +191,10 @@
       D2H_response: NET_Unordered;
       H2D_request: NET_Unordered;
       H2D_response: NET_Unordered;
+
+      -- [Axiom 8]
+      ordered_H2D_response: NET_Ordered;
+      cnt_ordered_H2D_response: NET_Ordered_cnt;
     
     
       g_perm: PermMonitor;
@@ -340,6 +344,27 @@
       cnt_H2D_data[msg.dst] := cnt_H2D_data[msg.dst] + 1;
     end;
     
+    -- [Axiom 8]
+    procedure Pop_ordered_H2D_response(dst:Machines; src: Machines;);
+    begin
+      Assert (cnt_ordered_H2D_response[dst] > 0) "Trying to advance empty Q";
+      for i := 0 to cnt_ordered_H2D_response[dst]-1 do
+        if i < cnt_ordered_H2D_response[dst]-1 then
+          ordered_H2D_response[dst][i] := ordered_H2D_response[dst][i+1];
+        else
+          undefine ordered_H2D_response[dst][i];
+        endif;
+      endfor;
+      cnt_ordered_H2D_response[dst] := cnt_ordered_H2D_response[dst] - 1;
+    end;
+
+    -- [Axiom 8]
+    procedure Send_ordered_H2D_response(msg:Message; src: Machines;);
+      Assert(cnt_ordered_H2D_response[msg.dst] < O_NET_MAX) "Too many messages";
+      ordered_H2D_response[msg.dst][cnt_ordered_H2D_response[msg.dst]] := msg;
+      cnt_ordered_H2D_response[msg.dst] := cnt_ordered_H2D_response[msg.dst] + 1;
+    end;
+    
     procedure Pop_H2D_data(dst:Machines; src: Machines;);
     begin
       Assert (cnt_H2D_data[dst] > 0) "Trying to advance empty Q";
@@ -379,6 +404,10 @@
               if n!=msg.src then
                 if MultiSetCount(i:dst_vect, dst_vect[i] = n) = 1 then
                   msg.dst := n;
+
+                  -- [Axiom 8]
+                  Send_ordered_H2D_response(msg, src);
+
                   Send_H2D_request(msg, src);
                 endif;
               endif;
@@ -495,6 +524,11 @@
     
     procedure Reset_NET_();
     begin
+      
+      undefine ordered_H2D_response;
+      for dst:Machines do
+          cnt_ordered_H2D_response[dst] := 0;
+      endfor;
       
       undefine H2D_data;
       for dst:Machines do
@@ -695,6 +729,10 @@
           cbe.acksReceivedL1C1 := 0;
           if !(cbe.acksExpectedL1C1 != 0) then
             msg := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+
+            -- [Axiom 8]
+            Send_ordered_H2D_response(msg, m);
+
             Send_H2D_response(msg, m);
             msg1 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
             Send_H2D_data(msg1, m);
@@ -757,6 +795,10 @@
           endif;
           if !(cbe.acksExpectedL1C1 != 0) then
             msg := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+
+            -- [Axiom 8]
+            Send_ordered_H2D_response(msg, m);
+
             Send_H2D_response(msg, m);
             msg1 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
             Send_H2D_data(msg1, m);
@@ -783,6 +825,10 @@
           cbe.acksReceivedL1C1 := 0;
           if !(cbe.acksExpectedL1C1 != 0) then
             msg := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+
+            -- [Axiom 8]
+            Send_ordered_H2D_response(msg, m);
+
             Send_H2D_response(msg, m);
             msg1 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
             Send_H2D_data(msg1, m);
@@ -845,6 +891,10 @@
           endif;
           if !(cbe.acksExpectedL1C1 != 0) then
             msg := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+
+            -- [Axiom 8]
+            Send_ordered_H2D_response(msg, m);
+
             Send_H2D_response(msg, m);
             msg1 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
             Send_H2D_data(msg1, m);
@@ -874,6 +924,10 @@
     alias cbe: i_directoryL1C1[m].cb[adr] do
       msg_RdSharedL1 := DevReqL1C1(adr, RdSharedL1C1, m, m);
       msg := HostReqL1C1(adr, SnpDataL1C1, msg_RdSharedL1.src, cbe.ownerL1C1);
+
+      -- [Axiom 8]
+      Send_ordered_H2D_response(msg, m);
+
       Send_H2D_request(msg, m);
       AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
       if !(msg_RdSharedL1.src != m) then
@@ -891,6 +945,10 @@
     alias cbe: i_directoryL1C1[m].cb[adr] do
       msg_RdOwnL1 := DevReqL1C1(adr, RdOwnL1C1, m, m);
       msg := HostReqL1C1(adr, SnpInvML1C1, msg_RdOwnL1.src, cbe.ownerL1C1);
+
+      -- [Axiom 8]
+      Send_ordered_H2D_response(msg, m);
+
       Send_H2D_request(msg, m);
       cbe.ownerL1C1 := msg_RdOwnL1.src;
       Clear_perm(adr, m);
@@ -906,6 +964,10 @@
     alias cbe: i_directoryL1C1[m].cb[adr] do
       msg_RdSharedL1 := DevReqL1C1(adr, RdSharedL1C1, m, m);
       msg := HostReqL1C1(adr, SnpDataL1C1, msg_RdSharedL1.src, cbe.ownerL1C1);
+
+      -- [Axiom 8]
+      Send_ordered_H2D_response(msg, m);
+
       Send_H2D_request(msg, m);
       AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
       if !(msg_RdSharedL1.src != m) then
@@ -923,6 +985,10 @@
     alias cbe: i_directoryL1C1[m].cb[adr] do
       msg_RdOwnL1 := DevReqL1C1(adr, RdOwnL1C1, m, m);
       msg := HostReqL1C1(adr, SnpInvML1C1, msg_RdOwnL1.src, cbe.ownerL1C1);
+
+      -- [Axiom 8]
+      Send_ordered_H2D_response(msg, m);
+
       Send_H2D_request(msg, m);
       cbe.ownerL1C1 := msg_RdOwnL1.src;
       Clear_perm(adr, m);
@@ -1017,6 +1083,10 @@
       switch inmsg.mtype
         case CleanEvictNoDataL1C1:
           msg := HostRspL1C1(adr,GO_IL1C1,m,inmsg.src);
+
+          -- [Axiom 8]
+          Send_ordered_H2D_response(msg, m);
+
           Send_H2D_response(msg, m);
           if !(inmsg.src = cbe.ownerL1C1) then
             Clear_perm(adr, m);
@@ -1034,6 +1104,10 @@
         case DirtyEvictL1C1:
           if (inmsg.src = cbe.ownerL1C1) then
             msg := HostRspL1C1(adr,GO_WritePullL1C1,m,inmsg.src);
+
+            -- [Axiom 8]
+            Send_ordered_H2D_response(msg, m);
+
             Send_H2D_response(msg, m);
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_E_DEvict;
@@ -1041,6 +1115,10 @@
           endif;
           if !(inmsg.src = cbe.ownerL1C1) then
             msg := HostRspL1C1(adr,GO_IL1C1,m,inmsg.src);
+
+            -- [Axiom 8]
+            Send_ordered_H2D_response(msg, m);
+
             Send_H2D_response(msg, m);
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_E;
@@ -1050,6 +1128,10 @@
         
         case RdOwnL1C1:
           msg := HostReqL1C1(adr,SnpInvML1C1,inmsg.src,cbe.ownerL1C1);
+
+          -- [Axiom 8]
+          Send_ordered_H2D_response(msg, m);
+
           Send_H2D_request(msg, m);
           cbe.ownerL1C1 := inmsg.src;
           Clear_perm(adr, m);
@@ -1058,6 +1140,10 @@
         
         case RdSharedL1C1:
           msg := HostReqL1C1(adr,SnpDataL1C1,inmsg.src,cbe.ownerL1C1);
+
+          -- [Axiom 8]
+          Send_ordered_H2D_response(msg, m);
+
           Send_H2D_request(msg, m);
           AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
           if !(inmsg.src != m) then
@@ -1099,6 +1185,10 @@
         case RspIHitSEL1C1:
           if (cbe.ownerL1C1 != directoryL1C1) then
             msg1 := HostRspL1C1(adr,GO_ML1C1,m,inmsg.src);
+
+            -- [Axiom 8]
+            Send_ordered_H2D_response(msg1, m);
+
             Send_H2D_response(msg1, m);
             msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
             Send_H2D_data(msg2, m);
@@ -1121,6 +1211,10 @@
           if (cbe.ownerL1C1 != directoryL1C1) then
             cbe.cl := inmsg.cl;
             msg1 := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+
+            -- [Axiom 8]
+            Send_ordered_H2D_response(msg1, m);
+
             Send_H2D_response(msg1, m);
             msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,cbe.ownerL1C1,inmsg.cl);
             Send_H2D_data(msg2, m);
@@ -1148,6 +1242,10 @@
           if (inmsg.src != directoryL1C1) then
             msg1 := HostRspL1C1(adr,GO_SL1C1,m,inmsg.src);
             Send_H2D_response(msg1, m);
+
+            -- [Axiom 8]
+            Send_ordered_H2D_response(msg1, m);
+
             msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
             Send_H2D_data(msg2, m);
           endif;
@@ -1164,6 +1262,10 @@
         case DevDataMsgL1C1:
           if (cbe.requesterL1C1 != m) then
             msg1 := HostRspL1C1(adr,GO_SL1C1,m,cbe.requesterL1C1);
+
+            -- [Axiom 8]
+            Send_ordered_H2D_response(msg1, m);
+
             Send_H2D_response(msg1, m);
             cbe.cl := inmsg.cl;
             msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,cbe.requesterL1C1,inmsg.cl);
@@ -1187,6 +1289,10 @@
       switch inmsg.mtype
         case CleanEvictNoDataL1C1:
           msg := HostRspL1C1(adr,GO_IL1C1,m,inmsg.src);
+
+          -- [Axiom 8]
+          Send_ordered_H2D_response(msg, m);
+
           Send_H2D_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
@@ -1195,6 +1301,10 @@
         
         case DirtyEvictL1C1:
           msg := HostRspL1C1(adr,GO_IL1C1,m,inmsg.src);
+
+          -- [Axiom 8]
+          Send_ordered_H2D_response(msg, m);
+
           Send_H2D_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_I;
@@ -1204,6 +1314,10 @@
         case RdOwnL1C1:
           cbe.ownerL1C1 := inmsg.src;
           msg := HostRspL1C1(adr,GO_EL1C1,m,inmsg.src);
+
+          -- [Axiom 8]
+          Send_ordered_H2D_response(msg, m);
+
           Send_H2D_response(msg, m);
           msg1 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
           Send_H2D_data(msg1, m);
@@ -1215,6 +1329,10 @@
         case RdSharedL1C1:
           AddElement_cacheL1C1(cbe.cacheL1C1, inmsg.src);
           msg := HostRspL1C1(adr,GO_SL1C1,m,inmsg.src);
+
+          -- [Axiom 8]
+          Send_ordered_H2D_response(msg, m);
+
           Send_H2D_response(msg, m);
           msg1 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
           Send_H2D_data(msg1, m);
@@ -1231,6 +1349,10 @@
         case CleanEvictNoDataL1C1:
           if (inmsg.src != cbe.ownerL1C1) then
             msg := HostRspL1C1(adr,GO_IL1C1,m,inmsg.src);
+
+            -- [Axiom 8]
+            Send_ordered_H2D_response(msg, m);
+
             Send_H2D_response(msg, m);
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_M;
@@ -1247,6 +1369,10 @@
         case DirtyEvictL1C1:
           if !(inmsg.src = cbe.ownerL1C1) then
             msg := HostRspL1C1(adr,GO_IL1C1,m,inmsg.src);
+
+            -- [Axiom 8]
+            Send_ordered_H2D_response(msg, m);
+
             Send_H2D_response(msg, m);
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_M;
@@ -1255,6 +1381,10 @@
           endif;
           if (inmsg.src = cbe.ownerL1C1) then
             msg := HostRspL1C1(adr,GO_WritePullL1C1,m,inmsg.src);
+
+            -- [Axiom 8]
+            Send_ordered_H2D_response(msg, m);
+
             Send_H2D_response(msg, m);
             Clear_perm(adr, m);
             cbe.State := directoryL1C1_M_DEvict;
@@ -1263,6 +1393,10 @@
         
         case RdOwnL1C1:
           msg := HostReqL1C1(adr,SnpInvML1C1,inmsg.src,cbe.ownerL1C1);
+
+          -- [Axiom 8]
+          Send_ordered_H2D_response(msg, m);
+
           Send_H2D_request(msg, m);
           cbe.ownerL1C1 := inmsg.src;
           Clear_perm(adr, m);
@@ -1271,6 +1405,10 @@
         
         case RdSharedL1C1:
           msg := HostReqL1C1(adr,SnpDataL1C1,inmsg.src,cbe.ownerL1C1);
+
+          -- [Axiom 8]
+          Send_ordered_H2D_response(msg, m);
+
           Send_H2D_request(msg, m);
           AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
           AddElement_cacheL1C1(cbe.cacheL1C1, inmsg.src);
@@ -1309,6 +1447,10 @@
         case DevDataMsgL1C1:
           if (cbe.ownerL1C1 != directoryL1C1) then
             msg1 := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+
+            -- [Axiom 8]
+            Send_ordered_H2D_response(msg1, m);
+
             Send_H2D_response(msg1, m);
             msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,cbe.ownerL1C1,inmsg.cl);
             Send_H2D_data(msg2, m);
@@ -1340,6 +1482,10 @@
         case DevDataMsgL1C1:
           if (cbe.requesterL1C1 != directoryL1C1) then
             msg1 := HostRspL1C1(adr,GO_SL1C1,m,cbe.requesterL1C1);
+
+            -- [Axiom 8]
+            Send_ordered_H2D_response(msg1, m);
+
             Send_H2D_response(msg1, m);
             msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,cbe.requesterL1C1,inmsg.cl);
             Send_H2D_data(msg2, m);
@@ -1360,6 +1506,10 @@
       switch inmsg.mtype
         case CleanEvictNoDataL1C1:
           msg := HostRspL1C1(adr,GO_IL1C1,m,inmsg.src);
+
+          -- [Axiom 8]
+          Send_ordered_H2D_response(msg, m);
+
           Send_H2D_response(msg, m);
           if (IsElement_cacheL1C1(cbe.cacheL1C1, inmsg.src)) then
             if (VectorCount_cacheL1C1(cbe.cacheL1C1) = 1) then
@@ -1386,6 +1536,10 @@
         
         case DirtyEvictL1C1:
           msg := HostRspL1C1(adr,GO_IL1C1,m,inmsg.src);
+
+          -- [Axiom 8]
+          Send_ordered_H2D_response(msg, m);
+
           Send_H2D_response(msg, m);
           if (IsElement_cacheL1C1(cbe.cacheL1C1, inmsg.src)) then
             if !(VectorCount_cacheL1C1(cbe.cacheL1C1) = 1) then
@@ -1420,6 +1574,10 @@
               cbe.acksReceivedL1C1 := 0;
               if !(cbe.acksExpectedL1C1 != 0) then
                 msg := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+
+                -- [Axiom 8]
+                Send_ordered_H2D_response(msg, m);
+
                 Send_H2D_response(msg, m);
                 msg1 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
                 Send_H2D_data(msg1, m);
@@ -1482,6 +1640,10 @@
               endif;
               if !(cbe.acksExpectedL1C1 != 0) then
                 msg := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+
+                -- [Axiom 8]
+                Send_ordered_H2D_response(msg, m);
+
                 Send_H2D_response(msg, m);
                 msg1 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
                 Send_H2D_data(msg1, m);
@@ -1508,6 +1670,10 @@
               cbe.acksReceivedL1C1 := 0;
               if !(cbe.acksExpectedL1C1 != 0) then
                 msg := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+
+                -- [Axiom 8]
+                Send_ordered_H2D_response(msg, m);
+
                 Send_H2D_response(msg, m);
                 msg1 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
                 Send_H2D_data(msg1, m);
@@ -1570,6 +1736,10 @@
               endif;
               if !(cbe.acksExpectedL1C1 != 0) then
                 msg := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+
+                -- [Axiom 8]
+                Send_ordered_H2D_response(msg, m);
+
                 Send_H2D_response(msg, m);
                 msg1 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
                 Send_H2D_data(msg1, m);
@@ -1592,6 +1762,10 @@
         
         case RdSharedL1C1:
           msg := HostRspL1C1(adr,GO_SL1C1,m,inmsg.src);
+
+          -- [Axiom 8]
+          Send_ordered_H2D_response(msg, m);
+
           Send_H2D_response(msg, m);
           msg1 := DataFullL1C1(adr,HostDataMsgL1C1,m,inmsg.src,cbe.cl);
           Send_H2D_data(msg1, m);
@@ -1622,6 +1796,10 @@
               return true;
             else
               msg1 := HostRspL1C1(adr,GO_ML1C1,m,cbe.ownerL1C1);
+
+              -- [Axiom 8]
+              Send_ordered_H2D_response(msg1, m);
+
               Send_H2D_response(msg1, m);
               msg2 := DataFullL1C1(adr,HostDataMsgL1C1,m,cbe.ownerL1C1,cbe.cl);
               Send_H2D_data(msg2, m);
@@ -1701,6 +1879,14 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_S;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         case SnpInvML1C1:
@@ -1708,6 +1894,14 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         else return false;
@@ -1718,6 +1912,14 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         case SnpDataL1C1:
@@ -1725,6 +1927,14 @@
           Send_D2H_response(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_E_evict_SnpData;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         case SnpInvML1C1:
@@ -1732,6 +1942,14 @@
           Send_D2H_response(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_E_evict_SnpInvM;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         else return false;
@@ -1742,6 +1960,14 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         case SnpInvSL1C1:
@@ -1749,6 +1975,14 @@
           Send_D2H_response(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_E_evict_SnpData_SnpInvS;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         else return false;
@@ -1759,6 +1993,14 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         else return false;
@@ -1769,6 +2011,14 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         else return false;
@@ -1784,6 +2034,14 @@
         case GO_SL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I_load_GO_S;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         else return false;
@@ -1805,11 +2063,27 @@
         case GO_EL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I_store_GO_E;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         case GO_ML1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I_store_GO_M;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         else return false;
@@ -1846,6 +2120,14 @@
           Send_D2H_data(msg1, m);
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_S;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         case SnpInvML1C1:
@@ -1855,6 +2137,14 @@
           Send_D2H_data(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         else return false;
@@ -1867,6 +2157,14 @@
           Send_D2H_data(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         case SnpDataL1C1:
@@ -1876,6 +2174,14 @@
           Send_D2H_data(msg2, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_M_evict_SnpData;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         case SnpInvML1C1:
@@ -1885,6 +2191,14 @@
           Send_D2H_data(msg2, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_M_evict_SnpInvM;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         else return false;
@@ -1895,6 +2209,14 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         case SnpInvSL1C1:
@@ -1902,6 +2224,14 @@
           Send_D2H_response(msg3, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_M_evict_SnpData_SnpInvS;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         else return false;
@@ -1912,6 +2242,14 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         else return false;
@@ -1923,6 +2261,14 @@
           Clear_perm(adr, m);
           -- Go to I
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         else return false;
@@ -1935,6 +2281,14 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         else return false;
@@ -1945,6 +2299,14 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         case SnpInvSL1C1:
@@ -1952,6 +2314,14 @@
           Send_D2H_response(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_S_evict_SnpInvS;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         else return false;
@@ -1962,6 +2332,14 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         else return false;
@@ -1972,6 +2350,14 @@
         case GO_ML1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_S_store_GO_M;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         case SnpInvSL1C1:
@@ -1979,6 +2365,14 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I_store;
+
+          -- [Axiom 8]
+          alias ordered_msg:ordered_H2D_response[m][0] do
+            assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
+            assert (inmsg.src = ordered_msg.src) ">[Axiom 8] Expected msg.src to equal ordered_msg.src!\n";
+            Pop_ordered_H2D_response(m,msg.src);
+          endalias;
+
           return true;
         
         else return false;
