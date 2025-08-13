@@ -161,6 +161,8 @@
         cacheL1C1: v_cacheL1C1;
         ownerL1C1: Machines;
         requesterL1C1: Machines;
+        -- [Axiom 9/10]
+        requestOnCoherentState : boolean;
       end;
       
       MACH_directoryL1C1: record
@@ -716,8 +718,13 @@
             if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
               msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
               Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
-              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              -- ClearVector_cacheL1C1(cbe.cacheL1C1);
               Clear_perm(adr, m);
+
+              -- [Axiom 9/10]
+              assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+              cbe.requestOnCoherentState := true;
+
               cbe.State := directoryL1C1_SM_Acks;
               -- return true;
             endif;
@@ -725,9 +732,14 @@
               RemoveElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
               msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
               Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
-              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              -- ClearVector_cacheL1C1(cbe.cacheL1C1);
               AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
               Clear_perm(adr, m);
+
+              -- [Axiom 9/10]
+              assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+              cbe.requestOnCoherentState := true;
+
               cbe.State := directoryL1C1_SM_Acks;
               -- return true;
             endif;
@@ -740,17 +752,27 @@
               RemoveElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
               msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
               Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
-              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              -- ClearVector_cacheL1C1(cbe.cacheL1C1);
               AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
               Clear_perm(adr, m);
+
+              -- [Axiom 9/10]
+              assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+              cbe.requestOnCoherentState := true;
+
               cbe.State := directoryL1C1_SM_Acks;
               -- return true;
             endif;
             if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
               msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
               Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
-              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              -- ClearVector_cacheL1C1(cbe.cacheL1C1);
               Clear_perm(adr, m);
+
+              -- [Axiom 9/10]
+              assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+              cbe.requestOnCoherentState := true;
+
               cbe.State := directoryL1C1_SM_Acks;
               -- return true;
             endif;
@@ -805,17 +827,27 @@
               RemoveElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
               msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
               Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
-              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              -- ClearVector_cacheL1C1(cbe.cacheL1C1);
               AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
               Clear_perm(adr, m);
+
+              -- [Axiom 9/10]
+              assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+              cbe.requestOnCoherentState := true;
+
               cbe.State := directoryL1C1_SM_Acks;
               -- return true;
             endif;
             if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
               msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
               Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
-              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              -- ClearVector_cacheL1C1(cbe.cacheL1C1);
               Clear_perm(adr, m);
+
+              -- [Axiom 9/10]
+              assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+              cbe.requestOnCoherentState := true;
+
               cbe.State := directoryL1C1_SM_Acks;
               -- return true;
             endif;
@@ -827,8 +859,13 @@
             if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
               msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
               Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
-              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              -- ClearVector_cacheL1C1(cbe.cacheL1C1);
               Clear_perm(adr, m);
+
+              -- [Axiom 9/10]
+              assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+              cbe.requestOnCoherentState := true;
+
               cbe.State := directoryL1C1_SM_Acks;
               -- return true;
             endif;
@@ -836,9 +873,14 @@
               RemoveElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
               msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
               Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
-              ClearVector_cacheL1C1(cbe.cacheL1C1);
+              -- ClearVector_cacheL1C1(cbe.cacheL1C1);
               AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
               Clear_perm(adr, m);
+
+              -- [Axiom 9/10]
+              assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+              cbe.requestOnCoherentState := true;
+
               cbe.State := directoryL1C1_SM_Acks;
               -- return true;
             endif;
@@ -889,6 +931,10 @@
     var msg: Message;
     begin
     alias cbe: i_directoryL1C1[m].cb[adr] do
+      -- [Axiom 9/10]
+      assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+      cbe.requestOnCoherentState := true;
+
       msg_RdOwnL1 := DevReqL1C1(adr, RdOwnL1C1, m, m);
       msg := HostReqL1C1(adr, SnpInvML1C1, msg_RdOwnL1.src, cbe.ownerL1C1);
       Send_H2D_request(msg, m);
@@ -921,6 +967,10 @@
     var msg: Message;
     begin
     alias cbe: i_directoryL1C1[m].cb[adr] do
+      -- [Axiom 9/10]
+      assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+      cbe.requestOnCoherentState := true;
+
       msg_RdOwnL1 := DevReqL1C1(adr, RdOwnL1C1, m, m);
       msg := HostReqL1C1(adr, SnpInvML1C1, msg_RdOwnL1.src, cbe.ownerL1C1);
       Send_H2D_request(msg, m);
@@ -1054,6 +1104,10 @@
           cbe.ownerL1C1 := inmsg.src;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_E_RdOwn;
+
+          -- [Axiom 9/10]
+          assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+          cbe.requestOnCoherentState := true;
           return true;
         
         case RdSharedL1C1:
@@ -1267,6 +1321,10 @@
           cbe.ownerL1C1 := inmsg.src;
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_M_RdOwn;
+
+          -- [Axiom 9/10]
+          assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+          cbe.requestOnCoherentState := true;
           return true;
         
         case RdSharedL1C1:
@@ -1441,19 +1499,29 @@
                 if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
                   msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
                   Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
-                  ClearVector_cacheL1C1(cbe.cacheL1C1);
+                  -- ClearVector_cacheL1C1(cbe.cacheL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_SM_Acks;
+
+                  -- [Axiom 9/10]
+                  assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+                  cbe.requestOnCoherentState := true;
+
                   return true;
                 endif;
                 if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
                   RemoveElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
                   msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
                   Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
-                  ClearVector_cacheL1C1(cbe.cacheL1C1);
+                  -- ClearVector_cacheL1C1(cbe.cacheL1C1);
                   AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_SM_Acks;
+
+                  -- [Axiom 9/10]
+                  assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+                  cbe.requestOnCoherentState := true;
+
                   return true;
                 endif;
               endif;
@@ -1465,18 +1533,28 @@
                   RemoveElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
                   msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
                   Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
-                  ClearVector_cacheL1C1(cbe.cacheL1C1);
+                  -- ClearVector_cacheL1C1(cbe.cacheL1C1);
                   AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_SM_Acks;
+
+                  -- [Axiom 9/10]
+                  assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+                  cbe.requestOnCoherentState := true;
+
                   return true;
                 endif;
                 if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
                   msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
                   Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
-                  ClearVector_cacheL1C1(cbe.cacheL1C1);
+                  -- ClearVector_cacheL1C1(cbe.cacheL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_SM_Acks;
+
+                  -- [Axiom 9/10]
+                  assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+                  cbe.requestOnCoherentState := true;
+
                   return true;
                 endif;
               endif;
@@ -1530,18 +1608,28 @@
                   RemoveElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
                   msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
                   Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
-                  ClearVector_cacheL1C1(cbe.cacheL1C1);
+                  -- ClearVector_cacheL1C1(cbe.cacheL1C1);
                   AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_SM_Acks;
+
+                  -- [Axiom 9/10]
+                  assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+                  cbe.requestOnCoherentState := true;
+
                   return true;
                 endif;
                 if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
                   msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
                   Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
-                  ClearVector_cacheL1C1(cbe.cacheL1C1);
+                  -- ClearVector_cacheL1C1(cbe.cacheL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_SM_Acks;
+
+                  -- [Axiom 9/10]
+                  assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+                  cbe.requestOnCoherentState := true;
+
                   return true;
                 endif;
               endif;
@@ -1552,19 +1640,29 @@
                 if !(IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
                   msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
                   Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
-                  ClearVector_cacheL1C1(cbe.cacheL1C1);
+                  -- ClearVector_cacheL1C1(cbe.cacheL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_SM_Acks;
+
+                  -- [Axiom 9/10]
+                  assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+                  cbe.requestOnCoherentState := true;
+
                   return true;
                 endif;
                 if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
                   RemoveElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
                   msg := HostReqL1C1(adr,SnpInvSL1C1,m,m);
                   Multicast_H2D_request_v_cacheL1C1(msg, cbe.cacheL1C1, m);
-                  ClearVector_cacheL1C1(cbe.cacheL1C1);
+                  -- ClearVector_cacheL1C1(cbe.cacheL1C1);
                   AddElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
                   Clear_perm(adr, m);
                   cbe.State := directoryL1C1_SM_Acks;
+
+                  -- [Axiom 9/10]
+                  assert isundefined(cbe.requestOnCoherentState) ">[Axiom 9] Coherent request on Coherent state. Expected `requestOnCoherentState` flag to be unset when starting at the dir.\n";
+                  cbe.requestOnCoherentState := true;
+
                   return true;
                 endif;
               endif;
@@ -1614,6 +1712,21 @@
             return true;
           endif;
           if (cbe.acksReceivedL1C1 = cbe.acksExpectedL1C1) then
+            -- [Axiom 9]
+            if (IsElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1)) then
+              RemoveElement_cacheL1C1(cbe.cacheL1C1, cbe.ownerL1C1);
+              -- bumped up from below.
+              ClearVector_cacheL1C1(cbe.cacheL1C1);
+            endif;
+            if (IsElement_cacheL1C1(cbe.cacheL1C1, directoryL1C1)) then
+              RemoveElement_cacheL1C1(cbe.cacheL1C1, directoryL1C1);
+            endif;
+
+            -- [Axiom 9]
+            assert (VectorCount_cacheL1C1(cbe.cacheL1C1) = 0) ">[Axiom 9] After completing Sharer Invals, expected the sharer vector to be empty!\n";
+            assert (cbe.requestOnCoherentState) ">[Axiom 9] S FwdInval finished. expected flag `requestOnCoherentState` to be set!\n";
+            undefine cbe.requestOnCoherentState;
+
             undefine cbe.acksReceivedL1C1;
             -- Proxy Inval Guard
             if (cbe.ownerL1C1 = directoryL1C1) then
@@ -1708,6 +1821,13 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 9]
+          alias dir_cbe:i_directoryL1C1[directoryL1C1].cb[adr] do
+            assert !isundefined(dir_cbe.requestOnCoherentState)
+              ">[Axiom 9] cache got downgrade, dir must have flag `requestOnCoherentState` set.\n";
+            undefine dir_cbe.requestOnCoherentState;
+          endalias;
           return true;
         
         else return false;
@@ -1732,6 +1852,13 @@
           Send_D2H_response(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_E_evict_SnpInvM;
+
+          -- [Axiom 9]
+          alias dir_cbe:i_directoryL1C1[directoryL1C1].cb[adr] do
+            assert !isundefined(dir_cbe.requestOnCoherentState)
+              ">[Axiom 9] cache got downgrade, dir must have flag `requestOnCoherentState` set.\n";
+            undefine dir_cbe.requestOnCoherentState;
+          endalias;
           return true;
         
         else return false;
@@ -1749,6 +1876,13 @@
           Send_D2H_response(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_E_evict_SnpData_SnpInvS;
+
+          -- [Axiom 9]
+          alias dir_cbe:i_directoryL1C1[directoryL1C1].cb[adr] do
+            assert !isundefined(dir_cbe.requestOnCoherentState)
+              ">[Axiom 9] cache got downgrade, dir must have flag `requestOnCoherentState` set.\n";
+            RemoveElement_cacheL1C1(dir_cbe.cacheL1C1, m);
+          endalias;
           return true;
         
         else return false;
@@ -1855,6 +1989,13 @@
           Send_D2H_data(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 9]
+          alias dir_cbe:i_directoryL1C1[directoryL1C1].cb[adr] do
+            assert !isundefined(dir_cbe.requestOnCoherentState)
+              ">[Axiom 9] cache got downgrade, dir must have flag `requestOnCoherentState` set.\n";
+            undefine dir_cbe.requestOnCoherentState;
+          endalias;
           return true;
         
         else return false;
@@ -1885,6 +2026,13 @@
           Send_D2H_data(msg2, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_M_evict_SnpInvM;
+
+          -- [Axiom 9]
+          alias dir_cbe:i_directoryL1C1[directoryL1C1].cb[adr] do
+            assert !isundefined(dir_cbe.requestOnCoherentState)
+              ">[Axiom 9] cache got downgrade, dir must have flag `requestOnCoherentState` set.\n";
+            undefine dir_cbe.requestOnCoherentState;
+          endalias;
           return true;
         
         else return false;
@@ -1902,6 +2050,13 @@
           Send_D2H_response(msg3, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_M_evict_SnpData_SnpInvS;
+
+          -- [Axiom 9]
+          alias dir_cbe:i_directoryL1C1[directoryL1C1].cb[adr] do
+            assert !isundefined(dir_cbe.requestOnCoherentState)
+              ">[Axiom 9] cache got downgrade, dir must have flag `requestOnCoherentState` set.\n";
+            RemoveElement_cacheL1C1(dir_cbe.cacheL1C1, m);
+          endalias;
           return true;
         
         else return false;
@@ -1935,6 +2090,13 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 9]
+          alias dir_cbe:i_directoryL1C1[directoryL1C1].cb[adr] do
+            assert !isundefined(dir_cbe.requestOnCoherentState)
+              ">[Axiom 9] cache got downgrade, dir must have flag `requestOnCoherentState` set.\n";
+            RemoveElement_cacheL1C1(dir_cbe.cacheL1C1, m);
+          endalias;
           return true;
         
         else return false;
@@ -1952,6 +2114,13 @@
           Send_D2H_response(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_S_evict_SnpInvS;
+
+          -- [Axiom 9]
+          alias dir_cbe:i_directoryL1C1[directoryL1C1].cb[adr] do
+            assert !isundefined(dir_cbe.requestOnCoherentState)
+              ">[Axiom 9] cache got downgrade, dir must have flag `requestOnCoherentState` set.\n";
+            RemoveElement_cacheL1C1(dir_cbe.cacheL1C1, m);
+          endalias;
           return true;
         
         else return false;
@@ -1979,6 +2148,13 @@
           Send_D2H_response(msg, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I_store;
+
+          -- [Axiom 9]
+          alias dir_cbe:i_directoryL1C1[directoryL1C1].cb[adr] do
+            assert !isundefined(dir_cbe.requestOnCoherentState)
+              ">[Axiom 9] cache got downgrade, dir must have flag `requestOnCoherentState` set.\n";
+            RemoveElement_cacheL1C1(dir_cbe.cacheL1C1, m);
+          endalias;
           return true;
         
         else return false;
