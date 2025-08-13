@@ -317,6 +317,27 @@
         return MultiSetCount(i:sv, true);
     end;
     
+    -- [Axiom 11]
+    function MessageIsGrant(var mt:MessageType) : boolean;
+    begin
+      return (mt = GO_IL1C1 |
+        mt = GO_SL1C1 |
+        mt = GO_ML1C1 |
+        mt = GO_EL1C1 |
+        mt = GO_WritePullL1C1 |
+        mt = HostDataMsgL1C1
+        );
+    end;
+
+    function IsCacheStableState(var s:s_cacheL1C1) : boolean;
+    begin
+      return (s = cacheL1C1_E |
+        s = cacheL1C1_M |
+        s = cacheL1C1_S |
+        s = cacheL1C1_I
+        );
+    end;
+
   ----Backend/Murphi/MurphiModular/Functions/GenFIFOFunc
   ----Backend/Murphi/MurphiModular/Functions/GenNetworkFunc
     procedure Send_D2H_data(msg:Message; src: Machines;);
@@ -1868,6 +1889,9 @@
     var msg1: Message;
     var msg2: Message;
     var msg3: Message;
+    -- [Axiom 11]
+    var msg_type : MessageType;
+    var cache_state : s_cacheL1C1;
     begin
       alias adr: inmsg.adr do
       alias cbe: i_cacheL1C1[m].cb[adr] do
@@ -1912,6 +1936,10 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
 
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
@@ -1961,6 +1989,11 @@
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
 
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
+
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
             assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
@@ -1994,6 +2027,11 @@
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
 
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
+
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
             assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
@@ -2011,6 +2049,11 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
 
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
@@ -2053,6 +2096,12 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_S;
+
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
+
           return true;
         
         else return false;
@@ -2095,6 +2144,12 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(store, adr, m); Set_perm(load, adr, m);
           cbe.State := cacheL1C1_E;
+
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
+
           return true;
         
         else return false;
@@ -2106,6 +2161,12 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_M;
+
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
+
           return true;
         
         else return false;
@@ -2157,6 +2218,11 @@
           Send_D2H_data(msg1, m);
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
 
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
@@ -2210,6 +2276,11 @@
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
 
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
+
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
             assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
@@ -2243,6 +2314,11 @@
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
 
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
+
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
             assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
@@ -2261,6 +2337,11 @@
           Clear_perm(adr, m);
           -- Go to I
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
 
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
@@ -2300,6 +2381,11 @@
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
 
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
+
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
             assert (inmsg.mtype = ordered_msg.mtype) ">[Axiom 8] Expected msg.mtype to equal ordered_msg.mtype!\n";
@@ -2332,6 +2418,11 @@
         case GO_IL1C1:
           Clear_perm(adr, m);
           cbe.State := cacheL1C1_I;
+
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
 
           -- [Axiom 8]
           alias ordered_msg:ordered_H2D_response[m][0] do
@@ -2384,6 +2475,12 @@
           cbe.cl := inmsg.cl;
           Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
           cbe.State := cacheL1C1_M;
+
+          -- [Axiom 11 Aux]
+          msg_type := inmsg.mtype;
+          cache_state := cbe.State;
+          assert (MessageIsGrant(msg_type) & IsCacheStableState(cache_state)) ">[Axiom 11] A grant should end a transition!\n";
+
           return true;
         
         else return false;
