@@ -16,6 +16,12 @@ structure CompoundProtocol where
   linearizationOfEvent : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req : Event n,
     Behaviour.linearizationEventOfRequest n b init e_req
   compoundLinearizationEvent : Behaviour.clusterRequestLinearizationEvent.wrapper n
+  noConsistencyOfAcqOnSw : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e₁ ∈ b, ∀ e₂ ∈ b,
+    e₁.req.isAcquire → e₁.isPPOPair n e₂ → (∃ e_cmplin ∈ b,
+      Behaviour.eventCompoundLinearizes.atCache n b init e₁ e_cmplin (linearizationOfEvent b init e₁)) → False
+  weakWriteAndNonCoherentRelCannotLinearizeAtCache : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e₁ ∈ b, ∀ e₂ ∈ b,
+    e₁.req.isNcRelease ∧ e₂.req.isWeak ∨ e₁.req.isWeak ∧ e₂.req.isNcRelease → (∃ e ∈ [e₁, e₂], (∃ e_cmplin ∈ b,
+    Behaviour.eventCompoundLinearizes.atCache n b init e e_cmplin (linearizationOfEvent b init e)) ) → False
 
 def CompoundProtocol.globalCidToProtocol (cmp : CompoundProtocol n) (g_cid : Fin 2) : Protocol n := match g_cid with
   | 0 => cmp.cluster1

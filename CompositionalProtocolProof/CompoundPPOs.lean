@@ -2489,18 +2489,15 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_coherent_r
 /- Acquire: Acquire ordered before a Weak Request -/
 
 /-- Lemma 11 (thm 1)-/
-lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b : Behaviour n} {init : InitialSystemState n}
-  (cmp : CompoundProtocol n) (e₁ e₂ : Event n) (hsame_protocol : e₁.sameProtocol n e₂) (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
+lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder
+  {b : Behaviour n} {init : InitialSystemState n} {e₁ e₂ : Event n}
+  (cmp : CompoundProtocol n) (hsame_protocol : e₁.sameProtocol n e₂)
+  (he₁_not_down : ¬ e₁.down) (he₂_not_down : ¬ e₂.down)
   (he₁_cache : e₁.isCacheEvent) (he₂_cache : e₂.isCacheEvent)
   (he₁_in_b : e₁ ∈ b) (he₂_in_b : e₂ ∈ b)
   (hsame_cid : e₁.sameCid n e₂)
   (hsame_cid' : e₁.cid = e₂.cid)
   (hdiff_addr : e₁.addr ≠ e₂.addr)
-  (hno_consistency_of_acq_on_sw : e₁.req.isAcquire → e₁.isPPOPair n e₂ → (∃ e_cmplin ∈ b,
-    Behaviour.eventCompoundLinearizes.atCache n b init e₁ e_cmplin (cmp.linearizationOfEvent b init e₁)) → False)
-  (hweak_write_and_non_coherent_rel_cannot_linearize_at_cache :
-    e₁.req.isNcRelease ∧ e₂.req.isWeak ∨ e₁.req.isWeak ∧ e₂.req.isNcRelease → (∃ e ∈ [e₁, e₂], (∃ e_cmplin ∈ b,
-    Behaviour.eventCompoundLinearizes.atCache n b init e e_cmplin (cmp.linearizationOfEvent b init e)) ) → False)
   : e₁.OrderedBefore n e₂ → e₁.isPPOPair n e₂ → cmp.CompoundLinearizationOrder n b init e₁ e₂ := by
   intro he₁_ob_e₂ he₁_ppo_e₂_cache_ppo
   -- Work through the cases of all PPO Pairs, and show that `e₁` and `e₂` linearize in order.
@@ -2532,7 +2529,7 @@ lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b 
     . case he₂_req => exact he₂_req
     . case he₁_not_down => exact he₁_not_down
     . case he₂_not_down => exact he₂_not_down
-    . case hweak_write_and_non_coherent_rel_cannot_linearize_at_cache => exact hweak_write_and_non_coherent_rel_cannot_linearize_at_cache
+    . case hweak_write_and_non_coherent_rel_cannot_linearize_at_cache => exact cmp.weakWriteAndNonCoherentRelCannotLinearizeAtCache b init e₁ he₁_in_b e₂ he₂_in_b
   | ⟨⟨_,false,.Weak⟩,_⟩, ⟨⟨.w,true,.Rel⟩,_⟩ => -- Weak requests are ordered before a Coherent Release
     apply CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_coherent_release
     . case he₁_ob_e₂ => exact he₁_ob_e₂
@@ -2614,7 +2611,7 @@ lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder {b 
     . case he₂_req => exact he₂_req
     . case he₁_not_down => exact he₁_not_down
     . case he₂_not_down => exact he₂_not_down
-    . case hno_consistency_of_acq_on_sw => exact hno_consistency_of_acq_on_sw
+    . case hno_consistency_of_acq_on_sw => exact cmp.noConsistencyOfAcqOnSw b init e₁ he₁_in_b e₂ he₂_in_b
   | ⟨⟨.r,false,.Acq⟩,_⟩, ⟨⟨.w,true,.Weak⟩,_⟩ => -- an Acquire is ordered before a weak non-coherent request
     apply CompoundProtocol.CompoundLinearizationOrder_of_two_events_that_encapsulate_their_cmp_linearization_event
     . case he₁_ob_e₂ => exact he₁_ob_e₂
