@@ -50,6 +50,7 @@ def CompoundProtocol.CompoundLinearizationOrder (cmp : CompoundProtocol n) (b : 
   : Prop :=
   let e_lin₁ := cmp.compoundLinearizationEvent cmp.shimAxioms b init e₁ (cmp.linearizationOfEvent b init e₁) |>.linearizationEvent
   let e_lin₂ := cmp.compoundLinearizationEvent cmp.shimAxioms b init e₂ (cmp.linearizationOfEvent b init e₂) |>.linearizationEvent
+  e₁.isPPOPair n e₂ →
   e_lin₁.OrderedBefore n e_lin₂
   ∨ CompoundProtocol.lazyCompoundLinearizationOrder n b init e₂ e_lin₁
 
@@ -65,6 +66,7 @@ lemma CompoundProtocol.compound_linearization_order_of_events_ordered_before_and
   have he₂_lin_cache := hcluster_cache_lin_e₂.choose_spec.right.e_creq_is_e_glin
 
   simp[CompoundProtocol.CompoundLinearizationOrder]
+  intro hppo
   apply Or.intro_left
   simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
 
@@ -624,6 +626,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_two_events_that_encapsulate
       . case he₂_lin => exact he₂_lin
     | .clusterDirLin hcluster_dir_lin_e₁, .clusterCacheLin hcluster_cache_lin_e₂ =>
       simp[CompoundLinearizationOrder]
+      intro hppo
       apply Or.intro_left
       simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
 
@@ -666,6 +669,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_two_events_that_encapsulate
           Event.OrderedBefore n e₁ e₂ := he₁_ob_e₂
     | .clusterCacheLin hcluster_cache_lin_e₁, .clusterDirLin hcluster_dir_lin_e₂ =>
       simp[CompoundLinearizationOrder]
+      intro hppo
       apply Or.intro_left
       simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
 
@@ -708,6 +712,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_two_events_that_encapsulate
           e₂.Encapsulates n hcluster_dir_lin_e₂.choose := he₂_encap_e₂_cmp_lin
     | .clusterDirLin hcluster_dir_lin_e₁, .clusterDirLin hcluster_dir_lin_e₂ =>
       simp[CompoundLinearizationOrder]
+      intro hppo
       apply Or.intro_left
       simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
 
@@ -1579,6 +1584,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_write_or_read_and_non_
         exact hcluster_cache_lin_e₁
     | .clusterDirLin hcluster_dir_lin_e₁, .clusterDirLin hcluster_dir_lin_e₂ =>
       simp[CompoundLinearizationOrder]
+      intro hppo
       apply Or.intro_left
       case h =>
       simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
@@ -1687,6 +1693,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_acquire_and_weak_request
       . case he₂_lin => exact he₂_lin
     | .clusterDirLin hcluster_dir_lin_e₁, .clusterCacheLin hcluster_cache_lin_e₂ =>
       simp[CompoundLinearizationOrder]
+      intro hppo
       apply Or.intro_left
       simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
 
@@ -1711,6 +1718,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_acquire_and_weak_request
           e₁.OrderedBefore n e₂ := he₁_ob_e₂
     | .clusterCacheLin hcluster_cache_lin_e₁, .clusterDirLin hcluster_dir_lin_e₂ =>
       simp[CompoundLinearizationOrder]
+      intro hppo
       apply Or.intro_left
       simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
 
@@ -1796,6 +1804,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_acquire_and_weak_request
                 hcluster_lin_spec.reqLinearizeAtDir.choose.Encapsulates n hcluster_dir_lin_e₂.choose := hgenerated_cdir_ww_encap_glin
     | .clusterDirLin hcluster_dir_lin_e₁, .clusterDirLin hcluster_dir_lin_e₂ =>
       simp[CompoundLinearizationOrder]
+      intro hppo
       apply Or.intro_left
       case h =>
       simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
@@ -2381,6 +2390,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_coherent_r
     . case h_1 _ _ => exfalso; exact he₁_lin_dir
     . case h_2 _ hdir_lin_weak _ =>
       --
+      intro hppo
       apply CompoundProtocol.weak_request_to_directory_and_coherent_release_at_cache
       . case he₁_ob_e₂ => exact he₁_ob_e₂
       . case hsame_protocol => exact hsame_protocol
@@ -2400,6 +2410,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_coherent_r
       . case hweak_req_lin_dir => exact he₁_lin_dir
   | .clusterCacheLin hcluster_cache_lin_e₁, .clusterDirLin hcluster_dir_lin_e₂ =>
     simp[CompoundLinearizationOrder]
+    intro hppo
     apply Or.intro_left
     simp[ClusterRequestLinearizationEvent.linearizationEvent, he₁_lin, he₂_lin]
 
@@ -2479,10 +2490,12 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_coherent_r
 
         cases he₁_lin_before_e₂_or_lazy_cmp_lin
         . case inl he₁_lin_before_e₂ =>
+          intro hppo
           apply Or.intro_left
           calc hcluster_dir_lin_e₁.choose.OrderedBefore n e₂ := he₁_lin_before_e₂
             e₂.Encapsulates n hcluster_dir_lin_e₂.choose := he_rel_encap_e_rel_cmp_lin
         . case inr hlazy_cmp_lin =>
+          intro hppo
           apply Or.intro_right
           exact hlazy_cmp_lin
 
