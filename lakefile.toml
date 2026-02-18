@@ -2,10 +2,10 @@ name = "compositional-protocol-proof"
 version = "0.1.0"
 defaultTargets = ["compositional-protocol-proof"]
 
-[[require]]
-name = "Hammer"
-git = "https://github.com/JOSHCLUNE/LeanHammer"
-rev = "temp-v4.21.0-rc3"
+# [[require]]
+# name = "Hammer"
+# git = "https://github.com/JOSHCLUNE/LeanHammer"
+# rev = "v4.27.0"
 
 [[require]]
 name = "mathlib"
