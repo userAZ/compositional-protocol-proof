@@ -78,4 +78,62 @@ Relations between ValidOp `op₁` and `op₂`, and restrictions on `op₁` and `
   `op₁` and `op₂`'s addresses are the same
 -/
 
+-- Relations to build up to PPOi
+
+def ValidOp.sameThread (op₁ op₂ : ValidOp) : Prop :=
+  op₁.val.tp.tid = op₂.val.tp.tid
+
+def ValidOp.successor (op₁ op₂ : ValidOp) : Prop :=
+  op₁.val.tp.sn < op₂.val.tp.sn
+
+structure ValidOp.threadSuccessor (op₁ op₂ : ValidOp) : Prop where
+  sameT : op₁.sameThread op₂
+  succ : op₁.successor op₂
+
+/-- PPOi def. -/
+structure ValidOp.PPOiPair (op₁ op₂ : ValidOp) : Prop where
+  ppo : op₁.isPPOPair op₂
+  tSucc : op₁.threadSuccessor op₂
+
+def ValidOp.rf (op₁ op₂ : ValidOp) : Prop :=
+  match op₁, op₂ with
+  | ⟨⟨.w, _, _⟩,_⟩, ⟨⟨.r, _, _⟩,_⟩ => True
+  | _, _ => False
+
+/-- Two Herd Ops to different threads. -/
+def ValidOp.diffThread (op₁ op₂ : ValidOp) : Prop :=
+  op₁.val.tp.tid ≠ op₂.val.tp.tid
+
+-- Relations to build up to rfe.
+
+/-- rfe def.-/
+structure ValidOp.rfe (op₁ op₂ : ValidOp) : Prop where
+  rf : op₁.rf op₂
+  diffT : op₁.diffThread op₂
+
+-- Relations to build up to fr.
+
+def ValidOp.fr' (op₁ op₂ : ValidOp) : Prop :=
+  match op₁, op₂ with
+  | ⟨⟨.r, _, _⟩,_⟩, ⟨⟨.w, _, _⟩,_⟩ => True
+  | _, _ => False
+
+structure ValidOp.fr (op₁ op₂ : ValidOp) : Prop where
+  fr' : op₁.fr' op₂
+  diffT : op₁.diffThread op₂
+
+-- Relations to build up to co.
+
+def ValidOp.co' (op₁ op₂ : ValidOp) : Prop :=
+  match op₁, op₂ with
+  | ⟨⟨.w, _, _⟩,_⟩, ⟨⟨.w, _, _⟩,_⟩ => True
+  | _, _ => False
+
+def ValidOp.sameAddr (op₁ op₂ : ValidOp) : Prop :=
+  op₁.val.tp.addr = op₂.val.tp.addr
+
+structure ValidOp.co (op₁ op₂ : ValidOp) : Prop where
+  co' : op₁.co' op₂
+  sameAddr : op₁.sameAddr op₂
+
 end Herd
