@@ -1055,7 +1055,8 @@ def EventAtEntry (b : Behaviour n) (st : Struct n) (addr : Addr) : Type :=
 instance EventAtEntry.instDecidableEq {b st addr} : DecidableEq (EventAtEntry n b st addr) := by
   simp[DecidableEq]
   intro e₁ e₂
-  rw[Subtype.eq_iff]
+  simp[EventAtEntry]
+  rw[Subtype.ext_iff]
   infer_instance
 
 /-
@@ -1645,11 +1646,11 @@ lemma Behaviour.eventsAtEntryOfListBottomEvents_at_cache_all_cache (b : Behaviou
   . case hst_cache => exact hst_cache
 
 lemma Behaviour.eventsAtEntryOfListBottomEvents_sorted (b : Behaviour n) (struct : Struct n) (addr : Addr) :
-  (b.eventsAtEntryOfListBottomEvents n struct addr).Sorted (EventAtEntry.encapOrOrderedBefore n b struct addr) := by
+  (b.eventsAtEntryOfListBottomEvents n struct addr).Pairwise (EventAtEntry.encapOrOrderedBefore n b struct addr) := by
   simp[eventsAtEntryOfListBottomEvents]
-  simp[List.sorted_insertionSort]
+  simp[List.pairwise_insertionSort]
 
-instance EventAtEntry.encapOrOrderedBefore.instIsIrrefl {b st addr} : IsIrrefl (EventAtEntry n b st addr) (EventAtEntry.encapOrOrderedBefore n b st addr) :=
+instance EventAtEntry.encapOrOrderedBefore.instIsIrrefl {b st addr} : Std.Irrefl (EventAtEntry.encapOrOrderedBefore n b st addr) :=
   by
   constructor
   . case irrefl =>
