@@ -51,12 +51,12 @@ def ValidOp := {h : Op // Op.Valid h}
 def ValidOp.isPPOPair (op₁ op₂ : ValidOp) : Prop :=
   match op₁.val, op₂.val with
   -- Rel, acq, weak op orderings
-  | ⟨_, .weak⟩, ⟨.w, .rel⟩ => True
-  | ⟨.r, .acq⟩, ⟨_, .weak⟩ => True
-  | ⟨.r, .acq⟩, ⟨.w, .rel⟩ => True
-  | ⟨.w, .rel⟩, ⟨.r, .acq⟩ => True
+  | ⟨_, .weak, _⟩, ⟨.w, .rel, _⟩ => True
+  | ⟨.r, .acq, _⟩, ⟨_, .weak, _⟩ => True
+  | ⟨.r, .acq, _⟩, ⟨.w, .rel, _⟩ => True
+  | ⟨.w, .rel, _⟩, ⟨.r, .acq, _⟩ => True
   -- SC op orderings
-  | ⟨_, .sc⟩, ⟨_, .sc⟩ => True
+  | ⟨_, .sc, _⟩, ⟨_, .sc, _⟩ => True
   -- Other orderings are not required
   | _, _ => False
 
