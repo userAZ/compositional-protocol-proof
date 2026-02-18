@@ -18,6 +18,9 @@ scope = "chasenorman"
 [[lean_lib]]
 name = "CompositionalProtocolProof"
 
+[[lean_lib]]
+name = "Herd"
+
 [[lean_exe]]
 name = "compositional-protocol-proof"
 root = "Main"
