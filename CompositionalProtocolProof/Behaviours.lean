@@ -2211,8 +2211,8 @@ lemma Behaviour.eventsUpToEvent_ordered_before_sorted (b : Behaviour n) (e : Eve
   simp[List.Sorted] at hes_sorted
   rw[List.pairwise_iff_getElem] at hes_sorted
   apply hes_sorted
-  . case _hij =>
-    exact hi_lt_j
+  -- . case _hij =>
+  --   exact hi_lt_j
 
 lemma Behaviour.predecessor_of_e_in_eventsUpToEvent_e {e'} (b : Behaviour n) (e : Event n)
   (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e)
