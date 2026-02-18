@@ -2,6 +2,9 @@ import CompositionalProtocolProof.CompoundPPOs
 
 variable (n : Nat)
 
+set_option quotPrecheck false
+infix:50 " ≺OB " => (Event.OrderedBefore n)
+
 theorem CompoundProtocol.enforce_compound_consistency
   {b : Behaviour n} {init : InitialSystemState n} {e₁ e₂ : Event n}
   (cmp : CompoundProtocol n) (hsame_protocol : e₁.sameProtocol n e₂)
@@ -9,7 +12,7 @@ theorem CompoundProtocol.enforce_compound_consistency
   (he₁_cache : e₁.isCacheEvent) (he₂_cache : e₂.isCacheEvent)
   (he₁_in_b : e₁ ∈ b) (he₂_in_b : e₂ ∈ b)
   (hsame_cache : e₁.cid = e₂.cid) (hdiff_addr : e₁.addr ≠ e₂.addr)
-  : e₁.OrderedBefore n e₂ → cmp.CompoundLinearizationOrder n b init e₁ e₂
+  : e₁ ≺OB e₂ → cmp.CompoundLinearizationOrder n b init e₁ e₂
   := by
   intro he₁_ob_e₂ hppo
   apply CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder
