@@ -21,10 +21,17 @@ inductive RW
 | r : RW
 | w : RW
 
+/-- Herd op's thread parameters & address. -/
+structure ThreadParam where
+  addr : Nat -- address
+  tid : Nat -- thread id
+  sn : Nat -- sequence number, for ordering Ops within a thread
+
 /-- A Herd Op, for a cache coherence protocol -/
 structure Op where
   op : RW
   consistency : Consistency
+  tp : ThreadParam
 
 -- define props that disallow certain combinations of Herd Ops
 def Op.NoReleaseRead (h : Op) : Prop := ¬ (h.op = .r ∧ h.consistency = .rel)
