@@ -630,6 +630,26 @@ private lemma Behaviour.exists_e_dir_orderAfterDir {n : ℕ} (b : Behaviour n) (
       . case hweak_read_on_vd => exact hreq_on_vd
       . case hsucc_encap_dir => exact hexists_dir_after.hsucc_encap_dir.choose_spec.right
 
+/-- Helper: Find directory event for evict request (encapDir via downgrade) -/
+private lemma Behaviour.exists_e_dir_evict {n : ℕ} (b : Behaviour n) (init : InitialSystemState n)
+  (e_req : Event n)
+  (hdown : e_req.down)
+  (hmrs : b.evictOnMRSState n init e_req)
+  (hencap : b.evictEncapCorrespondingDirEvent n (init.stateAt n e_req) true e_req)
+  : ∃ e_dir ∈ b, e_dir.isDirectoryEvent ∧ b.dirAccessOfRequest n init e_req e_dir := by
+  use hencap.evictEncapCorrDir.choose
+  apply And.intro
+  . case h.left => exact hencap.evictEncapCorrDir.choose_spec.left
+  . case h.right =>
+    apply And.intro
+    . case left => exact hencap.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent.isDir
+    . case right =>
+      apply dirAccessOfRequest.encapDir
+      apply reqMissingPerms.downgrade
+      . case hreq_missing_perms.hreq_is_down => exact hdown
+      . case hreq_missing_perms.hreq_on_mrs_state => exact hmrs
+      . case hencap_dir => exact hencap.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent
+
 -- [TODO] constrain goal to say not just `e_req` relates `e_dir`, but either encapsulates if lacking permissions, or a previous one if have perms,
 -- of a future one if Weak Non-Coherent on Vd
 /-- `Lemma 3.` For each Cache Request Event `e_req`, there exists a unique event `e_dir` relating `e_req` to the total order of events at
@@ -919,50 +939,11 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
       simp[hce] at ax6
       match ax6 with
       | .evictVdWB he_vd =>
-        use he_vd.encapWBDirEvent.evictEncapCorrDir.choose
-        apply And.intro
-        . case h.left =>
-          exact he_vd.encapWBDirEvent.evictEncapCorrDir.choose_spec.left
-        . case h.right =>
-          apply And.intro
-          . case left =>
-            exact he_vd.encapWBDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent.isDir
-          . case right =>
-            apply dirAccessOfRequest.encapDir
-            apply reqMissingPerms.downgrade
-            . case hreq_missing_perms.hreq_is_down => exact he_vd.isDowngrade
-            . case hreq_missing_perms.hreq_on_mrs_state => exact he_vd.madeOnMrs
-            . case hencap_dir => exact he_vd.encapWBDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent
+        exact b.exists_e_dir_evict init (Event.cacheEvent ce) he_vd.isDowngrade he_vd.madeOnMrs he_vd.encapWBDirEvent
       | .evictSCPutM hputm =>
-        use hputm.encapPutMDirEvent.evictEncapCorrDir.choose
-        apply And.intro
-        . case h.left =>
-          exact hputm.encapPutMDirEvent.evictEncapCorrDir.choose_spec.left
-        . case h.right =>
-          apply And.intro
-          . case left =>
-            exact hputm.encapPutMDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent.isDir
-          . case right =>
-            apply dirAccessOfRequest.encapDir
-            apply reqMissingPerms.downgrade
-            . case hreq_missing_perms.hreq_is_down => exact hputm.isDowngrade
-            . case hreq_missing_perms.hreq_on_mrs_state => exact hputm.madeOnMrs
-            . case hencap_dir => exact hputm.encapPutMDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent
+        exact b.exists_e_dir_evict init (Event.cacheEvent ce) hputm.isDowngrade hputm.madeOnMrs hputm.encapPutMDirEvent
       | .evictSCPutS hputs =>
-        use hputs.encapPutSDirEvent.evictEncapCorrDir.choose
-        apply And.intro
-        . case h.left =>
-          exact hputs.encapPutSDirEvent.evictEncapCorrDir.choose_spec.left
-        . case h.right =>
-          apply And.intro
-          . case left =>
-            exact hputs.encapPutSDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent.isDir
-          . case right =>
-            apply dirAccessOfRequest.encapDir
-            apply reqMissingPerms.downgrade
-            . case hreq_missing_perms.hreq_is_down => exact hputs.isDowngrade
-            . case hreq_missing_perms.hreq_on_mrs_state => exact hputs.madeOnMrs
-            . case hencap_dir => exact hputs.encapPutSDirEvent.evictEncapCorrDir.choose_spec.right.evictEncapCorrespondingDirEvent
+        exact b.exists_e_dir_evict init (Event.cacheEvent ce) hputs.isDowngrade hputs.madeOnMrs hputs.encapPutSDirEvent
       | .nonCoherentRelease hnc_rel =>
         absurd hnc_rel.notDowngrade
         simp[hdown]
