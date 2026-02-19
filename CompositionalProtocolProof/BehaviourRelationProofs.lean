@@ -567,6 +567,69 @@ lemma Behaviour.stateBefore_cache_event_is_cache (b : Behaviour n) (init : Initi
       exact hinit_entry
     . case heq => exact heq
 
+-- Helper lemmas for the three cases of dirAccessOfRequest
+
+/-- Helper: Find directory event for request with permissions (orderBeforeDir case) -/
+private lemma Behaviour.exists_e_dir_orderBeforeDir {n : ℕ} (b : Behaviour n) (init : InitialSystemState n)
+  (e_req : Event n) (he_req_in_b : e_req ∈ b)
+  (hhas_perms : b.reqHasPerms n init e_req)
+  (hdir_before_after : Behaviour.has_perms_or_vd_exists_e_dir_before_or_after n)
+  : ∃ e_dir ∈ b, e_dir.isDirectoryEvent ∧ b.dirAccessOfRequest n init e_req e_dir := by
+  have hexists_pred_dir := hdir_before_after.hasPermsDirBefore b init e_req
+  use hexists_pred_dir.hpred_accesses_dir.choose
+  apply And.intro
+  . case h.left => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.left
+  . case h.right =>
+    apply And.intro
+    . case left => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.right.isDir
+    . case right =>
+      apply Behaviour.dirAccessOfRequest.orderBeforeDir
+      . case hreq_has_perms => exact hhas_perms
+      . case hpred_accesses_dir => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.right
+
+/-- Helper: Find directory event for request without permissions (encapDir case) -/
+private lemma Behaviour.exists_e_dir_encapDir {n : ℕ} (b : Behaviour n) (init : InitialSystemState n)
+  (e_req : Event n) (he_req_in_b : e_req ∈ b)
+  (hreq_cache : e_req.isCacheEvent)
+  (hno_perms : b.reqMissingPerms n init e_req)
+  (hreq_encap_dir : Behaviour.axRequestAccessesDirectory n)
+  : ∃ e_dir ∈ b, e_dir.isDirectoryEvent ∧ b.dirAccessOfRequest n init e_req e_dir := by
+  have hencap_dir := Behaviour.reqMissingPerms_accesses_dir n he_req_in_b hreq_cache hno_perms hreq_encap_dir
+  use hencap_dir.choose
+  apply And.intro
+  . case h.left => simp[hencap_dir.choose_spec.left]
+  . case h.right =>
+    apply And.intro
+    . case left => exact hencap_dir.choose_spec.right.isDir
+    . case right =>
+      apply Behaviour.dirAccessOfRequest.encapDir
+      . case hreq_missing_perms => exact hno_perms
+      . case hencap_dir => exact hencap_dir.choose_spec.right
+
+/-- Helper: Find directory event for weak request on Vd (orderAfterDir case) -/
+private lemma Behaviour.exists_e_dir_orderAfterDir {n : ℕ} (b : Behaviour n) (init : InitialSystemState n)
+  (e_req : Event n) (he_req_in_b : e_req ∈ b)
+  (hreq_on_vd : b.ncWeakReqOnVd n init e_req)
+  (hdir_before_after : Behaviour.has_perms_or_vd_exists_e_dir_before_or_after n)
+  : ∃ e_dir ∈ b, e_dir.isDirectoryEvent ∧ b.dirAccessOfRequest n init e_req e_dir := by
+  have hexists_dir_after := hdir_before_after.vdDirAfter b init e_req
+  use hexists_dir_after.hsucc_encap_dir.choose
+  apply And.intro
+  . case h.left => exact hexists_dir_after.hsucc_encap_dir.choose_spec.left
+  . case h.right =>
+    apply And.intro
+    . case left =>
+      have hsucc_wb_or_get_sw := hexists_dir_after.hsucc_encap_dir.choose_spec.right.choose_spec.right
+      simp[ImmediateBottomSuccSatisfyingProp, IsImmediateBottomPredSatisfyingProp] at hsucc_wb_or_get_sw
+      have hsucc_prop := hsucc_wb_or_get_sw.satisfyP
+      simp[Event.PropOnEvent] at hsucc_prop
+      have his_dir := hsucc_prop.encapCorresponding.isDir
+      exact his_dir
+    . case right =>
+      apply Behaviour.dirAccessOfRequest.orderAfterDir
+      . case hweak_read_on_vd => exact hreq_on_vd
+      . case hsucc_encap_dir => exact hexists_dir_after.hsucc_encap_dir.choose_spec.right
+
 -- [TODO] constrain goal to say not just `e_req` relates `e_dir`, but either encapsulates if lacking permissions, or a previous one if have perms,
 -- of a future one if Weak Non-Coherent on Vd
 /-- `Lemma 3.` For each Cache Request Event `e_req`, there exists a unique event `e_dir` relating `e_req` to the total order of events at
@@ -596,20 +659,8 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
         by_cases hreq_has_perms : ce.req.MRS ≤ state_req_made_on
         . case pos =>
           /- Request has permissions, must exist predecessor that obtained permissions previously. -/
-          -- have hmrs_le_state : hasPerms n b init (Event.cacheEvent ce) := hreq_has_perms
           have hhas_perms := reqHasPerms.hasPerms hreq_coh hreq_has_perms
-
-          have hexists_pred_dir := hdir_before_after.hasPermsDirBefore b init (Event.cacheEvent ce)
-          use hexists_pred_dir.hpred_accesses_dir.choose
-          apply And.intro
-          . case h.left => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.left
-          . case h.right =>
-            apply And.intro
-            . case left => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.right.isDir
-            . case right =>
-              apply dirAccessOfRequest.orderBeforeDir
-              . case hreq_has_perms => exact hhas_perms
-              . case hpred_accesses_dir => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.right
+          exact b.exists_e_dir_orderBeforeDir init (Event.cacheEvent ce) (by simp[hce] at he_req_in_b; exact he_req_in_b) hhas_perms hdir_before_after
         . case neg =>
           /- Request has no permissions, so encapsulates a directory event to access the Directory. -/
           have hreq_not_rel_acq_ww : (Event.cacheEvent ce).notNcRelAcqWeakWrite := by
@@ -627,18 +678,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
             simp[hce,] at he_req_in_b
             simp[he_req_in_b]
           have hreq_cache : (Event.cacheEvent ce).isCacheEvent := by simp[Event.isCacheEvent]
-          -- rw[← hce] at hreq_cache
-          have hencap_dir :=  Behaviour.reqMissingPerms_accesses_dir n hce_in_b hreq_cache hno_perms hreq_encap_dir
-          use hencap_dir.choose
-          apply And.intro
-          . case h.left => simp[hencap_dir.choose_spec.left,]
-          . case h.right =>
-            apply And.intro
-            . case left => exact hencap_dir.choose_spec.right.isDir
-            . case right =>
-              apply dirAccessOfRequest.encapDir
-              . case hreq_missing_perms => exact hno_perms
-              . case hencap_dir => exact hencap_dir.choose_spec.right
+          exact b.exists_e_dir_encapDir init (Event.cacheEvent ce) hce_in_b hreq_cache hno_perms hreq_encap_dir
       | ⟨⟨.r,false,.Weak⟩, _⟩ =>
         have hnot_down : ¬ (Event.cacheEvent ce).down := by simp[Event.down, hdown]
         have hreq_wr : (Event.cacheEvent ce).isNcWeakRead := by
@@ -662,18 +702,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
             have hreq_wr : (Event.cacheEvent ce).isNcWeakRead := by
               simp[Event.isNcWeakRead, CacheEvent.isNcWeakRead, ValidRequest.isNcWeakRead, hreq]
             have hhas_perms := reqHasPerms.ncWeakReadHasPermsNotVd hreq_wr hwr_perms
-
-            have hexists_pred_dir := hdir_before_after.hasPermsDirBefore b init (Event.cacheEvent ce)
-            use hexists_pred_dir.hpred_accesses_dir.choose
-            apply And.intro
-            . case h.left => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.left
-            . case h.right =>
-              apply And.intro
-              . case left => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.right.isDir
-              . case right =>
-                apply dirAccessOfRequest.orderBeforeDir
-                . case hreq_has_perms => exact hhas_perms
-                . case hpred_accesses_dir => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.right
+            exact b.exists_e_dir_orderBeforeDir init (Event.cacheEvent ce) (by simp[hce] at he_req_in_b; exact he_req_in_b) hhas_perms hdir_before_after
           . case neg =>
             simp at hnot_on_vd
             /- [NOTE] Use Behaviour.hasPermsNotVd .ncWeakReadHasPermsNotVd
@@ -690,23 +719,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
                 subst state_req_made_on event_req
                 apply Or.intro_left
                 simp[hnot_on_vd]
-            have hexists_dir_after := hdir_before_after.vdDirAfter b init (Event.cacheEvent ce)
-            use hexists_dir_after.hsucc_encap_dir.choose
-            apply And.intro
-            . case h.left => exact hexists_dir_after.hsucc_encap_dir.choose_spec.left
-            . case h.right =>
-              apply And.intro
-              . case left =>
-                have hsucc_wb_or_get_sw := hexists_dir_after.hsucc_encap_dir.choose_spec.right.choose_spec.right
-                simp[ImmediateBottomSuccSatisfyingProp, IsImmediateBottomPredSatisfyingProp] at hsucc_wb_or_get_sw
-                have hsucc_prop := hsucc_wb_or_get_sw.satisfyP
-                simp[Event.PropOnEvent] at hsucc_prop
-                have his_dir := hsucc_prop.encapCorresponding.isDir
-                exact his_dir
-              . case right =>
-                apply dirAccessOfRequest.orderAfterDir
-                . case hweak_read_on_vd => exact hreq_on_vd
-                . case hsucc_encap_dir => exact hexists_dir_after.hsucc_encap_dir.choose_spec.right
+            exact b.exists_e_dir_orderAfterDir init (Event.cacheEvent ce) (by simp[hce] at he_req_in_b; exact he_req_in_b) hreq_on_vd hdir_before_after
         . case neg =>
           /- Request has no permissions, so encapsulates a directory event to access the Directory. -/
           have hreq_not_rel_acq_ww : (Event.cacheEvent ce).notNcRelAcqWeakWrite := by
@@ -724,18 +737,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
             simp[hce,] at he_req_in_b
             simp[he_req_in_b]
           have hreq_cache : (Event.cacheEvent ce).isCacheEvent := by simp[Event.isCacheEvent]
-
-          have hencap_dir :=  Behaviour.reqMissingPerms_accesses_dir n hce_in_b hreq_cache hno_perms hreq_encap_dir
-          use hencap_dir.choose
-          apply And.intro
-          . case h.left => simp[hencap_dir.choose_spec.left,]
-          . case h.right =>
-            apply And.intro
-            . case left => exact hencap_dir.choose_spec.right.isDir
-            . case right =>
-              apply dirAccessOfRequest.encapDir
-              . case hreq_missing_perms => exact hno_perms
-              . case hencap_dir => exact hencap_dir.choose_spec.right
+          exact b.exists_e_dir_encapDir init (Event.cacheEvent ce) hce_in_b hreq_cache hno_perms hreq_encap_dir
       | ⟨⟨.r,false,.Acq⟩, _⟩ =>
         have hnot_down : ¬ (Event.cacheEvent ce).down := by simp[Event.down, hdown]
         let event_req := (Event.cacheEvent ce)
@@ -758,18 +760,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
               simp[reqMadeOnCoherentState]
               exact hreq_has_perms.left
           have hhas_perms := reqHasPerms.ncRelAcqWeakWriteHasCoherentPerms hreq_rel_acq_ww hwr_perms
-
-          have hexists_pred_dir := hdir_before_after.hasPermsDirBefore b init (Event.cacheEvent ce)
-          use hexists_pred_dir.hpred_accesses_dir.choose
-          apply And.intro
-          . case h.left => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.left
-          . case h.right =>
-            apply And.intro
-            . case left => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.right.isDir
-            . case right =>
-              apply dirAccessOfRequest.orderBeforeDir
-              . case hreq_has_perms => exact hhas_perms
-              . case hpred_accesses_dir => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.right
+          exact b.exists_e_dir_orderBeforeDir init (Event.cacheEvent ce) (by simp[hce] at he_req_in_b; exact he_req_in_b) hhas_perms hdir_before_after
         . case neg =>
           /- Request has no permissions, so encapsulates a directory event to access the Directory. -/
           have hreq_not_rel_acq_ww : (Event.cacheEvent ce).isNcRelAcq := by
@@ -789,18 +780,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
             simp[hce,] at he_req_in_b
             simp[he_req_in_b]
           have hreq_cache : (Event.cacheEvent ce).isCacheEvent := by simp[Event.isCacheEvent]
-
-          have hencap_dir := Behaviour.reqMissingPerms_accesses_dir n hce_in_b hreq_cache hno_perms hreq_encap_dir
-          use hencap_dir.choose
-          apply And.intro
-          . case h.left => simp[hencap_dir.choose_spec.left,]
-          . case h.right =>
-            apply And.intro
-            . case left => exact hencap_dir.choose_spec.right.isDir
-            . case right =>
-              apply dirAccessOfRequest.encapDir
-              . case hreq_missing_perms => exact hno_perms
-              . case hencap_dir => exact hencap_dir.choose_spec.right
+          exact b.exists_e_dir_encapDir init (Event.cacheEvent ce) hce_in_b hreq_cache hno_perms hreq_encap_dir
       | ⟨⟨.w,false,.Weak⟩, _⟩ =>
         have hnot_down : ¬ (Event.cacheEvent ce).down := by simp[Event.down, hdown]
         let event_req := (Event.cacheEvent ce)
@@ -823,18 +803,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
               simp[reqMadeOnCoherentState]
               exact hreq_has_perms.left
           have hhas_perms := reqHasPerms.ncRelAcqWeakWriteHasCoherentPerms hreq_rel_acq_ww hwr_perms
-
-          have hexists_pred_dir := hdir_before_after.hasPermsDirBefore b init (Event.cacheEvent ce)
-          use hexists_pred_dir.hpred_accesses_dir.choose
-          apply And.intro
-          . case h.left => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.left
-          . case h.right =>
-            apply And.intro
-            . case left => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.right.isDir
-            . case right =>
-              apply dirAccessOfRequest.orderBeforeDir
-              . case hreq_has_perms => exact hhas_perms
-              . case hpred_accesses_dir => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.right
+          exact b.exists_e_dir_orderBeforeDir init (Event.cacheEvent ce) (by simp[hce] at he_req_in_b; exact he_req_in_b) hhas_perms hdir_before_after
         . case neg =>
           /- Show a future event writes back. -/
             have hreq_on_vd : b.ncWeakReqOnVd n init (Event.cacheEvent ce) := by
@@ -902,23 +871,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
                         simp[EntryState.cache]
                     | .inr _ => simp [he_state, EntryState.isCacheState] at hstate_before_cache
 
-            have hexists_dir_after := hdir_before_after.vdDirAfter b init (Event.cacheEvent ce)
-            use hexists_dir_after.hsucc_encap_dir.choose
-            apply And.intro
-            . case h.left => exact hexists_dir_after.hsucc_encap_dir.choose_spec.left
-            . case h.right =>
-              apply And.intro
-              . case left =>
-                have hsucc_wb_or_get_sw := hexists_dir_after.hsucc_encap_dir.choose_spec.right.choose_spec.right
-                simp[ImmediateBottomSuccSatisfyingProp, IsImmediateBottomPredSatisfyingProp] at hsucc_wb_or_get_sw
-                have hsucc_prop := hsucc_wb_or_get_sw.satisfyP
-                simp[Event.PropOnEvent] at hsucc_prop
-                have his_dir := hsucc_prop.encapCorresponding.isDir
-                exact his_dir
-              . case right =>
-                apply dirAccessOfRequest.orderAfterDir
-                . case hweak_read_on_vd => exact hreq_on_vd
-                . case hsucc_encap_dir => exact hexists_dir_after.hsucc_encap_dir.choose_spec.right
+            exact b.exists_e_dir_orderAfterDir init (Event.cacheEvent ce) (by simp[hce] at he_req_in_b; exact he_req_in_b) hreq_on_vd hdir_before_after
       | ⟨⟨.w,false,.Rel⟩, _⟩ =>
         have hnot_down : ¬ (Event.cacheEvent ce).down := by simp[Event.down, hdown]
         let event_req := (Event.cacheEvent ce)
@@ -941,18 +894,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
               simp[reqMadeOnCoherentState]
               exact hreq_has_perms.left
           have hhas_perms := reqHasPerms.ncRelAcqWeakWriteHasCoherentPerms hreq_rel_acq_ww hwr_perms
-
-          have hexists_pred_dir := hdir_before_after.hasPermsDirBefore b init (Event.cacheEvent ce)
-          use hexists_pred_dir.hpred_accesses_dir.choose
-          apply And.intro
-          . case h.left => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.left
-          . case h.right =>
-            apply And.intro
-            . case left => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.right.isDir
-            . case right =>
-              apply dirAccessOfRequest.orderBeforeDir
-              . case hreq_has_perms => exact hhas_perms
-              . case hpred_accesses_dir => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.right
+          exact b.exists_e_dir_orderBeforeDir init (Event.cacheEvent ce) (by simp[hce] at he_req_in_b; exact he_req_in_b) hhas_perms hdir_before_after
         . case neg =>
           /- Request has no permissions, so encapsulates a directory event to access the Directory. -/
           have hreq_not_rel_acq_ww : (Event.cacheEvent ce).isNcRelAcq := by
@@ -972,18 +914,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
             simp[hce,] at he_req_in_b
             simp[he_req_in_b]
           have hreq_cache : (Event.cacheEvent ce).isCacheEvent := by simp[Event.isCacheEvent]
-
-          have hencap_dir := Behaviour.reqMissingPerms_accesses_dir n hce_in_b hreq_cache hno_perms hreq_encap_dir
-          use hencap_dir.choose
-          apply And.intro
-          . case h.left => simp[hencap_dir.choose_spec.left,]
-          . case h.right =>
-            apply And.intro
-            . case left => exact hencap_dir.choose_spec.right.isDir
-            . case right =>
-              apply dirAccessOfRequest.encapDir
-              . case hreq_missing_perms => exact hno_perms
-              . case hencap_dir => exact hencap_dir.choose_spec.right
+          exact b.exists_e_dir_encapDir init (Event.cacheEvent ce) hce_in_b hreq_cache hno_perms hreq_encap_dir
     | true =>
       simp[hce] at ax6
       match ax6 with
