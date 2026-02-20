@@ -39,7 +39,77 @@ structure CompoundProtocol.globalLinearizationEventOfRequest (cmp : CompoundProt
   hreq's_dir_access : ∃ e_cdir ∈ b, b.dirAccessOfRequest n init e_creq e_cdir
   hreq's_global_lin: ∃ e_gdir ∈ b, CompoundProtocol.clusterDirGlobalLin n cmp.shimAxioms b init hreq's_dir_access.choose e_gdir (Behaviour.dirAccessOfRequest.isDirEvent n hreq's_dir_access.choose_spec.right)
 
-/- -- TODO:
+-- Try to see if this TODO is provable...
+
+/-- Common structure: GLE ordering (write's GLE immediately before read's GLE) -/
+structure Behaviour.readsFrom.gleImmediatelyBefore (cmp : CompoundProtocol n) (b : Behaviour n)
+  (init : InitialSystemState n) (e_w e_r : Event n)
+  (hw_cluster : e_w.isClusterCache) (hr_cluster : e_r.isClusterCache) : Prop where
+  hw_gle : CompoundProtocol.globalLinearizationEventOfRequest n cmp b init e_w hw_cluster
+  hr_gle : CompoundProtocol.globalLinearizationEventOfRequest n cmp b init e_r hr_cluster
+  gle_ordered : hw_gle.hreq's_global_lin.choose.OrderedBefore n hr_gle.hreq's_global_lin.choose
+  gle_no_intermediate : ∀ e_inter ∈ b, ∀ (h_inter_cluster : e_inter.isClusterCache),
+    ∀ (hinter_gle : CompoundProtocol.globalLinearizationEventOfRequest n cmp b init e_inter h_inter_cluster),
+    ¬ (hw_gle.hreq's_global_lin.choose.OrderedBefore n hinter_gle.hreq's_global_lin.choose ∧
+       hinter_gle.hreq's_global_lin.choose.OrderedBefore n hr_gle.hreq's_global_lin.choose)
+
+/-- Helper: downgrade immediately after write at the same cache -/
+structure Behaviour.readsFrom.downgradeImmediatelyAfterWrite (b : Behaviour n)
+  (e_w e_r : Event n) : Prop where
+  down_exists : ∃ e_down ∈ b, e_r.Encapsulates n e_down ∧ e_down.down ∧ e_down.cid = e_w.cid
+  down_immediately_after : ∃ e_down ∈ b, e_r.Encapsulates n e_down ∧ e_w.OrderedBefore n e_down ∧
+    ∀ e_inter ∈ b, e_inter.cid = e_w.cid →
+    ¬ (e_w.OrderedBefore n e_inter ∧ e_inter.OrderedBefore n e_down)
+
+/-- Case 1: Write with coherent permissions (has predecessor that got perms) -/
+structure Behaviour.readsFrom.writeWithCoherentPred (cmp : CompoundProtocol n) (b : Behaviour n)
+  (init : InitialSystemState n) (e_w e_r : Event n)
+  (hw_cluster : e_w.isClusterCache) (hr_cluster : e_r.isClusterCache) : Prop where
+  w_is_write : e_w.isWrite
+  r_is_read : e_r.isRead
+  w_has_perms : b.reqHasPerms n init e_w
+  w_has_pred : b.reqHasPermsSoDirPred n init e_w
+  gle_ordering : Behaviour.readsFrom.gleImmediatelyBefore n cmp b init e_w e_r hw_cluster hr_cluster
+  downgrade : Behaviour.readsFrom.downgradeImmediatelyAfterWrite n b e_w e_r
+
+/-- Case 2: Coherent write request -/
+structure Behaviour.readsFrom.coherentWriteRequest (cmp : CompoundProtocol n) (b : Behaviour n)
+  (init : InitialSystemState n) (e_w e_r : Event n)
+  (hw_cluster : e_w.isClusterCache) (hr_cluster : e_r.isClusterCache) : Prop where
+  w_is_write : e_w.isWrite
+  r_is_read : e_r.isRead
+  w_is_coherent : e_w.isCoherent
+  gle_ordering : Behaviour.readsFrom.gleImmediatelyBefore n cmp b init e_w e_r hw_cluster hr_cluster
+  downgrade : Behaviour.readsFrom.downgradeImmediatelyAfterWrite n b e_w e_r
+
+/-- Case 3: Non-coherent write without permissions -/
+structure Behaviour.readsFrom.nonCoherentWrite (cmp : CompoundProtocol n) (b : Behaviour n)
+  (init : InitialSystemState n) (e_w e_r : Event n)
+  (hw_cluster : e_w.isClusterCache) (hr_cluster : e_r.isClusterCache) : Prop where
+  w_is_write : e_w.isWrite
+  r_is_read : e_r.isRead
+  w_non_coherent : ¬ e_w.isCoherent
+  w_no_perms : b.reqMissingPerms n init e_w
+  gle_ordering : Behaviour.readsFrom.gleImmediatelyBefore n cmp b init e_w e_r hw_cluster hr_cluster
+  downgrade_to_gcache : ∃ e_down ∈ b, e_r.Encapsulates n e_down ∧ e_down.down ∧
+    e_down.protocol = .global ∧ e_down.isGlobalCache
+
+/-- The Rf (reads-from) relation between a write request and a read request.
+    The write's GLE must be immediately before the read's GLE (no intermediate GLE). -/
+inductive Behaviour.readsFrom (shimAxioms : ShimAxioms n) (cmp : CompoundProtocol n) (b : Behaviour n)
+  (init : InitialSystemState n) (e_w e_r : Event n)
+  (hw_cluster : e_w.isClusterCache) (hr_cluster : e_r.isClusterCache) : Prop
+| writeWithCoherentPerms
+  (h : Behaviour.readsFrom.writeWithCoherentPred n cmp b init e_w e_r hw_cluster hr_cluster)
+  : Behaviour.readsFrom shimAxioms cmp b init e_w e_r hw_cluster hr_cluster
+| coherentWriteRequestNoPerms
+  (h : Behaviour.readsFrom.coherentWriteRequest n cmp b init e_w e_r hw_cluster hr_cluster)
+  : Behaviour.readsFrom shimAxioms cmp b init e_w e_r hw_cluster hr_cluster
+| nonCoherentWriteNoPerms
+  (h : Behaviour.readsFrom.nonCoherentWrite n cmp b init e_w e_r hw_cluster hr_cluster)
+  : Behaviour.readsFrom shimAxioms cmp b init e_w e_r hw_cluster hr_cluster
+
+/- -- TODO (Attempted above.):
 Define the rf relation between a write request `e_w` and a read request `e_r`:
 assume the "globalLinearizationEventOfRequest" (GLE) of the write request `e_w_gle` is immediately before
 the GLE of the read request `e_r_gle` (there is no intermediate GLE between them).
