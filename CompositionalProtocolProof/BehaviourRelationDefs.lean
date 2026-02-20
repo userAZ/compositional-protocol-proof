@@ -577,6 +577,13 @@ inductive Behaviour.dirAccessOfRequest (b : Behaviour n) (init : InitialSystemSt
 | orderAfterDir (hweak_read_on_vd : b.ncWeakReqOnVd n init e_req) (hsucc_encap_dir : b.immBottomSuccOnVdEncapCorrDir n init e_req e_dir)
   : Behaviour.dirAccessOfRequest b init e_req e_dir
 
+-- Prove rf relation.
+
+def Behaviour.dirAccessOfRequest.isDirEvent {b : Behaviour n} {init : InitialSystemState n} {e_req e_dir : Event n} (h : b.dirAccessOfRequest n init e_req e_dir) : e_dir.isDirectoryEvent :=
+  match h with
+  | .encapDir _ hencap_dir => hencap_dir.isDir
+  | .orderBeforeDir _ _ hpred_accesses_dir _ => hpred_accesses_dir.isDir
+  | .orderAfterDir _ hsucc_encap_dir => hsucc_encap_dir.choose_spec.right.satisfyP.encapCorresponding.isDir
 
 /-- Top Level Def. Prop on a Coherent Request `e_coh_req`, and where will the directory event that gave it cache permissions for `e_coh_req`'s access is. -/
 structure Behaviour.coherentReqDirEventNoPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop where
