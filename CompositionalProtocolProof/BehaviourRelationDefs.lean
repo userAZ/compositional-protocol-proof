@@ -552,6 +552,13 @@ def Behaviour.succOnVdWithCorrespondingDir (b : Behaviour n) (init : InitialSyst
 def Behaviour.immBottomSuccOnVdEncapCorrDir (b : Behaviour n) (init : InitialSystemState n) (e_req e_dir : Event n) : Prop :=
   ∃ e_succ ∈ b, b.ImmediateBottomSuccSatisfyingProp n e_req e_succ (b.succOnVdWithCorrespondingDir n init · e_dir)
 
+def Behaviour.stateBeforeAtLeast (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) (state : State) : Prop :=
+  state ≤ (b.stateBefore n (init.stateAt n e_req) e_req).cache
+
+structure Behaviour.stateBeforeAndAfterAtLeast (b : Behaviour n) (init : InitialSystemState n) (e_inter e_req : Event n) : Prop where
+  hinter_state_before_at_least : b.stateBeforeAtLeast n init e_inter e_req.req.MRS
+  hinter_leaves_state_at_least : b.reqLeavesStateAtLeast n e_inter init e_req.req.MRS
+
 /-- Trying something new: separately state the cases of where -/
 inductive Behaviour.dirAccessOfRequest (b : Behaviour n) (init : InitialSystemState n) (e_req e_dir : Event n) : Prop
 | encapDir (hreq_missing_perms : b.reqMissingPerms n init e_req)
@@ -561,6 +568,11 @@ inductive Behaviour.dirAccessOfRequest (b : Behaviour n) (init : InitialSystemSt
   (hreq_has_perms : b.reqHasPerms n init e_req)
   (hexists_pred_getting_perms : b.reqHasPermsSoDirPred n init e_req)
   (hpred_accesses_dir : b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n hexists_pred_getting_perms.choose) true hexists_pred_getting_perms.choose e_dir)
+  /- All requests between the predecessor and e_req `e_inter` that
+     gets permissions (`hexists_pred_getting_perms.choose`) and `e_req` have permissions (like `b.reqHasPerms`),
+     and leave the cache state with at least as much permissions (`b.reqLeavesStateAtLeast`  n `e_inter` init e_req.req.MRS).
+     -/
+  (hinter_leaves_state_at_least : b.stateBeforeAndAfterAtLeast n init hexists_pred_getting_perms.choose e_req)
   : Behaviour.dirAccessOfRequest b init e_req e_dir
 | orderAfterDir (hweak_read_on_vd : b.ncWeakReqOnVd n init e_req) (hsucc_encap_dir : b.immBottomSuccOnVdEncapCorrDir n init e_req e_dir)
   : Behaviour.dirAccessOfRequest b init e_req e_dir
