@@ -314,7 +314,7 @@ lemma CompoundProtocol.dir_lin_encap_global_dir_lin
   . case encapDir hgreq_no_perms hgreq_encap_gdir =>
     calc Event.Encapsulates n _ e_translated_greq := hgenerated_cdir_encap_greq.encapGlobalCache
       Event.Encapsulates n _ e_gdir := hgreq_encap_gdir.reqEncapDir
-  . case orderBeforeDir hgreq_has_perms _ _ =>
+  . case orderBeforeDir hgreq_has_perms _ _ _ =>
     exfalso
     apply Event.contradiction_of_has_perms_and_no_perms
     . case he_req => exact hgenerated_cdir_encap_greq.gReqOfCDir.matchingOp
@@ -353,7 +353,7 @@ lemma CompoundProtocol.e_encap_dir_lin_encap_global_dir_lin
     calc e.Encapsulates n e_generated_cdir := he_encap_corr_dir.reqEncapDir
       Event.Encapsulates n _ e_translated_greq := hgenerated_cdir_encap_greq.encapGlobalCache
       Event.Encapsulates n _ e_gdir := hgreq_encap_gdir.reqEncapDir
-  . case orderBeforeDir hgreq_has_perms _ _ =>
+  . case orderBeforeDir hgreq_has_perms _ _ _ =>
     exfalso
     apply Event.contradiction_of_has_perms_and_no_perms
     . case he_req => exact htranslation.gReqOfCDir.matchingOp
@@ -456,7 +456,7 @@ lemma CompoundProtocol.nc_release_request_encapsulates_compound_linearization_ev
           . case hgcache_lin_at_gdir => exact hat_dir.choose_spec.right.reqLinearizeAtDir.choose_spec.right
         . case h_2 hgcache_lin_event hat_cache =>
           exfalso; exact hgcache_lin_cases
-  . case orderBeforeDir he_has_perms hexists_pred_get_perms hpred_encap_dir =>
+  . case orderBeforeDir he_has_perms hexists_pred_get_perms hpred_encap_dir _ =>
     exfalso
     apply Event.contradiction_of_nc_release_request_has_perms_and_no_perms
     . case he_req => exact he_req
@@ -522,7 +522,7 @@ lemma CompoundProtocol.acquire_request_encapsulates_compound_linearization_event
           . case hgcache_lin_at_gdir => exact hat_dir.choose_spec.right.reqLinearizeAtDir.choose_spec.right
         . case h_2 hgcache_lin_event hat_cache =>
           exfalso; exact hgcache_lin_cases
-  . case orderBeforeDir he_has_perms hexists_pred_get_perms hpred_encap_dir =>
+  . case orderBeforeDir he_has_perms hexists_pred_get_perms hpred_encap_dir _ =>
     exfalso
     apply Event.contradiction_of_acquire_request_has_perms_and_no_perms
     . case he_req => exact he_req
@@ -588,7 +588,7 @@ lemma CompoundProtocol.coherent_request_encapsulates_compound_linearization_even
           . case hgcache_lin_at_gdir => exact hat_dir.choose_spec.right.reqLinearizeAtDir.choose_spec.right
         . case h_2 hgcache_lin_event hat_cache =>
           exfalso; exact hgcache_lin_cases
-  . case orderBeforeDir he_has_perms hexists_pred_get_perms hpred_encap_dir =>
+  . case orderBeforeDir he_has_perms hexists_pred_get_perms hpred_encap_dir _ =>
     exfalso
     apply Event.contradiction_of_coherent_request_has_perms_and_no_perms
     . case he_req => exact he_req
@@ -1059,7 +1059,7 @@ lemma CompoundProtocol.weak_write_or_read_and_nc_release_linearize_at_directory
           ValidRequest.isAcquire, ValidRequest.isNcRelease] at hww_is_rel_acq
         simp[he_req_ww] at hww_is_rel_acq
       | .directoryEvent _ => simp at hww_is_rel_acq
-  . case orderBeforeDir he_has_perms hexists_pred_get_perms hpred_encap_dir =>
+  . case orderBeforeDir he_has_perms hexists_pred_get_perms hpred_encap_dir _ =>
     cases rw
     . case r =>
       simp [Behaviour.reqHasPermsSoDirPred] at hexists_pred_get_perms
@@ -1405,7 +1405,7 @@ lemma CompoundProtocol.acquire_and_weak_request_linearize_at_directory
           ValidRequest.isAcquire, ValidRequest.isNcRelease] at hww_is_rel_acq
         simp[he_req_ww] at hww_is_rel_acq
       | .directoryEvent _ => simp at hww_is_rel_acq
-  . case orderBeforeDir he_has_perms hexists_pred_get_perms hpred_encap_dir =>
+  . case orderBeforeDir he_has_perms hexists_pred_get_perms hpred_encap_dir _ =>
     cases rw
     . case r =>
       simp [Behaviour.reqHasPermsSoDirPred] at hexists_pred_get_perms
@@ -1771,7 +1771,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_acquire_and_weak_request
             . case he_req => exact he₂_req
             . case he_not_down => exact he₂_not_down
             . case hreq_missing_perms => exact hreq_missing_perms
-          . case orderBeforeDir hww_req_has_perms hww_exists_pred_get_perms hww_encap_corr_dir =>
+          . case orderBeforeDir hww_req_has_perms hww_exists_pred_get_perms hww_encap_corr_dir _ =>
             exfalso
             apply Event.contradiction_of_weak_write_request_has_perms_and_no_perms
             . case he_req => exact he₂_req
@@ -2306,7 +2306,7 @@ lemma CompoundProtocol.weak_request_to_directory_and_coherent_release_at_cache
       . case he_req => exact he₁_req
       . case he_not_down => exact he₁_not_down
       . case hreq_missing_perms => exact hweak_req_missing_perms
-  . case orderBeforeDir hweak_has_perms hexists_pred_get_perms hpred_corr_dir =>
+  . case orderBeforeDir hweak_has_perms hexists_pred_get_perms hpred_corr_dir _ =>
     cases rw
     . case r =>
       apply Or.intro_left
