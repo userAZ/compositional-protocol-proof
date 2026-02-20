@@ -126,6 +126,7 @@ def CompoundProtocol.compoundLinearization.OfReqEncapDirAccess (shimAxioms : Shi
 /-- Helper for Definition 2.48 -/
 structure Behaviour.eventCompoundLinearizes.atCache (b : Behaviour n) (init : InitialSystemState n) (e_creq e_cmplin : Event n) (e_creq_lin : b.linearizationEventOfRequest n init e_creq) : Prop where
   cluster_cache : e_creq.clusterNonProxyCacheEvent
+  cReqHasPerms : b.reqHasPerms n init e_creq
   lin_at_cache : b.reqLinearizesAtCache n init e_creq e_creq_lin
   e_creq_is_e_glin : e_cmplin = e_creq
 
