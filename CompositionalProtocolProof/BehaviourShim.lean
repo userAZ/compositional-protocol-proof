@@ -40,10 +40,6 @@ structure Event.isGlobalCache (e_greq : Event n) : Prop where
   notAtGProxy : e_greq.reqAtGlobalCache
   reqGlobal : e_greq.protocol = .global
 
-structure Event.isClusterDir (e_dir : Event n) : Prop where
-  dirAtDir : e_dir.isDirectoryEvent
-  dirCluster : e_dir.protocol = .cluster1 ∨ e_dir.protocol = .cluster2
-
 /-- Def 2.43: Constraints of the Global Cache Event corresponding to a Cluster Directory Event. -/
 structure Event.globalCacheEventOfClusterDir (e_greq e_dir : Event n) where
   reqGlobalCache : e_greq.isGlobalCache
