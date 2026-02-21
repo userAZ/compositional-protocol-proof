@@ -30,4 +30,12 @@ def CompoundProtocol.globalCidToProtocol (cmp : CompoundProtocol n) (g_cid : Fin
 def CompoundProtocol.clusterProtocolCorrespondingToGlobalProtocol (cmp : CompoundProtocol n) (e_greq : Event n) : Protocol n :=
   cmp.globalCidToProtocol n (e_greq.globalCacheEventCid n)
 
+def CompoundProtocol.dirAccessOfRequest (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
+  (e_req : Event n) (he_req_in_b : e_req ∈ b)
+  : ∃ e_dir ∈ b, b.dirAccessOfRequest n init e_req e_dir :=
+  match e_req.protocol with
+  | .global => cmp.global.dirAccessOfRequest n b init e_req he_req_in_b
+  | .cluster1 => cmp.cluster1.dirAccessOfRequest n b init e_req he_req_in_b
+  | .cluster2 => cmp.cluster2.dirAccessOfRequest n b init e_req he_req_in_b
+
 /- ----------------------------------------------- -/
