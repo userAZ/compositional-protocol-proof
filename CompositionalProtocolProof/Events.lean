@@ -207,6 +207,16 @@ def Event.isEvictMR : Event n → Prop
 | .cacheEvent ce => ce.isEvictMR
 | .directoryEvent _ => true
 
+/-- The protocol instance of an event. -/
+def Event.protocol (e_req : Event n) : ProtocolInstance := match e_req with
+  | .cacheEvent ce => match ce.cid with
+    | .proxy pi => pi
+    | .cache pci => match pci with
+      | .globalP _ => .global
+      | .cluster1 _ => .cluster1
+      | .cluster2 _ => .cluster2
+  | .directoryEvent de => de.pInst
+
 def Event.isCacheEvent : Event n → Prop
 | .directoryEvent _ => false
 | .cacheEvent _ => true

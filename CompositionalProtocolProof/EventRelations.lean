@@ -575,16 +575,6 @@ structure Event.orderedBeforeToSameEntry (e_lin₂ e_lin₃ : Event n) : Prop wh
   e₂e₃Before : e_lin₂.OrderedBefore n e_lin₃
   e₂e₃sameEntry : e_lin₂.sameEntry n e_lin₃
 
-/-- The protocol instance of an event. -/
-def Event.protocol (e_req : Event n) : ProtocolInstance := match e_req with
-  | .cacheEvent ce => match ce.cid with
-    | .proxy pi => pi
-    | .cache pci => match pci with
-      | .globalP _ => .global
-      | .cluster1 _ => .cluster1
-      | .cluster2 _ => .cluster2
-  | .directoryEvent de => de.pInst
-
 /-- State if two Events are of the same protocol -/
 def Event.sameProtocol (e_req e_dir : Event n) : Prop := e_req.protocol = e_dir.protocol
 
