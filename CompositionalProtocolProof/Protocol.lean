@@ -44,6 +44,7 @@ structure RequestAxioms where
   acqInvals : Behaviour.acqInvalWrapper n
   relWritesBack : Behaviour.ncRelWriteBackWrapper n
   whenReqAccessDir : Behaviour.axRequestAccessesDirectory n
+  hasPermsOrVdDirBeforeAfter : Behaviour.has_perms_or_vd_exists_e_dir_before_or_after n
   vdLaterWBOrGetSW : Behaviour.vdCacheEntryWBOrGetSWLaterWrapper n
   dirIdsOrdered : Behaviour.deidOrdered n
   coherentWriteDowngrades : Behaviour.coherentWriteDirDowngradeOthers n
@@ -62,5 +63,10 @@ structure Protocol where
   linearizationOfEvent : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req ∈ b,
     Behaviour.linearizationEventOfRequest n b init e_req
   eventReqOfProtocol : ∀ b : Behaviour n, ∀ e ∈ b, e.req ∈ requests
+
+def Protocol.dirAccessOfRequest (p : Protocol n) (b : Behaviour n) (init : InitialSystemState n)
+  (e_req : Event n) (he_req_in_b : e_req ∈ b)
+  : ∃ e_dir ∈ b, b.dirAccessOfRequest n init e_req e_dir :=
+  Behaviour.exists_e_dir_access_of_e_req n b init e_req he_req_in_b p.reqAxioms.whenReqAccessDir p.reqAxioms.hasPermsOrVdDirBeforeAfter
 
 /- Want to State if a protocol has some requests. -/
