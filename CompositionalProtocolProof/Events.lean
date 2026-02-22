@@ -353,6 +353,16 @@ noncomputable def Event.MRS : Event n → State
   | false => e.req.MRS
   | true => ⟨e.req.val.rw.toPerms, e.req.val.coherent⟩
 
+def Event.isDirWrite : Event n → Prop
+| .cacheEvent _ => False
+| .directoryEvent de => de.req.val.isWrite
+
+def DirectoryEvent.isEvict (de : DirectoryEvent n) : Prop := de.down
+
+def Event.isDirEvict : Event n → Prop
+| .cacheEvent _ => False
+| .directoryEvent de => de.isEvict
+
 -- def CacheEvent.requestEvent (e : CacheEvent) : Prop := e.cid = e.rid
 -- def CacheEvent.sameAddress (e : CacheEvent) : Prop := e.cid = e.rid
 
