@@ -35,12 +35,17 @@ A cluster request `e_creq` has a CLE `e_creq_lin` that linearizes `e_creq` in it
 `e_creq` also has a GLE `e_creq_gle` that linearizes `e_creq` in the global (total or partial) memory order.
 -/
 structure CompoundProtocol.globalLinearizationEventOfRequest (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
-  (e_creq : Event n) (hcreq_cluster : e_creq.isClusterCache) (hndown : ¬ e_creq.down) : Prop where
+  (e_creq : Event n) (hcreq_cluster : e_creq.isClusterCache) (hndown : ¬ e_creq.down) where
   -- The "Cluster Memory Order, CMO"
   hreq's_dir_access : ∃ e_cdir ∈ b, b.dirAccessOfRequest n init e_creq e_cdir
   -- The "Global Memory Order, GMO"
   hreq's_global_lin : ∃ e_gdir ∈ b, b.dirAccessOfRequest n init
     (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init hreq's_dir_access) e_gdir
+
+def CompoundProtocol.globalLinearizationEventOfRequest.wrapper :=
+  ∀ cmp : CompoundProtocol n, ∀ b : Behaviour n, ∀ init : InitialSystemState n,
+  ∀ e_creq : Event n, ∀ hcreq_cluster : e_creq.isClusterCache, ∀ hndown : ¬ e_creq.down,
+    CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_creq hcreq_cluster hndown
 
 /- Definitions to define rf cases for load value axiom. -/
 
