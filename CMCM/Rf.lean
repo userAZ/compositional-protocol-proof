@@ -202,6 +202,7 @@ inductive WriteRead.wObRCle.diffCache.case
     if no evict, then e_r downgrade is after e_w;
     if evict, then e_r's CLE is after e_w's CLE, with an evict in between.
   -/
+  (hw_nc : e_w.isCoherent)
   -- Use WriteRead.wObRCle.diffCache.wHasPermsAfter.cases
   (coherent_write : WriteRead.wObRCle.diffCache.wHasPermsAfter.case cmp b init (hw_c_and_g_lin.hreq's_dir_access.choose) (hr_c_and_g_lin.hreq's_dir_access.choose) hw_c_and_g_lin hr_c_and_g_lin)
   : WriteRead.wObRCle.diffCache.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin
@@ -211,6 +212,9 @@ inductive WriteRead.wObRCle.diffCache.case
   is ordered before `e_r`'s downgrade `e_r_gdown`
   -- and there is no global cache write between `e_w_cle_gcache` and `e_r_gdown`.
   -/
+  (hw_no_perms : b.reqMissingPerms n init e_w)
+  (hw_nc : e_w.isNonCoherent)
+  (hw_gcache_ob_r_gdown : WriteRead.wCleAfter.cond.wrapper cmp b init hw_c_and_g_lin hr_c_and_g_lin)
   : WriteRead.wObRCle.diffCache.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin
 | wCleAfter -- `e_w`'s CLE is after `e_w`. (dirAccessOfRequest .after case.)
   /- subcases are:
@@ -219,7 +223,7 @@ inductive WriteRead.wObRCle.diffCache.case
     (Not allowed, coherent req is a competing write!):
       case of coherent req after `e_w` (i.e. in RCC-O or L-RCC protocol interfaces).
     -/
-    (hw_ob_r_no_writes_btn : WriteRead.wCleAfter.cond.wrapper cmp b init hw_c_and_g_lin hr_c_and_g_lin)
+  (hw_ob_r_no_writes_btn : WriteRead.wCleAfter.cond.wrapper cmp b init hw_c_and_g_lin hr_c_and_g_lin)
   : WriteRead.wObRCle.diffCache.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin
 
   /- End Defs for WriteRead.wObRCle.diffCache.case case -/
