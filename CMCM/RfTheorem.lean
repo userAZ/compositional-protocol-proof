@@ -78,4 +78,6 @@ theorem CMCM.rf_holds
   (hno_intervening_writes : NoInterveningWrites hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
   : Behaviour.readsFrom.cases hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin
   := by
+  -- probably want to start with cases of `e_w` and `e_r`'s GLEs.
+  -- Only expand cases of `e_w` and `e_r`'s requests (coherent, non-coherent, release, acquire...) further into the subcases.
   sorry
