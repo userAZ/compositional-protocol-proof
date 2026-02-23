@@ -494,7 +494,11 @@ structure Behaviour.exists_predecessor_setting_state (b : Behaviour n) (init : I
   hreq_has_perms : b.reqHasPerms n init e_req
   hexists_pred_getting_perms : b.reqHasPermsSoDirPred n init e_req
   hpred_accesses_dir : ∃ e_dir ∈ b, b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n hexists_pred_getting_perms.choose) true hexists_pred_getting_perms.choose e_dir
-  hinter_leaves_state_at_least : b.stateBeforeAndAfterAtLeast n init hexists_pred_getting_perms.choose e_req
+  -- hinter_leaves_state_at_least : b.stateBeforeAndAfterAtLeast n init hexists_pred_getting_perms.choose e_req
+  hinter_leaves_state_at_least : ∀ e_inter ∈ b,
+    e_inter.OrderedBetween n hexists_pred_getting_perms.choose e_req →
+    b.stateBeforeAndAfterAtLeast n init hexists_pred_getting_perms.choose e_req
+  hinter_same_protocol : hexists_pred_getting_perms.choose.sameProtocol n e_req
 
 /-- Axiom 7 Redux. -/
 structure Behaviour.exists_vd_successor_wb_or_get_sw (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) where
@@ -504,7 +508,7 @@ structure Behaviour.exists_vd_successor_wb_or_get_sw (b : Behaviour n) (init : I
      gets permissions (`hsucc_encap_dir.choose`) and `e_req` have permissions (like `b.reqHasPerms`),
      and leave the cache state with at least as much permissions (`b.reqLeavesStateAtLeast`  n `e_inter` init e_req.req.MRS).
      -/
-  hinter_leaves_state_at_least : b.stateBeforeAndAfterAtLeast n init hsucc_encap_dir.choose e_req
+  -- hinter_leaves_state_at_least : b.stateBeforeAndAfterAtLeast n init hsucc_encap_dir.choose e_req
 
 structure Behaviour.has_perms_or_vd_exists_e_dir_before_or_after where
   hasPermsDirBefore : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req : Event n, b.exists_predecessor_setting_state n init e_req
@@ -590,6 +594,7 @@ private lemma Behaviour.exists_e_dir_orderBeforeDir {n : ℕ} (b : Behaviour n) 
     . case hreq_has_perms => exact hhas_perms
     . case hpred_accesses_dir => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.right
     . case hinter_leaves_state_at_least => exact hexists_pred_dir.hinter_leaves_state_at_least
+    . case hpred_same_protocol => exact hexists_pred_dir.hinter_same_protocol
 
 /-- Helper: Find directory event for request without permissions (encapDir case) -/
 private lemma Behaviour.exists_e_dir_encapDir {n : ℕ} (b : Behaviour n) (init : InitialSystemState n)
