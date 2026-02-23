@@ -389,7 +389,7 @@ def CompoundProtocol.cleImmediatePredecessor
 structure IntermediateDirEvictOrRead
   (e_cdir_inter e_w_cle e_r_cle : Event n)
   : Prop where
-  readOrEvict : e_cdir_inter.isDirRead ∨ e_cdir_inter.isDirEvict
+  readOrEvict : e_cdir_inter.isDirRead -- Not a write or write-downgrade.
   sameProtocol : e_cdir_inter.sameProtocol n e_w_cle
   sameStructure : e_cdir_inter.sameStructure n e_w_cle
   betweenWR : e_cdir_inter.OrderedBetween n e_w_cle e_r_cle
