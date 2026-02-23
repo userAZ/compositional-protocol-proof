@@ -321,7 +321,7 @@ lemma CompoundProtocol.dir_lin_encap_global_dir_lin
     . case he_not_down => exact hgenerated_cdir_encap_greq.gReqOfCDir.notDowngrade
     . case he_has_perms => exact hgreq_has_perms
     . case he_no_perms => exact hgreq_encap_corr_gdir.reqHasNoPerms
-  . case orderAfterDir hweak_read_vd himm_successor =>
+  . case orderAfterDir hweak_read_vd himm_successor _ =>
     have hweak_req := hweak_read_vd.weakReq
     have hgreq_req := hgenerated_cdir_encap_greq.gReqOfCDir.matchingOp
     simp[Event.isNcWeak, Event.isNonCoherent, Event.isWeak] at hweak_req
@@ -360,7 +360,7 @@ lemma CompoundProtocol.e_encap_dir_lin_encap_global_dir_lin
     . case he_not_down => exact htranslation.gReqOfCDir.notDowngrade
     . case he_has_perms => exact hgreq_has_perms
     . case he_no_perms => exact hgreq_encap_corr_gdir.reqHasNoPerms
-  . case orderAfterDir hweak_read_vd himm_successor =>
+  . case orderAfterDir hweak_read_vd himm_successor _ =>
     have hweak_req := hweak_read_vd.weakReq
     have hgreq_req := htranslation.gReqOfCDir.matchingOp
     simp[Event.isNcWeak, Event.isNonCoherent, Event.isWeak] at hweak_req
@@ -463,7 +463,7 @@ lemma CompoundProtocol.nc_release_request_encapsulates_compound_linearization_ev
     . case he_not_down => exact he_not_down
     . case he_has_perms => exact he_has_perms
     . case he_no_perms => exact he_has_no_perms
-  . case orderAfterDir hweak_read hsuccessor_dir =>
+  . case orderAfterDir hweak_read hsuccessor_dir _ =>
     have hweak_req := hweak_read.weakReq
     simp[Event.isNcWeak, Event.isNonCoherent, Event.isWeak] at hweak_req
     match e with
@@ -529,7 +529,7 @@ lemma CompoundProtocol.acquire_request_encapsulates_compound_linearization_event
     . case he_not_down => exact he_not_down
     . case he_has_perms => exact he_has_perms
     . case he_no_perms => exact he_has_no_perms
-  . case orderAfterDir hweak_read hsuccessor_dir =>
+  . case orderAfterDir hweak_read hsuccessor_dir _ =>
     have hweak_req := hweak_read.weakReq
     simp[Event.isNcWeak, Event.isNonCoherent, Event.isWeak] at hweak_req
     match e with
@@ -595,7 +595,7 @@ lemma CompoundProtocol.coherent_request_encapsulates_compound_linearization_even
     . case he_not_down => exact he_not_down
     . case he_has_perms => exact he_has_perms
     . case he_no_perms => exact he_has_no_perms
-  . case orderAfterDir hweak_read hsuccessor_dir =>
+  . case orderAfterDir hweak_read hsuccessor_dir _ =>
     have hweak_req := hweak_read.weakReq
     simp[Event.isNcWeak, Event.isNonCoherent, Event.isWeak] at hweak_req
     match e with
@@ -1095,7 +1095,7 @@ lemma CompoundProtocol.weak_write_or_read_and_nc_release_linearize_at_directory
       . case he_not_down => exact he_not_down_ww
       . case he_has_perms => exact he_has_perms
       . case he_no_perms => exact he_has_no_perms_ww
-  . case orderAfterDir hweak_req_on_vd hsuccessor_dir =>
+  . case orderAfterDir hweak_req_on_vd hsuccessor_dir _ =>
     simp[Behaviour.immBottomSuccOnVdEncapCorrDir] at hsuccessor_dir
     obtain ⟨e_succ_wb, hsucc_wb_in_b, hww_successor_wb⟩ := hsuccessor_dir
     -- have hww_successor_wb := hsuccessor_dir.choose_spec.right
@@ -1498,7 +1498,7 @@ lemma CompoundProtocol.acquire_and_weak_request_linearize_at_directory
       . case he_not_down => exact he_not_down_ww
       . case he_has_perms => exact he_has_perms
       . case he_no_perms => exact he_has_no_perms_ww
-  . case orderAfterDir hweak_req_on_vd hsuccessor_dir =>
+  . case orderAfterDir hweak_req_on_vd hsuccessor_dir _ =>
     simp[Behaviour.immBottomSuccOnVdEncapCorrDir] at hsuccessor_dir
     obtain ⟨e_succ_wb, hsucc_wb_in_b, hww_successor_wb⟩ := hsuccessor_dir
     -- have hww_successor_wb := hsuccessor_dir.choose_spec.right
@@ -1778,7 +1778,7 @@ lemma CompoundProtocol.CompoundLinearizationOrder_of_acquire_and_weak_request
             . case he_not_down => exact he₂_not_down
             . case he_has_perms => exact hww_req_has_perms
             . case he_no_perms => exact hcluster_lin_spec.reqHasNoPerms
-          . case orderAfterDir hweak_req_on_vd hsucc_encap_dir =>
+          . case orderAfterDir hweak_req_on_vd hsucc_encap_dir _ =>
             -- obtain ⟨e_succ_wb, hsucc_in_b, hsucc_spec⟩ := hsucc_encap_dir
             have hsucc_spec := hsucc_encap_dir.choose_spec.right
             rw[Behaviour.ImmediateBottomSuccSatisfyingProp,] at hsucc_spec
@@ -2336,7 +2336,7 @@ lemma CompoundProtocol.weak_request_to_directory_and_coherent_release_at_cache
       . case he_not_down => exact he₁_not_down
       . case he_has_perms => exact hweak_has_perms
       . case he_no_perms => exact hweak_req_cluster_lin.reqHasNoPerms
-  . case orderAfterDir hweak_req_on_vd hsucc_encap_dir =>
+  . case orderAfterDir hweak_req_on_vd hsucc_encap_dir _ =>
     apply Or.intro_right
     case h =>
     apply CompoundProtocol.lazy_coherent_release_ordering
