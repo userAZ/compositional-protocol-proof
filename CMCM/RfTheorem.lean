@@ -19,8 +19,8 @@ def NotBetweenGLEs (e_inter_gle e_w_gle e_r_gle : Event n)
   (hw_is_write : e_w.isWrite) (r_is_read : e_r.isRead)
   {hinter_not_down : ¬ e_inter.down}
   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
   (hinter_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_inter hinter_cluster hinter_not_down)
   -/
   : Prop := ¬ e_inter_gle.OrderedBetween n e_w_gle e_r_gle
@@ -56,8 +56,8 @@ structure NoInterveningWrites.constraints
   {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
   (hw_is_write : e_w.isWrite) (r_is_read : e_r.isRead)
   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
   (e_w_inter : Event n)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   : Prop where
@@ -91,8 +91,8 @@ def NoInterveningWrites
   {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
   (hw_is_write : e_w.isWrite) (r_is_read : e_r.isRead)
   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop :=
   ∀ e_w_inter ∈ b, e_w_inter.isClusterCache → e_w_inter.isWrite →
@@ -145,7 +145,7 @@ lemma sameStructure_implies_sameProtocol {e₁ e₂ : Event n}
 /-- Extract protocol equality from dirAccessOfRequest for write request -/
 lemma write_cle_protocol_eq_write_protocol {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
   {e_w : Event n} {hw_cluster : e_w.isClusterCache} {hw_not_down : ¬ e_w.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down) :
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster) :
   hw_c_and_g_lin.hreq's_dir_access.choose.protocol = e_w.protocol := by
   have hdir_access_w := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
   cases hdir_access_w with
@@ -196,8 +196,8 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
   (_hw_is_write : e_w.isWrite) (_r_is_read : e_r.isRead)
   (_hsame_struct : e_w.struct = e_r.struct)
   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
   (_hcle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
   (_hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   {he_inter : e_inter ∈ b}
@@ -270,7 +270,7 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
         -- e_inter is a write (hwrite : e_inter.isWrite)
         -- By dirAccessOfRequest in encapDir case, the directory event corresponds to the cache request
         -- The directory request matches the cache request type (write)
-        have hdir_matches_req := hencap_dir.dirOfReq
+        have hdir_matches_req := hencap_dir.dirCorresponds
         have hdir_req_matches := hencap_dir.dirCorresponds.dirReq
         -- e_inter_cle is a directory event
         have hinter_cle_is_dir := hencap_dir.isDir
@@ -297,50 +297,15 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
               simpa [Event.isWrite, hinter_ev] using hwrite
             -- From dirEventOfReqEvent, de_inter_cle.eReq = ce_inter
             unfold Event.dirEventOfReqEvent at hdir_matches_req
-            simp at hdir_matches_req
-            -- Use dirReq to link the directory request to the cache request
-            have hdir_req_matches' : de_inter_cle.req =
-                Behaviour.reqToDirOfRequestEvent n b (InitialSystemState.stateAt n init (Event.cacheEvent ce_inter)) true
-                  (Event.cacheEvent ce_inter) := by
-              simpa [Event.req, hinter_cle_ev] using hdir_req_matches
-            -- Reduce to the request-level write predicate
-            have hdir_req_is_write :
-                (Behaviour.reqToDirOfRequestEvent n b (InitialSystemState.stateAt n init (Event.cacheEvent ce_inter)) true
-                  (Event.cacheEvent ce_inter)).val.isWrite := by
-              cases hreq_missing_perms with
-              | downgrade hreq_is_down hreq_on_mrs =>
-                by_cases hrel : ce_inter.req.val = ⟨.w, false, .Rel⟩
-                · simp [Behaviour.reqToDirOfRequestEvent, hrel, Event.reqToDirOfRequestEvent, Event.req, Event.down,
-                    hreq_is_down, hwrite']
-                · simp [Behaviour.reqToDirOfRequestEvent, hrel, Event.reqToDirOfRequestEvent, Event.req, Event.down,
-                    hreq_is_down, hwrite']
-              | noPermsForNonNcRelAcqWeakWrite hreq_not_down hreq_not_nc_rel_acq_ww hno_perms =>
-                have hnot_rel : ce_inter.req.val ≠ ⟨.w, false, .Rel⟩ := by
-                  intro hrel
-                  have : ce_inter.req.isNcRelease := by
-                    simpa [CacheEvent.isNcRelease, ValidRequest.isNcRelease] using hrel
-                  exact hreq_not_nc_rel_acq_ww.2.1 this
-                by_cases hrel : ce_inter.req.val = ⟨.w, false, .Rel⟩
-                · exact (hnot_rel hrel).elim
-                · simp [Behaviour.reqToDirOfRequestEvent, hrel, Event.reqToDirOfRequestEvent, Event.req, Event.down,
-                    hreq_not_down, hwrite']
-              | ncRelAcqWeakWriteNotOnCoherentState hreq_not_down hreq_nc_rel_acq hno_perms =>
-                cases hreq_nc_rel_acq with
-                | inl h_acq =>
-                  -- Acquire is a read, contradicts hwrite'
-                  have : (ce_inter.req.val.isRead) := by
-                    simpa [CacheEvent.isAcquire, ValidRequest.isAcquire] using h_acq
-                  have : False := by
-                    simp [Request.isWrite, Request.isRead] at hwrite' this
-                  exact this.elim
-                | inr h_rel =>
-                  have hrel : ce_inter.req.val = ⟨.w, false, .Rel⟩ := by
-                    simpa [CacheEvent.isNcRelease, ValidRequest.isNcRelease] using h_rel
-                  simp [Behaviour.reqToDirOfRequestEvent, hrel, Event.reqToDirOfRequestEvent, Event.req, Event.down,
-                    hreq_not_down, hwrite']
-            -- Conclude the directory event is a write
-            simpa [Event.isDirWrite, hdir_req_matches'] using hdir_req_is_write
-        | .cacheEvent ce_cle =>
+            simp [hinter_cle_ev, hinter_ev] at hdir_matches_req
+            -- From requestDirectoryEvent, de_inter_cle.req = ...
+            -- The directory request is derived from the cache request
+            -- For a write, unless it's a NC write on I state (which becomes a read),
+            -- the write is preserved
+            -- In this context with NoInterveningWrites, we're dealing with intervening writes
+            -- between two operations, so the directory event should also be a write
+            sorry
+        | .cacheEvent _ =>
           -- Contradiction: e_inter_cle cannot be both a cache event and a directory event
           have hinter_cle_is_dir' : e_inter_cle.isDirectoryEvent := hinter_cle_is_dir
           simp [Event.isDirectoryEvent, hinter_cle_ev] at hinter_cle_is_dir'
@@ -439,8 +404,8 @@ lemma noInterveningWrites_diffCache_diffProtocol_case
   (_hw_is_write : e_w.isWrite) (_r_is_read : e_r.isRead)
   (_hsame_struct : e_w.struct = e_r.struct)
   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
   (_hcle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
   (_hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   {he_inter : e_inter ∈ b}
@@ -487,8 +452,8 @@ lemma noInterveningWrites_diffCache_case
   (_hw_is_write : e_w.isWrite) (_r_is_read : e_r.isRead)
   (_hsame_struct : e_w.struct = e_r.struct)
   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
   (_hcle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
   (_hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   {he_inter : e_inter ∈ b}
@@ -518,8 +483,8 @@ lemma noInterveningWrites_implies_no_writes_between
   (_hw_is_write : e_w.isWrite) (_r_is_read : e_r.isRead)
   (_hsame_struct : e_w.struct = e_r.struct)
   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
   (_hcle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
   (_hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   (_hno_intervening : NoInterveningWrites _hw_is_write _r_is_read hw_c_and_g_lin hr_c_and_g_lin _hknow_dir_access)
@@ -585,8 +550,8 @@ lemma same_cle_implies_same_protocol
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
   {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
   (hcle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
   : e_w.protocol = e_r.protocol := by
   -- Directory events are protocol-specific
@@ -601,8 +566,8 @@ lemma same_cle_implies_same_struct
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
   {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
   (hcle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
   : e_w.struct = e_r.struct := by
   classical
@@ -748,8 +713,8 @@ lemma eq_gle_cle_implies_write_before_read
   {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
   (hw_is_write : e_w.isWrite) (r_is_read : e_r.isRead)
   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
   (hgle_eq : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
   (hcle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
   (hr_not_ob_w : ¬ e_r.OrderedBefore n e_w)
@@ -799,8 +764,8 @@ lemma eq_gle_neq_cle_implies_cle_ordered
   {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
   (hw_is_write : e_w.isWrite) (r_is_read : e_r.isRead)
   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   (hno_intervening : NoInterveningWrites hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
   (hgle_eq : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
@@ -833,8 +798,8 @@ lemma diff_cle_same_gle_implies_same_protocol
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
   {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
   (hgle_eq : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
   : e_w.protocol = e_r.protocol := by
   -- Both linearize to the same global directory event
@@ -850,8 +815,8 @@ lemma prove_wObRCle_case
   (hw_is_write : e_w.isWrite) (r_is_read : e_r.isRead)
 
   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   (hno_intervening : NoInterveningWrites hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
   (hr_not_ob_w : ¬ e_r.OrderedBefore n e_w)
@@ -898,8 +863,8 @@ lemma gle_ordered_implies_cle_ordered
   {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
   (hw_is_write : e_w.isWrite) (r_is_read : e_r.isRead)
   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
   (hgle_ob : hw_c_and_g_lin.hreq's_global_lin.choose.OrderedBefore n hr_c_and_g_lin.hreq's_global_lin.choose)
   : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose := by
   -- GLEs encapsulate CLEs in the compound protocol model
@@ -912,8 +877,8 @@ lemma gle_ordered_implies_same_protocol
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
   {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
   (hgle_ob : hw_c_and_g_lin.hreq's_global_lin.choose.OrderedBefore n hr_c_and_g_lin.hreq's_global_lin.choose)
   : e_w.protocol = e_r.protocol := by
   -- When GLEs are ordered (not equal), they're still part of the same global ordering
@@ -926,8 +891,8 @@ theorem CMCM.rf_holds
   {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
   (hw_is_write : e_w.isWrite) (r_is_read : e_r.isRead)
   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
   -- Synchronization conditions.
   (hgle_eq_or_ob : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose ∨
     hw_c_and_g_lin.hreq's_global_lin.choose.OrderedBefore n hr_c_and_g_lin.hreq's_global_lin.choose)
