@@ -578,6 +578,7 @@ structure Event.orderedBeforeToSameEntry (e_lin₂ e_lin₃ : Event n) : Prop wh
 
 /-- State if two Events are of the same protocol -/
 def Event.sameProtocol (e_req e_dir : Event n) : Prop := e_req.protocol = e_dir.protocol
+def Event.diffProtocol (e_req e_dir : Event n) : Prop := e_req.protocol ≠ e_dir.protocol
 
 /-- Define Lazy Linearization Order: For Linearization Events `e₁` `e₂` and `e₃`,
 If `e₂` is Ordered Before `e₃`, and `e₁` finishes linearizing before `e₃`,
