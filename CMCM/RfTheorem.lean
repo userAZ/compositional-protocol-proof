@@ -30,16 +30,25 @@ def SameClusterCLE.NotBetweenCLEs (e_inter_cle e_w_cle e_r_cle : Event n) : Prop
 --   ¬ e_inter_cle.OrderedBefore n e_r_cle
   ¬ e_inter_cle.OrderedBetween n e_w_cle e_r_cle
 
-structure DiffClusterCLE.NotBetweenCLEs.constraints (e_inter e_w e_r e_inter_down e_w_cle e_r_cle : Event n) : Prop where
-  diffProtocol : e_inter.protocol ≠ e_w.protocol ∧ e_inter.protocol ≠ e_r.protocol
-  downToW : e_inter_down.protocol = e_w_cle.protocol ∧ e_inter_down.protocol = e_r_cle.protocol
-  interEncapDown : e_inter.Encapsulates n e_inter_down
+structure DiffClusterCLE.NotBetweenCLEs.constraints (e_inter e_w e_r e_inter_down : Event n) : Prop where
+  diffProtocol : e_inter.diffProtocol n e_w ∧ e_inter.diffProtocol n e_r
+  downToW : e_inter_down.sameProtocol n e_w
+  isWrite : e_inter_down.isWrite
   downIsDown : e_inter_down.down
+  isDir : e_inter_down.isDirectoryEvent
+  interEncapDown : e_inter.Encapsulates n e_inter_down
 
 def DiffClusterCLE.NotBetweenCLEs (e_inter e_w e_r e_inter_down e_w_cle e_r_cle : Event n) : Prop :=
-  DiffClusterCLE.NotBetweenCLEs.constraints e_inter e_w e_r e_inter_down e_w_cle e_r_cle →
+  DiffClusterCLE.NotBetweenCLEs.constraints e_inter e_w e_r e_inter_down →
 --   ¬ e_inter_cle.OrderedBefore n e_r_cle
-  ¬ e_inter_down.OrderedBetween n e_w_cle e_r_cle
+  e_inter_down.OrderedBetween n e_w_cle e_r_cle
+/-- Helper lemma: constructs constraints from dirWriteDowngradeFromDiffCluster and protocol equalities -/
+lemma DiffClusterCLE.NotBetweenCLEs.constraints_of_downgrade
+  {e_inter e_w e_r e_inter_down : Event n}
+  (hdown : Event.dirWriteDowngradeFromDiffCluster e_inter_down e_inter e_w)
+  (hediff_w : e_inter.protocol ≠ e_w.protocol) (hediff_r : e_inter.protocol ≠ e_r.protocol)
+  : DiffClusterCLE.NotBetweenCLEs.constraints e_inter e_w e_r e_inter_down :=
+  ⟨⟨hediff_w, hediff_r⟩, hdown.sameCluster, hdown.isWrite, hdown.isDown, hdown.isDir, hdown.interEncapDown⟩
 
 structure NoInterveningWrites.constraints
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
@@ -66,12 +75,9 @@ structure NoInterveningWrites.constraints
       hw_c_and_g_lin.hreq's_dir_access.choose
       hr_c_and_g_lin.hreq's_dir_access.choose
   diffClusterNotBetweenCles:
-    ∃ e_inter_down ∈ b,
-    DiffClusterCLE.NotBetweenCLEs
-      e_w_inter e_w e_r
-      e_inter_down
-      hw_c_and_g_lin.hreq's_dir_access.choose
-      hr_c_and_g_lin.hreq's_dir_access.choose
+    ¬ ∃ e_inter_down ∈ b,
+      DiffClusterCLE.NotBetweenCLEs.constraints e_w_inter e_w e_r e_inter_down ∧
+      e_inter_down.OrderedBetween n hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose
 
 def NoInterveningWrites
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
@@ -349,41 +355,33 @@ lemma noInterveningWrites_diffCache_diffProtocol_case
   let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
   let e_inter_cle := hinter_lin.hreq's_dir_access.choose
 
+  -- Compute protocol differences upfront for use in both branches
+  have hdiff_w_protocol : e_inter.diffProtocol n e_w := by
+    unfold Event.diffProtocol Event.sameProtocol at *
+    exact hsame_protocol
+  have hw_r_same_struct : e_w.sameStructure n e_r := by
+    unfold Event.sameStructure
+    exact _hsame_struct
+  have hw_eq_r_protocol : e_w.protocol = e_r.protocol := sameStructure_implies_sameProtocol hw_r_same_struct
+  have hdiff_r_protocol : e_inter.diffProtocol n e_r := by
+    unfold Event.diffProtocol at *
+    calc e_inter.protocol
+      _ ≠ e_w.protocol := hdiff_w_protocol
+      _ = e_r.protocol := hw_eq_r_protocol
+
   apply Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites.otherWDiffCluster
   constructor
   · -- Prove: diffProtocol
-    have hdiff_w_protocol : e_inter.diffProtocol n e_w := by
-      unfold Event.diffProtocol Event.sameProtocol at *
-      exact hsame_protocol
-    have hw_r_same_struct : e_w.sameStructure n e_r := by
-      unfold Event.sameStructure
-      exact _hsame_struct
-    have hw_eq_r_protocol : e_w.protocol = e_r.protocol := sameStructure_implies_sameProtocol hw_r_same_struct
-    have hdiff_r_protocol : e_inter.diffProtocol n e_r := by
-      unfold Event.diffProtocol at *
-      calc e_inter.protocol
-        _ ≠ e_w.protocol := hdiff_w_protocol
-        _ = e_r.protocol := hw_eq_r_protocol
     exact ⟨hdiff_w_protocol, hdiff_r_protocol⟩
   · -- Prove: interCleNotBetween
-    -- Same strategy: use hcontra.notBetweenCles
-    -- Even though e_inter is in a different cluster, its CLE should not be between e_w_cle and e_r_cle
-    exists e_inter
-    constructor
-    · exact he_inter
-    intro hdowngrade
-    -- hdowngrade : Event.dirWriteDowngradeFromDiffCluster with:
-    --   - interEncapDown : e_inter.Encapsulates n e_inter_down
-    --   - interDownBetween : Event.Between b init e_w e_r e_w_cle e_r_cle e_inter_down
-    --   - interDownDown : e_inter_down.down
-    -- So e_inter_down IS between the CLEs
-
-    -- In this case, e_inter is in a different protocol/cluster
-    -- But hcontra.notBetweenCles is an implication: IF same protocol THEN not between
-    -- Since different protocol, the antecedent is false, so notBetweenCles doesn't directly help
-    -- However, we can still derive a contradiction using the global ordering
-    -- TODO: Need different approach for different cluster case
-    sorry
+    -- Use hcontra.diffClusterNotBetweenCles to show the negation
+    -- hcontra.diffClusterNotBetweenCles : ¬ ∃ e_inter_down ∈ b,
+    --   DiffClusterCLE.NotBetweenCLEs.constraints e_inter e_w e_r e_inter_down ∧
+    --   e_inter_down.OrderedBetween n e_w_cle e_r_cle
+    intro ⟨e_inter_down, he_mem, hdown, hob⟩
+    apply hcontra.diffClusterNotBetweenCles
+    use e_inter_down, he_mem
+    exact ⟨DiffClusterCLE.NotBetweenCLEs.constraints_of_downgrade hdown hdiff_w_protocol hdiff_r_protocol, hob⟩
 
 /-- Helper lemma for Case 2: Different cache case with protocol analysis -/
 lemma noInterveningWrites_diffCache_case
@@ -853,8 +851,8 @@ theorem CMCM.rf_holds
           · -- No writes between
             exact noInterveningWrites_implies_no_writes_between hw_is_write r_is_read (same_cle_implies_same_struct hw_c_and_g_lin hr_c_and_g_lin hw_r_cle_eq) hw_c_and_g_lin hr_c_and_g_lin hw_r_cle_eq hknow_dir_access hno_intervening_writes hr_not_ob_w hsucc_w_of_w_after_r
           · -- No evicts between
-            apply no_writes_implies_no_evicts
-            exact noInterveningWrites_implies_no_writes_between hw_is_write r_is_read (same_cle_implies_same_struct hw_c_and_g_lin hr_c_and_g_lin hw_r_cle_eq) hw_c_and_g_lin hr_c_and_g_lin hw_r_cle_eq hknow_dir_access hno_intervening_writes hr_not_ob_w hsucc_w_of_w_after_r
+            -- Just show that if there were a coherent evict between, it would create a contradiciton.
+            sorry
     · -- Case 1b: GLE equal, but CLE different (write's CLE before read's CLE)
       apply Behaviour.readsFrom.wEqRGle.cases.wObRCle
       -- Need to prove WriteRead.wObR.GleOrCle.cases
