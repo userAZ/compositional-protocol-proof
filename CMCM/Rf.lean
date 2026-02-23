@@ -416,7 +416,7 @@ inductive CompoundProtocol.SameCluster.cleOb.cleOrdering.Cases
     (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
   : Prop
   | wImmPredRCle (w_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
-  | evictOrReadBetweenWAndRCleSameCluster (w_imm_pred_r_cle :
+  | evictOrReadBetweenWAndRCleSameCluster (evict_or_read_btn_w_r_cle :
       CLE.WROrdering.evictOrReadBetween hw_c_and_g_lin hr_c_and_g_lin)
 
 /-- Cases of CLE if GLEs are equal. Same Cluster. -/
