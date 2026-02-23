@@ -49,12 +49,65 @@ def CompoundProtocol.globalLinearizationEventOfRequest.wrapper :=
 
 /- Definitions to define rf cases for load value axiom. -/
 
+structure Event.Between.noWrite.cond.sameCacheNoInterWrite
+  (b : Behaviour n) (init : InitialSystemState n) (e_inter e_w e_r e_w_cle e_r_cle : Event n) where
+  sameProtocol : e_inter.sameProtocol n e_w ∧ e_inter.sameProtocol n e_r
+  sameCache : e_inter.sameStructure n e_w ∧ e_inter.sameStructure n e_r
+  interCleNotBetween :
+    ∃ e_inter_cle ∈ b, b.dirAccessOfRequest n init e_inter e_inter_cle ∧
+    e_inter.OrderedBetween n e_w e_r →
+    ¬ (e_inter.isWrite ∧ e_inter_cle.OrderedBetween n e_w_cle e_r_cle)
+
+structure Event.dirWriteDowngradeAtSameCluster (e_inter_down e_inter e_w : Event n) : Prop where
+  isWrite : e_inter_down.isWrite
+  notDown : ¬ e_inter_down.down
+  sameCluster : e_inter_down.sameProtocol n e_w
+  isDir : e_inter_down.isDirectoryEvent
+  interEncapDown : e_inter.Encapsulates n e_inter_down
+
+structure Event.Between.noWrite.cond.diffCacheNoInterWriteDowngrade
+  (b : Behaviour n) (e_inter e_w e_r e_w_cle e_r_cle : Event n) where
+  sameProtocol : e_inter.sameProtocol n e_w ∧ e_inter.sameProtocol n e_r
+  diffCache : e_inter.diffStructure n e_w ∧ e_inter.diffStructure n e_r
+  interCleNotBetween :
+    ∃ e_inter_down ∈ b,
+      Event.dirWriteDowngradeAtSameCluster e_inter_down e_inter e_w →
+        ¬ (e_inter_down.OrderedBetween n e_w_cle e_r_cle)
+
+structure Event.dirWriteDowngradeFromDiffCluster (e_inter_down e_inter e_w : Event n) : Prop where
+  isWrite : e_inter_down.isWrite
+  isDown : e_inter_down.down
+  sameCluster : e_inter_down.sameProtocol n e_w
+  isDir : e_inter_down.isDirectoryEvent
+  interEncapDown : e_inter.Encapsulates n e_inter_down
+
+structure Event.Between.noWrite.cond.diffClusterNoInterWriteDowngrade
+  (b : Behaviour n) (e_inter e_w e_r e_w_cle e_r_cle : Event n) where
+  diffProtocol : e_inter.diffProtocol n e_w ∧ e_inter.diffProtocol n e_r
+  interCleNotBetween :
+    ∃ e_inter_down ∈ b,
+      Event.dirWriteDowngradeFromDiffCluster e_inter_down e_inter e_w →
+        ¬ (e_inter_down.OrderedBetween n e_w_cle e_r_cle)
+
+inductive Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites
+  (b : Behaviour n) (init : InitialSystemState n) (e_inter e_w e_r e_w_cle e_r_cle : Event n)
+  : Prop
+| otherWSameCache
+  (no_write_btn_w_r : Event.Between.noWrite.cond.sameCacheNoInterWrite b init e_inter e_w e_r e_w_cle e_r_cle)
+| otherWDiffCacheSameCluster
+  (no_write_same_cluster_down : Event.Between.noWrite.cond.diffCacheNoInterWriteDowngrade b e_inter e_w e_r e_w_cle e_r_cle)
+| otherWDiffCluster
+  (no_write_diff_cluster_down : Event.Between.noWrite.cond.diffClusterNoInterWriteDowngrade b e_inter e_w e_r e_w_cle e_r_cle)
+
 /- Begin Defs for WriteRead.EqGleCle.case -/
 def Event.Between.noWrite
   (b : Behaviour n) (init : InitialSystemState n) (e_w e_r e_w_cle e_r_cle: Event n) : Prop :=
-  ∀ e_inter ∈ b, ∃ e_inter_cle ∈ b, b.dirAccessOfRequest n init e_inter e_inter_cle ∧
-    e_inter.OrderedBetween n e_w e_r →
-    ¬ (e_inter.isWrite ∧ e_inter_cle.OrderedBetween n e_w_cle e_r_cle)
+  ∀ e_inter ∈ b, e_inter.isClusterCache → e_inter.isWrite →
+    Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites b init e_inter e_w e_r e_w_cle e_r_cle
+
+  -- ∃ e_inter_cle ∈ b, b.dirAccessOfRequest n init e_inter e_inter_cle ∧
+  --   e_inter.OrderedBetween n e_w e_r →
+  --   ¬ (e_inter.isWrite ∧ e_inter_cle.OrderedBetween n e_w_cle e_r_cle)
 
 def Event.Between.noEvict (b : Behaviour n) (e_w e_r : Event n) : Prop :=
   ∀ e ∈ b, e.OrderedBetween n e_w e_r → ¬ (e.isEvict ∧ e.isCoherent)
