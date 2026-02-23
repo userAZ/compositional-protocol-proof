@@ -363,6 +363,10 @@ def Event.isDirEvict : Event n → Prop
 | .cacheEvent _ => False
 | .directoryEvent de => de.isEvict
 
+def Event.isDirRead : Event n → Prop
+| .cacheEvent _ => False
+| .directoryEvent de => de.req.val.isRead
+
 -- def CacheEvent.requestEvent (e : CacheEvent) : Prop := e.cid = e.rid
 -- def CacheEvent.sameAddress (e : CacheEvent) : Prop := e.cid = e.rid
 
