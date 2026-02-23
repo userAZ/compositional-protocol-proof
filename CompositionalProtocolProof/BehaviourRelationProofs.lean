@@ -509,6 +509,7 @@ structure Behaviour.exists_vd_successor_wb_or_get_sw (b : Behaviour n) (init : I
      and leave the cache state with at least as much permissions (`b.reqLeavesStateAtLeast`  n `e_inter` init e_req.req.MRS).
      -/
   -- hinter_leaves_state_at_least : b.stateBeforeAndAfterAtLeast n init hsucc_encap_dir.choose e_req
+  hsucc_same_protocol : hsucc_encap_dir.choose_spec.right.choose.sameProtocol n e_req
 
 structure Behaviour.has_perms_or_vd_exists_e_dir_before_or_after where
   hasPermsDirBefore : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req : Event n, b.exists_predecessor_setting_state n init e_req
@@ -625,7 +626,7 @@ private lemma Behaviour.exists_e_dir_orderAfterDir {n : ℕ} (b : Behaviour n) (
   . case h.right =>
     apply Behaviour.dirAccessOfRequest.orderAfterDir
     . case hweak_read_on_vd => exact hreq_on_vd
-    . case hsucc_encap_dir => exact hexists_dir_after.hsucc_encap_dir.choose_spec.right
+    . case hsucc_same_protocol => exact hexists_dir_after.hsucc_same_protocol
 
 /-- Helper: Find directory event for evict request (encapDir via downgrade) -/
 private lemma Behaviour.exists_e_dir_evict {n : ℕ} (b : Behaviour n) (init : InitialSystemState n)
