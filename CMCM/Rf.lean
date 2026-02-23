@@ -74,20 +74,20 @@ structure Event.Between.noWrite.cond.diffCacheNoInterWriteDowngrade
       Event.dirWriteDowngradeAtSameCluster e_inter_down e_inter e_w →
         ¬ (e_inter_down.OrderedBetween n e_w_cle e_r_cle)
 
-structure Event.dirWriteDowngradeFromDiffCluster (e_inter_down e_inter e_w : Event n) : Prop where
+structure Event.dirWriteDowngradeFromDiffCluster (e_inter_down e_inter e_w e_r : Event n) : Prop where
+  diffProtocol : e_inter.diffProtocol n e_w ∧ e_inter.diffProtocol n e_r
+  downToW : e_inter_down.sameProtocol n e_w
   isWrite : e_inter_down.isWrite
   isDown : e_inter_down.down
-  sameCluster : e_inter_down.sameProtocol n e_w
   isDir : e_inter_down.isDirectoryEvent
   interEncapDown : e_inter.Encapsulates n e_inter_down
 
 structure Event.Between.noWrite.cond.diffClusterNoInterWriteDowngrade
   (b : Behaviour n) (e_inter e_w e_r e_w_cle e_r_cle : Event n) where
-  diffProtocol : e_inter.diffProtocol n e_w ∧ e_inter.diffProtocol n e_r
   interCleNotBetween :
-    ∃ e_inter_down ∈ b,
-      Event.dirWriteDowngradeFromDiffCluster e_inter_down e_inter e_w →
-        ¬ (e_inter_down.OrderedBetween n e_w_cle e_r_cle)
+    ¬ ∃ e_inter_down ∈ b,
+      Event.dirWriteDowngradeFromDiffCluster e_inter_down e_inter e_w e_r ∧
+        (e_inter_down.OrderedBetween n e_w_cle e_r_cle)
 
 inductive Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites
   (b : Behaviour n) (init : InitialSystemState n) (e_inter e_w e_r e_w_cle e_r_cle : Event n)
@@ -114,7 +114,7 @@ def Event.Between.noEvict (b : Behaviour n) (e_w e_r : Event n) : Prop :=
 
 structure Event.Between.noWriteOrEvict (b : Behaviour n) (init : InitialSystemState n) (e_w e_r e_w_cle e_r_cle : Event n) : Prop where
   noWrite : Event.Between.noWrite b init e_w e_r e_w_cle e_r_cle
-  noEvict : Event.Between.noEvict b e_w e_r
+  -- noEvict : Event.Between.noEvict b e_w e_r
 
 /-- `e_w` and `e_r` are in the same cache and `e_w` is ordered before `e_r` and there are no writes or evicts between them.
 This can be considered the "base case" of the reads-from or load-value axiom. -/
@@ -305,7 +305,7 @@ inductive WriteRead.wObRCle.case
   : Prop
   | sameCache
     (sameCache : e_w.struct = e_r.struct)
-    (noWriteBetween : Event.Between.noDirWrite b e_w e_r)
+    -- (noWriteBetween : Event.Between.noDirWrite b e_w e_r)
     : WriteRead.wObRCle.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin
   | diffCache
     (hdiff_cache : e_w.struct ≠ e_r.struct)
@@ -323,7 +323,7 @@ structure WriteRead.wObR.GleOrCle.cases
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster hw_not_down)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
   : Prop where
-    (hw_r_cle_eq : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose)
+    (hw_r_cle_ob : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose)
     (hwr_same_cluster : e_w.protocol = e_r.protocol)
     -- add inductive (WriteRead.wObRCle.case) to define goal.
     (hwr_cle_ob_case : WriteRead.wObRCle.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin)
