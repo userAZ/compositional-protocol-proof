@@ -892,18 +892,12 @@ theorem CMCM.rf_holds
   {hw_not_down : ¬ e_w.down} {hr_not_down : ¬ e_r.down}
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
-  -- Synchronization conditions.
-  (hgle_eq_or_ob : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose ∨
-    hw_c_and_g_lin.hreq's_global_lin.choose.OrderedBefore n hr_c_and_g_lin.hreq's_global_lin.choose)
---   (heq_gle_impl_ob_cle :
---     hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose →
---     hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose ∨
---     hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose)
-  (hr_ob_w_cle_not_allowed : ¬ (hr_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hw_c_and_g_lin.hreq's_dir_access.choose))
+  /- Synchronization conditions -/
+  (hgle_cle_rf_constraints : CompoundProtocol.gleOrdering.Cases hw_c_and_g_lin hr_c_and_g_lin)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   (hno_intervening_writes : NoInterveningWrites hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
   (hr_not_ob_w : ¬ e_r.OrderedBefore n e_w)
-  (hsucc_w_of_w_after_r : ∀ e_w_succ ∈ b, e_w_succ.sameProtocol n e_w ∧ e_w_succ.sameStructure n e_w ∧
+  (hsucc_w_of_w_after_r : ∀ e_w_succ ∈ b, e_w_succ.isWrite ∧ e_w_succ.sameProtocol n e_w ∧ e_w_succ.sameStructure n e_w ∧
     e_w.OrderedBefore n e_w_succ → e_r.oEnd < e_w_succ.oEnd)
   : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin
   := by
