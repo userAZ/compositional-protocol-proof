@@ -50,25 +50,30 @@ def CompoundProtocol.globalLinearizationEventOfRequest.wrapper :=
 /- Definitions to define rf cases for load value axiom. -/
 
 /- Begin Defs for WriteRead.EqGleCle.case -/
-def Event.Between.noWrite (b : Behaviour n) (e₁ e₂ : Event n) : Prop :=
-  ∀ e ∈ b, e.OrderedBetween n e₁ e₂ → ¬ e.isWrite
+def Event.Between.noWrite
+  (b : Behaviour n) (init : InitialSystemState n) (e_w e_r e_w_cle e_r_cle: Event n) : Prop :=
+  ∀ e_inter ∈ b, ∃ e_inter_cle ∈ b, b.dirAccessOfRequest n init e_inter e_inter_cle ∧
+    e_inter.OrderedBetween n e_w e_r →
+    ¬ (e_inter.isWrite ∧ e_inter_cle.OrderedBetween n e_w_cle e_r_cle)
 
-def Event.Between.noEvict (b : Behaviour n) (e₁ e₂ : Event n) : Prop :=
-  ∀ e ∈ b, e.OrderedBetween n e₁ e₂ → ¬ e.isEvict
+def Event.Between.noEvict (b : Behaviour n) (e_w e_r : Event n) : Prop :=
+  ∀ e ∈ b, e.OrderedBetween n e_w e_r → ¬ (e.isEvict ∧ e.isCoherent)
 
-structure Event.Between.noWriteOrEvict (b : Behaviour n) (e₁ e₂ : Event n) : Prop where
-  noWrite : Event.Between.noWrite b e₁ e₂
-  noEvict : Event.Between.noEvict b e₁ e₂
+structure Event.Between.noWriteOrEvict (b : Behaviour n) (init : InitialSystemState n) (e_w e_r e_w_cle e_r_cle : Event n) : Prop where
+  noWrite : Event.Between.noWrite b init e_w e_r e_w_cle e_r_cle
+  noEvict : Event.Between.noEvict b e_w e_r
 
-structure WriteRead.EqGleCle.case (b : Behaviour n) (e_w e_r : Event n) : Prop where
+/-- `e_w` and `e_r` are in the same cache and `e_w` is ordered before `e_r` and there are no writes or evicts between them.
+This can be considered the "base case" of the reads-from or load-value axiom. -/
+structure WriteRead.EqGleCle.case (b : Behaviour n) (init : InitialSystemState n) (e_w e_r e_w_cle e_r_cle : Event n) : Prop where
   sameCache : e_w.struct = e_r.struct
   wObR : e_w.OrderedBefore n e_r
-  noBetween : Event.Between.noWriteOrEvict b e_w e_r
+  noBetween : Event.Between.noWriteOrEvict b init e_w e_r e_w_cle e_r_cle
 /- End Defs for WriteRead.EqGleCle.case -/
 
 /- Begin Defs for WriteRead.wObRCle.case -/
-def Event.Between.noDirWrite (b : Behaviour n) (e₁ e₂ : Event n) : Prop :=
-  ∀ e ∈ b, e.OrderedBetween n e₁ e₂ → ¬ e.isDirWrite
+def Event.Between.noDirWrite (b : Behaviour n) (e_w e_r : Event n) : Prop :=
+  ∀ e ∈ b, e.OrderedBetween n e_w e_r → ¬ e.isDirWrite
 
 /-
 structure WriteRead.wObRCle.sameCache.case (b : Behaviour n) (e_w e_r : Event n) : Prop where
@@ -79,8 +84,8 @@ structure WriteRead.wObRCle.sameCache.case (b : Behaviour n) (e_w e_r : Event n)
   /- Begin Defs for WriteRead.wObRCle.diffCache.case case -/
 
 -- `e_r_down` is the downgrade sent from `e_r` to `e_w`'s cache.
-structure WriteRead.noEvictBetween.cond (b : Behaviour n) (e_w e_r_down : Event n) : Prop where
-  noWriteBtn : Event.Between.noWrite b e_w e_r_down
+structure WriteRead.noEvictBetween.cond (b : Behaviour n) (init : InitialSystemState n) (e_w e_r_down e_w_cle e_r_cle : Event n) : Prop where
+  noWriteBtn : Event.Between.noWrite b init e_w e_r_down e_w_cle e_r_cle
   noEvictBtn : Event.Between.noEvict b e_w e_r_down
   wObRDown : e_w.OrderedBefore n e_r_down
 
@@ -133,7 +138,11 @@ structure WriteRead.noEvictBetween.cond.wrapper
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
   : Prop where
   gdownEncapProxyAndDirAndCDown : Behaviour.gdown.encapProxyAndDirAndCDown cmp b init e_w hr_c_and_g_lin
-  noEvictBetween : WriteRead.noEvictBetween.cond b e_w gdownEncapProxyAndDirAndCDown.existsRDownAtW.choose
+  noEvictBetween :
+    WriteRead.noEvictBetween.cond b init
+      e_w gdownEncapProxyAndDirAndCDown.existsRDownAtW.choose
+        hw_c_and_g_lin.hreq's_dir_access.choose
+        gdownEncapProxyAndDirAndCDown.encapProxyAndDir.existsRClusterDirDown.choose
 
 def Event.Between.dirEvict (b : Behaviour n) (e₁ e₂ : Event n) : Prop :=
   ∃ e ∈ b, e.OrderedBetween n e₁ e₂ → e.isDirEvict
@@ -276,7 +285,7 @@ inductive Behaviour.readsFrom.wEqRGle.cases (cmp : CompoundProtocol n) (b : Beha
   | wEqRCle
     (hw_r_cle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
     (hwr_same_cluster : e_w.protocol = e_r.protocol)
-    (hwr_com : WriteRead.EqGleCle.case b e_w e_r)
+    (hwr_com : WriteRead.EqGleCle.case b init e_w e_r hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose)
     : Behaviour.readsFrom.wEqRGle.cases cmp b init e_w e_r hw_cluster hr_cluster hw_is_write r_is_read hw_not_down r_not_down hw_c_and_g_lin hr_c_and_g_lin
   | wObRCle
     -- NOTE: bundled hypothesis conditions together, for re-use in the wObRGle case below.
