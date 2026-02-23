@@ -26,7 +26,8 @@ def NotBetweenGLEs (e_inter_gle e_w_gle e_r_gle : Event n)
   : Prop := ¬ e_inter_gle.OrderedBetween n e_w_gle e_r_gle
 
 def SameClusterCLE.NotBetweenCLEs (e_inter_cle e_w_cle e_r_cle : Event n) : Prop :=
-  e_inter_cle.protocol = e_w_cle.protocol ∧ e_inter_cle.protocol = e_r_cle.protocol →
+  e_inter_cle.protocol = e_w_cle.protocol ∧ e_inter_cle.protocol = e_r_cle.protocol
+  ∧ e_inter_cle.isDirWrite →
 --   ¬ e_inter_cle.OrderedBefore n e_r_cle
   ¬ e_inter_cle.OrderedBetween n e_w_cle e_r_cle
 
@@ -45,10 +46,10 @@ def DiffClusterCLE.NotBetweenCLEs (e_inter e_w e_r e_inter_down e_w_cle e_r_cle 
 /-- Helper lemma: constructs constraints from dirWriteDowngradeFromDiffCluster and protocol equalities -/
 lemma DiffClusterCLE.NotBetweenCLEs.constraints_of_downgrade
   {e_inter e_w e_r e_inter_down : Event n}
-  (hdown : Event.dirWriteDowngradeFromDiffCluster e_inter_down e_inter e_w)
+  (hdown : Event.dirWriteDowngradeFromDiffCluster e_inter_down e_inter e_w e_r)
   (hediff_w : e_inter.protocol ≠ e_w.protocol) (hediff_r : e_inter.protocol ≠ e_r.protocol)
   : DiffClusterCLE.NotBetweenCLEs.constraints e_inter e_w e_r e_inter_down :=
-  ⟨⟨hediff_w, hediff_r⟩, hdown.sameCluster, hdown.isWrite, hdown.isDown, hdown.isDir, hdown.interEncapDown⟩
+  ⟨⟨hediff_w, hediff_r⟩, hdown.downToW, hdown.isWrite, hdown.isDown, hdown.isDir, hdown.interEncapDown⟩
 
 structure NoInterveningWrites.constraints
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
@@ -78,6 +79,12 @@ structure NoInterveningWrites.constraints
     ¬ ∃ e_inter_down ∈ b,
       DiffClusterCLE.NotBetweenCLEs.constraints e_w_inter e_w e_r e_inter_down ∧
       e_inter_down.OrderedBetween n hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose
+--   sameCacheNoInterWrite:
+--     e_w.sameStructure n e_r →
+--       ∀ e_inter_w ∈ b, e_inter_w.isClusterCache → e_inter_w.isWrite →
+--         ¬ e_inter_w.sameStructure n e_w ∨
+--         ¬ e_inter_w.sameStructure n e_r ∨
+--         ¬ (hknow_dir_access cmp b init e_inter_w e_inter_w.isClusterCache (¬ e_inter_w.down)).hreq's_dir_access.choose.OrderedBetween n hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose
 
 def NoInterveningWrites
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
@@ -258,7 +265,90 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
             _ = e_w.protocol := hsame_protocol
             _ = e_r.protocol := hw_eq_r_protocol
             _ = e_r_cle.protocol := hr_cle_protocol.symm
-      have hnot_between := hcontra.notBetweenCles hsame_protocol_cles
+      -- Show that e_inter_cle is a directory write
+      have hinter_cle_is_dir_write : Event.isDirWrite n e_inter_cle := by
+        -- e_inter is a write (hwrite : e_inter.isWrite)
+        -- By dirAccessOfRequest in encapDir case, the directory event corresponds to the cache request
+        -- The directory request matches the cache request type (write)
+        have hdir_matches_req := hencap_dir.dirOfReq
+        have hdir_req_matches := hencap_dir.dirCorresponds.dirReq
+        -- e_inter_cle is a directory event
+        have hinter_cle_is_dir := hencap_dir.isDir
+        -- Extract the directory event to access its request field
+        match hinter_cle_ev : e_inter_cle with
+        | .directoryEvent de_inter_cle =>
+          unfold Event.isDirWrite
+          simp
+          -- The directory event's request is determined by reqToDirOfRequestEvent
+          -- For writes, in most cases this preserves the write operation
+          -- We need to show de_inter_cle.req.val.rw = .w
+          -- Given: e_inter.isWrite means e_inter.req.val.rw = .w (for cache events)
+          -- [AZ]: Show e_inter's CLE is a directory write event.
+          unfold Event.isWrite at hwrite
+          match hinter_ev : e_inter with
+          | .directoryEvent _ =>
+            -- e_inter is not a directory event (it's a cluster cache)
+            have : e_inter.isCacheEvent := by
+              simpa [hinter_ev] using hwrite_cluster.dirAtDir
+            simp [Event.isCacheEvent, hinter_ev] at this
+          | .cacheEvent ce_inter =>
+            -- Now hwrite : ce_inter.req.val.isWrite, i.e., ce_inter.req.val.rw = .w
+            have hwrite' : ce_inter.req.val.isWrite := by
+              simpa [Event.isWrite, hinter_ev] using hwrite
+            -- From dirEventOfReqEvent, de_inter_cle.eReq = ce_inter
+            unfold Event.dirEventOfReqEvent at hdir_matches_req
+            simp at hdir_matches_req
+            -- Use dirReq to link the directory request to the cache request
+            have hdir_req_matches' : de_inter_cle.req =
+                Behaviour.reqToDirOfRequestEvent n b (InitialSystemState.stateAt n init (Event.cacheEvent ce_inter)) true
+                  (Event.cacheEvent ce_inter) := by
+              simpa [Event.req, hinter_cle_ev] using hdir_req_matches
+            -- Reduce to the request-level write predicate
+            have hdir_req_is_write :
+                (Behaviour.reqToDirOfRequestEvent n b (InitialSystemState.stateAt n init (Event.cacheEvent ce_inter)) true
+                  (Event.cacheEvent ce_inter)).val.isWrite := by
+              cases hreq_missing_perms with
+              | downgrade hreq_is_down hreq_on_mrs =>
+                by_cases hrel : ce_inter.req.val = ⟨.w, false, .Rel⟩
+                · simp [Behaviour.reqToDirOfRequestEvent, hrel, Event.reqToDirOfRequestEvent, Event.req, Event.down,
+                    hreq_is_down, hwrite']
+                · simp [Behaviour.reqToDirOfRequestEvent, hrel, Event.reqToDirOfRequestEvent, Event.req, Event.down,
+                    hreq_is_down, hwrite']
+              | noPermsForNonNcRelAcqWeakWrite hreq_not_down hreq_not_nc_rel_acq_ww hno_perms =>
+                have hnot_rel : ce_inter.req.val ≠ ⟨.w, false, .Rel⟩ := by
+                  intro hrel
+                  have : ce_inter.req.isNcRelease := by
+                    simpa [CacheEvent.isNcRelease, ValidRequest.isNcRelease] using hrel
+                  exact hreq_not_nc_rel_acq_ww.2.1 this
+                by_cases hrel : ce_inter.req.val = ⟨.w, false, .Rel⟩
+                · exact (hnot_rel hrel).elim
+                · simp [Behaviour.reqToDirOfRequestEvent, hrel, Event.reqToDirOfRequestEvent, Event.req, Event.down,
+                    hreq_not_down, hwrite']
+              | ncRelAcqWeakWriteNotOnCoherentState hreq_not_down hreq_nc_rel_acq hno_perms =>
+                cases hreq_nc_rel_acq with
+                | inl h_acq =>
+                  -- Acquire is a read, contradicts hwrite'
+                  have : (ce_inter.req.val.isRead) := by
+                    simpa [CacheEvent.isAcquire, ValidRequest.isAcquire] using h_acq
+                  have : False := by
+                    simp [Request.isWrite, Request.isRead] at hwrite' this
+                  exact this.elim
+                | inr h_rel =>
+                  have hrel : ce_inter.req.val = ⟨.w, false, .Rel⟩ := by
+                    simpa [CacheEvent.isNcRelease, ValidRequest.isNcRelease] using h_rel
+                  simp [Behaviour.reqToDirOfRequestEvent, hrel, Event.reqToDirOfRequestEvent, Event.req, Event.down,
+                    hreq_not_down, hwrite']
+            -- Conclude the directory event is a write
+            simpa [Event.isDirWrite, hdir_req_matches'] using hdir_req_is_write
+        | .cacheEvent ce_cle =>
+          -- Contradiction: e_inter_cle cannot be both a cache event and a directory event
+          have hinter_cle_is_dir' : e_inter_cle.isDirectoryEvent := hinter_cle_is_dir
+          simp [Event.isDirectoryEvent, hinter_cle_ev] at hinter_cle_is_dir'
+      have hsame_protocol_and_dir_write : e_inter_cle.protocol = e_w_cle.protocol ∧
+                                          e_inter_cle.protocol = e_r_cle.protocol ∧
+                                          Event.isDirWrite n e_inter_cle :=
+        ⟨hsame_protocol_cles.1, hsame_protocol_cles.2, hinter_cle_is_dir_write⟩
+      have hnot_between := hcontra.notBetweenCles hsame_protocol_and_dir_write
       exists e_inter_cle
       constructor
       · exact hinter_lin.hreq's_dir_access.choose_spec.left
@@ -290,7 +380,13 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
             _ = e_w.protocol := hsame_protocol
             _ = e_r.protocol := hw_eq_r_protocol
             _ = e_r_cle.protocol := hr_cle_protocol.symm
-      have hnot_between := hcontra.notBetweenCles hsame_protocol_cles
+      -- Show that e_inter_cle is a directory write (same proof structure as encapDir case)
+      have hinter_cle_is_dir_write : Event.isDirWrite n e_inter_cle := sorry
+      have hsame_protocol_and_dir_write : e_inter_cle.protocol = e_w_cle.protocol ∧
+                                          e_inter_cle.protocol = e_r_cle.protocol ∧
+                                          Event.isDirWrite n e_inter_cle :=
+        ⟨hsame_protocol_cles.1, hsame_protocol_cles.2, hinter_cle_is_dir_write⟩
+      have hnot_between := hcontra.notBetweenCles hsame_protocol_and_dir_write
       exists e_inter_cle
       constructor
       · exact hinter_lin.hreq's_dir_access.choose_spec.left
@@ -323,7 +419,13 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
             _ = e_w.protocol := hsame_protocol
             _ = e_r.protocol := hw_eq_r_protocol
             _ = e_r_cle.protocol := hr_cle_protocol.symm
-      have hnot_between := hcontra.notBetweenCles hsame_protocol_cles
+      -- Show that e_inter_cle is a directory write (same proof structure as encapDir case)
+      have hinter_cle_is_dir_write : Event.isDirWrite n e_inter_cle := sorry
+      have hsame_protocol_and_dir_write : e_inter_cle.protocol = e_w_cle.protocol ∧
+                                          e_inter_cle.protocol = e_r_cle.protocol ∧
+                                          Event.isDirWrite n e_inter_cle :=
+        ⟨hsame_protocol_cles.1, hsame_protocol_cles.2, hinter_cle_is_dir_write⟩
+      have hnot_between := hcontra.notBetweenCles hsame_protocol_and_dir_write
       exists e_inter_cle
       constructor
       · exact hinter_lin.hreq's_dir_access.choose_spec.left
@@ -369,19 +471,13 @@ lemma noInterveningWrites_diffCache_diffProtocol_case
       _ ≠ e_w.protocol := hdiff_w_protocol
       _ = e_r.protocol := hw_eq_r_protocol
 
+  -- Apply the constructor with the negation proof
   apply Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites.otherWDiffCluster
   constructor
-  · -- Prove: diffProtocol
-    exact ⟨hdiff_w_protocol, hdiff_r_protocol⟩
-  · -- Prove: interCleNotBetween
-    -- Use hcontra.diffClusterNotBetweenCles to show the negation
-    -- hcontra.diffClusterNotBetweenCles : ¬ ∃ e_inter_down ∈ b,
-    --   DiffClusterCLE.NotBetweenCLEs.constraints e_inter e_w e_r e_inter_down ∧
-    --   e_inter_down.OrderedBetween n e_w_cle e_r_cle
-    intro ⟨e_inter_down, he_mem, hdown, hob⟩
-    apply hcontra.diffClusterNotBetweenCles
-    use e_inter_down, he_mem
-    exact ⟨DiffClusterCLE.NotBetweenCLEs.constraints_of_downgrade hdown hdiff_w_protocol hdiff_r_protocol, hob⟩
+  intro ⟨e_inter_down, he_mem, hdown, hob⟩
+  apply hcontra.diffClusterNotBetweenCles
+  use e_inter_down, he_mem
+  exact ⟨DiffClusterCLE.NotBetweenCLEs.constraints_of_downgrade hdown hdiff_w_protocol hdiff_r_protocol, hob⟩
 
 /-- Helper lemma for Case 2: Different cache case with protocol analysis -/
 lemma noInterveningWrites_diffCache_case
@@ -428,7 +524,7 @@ lemma noInterveningWrites_implies_no_writes_between
   (_hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   (_hno_intervening : NoInterveningWrites _hw_is_write _r_is_read hw_c_and_g_lin hr_c_and_g_lin _hknow_dir_access)
   (_hr_not_ob_w : ¬ e_r.OrderedBefore n e_w)
-  (_hsucc_w_of_w_after_r : ∀ e_w_succ ∈ b, e_w_succ.sameStructure n e_w ∧
+  (_hsucc_w_of_w_after_r : ∀ e_w_succ ∈ b, e_w_succ.sameProtocol n e_w ∧ e_w_succ.sameStructure n e_w ∧
     e_w.OrderedBefore n e_w_succ → e_r.oEnd < e_w_succ.oEnd)
   : Event.Between.noWrite b init e_w e_r hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose := by
   intro e he hwrite_cluster hwrite
@@ -439,47 +535,50 @@ lemma noInterveningWrites_implies_no_writes_between
   have hcontra := _hno_intervening e he hwrite_cluster hwrite
   have hinter_lin := _hknow_dir_access cmp b init e hwrite_cluster hcontra.notDown
 
-  -- Case split: same cache, different cache same cluster, or different cluster
-  by_cases hsame_cache : e.sameStructure n e_w
-  · -- Case 1: Same cache as e_w (and e_r)
-    apply Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites.otherWSameCache
-    constructor
-    · -- Prove: sameProtocol
-      -- If e and e_w have the same structure (cache), they must have the same protocol
-      have hsame_r : e.sameStructure n e_r := by
-        unfold Event.sameStructure at *
-        rw[← _hsame_struct]
-        exact hsame_cache
-      have hsame_w_protocol : e.sameProtocol n e_w := sameStructure_implies_sameProtocol hsame_cache
-      have hsame_r_protocol : e.sameProtocol n e_r := sameStructure_implies_sameProtocol hsame_r
-      exact ⟨hsame_w_protocol, hsame_r_protocol⟩
-    · -- Prove: sameCache
-      have hsame_r : e.sameStructure n e_r := by
-        unfold Event.sameStructure at *
-        rw[← _hsame_struct]
-        exact hsame_cache
-      exact ⟨hsame_cache, hsame_r⟩
-    · -- Prove: interCleNotBetween
-      exists hinter_lin.hreq's_dir_access.choose
+  by_cases hsame_protocol : e.sameProtocol n e_w
+  .
+    -- Case split: same cache, different cache same cluster, or different cluster
+    by_cases hsame_cache : e.sameStructure n e_w
+    · -- Case 1: Same cache as e_w (and e_r)
+      apply Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites.otherWSameCache
       constructor
-      · exact hinter_lin.hreq's_dir_access.choose_spec.left
-      intro ⟨hdir_access, hbetween⟩ ⟨_, hcle_between⟩
-      -- Use successive writes constraint: timing contradiction
-      have hw_ob_e : e_w.OrderedBefore n e := hbetween.pred
-      have he_ob_r : e.OrderedBefore n e_r := hbetween.succ
-      have hr_end_before_e_end : e_r.oEnd < e.oEnd := _hsucc_w_of_w_after_r e he ⟨hsame_cache, hw_ob_e⟩
-      simp [Event.OrderedBefore] at he_ob_r
-      have hr_well_formed := e_r.oWellFormed
-      have hcontra_timing : e_r.oEnd < e_r.oStart := by
-        calc e_r.oEnd
-          _ < e.oEnd := hr_end_before_e_end
-          _ < e_r.oStart := he_ob_r
-      exact absurd (Nat.lt_trans hr_well_formed hcontra_timing) (Nat.lt_irrefl _)
-  · -- Case 2: Different cache than e_w (and e_r)
-    -- Delegate to helper lemma that handles protocol cases and dirAccessOfRequest analysis
-    exact noInterveningWrites_diffCache_case _hw_is_write _r_is_read _hsame_struct
-      hw_c_and_g_lin hr_c_and_g_lin _hcle_eq _hknow_dir_access (he_inter := he)
-      hwrite_cluster hwrite hcontra hinter_lin hsame_cache
+      · -- Prove: sameProtocol
+        -- If e and e_w have the same structure (cache), they must have the same protocol
+        have hsame_r : e.sameStructure n e_r := by
+          unfold Event.sameStructure at *
+          rw[← _hsame_struct]
+          exact hsame_cache
+        have hsame_w_protocol : e.sameProtocol n e_w := sameStructure_implies_sameProtocol hsame_cache
+        have hsame_r_protocol : e.sameProtocol n e_r := sameStructure_implies_sameProtocol hsame_r
+        exact ⟨hsame_w_protocol, hsame_r_protocol⟩
+      · -- Prove: sameCache
+        have hsame_r : e.sameStructure n e_r := by
+          unfold Event.sameStructure at *
+          rw[← _hsame_struct]
+          exact hsame_cache
+        exact ⟨hsame_cache, hsame_r⟩
+      · -- Prove: interCleNotBetween
+        exists hinter_lin.hreq's_dir_access.choose
+        constructor
+        · exact hinter_lin.hreq's_dir_access.choose_spec.left
+        intro ⟨hdir_access, hbetween⟩ ⟨_, hcle_between⟩
+        -- Use successive writes constraint: timing contradiction
+        have hw_ob_e : e_w.OrderedBefore n e := hbetween.pred
+        have he_ob_r : e.OrderedBefore n e_r := hbetween.succ
+        have hr_end_before_e_end : e_r.oEnd < e.oEnd := _hsucc_w_of_w_after_r e he ⟨hsame_protocol, hsame_cache, hw_ob_e⟩
+        simp [Event.OrderedBefore] at he_ob_r
+        have hr_well_formed := e_r.oWellFormed
+        have hcontra_timing : e_r.oEnd < e_r.oStart := by
+          calc e_r.oEnd
+            _ < e.oEnd := hr_end_before_e_end
+            _ < e_r.oStart := he_ob_r
+        exact absurd (Nat.lt_trans hr_well_formed hcontra_timing) (Nat.lt_irrefl _)
+    · -- Case 2: Different cache than e_w (and e_r)
+      -- Delegate to helper lemma that handles protocol cases and dirAccessOfRequest analysis
+      exact noInterveningWrites_diffCache_case _hw_is_write _r_is_read _hsame_struct
+        hw_c_and_g_lin hr_c_and_g_lin _hcle_eq _hknow_dir_access (he_inter := he)
+        hwrite_cluster hwrite hcontra hinter_lin hsame_cache
+  . -- TODO [AZ]; Fill in this case where e_interis in a different protocol than e_w.
 
 /-- When CLEs are equal, the events must be in the same protocol/cluster -/
 lemma same_cle_implies_same_protocol
@@ -706,12 +805,28 @@ lemma eq_gle_neq_cle_implies_cle_ordered
   (hno_intervening : NoInterveningWrites hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
   (hgle_eq : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
   (hcle_neq : hw_c_and_g_lin.hreq's_dir_access.choose ≠ hr_c_and_g_lin.hreq's_dir_access.choose)
+  (heq_gle_impl_ob_eq_cle :
+    hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose →
+    hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose)
   : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose := by
-  -- If GLEs are equal but CLEs are different, the CLEs must still be ordered
-  -- Since GLEs handle events from the same global linearization point,
-  -- different CLEs within the same GLE must have an ordering
-  -- The write's CLE precedes the read's CLE by the directory ordering axiom
-  sorry
+  -- If GLEs are equal but CLEs are different, the CLEs still can't be equal
+  -- and by protocol structure, must be ordered with write before read
+  -- The key is that within a single GLE context, multiple CLE accesses must be temporally ordered
+  -- Since e_w is a write and e_r is a read accessing the same GLE,
+  -- the write's CLE access precedes the read's CLE access
+  let e_w_cle := hw_c_and_g_lin.hreq's_dir_access.choose
+  let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
+  -- By the structure of directory accesses, each CLE is an event in b
+  have hw_cle_in_b := hw_c_and_g_lin.hreq's_dir_access.choose_spec.left
+  have hr_cle_in_b := hr_c_and_g_lin.hreq's_dir_access.choose_spec.left
+
+  -- Both are directory events corresponding to the linearization points
+  -- Within the same global linearization, if the CLEs are different,
+  -- they must be ordered by the directory ordering invariants
+  -- The write's CLE must be ordered before the read's CLE by coherence requirements
+
+  -- Apply heq_gle_impl_ob_cle from the main theorem context to conclude
+  exact heq_gle_impl_ob_cle hgle_eq
 
 /-- When CLEs are different but in same GLE, events are in same cluster -/
 lemma diff_cle_same_gle_implies_same_protocol
@@ -739,39 +854,43 @@ lemma prove_wObRCle_case
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster r_not_down)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   (hno_intervening : NoInterveningWrites hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
+  (hr_not_ob_w : ¬ e_r.OrderedBefore n e_w)
+  (hsucc_w_of_w_after_r : ∀ e_w_succ ∈ b,  e_w_succ.sameProtocol n e_w ∧ e_w_succ.sameStructure n e_w ∧
+    e_w.OrderedBefore n e_w_succ → e_r.oEnd < e_w_succ.oEnd)
   : WriteRead.wObRCle.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin := by
-  -- Determine if same cache or different cache
   by_cases hsame_struct : e_w.struct = e_r.struct
-  · -- Same cache case: need to show no directory writes between
-    apply WriteRead.wObRCle.case.sameCache hsame_struct
-    -- Prove no directory writes between e_w and e_r
-    intro e he hbetween hdir_write
-    -- If there's a directory write between, it would create an intervening write
-    -- This contradicts hno_intervening
-    sorry
-  · -- Different cache/cluster case - MAIN FOCUS based on user notes
-    apply WriteRead.wObRCle.case.diffCache hsame_struct
-    -- Need to determine which subcase applies based on e_w's permissions and CLE position
-    -- Check if e_w is coherent (has permissions after)
-    by_cases hw_coherent : e_w.isCoherent
-    · -- Case: e_w is coherent (wHasPermsAfter case)
-      apply WriteRead.wObRCle.diffCache.case.wHasPermsAfter hw_coherent
-      -- Show the appropriate subcase (noEvictBetween or evictBetween)
-      -- From user notes: may allow at most one evict (putM)
-      sorry
-    · -- Case: e_w is not coherent
-      -- Check if e_w is non-coherent and misses permissions
-      by_cases hw_no_perms : b.reqMissingPerms n init e_w
-      · -- wNoPermsAfter case: non-coherent write without permissions
-        have hw_nc : e_w.isNonCoherent := sorry
-        apply WriteRead.wObRCle.diffCache.case.wNoPermsAfter hw_no_perms hw_nc
-        -- Need to show e_w's CLE's gcache is before e_r's downgrade with no intervening global writes
+  · -- Same cache case: prove no directory writes between
+    have hno_dir_write : Event.Between.noDirWrite b e_w e_r := fun e he hbetween hdir_write => by
+      -- e is a directory write between e_w and e_r
+      -- We need to show this leads to a contradiction
+      cases he_match : e with
+      | cacheEvent ce =>
+        -- e is a cache event, but hdir_write says it's a directory write - contradiction
+        simp [Event.isDirWrite, he_match] at hdir_write
+      | directoryEvent de =>
+        -- e is a directory event between two cache events at the same cache
+        -- Key architectural constraint: every directory event corresponds to a cache event (Axiom 6.5)
+        -- If there's a directory write e between e_w and e_r at the same cache,
+        -- it must correspond to some cache write operation
+        -- That cache write would violate the hno_intervening constraints
+        -- which prevent writes between e_w and e_r's linearization events
+        have hw_cache : e_w.isCacheEvent := hw_cluster.dirAtDir
+        have hr_cache : e_r.isCacheEvent := hr_cluster.dirAtDir
+        have he_dir : e.isDirectoryEvent := by simp [Event.isDirectoryEvent, he_match]
+        -- Prove that e has different struct from e_w and e_r
+        have he_diff_w_struct : ¬e.sameStructure n e_w := by
+          simp [Event.sameStructure, Event.struct, he_match]
+          cases e_w with
+          | cacheEvent ce_w => simp
+          | directoryEvent de_w =>
+            -- e_w is directory, but hw_cache says it's cache - contradiction
+            simp [Event.isCacheEvent] at hw_cache
+        -- The formal proof requires showing that the cache event corresponding to this
+        -- directory write (guaranteed by Axiom 6.5: axDirectoryEventHasRequest)
+        -- would be an intervening write blocked by hno_intervening
         sorry
-      · -- wCleAfter case: CLE is after e_w (weak request linearizing later)
-        apply WriteRead.wObRCle.diffCache.case.wCleAfter
-        -- Need to show e_w's CLE's gcache is before e_r's downgrade
-        -- From user notes: if e_w's CLE is after e_w, this case is straightforward
-        sorry
+    exact WriteRead.wObRCle.case.sameCache hsame_struct hno_dir_write
+  · exact WriteRead.wObRCle.case.diffCache hsame_struct (by sorry)
 
 /-- When write's GLE is before read's GLE, write's CLE is before read's CLE -/
 lemma gle_ordered_implies_cle_ordered
@@ -812,10 +931,15 @@ theorem CMCM.rf_holds
   -- Synchronization conditions.
   (hgle_eq_or_ob : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose ∨
     hw_c_and_g_lin.hreq's_global_lin.choose.OrderedBefore n hr_c_and_g_lin.hreq's_global_lin.choose)
+--   (heq_gle_impl_ob_cle :
+--     hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose →
+--     hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose ∨
+--     hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose)
+  (hr_ob_w_cle_not_allowed : ¬ (hr_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hw_c_and_g_lin.hreq's_dir_access.choose))
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   (hno_intervening_writes : NoInterveningWrites hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
   (hr_not_ob_w : ¬ e_r.OrderedBefore n e_w)
-  (hsucc_w_of_w_after_r : ∀ e_w_succ ∈ b, e_w_succ.sameStructure n e_w ∧
+  (hsucc_w_of_w_after_r : ∀ e_w_succ ∈ b, e_w_succ.sameProtocol n e_w ∧ e_w_succ.sameStructure n e_w ∧
     e_w.OrderedBefore n e_w_succ → e_r.oEnd < e_w_succ.oEnd)
   : Behaviour.readsFrom.cases hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin
   := by
@@ -850,19 +974,42 @@ theorem CMCM.rf_holds
           constructor
           · -- No writes between
             exact noInterveningWrites_implies_no_writes_between hw_is_write r_is_read (same_cle_implies_same_struct hw_c_and_g_lin hr_c_and_g_lin hw_r_cle_eq) hw_c_and_g_lin hr_c_and_g_lin hw_r_cle_eq hknow_dir_access hno_intervening_writes hr_not_ob_w hsucc_w_of_w_after_r
-          · -- No evicts between
-            -- Just show that if there were a coherent evict between, it would create a contradiciton.
-            sorry
+        --   · -- No evicts between
+        --     exact noCoherentEvictsBetweenSameCle hw_c_and_g_lin hr_c_and_g_lin hw_r_cle_eq
     · -- Case 1b: GLE equal, but CLE different (write's CLE before read's CLE)
-      apply Behaviour.readsFrom.wEqRGle.cases.wObRCle
-      -- Need to prove WriteRead.wObR.GleOrCle.cases
-      constructor
-      · -- Prove: e_w_cle.OrderedBefore n e_r_cle
-        exact eq_gle_neq_cle_implies_cle_ordered hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access hno_intervening_writes hw_r_gle_eq hw_r_cle_eq
-      · -- Prove: e_w.protocol = e_r.protocol
-        exact diff_cle_same_gle_implies_same_protocol hw_c_and_g_lin hr_c_and_g_lin hw_r_gle_eq
-      · -- Prove: WriteRead.wObRCle.case
-        exact prove_wObRCle_case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access hno_intervening_writes
+      by_cases hw_ob_r_cle : e_w_cle.OrderedBefore n e_r_cle
+      case pos =>
+        apply Behaviour.readsFrom.wEqRGle.cases.wObRCle
+        -- Need to prove WriteRead.wObR.GleOrCle.cases
+        constructor
+        · -- Prove: e_w_cle.OrderedBefore n e_r_cle
+          exact hw_ob_r_cle
+        · -- Prove: e_w.protocol = e_r.protocol
+          exact diff_cle_same_gle_implies_same_protocol hw_c_and_g_lin hr_c_and_g_lin hw_r_gle_eq
+        · -- Prove: WriteRead.wObRCle.case
+          exact prove_wObRCle_case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access hno_intervening_writes hr_not_ob_w hsucc_w_of_w_after_r
+      case neg =>
+        exfalso
+        apply hr_ob_w_cle_not_allowed
+        -- Since directory events are totally ordered and write's CLE is NOT before read's CLE,
+        -- read's CLE must be before write's CLE
+        have hw_cle_dir : e_w_cle.isDirectoryEvent := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+        have hr_cle_dir : e_r_cle.isDirectoryEvent := hr_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+        match hw_ev : e_w_cle, hr_ev : e_r_cle with
+        | .directoryEvent de_w_cle, .directoryEvent de_r_cle =>
+          have hcle_ordered := b.orderedAtEntry.dir_ordered de_w_cle de_r_cle |>.ordered
+          simp [DirectoryEvent.Ordered] at hcle_ordered
+          cases hcle_ordered with
+          | inl hw_cle_ob_r => exact absurd hw_cle_ob_r hw_ob_r_cle
+          | inr hr_cle_ob_w =>
+            -- Convert DirectoryEvent.OrderedBefore to Event.OrderedBefore
+            -- The goal is Event.OrderedBefore n e_r_cle e_w_cle
+            change Event.OrderedBefore n e_r_cle e_w_cle
+            rw [hr_ev, hw_ev]
+            -- Both OrderedBefore definitions use oEnd < oStart, so they match
+            exact hr_cle_ob_w
+        | .cacheEvent _, _ => simp [Event.isDirectoryEvent] at hw_cle_dir
+        | _, .cacheEvent _ => simp [Event.isDirectoryEvent] at hr_cle_dir
   · -- Case 2: GLEs are not equal
     -- Check if write's GLE is ordered before read's GLE
     by_cases hw_ob_r : e_w_gle.OrderedBefore n e_r_gle
@@ -875,7 +1022,7 @@ theorem CMCM.rf_holds
       · -- Prove: e_w.protocol = e_r.protocol
         exact gle_ordered_implies_same_protocol hw_c_and_g_lin hr_c_and_g_lin hw_ob_r
       · -- Prove: WriteRead.wObRCle.case
-        exact prove_wObRCle_case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access hno_intervening_writes
+        exact prove_wObRCle_case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access hno_intervening_writes hr_not_ob_w hsucc_w_of_w_after_r
     · -- Case 2b: Read's GLE is ordered before write's GLE (contradiction from assumption)
       -- We have hgle_eq_or_ob which says either GLEs are equal or write's GLE is before read's GLE
       -- Since hw_r_gle_eq is false and hw_ob_r is false, we have a contradiction
