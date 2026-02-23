@@ -363,3 +363,133 @@ inductive Behaviour.readsFrom.cases
     -- use inductive to define subcases of this case
     (hw_ob_r_gle_cases : WriteRead.wObR.GleOrCle.cases hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin)
     : Behaviour.readsFrom.cases hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin
+
+-- Define Constraints where RF should be proven to hold.
+
+/- ========= BEGIN RF Constraints ========= -/
+
+def CompoundProtocol.gleImmediatePredecessor
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
+  : Prop :=
+  b.ImmediateBottomPredecessor n
+    hw_c_and_g_lin.hreq's_global_lin.choose hr_c_and_g_lin.hreq's_global_lin.choose
+
+def CompoundProtocol.cleImmediatePredecessor
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
+  : Prop :=
+  b.ImmediateBottomPredecessor n
+    hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose
+
+structure IntermediateDirEvictOrRead
+  (e_cdir_inter e_w_cle e_r_cle : Event n)
+  : Prop where
+  readOrEvict : e_cdir_inter.isDirRead ∨ e_cdir_inter.isDirEvict
+  sameProtocol : e_cdir_inter.sameProtocol n e_w_cle
+  sameStructure : e_cdir_inter.sameStructure n e_w_cle
+  betweenWR : e_cdir_inter.OrderedBetween n e_w_cle e_r_cle
+
+structure CLE.WROrdering.evictOrReadBetween
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+    {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
+    (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+    (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
+  : Prop where
+  wRSameCluster : e_w.sameProtocol n e_r
+  interDirEvictOrRead : ∀ e_cdir_inter ∈ b,
+    IntermediateDirEvictOrRead e_cdir_inter
+      hw_c_and_g_lin.hreq's_dir_access.choose
+      hr_c_and_g_lin.hreq's_dir_access.choose
+  wObR : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n
+        hr_c_and_g_lin.hreq's_dir_access.choose
+
+/- Cases of CLE if `e_w` GLE ImmPred `e_r` GLE. Same Cluster case. -/
+inductive CompoundProtocol.SameCluster.cleOb.cleOrdering.Cases
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+    {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
+    (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+    (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
+  : Prop
+  | wImmPredRCle (w_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  | evictOrReadBetweenWAndRCleSameCluster (w_imm_pred_r_cle :
+      CLE.WROrdering.evictOrReadBetween hw_c_and_g_lin hr_c_and_g_lin)
+
+/-- Cases of CLE if GLEs are equal. Same Cluster. -/
+inductive CompoundProtocol.gleEq.SameCluster.cleEq.cleOb.cleOrdering.Cases
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+    {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
+    (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+    (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
+  : Prop
+  | wEqRCle (w_r_cle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
+  | otherCases (same_as_gle_ob_cases : CompoundProtocol.SameCluster.cleOb.cleOrdering.Cases hw_c_and_g_lin hr_c_and_g_lin)
+
+structure ReadDowngradeAtWrite.evictOrReadBetween.wAndRDown
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+  {e_w : Event n} {e_r : Event n}
+  {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
+  : Prop where
+  rDown : Behaviour.gdown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin
+  wCleImmPredRDown : ∀ e_cdir_inter ∈ b,
+     IntermediateDirEvictOrRead e_cdir_inter
+      hw_c_and_g_lin.hreq's_dir_access.choose
+      rDown.existsRDownAtW.choose
+  wObRDown : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n
+    rDown.existsRDownAtW.choose
+
+structure ReadDowngradeAtWrite.wCleImmPredDown
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+  {e_w : Event n} {e_r : Event n}
+  {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
+  : Prop where
+  rDown : Behaviour.gdown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin
+  wCleImmPredRDown : b.ImmediateBottomPredecessor n
+    hw_c_and_g_lin.hreq's_dir_access.choose rDown.existsRDownAtW.choose
+
+/- Cases of CLE if `e_w` GLE ImmPred `e_r` GLE. Different Cluster case. -/
+inductive CompoundProtocol.DifferentCluster.cleOB.cleOrdering.Cases
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+    {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
+    (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+    (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
+  : Prop
+  -- TODO: Define def or reuse def of downgrade `e_r_down` from `e_r` to `e_w`'s cluster
+  -- Then the cases are either `e_r_down` is an immediate predecessor of `e_w`'s CLE,
+  -- or all intermediate directory events between `e_w`'s CLE and `e_r_down` are either evict or read.
+  | wCleImmPredDown (w_cle_imm_pred_r_down : ReadDowngradeAtWrite.wCleImmPredDown hw_c_and_g_lin hr_c_and_g_lin)
+  | evictOrReadBetweenWAndRDown (w_cle_imm_pred_down : ReadDowngradeAtWrite.evictOrReadBetween.wAndRDown hw_c_and_g_lin hr_c_and_g_lin)
+
+inductive CompoundProtocol.gleOB.Cluster.SameOrDiff.cleOrdering.Cases
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+    {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
+    (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+    (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
+  : Prop
+  | sameCluster (same_cluster : e_w.sameProtocol n e_r)
+    (same_cluster_cases : CompoundProtocol.SameCluster.cleOb.cleOrdering.Cases hw_c_and_g_lin hr_c_and_g_lin)
+  | diffCluster (diff_cluster : ¬ e_w.sameProtocol n e_r)
+    (diff_cluster_cases : CompoundProtocol.DifferentCluster.cleOB.cleOrdering.Cases hw_c_and_g_lin hr_c_and_g_lin)
+
+-- inductive cases on the relationship between the GLEs and CLEs
+inductive CompoundProtocol.gleOrdering.Cases
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w hw_cluster)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r hr_cluster)
+  | sameGle
+    (same_gle : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
+    (cle_cases : CompoundProtocol.gleEq.SameCluster.cleEq.cleOb.cleOrdering.Cases hw_c_and_g_lin hr_c_and_g_lin)
+  | wImmPredRGle
+    (w_imm_pred_r_gle : CompoundProtocol.gleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+    (cle_cases : CompoundProtocol.gleOB.Cluster.SameOrDiff.cleOrdering.Cases hw_c_and_g_lin hr_c_and_g_lin)
+
+/- ========== END RF Constraints ========== -/
