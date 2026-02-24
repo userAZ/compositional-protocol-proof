@@ -881,217 +881,75 @@ lemma gle_ordered_implies_same_protocol
 
 lemma CMCM.rf.sameGle.sameCle
   {cmp : CompoundProtocol n}
-  {e_w_cle e_r_cle : Event n}
-  (hw_cle_in_b : e_w_cle ∈ b) (hr_cle_in_b : e_r_cle ∈ b)
-  {e_w_gle e_r_gle : Event n}
-  (hw_gle_in_b : e_w_gle ∈ b) (hr_gle_in_b : e_r_gle ∈ b)
-  (hcdir_of_w : Behaviour.dirAccessOfRequest n b init e_w e_w_cle)
-  (hcdir_of_r : Behaviour.dirAccessOfRequest n b init e_r e_r_cle)
-  (hgle_of_w : Behaviour.dirAccessOfRequest n b init
-    (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init (by
-      refine ⟨e_w_cle, hw_cle_in_b, ?_⟩
-      exact hcdir_of_w))
-    e_w_gle)
-  (hgle_of_r : Behaviour.dirAccessOfRequest n b init
-    (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init (by
-      refine ⟨e_r_cle, hr_cle_in_b, ?_⟩
-      exact hcdir_of_r))
-    e_r_gle)
-  (hsame_cle : e_w_cle = e_r_cle)
-  (hsame_gle : e_w_gle = e_r_gle)
-  : Behaviour.readsFrom.cases hw_is_write hr_is_read
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_w_cle) (by use e_w_gle))
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_r_cle) (by use e_r_gle))
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hsame_gle : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
+  (hsame_cle : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
+  : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin
   := by
   sorry
 
 lemma CMCM.rf.sameGle.wImmPredRCle
   {cmp : CompoundProtocol n}
-  {e_w_cle e_r_cle : Event n}
-  (hw_cle_in_b : e_w_cle ∈ b) (hr_cle_in_b : e_r_cle ∈ b)
-  {e_w_gle e_r_gle : Event n}
-  (hw_gle_in_b : e_w_gle ∈ b) (hr_gle_in_b : e_r_gle ∈ b)
-  (hcdir_of_w : Behaviour.dirAccessOfRequest n b init e_w e_w_cle)
-  (hcdir_of_r : Behaviour.dirAccessOfRequest n b init e_r e_r_cle)
-  (hgle_of_w : Behaviour.dirAccessOfRequest n b init
-    (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init (by
-      refine ⟨e_w_cle, hw_cle_in_b, ?_⟩
-      exact hcdir_of_w))
-    e_w_gle)
-  (hgle_of_r : Behaviour.dirAccessOfRequest n b init
-    (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init (by
-      refine ⟨e_r_cle, hr_cle_in_b, ?_⟩
-      exact hcdir_of_r))
-    e_r_gle)
-  (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor
-    (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_w_cle) (by use e_w_gle))
-    (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_r_cle) (by use e_r_gle))
-    )
-  (hsame_gle : e_w_gle = e_r_gle)
-  : Behaviour.readsFrom.cases hw_is_write hr_is_read
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_w_cle) (by use e_w_gle))
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_r_cle) (by use e_r_gle))
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hsame_gle : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
+  (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin
   := by
   sorry
 
 lemma CMCM.rf.sameGle.evictOrReadBetweenWAndRCleSameCluster
   {cmp : CompoundProtocol n}
-  {e_w_cle e_r_cle : Event n}
-  (hw_cle_in_b : e_w_cle ∈ b) (hr_cle_in_b : e_r_cle ∈ b)
-  {e_w_gle e_r_gle : Event n}
-  (hw_gle_in_b : e_w_gle ∈ b) (hr_gle_in_b : e_r_gle ∈ b)
-  (hcdir_of_w : Behaviour.dirAccessOfRequest n b init e_w e_w_cle)
-  (hcdir_of_r : Behaviour.dirAccessOfRequest n b init e_r e_r_cle)
-  (hgle_of_w : Behaviour.dirAccessOfRequest n b init
-    (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init (by
-      refine ⟨e_w_cle, hw_cle_in_b, ?_⟩
-      exact hcdir_of_w))
-    e_w_gle)
-  (hgle_of_r : Behaviour.dirAccessOfRequest n b init
-    (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init (by
-      refine ⟨e_r_cle, hr_cle_in_b, ?_⟩
-      exact hcdir_of_r))
-    e_r_gle)
-  (hevict_or_read_between_w_r_cle : CLE.WROrdering.evictOrReadBetween
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_w_cle) (by use e_w_gle))
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_r_cle) (by use e_r_gle))
-    )
-  (hsame_gle : e_w_gle = e_r_gle)
-  : Behaviour.readsFrom.cases hw_is_write hr_is_read
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_w_cle) (by use e_w_gle))
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_r_cle) (by use e_r_gle))
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hsame_gle : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
+  (hevict_or_read_between_w_r_cle : CLE.WROrdering.evictOrReadBetween hw_c_and_g_lin hr_c_and_g_lin)
+  : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin
   := by
   sorry
 
 lemma CMCM.rf.wImmPredRGle.sameCluster.wImmPredRCle
   {cmp : CompoundProtocol n}
-  {e_w_cle e_r_cle : Event n}
-  (hw_cle_in_b : e_w_cle ∈ b) (hr_cle_in_b : e_r_cle ∈ b)
-  {e_w_gle e_r_gle : Event n}
-  (hw_gle_in_b : e_w_gle ∈ b) (hr_gle_in_b : e_r_gle ∈ b)
-  (hcdir_of_w : Behaviour.dirAccessOfRequest n b init e_w e_w_cle)
-  (hcdir_of_r : Behaviour.dirAccessOfRequest n b init e_r e_r_cle)
-  (hgle_of_w : Behaviour.dirAccessOfRequest n b init
-    (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init (by
-      refine ⟨e_w_cle, hw_cle_in_b, ?_⟩
-      exact hcdir_of_w))
-    e_w_gle)
-  (hgle_of_r : Behaviour.dirAccessOfRequest n b init
-    (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init (by
-      refine ⟨e_r_cle, hr_cle_in_b, ?_⟩
-      exact hcdir_of_r))
-    e_r_gle)
-  (hw_imm_pred_r_gle : CompoundProtocol.gleImmediatePredecessor
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_w_cle) (by use e_w_gle))
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_r_cle) (by use e_r_gle))
-    )
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hw_imm_pred_r_gle : CompoundProtocol.gleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
   (hsame_cluster : Event.sameProtocol n e_w e_r)
-  (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor
-    (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_w_cle) (by use e_w_gle))
-    (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_r_cle) (by use e_r_gle))
-    )
-  : Behaviour.readsFrom.cases hw_is_write hr_is_read
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_w_cle) (by use e_w_gle))
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_r_cle) (by use e_r_gle))
+  (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin
   := by
   sorry
 
 lemma CMCM.rf.wImmPredRGle.sameCluster.evictOrReadBetweenWAndRCleSameCluster
   {cmp : CompoundProtocol n}
-  {e_w_cle e_r_cle : Event n}
-  (hw_cle_in_b : e_w_cle ∈ b) (hr_cle_in_b : e_r_cle ∈ b)
-  {e_w_gle e_r_gle : Event n}
-  (hw_gle_in_b : e_w_gle ∈ b) (hr_gle_in_b : e_r_gle ∈ b)
-  (hcdir_of_w : Behaviour.dirAccessOfRequest n b init e_w e_w_cle)
-  (hcdir_of_r : Behaviour.dirAccessOfRequest n b init e_r e_r_cle)
-  (hgle_of_w : Behaviour.dirAccessOfRequest n b init
-    (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init (by
-      refine ⟨e_w_cle, hw_cle_in_b, ?_⟩
-      exact hcdir_of_w))
-    e_w_gle)
-  (hgle_of_r : Behaviour.dirAccessOfRequest n b init
-    (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init (by
-      refine ⟨e_r_cle, hr_cle_in_b, ?_⟩
-      exact hcdir_of_r))
-    e_r_gle)
-  (hw_imm_pred_r_gle : CompoundProtocol.gleImmediatePredecessor
-    (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_w_cle) (by use e_w_gle))
-    (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_r_cle) (by use e_r_gle))
-    )
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hw_imm_pred_r_gle : CompoundProtocol.gleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
   (hsame_cluster : Event.sameProtocol n e_w e_r)
-  (hevict_or_read_between_w_r_cle : CLE.WROrdering.evictOrReadBetween
-    (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_w_cle) (by use e_w_gle))
-    (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_r_cle) (by use e_r_gle))
-    )
-  : Behaviour.readsFrom.cases hw_is_write hr_is_read
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_w_cle) (by use e_w_gle))
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_r_cle) (by use e_r_gle))
+  (hevict_or_read_between_w_r_cle : CLE.WROrdering.evictOrReadBetween hw_c_and_g_lin hr_c_and_g_lin)
+  : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin
   := by
   sorry
 
 lemma CMCM.rf.wImmPredRGle.diffCluster.wCleImmPredDown
   {cmp : CompoundProtocol n}
-  {e_w_cle e_r_cle : Event n}
-  (hw_cle_in_b : e_w_cle ∈ b) (hr_cle_in_b : e_r_cle ∈ b)
-  {e_w_gle e_r_gle : Event n}
-  (hw_gle_in_b : e_w_gle ∈ b) (hr_gle_in_b : e_r_gle ∈ b)
-  (hcdir_of_w : Behaviour.dirAccessOfRequest n b init e_w e_w_cle)
-  (hcdir_of_r : Behaviour.dirAccessOfRequest n b init e_r e_r_cle)
-  (hgle_of_w : Behaviour.dirAccessOfRequest n b init
-    (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init (by
-      refine ⟨e_w_cle, hw_cle_in_b, ?_⟩
-      exact hcdir_of_w))
-    e_w_gle)
-  (hgle_of_r : Behaviour.dirAccessOfRequest n b init
-    (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init (by
-      refine ⟨e_r_cle, hr_cle_in_b, ?_⟩
-      exact hcdir_of_r))
-    e_r_gle)
-  (hw_imm_pred_r_gle : CompoundProtocol.gleImmediatePredecessor
-    (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_w_cle) (by use e_w_gle))
-    (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_r_cle) (by use e_r_gle))
-    )
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hw_imm_pred_r_gle : CompoundProtocol.gleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
   (hdiff_cluster : ¬ Event.sameProtocol n e_w e_r)
-  (hw_cle_imm_pred_r_down : ReadDowngradeAtWrite.wCleImmPredDown
-    (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_w_cle) (by use e_w_gle))
-    (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_r_cle) (by use e_r_gle))
-    )
-  : Behaviour.readsFrom.cases hw_is_write hr_is_read
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_w_cle) (by use e_w_gle))
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_r_cle) (by use e_r_gle))
+  (hw_cle_imm_pred_r_down : ReadDowngradeAtWrite.wCleImmPredDown hw_c_and_g_lin hr_c_and_g_lin)
+  : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin
   := by
   sorry
 
 lemma CMCM.rf.wImmPredRGle.diffCluster.evictOrReadBetweenWAndRDown
   {cmp : CompoundProtocol n}
-  {e_w_cle e_r_cle : Event n}
-  (hw_cle_in_b : e_w_cle ∈ b) (hr_cle_in_b : e_r_cle ∈ b)
-  {e_w_gle e_r_gle : Event n}
-  (hw_gle_in_b : e_w_gle ∈ b) (hr_gle_in_b : e_r_gle ∈ b)
-  (hcdir_of_w : Behaviour.dirAccessOfRequest n b init e_w e_w_cle)
-  (hcdir_of_r : Behaviour.dirAccessOfRequest n b init e_r e_r_cle)
-  (hgle_of_w : Behaviour.dirAccessOfRequest n b init
-    (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init (by
-      refine ⟨e_w_cle, hw_cle_in_b, ?_⟩
-      exact hcdir_of_w))
-    e_w_gle)
-  (hgle_of_r : Behaviour.dirAccessOfRequest n b init
-    (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init (by
-      refine ⟨e_r_cle, hr_cle_in_b, ?_⟩
-      exact hcdir_of_r))
-    e_r_gle)
-  (hw_imm_pred_r_gle : CompoundProtocol.gleImmediatePredecessor
-    (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_w_cle) (by use e_w_gle))
-    (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_r_cle) (by use e_r_gle))
-    )
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hw_imm_pred_r_gle : CompoundProtocol.gleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
   (hdiff_cluster : ¬ Event.sameProtocol n e_w e_r)
-  (hw_cle_imm_pred_down : ReadDowngradeAtWrite.evictOrReadBetween.wAndRDown
-    (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_w_cle) (by use e_w_gle))
-    (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_r_cle) (by use e_r_gle))
-    )
-  : Behaviour.readsFrom.cases hw_is_write hr_is_read
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_w_cle) (by use e_w_gle))
-      (CompoundProtocol.globalLinearizationEventOfRequest.mk (by use e_r_cle) (by use e_r_gle))
+  (hw_cle_imm_pred_down : ReadDowngradeAtWrite.evictOrReadBetween.wAndRDown hw_c_and_g_lin hr_c_and_g_lin)
+  : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin
   := by
   sorry
 
@@ -1129,46 +987,19 @@ theorem CMCM.rf_holds
   . case sameGle hsame_gle hcle_cases =>
     cases hcle_cases
     . case wEqRCle hsame_cle =>
-      refine CMCM.rf.sameGle.sameCle
-        (e_w_cle := e_w_cle) (e_r_cle := e_r_cle)
-        (e_w_gle := e_w_gle) (e_r_gle := e_r_gle)
-        ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ hsame_cle hsame_gle
-      · exact hw_c_and_g_lin.hreq's_dir_access.choose_spec.left
-      · exact hr_c_and_g_lin.hreq's_dir_access.choose_spec.left
-      · exact hw_c_and_g_lin.hreq's_global_lin.choose_spec.left
-      · exact hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
-      · exact hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
-      · exact hr_c_and_g_lin.hreq's_dir_access.choose_spec.right
-      · exact hw_c_and_g_lin.hreq's_global_lin.choose_spec.right
-      · exact hr_c_and_g_lin.hreq's_global_lin.choose_spec.right
+      apply CMCM.rf.sameGle.sameCle hw_c_and_g_lin hr_c_and_g_lin
+      . case hsame_gle => exact hsame_gle
+      . case hsame_cle => exact hsame_cle
     . case otherCases hsame_as_gle_ob_cases =>
       cases hsame_as_gle_ob_cases
       . case wImmPredRCle hw_imm_pred_r_cle =>
-        refine CMCM.rf.sameGle.wImmPredRCle
-          (e_w_cle := e_w_cle) (e_r_cle := e_r_cle)
-          (e_w_gle := e_w_gle) (e_r_gle := e_r_gle)
-          ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ hw_imm_pred_r_cle hsame_gle
-        · exact hw_c_and_g_lin.hreq's_dir_access.choose_spec.left
-        · exact hr_c_and_g_lin.hreq's_dir_access.choose_spec.left
-        · exact hw_c_and_g_lin.hreq's_global_lin.choose_spec.left
-        · exact hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
-        · exact hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
-        · exact hr_c_and_g_lin.hreq's_dir_access.choose_spec.right
-        · exact hw_c_and_g_lin.hreq's_global_lin.choose_spec.right
-        · exact hr_c_and_g_lin.hreq's_global_lin.choose_spec.right
+        apply CMCM.rf.sameGle.wImmPredRCle hw_c_and_g_lin hr_c_and_g_lin
+        . case hsame_gle => exact hsame_gle
+        . case hw_imm_pred_r_cle => exact hw_imm_pred_r_cle
       . case evictOrReadBetweenWAndRCleSameCluster hevict_or_read_between_w_r_cle =>
-        refine CMCM.rf.sameGle.evictOrReadBetweenWAndRCleSameCluster
-          (e_w_cle := e_w_cle) (e_r_cle := e_r_cle)
-          (e_w_gle := e_w_gle) (e_r_gle := e_r_gle)
-          ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ hevict_or_read_between_w_r_cle hsame_gle
-        · exact hw_c_and_g_lin.hreq's_dir_access.choose_spec.left
-        · exact hr_c_and_g_lin.hreq's_dir_access.choose_spec.left
-        · exact hw_c_and_g_lin.hreq's_global_lin.choose_spec.left
-        · exact hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
-        · exact hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
-        · exact hr_c_and_g_lin.hreq's_dir_access.choose_spec.right
-        · exact hw_c_and_g_lin.hreq's_global_lin.choose_spec.right
-        · exact hr_c_and_g_lin.hreq's_global_lin.choose_spec.right
+        apply CMCM.rf.sameGle.evictOrReadBetweenWAndRCleSameCluster hw_c_and_g_lin hr_c_and_g_lin
+        . case hsame_gle => exact hsame_gle
+        . case hevict_or_read_between_w_r_cle => exact hevict_or_read_between_w_r_cle
   . case wImmPredRGle hw_imm_pred_r_gle hcle_cases =>
       cases hcle_cases
       . case sameCluster hsame_cluster hsame_cluster_cases =>
@@ -1176,59 +1007,27 @@ theorem CMCM.rf_holds
         -- from the same GLE & CLE case
         cases hsame_cluster_cases
         . case wImmPredRCle hw_imm_pred_r_cle =>
-          refine CMCM.rf.wImmPredRGle.sameCluster.wImmPredRCle
-            (e_w_cle := e_w_cle) (e_r_cle := e_r_cle)
-            (e_w_gle := e_w_gle) (e_r_gle := e_r_gle)
-            ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ hw_imm_pred_r_gle hsame_cluster hw_imm_pred_r_cle
-          · exact hw_c_and_g_lin.hreq's_dir_access.choose_spec.left
-          · exact hr_c_and_g_lin.hreq's_dir_access.choose_spec.left
-          · exact hw_c_and_g_lin.hreq's_global_lin.choose_spec.left
-          · exact hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
-          · exact hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
-          · exact hr_c_and_g_lin.hreq's_dir_access.choose_spec.right
-          · exact hw_c_and_g_lin.hreq's_global_lin.choose_spec.right
-          · exact hr_c_and_g_lin.hreq's_global_lin.choose_spec.right
+          apply CMCM.rf.wImmPredRGle.sameCluster.wImmPredRCle hw_c_and_g_lin hr_c_and_g_lin
+          . case hw_imm_pred_r_gle => exact hw_imm_pred_r_gle
+          . case hsame_cluster => exact hsame_cluster
+          . case hw_imm_pred_r_cle => exact hw_imm_pred_r_cle
         . case evictOrReadBetweenWAndRCleSameCluster hevict_or_read_between_w_r_cle =>
-          refine CMCM.rf.wImmPredRGle.sameCluster.evictOrReadBetweenWAndRCleSameCluster
-            (e_w_cle := e_w_cle) (e_r_cle := e_r_cle)
-            (e_w_gle := e_w_gle) (e_r_gle := e_r_gle)
-            ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ hw_imm_pred_r_gle hsame_cluster hevict_or_read_between_w_r_cle
-          · exact hw_c_and_g_lin.hreq's_dir_access.choose_spec.left
-          · exact hr_c_and_g_lin.hreq's_dir_access.choose_spec.left
-          · exact hw_c_and_g_lin.hreq's_global_lin.choose_spec.left
-          · exact hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
-          · exact hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
-          · exact hr_c_and_g_lin.hreq's_dir_access.choose_spec.right
-          · exact hw_c_and_g_lin.hreq's_global_lin.choose_spec.right
-          · exact hr_c_and_g_lin.hreq's_global_lin.choose_spec.right
+          apply CMCM.rf.wImmPredRGle.sameCluster.evictOrReadBetweenWAndRCleSameCluster hw_c_and_g_lin hr_c_and_g_lin
+          . case hw_imm_pred_r_gle => exact hw_imm_pred_r_gle
+          . case hsame_cluster => exact hsame_cluster
+          . case hevict_or_read_between_w_r_cle => exact hevict_or_read_between_w_r_cle
       . case diffCluster hdiff_cluster hdiff_cluster_cases =>
         cases hdiff_cluster_cases
         . case wCleImmPredDown hw_cle_imm_pred_r_down =>
-          refine CMCM.rf.wImmPredRGle.diffCluster.wCleImmPredDown
-            (e_w_cle := e_w_cle) (e_r_cle := e_r_cle)
-            (e_w_gle := e_w_gle) (e_r_gle := e_r_gle)
-            ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ hw_imm_pred_r_gle hdiff_cluster hw_cle_imm_pred_r_down
-          · exact hw_c_and_g_lin.hreq's_dir_access.choose_spec.left
-          · exact hr_c_and_g_lin.hreq's_dir_access.choose_spec.left
-          · exact hw_c_and_g_lin.hreq's_global_lin.choose_spec.left
-          · exact hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
-          · exact hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
-          · exact hr_c_and_g_lin.hreq's_dir_access.choose_spec.right
-          · exact hw_c_and_g_lin.hreq's_global_lin.choose_spec.right
-          · exact hr_c_and_g_lin.hreq's_global_lin.choose_spec.right
+          apply CMCM.rf.wImmPredRGle.diffCluster.wCleImmPredDown hw_c_and_g_lin hr_c_and_g_lin
+          . case hw_imm_pred_r_gle => exact hw_imm_pred_r_gle
+          . case hdiff_cluster => exact hdiff_cluster
+          . case hw_cle_imm_pred_r_down => exact hw_cle_imm_pred_r_down
         . case evictOrReadBetweenWAndRDown hw_cle_imm_pred_down =>
-          refine CMCM.rf.wImmPredRGle.diffCluster.evictOrReadBetweenWAndRDown
-            (e_w_cle := e_w_cle) (e_r_cle := e_r_cle)
-            (e_w_gle := e_w_gle) (e_r_gle := e_r_gle)
-            ?_ ?_ ?_ ?_ ?_ ?_ ?_ ?_ hw_imm_pred_r_gle hdiff_cluster hw_cle_imm_pred_down
-          · exact hw_c_and_g_lin.hreq's_dir_access.choose_spec.left
-          · exact hr_c_and_g_lin.hreq's_dir_access.choose_spec.left
-          · exact hw_c_and_g_lin.hreq's_global_lin.choose_spec.left
-          · exact hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
-          · exact hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
-          · exact hr_c_and_g_lin.hreq's_dir_access.choose_spec.right
-          · exact hw_c_and_g_lin.hreq's_global_lin.choose_spec.right
-          · exact hr_c_and_g_lin.hreq's_global_lin.choose_spec.right
+          apply CMCM.rf.wImmPredRGle.diffCluster.evictOrReadBetweenWAndRDown hw_c_and_g_lin hr_c_and_g_lin
+          . case hw_imm_pred_r_gle => exact hw_imm_pred_r_gle
+          . case hdiff_cluster => exact hdiff_cluster
+          . case hw_cle_imm_pred_down => exact hw_cle_imm_pred_down
 
   -- First, determine the relationship between the GLEs
   by_cases hw_r_gle_eq : e_w_gle = e_r_gle
