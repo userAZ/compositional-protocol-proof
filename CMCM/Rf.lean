@@ -114,7 +114,7 @@ def Event.Between.noEvict (b : Behaviour n) (e_w e_r : Event n) : Prop :=
 
 structure Event.Between.noWriteOrEvict (b : Behaviour n) (init : InitialSystemState n) (e_w e_r e_w_cle e_r_cle : Event n) : Prop where
   noWrite : Event.Between.noWrite b init e_w e_r e_w_cle e_r_cle
-  -- noEvict : Event.Between.noEvict b e_w e_r
+  noEvict : Event.Between.noEvict b e_w e_r
 
 structure Event.writeReadPair (e_w e_r : Event n) : Prop where
   wIsWrite : e_w.isWrite
