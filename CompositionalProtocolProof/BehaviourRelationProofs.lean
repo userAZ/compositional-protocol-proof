@@ -497,7 +497,7 @@ structure Behaviour.exists_predecessor_setting_state (b : Behaviour n) (init : I
   -- hinter_leaves_state_at_least : b.stateBeforeAndAfterAtLeast n init hexists_pred_getting_perms.choose e_req
   hinter_leaves_state_at_least : ∀ e_inter ∈ b,
     e_inter.OrderedBetween n hexists_pred_getting_perms.choose e_req →
-    b.stateBeforeAndAfterAtLeast n init hexists_pred_getting_perms.choose e_req
+    b.stateBeforeAndAfterAtLeast n init e_inter e_req
   hinter_same_protocol : hexists_pred_getting_perms.choose.sameProtocol n e_req
 
 /-- Axiom 7 Redux. -/

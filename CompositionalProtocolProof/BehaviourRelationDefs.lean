@@ -575,7 +575,7 @@ inductive Behaviour.dirAccessOfRequest (b : Behaviour n) (init : InitialSystemSt
      -/
   (hinter_leaves_state_at_least : ∀ e_inter ∈ b,
     e_inter.OrderedBetween n (hexists_pred_getting_perms.choose) e_req →
-    b.stateBeforeAndAfterAtLeast n init hexists_pred_getting_perms.choose e_req)
+    b.stateBeforeAndAfterAtLeast n init e_inter e_req)
   (hpred_same_protocol : hexists_pred_getting_perms.choose.sameProtocol n e_req)
   : Behaviour.dirAccessOfRequest b init e_req e_dir
 | orderAfterDir (hweak_read_on_vd : b.ncWeakReqOnVd n init e_req) (hsucc_encap_dir : b.immBottomSuccOnVdEncapCorrDir n init e_req e_dir)
