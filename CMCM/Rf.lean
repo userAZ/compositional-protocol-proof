@@ -116,11 +116,18 @@ structure Event.Between.noWriteOrEvict (b : Behaviour n) (init : InitialSystemSt
   noWrite : Event.Between.noWrite b init e_w e_r e_w_cle e_r_cle
   -- noEvict : Event.Between.noEvict b e_w e_r
 
+structure Event.writeReadPair (e_w e_r : Event n) : Prop where
+  wIsWrite : e_w.isWrite
+  wNotDown : ¬ e_w.down
+  rIsRead : e_r.isRead
+  rNotDown : ¬ e_r.down
+
 /-- `e_w` and `e_r` are in the same cache and `e_w` is ordered before `e_r` and there are no writes or evicts between them.
 This can be considered the "base case" of the reads-from or load-value axiom. -/
 structure WriteRead.EqGleCle.case (b : Behaviour n) (init : InitialSystemState n) (e_w e_r e_w_cle e_r_cle : Event n) : Prop where
   sameCache : e_w.struct = e_r.struct
   wObR : e_w.OrderedBefore n e_r
+  writeRead : Event.writeReadPair e_w e_r
   noBetween : Event.Between.noWriteOrEvict b init e_w e_r e_w_cle e_r_cle
 /- End Defs for WriteRead.EqGleCle.case -/
 
