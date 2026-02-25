@@ -22,6 +22,7 @@ structure CompoundProtocol where
   weakWriteAndNonCoherentRelCannotLinearizeAtCache : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e₁ ∈ b, ∀ e₂ ∈ b,
     e₁.req.isNcRelease ∧ e₂.req.isWeak ∨ e₁.req.isWeak ∧ e₂.req.isNcRelease → (∃ e ∈ [e₁, e₂], (∃ e_cmplin ∈ b,
     Behaviour.eventCompoundLinearizes.atCache n b init e e_cmplin (linearizationOfEvent b init e)) ) → False
+  eReqOfTheirProtocol : Protocol.Request.fromInterface.wrapper n
 
 def CompoundProtocol.globalCidToProtocol (cmp : CompoundProtocol n) (g_cid : Fin 2) : Protocol n := match g_cid with
   | 0 => cmp.cluster1
