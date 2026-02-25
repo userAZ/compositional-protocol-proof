@@ -533,6 +533,7 @@ inductive Behaviour.dirEventOfCoherentReq (b : Behaviour n) (init : InitialSyste
 -/
 
 structure Behaviour.ncWeakReqOnVd (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop where
+  notDown : ¬ e_req.down
   weakReq : e_req.isNcWeak
   reqOnOrAfterVd : (b.stateBefore n (init.stateAt n e_req) e_req).cache n = Vd ∨ (b.stateAfter n (init.stateAt n e_req) e_req).cache n = Vd
 

@@ -724,6 +724,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
             in Behaviour.dirAccessOfRequest from the Goal to show this case isn't true. -/
             have hreq_on_vd : b.ncWeakReqOnVd n init (Event.cacheEvent ce) := by
               constructor
+              . case notDown => simp[hnot_down]
               . case weakReq =>
                 simp[Event.isNcWeak]
                 simp[Event.isNonCoherent, Event.isWeak]
@@ -823,6 +824,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
           /- Show a future event writes back. -/
             have hreq_on_vd : b.ncWeakReqOnVd n init (Event.cacheEvent ce) := by
               constructor
+              . case notDown => simp[hnot_down]
               . case weakReq =>
                 simp[Event.isNcWeak]
                 simp[Event.isNonCoherent, Event.isWeak]
