@@ -5,6 +5,10 @@ import Mathlib
 
 variable (n : Nat)
 
+def InitialSystemState.ofCacheStateIsCacheState : Prop :=
+  ∀ e : Event n, ∀ init : InitialSystemState n,
+    e.isCacheEvent → (InitialSystemState.stateAt n init e).isCacheState
+
 /-- New Axiom 2.
 Use lemma `Behaviour.orderedBottomCacheEntries` to show two bottom cache events are
 Totally Ordered. -/
@@ -18,6 +22,7 @@ structure Behaviour where
   -- es : Finset Event
   finite : Finite es
   orderedAtEntry : Event.AtEntryOrdered n
+  initCacheStateIsCache : InitialSystemState.ofCacheStateIsCacheState n
 
 instance : Membership (Event n) (Behaviour n) := ⟨fun b e => e ∈ b.es⟩
 
