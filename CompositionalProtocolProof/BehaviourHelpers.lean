@@ -282,3 +282,25 @@ lemma Behaviour.stateAfter_directory_event_is_directory_state' {b init_state e_d
       intro e' he'_in_tail
       apply hall_dir
       . case a => simp[he'_in_tail]
+
+lemma Behaviour.unwrap_cache_state_to_entry_state
+  (he_is_cache : e_evict.isCacheEvent)
+  (hevict_init_is_cache_state : (InitialSystemState.stateAt n init e_evict).isCacheState)
+  : (EntryState.cache n
+      (List.stateAfter n (Behaviour.eventsUpToEvent n b e_evict) (InitialSystemState.stateAt n init e_evict)) =
+       Event.MRS n e_evict) →
+    (List.stateAfter n (Behaviour.eventsUpToEvent n b e_evict) (InitialSystemState.stateAt n init e_evict)) =
+      Sum.inl (Event.MRS n e_evict)
+  := by
+  intro hstate_before_e_eq_mrs_e
+  rw[← hstate_before_e_eq_mrs_e]
+  -- TODO: show applying EntryState.cache and then Sum.inl gives you the original cache EntryState back.
+  -- Need hypothesis that the resulting state from stateAfter is a cache state.
+  have hall_at_entry := Behaviour.eventsUpToEntry_at_e_entry n b e_evict
+  have hstate_after_is_cache_state := Behaviour.stateAfter_cache_event_is_cache_state n he_is_cache hevict_init_is_cache_state hall_at_entry
+
+  cases hstate_after : List.stateAfter n (eventsUpToEvent n b e_evict) (InitialSystemState.stateAt n init e_evict)
+  . case inl state => simp[EntryState.cache]
+  . case inr dir_state =>
+    simp[EntryState.isCacheState] at hstate_after_is_cache_state
+    simp[hstate_after] at hstate_after_is_cache_state
