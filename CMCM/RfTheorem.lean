@@ -480,7 +480,7 @@ lemma noInterveningWrites_implies_no_writes_between
   (_hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   (_hno_intervening : NoInterveningWrites _hw_is_write _r_is_read hw_c_and_g_lin hr_c_and_g_lin _hknow_dir_access)
   (_hr_not_ob_w : ¬ e_r.OrderedBefore n e_w)
-  (_hsucc_w_of_w_after_r : ∀ e_w_succ ∈ b, e_w_succ.sameProtocol n e_w ∧ e_w_succ.sameStructure n e_w ∧
+  (_hsucc_w_of_w_after_r : ∀ e_w_succ ∈ b, e_w_succ.isWrite ∧ e_w_succ.sameProtocol n e_w ∧ e_w_succ.sameStructure n e_w ∧
     e_w.OrderedBefore n e_w_succ → e_r.oEnd < e_w_succ.oEnd)
   : Event.Between.noWrite b init e_w e_r hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose := by
   intro e he hwrite_cluster hwrite
@@ -521,7 +521,7 @@ lemma noInterveningWrites_implies_no_writes_between
         -- Use successive writes constraint: timing contradiction
         have hw_ob_e : e_w.OrderedBefore n e := hbetween.pred
         have he_ob_r : e.OrderedBefore n e_r := hbetween.succ
-        have hr_end_before_e_end : e_r.oEnd < e.oEnd := _hsucc_w_of_w_after_r e he ⟨hsame_protocol, hsame_cache, hw_ob_e⟩
+        have hr_end_before_e_end : e_r.oEnd < e.oEnd := _hsucc_w_of_w_after_r e he ⟨hwrite, hsame_protocol, hsame_cache, hw_ob_e⟩
         simp [Event.OrderedBefore] at he_ob_r
         have hr_well_formed := e_r.oWellFormed
         have hcontra_timing : e_r.oEnd < e_r.oStart := by
@@ -540,8 +540,6 @@ lemma noInterveningWrites_implies_no_writes_between
 /-- When CLEs are equal, the events must be in the same protocol/cluster -/
 lemma same_cle_implies_same_protocol
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
-  {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
-  (hw_not_down : ¬ e_w.down) (r_not_down : ¬ e_r.down)
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (hcle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
@@ -550,8 +548,49 @@ lemma same_cle_implies_same_protocol
   -- Both events access the same directory event, which belongs to a specific protocol
   -- From cacheEncapsulatesCorrespondingDirEvent, we have sameProtocol : e_req.protocol = e_dir.protocol
   -- Therefore both e_w and e_r must be in the same protocol as the shared directory event
-  -- This requires: axiom that directory events uniquely determine protocol membership
-  sorry
+  have hw_cle_protocol :
+      hw_c_and_g_lin.hreq's_dir_access.choose.protocol = e_w.protocol :=
+    write_cle_protocol_eq_write_protocol hw_c_and_g_lin
+  have hr_cle_protocol :
+      hr_c_and_g_lin.hreq's_dir_access.choose.protocol = e_r.protocol :=
+    read_cle_protocol_eq_read_protocol hr_c_and_g_lin
+  have hcle_protocol_eq :
+      hw_c_and_g_lin.hreq's_dir_access.choose.protocol =
+        hr_c_and_g_lin.hreq's_dir_access.choose.protocol := by
+    simp [hcle_eq]
+  calc
+    e_w.protocol = hw_c_and_g_lin.hreq's_dir_access.choose.protocol :=
+      hw_cle_protocol.symm
+    _ = hr_c_and_g_lin.hreq's_dir_access.choose.protocol :=
+      hcle_protocol_eq
+    _ = e_r.protocol :=
+      hr_cle_protocol
+
+-- Helper: if a directory event corresponds to two request events, they are equal.
+lemma dir_event_of_req_event_unique
+  {e_dir e_req1 e_req2 : Event n}
+  (hreq1 : e_dir.dirEventOfReqEvent n e_req1)
+  (hreq2 : e_dir.dirEventOfReqEvent n e_req2)
+  : e_req1 = e_req2 := by
+  cases e_dir <;> cases e_req1 <;> cases e_req2 <;>
+    simp[Event.dirEventOfReqEvent] at hreq1 hreq2
+  · -- directoryEvent / cacheEvent / cacheEvent
+    have hce1 := hreq1.correspondingCE
+    have hce2 := hreq2.correspondingCE
+    have hce : _ := hce1.symm.trans hce2
+    simp[hce]
+
+-- Helper: extract ordering from ImmediateBottomPredSatisfyingProp
+lemma pred_ordering_from_imm_bottom_pred_satisfying_prop
+  {b : Behaviour n} {e_pred e_req : Event n} {p : Event n → Prop}
+  (hpred_struct : b.IsImmediateBottomPredSatisfyingProp n e_pred e_req p)
+  : e_pred.OrderedBefore n e_req := by
+  -- Extract from the structure: isImmPred contains the predecessor information
+  have hpred_imm_pred_satisfying := hpred_struct.isImmPred
+  -- isImmPred of type EntryImmediatePredecessorSatisfyingProp contains bPred
+  have hpred_predecessor := hpred_imm_pred_satisfying.bPred
+  -- bPred has isPred which gives us the Event.Predecessor relation
+  exact hpred_predecessor.isPred
 
 /-- When CLEs are equal, the events must be at the same cache -/
 lemma same_cle_implies_same_struct
@@ -569,20 +608,6 @@ lemma same_cle_implies_same_struct
   have hw_dir_access := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
   have hr_dir_access := hr_c_and_g_lin.hreq's_dir_access.choose_spec.right
   have hcle : e_w_cle = e_r_cle := hcle_eq
-  -- Helper: if a directory event corresponds to two request events, they are equal.
-  have hreq_eq_of_dir :
-      ∀ {e_dir e_req1 e_req2 : Event n},
-        e_dir.dirEventOfReqEvent n e_req1 →
-        e_dir.dirEventOfReqEvent n e_req2 →
-        e_req1 = e_req2 := by
-    intro e_dir e_req1 e_req2 hreq1 hreq2
-    cases e_dir <;> cases e_req1 <;> cases e_req2 <;>
-      simp[Event.dirEventOfReqEvent] at hreq1 hreq2
-    · -- directoryEvent / cacheEvent / cacheEvent
-      have hce1 := hreq1.correspondingCE
-      have hce2 := hreq2.correspondingCE
-      have hce : _ := hce1.symm.trans hce2
-      simp[hce]
   -- Helper: sameEntry implies same struct.
   have hsame_struct_of_entry :
       ∀ {e₁ e₂ : Event n}, e₁.sameEntry n e₂ → e₁.struct = e₂.struct := by
@@ -595,10 +620,10 @@ lemma same_cle_implies_same_struct
   | encapDir _ hw_encap =>
     cases hr_dir_access' with
     | encapDir _ hr_encap =>
-      have hreq_eq := hreq_eq_of_dir hw_encap.dirOfReq hr_encap.dirOfReq
+      have hreq_eq := dir_event_of_req_event_unique hw_encap.dirOfReq hr_encap.dirOfReq
       simp[hreq_eq]
     | orderBeforeDir _ hr_pred hr_pred_access _ =>
-      have hreq_eq := hreq_eq_of_dir hw_encap.dirOfReq hr_pred_access.dirOfReq
+      have hreq_eq := dir_event_of_req_event_unique hw_encap.dirOfReq hr_pred_access.dirOfReq
       -- e_r is same entry as its predecessor that corresponds to the directory event.
       have hr_entry := hr_pred.choose_spec.right.isImmPred.bPred.sameEntry
       have hr_struct := hsame_struct_of_entry hr_entry
@@ -610,7 +635,7 @@ lemma same_cle_implies_same_struct
         exact hr_struct''
       exact hr_struct'.symm
     | orderAfterDir _ hr_succ =>
-      have hreq_eq := hreq_eq_of_dir hw_encap.dirOfReq hr_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq
+      have hreq_eq := dir_event_of_req_event_unique hw_encap.dirOfReq hr_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq
       -- e_r is same entry as its successor that corresponds to the directory event.
       have hr_entry := hr_succ.choose_spec.right.isImmBottomSucc.sameEntry
       have hr_struct := hsame_struct_of_entry hr_entry
@@ -623,7 +648,7 @@ lemma same_cle_implies_same_struct
   | orderBeforeDir _ hw_pred hw_pred_access _ =>
     cases hr_dir_access' with
     | encapDir _ hr_encap =>
-      have hreq_eq := hreq_eq_of_dir hw_pred_access.dirOfReq hr_encap.dirOfReq
+      have hreq_eq := dir_event_of_req_event_unique hw_pred_access.dirOfReq hr_encap.dirOfReq
       have hw_entry := hw_pred.choose_spec.right.isImmPred.bPred.sameEntry
       have hw_struct := hsame_struct_of_entry hw_entry
       have hw_struct' : e_w.struct = e_r.struct := by
@@ -633,7 +658,7 @@ lemma same_cle_implies_same_struct
         exact hw_struct''
       exact hw_struct'
     | orderBeforeDir _ hr_pred hr_pred_access _ =>
-      have hreq_eq := hreq_eq_of_dir hw_pred_access.dirOfReq hr_pred_access.dirOfReq
+      have hreq_eq := dir_event_of_req_event_unique hw_pred_access.dirOfReq hr_pred_access.dirOfReq
       have hw_entry := hw_pred.choose_spec.right.isImmPred.bPred.sameEntry
       have hr_entry := hr_pred.choose_spec.right.isImmPred.bPred.sameEntry
       have hw_struct := hsame_struct_of_entry hw_entry
@@ -647,7 +672,7 @@ lemma same_cle_implies_same_struct
         exact hw'.trans hr''.symm
       exact this
     | orderAfterDir _ hr_succ =>
-      have hreq_eq := hreq_eq_of_dir hw_pred_access.dirOfReq hr_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq
+      have hreq_eq := dir_event_of_req_event_unique hw_pred_access.dirOfReq hr_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq
       have hw_entry := hw_pred.choose_spec.right.isImmPred.bPred.sameEntry
       have hr_entry := hr_succ.choose_spec.right.isImmBottomSucc.sameEntry
       have hw_struct := hsame_struct_of_entry hw_entry
@@ -662,7 +687,7 @@ lemma same_cle_implies_same_struct
   | orderAfterDir _ hw_succ =>
     cases hr_dir_access' with
     | encapDir _ hr_encap =>
-      have hreq_eq := hreq_eq_of_dir hw_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq hr_encap.dirOfReq
+      have hreq_eq := dir_event_of_req_event_unique hw_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq hr_encap.dirOfReq
       have hw_entry := hw_succ.choose_spec.right.isImmBottomSucc.sameEntry
       have hw_struct := hsame_struct_of_entry hw_entry
       have : e_w.struct = e_r.struct := by
@@ -672,7 +697,7 @@ lemma same_cle_implies_same_struct
         exact hw''
       exact this
     | orderBeforeDir _ hr_pred hr_pred_access _ =>
-      have hreq_eq := hreq_eq_of_dir hw_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq hr_pred_access.dirOfReq
+      have hreq_eq := dir_event_of_req_event_unique hw_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq hr_pred_access.dirOfReq
       have hw_entry := hw_succ.choose_spec.right.isImmBottomSucc.sameEntry
       have hr_entry := hr_pred.choose_spec.right.isImmPred.bPred.sameEntry
       have hw_struct := hsame_struct_of_entry hw_entry
@@ -685,7 +710,7 @@ lemma same_cle_implies_same_struct
         exact hw'.trans hr''.symm
       exact this
     | orderAfterDir _ hr_succ =>
-      have hreq_eq := hreq_eq_of_dir hw_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq hr_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq
+      have hreq_eq := dir_event_of_req_event_unique hw_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq hr_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq
       have hw_entry := hw_succ.choose_spec.right.isImmBottomSucc.sameEntry
       have hr_entry := hr_succ.choose_spec.right.isImmBottomSucc.sameEntry
       have hw_struct := hsame_struct_of_entry hw_entry
@@ -749,41 +774,6 @@ lemma eq_gle_cle_implies_write_before_read
             simpa[Event.OrderedBefore, Event.oEnd, Event.oStart, hr_ev, hw_ev] using h_ob
           exact (hr_not_ob_w h_ob_ev).elim
 
-/-- When GLEs are equal but CLEs different, write's CLE must be before read's CLE -/
-lemma eq_gle_neq_cle_implies_cle_ordered
-  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
-  {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
-  (hw_is_write : e_w.isWrite) (r_is_read : e_r.isRead)
-  {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
-  (hno_intervening : NoInterveningWrites hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
-  (hgle_eq : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
-  (hcle_neq : hw_c_and_g_lin.hreq's_dir_access.choose ≠ hr_c_and_g_lin.hreq's_dir_access.choose)
-  (heq_gle_impl_ob_eq_cle :
-    hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose →
-    hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose)
-  : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose := by
-  -- If GLEs are equal but CLEs are different, the CLEs still can't be equal
-  -- and by protocol structure, must be ordered with write before read
-  -- The key is that within a single GLE context, multiple CLE accesses must be temporally ordered
-  -- Since e_w is a write and e_r is a read accessing the same GLE,
-  -- the write's CLE access precedes the read's CLE access
-  let e_w_cle := hw_c_and_g_lin.hreq's_dir_access.choose
-  let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
-  -- By the structure of directory accesses, each CLE is an event in b
-  have hw_cle_in_b := hw_c_and_g_lin.hreq's_dir_access.choose_spec.left
-  have hr_cle_in_b := hr_c_and_g_lin.hreq's_dir_access.choose_spec.left
-
-  -- Both are directory events corresponding to the linearization points
-  -- Within the same global linearization, if the CLEs are different,
-  -- they must be ordered by the directory ordering invariants
-  -- The write's CLE must be ordered before the read's CLE by coherence requirements
-
-  -- Apply heq_gle_impl_ob_cle from the main theorem context to conclude
-  exact heq_gle_impl_ob_cle hgle_eq
-
 /-- When CLEs are different but in same GLE, events are in same cluster -/
 lemma diff_cle_same_gle_implies_same_protocol
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
@@ -799,83 +789,106 @@ lemma diff_cle_same_gle_implies_same_protocol
   -- The cluster requests get forwarded to global directory which tracks which cluster they're from
   sorry
 
-/-- Prove WriteRead.wObRCle.case given the constraints -/
-lemma prove_wObRCle_case
-  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
-  {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
-  (hw_is_write : e_w.isWrite) (r_is_read : e_r.isRead)
+/- Helper lemma: coherent downgrade cannot maintain state >= required -/
+private lemma coherent_evict_downgrade_contradiction
+  (cmp : CompoundProtocol n)
+  {b : Behaviour n} {init : InitialSystemState n}
+  {e_evict e_r : Event n}
+  (hevict_is_evict : e_evict.isEvict)
+  (hevict_in_b : e_evict ∈ b)
+  (hevict_is_coherent : e_evict.isCoherent)
+  (hevict_is_cache : e_evict.isCacheEvent)
+  (hreq_r_has_perms : b.reqHasPerms n init e_r)
+  (hevict_leaves_at_least : b.reqLeavesStateAtLeast n e_evict init e_r.req.MRS)
+  : False := by
+  -- Unfold reqLeavesStateAtLeast: state after evict >= required state
+  unfold Behaviour.reqLeavesStateAtLeast at hevict_leaves_at_least
 
-  {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
-  (hno_intervening : NoInterveningWrites hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
-  (hr_not_ob_w : ¬ e_r.OrderedBefore n e_w)
-  (hsucc_w_of_w_after_r : ∀ e_w_succ ∈ b,  e_w_succ.sameProtocol n e_w ∧ e_w_succ.sameStructure n e_w ∧
-    e_w.OrderedBefore n e_w_succ → e_r.oEnd < e_w_succ.oEnd)
-  : WriteRead.wObRCle.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin := by
-  by_cases hsame_struct : e_w.struct = e_r.struct
-  · -- Same cache case: prove no directory writes between
-    have hno_dir_write : Event.Between.noDirWrite b e_w e_r := fun e he hbetween hdir_write => by
-      -- e is a directory write between e_w and e_r
-      -- We need to show this leads to a contradiction
-      cases he_match : e with
-      | cacheEvent ce =>
-        -- e is a cache event, but hdir_write says it's a directory write - contradiction
-        simp [Event.isDirWrite, he_match] at hdir_write
-      | directoryEvent de =>
-        -- e is a directory event between two cache events at the same cache
-        -- Key architectural constraint: every directory event corresponds to a cache event (Axiom 6.5)
-        -- If there's a directory write e between e_w and e_r at the same cache,
-        -- it must correspond to some cache write operation
-        -- That cache write would violate the hno_intervening constraints
-        -- which prevent writes between e_w and e_r's linearization events
-        have hw_cache : e_w.isCacheEvent := hw_cluster.dirAtDir
-        have hr_cache : e_r.isCacheEvent := hr_cluster.dirAtDir
-        have he_dir : e.isDirectoryEvent := by simp [Event.isDirectoryEvent, he_match]
-        -- Prove that e has different struct from e_w and e_r
-        have he_diff_w_struct : ¬e.sameStructure n e_w := by
-          simp [Event.sameStructure, Event.struct, he_match]
-          cases e_w with
-          | cacheEvent ce_w => simp
-          | directoryEvent de_w =>
-            -- e_w is directory, but hw_cache says it's cache - contradiction
-            simp [Event.isCacheEvent] at hw_cache
-        -- The formal proof requires showing that the cache event corresponding to this
-        -- directory write (guaranteed by Axiom 6.5: axDirectoryEventHasRequest)
-        -- would be an intervening write blocked by hno_intervening
+  -- Case analysis on e_r's request type
+  cases e_r.req.val
+  . case mk e_r_rw e_r_coherent e_r_consistency =>
+    -- Case analysis on e_evict's request type
+    cases hevict_fields : e_evict.req.val
+    . case mk e_evict_rw e_evict_coherent e_evict_consistency =>
+      -- We know e_evict.isCoherent means e_evict_coherent = true
+      -- and e_evict.isEvict means this is an evict request
+      -- For a coherent evict (downgrade), the state after must be reduced
+      -- But hevict_leaves_at_least says state after >= required
+      -- This creates the contradiction
+
+      -- Unfold stateAfter to see the downgrade transition
+      unfold Behaviour.stateAfter at hevict_leaves_at_least
+
+      -- Now we need to see how state changes through the evict
+      -- For coherent downgrades, the state is reduced by the downgrade semantics
+      -- unfold List.stateAfter at hevict_leaves_at_least
+
+      -- cases es_up_to_evict : Behaviour.eventsUpToEvent n b e_evict
+      -- . case nil =>
+      -- TODO: Use the state before `e_evict` (it has permissions at least `e_r`'s MRS)
+      --
+      have evict_dir_access := cmp.dirAccessOfRequest n b init e_evict hevict_in_b
+      obtain ⟨e_evict_cle, hevict_cle_in_b, hevict_cle_spec⟩ := evict_dir_access
+
+      -- Use the "has permissions" fact for `e_evict` during a case analysis on
+      -- the state before `e_evict`. Then unfold and show the state after `e_evict` is
+      -- reduced lower than `e_r`'s MRS, contradicting the `hevict_leaves_state_at_least` "leaves state at least" fact.
+      cases hevict_cle_spec
+      . case intro.intro.encapDir hreq_missing_perms hencap_dir =>
+        cases hreq_missing_perms
+        . case downgrade hreq_is_down hreq_on_mrs_state  =>
+          simp[Behaviour.evictOnMRSState] at hreq_on_mrs_state
+          simp[Behaviour.stateBefore] at hreq_on_mrs_state
+
+          rw[Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore] at hevict_leaves_at_least
+          simp[Behaviour.stateBefore] at hevict_leaves_at_least
+          -- Use Behaviour.wrap_cache_state_to_entry_state
+          have hunwrap_EntryCache.state := Behaviour.unwrap_cache_state_to_entry_state n (hevict_is_cache) (b.initCacheStateIsCache e_evict init hevict_is_cache) hreq_on_mrs_state
+          rw[hunwrap_EntryCache.state] at hevict_leaves_at_least
+          -- Use `hevict_least_state_at_least` to show a contradiction; `e_r`'s MRS will be higher than `e_evict`'s state after
+          -- TODO: finish this case.
+          cases e_evict with
+          | directoryEvent de =>
+            -- impossible: e_evict is a cache event
+            simp [Event.isCacheEvent] at hevict_is_cache
+          | cacheEvent ce =>
+            -- reduce with the coherence bit from `hevict_is_coherent`
+            cases hevict_coherence : e_evict_coherent with
+            | false =>
+              simp [Event.isCoherent, Event.req, ValidRequest.isCoherent, Request.isCoherent] at hevict_is_coherent
+              have hevict_coherent_field : ce.req.val.coherent = false := by
+                simp[Event.req, hevict_coherence] at hevict_fields
+                simp[hevict_fields]
+              absurd hevict_coherent_field
+              simp[hevict_is_coherent]
+            | true =>
+              -- cases e_r_rw <;> cases e_r_coherent <;> cases e_r_consistency <;>
+              -- cases e_evict_rw <;> cases e_evict_consistency <;>
+              --   simp [Event.SucceedingState, CacheEvent.SucceedingState, ValidRequest.DowngradeState,
+              --     ValidRequest.MRS, Event.MRS, Event.req, ReadWrite.toPerms, ReadWrite.toRWPerms,
+              --     Request.isCoherent, ValidRequest.isCoherent, State.le, State.lt, Option.le, hreq_is_down]
+              --     at hevict_leaves_at_least
+              -- exact hevict_leaves_at_least
+              sorry
+        . case noPermsForNonNcRelAcqWeakWrite hreq_not_down hreq_not_nc_rel_acq_ww =>
+          -- Contradiction: `e_evict` is a downgrade ^ `hreq_not_down` says it's not a downgrade
+          sorry
+        . case ncRelAcqWeakWriteNotOnCoherentState hreq_not_down hreq_nc_rel_acq hno_perms =>
+          -- Contradiction: `e_evict` is a downgrade ^ `hreq_not_down` says it's not a downgrade
+          sorry
+      . case intro.intro.orderBeforeDir hreq_has_perms hexists_pred_getting_perms
+        hpred_accesses_dir hinter_leaves_state_at_least hpred_same_protocol =>
+        cases hreq_has_perms
+        . case hasPerms =>
+          sorry
+        . case ncRelAcqWeakWriteHasCoherentPerms =>
+          sorry
+        . case ncWeakReadHasPermsNotVd =>
+          sorry
+      . case intro.intro.orderAfterDir hweak_read_on_vd hsucc_encap_dir hsucc_same_protocol =>
+        -- Contradiction: `e_evict` is a downgrade ^ `hweak_read_on_vd` says it's not a downgrade
         sorry
-    exact WriteRead.wObRCle.case.sameCache hsame_struct hno_dir_write
-  · exact WriteRead.wObRCle.case.diffCache hsame_struct (by sorry)
 
-/-- When write's GLE is before read's GLE, write's CLE is before read's CLE -/
-lemma gle_ordered_implies_cle_ordered
-  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
-  {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
-  (hw_is_write : e_w.isWrite) (r_is_read : e_r.isRead)
-  {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  (hgle_ob : hw_c_and_g_lin.hreq's_global_lin.choose.OrderedBefore n hr_c_and_g_lin.hreq's_global_lin.choose)
-  : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose := by
-  -- GLEs encapsulate CLEs in the compound protocol model
-  -- If global directory events are ordered, the cluster directory events they handle must also be ordered
-  -- This follows from the encapsulation property: CLE is encapsulated by its corresponding GLE
-  sorry
-
-/-- When GLEs are ordered, events must be in same protocol -/
-lemma gle_ordered_implies_same_protocol
-  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
-  {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
-  {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  (hgle_ob : hw_c_and_g_lin.hreq's_global_lin.choose.OrderedBefore n hr_c_and_g_lin.hreq's_global_lin.choose)
-  : e_w.protocol = e_r.protocol := by
-  -- When GLEs are ordered (not equal), they're still part of the same global ordering
-  -- which means they're from the same cluster protocol being coordinated by the global protocol
-  -- The global directory manages one cluster protocol's requests
-  sorry
 
 /- ========== START CMCM.RF case lemmas ========== -/
 
@@ -885,9 +898,250 @@ lemma CMCM.rf.sameGle.sameCle
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (hsame_gle : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
   (hsame_cle : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
+  {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
+  {hw_not_down : ¬ e_w.down} {hr_not_down : ¬ e_r.down}
+  {hr_not_ob_w : ¬ e_r.OrderedBefore n e_w}
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
+  (hno_intervening_writes : NoInterveningWrites hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
+  (hsucc_w_of_w_after_r : ∀ e_w_succ ∈ b, e_w_succ.isWrite ∧ e_w_succ.sameProtocol n e_w ∧ e_w_succ.sameStructure n e_w ∧
+    e_w.OrderedBefore n e_w_succ → e_r.oEnd < e_w_succ.oEnd)
   : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin
   := by
-  sorry
+  -- Prove RF case for same GLE and same CLE
+  apply Behaviour.readsFrom.cases.wEqRGle hsame_gle (hw_cluster := hw_cluster) (hr_cluster := hr_cluster) (hw_not_down := hw_not_down) (r_not_down := hr_not_down)
+
+  apply Behaviour.readsFrom.wEqRGle.cases.wEqRCle hsame_cle
+
+  -- Show `e_w` and `e_r` must be in the same protocol/cluster
+  -- because they have the same GLE and CLE.
+  . case hwr_same_cluster =>
+    apply same_cle_implies_same_protocol hw_c_and_g_lin hr_c_and_g_lin hsame_cle
+  . case hwr_com =>
+    constructor
+    . case sameCache =>
+      exact same_cle_implies_same_struct hw_c_and_g_lin hr_c_and_g_lin hsame_cle
+    . case wObR =>
+      exact eq_gle_cle_implies_write_before_read (hw_cluster := hw_cluster) (hr_cluster := hr_cluster) hw_is_write hr_is_read hw_not_down hr_not_down hw_c_and_g_lin hr_c_and_g_lin hsame_gle hsame_cle hr_not_ob_w
+    . case writeRead =>
+      apply Event.writeReadPair.mk hw_is_write hw_not_down hr_is_read hr_not_down
+    . case noBetween =>
+      constructor
+      . case noWrite =>
+        -- The following cases are considered in `noInterveningWrites_implies_no_writes_between`:
+        -- (1) Case analysis on the dirAccessOfRequest of `e_w` and `e_r`
+        -- (2) The fact that `hsame_cle` holds rules out many cases of dirAccessOfRequest
+        -- (3) `NoInterveningWrites` from the main theorem rules out intervening writes
+        -- (4) `hsame_cle` also rules out intervening writes at the CLE level
+        have hsame_struct : e_w.struct = e_r.struct := same_cle_implies_same_struct hw_c_and_g_lin hr_c_and_g_lin hsame_cle
+        exact noInterveningWrites_implies_no_writes_between hw_is_write hr_is_read hsame_struct hw_not_down hr_not_down
+          hw_c_and_g_lin hr_c_and_g_lin hsame_cle hknow_dir_access hno_intervening_writes hr_not_ob_w hsucc_w_of_w_after_r
+      . case noEvict =>
+        -- No coherent evicts can occur between e_w and e_r when they have the same CLE.
+        intro e_evict hevict_in_b hbetween_w_r ⟨hevict, hcoherent⟩
+
+        -- Case analysis on dirAccessOfRequest of e_w and e_r (3x3 = 9 cases)
+        have hw_dir_access := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
+        have hr_dir_access := hr_c_and_g_lin.hreq's_dir_access.choose_spec.right
+
+        -- We already proved e_w.OrderedBefore n e_r in the wObR case
+        have hw_ob_r : e_w.OrderedBefore n e_r :=
+          eq_gle_cle_implies_write_before_read (hw_cluster := hw_cluster) (hr_cluster := hr_cluster)
+            hw_is_write hr_is_read hw_not_down hr_not_down hw_c_and_g_lin hr_c_and_g_lin hsame_gle hsame_cle hr_not_ob_w
+
+        -- Since hsame_cle, the directory events are the same
+        cases hw_dir_access with
+        -- Case 1: e_w encapDir
+        | encapDir _ hw_encap =>
+          cases hr_dir_access with
+          -- Case 1.1: e_w encapDir, e_r encapDir
+          | encapDir _ hr_encap =>
+            -- Contradiction: if both encapsulate their directory events, then the directory events
+            -- must be ordered with respect to e_w and e_r (since e_w OB e_r).
+            -- But hsame_cle says they're the same event!
+            exfalso
+            -- e_w encapsulates e_w_cle and e_r encapsulates e_r_cle
+            have hw_encap_cle : e_w.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := hw_encap.reqEncapDir
+            have hr_encap_cle : e_r.Encapsulates n (hr_c_and_g_lin.hreq's_dir_access.choose) := hr_encap.reqEncapDir
+
+            -- Unfold Encapsulates to get the two inequalities
+            simp only [Event.Encapsulates] at hw_encap_cle hr_encap_cle
+
+            -- From hw_encap_cle: e_w.oStart < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart and
+            --                    (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < e_w.oEnd
+            have hw_encap_1 := hw_encap_cle.1
+            have hw_encap_2 := hw_encap_cle.2
+
+            -- From hr_encap_cle: e_r.oStart < (hr_c_and_g_lin.hreq's_dir_access.choose).oStart and
+            --                    (hr_c_and_g_lin.hreq's_dir_access.choose).oEnd < e_r.oEnd
+            have hr_encap_1 := hr_encap_cle.1
+            have hr_encap_2 := hr_encap_cle.2
+
+            -- From hsame_cle, substitute to replace hr_cle with hw_cle where it appears
+            rw [← hsame_cle] at hr_encap_1 hr_encap_2
+
+            -- From hw_ob_r (e_w OB e_r): e_w.oEnd < e_r.oStart
+            simp only [Event.OrderedBefore] at hw_ob_r
+
+            -- Extract well-formedness constraints
+            have hw_cle_wf := (hw_c_and_g_lin.hreq's_dir_access.choose).oWellFormed
+
+            -- Now we have all the linear constraints:
+            -- hw_encap_1: e_w.oStart < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart
+            -- hw_encap_2: (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < e_w.oEnd
+            -- hr_encap_1: e_r.oStart < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart
+            -- hr_encap_2: (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < e_r.oEnd
+            -- hw_ob_r: e_w.oEnd < e_r.oStart
+            -- hw_cle_wf: (hw_c_and_g_lin.hreq's_dir_access.choose).oStart < (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd
+
+            -- Since omega doesn't see these, let me state the contradiction more explicitly
+            -- From hr_encap_1 and hr_encap_2, combined with substitution:
+            -- The CLE event (which is the same for both) must satisfy:
+            --   e_w.oStart < cle.oStart  [from hw_encap_1]
+            --   cle.oEnd < e_w.oEnd      [from hw_encap_2]
+            --   e_r.oStart < cle.oStart  [from hr_encap_1]
+            --   cle.oEnd < e_r.oEnd      [from hr_encap_2]
+            -- And: e_w.oEnd < e_r.oStart [from hw_ob_r]
+
+            -- From hw_ob_r and hr_encap_1: e_w.oEnd < e_r.oStart < cle.oStart
+            have step1 : e_w.oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart :=
+              Nat.lt_trans hw_ob_r hr_encap_1
+
+            -- From step1 and hw_encap_2: e_w.oEnd < cle.oStart and cle.oEnd < e_w.oEnd
+            -- So: cle.oEnd < e_w.oEnd < cle.oStart
+            have step2 : (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart :=
+              Nat.lt_trans hw_encap_2 step1
+
+            -- But this contradicts hw_cle_wf: cle.oStart < cle.oEnd
+            exact Nat.lt_asymm step2 hw_cle_wf
+          -- Case 1.2: e_w encapDir, e_r orderBeforeDir
+          | orderBeforeDir hreq_r_has_perms hexists_pred_r hpred_r_accesses_dir hinter_leaves_r hpred_r_same_protocol =>
+            exfalso
+            -- Both e_w and e_r's predecessor encapsulate the same CLE
+            have hw_encap_cle : e_w.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := hw_encap.reqEncapDir
+            have hpred_encap_cle : hexists_pred_r.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
+              have hpred_encap_cle' := hpred_r_accesses_dir.reqEncapDir
+              simpa [hsame_cle] using hpred_encap_cle'
+
+            -- Since both events are at the same cache entry and both encapsulate the same CLE,
+            -- they must correspond to the same request event (by the uniqueness of dirEventOfReqEvent).
+            -- Therefore: hexists_pred_r.choose = e_w
+            have hpred_eq_ew : hexists_pred_r.choose = e_w := by
+              have hw_dir_of_req : (hw_c_and_g_lin.hreq's_dir_access.choose).dirEventOfReqEvent n e_w :=
+                hw_encap.dirOfReq
+              have hpred_dir_of_req : (hw_c_and_g_lin.hreq's_dir_access.choose).dirEventOfReqEvent n hexists_pred_r.choose := by
+                convert hpred_r_accesses_dir.dirOfReq using 2
+              exact (dir_event_of_req_event_unique hw_dir_of_req hpred_dir_of_req).symm
+
+            -- Now substitute: hexists_pred_r.choose := e_w
+            rw [hpred_eq_ew] at hinter_leaves_r
+
+            -- After the fix, we have a direct contradiction:
+            -- hreq_r_has_perms says: e_r was made on a state with coherent required permissions
+            -- hinter_leaves_r says: all events between e_w (pred) and e_r leave state >= e_r.req.MRS
+            --
+            -- The contradiction: if all intermediates maintain the required permissions,
+            -- and the state at e_r already has those permissions (from hreq_r_has_perms),
+            -- then e_r doesn't need orderBeforeDir (its predecessor) to get permissions.
+            -- But we're in the orderBeforeDir case, which contradicts this.
+            --
+            -- More formally:
+            -- - hreq_r_has_perms encodes: state_before_e_r >= e_r.req.MRS (and coherent)
+            -- - hinter_leaves_r on all intermediate events: state preserved as >= e_r.req.MRS
+            -- - Therefore: e_r has no need for a predecessor to grant permissions
+            -- - But orderBeforeDir requires such a predecessor
+            -- - Contradiction!
+            have hevict_perms := hinter_leaves_r e_evict hevict_in_b hbetween_w_r.interBetween
+            have hevict_perms_after := hevict_perms.hinter_leaves_state_at_least
+
+            -- The contradiction:
+            -- hevict_perms_after says: state after evict >= e_r.req.MRS
+            -- hreq_r_has_perms says: state before e_r is coherent with required perms
+            --
+            -- But a coherent downgrade (evict) MUST drop permissions.
+            -- So we cannot have both:
+            --   (1) state after evict >= required
+            --   (2) state before e_r with required
+            -- if an evict in between reduces permissions
+            --
+            -- This contradicts the orderBeforeDir assumption that e_r gets perms from predecessor
+            -- (which we proved is e_w), because e_w already had them (via encapsulation).
+
+            -- From hreq_r_has_perms (after unfolding), state before e_r has the perms
+            -- From hevict_perms_after, state after evict maintains perms >= required
+            -- Since the evict is a coherent event (hcoherent : hevict.Coherent), and coherent downgrades
+            -- must reduce permissions, we get a contradiction
+
+            -- Apply the helper lemma to derive False
+            -- From the pattern match ⟨hevict, hcoherent⟩:
+            -- hevict : e_evict.isEvict
+            -- hcoherent : e_evict.isCoherent
+            exact coherent_evict_downgrade_contradiction
+              hevict
+              hcoherent
+              hreq_r_has_perms
+              hevict_perms_after
+          -- Case 1.3: e_w encapDir, e_r orderAfterDir
+          | orderAfterDir hreq_r_on_vd hsucc_encap_dir_r hsucc_same_protocol_r =>
+            exfalso
+            -- e_w encapsulates the CLE
+            have hw_encap_cle : e_w.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := hw_encap.reqEncapDir
+
+            -- e_r's successor encapsulates the same CLE (after substitution with hsame_cle)
+            have hsucc_encap_cle : hsucc_encap_dir_r.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
+              have hsucc_encap_cle' := hsucc_encap_dir_r.choose_spec.right.satisfyP.encapCorresponding.reqEncapDir
+              simpa [hsame_cle] using hsucc_encap_cle'
+
+            -- e_r is ordered before its successor
+            have hsucc_spec := hsucc_encap_dir_r.choose_spec.right
+            simp [Behaviour.ImmediateBottomSuccSatisfyingProp] at hsucc_spec
+            have hr_ob_succ : e_r.OrderedBefore n hsucc_encap_dir_r.choose := by
+              have hsucc_is_succ := hsucc_spec.isImmBottomSucc.isSucc
+              simpa [Event.Successor, Event.Predecessor] using hsucc_is_succ
+
+            -- From e_w < e_r and e_r < e_succ, we have e_w < e_succ
+            have hw_ob_succ : e_w.OrderedBefore n hsucc_encap_dir_r.choose :=
+              Event.ordered_trans (n := n) hw_ob_r hr_ob_succ
+
+            -- Unfold encapsulation constraints
+            simp only [Event.Encapsulates] at hw_encap_cle hsucc_encap_cle
+            have hw_encap_2 := hw_encap_cle.2
+            have hsucc_encap_1 := hsucc_encap_cle.1
+
+            -- e_w.oEnd < e_succ.oStart < cle.oStart
+            have h1 : e_w.oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart :=
+              Nat.lt_trans hw_ob_succ hsucc_encap_1
+
+            -- cle.oEnd < e_w.oEnd < cle.oStart
+            have h2 : (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart :=
+              Nat.lt_trans hw_encap_2 h1
+
+            -- But cle is well-formed: oStart < oEnd
+            have hw_cle_wf := (hw_c_and_g_lin.hreq's_dir_access.choose).oWellFormed
+            exact Nat.lt_asymm h2 hw_cle_wf
+        -- Case 2: e_w orderBeforeDir
+        | orderBeforeDir _ _ _ _ =>
+          cases hr_dir_access with
+          -- Case 2.1: e_w orderBeforeDir, e_r encapDir
+          | encapDir _ _ =>
+            sorry
+          -- Case 2.2: e_w orderBeforeDir, e_r orderBeforeDir
+          | orderBeforeDir _ _ _ _ =>
+            sorry
+          -- Case 2.3: e_w orderBeforeDir, e_r orderAfterDir
+          | orderAfterDir _ _ _ =>
+            sorry
+        -- Case 3: e_w orderAfterDir
+        | orderAfterDir _ _ _ =>
+          cases hr_dir_access with
+          -- Case 3.1: e_w orderAfterDir, e_r encapDir
+          | encapDir _ _ =>
+            sorry
+          -- Case 3.2: e_w orderAfterDir, e_r orderBeforeDir
+          | orderBeforeDir _ _ _ _ =>
+            sorry
+          -- Case 3.3: e_w orderAfterDir, e_r orderAfterDir
+          | orderAfterDir _ _ _ =>
+            sorry
 
 lemma CMCM.rf.sameGle.wImmPredRCle
   {cmp : CompoundProtocol n}
@@ -987,9 +1241,7 @@ theorem CMCM.rf_holds
   . case sameGle hsame_gle hcle_cases =>
     cases hcle_cases
     . case wEqRCle hsame_cle =>
-      apply CMCM.rf.sameGle.sameCle hw_c_and_g_lin hr_c_and_g_lin
-      . case hsame_gle => exact hsame_gle
-      . case hsame_cle => exact hsame_cle
+      apply CMCM.rf.sameGle.sameCle hw_c_and_g_lin hr_c_and_g_lin hsame_gle hsame_cle (hw_cluster := hw_cluster) (hr_cluster := hr_cluster) (hw_not_down := hw_not_down) (hr_not_down := hr_not_down) (hr_not_ob_w := hr_not_ob_w) hknow_dir_access hno_intervening_writes hsucc_w_of_w_after_r
     . case otherCases hsame_as_gle_ob_cases =>
       cases hsame_as_gle_ob_cases
       . case wImmPredRCle hw_imm_pred_r_cle =>
