@@ -64,6 +64,12 @@ structure Protocol where
     Behaviour.linearizationEventOfRequest n b init e_req
   eventReqOfProtocol : ∀ b : Behaviour n, ∀ e ∈ b, e.req ∈ requests
 
+/- All cache requests must have a request that is a part of their protocol's interface. -/
+def Protocol.Request.fromInterface (p : Protocol n) (e : Event n) : Prop :=
+  e.protocol = p.pi → e.req ∈ p.requests
+def Protocol.Request.fromInterface.wrapper : Prop :=
+  ∀ p : Protocol n, ∀ e : Event n, Protocol.Request.fromInterface n p e
+
 def Protocol.dirAccessOfRequest (p : Protocol n) (b : Behaviour n) (init : InitialSystemState n)
   (e_req : Event n) (he_req_in_b : e_req ∈ b)
   : ∃ e_dir ∈ b, b.dirAccessOfRequest n init e_req e_dir :=
