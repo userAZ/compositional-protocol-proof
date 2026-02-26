@@ -191,11 +191,11 @@ lemma CMCM.rf.sameGle.sameCle
               simp [Event.isEvictSW, Event.isCacheEvent] at hevict_sw hevict_is_cache
               cases hevict_is_cache_case : e_evict with
               | cacheEvent ce =>
-                simp [hevict_is_cache_case, Event.isEvictSW] at hevict_sw
-                simp [Event.isCoherent, hevict_is_cache_case]
+                simp [hevict_is_cache_case] at hevict_sw
+                simp [Event.isCoherent]
                 exact hevict_sw.coherentWrite.left
               | directoryEvent de =>
-                simp [Event.isCacheEvent, hevict_is_cache_case] at hevict_is_cache
+                simp [hevict_is_cache_case] at hevict_is_cache
 
             -- Apply the helper lemma to derive False
             exact coherent_evict_downgrade_contradiction
@@ -328,7 +328,7 @@ lemma CMCM.rf.sameGle.sameCle
               cases hevict_is_cache_case : e_evict with
               | cacheEvent ce =>
                 simp [hevict_is_cache_case] at hevict_sw
-                simp [Event.isCoherent, hevict_is_cache_case]
+                simp [Event.isCoherent]
                 exact hevict_sw.coherentWrite.left
               | directoryEvent de =>
                 simp [hevict_is_cache_case] at hevict_is_cache
@@ -391,15 +391,345 @@ lemma CMCM.rf.sameGle.sameCle
         | orderAfterDir hreq_w_on_vd hsucc_encap_dir_w hsucc_same_protocol_w =>
           cases hr_dir_access with
           -- Case 3.1: e_w orderAfterDir, e_r encapDir
-          | encapDir _ _ =>
-            sorry
+          | encapDir _ hr_encap =>
+            exfalso
+            -- e_w's successor encapsulates CLE, e_r also encapsulates CLE
+            have hsucc_w_encap_cle : hsucc_encap_dir_w.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
+              have hsucc_encap := hsucc_encap_dir_w.choose_spec.right.satisfyP.encapCorresponding.reqEncapDir
+              simpa [hsame_cle] using hsucc_encap
+            have hr_encap_cle : e_r.Encapsulates n (hr_c_and_g_lin.hreq's_dir_access.choose) := hr_encap.reqEncapDir
+
+            simp only [Event.Encapsulates] at hsucc_w_encap_cle hr_encap_cle
+
+            have hsucc_spec := hsucc_encap_dir_w.choose_spec.right
+
+            -- Ordering: e_w < succ_w and e_w < e_r
+            have hw_before_succ_w : e_w.OrderedBefore n hsucc_encap_dir_w.choose := by
+              simp [Behaviour.ImmediateBottomSuccSatisfyingProp] at hsucc_spec
+              have hsucc_is_succ := hsucc_spec.isImmBottomSucc.isSucc
+              simpa [Event.Successor, Event.Predecessor] using hsucc_is_succ
+
+            simp only [Event.OrderedBefore] at hw_before_succ_w hw_ob_r
+
+            -- Both e_r and succ_w are at same structure
+            have hsame_struct_w_r : e_w.struct = e_r.struct := same_cle_implies_same_struct hw_c_and_g_lin hr_c_and_g_lin hsame_cle
+
+            -- Both must be cache events (only cache events can encapsulate directories at cluster level)
+            have hr_is_cache : e_r.isCacheEvent := hr_cluster.eAtCache
+
+            have hsucc_w_is_cache : hsucc_encap_dir_w.choose.isCacheEvent := by
+              have hsucc_req_event := hsucc_spec.satisfyP.encapCorresponding.dirCorresponds.reqEvent
+              cases hsucc_ev : hsucc_encap_dir_w.choose with
+              | cacheEvent _ =>
+                simp [Event.isCacheEvent]
+              | directoryEvent _ =>
+                exfalso
+                have hw_cache : e_w.isCacheEvent := hw_cluster.eAtCache
+                cases hw_ev : e_w with
+                | cacheEvent ce_w =>
+                  have hsame_struct : e_w.struct = hsucc_encap_dir_w.choose.struct :=
+                    hsucc_spec.isImmBottomSucc.sameEntry.sameStruct
+                  rw [hsucc_ev, hw_ev] at hsame_struct
+                  have hsame_struct_false : False := by
+                    simp [Event.struct] at hsame_struct
+                  exact hsame_struct_false
+                | directoryEvent _ =>
+                  simp [Event.isCacheEvent, hw_ev] at hw_cache
+
+            -- Get cache event witnesses
+            cases hr_ce : e_r with
+            | cacheEvent ce_r =>
+              cases hsucc_ce : hsucc_encap_dir_w.choose with
+              | cacheEvent ce_succ_w =>
+                -- Both are cache events at the same entry, ordered by cache_ordered axiom
+                have hce_ordered := b.orderedAtEntry.cache_ordered ce_r ce_succ_w
+                have hce_encap_or_ordered := hce_ordered.ordered
+                simp [CacheEvent.encapsulatedOrOrdered, CacheEvent.encapsulatedOrBefore] at hce_encap_or_ordered
+
+                cases hce_encap_or_ordered with
+                | inl hr_before_or_in_succ_w =>
+                  cases hr_before_or_in_succ_w with
+                  | inl hr_encap_by_succ_w =>
+                    -- e_r encapsulated by succ_w -> e_r is a downgrade (contradicts hr_not_down)
+                    have hencap_ce : ce_succ_w.Encapsulates n ce_r := by
+                      simpa [CacheEvent.EncapsulatedBy] using hr_encap_by_succ_w
+                    have hdown_ce_r : ce_r.down :=
+                      (b.orderedAtEntry.cache_encap_rule ce_succ_w ce_r) hencap_ce
+                    have hdown_er : e_r.down := by
+                      simpa [Event.down, hr_ce] using hdown_ce_r
+                    exact hr_not_down hdown_er
+                  | inr hr_ob_succ_w =>
+                    -- e_r ordered before succ_w: ce_r.oEnd < ce_succ_w.oStart
+                    -- Contradiction: cle.oEnd < e_r.oEnd < succ_w.oStart < cle.oStart
+                    have h_contradiction : (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart := by
+                      rw [← hsame_cle] at hr_encap_cle
+                      simp [hr_ce, Event.oEnd, Event.oStart] at hr_encap_cle
+                      simp [hsucc_ce, Event.oStart, Event.oEnd] at hsucc_w_encap_cle
+                      simp [CacheEvent.OrderedBefore] at hr_ob_succ_w
+                      calc (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < ce_r.oEnd := hr_encap_cle.2
+                        _ < ce_succ_w.oStart := hr_ob_succ_w
+                        _ < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart := hsucc_w_encap_cle.1
+                    have hcle_wf := (hw_c_and_g_lin.hreq's_dir_access.choose).oWellFormed
+                    exact Nat.lt_asymm h_contradiction hcle_wf
+                | inr hsucc_w_before_or_in_r =>
+                  cases hsucc_w_before_or_in_r with
+                  | inl hsucc_w_encap_by_r =>
+                    -- succ_w encapsulated by e_r -> contradicts succ_w being bottom at same entry
+                    have hencap_ce : ce_r.Encapsulates n ce_succ_w := by
+                      simpa [CacheEvent.EncapsulatedBy] using hsucc_w_encap_by_r
+                    have hencap_event : e_r.Encapsulates n hsucc_encap_dir_w.choose := by
+                      simpa [hr_ce, hsucc_ce] using
+                        (CacheEvent.encap_then_event_encap n ce_r ce_succ_w hencap_ce)
+
+                    have hsucc_addr_cle : hsucc_encap_dir_w.choose.addr = (hw_c_and_g_lin.hreq's_dir_access.choose).addr := by
+                      have hsucc_same_addr := hsucc_spec.satisfyP.encapCorresponding.dirCorresponds.sameAddr
+                      simpa [hsame_cle] using hsucc_same_addr
+                    have hr_addr_cle : e_r.addr = (hw_c_and_g_lin.hreq's_dir_access.choose).addr := by
+                      have hr_same_addr := hr_encap.dirCorresponds.sameAddr
+                      simpa [hsame_cle] using hr_same_addr
+                    have hsame_addr_r_succ : e_r.addr = hsucc_encap_dir_w.choose.addr := by
+                      calc e_r.addr = (hw_c_and_g_lin.hreq's_dir_access.choose).addr := hr_addr_cle
+                        _ = hsucc_encap_dir_w.choose.addr := by
+                          symm
+                          exact hsucc_addr_cle
+                    have hsucc_same_struct_w : hsucc_encap_dir_w.choose.struct = e_w.struct := by
+                      have hsame_struct : Event.sameStructure n e_w hsucc_encap_dir_w.choose :=
+                        hsucc_spec.isImmBottomSucc.sameEntry.sameStruct
+                      simpa [Event.sameStructure] using hsame_struct.symm
+                    have hsame_struct_r_succ : e_r.struct = hsucc_encap_dir_w.choose.struct := by
+                      calc e_r.struct = e_w.struct := hsame_struct_w_r.symm
+                        _ = hsucc_encap_dir_w.choose.struct := by
+                          symm
+                          exact hsucc_same_struct_w
+                    have hsame_entry_r_succ : e_r.sameEntry n hsucc_encap_dir_w.choose := by
+                      constructor
+                      . case sameStruct => exact hsame_struct_r_succ
+                      . case sameAddr => exact hsame_addr_r_succ
+
+                    have hr_in_b : e_r ∈ b := hr_encap.reqInB
+                    have hencap_same : Event.EncapAtSameStructure n e_r hsucc_encap_dir_w.choose :=
+                      { encap := hencap_event, sameEntry := hsame_entry_r_succ }
+                    exact (hsucc_spec.isBottom e_r hr_in_b) hencap_same
+                  | inr hsucc_w_ob_r =>
+                    -- succ_w ordered before e_r: ce_succ_w.oEnd < ce_r.oStart
+                    -- Contradiction: cle.oEnd < succ_w.oEnd < e_r.oStart < cle.oStart
+                    have h_contradiction : (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart := by
+                      rw [← hsame_cle] at hr_encap_cle
+                      simp [hr_ce, Event.oEnd, Event.oStart] at hr_encap_cle
+                      simp [hsucc_ce, Event.oStart, Event.oEnd] at hsucc_w_encap_cle
+                      simp [CacheEvent.OrderedBefore] at hsucc_w_ob_r
+                      calc (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < ce_succ_w.oEnd := hsucc_w_encap_cle.2
+                        _ < ce_r.oStart := hsucc_w_ob_r
+                        _ < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart := hr_encap_cle.1
+                    have hcle_wf := (hw_c_and_g_lin.hreq's_dir_access.choose).oWellFormed
+                    exact Nat.lt_asymm h_contradiction hcle_wf
+              | directoryEvent de_succ_w =>
+                -- Contradiction: succ_w is a directory event but must be cache to encapsulate cluster directory
+                exfalso
+                rw [hsucc_ce] at hsucc_w_is_cache
+                simp [Event.isCacheEvent] at hsucc_w_is_cache
+            | directoryEvent de_r =>
+              -- Contradiction: e_r is a directory event but must be cache to encapsulate cluster directory
+              exfalso
+              rw [hr_ce] at hr_is_cache
+              simp [Event.isCacheEvent] at hr_is_cache
           -- Case 3.2: e_w orderAfterDir, e_r orderBeforeDir
-          | orderBeforeDir _ _ _ _ =>
-            sorry
+          | orderBeforeDir hreq_r_has_perms hexists_pred_r hpred_r_accesses_dir hinter_leaves_r hpred_r_same_protocol =>
+            exfalso
+            -- e_w's successor encapsulates CLE, e_r's predecessor encapsulates CLE
+            have hsucc_spec := hsucc_encap_dir_w.choose_spec.right
+            have hsame_struct_w_r : e_w.struct = e_r.struct :=
+              same_cle_implies_same_struct hw_c_and_g_lin hr_c_and_g_lin hsame_cle
+
+            have hsucc_w_encap_cle : hsucc_encap_dir_w.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
+              have hsucc_encap := hsucc_encap_dir_w.choose_spec.right.satisfyP.encapCorresponding.reqEncapDir
+              simpa [hsame_cle] using hsucc_encap
+            have hpred_r_encap_cle : hexists_pred_r.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
+              have hpred_encap := hpred_r_accesses_dir.reqEncapDir
+              simpa [hsame_cle] using hpred_encap
+
+            simp only [Event.Encapsulates] at hsucc_w_encap_cle hpred_r_encap_cle
+
+            -- Ordering relationships
+            have hw_before_succ_w : e_w.OrderedBefore n hsucc_encap_dir_w.choose := by
+              simp [Behaviour.ImmediateBottomSuccSatisfyingProp] at hsucc_spec
+              have hsucc_is_succ := hsucc_spec.isImmBottomSucc.isSucc
+              simpa [Event.Successor, Event.Predecessor] using hsucc_is_succ
+            have hpred_r_before_er : hexists_pred_r.choose.OrderedBefore n e_r := by
+              have := hexists_pred_r.choose_spec.right
+              simp[Behaviour.immBottomPredHasNoPermsAndLeavesStateAtLeast] at this
+              simp[Behaviour.ImmediateBottomPredSatisfyingProp] at this
+              have hpred_is_imm_pred := this.isImmPred
+              have hpred_is_pred := hpred_is_imm_pred.bPred.isPred
+              simp[Event.Predecessor] at hpred_is_pred
+              simp[hpred_is_pred]
+
+            simp only [Event.OrderedBefore] at hw_before_succ_w hpred_r_before_er hw_ob_r
+
+            -- Contradiction: both pred_r and succ_w are bottom cache events at the same entry
+            -- that encapsulate the same CLE, so they must be ordered or encapsulate each other;
+            -- either case contradicts bottomness or CLE well-formedness.
+
+            -- Unpack predecessor proof to access bottomness + sameEntry
+            have hpred_spec := hexists_pred_r.choose_spec.right
+            simp [Behaviour.immBottomPredHasNoPermsAndLeavesStateAtLeast] at hpred_spec
+
+            have hpred_same_entry_er : hexists_pred_r.choose.sameEntry n e_r :=
+              hpred_spec.isImmPred.bPred.sameEntry
+
+            have hsucc_same_entry_w : e_w.sameEntry n hsucc_encap_dir_w.choose :=
+              hsucc_encap_dir_w.choose_spec.right.isImmBottomSucc.sameEntry
+
+            -- Show pred_r and succ_w are at the same entry
+            have hpred_addr_cle : hexists_pred_r.choose.addr = (hw_c_and_g_lin.hreq's_dir_access.choose).addr := by
+              have hpred_same_addr := hpred_r_accesses_dir.dirCorresponds.sameAddr
+              simpa [hsame_cle] using hpred_same_addr
+            have hsucc_addr_cle : hsucc_encap_dir_w.choose.addr = (hw_c_and_g_lin.hreq's_dir_access.choose).addr := by
+              have hsucc_same_addr := hsucc_encap_dir_w.choose_spec.right.satisfyP.encapCorresponding.dirCorresponds.sameAddr
+              simpa [hsame_cle] using hsucc_same_addr
+            have hw_addr_cle : e_w.addr = (hw_c_and_g_lin.hreq's_dir_access.choose).addr := by
+              have hw_addr := hsucc_same_entry_w.sameAddr
+              exact hw_addr.trans hsucc_addr_cle
+            have hpred_struct_w : hexists_pred_r.choose.struct = e_w.struct := by
+              have hpred_struct_er := hpred_same_entry_er.sameStruct
+              calc hexists_pred_r.choose.struct = e_r.struct := hpred_struct_er
+                _ = e_w.struct := hsame_struct_w_r.symm
+            have hpred_addr_w : hexists_pred_r.choose.addr = e_w.addr := by
+              calc hexists_pred_r.choose.addr = (hw_c_and_g_lin.hreq's_dir_access.choose).addr := hpred_addr_cle
+                _ = e_w.addr := by
+                  symm
+                  exact hw_addr_cle
+            have hpred_same_entry_w : hexists_pred_r.choose.sameEntry n e_w := by
+              constructor
+              . case sameStruct => exact hpred_struct_w
+              . case sameAddr => exact hpred_addr_w
+
+            have hpred_same_entry_succ : hexists_pred_r.choose.sameEntry n hsucc_encap_dir_w.choose := by
+              have hsame_entry_w_pred : e_w.sameEntry n hexists_pred_r.choose :=
+                Event.same_entry_symm n hexists_pred_r.choose e_w hpred_same_entry_w
+              exact Event.event_same_entry_trans (n := n) (e₁ := hexists_pred_r.choose)
+                (e₂ := hsucc_encap_dir_w.choose) (e₃ := e_w) hsame_entry_w_pred hsucc_same_entry_w
+
+            -- Show both pred_r and succ_w are cache events
+            have hpred_is_cache : hexists_pred_r.choose.isCacheEvent :=
+              orderBeforeDir_pred_is_cache_event n b init e_r hexists_pred_r hr_cluster.eAtCache
+
+            have hsucc_is_cache : hsucc_encap_dir_w.choose.isCacheEvent := by
+              -- Use the helper lemma: e_w is cache, e_w and succ_w are same entry, so succ_w is cache
+              have hsucc_spec_full := hsucc_encap_dir_w.choose_spec.right
+              simp only [Behaviour.ImmediateBottomSuccSatisfyingProp] at hsucc_spec_full
+              exact orderAfterDir_succ_is_cache_event n b e_w hsucc_encap_dir_w.choose
+                (fun x => Behaviour.succOnVdWithCorrespondingDir n b init x (hw_c_and_g_lin.hreq's_dir_access.choose))
+                hsucc_spec_full hw_cluster.eAtCache
+
+            -- Use cache ordering to get the contradiction
+            cases hpred_ev : hexists_pred_r.choose with
+            | cacheEvent ce_pred =>
+              cases hsucc_ev : hsucc_encap_dir_w.choose with
+              | cacheEvent ce_succ =>
+                have hce_ordered := b.orderedAtEntry.cache_ordered ce_pred ce_succ
+                have hce_encap_or_ordered := hce_ordered.ordered
+                simp [CacheEvent.encapsulatedOrOrdered, CacheEvent.encapsulatedOrBefore] at hce_encap_or_ordered
+                cases hce_encap_or_ordered with
+                | inl hpred_before_or_in_succ =>
+                  cases hpred_before_or_in_succ with
+                  | inl hpred_encap_by_succ =>
+                    -- succ encapsulates pred -> pred not bottom
+                    have hencap_pred : ce_succ.Encapsulates n ce_pred := by
+                      simpa [CacheEvent.EncapsulatedBy] using hpred_encap_by_succ
+                    have hencap_event : hsucc_encap_dir_w.choose.Encapsulates n hexists_pred_r.choose := by
+                      simpa [hsucc_ev, hpred_ev] using
+                        (CacheEvent.encap_then_event_encap n ce_succ ce_pred hencap_pred)
+                    have hpred_in_b : hexists_pred_r.choose ∈ b := hpred_r_accesses_dir.reqInB
+                    have hencap_same : Event.EncapAtSameStructure n hsucc_encap_dir_w.choose hexists_pred_r.choose :=
+                      { encap := hencap_event, sameEntry := Event.same_entry_symm n _ _ hpred_same_entry_succ }
+                    exact (hpred_spec.isBottomPred hsucc_encap_dir_w.choose hsucc_encap_dir_w.choose_spec.left) hencap_same
+                  | inr hpred_ob_succ =>
+                    -- pred ordered before succ -> cle.oEnd < pred.oEnd < succ.oStart < cle.oStart
+                    have h_contra : (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart := by
+                      simp [hpred_ev, Event.oEnd, Event.oStart] at hpred_r_encap_cle
+                      simp [hsucc_ev, Event.oStart, Event.oEnd] at hsucc_w_encap_cle
+                      simp [CacheEvent.OrderedBefore] at hpred_ob_succ
+                      calc (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < ce_pred.oEnd := hpred_r_encap_cle.2
+                        _ < ce_succ.oStart := hpred_ob_succ
+                        _ < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart := hsucc_w_encap_cle.1
+                    have hcle_wf := (hw_c_and_g_lin.hreq's_dir_access.choose).oWellFormed
+                    exact Nat.lt_asymm h_contra hcle_wf
+                | inr hsucc_before_or_in_pred =>
+                  cases hsucc_before_or_in_pred with
+                  | inl hsucc_encap_by_pred =>
+                    -- pred encapsulates succ -> succ not bottom
+                    have hencap_succ : ce_pred.Encapsulates n ce_succ := by
+                      simpa [CacheEvent.EncapsulatedBy] using hsucc_encap_by_pred
+                    have hencap_event : hexists_pred_r.choose.Encapsulates n hsucc_encap_dir_w.choose := by
+                      simpa [hsucc_ev, hpred_ev] using
+                        (CacheEvent.encap_then_event_encap n ce_pred ce_succ hencap_succ)
+                    have hsucc_in_b : hsucc_encap_dir_w.choose ∈ b := hsucc_encap_dir_w.choose_spec.left
+                    have hencap_same : Event.EncapAtSameStructure n hexists_pred_r.choose hsucc_encap_dir_w.choose :=
+                      { encap := hencap_event, sameEntry := hpred_same_entry_succ }
+                    exact (hsucc_spec.isBottom hexists_pred_r.choose hpred_r_accesses_dir.reqInB) hencap_same
+                  | inr hsucc_ob_pred =>
+                    -- succ ordered before pred -> cle.oEnd < succ.oEnd < pred.oStart < cle.oStart
+                    have h_contra : (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart := by
+                      simp [hpred_ev, Event.oEnd, Event.oStart] at hpred_r_encap_cle
+                      simp [hsucc_ev, Event.oStart, Event.oEnd] at hsucc_w_encap_cle
+                      simp [CacheEvent.OrderedBefore] at hsucc_ob_pred
+                      calc (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < ce_succ.oEnd := hsucc_w_encap_cle.2
+                        _ < ce_pred.oStart := hsucc_ob_pred
+                        _ < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart := hpred_r_encap_cle.1
+                    have hcle_wf := (hw_c_and_g_lin.hreq's_dir_access.choose).oWellFormed
+                    exact Nat.lt_asymm h_contra hcle_wf
+              | directoryEvent _ =>
+                exfalso
+                simp [Event.isCacheEvent, hsucc_ev] at hsucc_is_cache
+            | directoryEvent _ =>
+              exfalso
+              simp [Event.isCacheEvent, hpred_ev] at hpred_is_cache
           -- Case 3.3: e_w orderAfterDir, e_r orderAfterDir
-          | orderAfterDir _ _ _ =>
+          | orderAfterDir hreq_r_on_vd hsucc_encap_dir_r hsucc_same_protocol_r =>
+            exfalso
+            -- Both successors encapsulate the CLE
+            have hsucc_w_encap_cle : hsucc_encap_dir_w.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
+              have hsucc_encap := hsucc_encap_dir_w.choose_spec.right.satisfyP.encapCorresponding.reqEncapDir
+              simpa [hsame_cle] using hsucc_encap
+            have hsucc_r_encap_cle : hsucc_encap_dir_r.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
+              have hsucc_encap := hsucc_encap_dir_r.choose_spec.right.satisfyP.encapCorresponding.reqEncapDir
+              simpa [hsame_cle] using hsucc_encap
+
+            -- Both successors are directory events encapsulating the same CLE
+            -- They must be equal (by dir_event_of_req_event_unique)
+            have hw_dir_of_req : (hw_c_and_g_lin.hreq's_dir_access.choose).dirEventOfReqEvent n hsucc_encap_dir_w.choose := by
+              have := hsucc_encap_dir_w.choose_spec.right.satisfyP.encapCorresponding.dirOfReq
+              exact this
+            have hr_dir_of_req : (hw_c_and_g_lin.hreq's_dir_access.choose).dirEventOfReqEvent n hsucc_encap_dir_r.choose := by
+              convert hsucc_encap_dir_r.choose_spec.right.satisfyP.encapCorresponding.dirOfReq using 2
+            have hsucc_eq : hsucc_encap_dir_w.choose = hsucc_encap_dir_r.choose :=
+              dir_event_of_req_event_unique hw_dir_of_req hr_dir_of_req
+            -- Now both e_w and e_r have the same successor encapsulating CLE
+            -- But e_w < e_r < succ, so succ cannot be immediate successor to both
+
+            -- From hw_ob_r: e_w.oEnd < e_r.oStart
+            simp only [Event.OrderedBefore] at hw_ob_r
+
+            -- Both have immediate successor relationships
+            have hw_before_succ : e_w.OrderedBefore n hsucc_encap_dir_w.choose := by
+              have hsucc_spec := hsucc_encap_dir_w.choose_spec.right
+              simp [Behaviour.ImmediateBottomSuccSatisfyingProp] at hsucc_spec
+              have hsucc_is_succ := hsucc_spec.isImmBottomSucc.isSucc
+              simpa [Event.Successor, Event.Predecessor] using hsucc_is_succ
+            have her_before_succ : e_r.OrderedBefore n hsucc_encap_dir_r.choose := by
+              have hsucc_spec := hsucc_encap_dir_r.choose_spec.right
+              simp [Behaviour.ImmediateBottomSuccSatisfyingProp] at hsucc_spec
+              have hsucc_is_succ := hsucc_spec.isImmBottomSucc.isSucc
+              simpa [Event.Successor, Event.Predecessor] using hsucc_is_succ
+
+            simp only [Event.OrderedBefore] at hw_before_succ her_before_succ
+
+            -- Contradiction: succ_w = succ_r but e_r is between e_w and succ
+            -- violating immediate successor property
             sorry
 
+/-
 lemma CMCM.rf.sameGle.wImmPredRCle
   {cmp : CompoundProtocol n}
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
