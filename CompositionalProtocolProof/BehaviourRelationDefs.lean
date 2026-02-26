@@ -578,9 +578,11 @@ inductive Behaviour.dirAccessOfRequest (b : Behaviour n) (init : InitialSystemSt
     e_inter.OrderedBetween n (hexists_pred_getting_perms.choose) e_req →
     b.stateBeforeAndAfterAtLeast n init e_inter e_req)
   (hpred_same_protocol : hexists_pred_getting_perms.choose.sameProtocol n e_req)
+  (hnot_down : ¬ e_req.down)
   : Behaviour.dirAccessOfRequest b init e_req e_dir
 | orderAfterDir (hweak_read_on_vd : b.ncWeakReqOnVd n init e_req) (hsucc_encap_dir : b.immBottomSuccOnVdEncapCorrDir n init e_req e_dir)
   (hsucc_same_protocol : hsucc_encap_dir.choose.sameProtocol n e_req)
+  (hnot_down : ¬ e_req.down)
   : Behaviour.dirAccessOfRequest b init e_req e_dir
 
 -- Prove rf relation.
@@ -588,8 +590,8 @@ inductive Behaviour.dirAccessOfRequest (b : Behaviour n) (init : InitialSystemSt
 def Behaviour.dirAccessOfRequest.isDirEvent {b : Behaviour n} {init : InitialSystemState n} {e_req e_dir : Event n} (h : b.dirAccessOfRequest n init e_req e_dir) : e_dir.isDirectoryEvent :=
   match h with
   | .encapDir _ hencap_dir => hencap_dir.isDir
-  | .orderBeforeDir _ _ hpred_accesses_dir _ _ => hpred_accesses_dir.isDir
-  | .orderAfterDir _ hsucc_encap_dir _ => hsucc_encap_dir.choose_spec.right.satisfyP.encapCorresponding.isDir
+  | .orderBeforeDir _ _ hpred_accesses_dir _ _ _ => hpred_accesses_dir.isDir
+  | .orderAfterDir _ hsucc_encap_dir _ _ => hsucc_encap_dir.choose_spec.right.satisfyP.encapCorresponding.isDir
 
 /-- Axiom 6.5 Directory Event is caused by a corresponding cache event in the same protocol.
 A directory access event should not spontaneously occur without a corresponding cache event. -/
