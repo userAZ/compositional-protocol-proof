@@ -963,6 +963,73 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
         simp[hdown]
   . case directoryEvent _ => simp [hce] at ax6
 
+/- Helper lemma: orderAfterDir succ is cache event -/
+lemma orderAfterDir_succ_is_cache_event
+  (b : Behaviour n) (e_pred e_succ : Event n) (p : Event n → Prop)
+  (hsucc_spec : Behaviour.ImmediateBottomSuccSatisfyingProp n b e_pred e_succ p)
+  (he_pred_is_cache : e_pred.isCacheEvent)
+  : e_succ.isCacheEvent := by
+  match hsucc_ev : e_succ with
+  | Event.cacheEvent _ => simp [Event.isCacheEvent]
+  | Event.directoryEvent de_succ =>
+    exfalso
+    -- e_pred and e_succ have same struct from sameEntry property
+    have hsame_struct : Event.sameStructure n e_pred (Event.directoryEvent de_succ) :=
+      hsucc_spec.isImmBottomSucc.sameEntry.sameStruct
+    -- e_pred is a cache event, so match on it to show struct contradiction
+    match e_pred with
+    | Event.cacheEvent ce_pred =>
+      -- Struct.cache ≠ Struct.directory, so we get a contradiction
+      simp only [Event.sameStructure, Event.struct] at hsame_struct
+      -- hsame_struct should now be something like: Struct.cache ce_pred.cid = Struct.directory de_succ.pInst
+      -- This is false, so we can derive a contradiction
+      cases hsame_struct
+    | Event.directoryEvent _ =>
+      -- e_pred is a directory event, contradicting he_pred_is_cache
+      simp [Event.isCacheEvent] at he_pred_is_cache
+
+/- Helper lemma: orderBeforeDir pred is cache event -/
+lemma orderBeforeDir_pred_is_cache_event
+  (b : Behaviour n)
+  (init : InitialSystemState n)
+  (e_req : Event n)
+  (hexists_pred_r : b.reqHasPermsSoDirPred n init e_req)
+  (he_req_is_cache : e_req.isCacheEvent)
+  : hexists_pred_r.choose.isCacheEvent := by
+  -- First, case split on e_req while we still have the clean state
+  match e_req with
+  | Event.directoryEvent _ =>
+    -- e_req is a directory event, which contradicts he_req_is_cache
+    simp [Event.isCacheEvent] at he_req_is_cache
+  | Event.cacheEvent ce_req =>
+    -- e_req is a cache event, so we can proceed
+    -- Get the predecessor specification from existential
+    have hpred_spec := hexists_pred_r.choose_spec.right
+    -- Unfold the immBottomPredHasNoPermsAndLeavesStateAtLeast definition
+    simp [Behaviour.immBottomPredHasNoPermsAndLeavesStateAtLeast] at hpred_spec
+    -- Access the ImmediateBottomPredSatisfyingProp
+    simp [Behaviour.ImmediateBottomPredSatisfyingProp] at hpred_spec
+    -- Extract the predecessor relationships
+    have hpred_imm_pred := hpred_spec.isImmPred
+    have hpred_bpred := hpred_imm_pred.bPred
+    have hpred_same_entry := hpred_bpred.sameEntry
+    -- sameStruct extracts the struct equality
+    have hpred_same_struct := hpred_same_entry.sameStruct
+    -- hpred_same_struct : Event.sameStructure n hexists_pred_r.choose (Event.cacheEvent ce_req)
+
+    -- Now show hexists_pred_r.choose must be a cache event
+    match hpred : hexists_pred_r.choose with
+    | Event.cacheEvent _ =>
+      simp [Event.isCacheEvent]
+    | Event.directoryEvent de_pred =>
+      -- Contradiction: a directory event cannot have same structure as cache event
+      exfalso
+      -- Unfold sameStructure to get struct equality
+      simp only [Event.sameStructure] at hpred_same_struct
+      -- Use hpred to substitute hexists_pred_r.choose with Event.directoryEvent de_pred
+      -- This will simplify the match in hpred_same_struct to Struct.directory de_pred.pInst
+      simp [Event.struct, hpred] at hpred_same_struct
+
 /-- Def. Prop constraints for Def 2.37 case where the request has coherent permissions and is then defined as it's own linearization event. -/
 structure Behaviour.requestWithCoherentPermsLinearizes (b : Behaviour n) (init : InitialSystemState n) (e_req e_lin : Event n) : Prop where
   reqHasPerms : b.reqHasPerms n init e_req
