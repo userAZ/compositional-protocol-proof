@@ -695,46 +695,56 @@ lemma CMCM.rf.sameGle.sameCle
           -- Case 3.3: e_w orderAfterDir, e_r orderAfterDir
           | orderAfterDir hreq_r_on_vd hsucc_encap_dir_r hsucc_same_protocol_r =>
             exfalso
-            -- Both successors encapsulate the CLE
-            have hsucc_w_encap_cle : hsucc_encap_dir_w.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
-              have hsucc_encap := hsucc_encap_dir_w.choose_spec.right.satisfyP.encapCorresponding.reqEncapDir
-              simpa [hsame_cle] using hsucc_encap
-            have hsucc_r_encap_cle : hsucc_encap_dir_r.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
-              have hsucc_encap := hsucc_encap_dir_r.choose_spec.right.satisfyP.encapCorresponding.reqEncapDir
-              simpa [hsame_cle] using hsucc_encap
-
-            -- Both successors are directory events encapsulating the same CLE
-            -- They must be equal (by dir_event_of_req_event_unique)
-            have hw_dir_of_req : (hw_c_and_g_lin.hreq's_dir_access.choose).dirEventOfReqEvent n hsucc_encap_dir_w.choose := by
-              have := hsucc_encap_dir_w.choose_spec.right.satisfyP.encapCorresponding.dirOfReq
-              exact this
-            have hr_dir_of_req : (hw_c_and_g_lin.hreq's_dir_access.choose).dirEventOfReqEvent n hsucc_encap_dir_r.choose := by
-              convert hsucc_encap_dir_r.choose_spec.right.satisfyP.encapCorresponding.dirOfReq using 2
-            have hsucc_eq : hsucc_encap_dir_w.choose = hsucc_encap_dir_r.choose :=
-              dir_event_of_req_event_unique hw_dir_of_req hr_dir_of_req
-            -- Now both e_w and e_r have the same successor encapsulating CLE
-            -- But e_w < e_r < succ, so succ cannot be immediate successor to both
-
-            -- From hw_ob_r: e_w.oEnd < e_r.oStart
-            simp only [Event.OrderedBefore] at hw_ob_r
-
-            -- Both have immediate successor relationships
-            have hw_before_succ : e_w.OrderedBefore n hsucc_encap_dir_w.choose := by
-              have hsucc_spec := hsucc_encap_dir_w.choose_spec.right
-              simp [Behaviour.ImmediateBottomSuccSatisfyingProp] at hsucc_spec
-              have hsucc_is_succ := hsucc_spec.isImmBottomSucc.isSucc
-              simpa [Event.Successor, Event.Predecessor] using hsucc_is_succ
-            have her_before_succ : e_r.OrderedBefore n hsucc_encap_dir_r.choose := by
-              have hsucc_spec := hsucc_encap_dir_r.choose_spec.right
-              simp [Behaviour.ImmediateBottomSuccSatisfyingProp] at hsucc_spec
-              have hsucc_is_succ := hsucc_spec.isImmBottomSucc.isSucc
-              simpa [Event.Successor, Event.Predecessor] using hsucc_is_succ
-
-            simp only [Event.OrderedBefore] at hw_before_succ her_before_succ
-
-            -- Contradiction: succ_w = succ_r but e_r is between e_w and succ
-            -- violating immediate successor property
-            sorry
+            -- e_r is in the orderAfterDir case, meaning:
+            --   hreq_r_on_vd : Behaviour.ncWeakReqOnVd n b init e_r
+            --   This means e_r is weak non-coherent on Vd state
+            --   hreq_r_on_vd.weakReq : e_r.isNcWeak = e_r.isNonCoherent ∧ e_r.isWeak
+            
+            -- Extract the non-coherent property
+            have hr_noncoherent : e_r.isNonCoherent := hreq_r_on_vd.weakReq.1
+            
+            -- e_r must be a cache event (from ncWeakReqOnVd)
+            have hr_cache : e_r.isCacheEvent := hreq_r_on_vd.reqCache
+            
+            -- e_r is a read (from hr_is_read in the theorem context)
+            -- We're inside readsFromVdNoEvict case, which assumes coherent reads
+            -- But e_r is weak non-coherent, contradicting this assumption
+            
+            -- Unpack e_r as a cache event to access the coherence property
+            cases hr_ev : e_r with
+            | cacheEvent ce =>
+              -- e_r is a cache event
+              simp [Event.isNonCoherent, hr_ev] at hr_noncoherent
+              -- Now hr_noncoherent : ¬ ce.req.val.coherent
+              
+              -- In the readsFromVdNoEvict case, we need a coherent read relationship
+              -- But e_r.orderAfterDir means e_r is weak non-coherent
+              -- This is a contradiction: we cannot have coherent RF with non-coherent read
+              
+              -- The proof: e_r is non-coherent (from orderAfterDir/ncWeakReqOnVd)
+              -- But hbetween_w_r.coherentRead asserts e_r.isCoherent
+              -- This is a direct contradiction
+              
+              -- From hbetween_w_r : e_evict.Between e_w e_r
+              -- We get hbetween_w_r.coherentRead : e_r.isCoherent
+              have hr_coherent : e_r.isCoherent := hbetween_w_r.coherentRead
+              
+              -- But e_r.isCoherent means ce.req.isCoherent (since e_r = cacheEvent ce)
+              simp [Event.isCoherent, hr_ev] at hr_coherent
+              
+              -- Now hr_coherent : ce.req.isCoherent
+              -- Which unfolds to: ce.req.val.coherent
+              simp [ValidRequest.isCoherent, Request.isCoherent] at hr_coherent
+              
+              -- Now hr_coherent : (↑ce.req).coherent = true
+              -- But hr_noncoherent : (↑ce.req).coherent = false
+              -- Rewrite with hr_noncoherent in hr_coherent to get false = true
+              rw [hr_noncoherent] at hr_coherent
+              -- Now hr_coherent : false = true, which is absurd
+              cases hr_coherent
+              
+            | directoryEvent _ =>
+              simp [Event.isCacheEvent, hr_ev] at hr_cache
 
 /-
 lemma CMCM.rf.sameGle.wImmPredRCle
