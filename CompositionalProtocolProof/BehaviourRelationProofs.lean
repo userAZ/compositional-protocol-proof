@@ -499,6 +499,7 @@ structure Behaviour.exists_predecessor_setting_state (b : Behaviour n) (init : I
     e_inter.OrderedBetween n hexists_pred_getting_perms.choose e_req →
     b.stateBeforeAndAfterAtLeast n init e_inter e_req
   hinter_same_protocol : hexists_pred_getting_perms.choose.sameProtocol n e_req
+  hreq_not_down : ¬ e_req.down
 
 /-- Axiom 7 Redux. -/
 structure Behaviour.exists_vd_successor_wb_or_get_sw (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) where
@@ -510,6 +511,7 @@ structure Behaviour.exists_vd_successor_wb_or_get_sw (b : Behaviour n) (init : I
      -/
   -- hinter_leaves_state_at_least : b.stateBeforeAndAfterAtLeast n init hsucc_encap_dir.choose e_req
   hsucc_same_protocol : hsucc_encap_dir.choose_spec.right.choose.sameProtocol n e_req
+  hreq_not_down : ¬ e_req.down
 
 structure Behaviour.has_perms_or_vd_exists_e_dir_before_or_after where
   hasPermsDirBefore : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_req : Event n, b.exists_predecessor_setting_state n init e_req
@@ -596,6 +598,7 @@ private lemma Behaviour.exists_e_dir_orderBeforeDir {n : ℕ} (b : Behaviour n) 
     . case hpred_accesses_dir => exact hexists_pred_dir.hpred_accesses_dir.choose_spec.right
     . case hinter_leaves_state_at_least => exact hexists_pred_dir.hinter_leaves_state_at_least
     . case hpred_same_protocol => exact hexists_pred_dir.hinter_same_protocol
+    . case hnot_down => exact hexists_pred_dir.hreq_not_down
 
 /-- Helper: Find directory event for request without permissions (encapDir case) -/
 private lemma Behaviour.exists_e_dir_encapDir {n : ℕ} (b : Behaviour n) (init : InitialSystemState n)
@@ -627,6 +630,7 @@ private lemma Behaviour.exists_e_dir_orderAfterDir {n : ℕ} (b : Behaviour n) (
     apply Behaviour.dirAccessOfRequest.orderAfterDir
     . case hweak_read_on_vd => exact hreq_on_vd
     . case hsucc_same_protocol => exact hexists_dir_after.hsucc_same_protocol
+    . case hnot_down => exact hexists_dir_after.hreq_not_down
 
 /-- Helper: Find directory event for evict request (encapDir via downgrade) -/
 private lemma Behaviour.exists_e_dir_evict {n : ℕ} (b : Behaviour n) (init : InitialSystemState n)
