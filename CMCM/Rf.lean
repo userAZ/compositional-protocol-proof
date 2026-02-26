@@ -114,9 +114,10 @@ structure Event.Between (e_inter e_w e_r : Event n) : Prop where
   sameProtocol : e_inter.sameProtocol n e_w ∧ e_inter.sameProtocol n e_r
   sameCache : e_inter.sameStructure n e_w ∧ e_inter.sameStructure n e_r
   interBetween : e_inter.OrderedBetween n e_w e_r
+  coherentRead : e_r.isCoherent
 
 def Event.Between.noEvict (b : Behaviour n) (e_w e_r : Event n) : Prop :=
-  ∀ e_inter ∈ b, e_inter.Between e_w e_r → ¬ (e_inter.isEvict ∧ e_inter.isCoherent)
+  ∀ e_inter ∈ b, e_inter.Between e_w e_r → ¬ (e_inter.isEvictSW)
 
 structure Event.Between.noWriteOrEvict (b : Behaviour n) (init : InitialSystemState n) (e_w e_r e_w_cle e_r_cle : Event n) : Prop where
   noWrite : Event.Between.noWrite b init e_w e_r e_w_cle e_r_cle
