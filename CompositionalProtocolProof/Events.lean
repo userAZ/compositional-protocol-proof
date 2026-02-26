@@ -221,9 +221,9 @@ def Event.isCacheEvent : Event n → Prop
 | .directoryEvent _ => false
 | .cacheEvent _ => true
 
-structure Event.isClusterCache (e_dir : Event n) : Prop where
-  eAtCache : e_dir.isCacheEvent
-  eCluster : e_dir.protocol = .cluster1 ∨ e_dir.protocol = .cluster2
+structure Event.isClusterCache (e_cache : Event n) : Prop where
+  eAtCache : e_cache.isCacheEvent
+  eCluster : e_cache.protocol = .cluster1 ∨ e_cache.protocol = .cluster2
 
 def Event.isDirectoryEvent : Event n → Prop
 | .directoryEvent _ => true
