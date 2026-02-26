@@ -1,6 +1,23 @@
 import CMCM.RfProofDefs
 
 
+/-- Helper: If two events both encapsulate the same CLE and are ordered,
+    we get a timing contradiction. This pattern appears in Case 1.1 and similar dual-encap cases. -/
+lemma dual_encap_ordered_contradiction
+  (hw_encap : (e_w : Event n).Encapsulates n e_cle)
+  (hr_encap : e_r.Encapsulates n e_cle)
+  (hw_ob_r : e_w.OrderedBefore n e_r)
+  : False := by
+  simp only [Event.Encapsulates] at hw_encap hr_encap
+  simp only [Event.OrderedBefore] at hw_ob_r
+  have hcle_wf := e_cle.oWellFormed
+  -- Combining: cle.oEnd < e_w.oEnd < e_r.oStart < cle.oStart
+  -- This contradicts cle.oStart < cle.oEnd
+  have : e_cle.oEnd < e_cle.oStart := by
+    calc e_cle.oEnd < e_w.oEnd := hw_encap.2
+      _ < e_r.oStart := hw_ob_r
+      _ < e_cle.oStart := hr_encap.1
+  exact Nat.lt_asymm this hcle_wf
 
 /-- Helper lemma for Case 2a: Different cache, same protocol/cluster -/
 lemma noInterveningWrites_diffCache_sameProtocol_case
