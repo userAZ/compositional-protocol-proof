@@ -284,7 +284,7 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
           | .directoryEvent _ =>
             -- e_inter is not a directory event (it's a cluster cache)
             have : e_inter.isCacheEvent := by
-              simpa [hinter_ev] using hwrite_cluster.dirAtDir
+              simpa [hinter_ev] using hwrite_cluster.eAtCache
             simp [Event.isCacheEvent, hinter_ev] at this
           | .cacheEvent ce_inter =>
             -- Now hwrite : ce_inter.req.val.isWrite, i.e., ce_inter.req.val.rw = .w
@@ -742,12 +742,12 @@ lemma eq_gle_cle_implies_write_before_read
   have _ := hcle_eq
   cases hw_ev : e_w with
   | directoryEvent de_w =>
-    have : e_w.isCacheEvent := hw_cluster.dirAtDir
+    have : e_w.isCacheEvent := hw_cluster.eAtCache
     simp[Event.isCacheEvent, hw_ev] at this
   | cacheEvent ce_w =>
     cases hr_ev : e_r with
     | directoryEvent de_r =>
-      have : e_r.isCacheEvent := hr_cluster.dirAtDir
+      have : e_r.isCacheEvent := hr_cluster.eAtCache
       simp[Event.isCacheEvent, hr_ev] at this
     | cacheEvent ce_r =>
       have hordered := b.orderedAtEntry.cache_ordered ce_w ce_r
