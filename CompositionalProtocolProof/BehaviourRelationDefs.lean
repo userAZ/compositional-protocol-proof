@@ -536,6 +536,7 @@ structure Behaviour.ncWeakReqOnVd (b : Behaviour n) (init : InitialSystemState n
   notDown : ¬ e_req.down
   weakReq : e_req.isNcWeak
   reqOnOrAfterVd : (b.stateBefore n (init.stateAt n e_req) e_req).cache n = Vd ∨ (b.stateAfter n (init.stateAt n e_req) e_req).cache n = Vd
+  reqCache : e_req.isCacheEvent
 
 /-- Succeeding Request Event on Vd that accesses the Directory -/
 structure Behaviour.reqOnVdWithCorrespondingDir (b : Behaviour n) (init : InitialSystemState n) (e_req e_dir : Event n) : Prop where

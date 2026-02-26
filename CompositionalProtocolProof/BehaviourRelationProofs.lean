@@ -739,6 +739,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
                 subst state_req_made_on event_req
                 apply Or.intro_left
                 simp[hnot_on_vd]
+              . case reqCache => simp[Event.isCacheEvent]
             exact b.exists_e_dir_orderAfterDir init (Event.cacheEvent ce) (by simp[hce] at he_req_in_b; exact he_req_in_b) hreq_on_vd hdir_before_after
         . case neg =>
           /- Request has no permissions, so encapsulates a directory event to access the Directory. -/
