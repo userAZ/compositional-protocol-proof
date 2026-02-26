@@ -291,8 +291,11 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
             have hwrite' : ce_inter.req.val.isWrite := by
               simpa [Event.isWrite, hinter_ev] using hwrite
             -- From dirEventOfReqEvent, de_inter_cle.eReq = ce_inter
-            unfold Event.dirEventOfReqEvent at hdir_matches_req
-            simp [hinter_cle_ev, hinter_ev] at hdir_matches_req
+
+            -- unfold Behaviour.requestDirectoryEvent at hdir_matches_req
+            -- unfold Event.dirEventOfReqEvent at hdir_matches_req
+            -- simp [hinter_cle_ev, hinter_ev] at hdir_matches_req
+
             -- From requestDirectoryEvent, de_inter_cle.req = ...
             -- The directory request is derived from the cache request
             -- For a write, unless it's a NC write on I state (which becomes a read),
@@ -536,6 +539,7 @@ lemma noInterveningWrites_implies_no_writes_between
         hw_c_and_g_lin hr_c_and_g_lin _hcle_eq _hknow_dir_access (he_inter := he)
         hwrite_cluster hwrite hcontra hinter_lin hsame_cache
   . -- TODO [AZ]; Fill in this case where e_interis in a different protocol than e_w.
+    sorry
 
 /-- When CLEs are equal, the events must be in the same protocol/cluster -/
 lemma same_cle_implies_same_protocol
@@ -789,105 +793,581 @@ lemma diff_cle_same_gle_implies_same_protocol
   -- The cluster requests get forwarded to global directory which tracks which cluster they're from
   sorry
 
+-- Helper lemma: true is not ≤ false for Bool
+private lemma bool_true_not_le_false : ¬(true ≤ false) := by decide
+
+-- Helper lemma: a state with c=true cannot be < a state with c=false
+private lemma state_true_not_lt_false {p₁ p₂ : Permissions} : ¬(State.mk p₁ true < State.mk p₂ false) := by
+  intro h
+  show False
+  have : true ≤ false := h.right.left
+  exact bool_true_not_le_false this
+
+-- Helper lemma: a state with c=true cannot be ≤ a state with c=false
+private lemma state_true_not_le_false {p₁ p₂ : Permissions} : ¬(State.mk p₁ true ≤ State.mk p₂ false) := by
+  intro h
+  show False
+  cases h with
+  | inl hlt => exact state_true_not_lt_false hlt
+  | inr heq =>
+    injection heq with _ hc
+    exact Bool.noConfusion hc
+
+-- Helper lemma: I is not ≥ Vc (I < Vc but not I ≥ Vc)
+private lemma I_not_ge_Vc : ¬(Vc ≤ I) := by
+  intro h
+  show False
+  cases h with
+  | inl hlt =>
+    -- Vc < I means some r ≤ none ∧ false ≤ false ∧ Vc ≠ I
+    -- But some r ≤ none is false
+    have : (some ReadWritePermissions.r : Permissions) ≤ (none : Permissions) := hlt.left
+    cases this
+  | inr heq =>
+    -- Vc = I is false by definition
+    injection heq with hp
+    cases hp
+
+-- Helper lemma: I is not ≥ Vd
+private lemma I_not_ge_Vd : ¬(Vd ≤ I) := by
+  intro h
+  show False
+  cases h with
+  | inl hlt =>
+    -- Vd < I means some wr ≤ none ∧ false ≤ false ∧ Vd ≠ I
+    -- But some wr ≤ none is false
+    have : (some ReadWritePermissions.wr : Permissions) ≤ (none : Permissions) := hlt.left
+    cases this
+  | inr heq =>
+    -- Vd = I is false by definition
+    injection heq with hp
+    cases hp
+
+-- Helper: write permission not ≤ read permission
+private lemma permission_wr_not_le_r : ¬((some ReadWritePermissions.wr : Permissions) ≤ (some ReadWritePermissions.r : Permissions)) := by
+  decide
+
+-- Helper: read permission not ≤ none
+private lemma permission_r_not_le_none : ¬((some ReadWritePermissions.r : Permissions) ≤ (none : Permissions)) := by
+  decide
+
+-- Helper: write permission not ≤ none
+private lemma permission_wr_not_le_none : ¬((some ReadWritePermissions.wr : Permissions) ≤ (none : Permissions)) := by
+  decide
+
+-- Helper lemma: MRS for coherent requests always has c=true
+private lemma coherent_mrs_has_true_coherence (vr : ValidRequest) (hcoh : vr.val.coherent = true) :
+  vr.MRS.c = true := by
+  simp [ValidRequest.MRS]
+  split
+  · -- Case: ⟨⟨rw,true,.SC⟩,_⟩
+    rfl
+  · -- Case: ⟨⟨.w,true,.Rel⟩,_⟩
+    rfl
+  · -- Case: ⟨⟨.w,true,.Weak⟩,_⟩
+    rfl
+  all_goals
+    -- All other cases have coherent = false, contradicting hcoh
+    simp at hcoh
+
+-- Helper lemma: DowngradeState for coherent SC evict with SW state produces I (c=false)
+private lemma coherent_sc_evict_downgrade_to_i (vr : ValidRequest)
+  (hcoh : vr.val.coherent = true) (hsc : vr.val.consistency = .SC)
+  (hwrite : vr.val.rw = .w) (s : State) (hs_p : s.p = some ReadWritePermissions.wr) (hsc_true : s.c = true) :
+  (vr.DowngradeState s).c = false := by
+  simp [ValidRequest.DowngradeState, hsc]
+  split
+  · -- s.c = true case
+    split
+    · -- s ≤ MRS, result is I
+      rfl
+    · next h_not_le =>
+      -- Contradiction: For coherent SC write, MRS = {some .wr, true}
+      -- With s = {some .wr, true}, we have s = MRS, so s ≤ MRS must be true
+      -- Therefore ¬(s ≤ MRS) leads to contradiction
+      have hmrs_true : vr.MRS.c = true := coherent_mrs_has_true_coherence vr hcoh
+      -- Need to show this branch returns vr.MRS which has c = false, but we just showed c = true
+      -- Actually, let's show s ≤ MRS directly to contradict h_not_le
+      have hs_le_mrs : s ≤ vr.MRS := by
+        -- s = {some .wr, true} and MRS = {some .wr, true} for coherent SC write
+        have hmrs : vr.MRS = State.mk (some ReadWritePermissions.wr) true := by
+          cases vr with | mk val prop =>
+          simp only [ValidRequest.MRS]
+          cases val with | mk rw coh cons =>
+          simp only at hcoh hsc hwrite
+          subst hcoh hsc hwrite
+          rfl
+        have hs : s = State.mk (some ReadWritePermissions.wr) true := by
+          cases s with | mk p c =>
+          simp only at hs_p hsc_true
+          subst hs_p hsc_true
+          rfl
+        rw [hs, hmrs]
+        right
+        rfl
+      exact absurd hs_le_mrs h_not_le
+  · next heq_false =>
+      -- vr.val.coherent = false: contradicts hcoh
+      simp [hcoh] at heq_false
+
+-- Helper lemma: For coherent SC write evicts, DowngradeState SW = I
+private lemma coherent_sc_write_downgrade_sw_to_i
+  (vr : ValidRequest)
+  (hcons : vr.val.consistency = .SC)
+  (hcoh : vr.val.coherent = true)
+  (hwrite : vr.val.rw = .w)
+  : vr.DowngradeState SW = I := by
+  simp[ValidRequest.DowngradeState, hcoh, hcons,]
+  simp[ValidRequest.MRS]
+  match hvr : vr with
+  | ⟨⟨.w, true, .SC⟩, _⟩ =>
+    simp[]
+    simp[SW]
+    simp[ReadWrite.toPerms, ReadWrite.toRWPerms]
+    simp[LE.le, State.le]
+
+-- Helper lemma: Non-coherent request with coherent perms contradicts non-coherent evict result
+-- This is only used when the read is actually coherent, showing a direct contradiction
+private lemma nc_request_coherent_perms_contradiction
+  {b : Behaviour n} {init : InitialSystemState n} {e_r_ce ce_evict : CacheEvent n}
+  (_hhascoh : Behaviour.reqHasPermsOnCoherentState n b init (Event.cacheEvent e_r_ce))
+  (hr_coh : e_r_ce.req.val.coherent = true)
+  (hmrs_c_false : e_r_ce.req.MRS.c = false)
+  (_hdowngrade_c_false : (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c = false)
+  (_hevict_leaves_at_least : e_r_ce.req.MRS ≤ ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true })
+  : False := by
+  -- The non-coherent request is made on a coherent state (hhascoh.onCoherentState)
+  -- and must have stateReqMadeOn.c = true
+  -- But evict produces DowngradeState.c = false
+  -- With MRS ≤ DowngradeState and MRS.c = false, we get a permission constraint
+  -- that contradicts the specific MRS values for Rel/Weak writes
+  have hmrs_true : e_r_ce.req.MRS.c = true := coherent_mrs_has_true_coherence e_r_ce.req hr_coh
+  rw [hmrs_true] at hmrs_c_false
+  exact Bool.noConfusion hmrs_c_false
+
+-- For Rel/Acq consistency with coherent writes, DowngradeState returns Vc (c=false)
+-- For Weak consistency with coherent writes, DowngradeState returns Vd (c=false)
+private lemma coherent_rel_acq_weak_write_downgrade_to_false (vr : ValidRequest)
+  (hcoh : vr.val.coherent = true) (_hwrite : vr.val.rw = .w)
+  (hcons : vr.val.consistency = .Rel ∨ vr.val.consistency = .Acq ∨ vr.val.consistency = .Weak)
+  (s : State) (hsc_true : s.c = true) :
+  (vr.DowngradeState s).c = false := by
+  -- For coherent Rel/Acq/Weak, DowngradeState is: if s ≤ Vc then s else Vc
+  -- With s = {wr, true}, we need to show either s.c = false (impossible since hsc_true)
+  -- or s > Vc (which means result is Vc with c=false)
+  simp [ValidRequest.DowngradeState, hcoh]
+  cases hcons with
+  | inl hrel =>
+      -- Rel case: result is if s ≤ Vc then s else Vc
+      simp [hrel]
+      split
+      · -- s ≤ Vc: result is s
+        -- But s has c=true and Vc has c=false, so s ≤ Vc requires true ≤ false, impossible
+        next h_le =>
+          have : s.c ≤ Vc.c := by
+            cases h_le with
+            | inl hlt => exact hlt.right.left
+            | inr heq => rw [heq]
+          simp at this
+          rw [hsc_true] at this
+          exact absurd this bool_true_not_le_false
+      · -- s > Vc: result is Vc
+        rfl
+  | inr hrest =>
+      cases hrest with
+      | inl hacq =>
+          -- Acq case: same as Rel
+          simp [hacq]
+          split
+          · next h_le =>
+              have : s.c ≤ Vc.c := by
+                cases h_le with
+                | inl hlt => exact hlt.right.left
+                | inr heq => rw [heq]
+              simp at this
+              rw [hsc_true] at this
+              exact absurd this bool_true_not_le_false
+          · rfl
+      | inr hweak =>
+          -- Weak case: same as Rel/Acq
+          simp [hweak]
+          split
+          · next h_le =>
+              have : s.c ≤ Vc.c := by
+                cases h_le with
+                | inl hlt => exact hlt.right.left
+                | inr heq => rw [heq]
+              simp at this
+              rw [hsc_true] at this
+              exact absurd this bool_true_not_le_false
+          · rfl
+
+lemma read_mrs_le_write_coherent_evict_contradiction (_cmp : CompoundProtocol n)
+
+{b : Behaviour n} {init : InitialSystemState n}
+(e_r_ce ce_evict : CacheEvent n)
+(hevict_sw_evict : (Event.cacheEvent ce_evict).isEvictSW)
+(hreq_r_has_perms : Behaviour.reqHasPerms n b init (Event.cacheEvent e_r_ce))
+(hr_coherent : e_r_ce.req.val.coherent = true)
+(hevict_is_coherent : ce_evict.req.val.coherent = true)
+(hevict_leaves_at_least : e_r_ce.req.MRS ≤ ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true })
+  : False := by
+  -- The key: MRS for coherent e_r has c=true, DowngradeState for coherent evict produces c=false
+  -- This creates an immediate contradiction
+
+  -- Case analysis on how the read request has permissions
+  cases hreq_r_has_perms with
+  | hasPerms hreq_r_is_coherent hreq_r_state_sufficient =>
+      -- For coherent requests, MRS always has c=true
+      have hr_coh : e_r_ce.req.val.coherent = true := by
+        simp [Event.isCoherent, ValidRequest.isCoherent, Request.isCoherent] at hreq_r_is_coherent
+        exact hreq_r_is_coherent
+
+      -- Use our helper lemmas
+      have hmrs_true : e_r_ce.req.MRS.c = true := coherent_mrs_has_true_coherence e_r_ce.req hr_coh
+
+      -- For the evict, we know it's a coherent write evict (isEvictSW)
+      -- From hevict_sw_evict.coherentWrite, ce_evict is a coherent write
+      -- For coherent write evicts that are SC, the DowngradeState produces c=false
+      have hevict_coherent_write : ce_evict.req.isCoherentWrite := hevict_sw_evict.coherentWrite
+
+      -- Extract evict consistency - for now focus on SC case
+      cases hevict_cons : ce_evict.req.val.consistency
+      · -- SC: DowngradeState with SW produces I (c=false)
+        have hevict_write : ce_evict.req.val.rw = .w := by
+          simp [ValidRequest.isCoherentWrite, Request.isCoherentWrite, Request.isWrite] at hevict_coherent_write
+          exact hevict_coherent_write.right
+        have hdowngrade_false : (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c = false :=
+          coherent_sc_evict_downgrade_to_i ce_evict.req hevict_is_coherent hevict_cons hevict_write _ rfl rfl
+
+        -- Now we have MRS.c = true ≤ DowngradeState.c = false, which is a contradiction
+        have : e_r_ce.req.MRS.c ≤ (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c := by
+          cases hevict_leaves_at_least with
+          | inl hlt =>
+              -- MRS < DowngradeState
+              exact hlt.right.left
+          | inr heq =>
+              -- MRS = DowngradeState
+              rw [heq]
+        rw [hmrs_true, hdowngrade_false] at this
+        exact bool_true_not_le_false this
+      · -- Rel: coherent write evict with Rel downgrade
+        have hevict_write : ce_evict.req.val.rw = .w := by
+          simp [ValidRequest.isCoherentWrite, Request.isCoherentWrite, Request.isWrite] at hevict_coherent_write
+          exact hevict_coherent_write.right
+        have hdowngrade_false : (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c = false :=
+          coherent_rel_acq_weak_write_downgrade_to_false ce_evict.req hevict_is_coherent hevict_write (Or.inl hevict_cons) _ rfl
+
+        have : e_r_ce.req.MRS.c ≤ (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c := by
+          cases hevict_leaves_at_least with
+          | inl hlt => exact hlt.right.left
+          | inr heq => rw [heq]
+        rw [hmrs_true, hdowngrade_false] at this
+        exact bool_true_not_le_false this
+      · -- Acq: coherent write evict with Acq downgrade
+        have hevict_write : ce_evict.req.val.rw = .w := by
+          simp [ValidRequest.isCoherentWrite, Request.isCoherentWrite, Request.isWrite] at hevict_coherent_write
+          exact hevict_coherent_write.right
+        have hdowngrade_false : (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c = false :=
+          coherent_rel_acq_weak_write_downgrade_to_false ce_evict.req hevict_is_coherent hevict_write (Or.inr (Or.inl hevict_cons)) _ rfl
+
+        have : e_r_ce.req.MRS.c ≤ (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c := by
+          cases hevict_leaves_at_least with
+          | inl hlt => exact hlt.right.left
+          | inr heq => rw [heq]
+        rw [hmrs_true, hdowngrade_false] at this
+        exact bool_true_not_le_false this
+      ·  -- Weak: coherent write evict with Weak downgrade
+        have hevict_write : ce_evict.req.val.rw = .w := by
+          simp [ValidRequest.isCoherentWrite, Request.isCoherentWrite, Request.isWrite] at hevict_coherent_write
+          exact hevict_coherent_write.right
+        have hdowngrade_false : (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c = false :=
+          coherent_rel_acq_weak_write_downgrade_to_false ce_evict.req hevict_is_coherent hevict_write (Or.inr (Or.inr hevict_cons)) _ rfl
+
+        have : e_r_ce.req.MRS.c ≤ (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c := by
+          cases hevict_leaves_at_least with
+          | inl hlt => exact hlt.right.left
+          | inr heq => rw [heq]
+        rw [hmrs_true, hdowngrade_false] at this
+        exact bool_true_not_le_false this
+
+  | ncRelAcqWeakWriteHasCoherentPerms hncraw hhascoh =>
+      -- For non-coherent requests on coherent state, MRS has c=false
+      -- Evict produces state with c=false (at most), creating permission issues
+      have hevict_coherent_write : ce_evict.req.isCoherentWrite := hevict_sw_evict.coherentWrite
+
+      simp [Event.isNcRelAcqWeakWrite, Event.isAcquire, Event.isNcRelease, Event.isNcWeakWrite] at hncraw
+      cases hncraw with
+      | inl hrel =>
+          -- Acq: MRS = Vc = {some .r, false}
+          have hmrs_vc : e_r_ce.req.MRS = Vc := by
+            simp only [CacheEvent.isAcquire, ValidRequest.isAcquire] at hrel
+            rw [hrel]; rfl
+          cases hevict_cons : ce_evict.req.val.consistency
+          · -- SC evict: DowngradeState = I, so Vc ≤ I requires r ≤ none (contradiction)
+            have hevict_write : ce_evict.req.val.rw = .w := by
+              simp [ValidRequest.isCoherentWrite, Request.isCoherentWrite, Request.isWrite] at hevict_coherent_write
+              exact hevict_coherent_write.right
+            have hdowngrade_i : ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true } = I := by
+              exact coherent_sc_write_downgrade_sw_to_i ce_evict.req hevict_cons hevict_is_coherent hevict_write
+            have : e_r_ce.req.MRS ≤ I := by rw [← hdowngrade_i]; exact hevict_leaves_at_least
+            rw [hmrs_vc] at this
+            exact I_not_ge_Vc this
+          · -- Rel evict: DowngradeState = Vc (c=false), but e_r has coherent perms
+            have hdowngrade_c_false : (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c = false := by
+              have hevict_write : ce_evict.req.val.rw = .w := by
+                simp [ValidRequest.isCoherentWrite, Request.isCoherentWrite, Request.isWrite] at hevict_coherent_write
+                exact hevict_coherent_write.right
+              exact coherent_rel_acq_weak_write_downgrade_to_false ce_evict.req hevict_is_coherent hevict_write (Or.inl hevict_cons) _ rfl
+            exact nc_request_coherent_perms_contradiction hhascoh hr_coherent (by rw [hmrs_vc];) hdowngrade_c_false hevict_leaves_at_least
+          · -- Acq evict: DowngradeState = Vc (c=false), but e_r has coherent perms
+            have hdowngrade_c_false : (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c = false := by
+              have hevict_write : ce_evict.req.val.rw = .w := by
+                simp [ValidRequest.isCoherentWrite, Request.isCoherentWrite, Request.isWrite] at hevict_coherent_write
+                exact hevict_coherent_write.right
+              exact coherent_rel_acq_weak_write_downgrade_to_false ce_evict.req hevict_is_coherent hevict_write (Or.inr (Or.inl hevict_cons)) _ rfl
+            exact nc_request_coherent_perms_contradiction hhascoh hr_coherent (by rw [hmrs_vc];) hdowngrade_c_false hevict_leaves_at_least
+          · -- Weak evict: DowngradeState = Vc (c=false), but e_r has coherent perms
+            have hdowngrade_c_false : (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c = false := by
+              have hevict_write : ce_evict.req.val.rw = .w := by
+                simp [ValidRequest.isCoherentWrite, Request.isCoherentWrite, Request.isWrite] at hevict_coherent_write
+                exact hevict_coherent_write.right
+              exact coherent_rel_acq_weak_write_downgrade_to_false ce_evict.req hevict_is_coherent hevict_write (Or.inr (Or.inr hevict_cons)) _ rfl
+            exact nc_request_coherent_perms_contradiction hhascoh hr_coherent (by rw [hmrs_vc];) hdowngrade_c_false hevict_leaves_at_least
+      | inr hrest =>
+          cases hrest with
+          | inl hrel =>
+              -- Rel write: MRS = Vd = {some .wr, false}
+              have hmrs_vd : e_r_ce.req.MRS = Vd := by
+                simp only [CacheEvent.isNcRelease, ValidRequest.isNcRelease] at hrel
+                rw [hrel]; rfl
+              cases hevict_cons : ce_evict.req.val.consistency
+              · -- SC evict: DowngradeState = I, so Vd ≤ I requires wr ≤ none (contradiction)
+                have hevict_write : ce_evict.req.val.rw = .w := by
+                  simp [ValidRequest.isCoherentWrite, Request.isCoherentWrite, Request.isWrite] at hevict_coherent_write
+                  exact hevict_coherent_write.right
+                have hdowngrade_i : ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true } = I := by
+                  exact coherent_sc_write_downgrade_sw_to_i ce_evict.req hevict_cons hevict_is_coherent hevict_write
+                have : e_r_ce.req.MRS ≤ I := by rw [← hdowngrade_i]; exact hevict_leaves_at_least
+                rw [hmrs_vd] at this
+                exact I_not_ge_Vd this
+              · -- Rel evict: DowngradeState = Vc (c=false), but e_r has coherent perms
+                have hdowngrade_c_false : (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c = false := by
+                  have hevict_write : ce_evict.req.val.rw = .w := by
+                    simp [ValidRequest.isCoherentWrite, Request.isCoherentWrite, Request.isWrite] at hevict_coherent_write
+                    exact hevict_coherent_write.right
+                  exact coherent_rel_acq_weak_write_downgrade_to_false ce_evict.req hevict_is_coherent hevict_write (Or.inl hevict_cons) _ rfl
+                exact nc_request_coherent_perms_contradiction hhascoh hr_coherent (by rw [hmrs_vd];) hdowngrade_c_false hevict_leaves_at_least
+              · -- Acq evict: DowngradeState = Vc (c=false), but e_r has coherent perms
+                have hdowngrade_c_false : (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c = false := by
+                  have hevict_write : ce_evict.req.val.rw = .w := by
+                    simp [ValidRequest.isCoherentWrite, Request.isCoherentWrite, Request.isWrite] at hevict_coherent_write
+                    exact hevict_coherent_write.right
+                  exact coherent_rel_acq_weak_write_downgrade_to_false ce_evict.req hevict_is_coherent hevict_write (Or.inr (Or.inl hevict_cons)) _ rfl
+                exact nc_request_coherent_perms_contradiction hhascoh hr_coherent (by rw [hmrs_vd];) hdowngrade_c_false hevict_leaves_at_least
+              · -- Weak evict: DowngradeState = Vc (c=false), but e_r has coherent perms
+                have hdowngrade_c_false : (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c = false := by
+                  have hevict_write : ce_evict.req.val.rw = .w := by
+                    simp [ValidRequest.isCoherentWrite, Request.isCoherentWrite, Request.isWrite] at hevict_coherent_write
+                    exact hevict_coherent_write.right
+                  exact coherent_rel_acq_weak_write_downgrade_to_false ce_evict.req hevict_is_coherent hevict_write (Or.inr (Or.inr hevict_cons)) _ rfl
+                exact nc_request_coherent_perms_contradiction hhascoh hr_coherent (by rw [hmrs_vd];) hdowngrade_c_false hevict_leaves_at_least
+          | inr hweakwrite =>
+              -- Weak write: MRS = Vc = {some .r, false}
+              have hmrs_vc : e_r_ce.req.MRS = Vc := by
+                simp only [CacheEvent.isNcWeakWrite, ValidRequest.isNcWeakWrite] at hweakwrite
+                rw [hweakwrite]; rfl
+              cases hevict_cons : ce_evict.req.val.consistency
+              · -- SC evict: DowngradeState = I, so Vc ≤ I requires r ≤ none (contradiction)
+                have hevict_write : ce_evict.req.val.rw = .w := by
+                  simp [ValidRequest.isCoherentWrite, Request.isCoherentWrite, Request.isWrite] at hevict_coherent_write
+                  exact hevict_coherent_write.right
+                have hdowngrade_i : ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true } = I := by
+                  exact coherent_sc_write_downgrade_sw_to_i ce_evict.req hevict_cons hevict_is_coherent hevict_write
+                have : e_r_ce.req.MRS ≤ I := by rw [← hdowngrade_i]; exact hevict_leaves_at_least
+                rw [hmrs_vc] at this
+                exact I_not_ge_Vc this
+              · -- Rel evict: DowngradeState = Vc (c=false), but e_r has coherent perms
+                have hdowngrade_c_false : (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c = false := by
+                  have hevict_write : ce_evict.req.val.rw = .w := by
+                    simp [ValidRequest.isCoherentWrite, Request.isCoherentWrite, Request.isWrite] at hevict_coherent_write
+                    exact hevict_coherent_write.right
+                  exact coherent_rel_acq_weak_write_downgrade_to_false ce_evict.req hevict_is_coherent hevict_write (Or.inl hevict_cons) _ rfl
+                exact nc_request_coherent_perms_contradiction hhascoh hr_coherent (by rw [hmrs_vc];) hdowngrade_c_false hevict_leaves_at_least
+              · -- Acq evict: DowngradeState = Vc (c=false), but e_r has coherent perms
+                have hdowngrade_c_false : (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c = false := by
+                  have hevict_write : ce_evict.req.val.rw = .w := by
+                    simp [ValidRequest.isCoherentWrite, Request.isCoherentWrite, Request.isWrite] at hevict_coherent_write
+                    exact hevict_coherent_write.right
+                  exact coherent_rel_acq_weak_write_downgrade_to_false ce_evict.req hevict_is_coherent hevict_write (Or.inr (Or.inl hevict_cons)) _ rfl
+                exact nc_request_coherent_perms_contradiction hhascoh hr_coherent (by rw [hmrs_vc];) hdowngrade_c_false hevict_leaves_at_least
+              · -- Weak evict: DowngradeState = Vc (c=false), but e_r has coherent perms
+                have hdowngrade_c_false : (ce_evict.req.DowngradeState { p := some ReadWritePermissions.wr, c := true }).c = false := by
+                  have hevict_write : ce_evict.req.val.rw = .w := by
+                    simp [ValidRequest.isCoherentWrite, Request.isCoherentWrite, Request.isWrite] at hevict_coherent_write
+                    exact hevict_coherent_write.right
+                  exact coherent_rel_acq_weak_write_downgrade_to_false ce_evict.req hevict_is_coherent hevict_write (Or.inr (Or.inr hevict_cons)) _ rfl
+                exact nc_request_coherent_perms_contradiction hhascoh hr_coherent (by rw [hmrs_vc];) hdowngrade_c_false hevict_leaves_at_least
+
+  | ncWeakReadHasPermsNotVd hncwr hhaspermsnvd =>
+      -- A non-coherent weak read implies coherent=false, contradicting hr_coherent
+      have hr_coh_false : e_r_ce.req.val.coherent = false := by
+        simp only [Event.isNcWeakRead, CacheEvent.isNcWeakRead, ValidRequest.isNcWeakRead] at hncwr
+        simp [hncwr]
+      rw [hr_coherent] at hr_coh_false
+      exact Bool.noConfusion hr_coh_false
+
+
 /- Helper lemma: coherent downgrade cannot maintain state >= required -/
 private lemma coherent_evict_downgrade_contradiction
+
   (cmp : CompoundProtocol n)
   {b : Behaviour n} {init : InitialSystemState n}
   {e_evict e_r : Event n}
-  (hevict_is_evict : e_evict.isEvict)
+  (hr_is_cache : e_r.isClusterCache)
+  (hr_is_read : e_r.isRead)
+  (hreq_r_has_perms : b.reqHasPerms n init e_r)
+  (hr_coherent : e_r.isCoherent)
+  (hevict_sw_evict : e_evict.isEvictSW)
   (hevict_in_b : e_evict ∈ b)
   (hevict_is_coherent : e_evict.isCoherent)
   (hevict_is_cache : e_evict.isCacheEvent)
-  (hreq_r_has_perms : b.reqHasPerms n init e_r)
   (hevict_leaves_at_least : b.reqLeavesStateAtLeast n e_evict init e_r.req.MRS)
   : False := by
   -- Unfold reqLeavesStateAtLeast: state after evict >= required state
   unfold Behaviour.reqLeavesStateAtLeast at hevict_leaves_at_least
 
-  -- Case analysis on e_r's request type
-  cases e_r.req.val
-  . case mk e_r_rw e_r_coherent e_r_consistency =>
-    -- Case analysis on e_evict's request type
-    cases hevict_fields : e_evict.req.val
-    . case mk e_evict_rw e_evict_coherent e_evict_consistency =>
-      -- We know e_evict.isCoherent means e_evict_coherent = true
-      -- and e_evict.isEvict means this is an evict request
-      -- For a coherent evict (downgrade), the state after must be reduced
-      -- But hevict_leaves_at_least says state after >= required
-      -- This creates the contradiction
+  -- We know e_evict.isCoherent means e_evict_coherent = true
+  -- and e_evict.isEvict means this is an evict request
+  -- For a coherent evict (downgrade), the state after must be reduced
+  -- But hevict_leaves_at_least says state after >= required
+  -- This creates the contradiction
 
-      -- Unfold stateAfter to see the downgrade transition
-      unfold Behaviour.stateAfter at hevict_leaves_at_least
+  -- Unfold stateAfter to see the downgrade transition
+  unfold Behaviour.stateAfter at hevict_leaves_at_least
 
-      -- Now we need to see how state changes through the evict
-      -- For coherent downgrades, the state is reduced by the downgrade semantics
-      -- unfold List.stateAfter at hevict_leaves_at_least
+  -- Now we need to see how state changes through the evict
+  -- For coherent downgrades, the state is reduced by the downgrade semantics
+  -- unfold List.stateAfter at hevict_leaves_at_least
 
-      -- cases es_up_to_evict : Behaviour.eventsUpToEvent n b e_evict
-      -- . case nil =>
-      -- TODO: Use the state before `e_evict` (it has permissions at least `e_r`'s MRS)
-      --
-      have evict_dir_access := cmp.dirAccessOfRequest n b init e_evict hevict_in_b
-      obtain ⟨e_evict_cle, hevict_cle_in_b, hevict_cle_spec⟩ := evict_dir_access
+  -- cases es_up_to_evict : Behaviour.eventsUpToEvent n b e_evict
+  -- . case nil =>
+  -- TODO: Use the state before `e_evict` (it has permissions at least `e_r`'s MRS)
+  --
+  have evict_dir_access := cmp.dirAccessOfRequest n b init e_evict hevict_in_b
+  obtain ⟨e_evict_cle, hevict_cle_in_b, hevict_cle_spec⟩ := evict_dir_access
 
-      -- Use the "has permissions" fact for `e_evict` during a case analysis on
-      -- the state before `e_evict`. Then unfold and show the state after `e_evict` is
-      -- reduced lower than `e_r`'s MRS, contradicting the `hevict_leaves_state_at_least` "leaves state at least" fact.
-      cases hevict_cle_spec
-      . case intro.intro.encapDir hreq_missing_perms hencap_dir =>
-        cases hreq_missing_perms
-        . case downgrade hreq_is_down hreq_on_mrs_state  =>
-          simp[Behaviour.evictOnMRSState] at hreq_on_mrs_state
-          simp[Behaviour.stateBefore] at hreq_on_mrs_state
+  -- Use the "has permissions" fact for `e_evict` during a case analysis on
+  -- the state before `e_evict`. Then unfold and show the state after `e_evict` is
+  -- reduced lower than `e_r`'s MRS, contradicting the `hevict_leaves_state_at_least` "leaves state at least" fact.
+  cases hevict_cle_spec
+  . case intro.intro.encapDir hreq_missing_perms hencap_dir =>
+    cases hreq_missing_perms
+    . case downgrade hreq_is_down hreq_on_mrs_state  =>
+      simp[Behaviour.evictOnMRSState] at hreq_on_mrs_state
+      simp[Behaviour.stateBefore] at hreq_on_mrs_state
 
-          rw[Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore] at hevict_leaves_at_least
-          simp[Behaviour.stateBefore] at hevict_leaves_at_least
-          -- Use Behaviour.wrap_cache_state_to_entry_state
-          have hunwrap_EntryCache.state := Behaviour.unwrap_cache_state_to_entry_state n (hevict_is_cache) (b.initCacheStateIsCache e_evict init hevict_is_cache) hreq_on_mrs_state
-          rw[hunwrap_EntryCache.state] at hevict_leaves_at_least
-          -- Use `hevict_least_state_at_least` to show a contradiction; `e_r`'s MRS will be higher than `e_evict`'s state after
-          -- TODO: finish this case.
-          cases e_evict with
-          | directoryEvent de =>
-            -- impossible: e_evict is a cache event
+      rw[Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore] at hevict_leaves_at_least
+      simp[Behaviour.stateBefore] at hevict_leaves_at_least
+      -- Use Behaviour.wrap_cache_state_to_entry_state
+      have hunwrap_EntryCache.state := Behaviour.unwrap_cache_state_to_entry_state n (hevict_is_cache) (b.initCacheStateIsCache e_evict init hevict_is_cache) hreq_on_mrs_state
+      rw[hunwrap_EntryCache.state] at hevict_leaves_at_least
+      -- Use `hevict_least_state_at_least` to show a contradiction; `e_r`'s MRS will be higher than `e_evict`'s state after
+      -- TODO: finish this case.
+      cases e_evict with
+      | directoryEvent de =>
+        -- impossible: e_evict is a cache event
+        simp [Event.isCacheEvent] at hevict_is_cache
+      | cacheEvent ce_evict =>
+        -- reduce with the coherence bit from `hevict_is_coherent`
+        cases hevict_coherence : ce_evict.req.val.coherent with
+        | false =>
+          simp [Event.isCoherent, ValidRequest.isCoherent, Request.isCoherent] at hevict_is_coherent
+          absurd hevict_coherence
+          simp[hevict_is_coherent]
+        | true =>
+          -- have hevict_down := hevict_is_evict.downgrade
+          simp[Event.isEvictSW,] at hevict_sw_evict
+          -- have hevict_down := hevict_sw_evict.evict.downgrade
+
+          /- Open up the e_r.MRS ≤ e_evict.stateAfter hypothesis `hevict_leaves_at_least` -/
+          simp[Event.req, Event.MRS,] at hevict_leaves_at_least
+          simp[ReadWrite.toPerms, ReadWrite.toRWPerms] at hevict_leaves_at_least
+          simp[Event.down] at hevict_leaves_at_least
+          simp[hevict_sw_evict.evict.downgrade] at hevict_leaves_at_least
+
+          /- `e_r` is a cache event. -/
+          have hr_cache := hr_is_cache.eAtCache
+          simp[Event.isCacheEvent] at hr_cache
+          cases he_r : e_r <;> simp[he_r] at hr_cache
+
+          rename_i e_r_ce
+          case cacheEvent.true.cacheEvent =>
+            --
+            simp[he_r] at hevict_leaves_at_least
+            simp[List.stateAfter, Event.SucceedingState, CacheEvent.SucceedingState, hevict_sw_evict.evict.downgrade] at hevict_leaves_at_least
+            simp[EntryState.cache] at hevict_leaves_at_least
+
+            have hevict_is_write := hevict_sw_evict.coherentWrite.right
+            simp[Request.isWrite] at hevict_is_write
+            have hevict_is_coherent := hevict_sw_evict.coherentWrite.left
+            simp[Request.isCoherent] at hevict_is_coherent
+
+            simp[hevict_is_write] at hevict_leaves_at_least
+            simp[hevict_is_coherent] at hevict_leaves_at_least
+
+            simp[he_r] at hreq_r_has_perms
+
+            simp[he_r] at hr_coherent
+
+            exact read_mrs_le_write_coherent_evict_contradiction cmp e_r_ce ce_evict hevict_sw_evict hreq_r_has_perms hr_coherent hevict_is_coherent hevict_leaves_at_least
+    . case noPermsForNonNcRelAcqWeakWrite hreq_not_down hreq_not_nc_rel_acq_ww hno_perms =>
+      -- Contradiction: `e_evict` is a downgrade ^ `hreq_not_down` says it's not a downgrade
+      have hevict_down : e_evict.down := by
+        cases e_evict with
+        | cacheEvent ce_evict =>
+            have hsw : ce_evict.isEvictSW := by
+              simpa [Event.isEvictSW] using hevict_sw_evict
+            exact hsw.evict.downgrade
+        | directoryEvent de =>
             simp [Event.isCacheEvent] at hevict_is_cache
-          | cacheEvent ce =>
-            -- reduce with the coherence bit from `hevict_is_coherent`
-            cases hevict_coherence : e_evict_coherent with
-            | false =>
-              simp [Event.isCoherent, Event.req, ValidRequest.isCoherent, Request.isCoherent] at hevict_is_coherent
-              have hevict_coherent_field : ce.req.val.coherent = false := by
-                simp[Event.req, hevict_coherence] at hevict_fields
-                simp[hevict_fields]
-              absurd hevict_coherent_field
-              simp[hevict_is_coherent]
-            | true =>
-              -- cases e_r_rw <;> cases e_r_coherent <;> cases e_r_consistency <;>
-              -- cases e_evict_rw <;> cases e_evict_consistency <;>
-              --   simp [Event.SucceedingState, CacheEvent.SucceedingState, ValidRequest.DowngradeState,
-              --     ValidRequest.MRS, Event.MRS, Event.req, ReadWrite.toPerms, ReadWrite.toRWPerms,
-              --     Request.isCoherent, ValidRequest.isCoherent, State.le, State.lt, Option.le, hreq_is_down]
-              --     at hevict_leaves_at_least
-              -- exact hevict_leaves_at_least
-              sorry
-        . case noPermsForNonNcRelAcqWeakWrite hreq_not_down hreq_not_nc_rel_acq_ww =>
-          -- Contradiction: `e_evict` is a downgrade ^ `hreq_not_down` says it's not a downgrade
-          sorry
-        . case ncRelAcqWeakWriteNotOnCoherentState hreq_not_down hreq_nc_rel_acq hno_perms =>
-          -- Contradiction: `e_evict` is a downgrade ^ `hreq_not_down` says it's not a downgrade
-          sorry
-      . case intro.intro.orderBeforeDir hreq_has_perms hexists_pred_getting_perms
-        hpred_accesses_dir hinter_leaves_state_at_least hpred_same_protocol =>
-        cases hreq_has_perms
-        . case hasPerms =>
-          sorry
-        . case ncRelAcqWeakWriteHasCoherentPerms =>
-          sorry
-        . case ncWeakReadHasPermsNotVd =>
-          sorry
-      . case intro.intro.orderAfterDir hweak_read_on_vd hsucc_encap_dir hsucc_same_protocol =>
-        -- Contradiction: `e_evict` is a downgrade ^ `hweak_read_on_vd` says it's not a downgrade
-        sorry
+      exact hreq_not_down hevict_down
+    . case ncRelAcqWeakWriteNotOnCoherentState hreq_not_down hreq_nc_rel_acq hno_perms =>
+      -- Contradiction: `e_evict` is a downgrade ^ `hreq_not_down` says it's not a downgrade
+      have hevict_down : e_evict.down := by
+        cases e_evict with
+        | cacheEvent ce_evict =>
+            have hsw : ce_evict.isEvictSW := by
+              simpa [Event.isEvictSW] using hevict_sw_evict
+            exact hsw.evict.downgrade
+        | directoryEvent de =>
+            simp [Event.isCacheEvent] at hevict_is_cache
+      exact hreq_not_down hevict_down
+  . case intro.intro.orderBeforeDir hreq_has_perms hexists_pred_getting_perms
+    hpred_accesses_dir hinter_leaves_state_at_least hpred_same_protocol hnot_down =>
+
+    simp[Event.isEvictSW] at hevict_sw_evict
+    cases e_evict with
+    | directoryEvent _ =>
+        simp [Event.isCacheEvent] at hevict_is_cache
+    | cacheEvent ce_evict =>
+      simp[] at hevict_sw_evict
+      have hce_evict := hevict_sw_evict.evict.downgrade
+      simp[Event.down] at hnot_down
+      absurd hnot_down
+      simp [hce_evict]
+  . case intro.intro.orderAfterDir hweak_read_on_vd hsucc_encap_dir hsucc_same_protocol hnot_down =>
+    -- Contradiction: `e_evict` is a downgrade ^ `hnot_down` says it's not a downgrade
+    simp[Event.isEvictSW] at hevict_sw_evict
+    cases e_evict with
+    | directoryEvent _ =>
+        simp [Event.isCacheEvent] at hevict_is_cache
+    | cacheEvent ce_evict =>
+      simp[] at hevict_sw_evict
+      have hce_evict := hevict_sw_evict.evict.downgrade
+      simp[Event.down] at hnot_down
+      absurd hnot_down
+      simp [hce_evict]
 
 
 /- ========== START CMCM.RF case lemmas ========== -/
@@ -937,7 +1417,7 @@ lemma CMCM.rf.sameGle.sameCle
           hw_c_and_g_lin hr_c_and_g_lin hsame_cle hknow_dir_access hno_intervening_writes hr_not_ob_w hsucc_w_of_w_after_r
       . case noEvict =>
         -- No coherent evicts can occur between e_w and e_r when they have the same CLE.
-        intro e_evict hevict_in_b hbetween_w_r ⟨hevict, hcoherent⟩
+        intro e_evict hevict_in_b hbetween_w_r hevict_sw
 
         -- Case analysis on dirAccessOfRequest of e_w and e_r (3x3 = 9 cases)
         have hw_dir_access := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
@@ -1068,17 +1548,32 @@ lemma CMCM.rf.sameGle.sameCle
 
             -- From hreq_r_has_perms (after unfolding), state before e_r has the perms
             -- From hevict_perms_after, state after evict maintains perms >= required
-            -- Since the evict is a coherent event (hcoherent : hevict.Coherent), and coherent downgrades
-            -- must reduce permissions, we get a contradiction
+            -- But a coherent downgrade (evict) MUST drop permissions.
+            -- This creates a contradiction.
+
+            -- Extract what we need: e_evict must be a cache event from hbetween_w_r
+            have hevict_is_cache : e_evict.isCacheEvent := hbetween_w_r.isCache
+            have hevict_is_coherent : e_evict.isCoherent := by
+              simp [Event.isEvictSW, Event.isCacheEvent] at hevict_sw hevict_is_cache
+              cases hevict_is_cache_case : e_evict with
+              | cacheEvent ce =>
+                simp [hevict_is_cache_case, Event.isEvictSW] at hevict_sw
+                simp [Event.isCoherent, hevict_is_cache_case]
+                exact hevict_sw.coherentWrite.left
+              | directoryEvent de =>
+                simp [Event.isCacheEvent, hevict_is_cache_case] at hevict_is_cache
 
             -- Apply the helper lemma to derive False
-            -- From the pattern match ⟨hevict, hcoherent⟩:
-            -- hevict : e_evict.isEvict
-            -- hcoherent : e_evict.isCoherent
             exact coherent_evict_downgrade_contradiction
-              hevict
-              hcoherent
+              (cmp := cmp)
+              hr_cluster
+              hr_is_read
               hreq_r_has_perms
+              hbetween_w_r.coherentRead
+              hevict_sw
+              hevict_in_b
+              hevict_is_coherent
+              hevict_is_cache
               hevict_perms_after
           -- Case 1.3: e_w encapDir, e_r orderAfterDir
           | orderAfterDir hreq_r_on_vd hsucc_encap_dir_r hsucc_same_protocol_r =>
@@ -1280,82 +1775,3 @@ theorem CMCM.rf_holds
           . case hw_imm_pred_r_gle => exact hw_imm_pred_r_gle
           . case hdiff_cluster => exact hdiff_cluster
           . case hw_cle_imm_pred_down => exact hw_cle_imm_pred_down
-
-  -- First, determine the relationship between the GLEs
-  by_cases hw_r_gle_eq : e_w_gle = e_r_gle
-  · -- Case 1: GLEs are equal
-    apply Behaviour.readsFrom.cases.wEqRGle hw_r_gle_eq
-    -- Now need to determine relationship between CLEs
-    by_cases hw_r_cle_eq : e_w_cle = e_r_cle
-    · -- Case 1a: Both GLE and CLE are equal
-      apply Behaviour.readsFrom.wEqRGle.cases.wEqRCle hw_r_cle_eq
-      -- Need same cluster and no writes/evicts between
-      -- First goal: e_w.protocol = e_r.protocol
-      · exact same_cle_implies_same_protocol hw_not_down hr_not_down hw_c_and_g_lin hr_c_and_g_lin hw_r_cle_eq
-      -- Second goal: WriteRead.EqGleCle.case b e_w e_r
-
-      -- Proving the "base case"
-      · constructor
-        · -- Prove: e_w.struct = e_r.struct (same cache)
-          exact same_cle_implies_same_struct hw_c_and_g_lin hr_c_and_g_lin hw_r_cle_eq
-        · -- Prove: e_w.OrderedBefore n e_r
-          exact eq_gle_cle_implies_write_before_read hw_is_write hr_is_read hw_not_down hr_not_down hw_c_and_g_lin hr_c_and_g_lin hw_r_gle_eq hw_r_cle_eq hr_not_ob_w
-        · -- Prove: Event.Between.noWriteOrEvict b e_w e_r
-          constructor
-          · -- No writes between
-            exact noInterveningWrites_implies_no_writes_between hw_is_write hr_is_read (same_cle_implies_same_struct hw_c_and_g_lin hr_c_and_g_lin hw_r_cle_eq) hw_c_and_g_lin hr_c_and_g_lin hw_r_cle_eq hknow_dir_access hno_intervening_writes hr_not_ob_w hsucc_w_of_w_after_r
-        --   · -- No evicts between
-        --     exact noCoherentEvictsBetweenSameCle hw_c_and_g_lin hr_c_and_g_lin hw_r_cle_eq
-    · -- Case 1b: GLE equal, but CLE different (write's CLE before read's CLE)
-      by_cases hw_ob_r_cle : e_w_cle.OrderedBefore n e_r_cle
-      case pos =>
-        apply Behaviour.readsFrom.wEqRGle.cases.wObRCle
-        -- Need to prove WriteRead.wObR.GleOrCle.cases
-        constructor
-        · -- Prove: e_w_cle.OrderedBefore n e_r_cle
-          exact hw_ob_r_cle
-        · -- Prove: e_w.protocol = e_r.protocol
-          exact diff_cle_same_gle_implies_same_protocol hw_not_down hr_not_down hw_c_and_g_lin hr_c_and_g_lin hw_r_gle_eq
-        · -- Prove: WriteRead.wObRCle.case
-          exact prove_wObRCle_case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access hno_intervening_writes hr_not_ob_w hsucc_w_of_w_after_r
-      case neg =>
-        exfalso
-        apply hr_ob_w_cle_not_allowed
-        -- Since directory events are totally ordered and write's CLE is NOT before read's CLE,
-        -- read's CLE must be before write's CLE
-        have hw_cle_dir : e_w_cle.isDirectoryEvent := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
-        have hr_cle_dir : e_r_cle.isDirectoryEvent := hr_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
-        match hw_ev : e_w_cle, hr_ev : e_r_cle with
-        | .directoryEvent de_w_cle, .directoryEvent de_r_cle =>
-          have hcle_ordered := b.orderedAtEntry.dir_ordered de_w_cle de_r_cle |>.ordered
-          simp [DirectoryEvent.Ordered] at hcle_ordered
-          cases hcle_ordered with
-          | inl hw_cle_ob_r => exact absurd hw_cle_ob_r hw_ob_r_cle
-          | inr hr_cle_ob_w =>
-            -- Convert DirectoryEvent.OrderedBefore to Event.OrderedBefore
-            -- The goal is Event.OrderedBefore n e_r_cle e_w_cle
-            change Event.OrderedBefore n e_r_cle e_w_cle
-            rw [hr_ev, hw_ev]
-            -- Both OrderedBefore definitions use oEnd < oStart, so they match
-            exact hr_cle_ob_w
-        | .cacheEvent _, _ => simp [Event.isDirectoryEvent] at hw_cle_dir
-        | _, .cacheEvent _ => simp [Event.isDirectoryEvent] at hr_cle_dir
-  · -- Case 2: GLEs are not equal
-    -- Check if write's GLE is ordered before read's GLE
-    by_cases hw_ob_r : e_w_gle.OrderedBefore n e_r_gle
-    · -- Case 2a: Write's GLE is ordered before read's GLE
-      apply Behaviour.readsFrom.cases.wObRGle hw_ob_r
-      -- Need to prove WriteRead.wObR.GleOrCle.cases
-      constructor
-      · -- Prove: e_w_cle.OrderedBefore n e_r_cle
-        exact gle_ordered_implies_cle_ordered hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hw_ob_r
-      · -- Prove: e_w.protocol = e_r.protocol
-        exact gle_ordered_implies_same_protocol hw_c_and_g_lin hr_c_and_g_lin hw_ob_r
-      · -- Prove: WriteRead.wObRCle.case
-        exact prove_wObRCle_case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access hno_intervening_writes hr_not_ob_w hsucc_w_of_w_after_r
-    · -- Case 2b: Read's GLE is ordered before write's GLE (contradiction from assumption)
-      -- We have hgle_eq_or_ob which says either GLEs are equal or write's GLE is before read's GLE
-      -- Since hw_r_gle_eq is false and hw_ob_r is false, we have a contradiction
-      cases hgle_eq_or_ob with
-      | inl heq => exact absurd heq hw_r_gle_eq
-      | inr hob => exact absurd hob hw_ob_r
