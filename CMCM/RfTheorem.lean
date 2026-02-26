@@ -249,6 +249,19 @@ lemma CMCM.rf.sameGle.sameCle
             exact Nat.lt_asymm h2 hw_cle_wf
         -- Case 2: e_w orderBeforeDir
         | orderBeforeDir hreq_w_has_perms hexists_pred_w hpred_w_accesses_dir hinter_leaves_w hpred_w_same_protocol =>
+          -- e_w.OrderedBefore n e_r and hexists_pred_w is a predecessor of e_w
+          have hpred_before_ew : hexists_pred_w.choose.OrderedBefore n e_w := by
+            have := hexists_pred_w.choose_spec.right
+            simp[Behaviour.immBottomPredHasNoPermsAndLeavesStateAtLeast] at this
+            simp[Behaviour.ImmediateBottomPredSatisfyingProp] at this
+            have hpred_is_imm_pred := this.isImmPred
+            have hpred_is_pred := hpred_is_imm_pred.bPred.isPred
+            simp[Event.Predecessor] at hpred_is_pred
+            simp[hpred_is_pred]
+          have hpred_before_er : hexists_pred_w.choose.OrderedBefore n e_r := by
+            calc hexists_pred_w.choose.OrderedBefore n e_w := hpred_before_ew
+              e_w.OrderedBefore n e_r := hw_ob_r
+
           cases hr_dir_access with
           -- Case 2.1: e_w orderBeforeDir, e_r encapDir
           | encapDir _ hr_encap =>
@@ -267,19 +280,6 @@ lemma CMCM.rf.sameGle.sameCle
 
             rw [← hsame_cle] at hr_encap_1 hr_encap_2
 
-            -- e_w.OrderedBefore n e_r and hexists_pred_w is a predecessor of e_w
-            have hpred_before_ew : hexists_pred_w.choose.OrderedBefore n e_w := by
-              have := hexists_pred_w.choose_spec.right
-              simp[Behaviour.immBottomPredHasNoPermsAndLeavesStateAtLeast] at this
-              simp[Behaviour.ImmediateBottomPredSatisfyingProp] at this
-              have hpred_is_imm_pred := this.isImmPred
-              have hpred_is_pred := hpred_is_imm_pred.bPred.isPred
-              simp[Event.Predecessor] at hpred_is_pred
-              simp[hpred_is_pred]
-            have hpred_before_er : hexists_pred_w.choose.OrderedBefore n e_r := by
-              calc hexists_pred_w.choose.OrderedBefore n e_w := hpred_before_ew
-                e_w.OrderedBefore n e_r := hw_ob_r
-
             simp only [Event.OrderedBefore] at hpred_before_ew hpred_before_er
 
             -- Setup the ordering contradiction:
@@ -295,13 +295,100 @@ lemma CMCM.rf.sameGle.sameCle
             have hw_cle_wf := (hw_c_and_g_lin.hreq's_dir_access.choose).oWellFormed
             exact Nat.lt_asymm h2 hw_cle_wf
           -- Case 2.2: e_w orderBeforeDir, e_r orderBeforeDir
-          | orderBeforeDir _ _ _ _ =>
-            sorry
+          | orderBeforeDir hreq_r_has_perms hexists_pred_r hpred_r_accesses_dir hinter_leaves_r hpred_r_same_protocol =>
+            exfalso
+            -- Both have predecessors that must be the same (by dir_event_of_req_event_unique)
+            have hw_dir_of_req : (hw_c_and_g_lin.hreq's_dir_access.choose).dirEventOfReqEvent n hexists_pred_w.choose :=
+              hpred_w_accesses_dir.dirOfReq
+            have hr_dir_of_req : (hw_c_and_g_lin.hreq's_dir_access.choose).dirEventOfReqEvent n hexists_pred_r.choose := by
+              convert hpred_r_accesses_dir.dirOfReq using 2
+            have hpreds_eq : hexists_pred_w.choose = hexists_pred_r.choose :=
+              dir_event_of_req_event_unique hw_dir_of_req hr_dir_of_req
+
+            -- Rewrite hinter_leaves_r to use the same predecessor as hinter_leaves_w
+            rw [hpreds_eq.symm] at hinter_leaves_r
+
+            have hevict_btn_wpred_r :  e_evict.OrderedBetween n hexists_pred_w.choose e_r := by
+              constructor
+              simp[autoParam]
+              . case pred =>
+                calc hexists_pred_w.choose.OrderedBefore n e_w := hpred_before_ew
+                  e_w.OrderedBefore n e_evict := hbetween_w_r.interBetween.pred
+              . case succ =>
+                simp[autoParam]
+                simp[hbetween_w_r.interBetween.succ]
+
+            -- Now use hinter_leaves_r to get evict permissions relative to e_r
+            have hevict_perms := hinter_leaves_r e_evict hevict_in_b hevict_btn_wpred_r
+            have hevict_perms_after := hevict_perms.hinter_leaves_state_at_least
+
+            have hevict_is_cache : e_evict.isCacheEvent := hbetween_w_r.isCache
+            have hevict_is_coherent : e_evict.isCoherent := by
+              simp [Event.isEvictSW, Event.isCacheEvent] at hevict_sw hevict_is_cache
+              cases hevict_is_cache_case : e_evict with
+              | cacheEvent ce =>
+                simp [hevict_is_cache_case] at hevict_sw
+                simp [Event.isCoherent, hevict_is_cache_case]
+                exact hevict_sw.coherentWrite.left
+              | directoryEvent de =>
+                simp [hevict_is_cache_case] at hevict_is_cache
+
+            exact coherent_evict_downgrade_contradiction
+              (cmp := cmp)
+              hr_cluster
+              hr_is_read
+              hreq_r_has_perms
+              hbetween_w_r.coherentRead
+              hevict_sw
+              hevict_in_b
+              hevict_is_coherent
+              hevict_is_cache
+              hevict_perms_after
           -- Case 2.3: e_w orderBeforeDir, e_r orderAfterDir
-          | orderAfterDir _ _ _ =>
-            sorry
+          | orderAfterDir hreq_r_on_vd hsucc_encap_dir_r hsucc_same_protocol_r =>
+            exfalso
+            -- e_w's predecessor encapsulates CLE, e_r's successor encapsulates CLE
+            have hpred_w_encap_cle : hexists_pred_w.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
+              have hpred_encap := hpred_w_accesses_dir.reqEncapDir
+              simpa [hsame_cle] using hpred_encap
+            have hsucc_r_encap_cle : hsucc_encap_dir_r.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
+              have hsucc_encap := hsucc_encap_dir_r.choose_spec.right.satisfyP.encapCorresponding.reqEncapDir
+              simpa [hsame_cle] using hsucc_encap
+
+            -- Ordering: pred_w < e_w < e_r < succ_r
+            have hpred_w_before_ew : hexists_pred_w.choose.OrderedBefore n e_w := by
+              have := hexists_pred_w.choose_spec.right
+              simp[Behaviour.immBottomPredHasNoPermsAndLeavesStateAtLeast] at this
+              simp[Behaviour.ImmediateBottomPredSatisfyingProp] at this
+              have hpred_is_imm_pred := this.isImmPred
+              have hpred_is_pred := hpred_is_imm_pred.bPred.isPred
+              simp[Event.Predecessor] at hpred_is_pred
+              simp[hpred_is_pred]
+            have hsucc_r_after_er : e_r.OrderedBefore n hsucc_encap_dir_r.choose := by
+              have hsucc_spec := hsucc_encap_dir_r.choose_spec.right
+              simp [Behaviour.ImmediateBottomSuccSatisfyingProp] at hsucc_spec
+              have hsucc_is_succ := hsucc_spec.isImmBottomSucc.isSucc
+              simpa [Event.Successor, Event.Predecessor] using hsucc_is_succ
+
+            simp only [Event.OrderedBefore] at hpred_w_before_ew hsucc_r_after_er
+
+            -- Transitivity: pred_w < e_r < succ_r
+            have hpred_w_before_succ_r : hexists_pred_w.choose.OrderedBefore n hsucc_encap_dir_r.choose := by
+              calc hexists_pred_w.choose.OrderedBefore n e_w := hpred_w_before_ew
+                e_w.OrderedBefore n e_r := hw_ob_r
+                e_r.OrderedBefore n hsucc_encap_dir_r.choose := hsucc_r_after_er
+            simp only [Event.OrderedBefore] at hpred_w_before_succ_r
+
+            -- Contradiction: cle.oEnd < pred_w.oEnd < succ_r.oStart < cle.oStart
+            have h_contradiction : (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart := by
+              calc (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < hexists_pred_w.choose.oEnd := hpred_w_encap_cle.2
+                _ < hsucc_encap_dir_r.choose.oStart := hpred_w_before_succ_r
+                _ < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart := hsucc_r_encap_cle.1
+
+            have hcle_wf := (hw_c_and_g_lin.hreq's_dir_access.choose).oWellFormed
+            exact Nat.lt_asymm h_contradiction hcle_wf
         -- Case 3: e_w orderAfterDir
-        | orderAfterDir _ _ _ =>
+        | orderAfterDir hreq_w_on_vd hsucc_encap_dir_w hsucc_same_protocol_w =>
           cases hr_dir_access with
           -- Case 3.1: e_w orderAfterDir, e_r encapDir
           | encapDir _ _ =>
