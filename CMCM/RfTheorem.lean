@@ -248,11 +248,52 @@ lemma CMCM.rf.sameGle.sameCle
             have hw_cle_wf := (hw_c_and_g_lin.hreq's_dir_access.choose).oWellFormed
             exact Nat.lt_asymm h2 hw_cle_wf
         -- Case 2: e_w orderBeforeDir
-        | orderBeforeDir _ _ _ _ =>
+        | orderBeforeDir hreq_w_has_perms hexists_pred_w hpred_w_accesses_dir hinter_leaves_w hpred_w_same_protocol =>
           cases hr_dir_access with
           -- Case 2.1: e_w orderBeforeDir, e_r encapDir
-          | encapDir _ _ =>
-            sorry
+          | encapDir _ hr_encap =>
+            exfalso
+            -- e_w's predecessor encapsulates CLE, and e_r also encapsulates CLE
+            have hpred_encap_cle : hexists_pred_w.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
+              have hpred_encap_cle' := hpred_w_accesses_dir.reqEncapDir
+              simpa [hsame_cle] using hpred_encap_cle'
+            have hr_encap_cle : e_r.Encapsulates n (hr_c_and_g_lin.hreq's_dir_access.choose) := hr_encap.reqEncapDir
+
+            simp only [Event.Encapsulates] at hpred_encap_cle hr_encap_cle
+            have hpred_encap_1 := hpred_encap_cle.1
+            have hpred_encap_2 := hpred_encap_cle.2
+            have hr_encap_1 := hr_encap_cle.1
+            have hr_encap_2 := hr_encap_cle.2
+
+            rw [← hsame_cle] at hr_encap_1 hr_encap_2
+
+            -- e_w.OrderedBefore n e_r and hexists_pred_w is a predecessor of e_w
+            have hpred_before_ew : hexists_pred_w.choose.OrderedBefore n e_w := by
+              have := hexists_pred_w.choose_spec.right
+              simp[Behaviour.immBottomPredHasNoPermsAndLeavesStateAtLeast] at this
+              simp[Behaviour.ImmediateBottomPredSatisfyingProp] at this
+              have hpred_is_imm_pred := this.isImmPred
+              have hpred_is_pred := hpred_is_imm_pred.bPred.isPred
+              simp[Event.Predecessor] at hpred_is_pred
+              simp[hpred_is_pred]
+            have hpred_before_er : hexists_pred_w.choose.OrderedBefore n e_r := by
+              calc hexists_pred_w.choose.OrderedBefore n e_w := hpred_before_ew
+                e_w.OrderedBefore n e_r := hw_ob_r
+
+            simp only [Event.OrderedBefore] at hpred_before_ew hpred_before_er
+
+            -- Setup the ordering contradiction:
+            -- From hpred_encap: hpred_w.oStart < cle.oStart < hpred_w.oEnd
+            -- From hr_encap: e_r.oStart < cle.oStart < e_r.oEnd
+            -- From hpred_before_er: hpred_w.oEnd < e_r.oStart
+            have h1 : hexists_pred_w.choose.oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart :=
+              Nat.lt_trans hpred_before_er hr_encap_1
+
+            have h2 : (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart :=
+              Nat.lt_trans hpred_encap_2 h1
+
+            have hw_cle_wf := (hw_c_and_g_lin.hreq's_dir_access.choose).oWellFormed
+            exact Nat.lt_asymm h2 hw_cle_wf
           -- Case 2.2: e_w orderBeforeDir, e_r orderBeforeDir
           | orderBeforeDir _ _ _ _ =>
             sorry
