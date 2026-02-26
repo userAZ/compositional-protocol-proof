@@ -892,6 +892,7 @@ lemma Behaviour.exists_e_dir_access_of_e_req (b : Behaviour n) (init : InitialSy
                         simp[ValidRequest.RequestState, hreq]
                         simp[EntryState.cache]
                     | .inr _ => simp [he_state, EntryState.isCacheState] at hstate_before_cache
+              . case reqCache => simp[Event.isCacheEvent]
 
             exact b.exists_e_dir_orderAfterDir init (Event.cacheEvent ce) (by simp[hce] at he_req_in_b; exact he_req_in_b) hreq_on_vd hdir_before_after
       | ⟨⟨.w,false,.Rel⟩, _⟩ =>
