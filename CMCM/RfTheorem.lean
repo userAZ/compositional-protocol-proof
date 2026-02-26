@@ -84,56 +84,11 @@ lemma CMCM.rf.sameGle.sameCle
             have hw_encap_cle : e_w.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := hw_encap.reqEncapDir
             have hr_encap_cle : e_r.Encapsulates n (hr_c_and_g_lin.hreq's_dir_access.choose) := hr_encap.reqEncapDir
 
-            -- Unfold Encapsulates to get the two inequalities
-            simp only [Event.Encapsulates] at hw_encap_cle hr_encap_cle
+            -- Replace hr_cle with hw_cle using hsame_cle
+            rw [← hsame_cle] at hr_encap_cle
 
-            -- From hw_encap_cle: e_w.oStart < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart and
-            --                    (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < e_w.oEnd
-            have hw_encap_1 := hw_encap_cle.1
-            have hw_encap_2 := hw_encap_cle.2
-
-            -- From hr_encap_cle: e_r.oStart < (hr_c_and_g_lin.hreq's_dir_access.choose).oStart and
-            --                    (hr_c_and_g_lin.hreq's_dir_access.choose).oEnd < e_r.oEnd
-            have hr_encap_1 := hr_encap_cle.1
-            have hr_encap_2 := hr_encap_cle.2
-
-            -- From hsame_cle, substitute to replace hr_cle with hw_cle where it appears
-            rw [← hsame_cle] at hr_encap_1 hr_encap_2
-
-            -- From hw_ob_r (e_w OB e_r): e_w.oEnd < e_r.oStart
-            simp only [Event.OrderedBefore] at hw_ob_r
-
-            -- Extract well-formedness constraints
-            have hw_cle_wf := (hw_c_and_g_lin.hreq's_dir_access.choose).oWellFormed
-
-            -- Now we have all the linear constraints:
-            -- hw_encap_1: e_w.oStart < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart
-            -- hw_encap_2: (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < e_w.oEnd
-            -- hr_encap_1: e_r.oStart < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart
-            -- hr_encap_2: (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < e_r.oEnd
-            -- hw_ob_r: e_w.oEnd < e_r.oStart
-            -- hw_cle_wf: (hw_c_and_g_lin.hreq's_dir_access.choose).oStart < (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd
-
-            -- Since omega doesn't see these, let me state the contradiction more explicitly
-            -- From hr_encap_1 and hr_encap_2, combined with substitution:
-            -- The CLE event (which is the same for both) must satisfy:
-            --   e_w.oStart < cle.oStart  [from hw_encap_1]
-            --   cle.oEnd < e_w.oEnd      [from hw_encap_2]
-            --   e_r.oStart < cle.oStart  [from hr_encap_1]
-            --   cle.oEnd < e_r.oEnd      [from hr_encap_2]
-            -- And: e_w.oEnd < e_r.oStart [from hw_ob_r]
-
-            -- From hw_ob_r and hr_encap_1: e_w.oEnd < e_r.oStart < cle.oStart
-            have step1 : e_w.oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart :=
-              Nat.lt_trans hw_ob_r hr_encap_1
-
-            -- From step1 and hw_encap_2: e_w.oEnd < cle.oStart and cle.oEnd < e_w.oEnd
-            -- So: cle.oEnd < e_w.oEnd < cle.oStart
-            have step2 : (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart :=
-              Nat.lt_trans hw_encap_2 step1
-
-            -- But this contradicts hw_cle_wf: cle.oStart < cle.oEnd
-            exact Nat.lt_asymm step2 hw_cle_wf
+            -- Both events encapsulate the same CLE and are ordered, which is a contradiction
+            exact dual_encap_ordered_contradiction hw_encap_cle hr_encap_cle hw_ob_r
           -- Case 1.2: e_w encapDir, e_r orderBeforeDir
           | orderBeforeDir hreq_r_has_perms hexists_pred_r hpred_r_accesses_dir hinter_leaves_r hpred_r_same_protocol =>
             exfalso
