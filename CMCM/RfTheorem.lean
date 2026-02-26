@@ -2,6 +2,13 @@ import CMCM.Rf
 import CMCM.RfProofDefs
 import CMCM.RfProofHelpers
 
+import CMCM.RfCases.RfSameGleWImmPredRCle
+import CMCM.RfCases.RfSameGleSameClusterEvictOrReadBetween
+import CMCM.RfCases.RfWImmPredRGleSameClusterWImmPredRCle
+import CMCM.RfCases.RfWImmPredRGleSameClusterEvictOrReadBetween
+import CMCM.RfCases.RfWImmPredRGleDiffClusterWCleImmPredDown
+import CMCM.RfCases.RfWImmPredRGleDiffClusterEvictOrReadBetween
+
 variable {n : ℕ}
 
 /- ========== START CMCM.RF case lemmas ========== -/
@@ -793,6 +800,7 @@ lemma CMCM.rf.wImmPredRGle.diffCluster.evictOrReadBetweenWAndRDown
   : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin
   := by
   sorry
+-/
 
 /- ========== END CMCM.RF case lemmas ========== -/
 
