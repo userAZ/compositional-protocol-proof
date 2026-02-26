@@ -11,6 +11,8 @@ import CMCM.RfCases.RfWImmPredRGleDiffClusterEvictOrReadBetween
 
 variable {n : ℕ}
 
+/- ========== Helper Lemmas ========== -/
+
 /- ========== START CMCM.RF case lemmas ========== -/
 
 lemma CMCM.rf.sameGle.sameCle
@@ -654,50 +656,50 @@ lemma CMCM.rf.sameGle.sameCle
             --   hreq_r_on_vd : Behaviour.ncWeakReqOnVd n b init e_r
             --   This means e_r is weak non-coherent on Vd state
             --   hreq_r_on_vd.weakReq : e_r.isNcWeak = e_r.isNonCoherent ∧ e_r.isWeak
-            
+
             -- Extract the non-coherent property
             have hr_noncoherent : e_r.isNonCoherent := hreq_r_on_vd.weakReq.1
-            
+
             -- e_r must be a cache event (from ncWeakReqOnVd)
             have hr_cache : e_r.isCacheEvent := hreq_r_on_vd.reqCache
-            
+
             -- e_r is a read (from hr_is_read in the theorem context)
             -- We're inside readsFromVdNoEvict case, which assumes coherent reads
             -- But e_r is weak non-coherent, contradicting this assumption
-            
+
             -- Unpack e_r as a cache event to access the coherence property
             cases hr_ev : e_r with
             | cacheEvent ce =>
               -- e_r is a cache event
               simp [Event.isNonCoherent, hr_ev] at hr_noncoherent
               -- Now hr_noncoherent : ¬ ce.req.val.coherent
-              
+
               -- In the readsFromVdNoEvict case, we need a coherent read relationship
               -- But e_r.orderAfterDir means e_r is weak non-coherent
               -- This is a contradiction: we cannot have coherent RF with non-coherent read
-              
+
               -- The proof: e_r is non-coherent (from orderAfterDir/ncWeakReqOnVd)
               -- But hbetween_w_r.coherentRead asserts e_r.isCoherent
               -- This is a direct contradiction
-              
+
               -- From hbetween_w_r : e_evict.Between e_w e_r
               -- We get hbetween_w_r.coherentRead : e_r.isCoherent
               have hr_coherent : e_r.isCoherent := hbetween_w_r.coherentRead
-              
+
               -- But e_r.isCoherent means ce.req.isCoherent (since e_r = cacheEvent ce)
               simp [Event.isCoherent, hr_ev] at hr_coherent
-              
+
               -- Now hr_coherent : ce.req.isCoherent
               -- Which unfolds to: ce.req.val.coherent
               simp [ValidRequest.isCoherent, Request.isCoherent] at hr_coherent
-              
+
               -- Now hr_coherent : (↑ce.req).coherent = true
               -- But hr_noncoherent : (↑ce.req).coherent = false
               -- Rewrite with hr_noncoherent in hr_coherent to get false = true
               rw [hr_noncoherent] at hr_coherent
               -- Now hr_coherent : false = true, which is absurd
               cases hr_coherent
-              
+
             | directoryEvent _ =>
               simp [Event.isCacheEvent, hr_ev] at hr_cache
 
