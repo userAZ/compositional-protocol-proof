@@ -20,7 +20,7 @@ lemma CMCM.rf.sameGle.sameCle
   : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin
   := by
   -- Prove RF case for same GLE and same CLE
-  apply Behaviour.readsFrom.cases.wEqRGle hsame_gle (hw_cluster := hw_cluster) (hr_cluster := hr_cluster) (hw_not_down := hw_not_down) (r_not_down := hr_not_down)
+  apply Behaviour.readsFrom.cases.wEqRGle hsame_gle (hw_cluster := hw_cluster) (hr_cluster := hr_cluster) (hw_not_down := hw_not_down) (hr_not_down := hr_not_down)
 
   apply Behaviour.readsFrom.wEqRGle.cases.wEqRCle hsame_cle
 
@@ -189,14 +189,8 @@ lemma CMCM.rf.sameGle.sameCle
         -- Case 2: e_w orderBeforeDir
         | orderBeforeDir hreq_w_has_perms hexists_pred_w hpred_w_accesses_dir hinter_leaves_w hpred_w_same_protocol =>
           -- e_w.OrderedBefore n e_r and hexists_pred_w is a predecessor of e_w
-          have hpred_before_ew : hexists_pred_w.choose.OrderedBefore n e_w := by
-            have := hexists_pred_w.choose_spec.right
-            simp[Behaviour.immBottomPredHasNoPermsAndLeavesStateAtLeast] at this
-            simp[Behaviour.ImmediateBottomPredSatisfyingProp] at this
-            have hpred_is_imm_pred := this.isImmPred
-            have hpred_is_pred := hpred_is_imm_pred.bPred.isPred
-            simp[Event.Predecessor] at hpred_is_pred
-            simp[hpred_is_pred]
+          have hpred_before_ew : hexists_pred_w.choose.OrderedBefore n e_w :=
+            pred_ord_impl hexists_pred_w.choose_spec.right
           have hpred_before_er : hexists_pred_w.choose.OrderedBefore n e_r := by
             calc hexists_pred_w.choose.OrderedBefore n e_w := hpred_before_ew
               e_w.OrderedBefore n e_r := hw_ob_r
@@ -277,19 +271,10 @@ lemma CMCM.rf.sameGle.sameCle
               simpa [hsame_cle] using hsucc_encap
 
             -- Ordering: pred_w < e_w < e_r < succ_r
-            have hpred_w_before_ew : hexists_pred_w.choose.OrderedBefore n e_w := by
-              have := hexists_pred_w.choose_spec.right
-              simp[Behaviour.immBottomPredHasNoPermsAndLeavesStateAtLeast] at this
-              simp[Behaviour.ImmediateBottomPredSatisfyingProp] at this
-              have hpred_is_imm_pred := this.isImmPred
-              have hpred_is_pred := hpred_is_imm_pred.bPred.isPred
-              simp[Event.Predecessor] at hpred_is_pred
-              simp[hpred_is_pred]
-            have hsucc_r_after_er : e_r.OrderedBefore n hsucc_encap_dir_r.choose := by
-              have hsucc_spec := hsucc_encap_dir_r.choose_spec.right
-              simp [Behaviour.ImmediateBottomSuccSatisfyingProp] at hsucc_spec
-              have hsucc_is_succ := hsucc_spec.isImmBottomSucc.isSucc
-              simpa [Event.Successor, Event.Predecessor] using hsucc_is_succ
+            have hpred_w_before_ew : hexists_pred_w.choose.OrderedBefore n e_w :=
+              pred_ord_impl hexists_pred_w.choose_spec.right
+            have hsucc_r_after_er : e_r.OrderedBefore n hsucc_encap_dir_r.choose :=
+              succ_ord_impl hsucc_encap_dir_r.choose_spec.right
 
             simp only [Event.OrderedBefore] at hpred_w_before_ew hsucc_r_after_er
 
@@ -463,18 +448,10 @@ lemma CMCM.rf.sameGle.sameCle
             simp only [Event.Encapsulates] at hsucc_w_encap_cle hpred_r_encap_cle
 
             -- Ordering relationships
-            have hw_before_succ_w : e_w.OrderedBefore n hsucc_encap_dir_w.choose := by
-              simp [Behaviour.ImmediateBottomSuccSatisfyingProp] at hsucc_spec
-              have hsucc_is_succ := hsucc_spec.isImmBottomSucc.isSucc
-              simpa [Event.Successor, Event.Predecessor] using hsucc_is_succ
-            have hpred_r_before_er : hexists_pred_r.choose.OrderedBefore n e_r := by
-              have := hexists_pred_r.choose_spec.right
-              simp[Behaviour.immBottomPredHasNoPermsAndLeavesStateAtLeast] at this
-              simp[Behaviour.ImmediateBottomPredSatisfyingProp] at this
-              have hpred_is_imm_pred := this.isImmPred
-              have hpred_is_pred := hpred_is_imm_pred.bPred.isPred
-              simp[Event.Predecessor] at hpred_is_pred
-              simp[hpred_is_pred]
+            have hw_before_succ_w : e_w.OrderedBefore n hsucc_encap_dir_w.choose :=
+              succ_ord_impl hsucc_spec
+            have hpred_r_before_er : hexists_pred_r.choose.OrderedBefore n e_r :=
+              pred_ord_impl hexists_pred_r.choose_spec.right
 
             simp only [Event.OrderedBefore] at hw_before_succ_w hpred_r_before_er hw_ob_r
 

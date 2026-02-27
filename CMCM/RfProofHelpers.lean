@@ -1082,7 +1082,7 @@ lemma coherent_evict_downgrade_contradiction
   -- the state before `e_evict`. Then unfold and show the state after `e_evict` is
   -- reduced lower than `e_r`'s MRS, contradicting the `hevict_leaves_state_at_least` "leaves state at least" fact.
   cases hevict_cle_spec
-  . case intro.intro.encapDir hreq_missing_perms hencap_dir =>
+  . case encapDir hreq_missing_perms hencap_dir =>
     cases hreq_missing_perms
     . case downgrade hreq_is_down hreq_on_mrs_state  =>
       simp[Behaviour.evictOnMRSState] at hreq_on_mrs_state
@@ -1164,7 +1164,7 @@ lemma coherent_evict_downgrade_contradiction
         | directoryEvent de =>
             simp [Event.isCacheEvent] at hevict_is_cache
       exact hreq_not_down hevict_down
-  . case intro.intro.orderBeforeDir hreq_has_perms hexists_pred_getting_perms
+  . case orderBeforeDir hreq_has_perms hexists_pred_getting_perms
     hpred_accesses_dir hinter_leaves_state_at_least hpred_same_protocol hnot_down =>
 
     simp[Event.isEvictSW] at hevict_sw_evict
@@ -1177,7 +1177,7 @@ lemma coherent_evict_downgrade_contradiction
       simp[Event.down] at hnot_down
       absurd hnot_down
       simp [hce_evict]
-  . case intro.intro.orderAfterDir hweak_read_on_vd hsucc_encap_dir hsucc_same_protocol hnot_down =>
+  . case orderAfterDir hweak_read_on_vd hsucc_encap_dir hsucc_same_protocol hnot_down =>
     -- Contradiction: `e_evict` is a downgrade ^ `hnot_down` says it's not a downgrade
     simp[Event.isEvictSW] at hevict_sw_evict
     cases e_evict with
@@ -1200,7 +1200,7 @@ lemma same_entry_from_double_trans
    h_12.sameAddr.trans h_23.sameAddr⟩
 
 /-- From an immediate bottom predecessor spec, extract the predecessor ordering. -/
-lemma pred_ord_impl (hpred : Behaviour.ImmediateBottomPredSatisfyingProp n b e_pred e) :
+lemma pred_ord_impl (hpred : Behaviour.ImmediateBottomPredSatisfyingProp n b e_pred e  (b.predHasNoPermsAndLeavesStateAtLeastReq n init · e)) :
     e_pred.OrderedBefore n e := by
   simp only[Behaviour.immBottomPredHasNoPermsAndLeavesStateAtLeast, Behaviour.ImmediateBottomPredSatisfyingProp] at hpred
   have hpred_imm := hpred.isImmPred
@@ -1209,7 +1209,7 @@ lemma pred_ord_impl (hpred : Behaviour.ImmediateBottomPredSatisfyingProp n b e_p
   exact hpred_is
 
 /-- From an immediate bottom successor spec, extract the successor ordering. -/
-lemma succ_ord_impl (hsucc : Behaviour.ImmediateBottomSuccSatisfyingProp n b e_succ e) :
+lemma succ_ord_impl (hsucc : Behaviour.ImmediateBottomSuccSatisfyingProp n b e e_succ (b.succOnVdWithCorrespondingDir n init · e_dir)) :
     e.OrderedBefore n e_succ := by
   simp only[Behaviour.ImmediateBottomSuccSatisfyingProp] at hsucc
   have hsucc_is := hsucc.isImmBottomSucc.isSucc
