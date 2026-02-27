@@ -501,6 +501,7 @@ structure Behaviour.exists_predecessor_setting_state (b : Behaviour n) (init : I
     b.stateBeforeAndAfterAtLeast n init e_inter e_req
   hinter_same_protocol : hexists_pred_getting_perms.choose.sameProtocol n e_req
   hreq_not_down : ¬ e_req.down
+  hpred_produces_state_at_least_req_made_on_state : b.reqLeavesStateAtLeast n hexists_pred_getting_perms.choose init (b.stateReqMadeOn n init e_req)
 
 /-- Axiom 7 Redux. -/
 structure Behaviour.exists_vd_successor_wb_or_get_sw (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) where
@@ -600,6 +601,7 @@ private lemma Behaviour.exists_e_dir_orderBeforeDir {n : ℕ} (b : Behaviour n) 
     . case hinter_leaves_state_at_least => exact hexists_pred_dir.hinter_leaves_state_at_least
     . case hpred_same_protocol => exact hexists_pred_dir.hinter_same_protocol
     . case hnot_down => exact hexists_pred_dir.hreq_not_down
+    . case hpred_produces_state_at_least_req_made_on_state => exact hexists_pred_dir.hpred_produces_state_at_least_req_made_on_state
 
 /-- Helper: Find directory event for request without permissions (encapDir case) -/
 private lemma Behaviour.exists_e_dir_encapDir {n : ℕ} (b : Behaviour n) (init : InitialSystemState n)
