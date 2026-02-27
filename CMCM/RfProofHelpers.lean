@@ -1217,7 +1217,7 @@ lemma succ_ord_impl (hsucc : Behaviour.ImmediateBottomSuccSatisfyingProp n b e e
   exact hsucc_is
 
 /-- General version: extract ordering from any ImmediateBottomSuccSatisfyingProp. -/
-lemma succ_ord_impl_general {P : Event n → Prop} 
+lemma succ_ord_impl_general {P : Event n → Prop}
     (hsucc : Behaviour.ImmediateBottomSuccSatisfyingProp n b e e_succ P) :
     e.OrderedBefore n e_succ := by
   have hsucc_is := hsucc.isImmBottomSucc.isSucc
