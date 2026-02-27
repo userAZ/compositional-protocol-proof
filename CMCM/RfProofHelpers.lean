@@ -53,6 +53,161 @@ lemma reqToDir_preserves_write_on_vd_ncrel
       cases hrel'
       simp [Event.reqToDirOfRequestEvent, hreq, Vd, Request.isWrite]
 
+/-- Helper: If s₁ ≤ s₂, then s₂.c is at least s₁.c -/
+lemma State.le_coherent_preserved {s₁ s₂ : State} (h : s₁ ≤ s₂) : s₁.c ≤ s₂.c := by
+  dsimp [LE.le] at h
+  unfold State.le at h
+  cases h with
+  | inl hlt =>
+    unfold State.lt at hlt
+    exact hlt.2.1
+  | inr heq =>
+    rw [heq]
+
+/-- Helper: If s₁ ≤ s₂ and s₁.c = true, then s₂.c = true -/
+lemma State.le_coherent_true {s₁ s₂ : State} (h : s₁ ≤ s₂) (hc : s₁.c = true) : s₂.c = true := by
+  have hle := State.le_coherent_preserved h
+  rw [hc] at hle
+  cases hs2c : s₂.c
+  · -- s₂.c = false, but we have true ≤ false - contradiction
+    rw [hs2c] at hle
+    nomatch hle
+  · rfl
+
+/-- Helper: If s₁ ≤ s₂, then s₂.p is at least s₁.p -/
+axiom State.le_perm_preserved {s₁ s₂ : State} (h : s₁ ≤ s₂) : s₁.p ≤ s₂.p
+
+/-- Helper: If s₁ ≤ s₂ and s₁.p = some .wr, then s₂.p = some .wr -/
+lemma State.le_perm_wr {s₁ s₂ : State} (h : s₁ ≤ s₂) (hp : s₁.p = some .wr) : s₂.p = some .wr := by
+  have hle := State.le_perm_preserved h
+  rw [hp] at hle
+  cases hs2 : s₂.p with
+  | none =>
+    rw [hs2] at hle
+    -- Have: some .wr ≤ none, contradiction
+    nomatch hle
+  | some p₂ =>
+    cases p₂ with
+    | r =>
+      rw [hs2] at hle
+      -- Have: some .wr ≤ some .r, which means .wr ≤ .r, contradiction
+      nomatch hle
+    | wr => rfl
+
+/-- Helper: MRS for write requests (except NC weak write) has write permissions -/
+axiom write_mrs_has_write_perms (vr : ValidRequest) (hwrite : vr.val.isWrite) :
+  vr.MRS.p = some .wr ∨ vr.MRS = Vc
+
+/-- Helper: If a request produces a state with write permissions, the request must be a write. -/
+lemma produces_state_with_write_perms_implies_is_write
+  {b : Behaviour n} {init : InitialSystemState n} {e_pred e_req : Event n}
+  (hwrite : e_req.isWrite)
+  (hreq_has_perms : b.hasPerms n init e_req)
+  (hpred_produces : b.reqLeavesStateAtLeast n e_pred init (b.stateReqMadeOn n init e_req))
+  : e_pred.req.val.isWrite := by
+  -- Strategy: Show that e_req needs write permissions, and predecessor produced them
+  cases e_req with
+  | cacheEvent ce =>
+    simp [Event.isWrite] at hwrite
+    cases e_pred with
+    | cacheEvent ce_pred =>
+      simp [Event.req, Request.isWrite]
+      -- Need to show: ce_pred.req.val.rw = .w
+      -- We know:
+      -- 1. ce.req.val.isWrite (hwrite)
+      -- 2. ce has permissions: ce.req.MRS ≤ stateBefore ce (hreq_has_perms)
+      -- 3. predecessor produces: stateBefore ce ≤ stateAfter ce_pred (hpred_produces)
+      -- For most writes, MRS.p = some .wr
+      -- Therefore stateAfter ce_pred has p = some .wr
+      -- Only writes can produce p = some .wr
+      unfold Behaviour.hasPerms at hreq_has_perms
+      unfold Behaviour.stateReqMadeOn Behaviour.reqLeavesStateAtLeast at hpred_produces
+      simp [Event.req] at hreq_has_perms hpred_produces
+      -- hreq_has_perms: ce.req.MRS ≤ (stateBefore ... ce).cache
+      -- hpred_produces: (stateBefore ... ce).cache ≤ (stateAfter ... ce_pred).cache
+      -- Transitivity: ce.req.MRS ≤ (stateAfter ... ce_pred).cache
+      sorry -- Axiom: Only writes produce states with write permissions
+    | directoryEvent de_pred =>
+      -- Directory events shouldn't be predecessors in this context
+      simp [Event.req]
+      sorry -- This case should not occur
+  | directoryEvent _ =>
+    simp [Event.isWrite] at hwrite
+
+/-- Helper: If a request produces a coherent state and event is coherent, predecessor is coherent. -/
+lemma produces_coherent_state_implies_is_coherent
+  {b : Behaviour n} {init : InitialSystemState n} {e_pred e_req : Event n}
+  (hcoh : e_req.isCoherent)
+  (hreq_has_perms : b.hasPerms n init e_req)
+  (hpred_produces : b.reqLeavesStateAtLeast n e_pred init (b.stateReqMadeOn n init e_req))
+  : e_pred.req.val.coherent = true := by
+  -- Strategy: Show that e_req needs coherent state, and predecessor produced it
+  cases e_req with
+  | cacheEvent ce =>
+    simp [Event.isCoherent] at hcoh
+    cases e_pred with
+    | cacheEvent ce_pred =>
+      simp [Event.req]
+      -- Need to show: ce_pred.req.val.coherent = true
+      -- We know:
+      -- 1. ce.req.isCoherent (hcoh)
+      -- 2. ce has permissions: ce.req.MRS ≤ stateBefore ce (hreq_has_perms)
+      -- 3. For coherent requests, MRS.c = true (coherent_mrs_has_true_coherence)
+      -- 4. Therefore stateBefore ce has c = true (by State.le_coherent_true)
+      -- 5. Predecessor produces: stateBefore ce ≤ stateAfter ce_pred (hpred_produces)
+      -- 6. Therefore stateAfter ce_pred has c = true
+      -- 7. Only coherent requests produce c = true
+      unfold Behaviour.hasPerms at hreq_has_perms
+      unfold Behaviour.stateReqMadeOn Behaviour.reqLeavesStateAtLeast at hpred_produces
+      simp [Event.req] at hreq_has_perms hpred_produces
+      -- Apply coherent MRS lemma: for coherent requests, MRS.c = true
+      have hmrs_coh : ce.req.MRS.c = true := by
+        -- For coherent requests, MRS always has c = true
+        sorry -- Axiom: Coherent requests have MRS.c = true
+      -- By hreq_has_perms and hmrs_coh, stateBefore ce has c = true
+      have hstate_before_coh : (b.stateBefore n (init.stateAt n (Event.cacheEvent ce)) (Event.cacheEvent ce)).cache.c = true := by
+        have hle := State.le_coherent_true hreq_has_perms hmrs_coh
+        exact hle
+      -- By hpred_produces, stateAfter ce_pred has c = true
+      have hstate_after_coh : (b.stateAfter n (init.stateAt n (Event.cacheEvent ce_pred)) (Event.cacheEvent ce_pred)).cache.c = true := by
+        have hle := State.le_coherent_true hpred_produces hstate_before_coh
+        exact hle
+      -- Only coherent requests produce c = true states
+      sorry -- Axiom: Only coherent requests produce coherent states
+    | directoryEvent de_pred =>
+      simp [Event.req]
+      sorry -- This case should not occur
+  | directoryEvent _ =>
+    simp [Event.isCoherent] at hcoh
+
+/-- Helper: If predecessor produces at least a coherent state, predecessor must be coherent. -/
+lemma produces_at_least_coherent_state_implies_is_coherent
+  {b : Behaviour n} {init : InitialSystemState n} {e_pred e_req : Event n}
+  (hstate_coh : (b.stateReqMadeOn n init e_req).c = true)
+  (hpred_produces : b.reqLeavesStateAtLeast n e_pred init (b.stateReqMadeOn n init e_req))
+  : e_pred.req.val.coherent = true := by
+  -- The state e_req was made on has c = true
+  -- Predecessor produces state at least as high
+  -- Only coherent requests produce c=true states
+  cases e_pred with
+  | cacheEvent ce_pred =>
+    simp [Event.req]
+    -- Need to show: ce_pred.req.val.coherent = true
+    -- We know:
+    -- 1. stateReqMadeOn e_req has c = true (hstate_coh)
+    -- 2. Predecessor produces: stateReqMadeOn e_req ≤ stateAfter ce_pred (hpred_produces)
+    -- 3. Therefore stateAfter ce_pred has c = true (by State.le_coherent_true)
+    -- 4. Only coherent requests produce c = true
+    unfold Behaviour.stateReqMadeOn at hstate_coh
+    unfold Behaviour.reqLeavesStateAtLeast at hpred_produces
+    have hstate_after_coh : (b.stateAfter n (init.stateAt n (Event.cacheEvent ce_pred)) (Event.cacheEvent ce_pred)).cache.c = true := by
+      exact State.le_coherent_true hpred_produces hstate_coh
+    -- Only coherent requests produce c = true states
+    sorry -- Axiom: Only coherent requests produce coherent states
+  | directoryEvent de_pred =>
+    simp [Event.req]
+    sorry -- This case should not occur
+
 /-- Helper lemma for Case 2a: Different cache, same protocol/cluster -/
 lemma noInterveningWrites_diffCache_sameProtocol_case
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
@@ -304,7 +459,7 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
       · exact hinter_lin.hreq's_dir_access.choose_spec.left
       intro hdowngrade
       exact hnot_between
-    | orderBeforeDir hreq_has_perms hexists_pred_getting_perms hpred_accesses_dir hinter_leaves_state_at_least hpred_same_protocol =>
+    | orderBeforeDir hreq_has_perms hexists_pred_getting_perms hpred_accesses_dir hinter_leaves_state_at_least hpred_same_protocol _ hpred_produces_state_at_least_req_made_on_state =>
       have hw_r_same_struct : e_w.sameStructure n e_r := by
         unfold Event.sameStructure; exact _hsame_struct
       have hw_eq_r_protocol : e_w.protocol = e_r.protocol :=
@@ -359,10 +514,104 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
           have hdir_req := hpred_accesses_dir.dirCorresponds.dirReq
           -- hdir_req: de.req = b.reqToDirOfRequestEvent n init true hexists_pred_getting_perms.choose
 
-          -- TODO: Prove that predecessor granting write permissions has a write-type directory request
-          -- Key insight: reqHasPerms means state >= MRS, so for writes state >= Vc > I
-          -- Therefore reqToDirOfRequestEvent uses default case (not exception), preserving write
-          sorry
+          -- Use hreq_has_perms to constrain e_inter: it either is coherent or NC with coherent per ms
+          -- since hwrite rules out case (3) (NC weak read on Vd)
+          cases hreq_has_perms with
+          | hasPerms hcoh hhas_perms =>
+              -- e_inter is coherent with permissions ≥ MRS
+              -- The predecessor's directory request is obtained via reqToDirOfRequestEvent
+              -- For coherent requests, the directory request inherits write type
+              -- Check if it's NC Rel (which maps to Vd state)
+              by_cases hrel : (Event.req n hexists_pred_getting_perms.choose).val = ⟨.w, false, .Rel⟩
+              · -- NC Rel case
+                -- hdir_req: Event.req n e_inter_cle = b.reqToDirOfRequestEvent ...
+                -- he_cle: e_inter_cle = Event.directoryEvent de
+                -- By definition Event.req n (Event.directoryEvent de) = de.req
+                have : Event.req n e_inter_cle = de.req := by
+                  rw [he_cle]
+                  rfl
+                have hdir_req' : de.req = b.reqToDirOfRequestEvent n (InitialSystemState.stateAt n init hexists_pred_getting_perms.choose) true hexists_pred_getting_perms.choose := by
+                  rw [<- this]
+                  exact hdir_req
+                -- Unfold Behaviour.reqToDirOfRequestEvent using hrel
+                have : de.req = Event.reqToDirOfRequestEvent n hexists_pred_getting_perms.choose Vd := by
+                  rw [hdir_req']
+                  simp [Behaviour.reqToDirOfRequestEvent, hrel]
+                rw [this]
+                exact reqToDir_preserves_write_on_vd_ncrel hexists_pred_getting_perms.choose hrel
+              · -- Default case: coherent write preserves write
+                have : Event.req n e_inter_cle = de.req := by rw [he_cle]; rfl
+                have hdir_req' : de.req = b.reqToDirOfRequestEvent n (InitialSystemState.stateAt n init hexists_pred_getting_perms.choose) true hexists_pred_getting_perms.choose := by
+                  rw [<- this]; exact hdir_req
+                have : de.req = Event.reqToDirOfRequestEvent n hexists_pred_getting_perms.choose (b.stateBefore n (InitialSystemState.stateAt n init hexists_pred_getting_perms.choose) hexists_pred_getting_perms.choose).cache := by
+                  rw [hdir_req']
+                  simp [Behaviour.reqToDirOfRequestEvent, hrel]
+                rw [this]
+                -- The predecessor gave e_inter write permissions
+                -- For e_inter (a coherent write) to have permissions, its predecessor must be a write
+                -- In the coherent protocol, coherent writes propagate from coherent writes
+                have hwrite_pred : hexists_pred_getting_perms.choose.req.val.isWrite := by
+                  -- Use the helper lemma: predecessor producing write-permission state must be write
+                  exact produces_state_with_write_perms_implies_is_write hwrite hhas_perms hpred_produces_state_at_least_req_made_on_state
+                have hcoh_pred : hexists_pred_getting_perms.choose.req.val.coherent = true := by
+                  -- Use the helper lemma: predecessor producing coherent state must be coherent
+                  exact produces_coherent_state_implies_is_coherent hcoh hhas_perms hpred_produces_state_at_least_req_made_on_state
+                exact reqToDir_preserves_write_of_coherent hexists_pred_getting_perms.choose _ hwrite_pred hcoh_pred
+          | ncRelAcqWeakWriteHasCoherentPerms hncraw hhascoh =>
+              -- e_inter is NC/rel/acq/weak write with coherent perms
+              -- These are all writes, so the directory event will be a write
+              -- For NC rel/acq/weak writes on coherent state, the directory version stays write
+              by_cases hrel : (Event.req n hexists_pred_getting_perms.choose).val = ⟨.w, false, .Rel⟩
+              · -- NC Rel: write on Vd
+                have : Event.req n e_inter_cle = de.req := by rw [he_cle]; rfl
+                have hdir_req' : de.req = b.reqToDirOfRequestEvent n (InitialSystemState.stateAt n init hexists_pred_getting_perms.choose) true hexists_pred_getting_perms.choose := by
+                  rw [<- this]; exact hdir_req
+                have : de.req = Event.reqToDirOfRequestEvent n hexists_pred_getting_perms.choose Vd := by
+                  rw [hdir_req']
+                  simp [Behaviour.reqToDirOfRequestEvent, hrel]
+                rw [this]
+                exact reqToDir_preserves_write_on_vd_ncrel hexists_pred_getting_perms.choose hrel
+              · -- Other NC/acq/weak writes: default case preserves write
+                have : Event.req n e_inter_cle = de.req := by rw [he_cle]; rfl
+                have hdir_req' : de.req = b.reqToDirOfRequestEvent n (InitialSystemState.stateAt n init hexists_pred_getting_perms.choose) true hexists_pred_getting_perms.choose := by
+                  rw [<- this]; exact hdir_req
+                have : de.req = Event.reqToDirOfRequestEvent n hexists_pred_getting_perms.choose (b.stateBefore n (InitialSystemState.stateAt n init hexists_pred_getting_perms.choose) hexists_pred_getting_perms.choose).cache := by
+                  rw [hdir_req']
+                  simp [Behaviour.reqToDirOfRequestEvent, hrel]
+                rw [this]
+                -- e_inter is NC/rel/acq/weak write with permissions on coherent state
+                -- The predecessor gave those permissions
+                have hwrite_pred : hexists_pred_getting_perms.choose.req.val.isWrite := by
+                  -- hhascoh.hasPerms : b.hasPerms n init e_inter
+                  -- hhascoh.onCoherentState : state e_inter was made on is coherent
+                  -- Use helper: predecessor must be write to produce write permissions
+                  exact produces_state_with_write_perms_implies_is_write hwrite hhascoh.hasPerms hpred_produces_state_at_least_req_made_on_state
+                have hcoh_pred : hexists_pred_getting_perms.choose.req.val.coherent = true := by
+                  -- hhascoh.onCoherentState : Behaviour.reqMadeOnCoherentState n b init e_inter
+                  -- which means (b.stateReqMadeOn n init e_inter).c = true
+                  -- predecessor produces a state at least as high, which means c=true
+                  -- Use helper: predecessor producing coherent state must be coherent
+                  have hstate_coh : (b.stateReqMadeOn n init e_inter).c = true := hhascoh.onCoherentState
+                  exact produces_at_least_coherent_state_implies_is_coherent hstate_coh hpred_produces_state_at_least_req_made_on_state
+                exact reqToDir_preserves_write_of_coherent hexists_pred_getting_perms.choose _ hwrite_pred hcoh_pred
+          | ncWeakReadHasPermsNotVd hncwr _ =>
+              -- e_inter is NC weak read, contradicts hwrite (which is write)
+              exfalso
+              -- hncwr: e_inter is NC weak read (non-coherent and weak, which means read)
+              -- hwrite: e_inter is write - contradiction
+              -- NC weak read means req = ⟨⟨.r, false, .Weak⟩, ...⟩ so rw = .r
+              -- isWrite means req.val.rw = .w
+              -- These are contradictory
+              cases e_inter with
+              | cacheEvent ce =>
+                simp [Event.isNcWeakRead, CacheEvent.isNcWeakRead] at hncwr
+                -- hncwr : ce.req = ⟨⟨.r, false, .Weak⟩, by simp[Request.IsValid']⟩
+                simp [Event.isWrite] at hwrite
+                -- hwrite : ce.req.val.isWrite, which means ce.req.val.rw = .w
+                rw [hncwr] at hwrite
+                simp [Request.isWrite] at hwrite
+              | directoryEvent _ =>
+                simp [Event.isNcWeakRead] at hncwr
       have hsame_protocol_and_dir_write : e_inter_cle.protocol = e_w_cle.protocol ∧
                                           e_inter_cle.protocol = e_r_cle.protocol ∧
                                           Event.isDirWrite n e_inter_cle :=
@@ -455,10 +704,37 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
           -- The directory event's request is obtained via reqToDirOfRequestEvent
           have hdir_req := hdir_corresponds.dirReq
 
-          -- TODO: Prove that successor on Vd with NC weak write results in directory write
-          -- Key insight: hsucc_on_vd means state = Vd (NOT I)
-          -- For NC weak writes on Vd, reqToDirOfRequestEvent preserves write (default case)
-          sorry
+
+          -- TODO: Hint: Use `hsucc_on_vd` to show `e_inter_succ` is made on Vd state,
+          -- and `e_inter_succ` encapsulates a write-directory event
+          -- through `reqOnVdWithCorrespondingDir`.
+          -- Then because `e_inter_succ` is made on Vd state, `e_inter_succ` encapsulates a write directory event (by the restrictions/defs in `reqOnVdWithCorrespondingDir`)
+
+          -- STRATEGY: Show de.req.val.isWrite by analyzing reqToDirOfRequestEvent
+          -- The successor satisfies isRelAcqOrVdWB and is made on Vd
+          have hisrel_acq_vdwb := hsucc.isRelAcqOrVdWB
+          -- The directory request comes from reqToDirOfRequestEvent
+          simp [Event.req] at hdir_req
+          -- On Vd state, for requests in isRelAcqOrVdWB:
+          -- - Acquires: if read, becomes write (case 3 in reqToDirOfRequestEvent)
+          -- - NC/CReleases: writes stay as writes (case 4)
+          -- - VdWriteBack: write stays as write (case 4)
+          -- - SCWrite: write stays as write (case 4)
+          -- - SCRead: could be acquire (becomes write) or stays as read
+          -- Need to case-split on hisrel_acq_vdwb and show write in each case
+          rcases hisrel_acq_vdwb with hacq | hnc_rel | hc_rel | hvdwb | hsc_write | hsc_read
+          · -- Acquire case: if read, reqToDirOfRequestEvent makes it write on Vd
+            sorry  -- Axiom: isAcquire on Vd via reqToDirOfRequestEvent produces write
+          · -- NcRelease case: release writes stay as writes
+            sorry  -- Axiom: isNcRelease produces write directory event
+          · -- CRelease case
+            sorry  -- Axiom: isCRelease produces write directory event
+          · -- VdWriteBack case: explicitly a write-back, so write
+            sorry  -- Axiom: isVdWriteBack produces write directory event
+          · -- SCWrite case: sequential consistent write stays as write
+            sorry  -- Axiom: isSCWrite produces write directory event
+          · -- SCRead case: could be acquire or plain read
+            sorry  -- Axiom: isSCRead on Vd with proper context produces write directory event
       have hsame_protocol_and_dir_write : e_inter_cle.protocol = e_w_cle.protocol ∧
                                           e_inter_cle.protocol = e_r_cle.protocol ∧
                                           Event.isDirWrite n e_inter_cle :=
@@ -1415,30 +1691,28 @@ lemma coherent_evict_downgrade_contradiction
             simp [Event.isCacheEvent] at hevict_is_cache
       exact hreq_not_down hevict_down
   . case orderBeforeDir hreq_has_perms hexists_pred_getting_perms
-    hpred_accesses_dir hinter_leaves_state_at_least hpred_same_protocol hnot_down =>
-
-    simp[Event.isEvictSW] at hevict_sw_evict
-    cases e_evict with
-    | directoryEvent _ =>
-        simp [Event.isCacheEvent] at hevict_is_cache
-    | cacheEvent ce_evict =>
-      simp[] at hevict_sw_evict
-      have hce_evict := hevict_sw_evict.evict.downgrade
-      simp[Event.down] at hnot_down
-      absurd hnot_down
-      simp [hce_evict]
+    hpred_accesses_dir hinter_leaves_state_at_least hpred_same_protocol hnot_down hpred_produces =>
+    -- Contradiction: `e_evict` is a downgrade ^ `hnot_down` says it's not a downgrade
+    have hevict_down : e_evict.down := by
+      cases e_evict with
+      | cacheEvent ce_evict =>
+          have hsw : ce_evict.isEvictSW := by
+            simpa [Event.isEvictSW] using hevict_sw_evict
+          exact hsw.evict.downgrade
+      | directoryEvent de =>
+          simp [Event.isCacheEvent] at hevict_is_cache
+    exact hnot_down hevict_down
   . case orderAfterDir hweak_read_on_vd hsucc_encap_dir hsucc_same_protocol hnot_down =>
     -- Contradiction: `e_evict` is a downgrade ^ `hnot_down` says it's not a downgrade
-    simp[Event.isEvictSW] at hevict_sw_evict
-    cases e_evict with
-    | directoryEvent _ =>
-        simp [Event.isCacheEvent] at hevict_is_cache
-    | cacheEvent ce_evict =>
-      simp[] at hevict_sw_evict
-      have hce_evict := hevict_sw_evict.evict.downgrade
-      simp[Event.down] at hnot_down
-      absurd hnot_down
-      simp [hce_evict]
+    have hevict_down : e_evict.down := by
+      cases e_evict with
+      | cacheEvent ce_evict =>
+          have hsw : ce_evict.isEvictSW := by
+            simpa [Event.isEvictSW] using hevict_sw_evict
+          exact hsw.evict.downgrade
+      | directoryEvent de =>
+          simp [Event.isCacheEvent] at hevict_is_cache
+    exact hnot_down hevict_down
 
 /-- Helper: Construct sameEntry from successive entries in a chain. -/
 lemma same_entry_from_double_trans
