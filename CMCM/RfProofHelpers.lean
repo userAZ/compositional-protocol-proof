@@ -1,5 +1,6 @@
 import CMCM.RfProofDefs
 
+variable {n : ℕ}
 
 /-- Helper: If two events both encapsulate the same CLE and are ordered,
     we get a timing contradiction. This pattern appears in Case 1.1 and similar dual-encap cases. -/
@@ -373,7 +374,7 @@ lemma noInterveningWrites_implies_no_writes_between
         hw_not_down r_not_down
         hw_c_and_g_lin hr_c_and_g_lin _hcle_eq _hknow_dir_access (he_inter := he)
         hwrite_cluster hwrite hcontra hinter_lin hsame_cache
-  . -- TODO [AZ]; Fill in this case where e_interis in a different protocol than e_w.
+  . -- TODO [AZ]; Fill in this case where e_inter is in a different protocol than e_w.
     sorry
 
 /-- When CLEs are equal, the events must be in the same protocol/cluster -/
@@ -612,21 +613,6 @@ lemma eq_gle_cle_implies_write_before_read
           have h_ob_ev : e_r.OrderedBefore n e_w := by
             simpa[Event.OrderedBefore, Event.oEnd, Event.oStart, hr_ev, hw_ev] using h_ob
           exact (hr_not_ob_w h_ob_ev).elim
-
-/-- When CLEs are different but in same GLE, events are in same cluster -/
-lemma diff_cle_same_gle_implies_same_protocol
-  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
-  {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
-  (hw_not_down : ¬ e_w.down) (r_not_down : ¬ e_r.down)
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  (hgle_eq : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
-  : e_w.protocol = e_r.protocol := by
-  -- Both linearize to the same global directory event
-  -- This means they're both in the same cluster protocol since the global directories
-  -- handle requests from specific cluster protocols
-  -- The cluster requests get forwarded to global directory which tracks which cluster they're from
-  sorry
 
 -- Helper lemma: true is not ≤ false for Bool
 lemma bool_true_not_le_false : ¬(true ≤ false) := by decide
@@ -1203,3 +1189,29 @@ lemma coherent_evict_downgrade_contradiction
       simp[Event.down] at hnot_down
       absurd hnot_down
       simp [hce_evict]
+
+/-- Helper: Construct sameEntry from successive entries in a chain. -/
+lemma same_entry_from_double_trans
+  {e_1 e_2 e_3 : Event n}
+  (h_12 : e_1.sameEntry n e_2)
+  (h_23 : e_2.sameEntry n e_3)
+  : e_1.sameEntry n e_3 :=
+  ⟨h_12.sameStruct.trans h_23.sameStruct,
+   h_12.sameAddr.trans h_23.sameAddr⟩
+
+/-- From an immediate bottom predecessor spec, extract the predecessor ordering. -/
+lemma pred_ord_impl (hpred : Behaviour.ImmediateBottomPredSatisfyingProp n b e_pred e) :
+    e_pred.OrderedBefore n e := by
+  simp only[Behaviour.immBottomPredHasNoPermsAndLeavesStateAtLeast, Behaviour.ImmediateBottomPredSatisfyingProp] at hpred
+  have hpred_imm := hpred.isImmPred
+  have hpred_is := hpred_imm.bPred.isPred
+  simp only[Event.Predecessor] at hpred_is ⊢
+  exact hpred_is
+
+/-- From an immediate bottom successor spec, extract the successor ordering. -/
+lemma succ_ord_impl (hsucc : Behaviour.ImmediateBottomSuccSatisfyingProp n b e_succ e) :
+    e.OrderedBefore n e_succ := by
+  simp only[Behaviour.ImmediateBottomSuccSatisfyingProp] at hsucc
+  have hsucc_is := hsucc.isImmBottomSucc.isSucc
+  simp only[Event.Successor, Event.Predecessor] at hsucc_is ⊢
+  exact hsucc_is
