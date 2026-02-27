@@ -20,6 +20,39 @@ lemma dual_encap_ordered_contradiction
       _ < e_cle.oStart := hr_encap.1
   exact Nat.lt_asymm this hcle_wf
 
+/-- Helper: Coherent write preserves write in reqToDirOfRequestEvent. -/
+lemma reqToDir_preserves_write_of_coherent
+  (e_req : Event n) (s : State)
+  (hwrite : e_req.req.val.isWrite)
+  (hcoh : e_req.req.val.coherent = true) :
+  (Event.reqToDirOfRequestEvent n e_req s).val.isWrite := by
+  -- Unfold and reduce by cases on the request itself
+  cases hreq : e_req.req with
+  | mk r hr =>
+    cases r with
+    | mk rw coh cons =>
+      have hrw : rw = .w := by
+        simpa [hreq, Request.isWrite] using hwrite
+      have hcoh' : coh = true := by
+        simpa [hreq] using hcoh
+      cases hrw
+      cases hcoh'
+      simp [Event.reqToDirOfRequestEvent, hreq, Request.isWrite]
+
+/-- Helper: NC release on Vd preserves write in reqToDirOfRequestEvent. -/
+lemma reqToDir_preserves_write_on_vd_ncrel
+  (e_req : Event n)
+  (hrel : e_req.req.val = ⟨.w, false, .Rel⟩) :
+  (Event.reqToDirOfRequestEvent n e_req Vd).val.isWrite := by
+  cases hreq : e_req.req with
+  | mk r hr =>
+    cases r with
+    | mk rw coh cons =>
+      have hrel' : Request.mk rw coh cons = ⟨.w, false, .Rel⟩ := by
+        simpa [hreq] using hrel
+      cases hrel'
+      simp [Event.reqToDirOfRequestEvent, hreq, Vd, Request.isWrite]
+
 /-- Helper lemma for Case 2a: Different cache, same protocol/cluster -/
 lemma noInterveningWrites_diffCache_sameProtocol_case
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
@@ -142,12 +175,120 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
                 absurd hdown
                 simp[hwrite_not_down]
               | noPermsForNonNcRelAcqWeakWrite hreq_not_down hreq_not_nc_rel_acq_ww _ =>
-                -- TODO: For cache coherent writes (not NC/rel/acq/weak), prove write is preserved
-                sorry
-              | ncRelAcqWeakWriteNotOnCoherentState hreq_not_down _ _ =>
+                -- For cache coherent writes (not NC/rel/acq/weak), reqToDirOfRequestEvent preserves write
+                have hvalid := ce_inter.req.property
+                rcases hvalid with ⟨hNoSCNonCoherent, hNoWriteAcquire, _hNoReadRelease, _hNoCoherentAcquire, _hNoCoherentWeakRead⟩
+                have hrw : ce_inter.req.val.rw = .w := by
+                  simpa [Request.isWrite] using hwrite'
+                have hcoh : ce_inter.req.val.coherent = true := by
+                  by_contra hcoh
+                  cases hcoh' : ce_inter.req.val.coherent <;> simp [hcoh'] at hcoh
+                  -- Now coherent = false, analyze consistency
+                  cases hcons : ce_inter.req.val.consistency
+                  · -- SC
+                    have hsc : ce_inter.req.val.SCNonCoherent := by
+                      exact And.intro hcons hcoh'
+                    exact hNoSCNonCoherent hsc
+                  · -- Rel
+                    have hrelreq : ce_inter.req = ⟨⟨.w, false, .Rel⟩, by simp [Request.IsValid']⟩ := by
+                      apply Subtype.ext
+                      cases hreqval : ce_inter.req.val with
+                      | mk rw coh cons =>
+                        have hrw' : rw = .w := by
+                          simpa [hreqval] using hrw
+                        have hcoh'' : coh = false := by
+                          simpa [hreqval] using hcoh'
+                        have hcons' : cons = .Rel := by
+                          simpa [hreqval] using hcons
+                        cases hrw'
+                        cases hcoh''
+                        cases hcons'
+                        rfl
+                    have hncrel : (Event.cacheEvent ce_inter).isNcRelease := by
+                      simp [Event.isNcRelease, CacheEvent.isNcRelease, ValidRequest.isNcRelease, hrelreq]
+                    exact hreq_not_nc_rel_acq_ww (Or.inr (Or.inl hncrel))
+                  · -- Acq
+                    have hwa : ce_inter.req.val.WriteAcquire := by
+                      exact And.intro hrw hcons
+                    exact hNoWriteAcquire hwa
+                  · -- Weak
+                    have hweakreq : ce_inter.req = ⟨⟨.w, false, .Weak⟩, by simp [Request.IsValid']⟩ := by
+                      apply Subtype.ext
+                      cases hreqval : ce_inter.req.val with
+                      | mk rw coh cons =>
+                        have hrw' : rw = .w := by
+                          simpa [hreqval] using hrw
+                        have hcoh'' : coh = false := by
+                          simpa [hreqval] using hcoh'
+                        have hcons' : cons = .Weak := by
+                          simpa [hreqval] using hcons
+                        cases hrw'
+                        cases hcoh''
+                        cases hcons'
+                        rfl
+                    have hnweak : (Event.cacheEvent ce_inter).isNcWeakWrite := by
+                      simp [Event.isNcWeakWrite, CacheEvent.isNcWeakWrite, ValidRequest.isNcWeakWrite, hweakreq]
+                    exact hreq_not_nc_rel_acq_ww (Or.inr (Or.inr hnweak))
+                rw [hde_req]
+                by_cases hrel : (Event.req n (Event.cacheEvent ce_inter)).val = ⟨.w, false, .Rel⟩
+                · -- contradicts coherent = true
+                  have hrel' : ce_inter.req.val = ⟨.w, false, .Rel⟩ := by
+                    simpa [Event.req] using hrel
+                  have hcoh_false : ce_inter.req.val.coherent = false := by
+                    simpa [hrel']
+                  have hcontra : true = false := by
+                    calc
+                      true = ce_inter.req.val.coherent := hcoh.symm
+                      _ = false := hcoh_false
+                  exact (by cases hcontra)
+                · -- not rel write; coherent = true forces default case
+                  have hrel' : (ce_inter.req).val ≠ ⟨.w, false, .Rel⟩ := by
+                    simpa [Event.req] using hrel
+                  have hwrite_dir :
+                      (Event.reqToDirOfRequestEvent n (Event.cacheEvent ce_inter)
+                        (EntryState.cache n
+                          (Behaviour.stateBefore n b (InitialSystemState.stateAt n init (Event.cacheEvent ce_inter))
+                            (Event.cacheEvent ce_inter)))).val.isWrite := by
+                    refine reqToDir_preserves_write_of_coherent (e_req := Event.cacheEvent ce_inter)
+                      (s := EntryState.cache n
+                        (Behaviour.stateBefore n b (InitialSystemState.stateAt n init (Event.cacheEvent ce_inter))
+                          (Event.cacheEvent ce_inter))) ?_ ?_
+                    · simpa [Event.req] using hwrite'
+                    · simpa [Event.req] using hcoh
+                  simpa [Behaviour.reqToDirOfRequestEvent, hrel', Event.req] using hwrite_dir
+              | ncRelAcqWeakWriteNotOnCoherentState hreq_not_down hreq_nc_rel_acq _ =>
                 -- TODO: For NC/rel/acq writes on I, may hit exception case (NC write on I → READ)
                 -- Need to either prove contradiction or show it doesn't apply
-                sorry
+                have hnc := hreq_nc_rel_acq
+                -- acquire is a read, so it contradicts hwrite'
+                have hrelreq : ce_inter.req = ⟨⟨.w, false, .Rel⟩, by simp [Request.IsValid']⟩ := by
+                  have hnot_acq : ¬ (Event.cacheEvent ce_inter).isAcquire := by
+                    intro hacq
+                    have hread : ce_inter.req.val.rw = .r := by
+                      simpa using congrArg (fun vr => vr.val.rw) hacq
+                    have hwrite_rw : ce_inter.req.val.rw = .w := by
+                      simpa [Request.isWrite] using hwrite'
+                    have : ReadWrite.r = ReadWrite.w := by
+                      calc
+                        ReadWrite.r = ce_inter.req.val.rw := hread.symm
+                        _ = ReadWrite.w := hwrite_rw
+                    exact (by cases this)
+                  have hncrel : (Event.cacheEvent ce_inter).isNcRelease := by
+                    cases hnc with
+                    | inl hacq => exact (hnot_acq hacq).elim
+                    | inr hncrel => exact hncrel
+                  simpa [Event.isNcRelease, CacheEvent.isNcRelease, ValidRequest.isNcRelease] using hncrel
+                rw [hde_req]
+                -- rel_wb = true gives Vd state; no exception applies, so write preserved
+                have hrel : (Event.req n (Event.cacheEvent ce_inter)).val = ⟨.w, false, .Rel⟩ := by
+                  simpa using congrArg Subtype.val hrelreq
+                have hrel' : (ce_inter.req).val = ⟨.w, false, .Rel⟩ := by
+                  simpa [Event.req] using hrel
+                have hwrite_dir :
+                    (Event.reqToDirOfRequestEvent n (Event.cacheEvent ce_inter) Vd).val.isWrite := by
+                  refine reqToDir_preserves_write_on_vd_ncrel (e_req := Event.cacheEvent ce_inter) ?_
+                  simpa [Event.req] using hrel'
+                simpa [Behaviour.reqToDirOfRequestEvent, hrel', Event.req] using hwrite_dir
           exact this
         | .cacheEvent _ =>
           -- Contradiction: e_inter_cle cannot be both a cache event and a directory event
