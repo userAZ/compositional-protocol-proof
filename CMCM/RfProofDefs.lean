@@ -89,7 +89,7 @@ def NoInterveningWrites
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop :=
-  ∀ e_w_inter ∈ b, e_w_inter.isClusterCache → e_w_inter.isWrite →
+  ∀ e_w_inter ∈ b, e_w_inter.isClusterCache → e_w_inter.isWrite → ¬ e_w_inter.down →
     NoInterveningWrites.constraints hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin e_w_inter hknow_dir_access
 
 -- Helper lemmas for the main theorem
