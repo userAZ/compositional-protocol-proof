@@ -34,6 +34,7 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
   {he_inter : e_inter ∈ b}
   (hwrite_cluster : e_inter.isClusterCache)
   (hwrite : e_inter.isWrite)
+  (hwrite_not_down : ¬ e_inter.down)
   (hcontra : NoInterveningWrites.constraints _hw_is_write _r_is_read hw_c_and_g_lin hr_c_and_g_lin e_inter _hknow_dir_access)
   (hinter_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_inter)
   (hsame_cache : ¬e_inter.sameStructure n e_w)
@@ -110,35 +111,44 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
         | .directoryEvent de_inter_cle =>
           unfold Event.isDirWrite
           simp
-          -- The directory event's request is determined by reqToDirOfRequestEvent
-          -- For writes, in most cases this preserves the write operation
-          -- We need to show de_inter_cle.req.val.rw = .w
-          -- Given: e_inter.isWrite means e_inter.req.val.rw = .w (for cache events)
-          -- [AZ]: Show e_inter's CLE is a directory write event.
-          unfold Event.isWrite at hwrite
-          match hinter_ev : e_inter with
-          | .directoryEvent _ =>
-            -- e_inter is not a directory event (it's a cluster cache)
-            have : e_inter.isCacheEvent := by
-              simpa [hinter_ev] using hwrite_cluster.eAtCache
-            simp [Event.isCacheEvent, hinter_ev] at this
-          | .cacheEvent ce_inter =>
-            -- Now hwrite : ce_inter.req.val.isWrite, i.e., ce_inter.req.val.rw = .w
-            have hwrite' : ce_inter.req.val.isWrite := by
-              simpa [Event.isWrite, hinter_ev] using hwrite
-            -- From dirEventOfReqEvent, de_inter_cle.eReq = ce_inter
+          -- Case split on e_inter to extract cache event
+          have : de_inter_cle.req.val.isWrite := by
+            unfold Event.isWrite at hwrite
+            match hinter_ev : e_inter with
+            | .directoryEvent _ =>
+              -- e_inter is not a directory event (it's a cluster cache)
+              have hcontra : e_inter.isCacheEvent := by
+                simpa [hinter_ev] using hwrite_cluster.eAtCache
+              simp [Event.isCacheEvent, hinter_ev] at hcontra
+            | .cacheEvent ce_inter =>
+              -- Now hwrite' : ce_inter.req.val.isWrite
+              have hwrite' : ce_inter.req.val.isWrite := by
+                simpa [Event.isWrite, hinter_ev] using hwrite
+              -- Show directory request is a write
+              -- From hencap_dir: the directory event's request is obtained via reqToDirOfRequestEvent
+              -- Connect de_inter_cle.req to the transformation
+              have hde_req : de_inter_cle.req = Behaviour.reqToDirOfRequestEvent n b (InitialSystemState.stateAt n init (Event.cacheEvent ce_inter)) true (Event.cacheEvent ce_inter) := by
+                calc de_inter_cle.req
+                  _ = Event.req n (Event.directoryEvent de_inter_cle) := rfl
+                  _ = Event.req n e_inter_cle := by rw [← hinter_cle_ev]
+                  _ = Behaviour.reqToDirOfRequestEvent n b (InitialSystemState.stateAt n init (Event.cacheEvent ce_inter)) true (Event.cacheEvent ce_inter) := by
+                    grind
+                    -- simpa [e_inter_cle] using hdir_req_matches
 
-            -- unfold Behaviour.requestDirectoryEvent at hdir_matches_req
-            -- unfold Event.dirEventOfReqEvent at hdir_matches_req
-            -- simp [hinter_cle_ev, hinter_ev] at hdir_matches_req
-
-            -- From requestDirectoryEvent, de_inter_cle.req = ...
-            -- The directory request is derived from the cache request
-            -- For a write, unless it's a NC write on I state (which becomes a read),
-            -- the write is preserved
-            -- In this context with NoInterveningWrites, we're dealing with intervening writes
-            -- between two operations, so the directory event should also be a write
-            sorry
+              -- Now case on hreq_missing_perms to understand which gets permissions
+              cases hreq_missing_perms with
+              | downgrade hdown _ =>
+                -- TODO: For downgrades (down = true), prove write is preserved through reqToDirOfRequestEvent
+                absurd hdown
+                simp[hwrite_not_down]
+              | noPermsForNonNcRelAcqWeakWrite hreq_not_down hreq_not_nc_rel_acq_ww _ =>
+                -- TODO: For cache coherent writes (not NC/rel/acq/weak), prove write is preserved
+                sorry
+              | ncRelAcqWeakWriteNotOnCoherentState hreq_not_down _ _ =>
+                -- TODO: For NC/rel/acq writes on I, may hit exception case (NC write on I → READ)
+                -- Need to either prove contradiction or show it doesn't apply
+                sorry
+          exact this
         | .cacheEvent _ =>
           -- Contradiction: e_inter_cle cannot be both a cache event and a directory event
           have hinter_cle_is_dir' : e_inter_cle.isDirectoryEvent := hinter_cle_is_dir
@@ -179,8 +189,39 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
             _ = e_w.protocol := hsame_protocol
             _ = e_r.protocol := hw_eq_r_protocol
             _ = e_r_cle.protocol := hr_cle_protocol.symm
-      -- Show that e_inter_cle is a directory write (same proof structure as encapDir case)
-      have hinter_cle_is_dir_write : Event.isDirWrite n e_inter_cle := sorry
+      -- Show that e_inter_cle is a directory write
+      -- User insight: In orderBeforeDir, use hreq_has_perms + hwrite to derive directory write
+      -- Key facts:
+      --   1. hwrite : e_inter.isWrite
+      --   2. hreq_has_perms : b.reqHasPerms n init e_inter
+      --   3. hexists_pred_getting_perms : b.reqHasPermsSoDirPred n init e_inter
+      --   4. hpred_accesses_dir : predecessor accesses directory event e_inter_cle
+      -- Since e_inter is a write WITH permissions, the predecessor that set up those
+      -- permissions must have gotten write permissions from a directory write event.
+      have hinter_cle_is_dir_write : Event.isDirWrite n e_inter_cle := by
+        -- e_inter has permissions and is a write
+        -- The predecessor accessed the directory event e_inter_cle
+        -- Since e_inter is a write with permissions, it cannot be on I state
+        -- Therefore reqToDirOfRequestEvent preserves the write
+        unfold Event.isDirWrite
+        -- Case split on e_inter_cle
+        match  he_cle : e_inter_cle with
+        | .cacheEvent _ =>
+          -- e_inter_cle is not a cache event (it's a directory event from predecessor)
+          -- This contradicts that it accesses directory
+          exfalso
+          have : e_inter_cle.isDirectoryEvent := hpred_accesses_dir.isDir
+          simp [Event.isDirectoryEvent, he_cle] at this
+        | .directoryEvent de =>
+          simp
+          -- Extract the directory request from hpred_accesses_dir
+          have hdir_req := hpred_accesses_dir.dirCorresponds.dirReq
+          -- hdir_req: de.req = b.reqToDirOfRequestEvent n init true hexists_pred_getting_perms.choose
+
+          -- TODO: Prove that predecessor granting write permissions has a write-type directory request
+          -- Key insight: reqHasPerms means state >= MRS, so for writes state >= Vc > I
+          -- Therefore reqToDirOfRequestEvent uses default case (not exception), preserving write
+          sorry
       have hsame_protocol_and_dir_write : e_inter_cle.protocol = e_w_cle.protocol ∧
                                           e_inter_cle.protocol = e_r_cle.protocol ∧
                                           Event.isDirWrite n e_inter_cle :=
@@ -218,8 +259,65 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
             _ = e_w.protocol := hsame_protocol
             _ = e_r.protocol := hw_eq_r_protocol
             _ = e_r_cle.protocol := hr_cle_protocol.symm
-      -- Show that e_inter_cle is a directory write (same proof structure as encapDir case)
-      have hinter_cle_is_dir_write : Event.isDirWrite n e_inter_cle := sorry
+      -- Show that e_inter_cle is a directory write
+      -- User insight: orderAfterDir with hwrite should lead to directory write
+      -- Key facts:
+      --   1. hwrite : e_inter.isWrite
+      --   2. hweak_read_on_vd : b.ncWeakReqOnVd n init e_inter
+      --      - This means e_inter.isNcWeak (weak and non-coherent)
+      --      - Request is on/after Vd state
+      --   3. hsucc_encap_dir : successor accesses directory event e_inter_cle
+      -- Since e_inter is an NC weak WRITE (not read) on Vd, when its successor
+      -- accesses the directory, that directory event should also be a write.
+      have hinter_cle_is_dir_write : Event.isDirWrite n e_inter_cle := by
+        -- e_inter is NC weak write on Vd
+        -- The successor encapsulates the directory event
+        -- NC weak write on Vd → directory write via successor
+        unfold Event.isDirWrite
+        -- Case split on e_inter_cle
+        match he_cle : e_inter_cle with
+        | .cacheEvent _ =>
+          -- e_inter_cle is not a cache event (directory event from successor)
+          -- This contradicts that it accesses directory
+          exfalso
+          have hdir_ev : e_inter_cle.isDirectoryEvent :=
+            hsucc_encap_dir.choose_spec.right.satisfyP.encapCorresponding.isDir
+          simp [Event.isDirectoryEvent, he_cle] at hdir_ev
+        | .directoryEvent de =>
+          simp
+          -- NC weak write on Vd: the directory event should be a write
+          -- Key: reqToDirOfRequestEvent preserves write type when not on I state
+          have hsucc := hsucc_encap_dir.choose_spec.right.satisfyP
+          have hdir_corresponds := hsucc.encapCorresponding.dirCorresponds
+          have hdir_req := hdir_corresponds.dirReq
+          -- e_inter_cle.req = reqToDirOfRequestEvent applied to the successor
+          -- The successor is on Vd state (from reqOnVdWithCorrespondingDir)
+          have hsucc_on_vd := hsucc.stateBeforeAsVd
+          -- Extract the successor event (it's a cache event on Vd)
+          have hsucc_event := hsucc_encap_dir.choose
+          -- The directory request equals reqToDirOfRequestEvent
+          simp [Event.req] at hdir_req
+          -- Since successor is on Vd (not I), reqToDirOfRequestEvent preserves write type
+          -- For NC weak write on Vd, none of the exception cases apply
+          -- The successor inherits the write property from e_inter
+          -- Need to show de.req.val.isWrite
+
+          -- Key facts:
+          -- 1. hsucc_on_vd : (b.stateBefore n init hsucc_event) = VdEntry n
+          --    This means state is Vd, NOT I
+          -- 2. e_inter is NC weak write (from hweak_read_on_vd.weakReq)
+          -- 3. reqToDirOfRequestEvent exception cases only apply on I state
+          -- 4. Therefore default case applies, and write is preserved
+
+          -- The successor's request is NC weak (from hweak_read_on_vd)
+          have hweak := hweak_read_on_vd.weakReq
+          -- The directory event's request is obtained via reqToDirOfRequestEvent
+          have hdir_req := hdir_corresponds.dirReq
+
+          -- TODO: Prove that successor on Vd with NC weak write results in directory write
+          -- Key insight: hsucc_on_vd means state = Vd (NOT I)
+          -- For NC weak writes on Vd, reqToDirOfRequestEvent preserves write (default case)
+          sorry
       have hsame_protocol_and_dir_write : e_inter_cle.protocol = e_w_cle.protocol ∧
                                           e_inter_cle.protocol = e_r_cle.protocol ∧
                                           Event.isDirWrite n e_inter_cle :=
@@ -290,6 +388,7 @@ lemma noInterveningWrites_diffCache_case
   {he_inter : e_inter ∈ b}
   (hwrite_cluster : e_inter.isClusterCache)
   (hwrite : e_inter.isWrite)
+  (hwrite_not_down : ¬ e_inter.down)
   (hcontra : NoInterveningWrites.constraints _hw_is_write _r_is_read hw_c_and_g_lin hr_c_and_g_lin e_inter _hknow_dir_access)
   (hinter_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_inter)
   (hsame_cache : ¬e_inter.sameStructure n e_w)
@@ -301,7 +400,7 @@ lemma noInterveningWrites_diffCache_case
   · -- Case 2a: Same protocol/cluster, different cache
     exact noInterveningWrites_diffCache_sameProtocol_case
       _hw_is_write _r_is_read _hsame_struct hw_not_down r_not_down hw_c_and_g_lin hr_c_and_g_lin _hcle_eq _hknow_dir_access
-      (he_inter := he_inter) hwrite_cluster hwrite hcontra hinter_lin hsame_cache hsame_protocol
+      (he_inter := he_inter) hwrite_cluster hwrite hwrite_not_down hcontra hinter_lin hsame_cache hsame_protocol
   · -- Case 2b: Different protocol/cluster
     exact noInterveningWrites_diffCache_diffProtocol_case
       _hw_is_write _r_is_read _hsame_struct hw_c_and_g_lin hr_c_and_g_lin _hcle_eq _hknow_dir_access
@@ -322,12 +421,12 @@ lemma noInterveningWrites_implies_no_writes_between
   (_hsucc_w_of_w_after_r : ∀ e_w_succ ∈ b, e_w_succ.isWrite ∧ e_w_succ.sameProtocol n e_w ∧ e_w_succ.sameStructure n e_w ∧
     e_w.OrderedBefore n e_w_succ → e_r.oEnd < e_w_succ.oEnd)
   : Event.Between.noWrite b init e_w e_r hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose := by
-  intro e he hwrite_cluster hwrite
+  intro e he hwrite_cluster hwrite hwrite_not_down
 
   let e_w_cle := hw_c_and_g_lin.hreq's_dir_access.choose
   let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
 
-  have hcontra := _hno_intervening e he hwrite_cluster hwrite
+  have hcontra := _hno_intervening e he hwrite_cluster hwrite hwrite_not_down
   have hinter_lin := _hknow_dir_access cmp b init e
 
   by_cases hsame_protocol : e.sameProtocol n e_w
@@ -337,6 +436,7 @@ lemma noInterveningWrites_implies_no_writes_between
     · -- Case 1: Same cache as e_w (and e_r)
       apply Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites.otherWSameCache
       constructor
+      . case pos.no_write_btn_w_r.notDown => exact hwrite_not_down
       · -- Prove: sameProtocol
         -- If e and e_w have the same structure (cache), they must have the same protocol
         have hsame_r : e.sameStructure n e_r := by
@@ -373,9 +473,18 @@ lemma noInterveningWrites_implies_no_writes_between
       exact noInterveningWrites_diffCache_case _hw_is_write _r_is_read _hsame_struct
         hw_not_down r_not_down
         hw_c_and_g_lin hr_c_and_g_lin _hcle_eq _hknow_dir_access (he_inter := he)
-        hwrite_cluster hwrite hcontra hinter_lin hsame_cache
-  . -- TODO [AZ]; Fill in this case where e_inter is in a different protocol than e_w.
-    sorry
+        hwrite_cluster hwrite hwrite_not_down hcontra hinter_lin hsame_cache
+  . -- Case where e is in a different protocol than e_w
+    -- We know ¬(e.sameStructure n e_w) because if they had the same structure,
+    -- they would have the same protocol (by sameStructure_implies_sameProtocol)
+    have hsame_cache : ¬e.sameStructure n e_w := by
+      intro hcontra_struct
+      have hsame_prot : e.sameProtocol n e_w := sameStructure_implies_sameProtocol hcontra_struct
+      exact hsame_protocol hsame_prot
+    exact noInterveningWrites_diffCache_case _hw_is_write _r_is_read _hsame_struct
+      hw_not_down r_not_down
+      hw_c_and_g_lin hr_c_and_g_lin _hcle_eq _hknow_dir_access (he_inter := he)
+      hwrite_cluster hwrite hwrite_not_down hcontra hinter_lin hsame_cache
 
 /-- When CLEs are equal, the events must be in the same protocol/cluster -/
 lemma same_cle_implies_same_protocol

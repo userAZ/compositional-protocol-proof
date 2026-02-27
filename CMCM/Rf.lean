@@ -51,6 +51,7 @@ def CompoundProtocol.globalLinearizationEventOfRequest.wrapper :=
 
 structure Event.Between.noWrite.cond.sameCacheNoInterWrite
   (b : Behaviour n) (init : InitialSystemState n) (e_inter e_w e_r e_w_cle e_r_cle : Event n) where
+  notDown : ¬ e_inter.down
   sameProtocol : e_inter.sameProtocol n e_w ∧ e_inter.sameProtocol n e_r
   sameCache : e_inter.sameStructure n e_w ∧ e_inter.sameStructure n e_r
   interCleNotBetween :
@@ -102,7 +103,7 @@ inductive Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites
 /- Begin Defs for WriteRead.EqGleCle.case -/
 def Event.Between.noWrite
   (b : Behaviour n) (init : InitialSystemState n) (e_w e_r e_w_cle e_r_cle: Event n) : Prop :=
-  ∀ e_inter ∈ b, e_inter.isClusterCache → e_inter.isWrite →
+  ∀ e_inter ∈ b, e_inter.isClusterCache → e_inter.isWrite → ¬ e_inter.down →
     Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites b init e_inter e_w e_r e_w_cle e_r_cle
 
   -- ∃ e_inter_cle ∈ b, b.dirAccessOfRequest n init e_inter e_inter_cle ∧
