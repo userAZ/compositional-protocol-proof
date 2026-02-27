@@ -184,22 +184,8 @@ lemma CMCM.rf.sameGle.sameCle
             have hw_ob_succ : e_w.OrderedBefore n hsucc_encap_dir_r.choose :=
               Event.ordered_trans (n := n) hw_ob_r hr_ob_succ
 
-            -- Unfold encapsulation constraints
-            simp only [Event.Encapsulates] at hw_encap_cle hsucc_encap_cle
-            have hw_encap_2 := hw_encap_cle.2
-            have hsucc_encap_1 := hsucc_encap_cle.1
-
-            -- e_w.oEnd < e_succ.oStart < cle.oStart
-            have h1 : e_w.oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart :=
-              Nat.lt_trans hw_ob_succ hsucc_encap_1
-
-            -- cle.oEnd < e_w.oEnd < cle.oStart
-            have h2 : (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart :=
-              Nat.lt_trans hw_encap_2 h1
-
-            -- But cle is well-formed: oStart < oEnd
-            have hw_cle_wf := (hw_c_and_g_lin.hreq's_dir_access.choose).oWellFormed
-            exact Nat.lt_asymm h2 hw_cle_wf
+            -- Both e_w and e_succ encapsulate the same CLE and are ordered, contradiction
+            exact dual_encap_ordered_contradiction hw_encap_cle hsucc_encap_cle hw_ob_succ
         -- Case 2: e_w orderBeforeDir
         | orderBeforeDir hreq_w_has_perms hexists_pred_w hpred_w_accesses_dir hinter_leaves_w hpred_w_same_protocol =>
           -- e_w.OrderedBefore n e_r and hexists_pred_w is a predecessor of e_w
@@ -225,28 +211,10 @@ lemma CMCM.rf.sameGle.sameCle
               simpa [hsame_cle] using hpred_encap_cle'
             have hr_encap_cle : e_r.Encapsulates n (hr_c_and_g_lin.hreq's_dir_access.choose) := hr_encap.reqEncapDir
 
-            simp only [Event.Encapsulates] at hpred_encap_cle hr_encap_cle
-            have hpred_encap_1 := hpred_encap_cle.1
-            have hpred_encap_2 := hpred_encap_cle.2
-            have hr_encap_1 := hr_encap_cle.1
-            have hr_encap_2 := hr_encap_cle.2
+            rw [← hsame_cle] at hr_encap_cle
 
-            rw [← hsame_cle] at hr_encap_1 hr_encap_2
-
-            simp only [Event.OrderedBefore] at hpred_before_ew hpred_before_er
-
-            -- Setup the ordering contradiction:
-            -- From hpred_encap: hpred_w.oStart < cle.oStart < hpred_w.oEnd
-            -- From hr_encap: e_r.oStart < cle.oStart < e_r.oEnd
-            -- From hpred_before_er: hpred_w.oEnd < e_r.oStart
-            have h1 : hexists_pred_w.choose.oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart :=
-              Nat.lt_trans hpred_before_er hr_encap_1
-
-            have h2 : (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart :=
-              Nat.lt_trans hpred_encap_2 h1
-
-            have hw_cle_wf := (hw_c_and_g_lin.hreq's_dir_access.choose).oWellFormed
-            exact Nat.lt_asymm h2 hw_cle_wf
+            -- Both pred_w and e_r encapsulate the same CLE and are ordered, contradiction
+            exact dual_encap_ordered_contradiction hpred_encap_cle hr_encap_cle hpred_before_er
           -- Case 2.2: e_w orderBeforeDir, e_r orderBeforeDir
           | orderBeforeDir hreq_r_has_perms hexists_pred_r hpred_r_accesses_dir hinter_leaves_r hpred_r_same_protocol =>
             exfalso
@@ -326,20 +294,11 @@ lemma CMCM.rf.sameGle.sameCle
             simp only [Event.OrderedBefore] at hpred_w_before_ew hsucc_r_after_er
 
             -- Transitivity: pred_w < e_r < succ_r
-            have hpred_w_before_succ_r : hexists_pred_w.choose.OrderedBefore n hsucc_encap_dir_r.choose := by
-              calc hexists_pred_w.choose.OrderedBefore n e_w := hpred_w_before_ew
-                e_w.OrderedBefore n e_r := hw_ob_r
-                e_r.OrderedBefore n hsucc_encap_dir_r.choose := hsucc_r_after_er
-            simp only [Event.OrderedBefore] at hpred_w_before_succ_r
+            have hpred_w_before_succ_r : hexists_pred_w.choose.OrderedBefore n hsucc_encap_dir_r.choose :=
+              Event.ordered_trans (n := n) (Event.ordered_trans (n := n) hpred_w_before_ew hw_ob_r) hsucc_r_after_er
 
-            -- Contradiction: cle.oEnd < pred_w.oEnd < succ_r.oStart < cle.oStart
-            have h_contradiction : (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart := by
-              calc (hw_c_and_g_lin.hreq's_dir_access.choose).oEnd < hexists_pred_w.choose.oEnd := hpred_w_encap_cle.2
-                _ < hsucc_encap_dir_r.choose.oStart := hpred_w_before_succ_r
-                _ < (hw_c_and_g_lin.hreq's_dir_access.choose).oStart := hsucc_r_encap_cle.1
-
-            have hcle_wf := (hw_c_and_g_lin.hreq's_dir_access.choose).oWellFormed
-            exact Nat.lt_asymm h_contradiction hcle_wf
+            -- Both pred_w and succ_r encapsulate the same CLE and are ordered, contradiction
+            exact dual_encap_ordered_contradiction hpred_w_encap_cle hsucc_r_encap_cle hpred_w_before_succ_r
         -- Case 3: e_w orderAfterDir
         | orderAfterDir hreq_w_on_vd hsucc_encap_dir_w hsucc_same_protocol_w =>
           cases hr_dir_access with
