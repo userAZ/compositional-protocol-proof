@@ -141,7 +141,7 @@ structure WriteRead.EqGleCle.case (b : Behaviour n) (init : InitialSystemState n
 
 /- Begin Defs for WriteRead.wObRCle.case -/
 def Event.Between.noDirWrite (b : Behaviour n) (e_w e_r : Event n) : Prop :=
-  ∀ e ∈ b, e.OrderedBetween n e_w e_r → ¬ e.isDirWrite
+  ∀ e ∈ b, e.OrderedBetween n e_w e_r → ¬ (e.isDirWrite ∧ e.isDirNotDown)
 
 /-
 structure WriteRead.wObRCle.sameCache.case (b : Behaviour n) (e_w e_r : Event n) : Prop where
