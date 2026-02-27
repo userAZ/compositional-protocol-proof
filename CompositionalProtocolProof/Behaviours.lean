@@ -1060,7 +1060,8 @@ def EventAtEntry (b : Behaviour n) (st : Struct n) (addr : Addr) : Type :=
 instance EventAtEntry.instDecidableEq {b st addr} : DecidableEq (EventAtEntry n b st addr) := by
   simp[DecidableEq]
   intro e₁ e₂
-  rw[Subtype.eq_iff]
+  simp[EventAtEntry]
+  rw[Subtype.ext_iff]
   infer_instance
 
 /-
@@ -1650,9 +1651,9 @@ lemma Behaviour.eventsAtEntryOfListBottomEvents_at_cache_all_cache (b : Behaviou
   . case hst_cache => exact hst_cache
 
 lemma Behaviour.eventsAtEntryOfListBottomEvents_sorted (b : Behaviour n) (struct : Struct n) (addr : Addr) :
-  (b.eventsAtEntryOfListBottomEvents n struct addr).Sorted (EventAtEntry.encapOrOrderedBefore n b struct addr) := by
+  (b.eventsAtEntryOfListBottomEvents n struct addr).Pairwise (EventAtEntry.encapOrOrderedBefore n b struct addr) := by
   simp[eventsAtEntryOfListBottomEvents]
-  simp[List.sorted_insertionSort]
+  simp[List.pairwise_insertionSort]
 
 instance EventAtEntry.encapOrOrderedBefore.instIsIrrefl {b st addr} : IsIrrefl (EventAtEntry n b st addr) (EventAtEntry.encapOrOrderedBefore n b st addr) :=
   by
@@ -1674,7 +1675,7 @@ instance EventAtEntry.encapOrOrderedBefore.instIsIrrefl {b st addr} : IsIrrefl (
 lemma Behaviour.eventsAtEntryOfListBottomEvents_no_dups (b : Behaviour n) (struct : Struct n) (addr : Addr)
   : b.eventsAtEntryOfListBottomEvents n struct addr |>.Nodup := by
   have hsorted := b.eventsAtEntryOfListBottomEvents_sorted n struct addr
-  apply List.Sorted.nodup hsorted
+  apply List.Pairwise.nodup hsorted
 
 lemma Behaviour.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents (b : Behaviour n) (st : Struct n) (addr : Addr) (e : Event n)
   (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e) (he_eq_st : e.struct = st) (he_eq_addr : e.addr = addr)
@@ -1827,7 +1828,7 @@ lemma List.idxOf_n_one_lt_idxOf_m_impl_intermediate' {α} [DecidableEq α]
   have helem_in_l : helem ∈ l := by simp[helem]
   have helem_not_idxn_one := hexists_elem helem helem_in_l
   simp[helem,] at helem_not_idxn_one
-  rw[List.idxOf_getElem] at helem_not_idxn_one
+  rw[List.Nodup.idxOf_getElem] at helem_not_idxn_one
   apply helem_not_idxn_one
   rfl
   . case H => exact hnodup
@@ -1938,8 +1939,8 @@ lemma Behaviour.listBottomEventsAtEntry'_imm_pred_equiv
         he_lt_length hpred_lt_length
         hidx_e_lt_pred
 
-      rw[List.getElem_idxOf (a:=e_pred_at) (l:=l) hpred_lt_length] at he_ob_pred
-      rw[List.getElem_idxOf (a:=e_at) (l:=l) he_lt_length] at he_ob_pred
+      rw[List.getElem_idxOf (x:=e_pred_at) (xs:=l) hpred_lt_length] at he_ob_pred
+      rw[List.getElem_idxOf (x:=e_at) (xs:=l) he_lt_length] at he_ob_pred
 
       simp[EventAtEntry.OrderedBefore] at he_ob_pred
       absurd he_ob_pred
@@ -2015,11 +2016,11 @@ lemma Behaviour.eventsAtEventEntry_at_e_entry (b : Behaviour n) (e : Event n) :
   obtain ⟨he_in_es, he_is_e'⟩ := hin_es_and_is_e'
   subst he_is_e'
   constructor
-  . case intro.intro.eInB =>
+  . case eInB =>
     exact e_at_entry.prop.eInB
-  . case intro.intro.eAtStruct =>
+  . case eAtStruct =>
     exact e_at_entry.prop.eAtStruct
-  . case intro.intro.eAtAddr =>
+  . case eAtAddr =>
     exact e_at_entry.prop.eAtAddr
 
 instance EventAtEntry.instGetValInjective {b st addr} : Function.Injective (λ e : EventAtEntry n b st addr => e.val) := by
@@ -2113,8 +2114,8 @@ lemma List.idxOf_subtype_eq_idxOf_subtype_val {b st addr}
       have hval_neq : ¬ head.val == n.val := by
         simp at hhead_is_n
         simp[hhead_is_n,]
-        rw[← Subtype.eq_iff,]
-        simp[hhead_is_n]
+        rw[← Subtype.ext_iff,]
+        exact hhead_is_n
       simp only [map_cons, idxOf_cons, ]
       simp only [hval_neq, hhead_is_n, cond_false]
       simp only [ih]
@@ -2440,8 +2441,7 @@ lemma List.idx_in_take_lt_take_idx {α} [DecidableEq α]
   have tidx_of_e' := List.idxOf_getElem hl_nodup he'_in_l_somewhere.choose he'_lt_l_length
   rw[hget_e'_from_l] at tidx_of_e'
   rw[← tidx_of_e'] at he'_lt_idx_of_e
-  . case intro =>
-    simp [he'_lt_idx_of_e]
+  simp [he'_lt_idx_of_e]
 
 
 lemma List.upToEvent_e'_in_list_before_e
@@ -2553,6 +2553,7 @@ lemma Behaviour.eventsUpToEvent_at_e_entry (b : Behaviour n) (e : Event n) :
       . case neg =>
         have he'_in_rest := Or.resolve_left he'_in_es he'_is_head
         simp at he'_in_rest
+        simp[BEq.beq] at he'_in_rest
         simp[hhead_is_e] at he'_in_rest
 
         have he'_in_tail := List.mem_of_mem_take he'_in_rest
@@ -2567,6 +2568,7 @@ lemma Behaviour.eventsUpToEvent_at_e_entry (b : Behaviour n) (e : Event n) :
           simp[BEq.rfl] at he'_in_es
         . case neg =>
           simp[List.idxOf_cons]
+          simp[BEq.beq]
           simp[hhead_is_e]
 
 lemma Behaviour.eventsUpToEvent_are_at_entry (b : Behaviour n) (e :Event n) :

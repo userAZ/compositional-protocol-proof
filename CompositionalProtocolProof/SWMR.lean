@@ -25,7 +25,7 @@ lemma Set.toOption_singleton {α} {s : Set α} (hsingleton : s.IsSingleton) : �
   obtain ⟨_,hxs_eq_singleton⟩ := Set.eq_singleton_iff_unique_mem.mp hs_singleton
   simp
   apply hxs_eq_singleton
-  . case h.intro.a =>
+  . case h.a =>
     apply Nonempty.some_mem
     . case h =>
       use hsingleton.choose
@@ -42,7 +42,7 @@ lemma Set.toOption_singleton' {α} {s : Set α} (e : α) (hsingleton : s = {e}) 
   obtain ⟨_,hxs_eq_singleton⟩ := Set.eq_singleton_iff_unique_mem.mp hsingleton
   simp
   apply hxs_eq_singleton
-  . case h.intro.a =>
+  . case h.a =>
     apply Nonempty.some_mem
     . case h =>
       use e

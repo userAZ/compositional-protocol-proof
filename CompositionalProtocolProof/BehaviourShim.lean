@@ -555,7 +555,7 @@ lemma Behaviour.immediateFinishesBeforeAtGlobalCacheEvents_is_greq_singleton (b 
     intro he_in_finish_befores
     simp_all
     obtain ⟨he_in_b,he_imm_fin_before⟩ := he_in_finish_befores
-    case intro =>
+    -- case intro =>
     by_contra he_ne_cdir
     -- Show for either case of `e.OrderedBefore e_cdir` or `e_cdir.OrderedBefore e`, there's a Contradiction:
     have hgreq_at_corresponding_cdir := h.finishBefore.gCacheOfCDir
@@ -606,7 +606,7 @@ lemma Behaviour.immediateFinishesBeforeAtClusterDirectoryEvents_is_cdir_singleto
     intro he_in_finish_befores
     simp_all
     obtain ⟨he_in_b,he_imm_fin_before⟩ := he_in_finish_befores
-    case intro =>
+    -- case intro =>
     by_contra he_ne_cdir
     -- Show for either case of `e.OrderedBefore e_cdir` or `e_cdir.OrderedBefore e`, there's a Contradiction:
     have hcdir_at_corresponding_cdir := h.finishBefore.gCacheOfCDir

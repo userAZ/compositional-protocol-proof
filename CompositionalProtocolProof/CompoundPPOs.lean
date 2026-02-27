@@ -1115,7 +1115,7 @@ lemma CompoundProtocol.weak_write_or_read_and_nc_release_linearize_at_directory
     have hrel_wb_ax := hrel_wb_original_spec e_generated_cdir_nc_rel hnc_rel_cdir_in_b
     have hrel_wb_cast := hrel_wb_ax.broadcastWB.broadcast.broadcastToEntries e_ww.addr hww_addr_ne_rel
     obtain ⟨e_rel_wb, hrel_wb_in_b, hrel_wb_cast_spec⟩ := hrel_wb_cast
-    case intro.intro.intro.intro.intro.intro =>
+    -- case intro.intro.intro.intro.intro.intro =>
 
     /- We know that `e_ww.OrderedBefore e_wb` -/
     have hww_ob_wb : e_ww.OrderedBefore n e_rel_wb := by
@@ -2088,7 +2088,7 @@ lemma CompoundProtocol.lazy_coherent_release_ordering'
   have hsucc_wb_encap_dir' := hsucc_wb_encap_dir.satisfyP
   rw[Event.PropOnEvent] at hsucc_wb_encap_dir'
 
-  case intro.intro.intro.intro.intro.intro.intro =>
+  -- case intro.intro.intro.intro.intro.intro.intro =>
   cases hweak_req_lin_dir
   . case previousGlobalCacheGotPerms hweak_has_gperm hweak_cdir_eq_gen_cmp_lin =>
     rw[hweak_cdir_eq_gen_cmp_lin]
@@ -2185,7 +2185,7 @@ lemma CompoundProtocol.lazy_coherent_release_ordering
   . case neg he₃_dir_coherent =>
     have he₃_dir_downgrade := cmp.cluster1.reqAxioms.coherentWriteDowngrades b init e₃ he₃_in_b e₃_dir he₃_dir_in_b
     obtain ⟨he₃_dir_state_before_sw, e₃_downgrade, he₃_down_in_b, he₃_down_spec_with_grant⟩ := he₃_dir_downgrade.downgradeOtherCaches
-    . case cWriteOnSW.mk.intro.intro =>
+    . case cWriteOnSW =>
       obtain ⟨_,_,he₃_down_spec⟩ := he₃_down_spec_with_grant
 
       have he₃_req_downgrade_prev_owner : ∃ e_down ∈ b, Behaviour.requestDowngradePrevOwner n b init e₃ e₃_dir e_down := by
@@ -2685,5 +2685,6 @@ lemma CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder
   | (Subtype.mk (Request.mk ReadWrite.r false Consistency.Acq) _), (Subtype.mk (Request.mk ReadWrite.w true Consistency.SC) (And.intro _ (And.intro _ (And.intro _ (And.intro _ _)))))
   | (Subtype.mk (Request.mk ReadWrite.r false Consistency.Acq) _), (Subtype.mk (Request.mk ReadWrite.r true Consistency.SC) (And.intro _ (And.intro _ (And.intro _ (And.intro _ _)))))
   | (Subtype.mk (Request.mk ReadWrite.r false Consistency.Acq) _), (Subtype.mk (Request.mk ReadWrite.r false Consistency.Acq) (And.intro _ (And.intro _ (And.intro _ (And.intro _ _)))))
+  | (Subtype.mk (Request.mk ReadWrite.w true Consistency.SC) (And.intro _ (And.intro _ (And.intro _ (And.intro _ _))))), (Subtype.mk (Request.mk _ true Consistency.Acq) (And.intro _ (And.intro _ (And.intro _ (And.intro _ _)))))
     =>
     simp[he₁_req, he₂_req, ValidRequest.isPPOPair] at he₁_ppo_e₂_constraint
