@@ -1215,3 +1215,61 @@ lemma succ_ord_impl (hsucc : Behaviour.ImmediateBottomSuccSatisfyingProp n b e e
   have hsucc_is := hsucc.isImmBottomSucc.isSucc
   simp only[Event.Successor, Event.Predecessor] at hsucc_is ⊢
   exact hsucc_is
+
+/-- General version: extract ordering from any ImmediateBottomSuccSatisfyingProp. -/
+lemma succ_ord_impl_general {P : Event n → Prop} 
+    (hsucc : Behaviour.ImmediateBottomSuccSatisfyingProp n b e e_succ P) :
+    e.OrderedBefore n e_succ := by
+  have hsucc_is := hsucc.isImmBottomSucc.isSucc
+  exact hsucc_is
+
+/-- Extract encapsulation from cacheEncapsulatesCorrespondingDirEvent with CLE equality. -/
+lemma encap_from_dir_access_with_cle_eq
+    {b : Behaviour n}
+    {init : EntryState n}
+    {rel_wb : Bool}
+    {e_cle e_cle' : Event n}
+    {e_req : Event n}
+    (hdir_access : b.cacheEncapsulatesCorrespondingDirEvent n init rel_wb e_req e_cle)
+    (hcle_eq : e_cle = e_cle')
+    : e_req.Encapsulates n e_cle' := by
+  have := hdir_access.reqEncapDir
+  simpa [hcle_eq] using this
+
+/-- Extract encapsulation from successor spec with CLE equality. -/
+lemma encap_from_succ_spec_with_cle_eq
+    {b : Behaviour n}
+    {init : InitialSystemState n}
+    {e_req e_cle e_cle' : Event n}
+    (hsucc : b.immBottomSuccOnVdEncapCorrDir n init e_req e_cle)
+    (hcle_eq : e_cle = e_cle')
+    : hsucc.choose.Encapsulates n e_cle' := by
+  have hsucc_encap_cle' := hsucc.choose_spec.right.satisfyP.encapCorresponding.reqEncapDir
+  simpa [hcle_eq] using hsucc_encap_cle'
+
+/-- Two events that both access the same directory (via encapsulation) must be the same event. -/
+lemma same_dir_encap_events_eq
+    {e1 e2 e_cle : Event n}
+    {b : Behaviour n}
+    {init : EntryState n}
+    {rel_wb : Bool}
+    (h1 : b.cacheEncapsulatesCorrespondingDirEvent n init rel_wb e1 e_cle)
+    (h2 : b.cacheEncapsulatesCorrespondingDirEvent n init rel_wb e2 e_cle)
+    : e1 = e2 := by
+  have hdir1 := h1.dirOfReq
+  have hdir2 := h2.dirOfReq
+  exact dir_event_of_req_event_unique hdir1 hdir2
+
+/-- Build an ordering chain and derive contradiction from dual encapsulation.
+    Pattern: e1 < e_mid < e2, where e1 encaps CLE and e2's related event encaps same CLE. -/
+lemma dual_encap_via_ordering_chain
+    {e1 e_mid e2 e2_related : Event n}
+    (he1_encap : e1.Encapsulates n e_cle)
+    (he2_related_encap : e2_related.Encapsulates n e_cle)
+    (h1_before_mid : e1.OrderedBefore n e_mid)
+    (hmid_before_2 : e_mid.OrderedBefore n e2)
+    (h2_related : e2.OrderedBefore n e2_related)
+    : False :=
+  let h1_before_2 := Event.ordered_trans (n := n) h1_before_mid hmid_before_2
+  let h1_before_related := Event.ordered_trans (n := n) h1_before_2 h2_related
+  dual_encap_ordered_contradiction he1_encap he2_related_encap h1_before_related
