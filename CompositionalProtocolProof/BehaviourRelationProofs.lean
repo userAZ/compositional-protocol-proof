@@ -175,15 +175,16 @@ lemma Behaviour.state_before_is_state_after_pred (b : Behaviour n) (init : Initi
   . case he_in_b => exact he_in_b
   . case himm_bot_pred => exact himm_bot_pred
 
-lemma List.take_mem_append_eq_take {α} [DecidableEq α] (n m : α) (l : List α) (hn_in_head : n ∈ l)
-  : List.take (List.idxOf n l) l = List.take (List.idxOf n (l ++ [m])) (l ++ [m]) := by
-  rw[List.idxOf_append_of_mem hn_in_head]
-  rw[List.take_append_eq_append_take]
-  have hidxn_lt_len : (List.idxOf n l) < l.length := List.idxOf_lt_length_of_mem hn_in_head
-  have hidxn_le_len := Nat.le_of_lt hidxn_lt_len
-  have hidxn_sub_len_eq_zero := Nat.sub_eq_zero_iff_le.mpr hidxn_le_len
-  rw[hidxn_sub_len_eq_zero]
-  simp
+/- This got added to mathlib! -/
+-- lemma List.take_mem_append_eq_take {α} [DecidableEq α] (n m : α) (l : List α) (hn_in_head : n ∈ l)
+--   : List.take (List.idxOf n l) l = List.take (List.idxOf n (l ++ [m])) (l ++ [m]) := by
+--   rw[List.idxOf_append_of_mem hn_in_head]
+--   rw[List.take_append_eq_append_take]
+--   have hidxn_lt_len : (List.idxOf n l) < l.length := List.idxOf_lt_length_of_mem hn_in_head
+--   have hidxn_le_len := Nat.le_of_lt hidxn_lt_len
+--   have hidxn_sub_len_eq_zero := Nat.sub_eq_zero_iff_le.mpr hidxn_le_len
+--   rw[hidxn_sub_len_eq_zero]
+--   simp
 
 lemma List.take_idxOf_append_eq_list {α} [DecidableEq α] (n : α) (l : List α) (hnodup : (l ++ [n]).Nodup) : List.take (List.idxOf n (l ++ [n])) (l ++ [n]) = l := by
   have hn_not_in_l : n ∉ l := by
@@ -1016,6 +1017,7 @@ lemma orderBeforeDir_pred_is_cache_event
     have hpred_same_entry := hpred_bpred.sameEntry
     -- sameStruct extracts the struct equality
     have hpred_same_struct := hpred_same_entry.sameStruct
+    simp [Event.sameStructure] at hpred_same_struct
     -- hpred_same_struct : Event.sameStructure n hexists_pred_r.choose (Event.cacheEvent ce_req)
 
     -- Now show hexists_pred_r.choose must be a cache event
@@ -1024,12 +1026,19 @@ lemma orderBeforeDir_pred_is_cache_event
       simp [Event.isCacheEvent]
     | Event.directoryEvent de_pred =>
       -- Contradiction: a directory event cannot have same structure as cache event
-      exfalso
+      simp [Event.struct,] at hpred_same_struct
+      -- rw[hpred] at hpred_same_struct
+      split at hpred_same_struct
+      . case h_1 e_pred e_pred_dir hpred_dir =>
+        simp at hpred_same_struct
+      . case h_2 e_pred e_pred_cache hpred_cache =>
+        simp at hpred_same_struct
+        grind
+      -- exfalso
       -- Unfold sameStructure to get struct equality
-      simp only [Event.sameStructure] at hpred_same_struct
       -- Use hpred to substitute hexists_pred_r.choose with Event.directoryEvent de_pred
       -- This will simplify the match in hpred_same_struct to Struct.directory de_pred.pInst
-      simp [Event.struct, hpred] at hpred_same_struct
+      -- rw[] at hpred_same_struct
 
 /-- Def. Prop constraints for Def 2.37 case where the request has coherent permissions and is then defined as it's own linearization event. -/
 structure Behaviour.requestWithCoherentPermsLinearizes (b : Behaviour n) (init : InitialSystemState n) (e_req e_lin : Event n) : Prop where

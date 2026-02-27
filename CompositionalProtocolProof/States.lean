@@ -287,29 +287,72 @@ instance CacheId.isFintype : Fintype (CacheId n) where
                     rw[h]
                     simp[mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
         . case right =>
-          intro fin2 cid exist
+          intro cid₁ hsame_cid cid₂ exist
           cases exist
           . case inl h =>
             rw[← h.choose_spec]
             simp[mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
+            cases hsame_cid
+            . case inl hg_cid₁ =>
+              rw[← hg_cid₁]
+              simp[mkCacheGlobalP]
+            . case inr hg_cid₁ =>
+              rw[← hg_cid₁]
+              simp[mkCacheGlobalP]
           . case inr h =>
             cases h
             . case inl h =>
               rw[← h.choose_spec]
-              simp[mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
+              rw[Eq.comm] at hsame_cid
+              nth_rw 2 [Eq.comm] at hsame_cid
+              simp_all[Eq.symm,mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
+              cases hsame_cid
+              . case inl hg_cid₁ =>
+                rw[hg_cid₁]
+                simp
+              . case inr hg_cid₁ =>
+                rw[hg_cid₁]
+                simp
             . case inr h =>
               cases h
               . case inl h =>
                 rw[h]
-                simp[mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
+                rw[Eq.comm] at hsame_cid
+                nth_rw 2 [Eq.comm] at hsame_cid
+                simp_all[Eq.symm,mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
+                cases hsame_cid
+                . case inl hg_cid₁ =>
+                  rw[hg_cid₁]
+                  simp
+                . case inr hg_cid₁ =>
+                  rw[hg_cid₁]
+                  simp
               . case inr h =>
                 cases h
                 . case inl h =>
                   rw[h]
-                  simp[mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
+                  rw[Eq.comm] at hsame_cid
+                  nth_rw 2 [Eq.comm] at hsame_cid
+                  simp_all[Eq.symm,mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
+                  cases hsame_cid
+                  . case inl hg_cid₁ =>
+                    rw[hg_cid₁]
+                    simp
+                  . case inr hg_cid₁ =>
+                    rw[hg_cid₁]
+                    simp
                 . case inr h =>
                   rw[h]
-                  simp[mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
+                  rw[Eq.comm] at hsame_cid
+                  nth_rw 2 [Eq.comm] at hsame_cid
+                  simp_all[Eq.symm,mkProxy,mkCacheCluster1,mkCacheCluster2, mkCacheGlobalP]
+                  cases hsame_cid
+                  . case inl hg_cid₁ =>
+                    rw[hg_cid₁]
+                    simp
+                  . case inr hg_cid₁ =>
+                    rw[hg_cid₁]
+                    simp
   complete := by
     intro cid
     induction cid with
@@ -341,8 +384,10 @@ instance CacheId.isFintype : Fintype (CacheId n) where
       match cache_inst with
       | .globalP fin2 =>
         apply Or.inl
-        apply Exists.intro
-        · rfl
+        simp[mkCacheGlobalP]
+        grind only
+        -- apply Exists.intro
+        -- · rfl
       | .cluster1 fin =>
         apply Or.inr
         apply Or.inl
