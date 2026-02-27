@@ -357,6 +357,10 @@ def Event.isDirWrite : Event n → Prop
 | .cacheEvent _ => False
 | .directoryEvent de => de.req.val.isWrite
 
+def Event.isDirNotDown : Event n → Prop
+| .cacheEvent _ => False
+| .directoryEvent de => ¬ de.down
+
 def DirectoryEvent.isEvict (de : DirectoryEvent n) : Prop := de.down
 
 def Event.isDirEvict : Event n → Prop
