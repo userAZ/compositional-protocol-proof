@@ -85,9 +85,8 @@ lemma CMCM.rf.sameGle.sameCle
             exfalso
             -- Both e_w and e_r's predecessor encapsulate the same CLE
             have hw_encap_cle : e_w.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := hw_encap.reqEncapDir
-            have hpred_encap_cle : hexists_pred_r.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
-              have hpred_encap_cle' := hpred_r_accesses_dir.reqEncapDir
-              simpa [hsame_cle] using hpred_encap_cle'
+            have hpred_encap_cle : hexists_pred_r.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) :=
+              encap_from_dir_access_with_cle_eq hpred_r_accesses_dir hsame_cle.symm
 
             -- Since both events are at the same cache entry and both encapsulate the same CLE,
             -- they must correspond to the same request event (by the uniqueness of dirEventOfReqEvent).
@@ -175,10 +174,8 @@ lemma CMCM.rf.sameGle.sameCle
 
             -- e_r is ordered before its successor
             have hsucc_spec := hsucc_encap_dir_r.choose_spec.right
-            simp [Behaviour.ImmediateBottomSuccSatisfyingProp] at hsucc_spec
-            have hr_ob_succ : e_r.OrderedBefore n hsucc_encap_dir_r.choose := by
-              have hsucc_is_succ := hsucc_spec.isImmBottomSucc.isSucc
-              simpa [Event.Successor, Event.Predecessor] using hsucc_is_succ
+            have hr_ob_succ : e_r.OrderedBefore n hsucc_encap_dir_r.choose :=
+              succ_ord_impl_general hsucc_spec
 
             -- From e_w < e_r and e_r < e_succ, we have e_w < e_succ
             have hw_ob_succ : e_w.OrderedBefore n hsucc_encap_dir_r.choose :=
@@ -200,9 +197,8 @@ lemma CMCM.rf.sameGle.sameCle
           | encapDir _ hr_encap =>
             exfalso
             -- e_w's predecessor encapsulates CLE, and e_r also encapsulates CLE
-            have hpred_encap_cle : hexists_pred_w.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
-              have hpred_encap_cle' := hpred_w_accesses_dir.reqEncapDir
-              simpa [hsame_cle] using hpred_encap_cle'
+            have hpred_encap_cle : hexists_pred_w.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) :=
+              encap_from_dir_access_with_cle_eq hpred_w_accesses_dir rfl
             have hr_encap_cle : e_r.Encapsulates n (hr_c_and_g_lin.hreq's_dir_access.choose) := hr_encap.reqEncapDir
 
             rw [← hsame_cle] at hr_encap_cle
@@ -266,9 +262,8 @@ lemma CMCM.rf.sameGle.sameCle
             have hpred_w_encap_cle : hexists_pred_w.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
               have hpred_encap := hpred_w_accesses_dir.reqEncapDir
               simpa [hsame_cle] using hpred_encap
-            have hsucc_r_encap_cle : hsucc_encap_dir_r.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
-              have hsucc_encap := hsucc_encap_dir_r.choose_spec.right.satisfyP.encapCorresponding.reqEncapDir
-              simpa [hsame_cle] using hsucc_encap
+            have hsucc_encap_cle : hsucc_encap_dir_r.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) :=
+              encap_from_succ_spec_with_cle_eq hsucc_encap_dir_r hsame_cle.symm
 
             -- Ordering: pred_w < e_w < e_r < succ_r
             have hpred_w_before_ew : hexists_pred_w.choose.OrderedBefore n e_w :=
@@ -283,7 +278,7 @@ lemma CMCM.rf.sameGle.sameCle
               Event.ordered_trans (n := n) (Event.ordered_trans (n := n) hpred_w_before_ew hw_ob_r) hsucc_r_after_er
 
             -- Both pred_w and succ_r encapsulate the same CLE and are ordered, contradiction
-            exact dual_encap_ordered_contradiction hpred_w_encap_cle hsucc_r_encap_cle hpred_w_before_succ_r
+            exact dual_encap_ordered_contradiction hpred_w_encap_cle hsucc_encap_cle hpred_w_before_succ_r
         -- Case 3: e_w orderAfterDir
         | orderAfterDir hreq_w_on_vd hsucc_encap_dir_w hsucc_same_protocol_w =>
           cases hr_dir_access with
@@ -291,9 +286,8 @@ lemma CMCM.rf.sameGle.sameCle
           | encapDir _ hr_encap =>
             exfalso
             -- e_w's successor encapsulates CLE, e_r also encapsulates CLE
-            have hsucc_w_encap_cle : hsucc_encap_dir_w.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
-              have hsucc_encap := hsucc_encap_dir_w.choose_spec.right.satisfyP.encapCorresponding.reqEncapDir
-              simpa [hsame_cle] using hsucc_encap
+            have hsucc_w_encap_cle : hsucc_encap_dir_w.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) :=
+              encap_from_succ_spec_with_cle_eq hsucc_encap_dir_w rfl
             have hr_encap_cle : e_r.Encapsulates n (hr_c_and_g_lin.hreq's_dir_access.choose) := hr_encap.reqEncapDir
 
             simp only [Event.Encapsulates] at hsucc_w_encap_cle hr_encap_cle
@@ -301,10 +295,8 @@ lemma CMCM.rf.sameGle.sameCle
             have hsucc_spec := hsucc_encap_dir_w.choose_spec.right
 
             -- Ordering: e_w < succ_w and e_w < e_r
-            have hw_before_succ_w : e_w.OrderedBefore n hsucc_encap_dir_w.choose := by
-              simp [Behaviour.ImmediateBottomSuccSatisfyingProp] at hsucc_spec
-              have hsucc_is_succ := hsucc_spec.isImmBottomSucc.isSucc
-              simpa [Event.Successor, Event.Predecessor] using hsucc_is_succ
+            have hw_before_succ_w : e_w.OrderedBefore n hsucc_encap_dir_w.choose :=
+              succ_ord_impl_general hsucc_spec
 
             simp only [Event.OrderedBefore] at hw_before_succ_w hw_ob_r
 
@@ -438,12 +430,10 @@ lemma CMCM.rf.sameGle.sameCle
             have hsame_struct_w_r : e_w.struct = e_r.struct :=
               same_cle_implies_same_struct hw_c_and_g_lin hr_c_and_g_lin hsame_cle
 
-            have hsucc_w_encap_cle : hsucc_encap_dir_w.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
-              have hsucc_encap := hsucc_encap_dir_w.choose_spec.right.satisfyP.encapCorresponding.reqEncapDir
-              simpa [hsame_cle] using hsucc_encap
-            have hpred_r_encap_cle : hexists_pred_r.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) := by
-              have hpred_encap := hpred_r_accesses_dir.reqEncapDir
-              simpa [hsame_cle] using hpred_encap
+            have hsucc_w_encap_cle : hsucc_encap_dir_w.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) :=
+              encap_from_succ_spec_with_cle_eq hsucc_encap_dir_w rfl
+            have hpred_r_encap_cle : hexists_pred_r.choose.Encapsulates n (hw_c_and_g_lin.hreq's_dir_access.choose) :=
+              encap_from_dir_access_with_cle_eq hpred_r_accesses_dir hsame_cle.symm
 
             simp only [Event.Encapsulates] at hsucc_w_encap_cle hpred_r_encap_cle
 
