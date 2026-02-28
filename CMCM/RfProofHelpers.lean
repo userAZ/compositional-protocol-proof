@@ -157,15 +157,102 @@ lemma non_coherent_request_has_false_mrs_c (vr : ValidRequest) (hnc : vr.val.coh
   | ⟨⟨.w, false, .Rel⟩,_⟩ => simp[]
   | ⟨⟨.r,false,.Acq⟩,_⟩ => simp[]
 
+lemma ReadWritePermissions.lt_trans {p₁ p₂ p₃ : ReadWritePermissions} (h₁₂ : p₁ < p₂) (h₂₃ : p₂ < p₃) : p₁ < p₃ := by
+  simp[LT.lt, ReadWritePermissions.lt] at *
+  apply And.intro
+  . case left => simp [h₁₂.left]
+  . case right => simp [h₂₃.right]
+
+lemma ReadWritePermissions.lt_eq_trans {p₁ p₂ p₃ : ReadWritePermissions} (h₁₂ : p₁ < p₂) (h₂₃ : p₂ = p₃) : p₁ < p₃ := by
+  rw[h₂₃] at h₁₂
+  exact h₁₂
+
+lemma ReadWritePermissions.eq_le_trans {p₁ p₂ p₃ : ReadWritePermissions} (h₁₂ : p₁ = p₂) (h₂₃ : p₂ ≤ p₃) : p₁ ≤ p₃ := by
+  rw[← h₁₂] at h₂₃
+  exact h₂₃
+
+lemma Permissions.le_trans {p₁ p₂ p₃ : Permissions} (h₁₂ : p₁ ≤ p₂) (h₂₃ : p₂ ≤ p₃) : p₁ ≤ p₃ := by
+  cases p₁ with
+  | none =>
+    cases p₃ with
+    | none => simp
+    | some perm₃ => simp
+  | some perm₁ =>
+    cases p₃ with
+    | none =>
+      simp
+      simp_all only [Option.le_none, reduceCtorEq]
+    | some perm₃ =>
+      simp
+      simp[LE.le, Option.le]
+      simp[ReadWritePermissions.le]
+      cases p₂ with
+      | none =>
+        simp at h₁₂
+      | some perm₂ =>
+        simp at h₁₂ h₂₃
+        cases h₁₂
+        . case some.some.some.inl hp₁_lt_p₂ =>
+          cases h₂₃
+          . case inl hp₂_lt_p₃ =>
+            apply Or.intro_left
+            apply ReadWritePermissions.lt_trans hp₁_lt_p₂ hp₂_lt_p₃
+          . case inr hp₂_eq_p₃ =>
+            apply Or.intro_left
+            apply ReadWritePermissions.lt_eq_trans hp₁_lt_p₂ hp₂_eq_p₃
+        . case some.some.some.inr hp₁_eq_p₂ =>
+          apply ReadWritePermissions.eq_le_trans hp₁_eq_p₂ h₂₃
+
+lemma State.lt_trans {s₁ s₂ s₃ : State} (h₁₂ : s₁ < s₂) (h₂₃ : s₂ < s₃) : s₁ < s₃ := by
+  simp_all[LT.lt, State.lt]
+  obtain ⟨hs₁p_le_s₂p, right⟩ := h₁₂
+  obtain ⟨left_1, right_1⟩ := h₂₃
+  obtain ⟨left_2, right⟩ := right
+  obtain ⟨left_3, right_1⟩ := right_1
+  apply And.intro
+  · case left =>
+    apply Permissions.le_trans
+
+    sorry
+  · apply And.intro
+    · sorry
+    · apply Aesop.BuiltinRules.not_intro
+      intro a
+      subst a
+      sorry
+  -- sorry
+
+lemma State.lt_eq_trans {s₁ s₂ s₃ : State} (h₁₂ : s₁ < s₂) (h₂₃ : s₂ = s₃) : s₁ < s₃ := by
+
+  sorry
+
+lemma State.eq_lt_trans {s₁ s₂ s₃ : State} (h₁₂ : s₁ = s₂) (h₂₃ : s₂ < s₃) : s₁ < s₃ := by
+
+  sorry
+
+lemma State.eq_eq_trans {s₁ s₂ s₃ : State} (h₁₂ : s₁ = s₂) (h₂₃ : s₂ = s₃) : s₁ = s₃ := by rw [h₁₂, h₂₃]
+
 /- TODO NOTE: This lemma is for the case `hasPerms`. Create a version of this lemma for the other case
   `ncRelAcqWeakWriteHasCoherentPerms` in lemma `noInterveningWrites_diffCache_sameProtocol_case` -/
 lemma State.le_trans {s₁ s₂ s₃ : State} (h₁₂ : s₁ ≤ s₂) (h : s₂ ≤ s₃) : s₁ ≤ s₃ := by
   simp[LE.le, State.le] at *
   cases h₁₂
   . case inl hs₁_lt_s₂ =>
-    sorry
+    cases h
+    . case inl hs₂_lt_s₃ =>
+      apply Or.intro_left
+      apply State.lt_trans hs₁_lt_s₂ hs₂_lt_s₃
+    . case inr hs₂_eq_s₃ =>
+      apply Or.intro_left
+      apply State.lt_eq_trans hs₁_lt_s₂ hs₂_eq_s₃
   . case inr hs₁_eq_s₂ =>
-    sorry
+    cases h
+    . case inl hs₂_lt_s₃ =>
+      apply Or.intro_left
+      apply State.eq_lt_trans hs₁_eq_s₂ hs₂_lt_s₃
+    . case inr hs₂_eq_s₃ =>
+      apply Or.intro_right
+      rw [hs₁_eq_s₂, hs₂_eq_s₃]
 
 /-- Helper: If a request produces a state with write permissions, the request must be a write. -/
 lemma produces_state_with_write_perms_implies_is_write
@@ -199,139 +286,273 @@ lemma produces_state_with_write_perms_implies_is_write
       have he_req_mrs_le_pred_state_after : ce.req.MRS ≤ (b.stateAfter n (init.stateAt n (Event.cacheEvent ce_pred)) (Event.cacheEvent ce_pred)).cache :=
         State.le_trans hreq_has_perms hpred_produces
 
-      simp [Behaviour.stateAfter] at he_req_mrs_le_pred_state_after
+      -- simp [Behaviour.stateAfter] at he_req_mrs_le_pred_state_after
 
       -- match hpred_req : ce_pred.req with
       match he_req : ce.req with
-      | ⟨⟨.w,true,_⟩, _⟩ =>
+      | ⟨⟨.w,true,.SC⟩, _⟩
+      | ⟨⟨.w,true,.Rel⟩, _⟩
+      | ⟨⟨.w,true,.Weak⟩, _⟩ =>
         match hpred_req : ce_pred.req with
         | ⟨⟨.w,true,_⟩,_⟩ =>
           simp
         | ⟨⟨.w,false,.Rel⟩,_⟩ =>
-          exfalso
-          have hce_mrs_c : ce.req.MRS.c = true := coherent_request_has_coherent_mrs ce.req hcoh
-          have hstate_after_c_true : (b.stateAfter n (init.stateAt n (Event.cacheEvent ce_pred)) (Event.cacheEvent ce_pred)).cache.c = true :=
-            State.le_coherent_true he_req_mrs_le_pred_state_after hce_mrs_c
-          have hpred_mrs_c_false : ce_pred.req.MRS.c = false :=
-            non_coherent_request_has_false_mrs_c ce_pred.req (by simp [hpred_req])
-          -- Prove hstate_after_le_mrs by casing on hpred_missing_perms
-          have hstate_after_le_mrs : (b.stateAfter n (init.stateAt n (Event.cacheEvent ce_pred)) (Event.cacheEvent ce_pred)).cache ≤ ce_pred.req.MRS := by
-            cases hpred_missing_perms with
-            | downgrade hd _ =>
-              -- ce_pred is a downgrade, contradicts hpred_not_down
-              exfalso
-              exact hpred_not_down hd
-            | noPermsForNonNcRelAcqWeakWrite _ hnotrel _ =>
-              -- This case is for non-NC-Rel-Acq-WeakWrite requests
-              -- But ce_pred is w,false,.Rel which IS in NC-Rel-Acq
-              exfalso
-              have hpred_is_nc_rel : Event.isNcRelAcqWeakWrite n (Event.cacheEvent ce_pred) := by
-                simp only [Event.isNcRelAcqWeakWrite]
-                right; left
-                simp only [Event.isNcRelease]
-                exact hpred_req
-              exact hnotrel hpred_is_nc_rel
-            | ncRelAcqWeakWriteNotOnCoherentState _ _ hno_perms_acq =>
-              simp only [Behaviour.acqRelWeakWriteNoPerms] at hno_perms_acq
-              simp only [Behaviour.eventOnCoherentState] at hno_perms_acq
-              --
-
-              rw[Behaviour.state_after_eq_succeeding_state_before n b init (Event.cacheEvent ce_pred)]
-              -- This is a great goal to work with...
-              simp[Behaviour.stateAfter]
-              unfold List.stateAfter
-              split
-              . case h_1 =>
-                have hpred_init_i := b.initCacheStateIsI (Event.cacheEvent ce_pred) init (by simp[Event.isCacheEvent])
-                simp[hpred_init_i]
-                -- This should be trivial for you to finish.
-                sorry
-              . case h_2 =>
-                sorry
-
-              -- ce_pred is NC-Rel-Acq (RelWrite: w,false,.Rel)
-              -- We have: stateAfter.c = true (from hstate_after_c_true)
-              --         MRS.c = false (from hpred_mrs_c_false)
-              -- But stateAfter ≤ MRS requires stateAfter.c ≤ MRS.c, i.e., true ≤ false
-              -- This is contradictory!
-              -- So this case is impossible given the constraints
-              exfalso
-              have hfalse : true ≤ (false : Prop) := by
-                rw [← hstate_after_c_true, ← hpred_mrs_c_false]
-                -- Need to show stateAfter.c ≤ ce_pred.req.MRS.c
-                -- This follows from State.le if we could prove stateAfter ≤ MRS
-                -- But that's what we're trying to prove (circular)
-                -- Instead, we show hno_perms_acq contradicts our setup
-                sorry
-              -- Now derive False from true ≤ false
-              simp at hfalse
-          -- Extract: stateAfter.c ≤ false from State.le definition
-          have hc_le : (b.stateAfter n (init.stateAt n (Event.cacheEvent ce_pred)) (Event.cacheEvent ce_pred)).cache.c ≤ false := by
-            cases hstate_after_le_mrs with
-            | inl h =>
-              -- h : stateAfter < MRS
-              unfold State.lt at h
-              exact h.2.1.trans (by simp [hpred_mrs_c_false])
-            | inr h => simp [h, hpred_mrs_c_false]
-          -- Final contradiction: true ≤ false
-          rw [hstate_after_c_true] at hc_le
-          exact absurd hc_le (by decide)
+          cases hpred_missing_perms with
+          | downgrade hd _ =>
+            -- ce_pred is a downgrade, contradicts hpred_not_down
+            exfalso
+            exact hpred_not_down hd
+          | noPermsForNonNcRelAcqWeakWrite _ hnotrel _ =>
+            -- This case is for non-NC-Rel-Acq-WeakWrite requests
+            -- But ce_pred is w,false,.Rel which IS in NC-Rel-Acq
+            exfalso
+            have hpred_is_nc_rel : Event.isNcRelAcqWeakWrite n (Event.cacheEvent ce_pred) := by
+              simp only [Event.isNcRelAcqWeakWrite]
+              right; left
+              simp only [Event.isNcRelease]
+              exact hpred_req
+            exact hnotrel hpred_is_nc_rel
+          | ncRelAcqWeakWriteNotOnCoherentState _ _ hno_perms_acq =>
+            simp only [Behaviour.acqRelWeakWriteNoPerms] at hno_perms_acq
+            simp only [Behaviour.eventOnCoherentState] at hno_perms_acq
+            rw[Behaviour.state_after_eq_succeeding_state_before n b init (Event.cacheEvent ce_pred)] at he_req_mrs_le_pred_state_after
         | ⟨⟨.w,false,.Weak⟩,_⟩ =>
-          -- ce is w,true; ce_pred is w,false,weak (non-coherent weak write)
-          -- Same contradiction as the Rel case: coherence mismatch
-          exfalso
-          -- Step 1: ce has MRS.c = true (from coherence)
-          have hce_mrs_c : ce.req.MRS.c = true := coherent_request_has_coherent_mrs ce.req hcoh
-          -- Step 2: By transitivity, stateAfter(ce_pred).c = true
-          have hstate_after_c_true : (b.stateAfter n (init.stateAt n (Event.cacheEvent ce_pred)) (Event.cacheEvent ce_pred)).cache.c = true :=
-            State.le_coherent_true he_req_mrs_le_pred_state_after hce_mrs_c
-          -- Step 3: ce_pred is non-coherent (w,false,weak), so its MRS has c = false
-          have hpred_mrs_c_false : ce_pred.req.MRS.c = false :=
-            non_coherent_request_has_false_mrs_c ce_pred.req (by simp [hpred_req])
-          -- Step 4: stateAfter(ce_pred) ≤ ce_pred.req.MRS, so c = false
-          sorry
+          cases hpred_missing_perms with
+          | downgrade hd _ =>
+            -- ce_pred is a downgrade, contradicts hpred_not_down
+            exfalso
+            exact hpred_not_down hd
+          | noPermsForNonNcRelAcqWeakWrite _ hnotrel hno_perms =>
+            -- simp only [Behaviour.acqRelWeakWriteNoPerms] at hno_perms
+            -- simp only [Behaviour.eventOnStateNoPerms, Behaviour.eventOnStateHasPerms] at hno_perms
+            rw[Behaviour.state_after_eq_succeeding_state_before n b init (Event.cacheEvent ce_pred)] at he_req_mrs_le_pred_state_after
+          | ncRelAcqWeakWriteNotOnCoherentState _ _ hno_perms_acq =>
+            simp only [Behaviour.acqRelWeakWriteNoPerms] at hno_perms_acq
+            simp only [Behaviour.eventOnCoherentState] at hno_perms_acq
+            rw[Behaviour.state_after_eq_succeeding_state_before n b init (Event.cacheEvent ce_pred)] at he_req_mrs_le_pred_state_after
         | ⟨⟨.r,true,.SC⟩,_⟩ =>
-          exfalso
-          have hce_write : ce.req.val.rw = .w := by simp [Request.isWrite] at hwrite; exact hwrite
-          have hce_mrs_c : ce.req.MRS.c = true := coherent_request_has_coherent_mrs ce.req hcoh
-          have hce_mrs_p : ce.req.MRS.p = some .wr := by
-            have := write_request_has_write_mrs_or_vc ce.req hce_write
-            cases this with
-            | inl hp => exact hp
-            | inr hvc => simp [Vc] at hvc; rw [hvc] at hce_mrs_c; simp at hce_mrs_c
-          have hstate_after_p_wr : (b.stateAfter n (init.stateAt n (Event.cacheEvent ce_pred)) (Event.cacheEvent ce_pred)).cache.p = some .wr :=
-            State.le_perm_wr he_req_mrs_le_pred_state_after hce_mrs_p
-          have hpred_read : ce_pred.req.val.rw = .r := by simp [hpred_req]
-          have hpred_mrs_p_no_wr : ce_pred.req.MRS.p ≠ some .wr := read_request_no_write_mrs ce_pred.req hpred_read
-          sorry
+          cases hpred_missing_perms with
+          | downgrade hd _ =>
+            -- ce_pred is a downgrade, contradicts hpred_not_down
+            exfalso
+            exact hpred_not_down hd
+          | noPermsForNonNcRelAcqWeakWrite _ hnotrel hno_perms =>
+            -- simp[Behaviour.eventOnStateNoPerms] at hno_perms
+            -- simp only [Behaviour.acqRelWeakWriteNoPerms] at hno_perms
+            simp only [Behaviour.eventOnStateNoPerms, Behaviour.eventOnStateHasPerms] at hno_perms
+
+            rw[Behaviour.state_after_eq_succeeding_state_before n b init (Event.cacheEvent ce_pred)] at he_req_mrs_le_pred_state_after
+
+            simp [Event.req,] at hno_perms
+            -- TODO:
+            -- 1. show cases of ce_pred's state before is lower than it's MRS (using `hno_perms`).
+            -- 2. Then show the succeedingState of ce_pred has permissions lower than ce's MRS (at `he_req_mrs_le_pred_state_after`)
+            cases hstate_before_pred : (EntryState.cache n
+              (Behaviour.stateBefore n b (InitialSystemState.stateAt n init (Event.cacheEvent ce_pred))
+                (Event.cacheEvent ce_pred)))
+            . case noPermsForNonNcRelAcqWeakWrite.mk hpred_p hpred_c =>
+              have hunwrap := b.unwrap_stateBefore_cache_state_to_entry_state'
+                (e_pred := Event.cacheEvent ce_pred) (state := { p := hpred_p, c := hpred_c }) n
+                (by simp[Event.isCacheEvent]) (b.initCacheStateIsCache (Event.cacheEvent ce_pred) init (by simp[Event.isCacheEvent]))
+              have hunwrap' := hunwrap hstate_before_pred
+              rw[hunwrap'] at he_req_mrs_le_pred_state_after
+
+              simp[ValidRequest.MRS, hpred_req, ReadWrite.toPerms, ReadWrite.toRWPerms] at hno_perms
+              match hpred_p, hpred_c with
+              | some .wr, true =>
+                simp[hstate_before_pred] at hno_perms
+                simp[LE.le, State.le, LT.lt, Option.le] at hno_perms
+              | some .r, true =>
+                simp[hstate_before_pred] at hno_perms
+                simp[LE.le, State.le, LT.lt, Option.le] at hno_perms
+              | some .wr, false
+              | some .r, false
+              | none, true
+              | none, false =>
+                simp[Event.down] at hpred_not_down
+                simp[Event.SucceedingState, CacheEvent.SucceedingState] at he_req_mrs_le_pred_state_after
+                simp[hpred_not_down] at he_req_mrs_le_pred_state_after
+                simp[ValidRequest.RequestState] at he_req_mrs_le_pred_state_after
+                simp[hpred_req] at he_req_mrs_le_pred_state_after
+                simp[ValidRequest.MRS] at he_req_mrs_le_pred_state_after
+
+                simp[ReadWrite.toPerms, ReadWrite.toRWPerms] at he_req_mrs_le_pred_state_after
+                simp[EntryState.cache] at he_req_mrs_le_pred_state_after
+                simp[LE.le, State.le, LT.lt, State.lt, Option.le] at he_req_mrs_le_pred_state_after
+
+                simp[he_req] at he_req_mrs_le_pred_state_after
+
+                try simp at he_req_mrs_le_pred_state_after
+                simp[ReadWritePermissions.le] at he_req_mrs_le_pred_state_after
+                simp[LT.lt, ReadWritePermissions.lt] at he_req_mrs_le_pred_state_after
+
+          | ncRelAcqWeakWriteNotOnCoherentState _ hnc_rel_ack hno_perms_acq =>
+            simp[Event.isNcRelAcq, Event.isAcquire, Event.isNcRelease, CacheEvent.isAcquire, CacheEvent.isNcRelease,
+              ValidRequest.isAcquire, ValidRequest.isNcRelease, hpred_req] at hnc_rel_ack
         | ⟨⟨.r,false,.Weak⟩,_⟩ =>
-          exfalso
-          have hce_write : ce.req.val.rw = .w := by simp [Request.isWrite] at hwrite; exact hwrite
-          have hce_mrs_c : ce.req.MRS.c = true := coherent_request_has_coherent_mrs ce.req hcoh
-          have hce_mrs_p : ce.req.MRS.p = some .wr := by
-            have := write_request_has_write_mrs_or_vc ce.req hce_write
-            cases this with
-            | inl hp => exact hp
-            | inr hvc => simp [Vc] at hvc; rw [hvc] at hce_mrs_c; simp at hce_mrs_c
-          have hstate_after_p_wr : (b.stateAfter n (init.stateAt n (Event.cacheEvent ce_pred)) (Event.cacheEvent ce_pred)).cache.p = some .wr :=
-            State.le_perm_wr he_req_mrs_le_pred_state_after hce_mrs_p
-          have hpred_read : ce_pred.req.val.rw = .r := by simp [hpred_req]
-          have hpred_mrs_p_no_wr : ce_pred.req.MRS.p ≠ some .wr := read_request_no_write_mrs ce_pred.req hpred_read
-          sorry
+          cases hpred_missing_perms with
+          | downgrade hd _ =>
+            -- ce_pred is a downgrade, contradicts hpred_not_down
+            exfalso
+            exact hpred_not_down hd
+          | noPermsForNonNcRelAcqWeakWrite _ hnotrel hno_perms =>
+            -- simp[Behaviour.eventOnStateNoPerms] at hno_perms
+            -- simp only [Behaviour.acqRelWeakWriteNoPerms] at hno_perms
+            simp only [Behaviour.eventOnStateNoPerms, Behaviour.eventOnStateHasPerms] at hno_perms
+
+            rw[Behaviour.state_after_eq_succeeding_state_before n b init (Event.cacheEvent ce_pred)] at he_req_mrs_le_pred_state_after
+
+            simp [Event.req,] at hno_perms
+            -- TODO:
+            -- 1. show cases of ce_pred's state before is lower than it's MRS (using `hno_perms`).
+            -- 2. Then show the succeedingState of ce_pred has permissions lower than ce's MRS (at `he_req_mrs_le_pred_state_after`)
+            cases hstate_before_pred : (EntryState.cache n
+              (Behaviour.stateBefore n b (InitialSystemState.stateAt n init (Event.cacheEvent ce_pred))
+                (Event.cacheEvent ce_pred)))
+            . case noPermsForNonNcRelAcqWeakWrite.mk hpred_p hpred_c =>
+              have hunwrap := b.unwrap_stateBefore_cache_state_to_entry_state'
+                (e_pred := Event.cacheEvent ce_pred) (state := { p := hpred_p, c := hpred_c }) n
+                (by simp[Event.isCacheEvent]) (b.initCacheStateIsCache (Event.cacheEvent ce_pred) init (by simp[Event.isCacheEvent]))
+              have hunwrap' := hunwrap hstate_before_pred
+              rw[hunwrap'] at he_req_mrs_le_pred_state_after
+
+              simp[ValidRequest.MRS, hpred_req, ReadWrite.toPerms, ReadWrite.toRWPerms] at hno_perms
+              match hpred_p, hpred_c with
+              | some .wr, true =>
+                simp[hstate_before_pred] at hno_perms
+                simp[LE.le, State.le, LT.lt, Option.le] at hno_perms
+              | some .r, true =>
+                simp[hstate_before_pred] at hno_perms
+                simp[LE.le, State.le, LT.lt, Option.le] at hno_perms
+              | some .wr, false
+              | some .r, false
+              | none, true
+              | none, false =>
+                simp[Event.down] at hpred_not_down
+                simp[Event.SucceedingState, CacheEvent.SucceedingState] at he_req_mrs_le_pred_state_after
+                simp[hpred_not_down] at he_req_mrs_le_pred_state_after
+                simp[ValidRequest.RequestState] at he_req_mrs_le_pred_state_after
+                simp[hpred_req] at he_req_mrs_le_pred_state_after
+                simp[ValidRequest.MRS] at he_req_mrs_le_pred_state_after
+
+                simp[ReadWrite.toPerms, ReadWrite.toRWPerms] at he_req_mrs_le_pred_state_after
+                simp[EntryState.cache] at he_req_mrs_le_pred_state_after
+                simp[LE.le, State.le, LT.lt, State.lt, Option.le] at he_req_mrs_le_pred_state_after
+
+                simp[he_req] at he_req_mrs_le_pred_state_after
+
+                try simp at he_req_mrs_le_pred_state_after
+                try simp[ReadWritePermissions.le] at he_req_mrs_le_pred_state_after
+                try simp[LT.lt, ReadWritePermissions.lt] at he_req_mrs_le_pred_state_after
+
+          | ncRelAcqWeakWriteNotOnCoherentState _ hnc_rel_ack hno_perms_acq =>
+            simp[Event.isNcRelAcq, Event.isAcquire, Event.isNcRelease, CacheEvent.isAcquire, CacheEvent.isNcRelease,
+              ValidRequest.isAcquire, ValidRequest.isNcRelease, hpred_req] at hnc_rel_ack
         | ⟨⟨.r,false,.Acq⟩,_⟩ =>
-          exfalso
-          have hce_write : ce.req.val.rw = .w := by simp [Request.isWrite] at hwrite; exact hwrite
-          have hce_mrs_c : ce.req.MRS.c = true := coherent_request_has_coherent_mrs ce.req hcoh
-          have hce_mrs_p : ce.req.MRS.p = some .wr := by
-            have := write_request_has_write_mrs_or_vc ce.req hce_write
-            cases this with
-            | inl hp => exact hp
-            | inr hvc => simp [Vc] at hvc; rw [hvc] at hce_mrs_c; simp at hce_mrs_c
-          have hstate_after_p_wr : (b.stateAfter n (init.stateAt n (Event.cacheEvent ce_pred)) (Event.cacheEvent ce_pred)).cache.p = some .wr :=
-            State.le_perm_wr he_req_mrs_le_pred_state_after hce_mrs_p
-          have hpred_read : ce_pred.req.val.rw = .r := by simp [hpred_req]
-          have hpred_mrs_p_no_wr : ce_pred.req.MRS.p ≠ some .wr := read_request_no_write_mrs ce_pred.req hpred_read
-          sorry
+          cases hpred_missing_perms with
+          | downgrade hd _ =>
+            -- ce_pred is a downgrade, contradicts hpred_not_down
+            exfalso
+            exact hpred_not_down hd
+          | noPermsForNonNcRelAcqWeakWrite _ hnotrel hno_perms =>
+            -- simp[Behaviour.eventOnStateNoPerms] at hno_perms
+            -- simp only [Behaviour.acqRelWeakWriteNoPerms] at hno_perms
+            simp only [Behaviour.eventOnStateNoPerms, Behaviour.eventOnStateHasPerms] at hno_perms
+
+            rw[Behaviour.state_after_eq_succeeding_state_before n b init (Event.cacheEvent ce_pred)] at he_req_mrs_le_pred_state_after
+
+            simp [Event.req,] at hno_perms
+            -- TODO:
+            -- 1. show cases of ce_pred's state before is lower than it's MRS (using `hno_perms`).
+            -- 2. Then show the succeedingState of ce_pred has permissions lower than ce's MRS (at `he_req_mrs_le_pred_state_after`)
+            cases hstate_before_pred : (EntryState.cache n
+              (Behaviour.stateBefore n b (InitialSystemState.stateAt n init (Event.cacheEvent ce_pred))
+                (Event.cacheEvent ce_pred)))
+            . case noPermsForNonNcRelAcqWeakWrite.mk hpred_p hpred_c =>
+              have hunwrap := b.unwrap_stateBefore_cache_state_to_entry_state'
+                (e_pred := Event.cacheEvent ce_pred) (state := { p := hpred_p, c := hpred_c }) n
+                (by simp[Event.isCacheEvent]) (b.initCacheStateIsCache (Event.cacheEvent ce_pred) init (by simp[Event.isCacheEvent]))
+              have hunwrap' := hunwrap hstate_before_pred
+              rw[hunwrap'] at he_req_mrs_le_pred_state_after
+
+              simp[ValidRequest.MRS, hpred_req, ReadWrite.toPerms, ReadWrite.toRWPerms] at hno_perms
+              match hpred_p, hpred_c with
+              | some .wr, true =>
+                simp[hstate_before_pred] at hno_perms
+                simp[LE.le, State.le, LT.lt, Option.le] at hno_perms
+              | some .r, true =>
+                simp[hstate_before_pred] at hno_perms
+                simp[LE.le, State.le, LT.lt, Option.le] at hno_perms
+              | some .wr, false
+              | some .r, false
+              | none, true
+              | none, false =>
+                simp[Event.down] at hpred_not_down
+                simp[Event.SucceedingState, CacheEvent.SucceedingState] at he_req_mrs_le_pred_state_after
+                simp[hpred_not_down] at he_req_mrs_le_pred_state_after
+                simp[ValidRequest.RequestState] at he_req_mrs_le_pred_state_after
+                simp[hpred_req] at he_req_mrs_le_pred_state_after
+                simp[ValidRequest.MRS] at he_req_mrs_le_pred_state_after
+
+                simp[ReadWrite.toPerms, ReadWrite.toRWPerms] at he_req_mrs_le_pred_state_after
+                simp[EntryState.cache] at he_req_mrs_le_pred_state_after
+                simp[LE.le, State.le, LT.lt, State.lt, Option.le] at he_req_mrs_le_pred_state_after
+
+                simp[he_req] at he_req_mrs_le_pred_state_after
+
+                try simp at he_req_mrs_le_pred_state_after
+                try simp[ReadWritePermissions.le] at he_req_mrs_le_pred_state_after
+                try simp[LT.lt, ReadWritePermissions.lt] at he_req_mrs_le_pred_state_after
+
+          | ncRelAcqWeakWriteNotOnCoherentState _ hnc_rel_ack hno_perms_acq =>
+            simp only [Behaviour.acqRelWeakWriteNoPerms] at hno_perms_acq
+            simp only [Behaviour.eventOnStateHasPerms, Behaviour.eventOnCoherentState] at hno_perms_acq
+
+            rw[Behaviour.state_after_eq_succeeding_state_before n b init (Event.cacheEvent ce_pred)] at he_req_mrs_le_pred_state_after
+
+            simp only [Event.req,] at hno_perms_acq
+            -- TODO:
+            -- 1. show cases of ce_pred's state before is lower than it's MRS (using `hno_perms`).
+            -- 2. Then show the succeedingState of ce_pred has permissions lower than ce's MRS (at `he_req_mrs_le_pred_state_after`)
+            cases hstate_before_pred : (EntryState.cache n
+              (Behaviour.stateBefore n b (InitialSystemState.stateAt n init (Event.cacheEvent ce_pred))
+                (Event.cacheEvent ce_pred)))
+            . case mk hpred_p hpred_c =>
+              have hunwrap := b.unwrap_stateBefore_cache_state_to_entry_state'
+                (e_pred := Event.cacheEvent ce_pred) (state := { p := hpred_p, c := hpred_c }) n
+                (by simp[Event.isCacheEvent]) (b.initCacheStateIsCache (Event.cacheEvent ce_pred) init (by simp[Event.isCacheEvent]))
+              have hunwrap' := hunwrap hstate_before_pred
+              rw[hunwrap'] at he_req_mrs_le_pred_state_after
+
+              simp[ValidRequest.MRS, hpred_req, ReadWrite.toPerms, ReadWrite.toRWPerms] at hno_perms_acq
+              match hpred_p, hpred_c with
+              | some .wr, true =>
+                simp[hstate_before_pred] at hno_perms_acq
+                simp[LE.le, State.le, LT.lt, Option.le] at hno_perms_acq
+              | some .r, true =>
+                simp[hstate_before_pred] at hno_perms_acq
+                simp[LE.le, State.le, LT.lt, Option.le] at hno_perms_acq
+              | some .wr, false
+              | some .r, false
+              | none, true
+              | none, false =>
+                simp[Event.down] at hpred_not_down
+                simp[Event.SucceedingState, CacheEvent.SucceedingState] at he_req_mrs_le_pred_state_after
+                simp[hpred_not_down] at he_req_mrs_le_pred_state_after
+                simp[ValidRequest.RequestState] at he_req_mrs_le_pred_state_after
+                simp[hpred_req] at he_req_mrs_le_pred_state_after
+                simp[ValidRequest.MRS] at he_req_mrs_le_pred_state_after
+
+                simp[ReadWrite.toPerms, ReadWrite.toRWPerms] at he_req_mrs_le_pred_state_after
+                simp[EntryState.cache] at he_req_mrs_le_pred_state_after
+                simp[LE.le, State.le, LT.lt, State.lt, Option.le] at he_req_mrs_le_pred_state_after
+
+                simp[he_req] at he_req_mrs_le_pred_state_after
+
+                -- try simp at he_req_mrs_le_pred_state_after
+                -- try simp[ReadWritePermissions.le] at he_req_mrs_le_pred_state_after
+                -- try simp[LT.lt, ReadWritePermissions.lt] at he_req_mrs_le_pred_state_after
+
       | ⟨⟨.r,true,_⟩, _⟩ =>
         simp[Request.isWrite] at hwrite
         absurd hwrite
