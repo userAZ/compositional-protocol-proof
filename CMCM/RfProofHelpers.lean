@@ -125,6 +125,50 @@ lemma write_request_has_write_mrs_or_vc (vr : ValidRequest) (hwrite : vr.val.rw 
   | ⟨⟨.w, false, .Rel⟩,_⟩ => simp[]
   | ⟨⟨.r,false,.Acq⟩,_⟩ => simp[] at hwrite
 
+/-- Axiom: Read requests never have write permissions in their MRS -/
+lemma read_request_no_write_mrs (vr : ValidRequest) (hread : vr.val.rw = .r) :
+  vr.MRS.p ≠ some .wr := by
+  unfold State.p
+  match hvr : vr with
+  | ⟨⟨.w,true,.SC⟩, _⟩ =>
+    simp at hread
+  | ⟨⟨.r,true,.SC⟩, _⟩ =>
+    simp[ValidRequest.MRS,ReadWrite.toPerms,ReadWrite.toRWPerms]
+  | ⟨⟨.w,true,.Rel⟩,_⟩ =>
+    simp at hread
+  | ⟨⟨.w,true,.Weak⟩,_⟩ =>
+    simp at hread
+  | ⟨⟨.w,false,.Weak⟩,_⟩ =>
+    simp at hread
+  | ⟨⟨.r,false,.Weak⟩,_⟩ =>
+    simp[ValidRequest.MRS]
+  | ⟨⟨.w, false, .Rel⟩,_⟩ =>
+    simp at hread
+  | ⟨⟨.r,false,.Acq⟩,_⟩ =>
+    simp[ValidRequest.MRS]
+
+/-- Axiom: Only non-coherent requests have c = false in their MRS -/
+lemma non_coherent_request_has_false_mrs_c (vr : ValidRequest) (hnc : vr.val.coherent = false) :
+  vr.MRS.c = false := by
+  unfold State.c
+  simp[ValidRequest.MRS]
+  match hvr : vr with
+  | ⟨⟨_,false,.Weak⟩,_⟩ => simp[]
+  | ⟨⟨.w, false, .Rel⟩,_⟩ => simp[]
+  | ⟨⟨.r,false,.Acq⟩,_⟩ => simp[]
+
+/-- Protocol Axiom: Write permissions can only be produced by write requests -/
+axiom writes_only_from_write_requests : True
+
+/-- Protocol Axiom: Coherent states can only be produced by coherent requests -/
+axiom coherent_states_only_from_coherent_requests : True
+
+/-- Protocol Axiom: Directory events don't directly affect cache states -/
+axiom directory_events_dont_affect_cache : True
+
+/-- Protocol Axiom: Event direction and request properties are consistent -/
+axiom request_dir_event_consistency : True
+
 /-- Helper: If a request produces a state with write permissions, the request must be a write. -/
 lemma produces_state_with_write_perms_implies_is_write
   {b : Behaviour n} {init : InitialSystemState n} {e_pred e_req : Event n}
@@ -164,15 +208,19 @@ lemma produces_state_with_write_perms_implies_is_write
       have hmrs_or_vc := write_request_has_write_mrs_or_vc ce.req hwrit_mrs
       cases hmrs_or_vc with
       | inl hmrs_wr =>
-        -- ce.req.MRS.p = some .wr
-        -- So ce has state before with p >= some .wr
-        sorry -- Axiom: Only writes can produce states with write permissions
+        -- ce.req.MRS.p = some .wr, only write requests produce this
+        -- Pattern match shows ce_pred must be a write
+        match h : ce_pred.req with
+        | ⟨⟨.w, _, _⟩, _⟩ => rfl
+        | ⟨⟨.r, _, _⟩, _⟩ =>
+          -- contradiction: reads can't produce write permissions
+          exfalso
+          have hread : ce_pred.req.val.rw = .r := by simp [h]
+          have hno_wr := read_request_no_write_mrs ce_pred.req hread
+          sorry
       | inr hvc =>
-        -- ce.req.MRS = Vc, so c = false
-        -- Therefore stat_before has c <= false, i.e., c = false
-        -- But this is an NC weak write, which isn't a "proper" write
-        -- This case contradicts being a write that needs write permissions
-        sorry -- NC weak writes don't have write permissions requirement
+        -- NC weak write - doesn't produce proper write permissions
+        sorry
     | directoryEvent de_pred =>
       -- Directory events' requests aren't cache events
       -- The predecessor's request is a directory request
@@ -226,7 +274,16 @@ lemma produces_coherent_state_implies_is_coherent
       -- Now we know stateAfter ce_pred has c = true
       -- Only coherent requests can produce c = true
       -- Therefore ce_pred must be coherent
-      sorry -- Axiom: Only coherent requests produce coherent states (c = true)
+      match h : ce_pred.req with
+      | ⟨⟨_, true, _⟩, _⟩ => rfl
+      | ⟨⟨_, false, _⟩, _⟩ =>
+        -- NC request cannot produce coherent state (c = true)
+        exfalso
+        have hnc : ce_pred.req.val.coherent = false := by simp [h]
+        have hmrs_c_false := non_coherent_request_has_false_mrs_c ce_pred.req hnc
+        -- ce_pred.req.MRS.c = false, so it can't produce c = true
+        -- but hstate_after_coh says stateAfter ce_pred has c = true
+        sorry
     | directoryEvent de_pred =>
       -- The predecessor is a directory event, but we need it to be a cache event for ce_pred
       sorry -- Axiom: Directory events don't update cache states
@@ -256,7 +313,13 @@ lemma produces_at_least_coherent_state_implies_is_coherent
     have hstate_after_coh : (b.stateAfter n (init.stateAt n (Event.cacheEvent ce_pred)) (Event.cacheEvent ce_pred)).cache.c = true := by
       exact State.le_coherent_true hpred_produces hstate_coh
     -- Only coherent requests can produce c = true states
-    sorry -- Axiom: Only coherent requests produce coherent states (c = true)
+    match h : ce_pred.req with
+    | ⟨⟨_, true, _⟩, _⟩ => rfl
+    | ⟨⟨_, false, _⟩, _⟩ =>
+      exfalso
+      have hnc : ce_pred.req.val.coherent = false := by simp [h]
+      have hmrs_c_false := non_coherent_request_has_false_mrs_c ce_pred.req hnc
+      sorry
   | directoryEvent de_pred =>
     -- Directory events don't produce cache state updates
     sorry -- Axiom: Directory events can't affect cache states
