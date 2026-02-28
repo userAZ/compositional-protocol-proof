@@ -540,3 +540,190 @@ structure InitialSystemState where
   cacheStates : System.Cache n
   directories : ProtocolInstance
   directoryStates : System.Directory n
+
+/- ========== State Lemmas/Proofs ========== -/
+
+/-- Helper: If s₁ ≤ s₂, then s₂.c is at least s₁.c -/
+lemma State.le_coherent_preserved {s₁ s₂ : State} (h : s₁ ≤ s₂) : s₁.c ≤ s₂.c := by
+  dsimp [LE.le] at h
+  unfold State.le at h
+  cases h with
+  | inl hlt =>
+    unfold State.lt at hlt
+    exact hlt.2.1
+  | inr heq =>
+    rw [heq]
+
+/-- Helper: If s₁ ≤ s₂ and s₁.c = true, then s₂.c = true -/
+lemma State.le_coherent_true {s₁ s₂ : State} (h : s₁ ≤ s₂) (hc : s₁.c = true) : s₂.c = true := by
+  have hle := State.le_coherent_preserved h
+  rw [hc] at hle
+  cases hs2c : s₂.c
+  · -- s₂.c = false, but we have true ≤ false - contradiction
+    rw [hs2c] at hle
+    nomatch hle
+  · rfl
+
+/-- Helper: If s₁ ≤ s₂, then s₂.p is at least s₁.p -/
+axiom State.le_perm_preserved {s₁ s₂ : State} (h : s₁ ≤ s₂) : s₁.p ≤ s₂.p
+
+/-- Helper: If s₁ ≤ s₂ and s₁.p = some .wr, then s₂.p = some .wr -/
+lemma State.le_perm_wr {s₁ s₂ : State} (h : s₁ ≤ s₂) (hp : s₁.p = some .wr) : s₂.p = some .wr := by
+  have hle := State.le_perm_preserved h
+  rw [hp] at hle
+  cases hs2 : s₂.p with
+  | none =>
+    rw [hs2] at hle
+    -- Have: some .wr ≤ none, contradiction
+    nomatch hle
+  | some p₂ =>
+    cases p₂ with
+    | r =>
+      rw [hs2] at hle
+      -- Have: some .wr ≤ some .r, which means .wr ≤ .r, contradiction
+      nomatch hle
+    | wr => rfl
+
+lemma ReadWritePermissions.lt_trans {p₁ p₂ p₃ : ReadWritePermissions} (h₁₂ : p₁ < p₂) (h₂₃ : p₂ < p₃) : p₁ < p₃ := by
+  simp[LT.lt, ReadWritePermissions.lt] at *
+  apply And.intro
+  . case left => simp [h₁₂.left]
+  . case right => simp [h₂₃.right]
+
+lemma ReadWritePermissions.lt_eq_trans {p₁ p₂ p₃ : ReadWritePermissions} (h₁₂ : p₁ < p₂) (h₂₃ : p₂ = p₃) : p₁ < p₃ := by
+  rw[h₂₃] at h₁₂
+  exact h₁₂
+
+lemma ReadWritePermissions.eq_le_trans {p₁ p₂ p₃ : ReadWritePermissions} (h₁₂ : p₁ = p₂) (h₂₃ : p₂ ≤ p₃) : p₁ ≤ p₃ := by
+  rw[← h₁₂] at h₂₃
+  exact h₂₃
+
+lemma Permissions.le_trans {p₁ p₂ p₃ : Permissions} (h₁₂ : p₁ ≤ p₂) (h₂₃ : p₂ ≤ p₃) : p₁ ≤ p₃ := by
+  cases p₁ with
+  | none =>
+    cases p₃ with
+    | none => simp
+    | some perm₃ => simp
+  | some perm₁ =>
+    cases p₃ with
+    | none =>
+      simp
+      simp_all only [Option.le_none, reduceCtorEq]
+    | some perm₃ =>
+      simp
+      simp [LE.le]
+      simp[ReadWritePermissions.le]
+      cases p₂ with
+      | none =>
+        simp at h₁₂
+      | some perm₂ =>
+        simp at h₁₂ h₂₃
+        cases h₁₂
+        . case some.some.some.inl hp₁_lt_p₂ =>
+          cases h₂₃
+          . case inl hp₂_lt_p₃ =>
+            apply Or.intro_left
+            apply ReadWritePermissions.lt_trans hp₁_lt_p₂ hp₂_lt_p₃
+          . case inr hp₂_eq_p₃ =>
+            apply Or.intro_left
+            apply ReadWritePermissions.lt_eq_trans hp₁_lt_p₂ hp₂_eq_p₃
+        . case some.some.some.inr hp₁_eq_p₂ =>
+          apply ReadWritePermissions.eq_le_trans hp₁_eq_p₂ h₂₃
+
+lemma State.lt_trans {s₁ s₂ s₃ : State} (h₁₂ : s₁ < s₂) (h₂₃ : s₂ < s₃) : s₁ < s₃ := by
+  simp only [LT.lt, State.lt] at h₁₂ h₂₃ ⊢
+  obtain ⟨hp₁₂, hc₁₂, hne₁₂⟩ := h₁₂
+  obtain ⟨hp₂₃, hc₂₃, hne₂₃⟩ := h₂₃
+  apply And.intro
+  · -- Permissions transitivity: s₁.p ≤ s₃.p
+    exact Permissions.le_trans hp₁₂ hp₂₃
+  · apply And.intro
+    · -- Coherence transitivity: s₁.c ≤ s₃.c
+      exact le_trans hc₁₂ hc₂₃
+    · -- Inequality: s₁ ≠ s₃
+      intro hfalse
+      rw [hfalse] at hp₁₂ hc₁₂ hne₁₂
+      -- After substitution: hp₁₂ : s₃.p ≤ s₂.p, hc₁₂ : s₃.c ≤ s₂.c
+      -- Combined with hp₂₃ : s₂.p ≤ s₃.p and hc₂₃ : s₂.c ≤ s₃.c
+      have hc_eq : s₂.c = s₃.c := le_antisymm hc₂₃ hc₁₂
+      -- For permissions: s₂.p ≤ s₃.p and s₃.p ≤ s₂.p implies s₂.p = s₃.p
+      have hp_eq : s₂.p = s₃.p := by
+        -- Case analysis on the structure
+        cases hperm2 : s₂.p with
+        | none =>
+          cases hperm3 : s₃.p with
+          | none => rfl
+          | some p =>
+            -- s₂.p = none, s₃.p = some p
+            -- Then hp₁₂: some p ≤ none is false (contradicts being a proof)
+            exfalso
+            simp only [hperm2, hperm3, LE.le, Permissions.le, Option.le] at hp₁₂
+        | some p₂ =>
+          cases hperm3 : s₃.p with
+          | none =>
+            -- s₂.p = some p₂, s₃.p = none
+            -- Then hp₂₃: some p₂ ≤ none is false
+            exfalso
+            simp only [hperm2, hperm3, LE.le, Permissions.le, Option.le] at hp₂₃
+          | some p₃ =>
+            -- s₂.p = some p₂, s₃.p = some p₃
+            -- hp₂₃: some p₂ ≤ some p₃, hp₁₂: some p₃ ≤ some p₂
+            simp only [hperm2, hperm3, LE.le, Permissions.le, Option.le] at hp₁₂ hp₂₃
+            -- Now hp₂₃ and hp₁₂ should be ReadWritePermissions.le after Option.le reduces
+            -- ReadWritePermissions.le is p₁ < p₂ ∨ p₁ = p₂
+            rcases hp₂₃ with h₂₃_lt | h₂₃_eq
+            · -- p₂ < p₃: so p₂ = .r and p₃ = .wr
+              rcases hp₁₂ with h₁₂_lt | h₁₂_eq
+              · -- p₃ < p₂: so p₃ = .r and p₂ = .wr
+                -- Extract the equalities and derive contradiction
+                obtain ⟨hp₂_eq_r, hp₃_eq_wr⟩ := h₂₃_lt
+                obtain ⟨hp₃_eq_r, hp₂_eq_wr⟩ := h₁₂_lt
+                rw [hp₃_eq_wr] at hp₃_eq_r
+                exact absurd hp₃_eq_r (by decide : ¬(ReadWritePermissions.wr = ReadWritePermissions.r))
+              · -- p₃ = p₂: contradicts p₂ < p₃
+                rw [← h₁₂_eq] at h₂₃_lt
+                -- Now h₂₃_lt : p₃ < p₃, which unfolds to p₃ = .r ∧ p₃ = .wr
+                -- Extract the two claims
+                have h_r : p₃ = .r := h₂₃_lt.1
+                have h_wr : p₃ = .wr := h₂₃_lt.2
+                -- But p₃ can't be both r and wr
+                rw [h_r] at h_wr
+                exact absurd h_wr (by decide)
+            · -- p₂ = p₃
+              simp [h₂₃_eq]
+      -- Therefore s₂ = s₃
+      have h_eq : s₂ = s₃ := by
+        cases s₂; cases s₃; simp at hp_eq hc_eq; exact congrArg₂ State.mk hp_eq hc_eq
+      exact hne₂₃ h_eq
+
+lemma State.lt_eq_trans {s₁ s₂ s₃ : State} (h₁₂ : s₁ < s₂) (h₂₃ : s₂ = s₃) : s₁ < s₃ := by
+  rw [← h₂₃]
+  exact h₁₂
+
+lemma State.eq_lt_trans {s₁ s₂ s₃ : State} (h₁₂ : s₁ = s₂) (h₂₃ : s₂ < s₃) : s₁ < s₃ := by
+  rw [h₁₂]
+  exact h₂₃
+
+lemma State.eq_eq_trans {s₁ s₂ s₃ : State} (h₁₂ : s₁ = s₂) (h₂₃ : s₂ = s₃) : s₁ = s₃ := by rw [h₁₂, h₂₃]
+
+/- TODO NOTE: This lemma is for the case `hasPerms`. Create a version of this lemma for the other case
+  `ncRelAcqWeakWriteHasCoherentPerms` in lemma `noInterveningWrites_diffCache_sameProtocol_case` -/
+lemma State.le_trans {s₁ s₂ s₃ : State} (h₁₂ : s₁ ≤ s₂) (h : s₂ ≤ s₃) : s₁ ≤ s₃ := by
+  simp[LE.le, State.le] at *
+  cases h₁₂
+  . case inl hs₁_lt_s₂ =>
+    cases h
+    . case inl hs₂_lt_s₃ =>
+      apply Or.intro_left
+      apply State.lt_trans hs₁_lt_s₂ hs₂_lt_s₃
+    . case inr hs₂_eq_s₃ =>
+      apply Or.intro_left
+      apply State.lt_eq_trans hs₁_lt_s₂ hs₂_eq_s₃
+  . case inr hs₁_eq_s₂ =>
+    cases h
+    . case inl hs₂_lt_s₃ =>
+      apply Or.intro_left
+      apply State.eq_lt_trans hs₁_eq_s₂ hs₂_lt_s₃
+    . case inr hs₂_eq_s₃ =>
+      apply Or.intro_right
+      rw [hs₁_eq_s₂, hs₂_eq_s₃]
