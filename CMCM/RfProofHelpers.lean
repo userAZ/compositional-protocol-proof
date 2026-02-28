@@ -125,6 +125,7 @@ lemma produces_state_with_write_perms_implies_is_write
   (hpred_produces : b.reqLeavesStateAtLeast n e_pred init (b.stateReqMadeOn n init e_req))
   (hpred_not_down : ¬ e_pred.down)
   (hpred_missing_perms : Behaviour.reqMissingPerms n b init e_pred)
+  (hpred_cache : e_pred.isCacheEvent)
   : e_pred.req.val.isWrite := by
   -- Strategy: Show that e_req needs write permissions, and predecessor produced them
   cases e_req with
@@ -426,13 +427,7 @@ lemma produces_state_with_write_perms_implies_is_write
         absurd hcoh
         simp[he_req]
     | directoryEvent de_pred =>
-      -- Directory events' requests aren't cache events
-      -- The predecessor's request is a directory request
-      -- We need ce_pred which is a cache request, contradiction
-      exfalso
-      --  Directory event can't be a predecessor for cache state operations
-      -- Directory events producing cache states: axiom that this doesn't occur
-      sorry
+      simp[Event.isCacheEvent] at hpred_cache
   | directoryEvent _ =>
     simp [Event.isWrite] at hwrite
 
@@ -895,7 +890,9 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
                   -- simp at hpred_prop
                   -- simp at hpred_prop
                   have hpred_missing_perms := hpred_prop.missingPerms
-                  exact produces_state_with_write_perms_implies_is_write hwrite hcoh hhas_perms hpred_produces_state_at_least_req_made_on_state hinter_pred_not_down hpred_missing_perms
+
+                  have hpred_cache : hexists_pred_getting_perms.choose.isCacheEvent := hpred_prop.reqCache
+                  exact produces_state_with_write_perms_implies_is_write hwrite hcoh hhas_perms hpred_produces_state_at_least_req_made_on_state hinter_pred_not_down hpred_missing_perms hpred_cache
                 have hcoh_pred : hexists_pred_getting_perms.choose.req.val.coherent = true := by
                   -- Use the helper lemma: predecessor producing coherent state must be coherent
                   exact produces_coherent_state_implies_is_coherent hcoh hhas_perms hpred_produces_state_at_least_req_made_on_state
@@ -1085,15 +1082,15 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
                 hsucc_on_vd, hreq_acq, Request.isWrite, VdEntry, EntryState.cache]
             simpa [Event.req, he_cle] using hgoal
           · -- NcRelease case: release writes stay as writes
-            sorry  -- Axiom: isNcRelease produces write directory event
+            sorry  -- isNcRelease produces write directory event
           · -- CRelease case
-            sorry  -- Axiom: isCRelease produces write directory event
+            sorry  -- isCRelease produces write directory event
           · -- VdWriteBack case: explicitly a write-back, so write
-            sorry  -- Axiom: isVdWriteBack produces write directory event
+            sorry  -- isVdWriteBack produces write directory event
           · -- SCWrite case: sequential consistent write stays as write
-            sorry  -- Axiom: isSCWrite produces write directory event
+            sorry  -- isSCWrite produces write directory event
           · -- SCRead case: could be acquire or plain read
-            sorry  -- Axiom: isSCRead on Vd with proper context produces write directory event
+            sorry  -- isSCRead on Vd with proper context produces write directory event
       have hsame_protocol_and_dir_write : e_inter_cle.protocol = e_w_cle.protocol ∧
                                           e_inter_cle.protocol = e_r_cle.protocol ∧
                                           Event.isDirWrite n e_inter_cle :=
