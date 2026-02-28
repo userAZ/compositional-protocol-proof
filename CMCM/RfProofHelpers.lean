@@ -184,7 +184,7 @@ lemma Permissions.le_trans {p₁ p₂ p₃ : Permissions} (h₁₂ : p₁ ≤ p�
       simp_all only [Option.le_none, reduceCtorEq]
     | some perm₃ =>
       simp
-      simp[LE.le, Option.le]
+      simp [LE.le]
       simp[ReadWritePermissions.le]
       cases p₂ with
       | none =>
@@ -204,31 +204,78 @@ lemma Permissions.le_trans {p₁ p₂ p₃ : Permissions} (h₁₂ : p₁ ≤ p�
           apply ReadWritePermissions.eq_le_trans hp₁_eq_p₂ h₂₃
 
 lemma State.lt_trans {s₁ s₂ s₃ : State} (h₁₂ : s₁ < s₂) (h₂₃ : s₂ < s₃) : s₁ < s₃ := by
-  simp_all[LT.lt, State.lt]
-  obtain ⟨hs₁p_le_s₂p, right⟩ := h₁₂
-  obtain ⟨left_1, right_1⟩ := h₂₃
-  obtain ⟨left_2, right⟩ := right
-  obtain ⟨left_3, right_1⟩ := right_1
+  simp only [LT.lt, State.lt] at h₁₂ h₂₃ ⊢
+  obtain ⟨hp₁₂, hc₁₂, hne₁₂⟩ := h₁₂
+  obtain ⟨hp₂₃, hc₂₃, hne₂₃⟩ := h₂₃
   apply And.intro
-  · case left =>
-    apply Permissions.le_trans
-
-    sorry
+  · -- Permissions transitivity: s₁.p ≤ s₃.p
+    exact Permissions.le_trans hp₁₂ hp₂₃
   · apply And.intro
-    · sorry
-    · apply Aesop.BuiltinRules.not_intro
-      intro a
-      subst a
-      sorry
-  -- sorry
+    · -- Coherence transitivity: s₁.c ≤ s₃.c
+      exact le_trans hc₁₂ hc₂₃
+    · -- Inequality: s₁ ≠ s₃
+      intro hfalse
+      rw [hfalse] at hp₁₂ hc₁₂ hne₁₂
+      -- After substitution: hp₁₂ : s₃.p ≤ s₂.p, hc₁₂ : s₃.c ≤ s₂.c
+      -- Combined with hp₂₃ : s₂.p ≤ s₃.p and hc₂₃ : s₂.c ≤ s₃.c
+      have hc_eq : s₂.c = s₃.c := le_antisymm hc₂₃ hc₁₂
+      -- For permissions: s₂.p ≤ s₃.p and s₃.p ≤ s₂.p implies s₂.p = s₃.p
+      have hp_eq : s₂.p = s₃.p := by
+        -- Case analysis on the structure
+        cases hperm2 : s₂.p with
+        | none =>
+          cases hperm3 : s₃.p with
+          | none => rfl
+          | some p => 
+            -- s₂.p = none, s₃.p = some p
+            -- Then hp₁₂: some p ≤ none is false (contradicts being a proof)
+            exfalso
+            simp only [hperm2, hperm3, LE.le, Permissions.le, Option.le] at hp₁₂
+        | some p₂ =>
+          cases hperm3 : s₃.p with
+          | none =>
+            -- s₂.p = some p₂, s₃.p = none
+            -- Then hp₂₃: some p₂ ≤ none is false
+            exfalso
+            simp only [hperm2, hperm3, LE.le, Permissions.le, Option.le] at hp₂₃
+          | some p₃ =>
+            -- s₂.p = some p₂, s₃.p = some p₃
+            -- hp₂₃: some p₂ ≤ some p₃, hp₁₂: some p₃ ≤ some p₂
+            simp only [hperm2, hperm3, LE.le, Permissions.le, Option.le] at hp₁₂ hp₂₃
+            -- Now hp₂₃ and hp₁₂ should be ReadWritePermissions.le after Option.le reduces
+            -- ReadWritePermissions.le is p₁ < p₂ ∨ p₁ = p₂
+            rcases hp₂₃ with h₂₃_lt | h₂₃_eq
+            · -- p₂ < p₃: so p₂ = .r and p₃ = .wr
+              rcases hp₁₂ with h₁₂_lt | h₁₂_eq
+              · -- p₃ < p₂: so p₃ = .r and p₂ = .wr
+                -- Extract the equalities and derive contradiction
+                obtain ⟨hp₂_eq_r, hp₃_eq_wr⟩ := h₂₃_lt
+                obtain ⟨hp₃_eq_r, hp₂_eq_wr⟩ := h₁₂_lt
+                rw [hp₃_eq_wr] at hp₃_eq_r
+                exact absurd hp₃_eq_r (by decide : ¬(ReadWritePermissions.wr = ReadWritePermissions.r))
+              · -- p₃ = p₂: contradicts p₂ < p₃
+                rw [← h₁₂_eq] at h₂₃_lt
+                -- Now h₂₃_lt : p₃ < p₃, which unfolds to p₃ = .r ∧ p₃ = .wr
+                -- Extract the two claims
+                have h_r : p₃ = .r := h₂₃_lt.1
+                have h_wr : p₃ = .wr := h₂₃_lt.2
+                -- But p₃ can't be both r and wr
+                rw [h_r] at h_wr
+                exact absurd h_wr (by decide)
+            · -- p₂ = p₃
+              simp [h₂₃_eq]
+      -- Therefore s₂ = s₃
+      have h_eq : s₂ = s₃ := by
+        cases s₂; cases s₃; simp at hp_eq hc_eq; exact congrArg₂ State.mk hp_eq hc_eq
+      exact hne₂₃ h_eq
 
 lemma State.lt_eq_trans {s₁ s₂ s₃ : State} (h₁₂ : s₁ < s₂) (h₂₃ : s₂ = s₃) : s₁ < s₃ := by
-
-  sorry
+  rw [← h₂₃]
+  exact h₁₂
 
 lemma State.eq_lt_trans {s₁ s₂ s₃ : State} (h₁₂ : s₁ = s₂) (h₂₃ : s₂ < s₃) : s₁ < s₃ := by
-
-  sorry
+  rw [h₁₂]
+  exact h₂₃
 
 lemma State.eq_eq_trans {s₁ s₂ s₃ : State} (h₁₂ : s₁ = s₂) (h₂₃ : s₂ = s₃) : s₁ = s₃ := by rw [h₁₂, h₂₃]
 
