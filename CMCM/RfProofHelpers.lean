@@ -157,18 +157,6 @@ lemma non_coherent_request_has_false_mrs_c (vr : ValidRequest) (hnc : vr.val.coh
   | ⟨⟨.w, false, .Rel⟩,_⟩ => simp[]
   | ⟨⟨.r,false,.Acq⟩,_⟩ => simp[]
 
-/-- Protocol Axiom: Write permissions can only be produced by write requests -/
-axiom writes_only_from_write_requests : True
-
-/-- Protocol Axiom: Coherent states can only be produced by coherent requests -/
-axiom coherent_states_only_from_coherent_requests : True
-
-/-- Protocol Axiom: Directory events don't directly affect cache states -/
-axiom directory_events_dont_affect_cache : True
-
-/-- Protocol Axiom: Event direction and request properties are consistent -/
-axiom request_dir_event_consistency : True
-
 /-- Helper: If a request produces a state with write permissions, the request must be a write. -/
 lemma produces_state_with_write_perms_implies_is_write
   {b : Behaviour n} {init : InitialSystemState n} {e_pred e_req : Event n}
