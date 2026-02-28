@@ -304,3 +304,27 @@ lemma Behaviour.unwrap_cache_state_to_entry_state
   . case inr dir_state =>
     simp[EntryState.isCacheState] at hstate_after_is_cache_state
     simp[hstate_after] at hstate_after_is_cache_state
+
+lemma Behaviour.unwrap_stateBefore_cache_state_to_entry_state' {b init e_pred}
+  (he_is_cache : e_pred.isCacheEvent)
+  (hpred_init_is_cache_state : (InitialSystemState.stateAt n init e_pred).isCacheState)
+  : (EntryState.cache n
+    (Behaviour.stateBefore n b (InitialSystemState.stateAt n init e_pred)
+      e_pred)) = state
+      →
+      (Behaviour.stateBefore n b (InitialSystemState.stateAt n init e_pred)
+        e_pred) = Sum.inl state
+  := by
+  -- apply Behaviour.unwrap_cache_state_to_entry_state n he_is_cache hevict_init_is_cache_state
+  intro hcache_state_before_eq_state
+  rw[← hcache_state_before_eq_state]
+
+  have hall_at_entry := Behaviour.eventsUpToEntry_at_e_entry n b e_pred
+  have hstate_before_is_cache_state := b.stateBefore_cache_event_is_cache_state n he_is_cache hpred_init_is_cache_state
+
+  cases hstate_after : (stateBefore n b (InitialSystemState.stateAt n init e_pred) e_pred)
+  . case inl state =>
+    simp[EntryState.cache]
+  . case inr dir_state =>
+    simp[EntryState.isCacheState] at hstate_before_is_cache_state
+    simp[hstate_after] at hstate_before_is_cache_state
