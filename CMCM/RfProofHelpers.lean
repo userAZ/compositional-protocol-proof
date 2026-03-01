@@ -1163,7 +1163,31 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
                 ext
                 · simp [Event.req, hchoose, hval]
             have hgoal : (Event.req n e_inter_cle).val.isWrite := by
-              sorry  -- TODO: Show VdWriteBack with down=true preserves write through reqToDirOfRequestEvent
+              rw [hde_req]
+              -- Need to show: reqToDirOfRequestEvent returns a write for VdWriteBack
+              -- VdWriteBack has down=true, so none of the exception cases match
+              -- The function falls through to default case: e_req.req
+              simp only [Behaviour.reqToDirOfRequestEvent]
+              -- Not Rel, so the if condition is false
+              have hnot_rel : ¬(Event.req n (Exists.choose hsucc_encap_dir)).val = ⟨.w, false, .Rel⟩ := by
+                rw [hreq_vdwb]
+                simp
+              simp [hnot_rel]
+              -- Now we have Event.reqToDirOfRequestEvent
+              simp only [Event.reqToDirOfRequestEvent]
+              -- With down=true, all specific patterns fail, so we get the default case
+              have hdown : Event.down n (Exists.choose hsucc_encap_dir) = true := by
+                cases hchoose : Exists.choose hsucc_encap_dir with
+                | directoryEvent de_succ => simp [hchoose, Event.isVdWriteBack] at hvdwb
+                | cacheEvent ce_succ =>
+                  simp only [Event.down, hchoose, Event.isVdWriteBack] at hvdwb ⊢
+                  exact hvdwb.isDown
+              -- Rewrite with the specific values we know
+              rw [hreq_vdwb, hsucc_on_vd, hdown]
+              -- This simplifies the match: first two cases require down=false (don't match)
+              -- Third case requires .Acq request (we have .Weak, doesn't match)
+              -- So it falls through to the default case
+              simp [Request.isWrite]
             simpa [Event.req, he_cle] using hgoal
           · -- SCWrite case: SC write stays as write
             have hde_req := hdir_corresponds.dirReq
