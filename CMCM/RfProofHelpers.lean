@@ -532,7 +532,7 @@ lemma protocol_nc_weak_write_sc_read_contradiction
     | cluster1 => exact ⟨cmp.cluster1, by simp [cmp.cluster1WellFormed], by rw [←hsame_protocol, heq, cmp.cluster1WellFormed]⟩
     | cluster2 => exact ⟨cmp.cluster2, by simp [cmp.cluster2WellFormed], by rw [←hsame_protocol, heq, cmp.cluster2WellFormed]⟩
   obtain ⟨proto, hproto_nc, hproto_sc⟩ := h_proto
-  
+
   -- Both requests are in the protocol's interface
   have hncwrite_in_proto : e_ncwrite.req ∈ proto.requests := by
     apply cmp.eReqOfTheirProtocol proto e_ncwrite
@@ -540,29 +540,29 @@ lemma protocol_nc_weak_write_sc_read_contradiction
   have hscread_in_proto : e_scread.req ∈ proto.requests := by
     apply cmp.eReqOfTheirProtocol proto e_scread
     exact hproto_sc
-  
+
   -- Show e_ncwrite.req = NonCoherentWeakWrite (which is ValidRequest with val = ⟨.w, false, .Weak⟩)
   have hncwrite_eq : e_ncwrite.req = NonCoherentWeakWrite := by
     ext
     exact hncwrite
-  
+
   -- Show e_scread.req = SCRead (which is ValidRequest with val = ⟨.r, true, .SC⟩)
   have hscread_eq : e_scread.req = SCRead := by
     ext
     exact hscread
-  
+
   -- NonCoherentWeakWrite has NonCoherent property
   have hncwrite_nc : e_ncwrite.req.NonCoherent := by
     rw [hncwrite_eq]
     simp only [ValidRequest.NonCoherent, Request.nonCoherent]
     simp
-  
+
   -- Use FollowsProtocolInterface.nc_no_sc: if a NonCoherent request is in the protocol, then SCRead ∉ protocol
   have hcontra := proto.requests.property.nc_no_sc e_ncwrite.req hncwrite_in_proto
   have hsc_not_in : SCRead ∉ proto.requests := by
     have h := hcontra ⟨hncwrite_in_proto, Or.inl hncwrite_nc⟩
     exact h.right
-  
+
   -- But we have SCRead ∈ proto.requests
   rw [hscread_eq] at hscread_in_proto
   exact hsc_not_in hscread_in_proto
@@ -1287,12 +1287,73 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
             simpa [Event.req, he_cle] using hgoal
           · -- SCRead case: NC weak and SC read can't coexist in same protocol chain
             -- e_inter is NC weak (non-coherent), successor would be SC read (coherent)
-            -- This can be easily done by using `cmp.eReqOfTheirProtocol` and showing `e_inter` and `hsucc_encap_dir.choose` are in the same protocol
-            -- (with `hsucc_same_protocol : hsucc_encap_dir.choose.sameProtocol n e_req`),
-            -- Then use `e_inter` and `hsucc_encap_dir.choose`'s shared protocol's interface `ProtocolInterface := {vr : Set ValidRequest // FollowsProtocolInterface vr}`
-            -- `FollowsProtocolInterface` property that prohibits NC weak read and SC read from being in the same protocol, which would lead to a contradiction.
+            -- They're in the same protocol but have different coherence, which is impossible
             exfalso
-            sorry  -- TODO: prove NC weak and SC read can't be predecessor/successor on Vd path
+            -- Extract that requests have different coherence
+            have hcontra_coherence : (Event.req n e_inter).val.coherent = false ∧
+                                      (Event.req n (Exists.choose hsucc_encap_dir)).val.coherent = true := by
+              constructor
+              · -- e_inter is NC weak → coherent = false
+                cases e_inter with
+                | directoryEvent de =>
+                  -- Directory events can't be NC weak (Event.isNonCoherent is false for directory events)
+                  simp only [Event.isNcWeak, Event.isNonCoherent] at hweak
+                  simp at hweak -- false = true simplifies to False
+                | cacheEvent ce =>
+                  simp only [Event.isNcWeak, Event.isNonCoherent, Event.req] at hweak
+                  by_cases h : ce.req.val.coherent
+                  · exact False.elim (hweak.left h)
+                  · simp only [Bool.not_eq_true] at h; exact h
+              · -- Successor is SC read → coherent = true
+                cases hsucc_case : Exists.choose hsucc_encap_dir with
+                | directoryEvent de =>
+                  simp only [Event.isSCRead, ValidRequest.isSCRead] at hsc_read
+                  simp only [Event.req, hsucc_case] at hsc_read ⊢
+                  rw [hsc_read]
+                | cacheEvent ce =>
+                  simp only [Event.isSCRead, ValidRequest.isSCRead] at hsc_read
+                  simp only [Event.req, hsucc_case] at hsc_read ⊢
+                  rw [hsc_read]
+            -- Both are in the same protocol
+            have hsame_pi : e_inter.protocol = (Exists.choose hsucc_encap_dir).protocol :=
+              hsucc_same_protocol.symm
+            -- Extract the underlying Request values
+            have hncwrite_req : (Event.req n e_inter).val = ⟨.w, false, .Weak⟩ := by
+              -- e_inter is NC weak write from hweak_req_on_vd
+              cases hinter_event : e_inter with
+              | directoryEvent de =>
+                -- Contradiction: ncWeakReqOnVd requires cache event
+                have hcache := hweak_req_on_vd.reqCache
+                simp only [Event.isCacheEvent, hinter_event] at hcache
+                exact False.elim (Bool.noConfusion hcache)
+              | cacheEvent ce =>
+                -- Extract from NC weak write property
+                have h_weak := hweak_req_on_vd.weakReq
+                simp only [Event.isNcWeak, Event.isNonCoherent, Event.isWeak, hinter_event] at h_weak
+                simp only [Event.req, hinter_event]
+                obtain ⟨hnc, hweak⟩ := h_weak
+                have hwrite_val : ce.req.val.rw = .w := by
+                  simp only [Event.isWrite, hinter_event] at hwrite
+                  exact hwrite
+                simp only [Bool.not_eq_true] at hnc
+                -- Construct the Request value
+                cases hreq : ce.req.val with
+                | mk rw coh cons =>
+                  simp only at hwrite_val hnc hweak
+                  simp only [hreq] at hwrite_val hnc hweak
+                  simp [hwrite_val, hnc, hweak]
+            have hscread_req : (Event.req n (Exists.choose hsucc_encap_dir)).val = ⟨.r, true, .SC⟩ := by
+              -- SC read from hsc_read
+              cases hsucc_event : Exists.choose hsucc_encap_dir with
+              | directoryEvent de =>
+                simp only [Event.isSCRead, ValidRequest.isSCRead, Event.req, hsucc_event] at hsc_read
+                exact congr_arg Subtype.val hsc_read
+              | cacheEvent ce =>
+                simp only [Event.isSCRead, ValidRequest.isSCRead, Event.req, hsucc_event] at hsc_read
+                exact congr_arg Subtype.val hsc_read
+            -- Apply the helper lemma
+            exact protocol_nc_weak_write_sc_read_contradiction (cmp:=cmp) he_inter
+              (hsucc_encap_dir.choose_spec.left) hncwrite_req hscread_req hsame_pi
       have hsame_protocol_and_dir_write : e_inter_cle.protocol = e_w_cle.protocol ∧
                                           e_inter_cle.protocol = e_r_cle.protocol ∧
                                           Event.isDirWrite n e_inter_cle :=
