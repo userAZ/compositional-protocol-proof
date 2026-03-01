@@ -126,14 +126,339 @@ lemma pred_missing_perms_req_has_coherent_state_implies_pred_is_coherent
   : e_pred.req.val.coherent = true := by
   sorry
 
+/-- Helper: NC Weak Write contradicts being in reqMissingPerms.noPermsForNonNcRelAcqWeakWrite -/
+lemma nc_weak_write_excluded_by_not_nc_rel_acq_weak_write
+  {ce_pred : CacheEvent n}
+  (hpred_req : ce_pred.req.val = {rw := .w, coherent := false, consistency := .Weak})
+  (hnotrel : Event.notNcRelAcqWeakWrite n (Event.cacheEvent ce_pred))
+  : False := by
+  apply hnotrel
+  right; right
+  unfold Event.isNcWeakWrite CacheEvent.isNcWeakWrite ValidRequest.isNcWeakWrite
+  ext
+  exact hpred_req
+
+/-- Helper: NC Weak Write contradicts ncRelAcqWeakWriteNotOnCoherentState (it's not Acq or Rel) -/
+lemma nc_weak_write_not_acq_or_rel
+  {ce_pred : CacheEvent n}
+  (hpred_req : ce_pred.req.val = {rw := .w, coherent := false, consistency := .Weak})
+  (hnc : CacheEvent.isAcquire n ce_pred ∨ CacheEvent.isNcRelease n ce_pred)
+  : False := by
+  cases hnc with
+  | inl hacq =>
+    simp [CacheEvent.isAcquire, ValidRequest.isAcquire] at hacq
+    have := congrArg Subtype.val hacq
+    simp at this
+    rw [hpred_req] at this
+    simp at this
+  | inr hrel =>
+    simp [CacheEvent.isNcRelease, ValidRequest.isNcRelease] at hrel
+    have := congrArg Subtype.val hrel
+    simp at this
+    rw [hpred_req] at this
+    simp at this
+
+/-- Helper: NC Rel Write produces c=false when missing permissions -/
+lemma nc_rel_write_succeeding_state_has_false_coherence
+  {b : Behaviour n} {init : InitialSystemState n} {ce_pred : CacheEvent n}
+  (hpred_req : ce_pred.req.val = {rw := .w, coherent := false, consistency := .Rel})
+  (hpred_not_down : ce_pred.down = false)
+  (hno_perms : b.acqRelWeakWriteNoPerms n init (Event.cacheEvent ce_pred))
+  : (Event.SucceedingState n (Event.cacheEvent ce_pred)
+      (b.stateBefore n (InitialSystemState.stateAt n init (Event.cacheEvent ce_pred))
+        (Event.cacheEvent ce_pred))).cache.c = false := by
+  -- NC Rel Write with acqRelWeakWriteNoPerms produces Vc (which has c=false)
+  -- Unfold definitions
+  simp only [Event.SucceedingState, CacheEvent.SucceedingState, hpred_not_down]
+  simp only [ValidRequest.RequestState]
+  -- The request is NC Rel Write
+  have hreq : ce_pred.req = ⟨⟨.w, false, .Rel⟩, by simp[Request.IsValid']⟩ := by
+    ext
+    exact hpred_req
+  simp only [hreq]
+  -- Now we need to match on the state before
+  cases hstate : (EntryState.cache n
+    (Behaviour.stateBefore n b (InitialSystemState.stateAt n init (Event.cacheEvent ce_pred))
+      (Event.cacheEvent ce_pred)))
+  case mk p c =>
+    -- Match on p and c
+    cases p <;> cases c
+    case none.false =>
+      -- State is I, RequestState returns Vc
+      simp only [Vc, EntryState.cache]
+    case none.true =>
+      -- State is ⟨none, true⟩ (junk state), RequestState returns Vc
+      simp only [Vc, EntryState.cache]
+    case some.false p_val =>
+      -- State is ⟨some p_val, false⟩, could be Vc or Vd
+      cases p_val
+      case r =>
+        -- State is Vc, RequestState returns Vc
+        simp only [Vc, EntryState.cache]
+      case wr =>
+        -- State is Vd, RequestState returns Vc
+        simp only [Vc, EntryState.cache]
+    case some.true p_val =>
+      -- State is ⟨some p_val, true⟩, could be MR or SW
+      cases p_val
+      case r =>
+        -- State is MR = ⟨some .r, true⟩, RequestState returns Vc
+        simp only [Vc, EntryState.cache]
+      case wr =>
+        -- State is SW = ⟨some .wr, true⟩
+        -- RequestState would return SW (stays at state), which has c=true
+        -- But this contradicts acqRelWeakWriteNoPerms
+        exfalso
+        unfold Behaviour.acqRelWeakWriteNoPerms at hno_perms
+        unfold Behaviour.eventOnCoherentState Behaviour.eventOnStateHasPerms at hno_perms
+        simp only [Event.req, hreq] at hno_perms
+        -- hno_perms says: ¬(state.c ∧ req.MRS ≤ state)
+        -- We have state = SW = ⟨some .wr, true⟩
+        -- req.MRS = Vd = ⟨some .wr, false⟩
+        -- Need to show: state.c = true and Vd ≤ SW
+        apply hno_perms
+        simp only [hstate]
+        constructor
+        · -- Show state.c = true
+          trivial
+        · -- Show Vd ≤ SW
+          simp only [ValidRequest.MRS, Vd, LE.le, State.le, LT.lt, State.lt]
+          left
+          decide
+
+/-- Helper: NC Acq Read always produces c=false (always produces Vc state) -/
+lemma nc_acq_read_succeeding_state_has_false_coherence
+  {b : Behaviour n} {init : InitialSystemState n} {ce_pred : CacheEvent n}
+  (hpred_req : ce_pred.req.val = {rw := .r, coherent := false, consistency := .Acq})
+  (hpred_not_down : ce_pred.down = false)
+  (hno_perms : b.acqRelWeakWriteNoPerms n init (Event.cacheEvent ce_pred))
+  : (Event.SucceedingState n (Event.cacheEvent ce_pred)
+      (b.stateBefore n (InitialSystemState.stateAt n init (Event.cacheEvent ce_pred))
+        (Event.cacheEvent ce_pred))).cache.c = false := by
+  -- NC Acq Read always produces Vc (which has c=false), regardless of input state
+  simp only [Event.SucceedingState, CacheEvent.SucceedingState, hpred_not_down]
+  simp only [ValidRequest.RequestState]
+  -- The request is NC Acq Read
+  have hreq : ce_pred.req = ⟨⟨.r, false, .Acq⟩, by simp[Request.IsValid']⟩ := by
+    ext
+    exact hpred_req
+  simp only [hreq, Vc, EntryState.cache]
+
+/-- Helper: Downgrade for NC Weak Read produces c=false (via DowngradeState which produces I) -/
+lemma nc_weak_read_downgrade_produces_false_coherence
+  {b : Behaviour n} {init : InitialSystemState n} {ce_pred : CacheEvent n}
+  (hpred_req : ce_pred.req.val = {rw := .r, coherent := false, consistency := .Weak})
+  (hpred_down : ce_pred.down = true)
+  (hmrs : (b.stateBefore n (InitialSystemState.stateAt n init (Event.cacheEvent ce_pred))
+      (Event.cacheEvent ce_pred)).cache = Event.MRS n (Event.cacheEvent ce_pred))
+  : (Event.SucceedingState n (Event.cacheEvent ce_pred)
+      (b.stateBefore n (InitialSystemState.stateAt n init (Event.cacheEvent ce_pred))
+        (Event.cacheEvent ce_pred))).cache.c = false := by
+  -- NC Weak Read downgrade: state = MRS = Vc, DowngradeState produces I (c=false)
+  simp only [Event.SucceedingState, CacheEvent.SucceedingState, hpred_down]
+  simp only [ValidRequest.DowngradeState]
+  -- The request is NC Weak Read
+  have hreq : ce_pred.req = ⟨⟨.r, false, .Weak⟩, by simp[Request.IsValid']⟩ := by
+    ext
+    exact hpred_req
+  simp only [hreq]
+  -- State is Vc (from hmrs)
+  have hstate_vc : (b.stateBefore n (InitialSystemState.stateAt n init (Event.cacheEvent ce_pred))
+      (Event.cacheEvent ce_pred)).cache = Vc := by
+    simp only [Event.MRS, Event.down, hpred_down] at hmrs
+    simp only [Event.req, hreq] at hmrs
+    simp only [ReadWrite.toPerms] at hmrs
+    exact hmrs
+  simp only [hstate_vc]
+  -- Simplify the boolean checks - should reduce to I.c = false
+  simp only [I, Vc, EntryState.cache]
+  rfl
+
+/-- Helper: NC Weak Read without perms produces c=false (produces MRS=Vc when lacking perms) -/
+lemma nc_weak_read_no_perms_produces_false_coherence
+  {b : Behaviour n} {init : InitialSystemState n} {ce_pred : CacheEvent n}
+  (hpred_req : ce_pred.req.val = {rw := .r, coherent := false, consistency := .Weak})
+  (hpred_not_down : ce_pred.down = false)
+  (hno_perms : ¬(Event.req n (Event.cacheEvent ce_pred)).MRS ≤
+      (b.stateBefore n (InitialSystemState.stateAt n init (Event.cacheEvent ce_pred))
+        (Event.cacheEvent ce_pred)).cache)
+  : (Event.SucceedingState n (Event.cacheEvent ce_pred)
+      (b.stateBefore n (InitialSystemState.stateAt n init (Event.cacheEvent ce_pred))
+        (Event.cacheEvent ce_pred))).cache.c = false := by
+  -- NC Weak Read without perms produces MRS = Vc (which has c=false)
+  simp only [Event.SucceedingState, CacheEvent.SucceedingState, hpred_not_down]
+  simp only [ValidRequest.RequestState]
+  -- The request is NC Weak Read
+  have hreq : ce_pred.req = ⟨⟨.r, false, .Weak⟩, by simp[Request.IsValid']⟩ := by
+    ext
+    exact hpred_req
+  simp only [hreq]
+  -- Since MRS is not ≤ state, the else branch is taken: produces MRS
+  have hno_perms' : ¬ValidRequest.MRS ⟨⟨.r, false, .Weak⟩, by simp[Request.IsValid']⟩ ≤
+      (b.stateBefore n (InitialSystemState.stateAt n init (Event.cacheEvent ce_pred))
+        (Event.cacheEvent ce_pred)).cache := by
+    simp only [Event.req, hreq] at hno_perms
+    exact hno_perms
+  rw [if_neg hno_perms']
+  -- MRS for NC Weak Read is Vc (c=false)
+  simp only [ValidRequest.MRS, Vc, EntryState.cache]
+
+/-- Helper: NC Acq Read not in Acq or Rel is impossible -/
+lemma nc_acq_read_is_acquire
+  {ce_pred : CacheEvent n}
+  (hpred_req : ce_pred.req.val = {rw := .r, coherent := false, consistency := .Acq})
+  (hnc : CacheEvent.isAcquire n ce_pred ∨ CacheEvent.isNcRelease n ce_pred)
+  : CacheEvent.isAcquire n ce_pred := by
+  cases hnc with
+  | inl hacq => exact hacq
+  | inr hrel =>
+    simp [CacheEvent.isNcRelease, ValidRequest.isNcRelease] at hrel
+    have := congrArg Subtype.val hrel
+    simp at this
+    rw [hpred_req] at this
+    simp at this
+
+/-- Helper: NC Weak Read is neither Acq nor Rel -/
+lemma nc_weak_read_not_acq_or_rel
+  {ce_pred : CacheEvent n}
+  (hpred_req : ce_pred.req.val = {rw := .r, coherent := false, consistency := .Weak})
+  (hnc : CacheEvent.isAcquire n ce_pred ∨ CacheEvent.isNcRelease n ce_pred)
+  : False := by
+  cases hnc with
+  | inl hacq =>
+    simp [CacheEvent.isAcquire, ValidRequest.isAcquire] at hacq
+    have := congrArg Subtype.val hacq
+    simp at this
+    rw [hpred_req] at this
+    simp at this
+  | inr hrel =>
+    simp [CacheEvent.isNcRelease, ValidRequest.isNcRelease] at hrel
+    have := congrArg Subtype.val hrel
+    simp at this
+    rw [hpred_req] at this
+    simp at this
+
 lemma nc_acq_weak_write_has_coherent_state_implies_pred_is_coherent
   {b : Behaviour n} {init : InitialSystemState n} {e_pred e_req : Event n}
-  -- This lemma requires some more input hypotheses, like those referenced at line 1380, or in the lemma produces_state_with_write_perms_implies_is_write_no_coherence
-  -- will specifically also require `hreq_on_coherent_state`
   (hstate_coh : (b.stateReqMadeOn n init e_req).c = true)
   (hpred_produces : b.reqLeavesStateAtLeast n e_pred init (b.stateReqMadeOn n init e_req))
+  (hpred_not_down : ¬ e_pred.down)
+  (hpred_missing_perms : Behaviour.reqMissingPerms n b init e_pred)
+  (hpred_cache : e_pred.isCacheEvent)
   : e_pred.req.val.coherent = true := by
-  sorry
+  cases e_pred with
+  | directoryEvent de =>
+    simp [Event.isCacheEvent] at hpred_cache
+  | cacheEvent ce_pred =>
+    -- Establish that predecessor's state after has c=true
+    have hcoh_le_after :
+      (b.stateReqMadeOn n init e_req).c ≤
+      (b.stateAfter n (InitialSystemState.stateAt n init (Event.cacheEvent ce_pred))
+        (Event.cacheEvent ce_pred)).cache.c := by
+      cases hpred_produces with
+      | inl hlt => exact hlt.right.left
+      | inr heq => rw [← heq]
+
+    have hafter_coh_true :
+      (b.stateAfter n (InitialSystemState.stateAt n init (Event.cacheEvent ce_pred))
+        (Event.cacheEvent ce_pred)).cache.c = true := by
+      rw [hstate_coh] at hcoh_le_after
+      cases hafter : (b.stateAfter n (InitialSystemState.stateAt n init (Event.cacheEvent ce_pred))
+        (Event.cacheEvent ce_pred)).cache.c with
+      | false =>
+        -- Contradiction: true ≤ false via hafter
+        rw [hafter] at hcoh_le_after
+        contradiction
+      | true =>
+        rfl
+
+    -- After rewriting with succeeding state, we get c=true
+    rw [Behaviour.state_after_eq_succeeding_state_before n b init (Event.cacheEvent ce_pred)] at hafter_coh_true
+
+    -- Case analysis on request type
+    match hpred_req : ce_pred.req with
+    | ⟨⟨_, true, _⟩, _⟩ =>
+      -- Coherent request: conclude directly
+      simp [Event.req, hpred_req]
+    | ⟨⟨.w, false, .Weak⟩, _⟩ =>
+      -- NC Weak Write: contradicts reqMissingPerms
+      exfalso
+      have hpred_req_val : ce_pred.req.val = {rw := .w, coherent := false, consistency := .Weak} := by
+        have := congrArg Subtype.val hpred_req
+        simpa using this
+      cases hpred_missing_perms with
+      | downgrade hd _ => exact hpred_not_down hd
+      | noPermsForNonNcRelAcqWeakWrite _ hnotrel _ =>
+        exact nc_weak_write_excluded_by_not_nc_rel_acq_weak_write hpred_req_val hnotrel
+      | ncRelAcqWeakWriteNotOnCoherentState _ hnc _ =>
+        exact nc_weak_write_not_acq_or_rel hpred_req_val hnc
+    | ⟨⟨.w, false, .Rel⟩, _⟩ =>
+      -- NC Rel Write: produces c=false, contradicts hafter_coh_true
+      exfalso
+      have hpred_req_val : ce_pred.req.val = {rw := .w, coherent := false, consistency := .Rel} := by
+        have := congrArg Subtype.val hpred_req
+        simpa using this
+      cases hpred_missing_perms with
+      | downgrade hd _ => exact hpred_not_down hd
+      | noPermsForNonNcRelAcqWeakWrite _ hnotrel _ =>
+        apply hnotrel
+        right; left
+        simp [Event.isNcRelease, CacheEvent.isNcRelease, ValidRequest.isNcRelease]
+        ext
+        exact hpred_req_val
+      | ncRelAcqWeakWriteNotOnCoherentState hnd hnc hno_perms =>
+        cases hnc with
+        | inl hacq =>
+          simp at hacq
+          have := congrArg Subtype.val hacq
+          simp at this
+          rw [hpred_req_val] at this
+          simp at this
+        | inr hrel =>
+          have hpred_not_down' : ce_pred.down = false := by simp [Event.down] at hnd; exact hnd
+          have hfalse := nc_rel_write_succeeding_state_has_false_coherence (b := b) (init := init) hpred_req_val hpred_not_down' hno_perms
+          rw [hfalse] at hafter_coh_true
+          simp at hafter_coh_true
+    | ⟨⟨.r, false, .Acq⟩, _⟩ =>
+      -- NC Acq Read: produces c=false, contradicts hafter_coh_true
+      exfalso
+      have hpred_req_val : ce_pred.req.val = {rw := .r, coherent := false, consistency := .Acq} := by
+        have := congrArg Subtype.val hpred_req
+        simpa using this
+      cases hpred_missing_perms with
+      | downgrade hd _ => exact hpred_not_down hd
+      | noPermsForNonNcRelAcqWeakWrite _ hnotrel _ =>
+        apply hnotrel
+        left
+        ext
+        exact hpred_req_val
+      | ncRelAcqWeakWriteNotOnCoherentState hnd hnc hno_perms =>
+        have _ := nc_acq_read_is_acquire hpred_req_val hnc
+        have hpred_not_down' : ce_pred.down = false := by simp [Event.down] at hnd; exact hnd
+        have hfalse := nc_acq_read_succeeding_state_has_false_coherence (b := b) (init := init) hpred_req_val hpred_not_down' hno_perms
+        rw [hfalse] at hafter_coh_true
+        simp at hafter_coh_true
+    | ⟨⟨.r, false, .Weak⟩, _⟩ =>
+      -- NC Weak Read: either downgrade or no perms, both produce c=false
+      exfalso
+      have hpred_req_val : ce_pred.req.val = {rw := .r, coherent := false, consistency := .Weak} := by
+        have := congrArg Subtype.val hpred_req
+        simpa using this
+      cases hpred_missing_perms with
+      | downgrade hd hmrs =>
+        have hpred_down : ce_pred.down = true := by simp [Event.down] at hd; exact hd
+        unfold Behaviour.evictOnMRSState at hmrs
+        have hfalse := nc_weak_read_downgrade_produces_false_coherence hpred_req_val hpred_down hmrs
+        rw [hfalse] at hafter_coh_true
+        simp at hafter_coh_true
+      | noPermsForNonNcRelAcqWeakWrite hnd _ hno_perms =>
+        have hpred_not_down' : ce_pred.down = false := by simp [Event.down] at hnd; exact hnd
+        simp [Behaviour.eventOnStateNoPerms, Behaviour.eventOnStateHasPerms, Event.req] at hno_perms
+        have hfalse := nc_weak_read_no_perms_produces_false_coherence hpred_req_val hpred_not_down' hno_perms
+        rw [hfalse] at hafter_coh_true
+        simp at hafter_coh_true
+      | ncRelAcqWeakWriteNotOnCoherentState _ hnc _ =>
+        exact nc_weak_read_not_acq_or_rel hpred_req_val hnc
 
 /-- Helper lemma for Case 2a: Different cache, same protocol/cluster -/
 lemma noInterveningWrites_diffCache_sameProtocol_case
@@ -499,6 +824,7 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
                   -- are used in lemma `produces_state_with_write_perms_implies_is_write_no_coherence`.
                   -- Use these hypotheses in helper lemma `pred_missing_perms_req_has_coherent_state_implies_pred_is_coherent`.
                   -- You'll need to use the hypotheses and consider the cases of the state before `e_pred` and `e_req`, much like in `produces_state_with_write_perms_implies_is_write_no_coherence`.
+                  -- Also check the `RfProofLargeLemmas.lean` file for general approaches that will be useful -- but keep it simpler, split your lemmas into smaller helper lemmas
 
                   -- The case below will require the additional hypothesis `hreq_on_coherent_state`,
                   -- and it will be more like the proof process in `produces_state_with_write_perms_implies_is_write`..
@@ -548,8 +874,21 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
                   -- predecessor produces a state at least as high, which means c=true
                   -- Use helper: predecessor producing coherent state must be coherent
                   have hstate_coh : (b.stateReqMadeOn n init e_inter).c = true := hhascoh.onCoherentState
-                  -- TODO: Edit this helper lemma as per the above message in the above case "hasPerms"
-                  exact nc_acq_weak_write_has_coherent_state_implies_pred_is_coherent hstate_coh hpred_produces_state_at_least_req_made_on_state
+                  -- Extract same properties as above for this scope
+                  have hpred_has_no_perms := hexists_pred_getting_perms.choose_spec.right
+                  simp[Behaviour.immBottomPredHasNoPermsAndLeavesStateAtLeast] at hpred_has_no_perms
+                  simp[Behaviour.ImmediateBottomPredSatisfyingProp] at hpred_has_no_perms
+                  have hpred_prop := hpred_has_no_perms.satisfyP
+                  simp[Event.PropOnEvent] at hpred_prop
+                  simp[Behaviour.predHasNoPermsAndLeavesStateAtLeastReq] at hpred_prop
+                  have hpred_missing_perms := hpred_prop.missingPerms
+                  have hpred_cache : hexists_pred_getting_perms.choose.isCacheEvent := hpred_prop.reqCache
+                  exact nc_acq_weak_write_has_coherent_state_implies_pred_is_coherent
+                    hstate_coh
+                    hpred_produces_state_at_least_req_made_on_state
+                    hinter_pred_not_down
+                    hpred_missing_perms
+                    hpred_cache
                 exact reqToDir_preserves_write_of_coherent hexists_pred_getting_perms.choose _ hwrite_pred hcoh_pred
           | ncWeakReadHasPermsNotVd hncwr _ =>
               -- e_inter is NC weak read, contradicts hwrite (which is write)
