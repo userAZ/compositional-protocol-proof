@@ -2595,3 +2595,6 @@ inductive CacheEvent.OrderedOrEncapsulates (e₁ e₂ : CacheEvent n) (b : Behav
 structure CacheEvent.EncapAnother (e₁ e₂ : CacheEvent n) (b : Behaviour n) (init : EntryState n) : Prop where
   sameCacheEntry : e₁.sameCacheEntry n e₂
   orderOrEncap : CacheEvent.OrderedOrEncapsulates n e₁ e₂ b init
+
+def Behaviour.stateBefore.CoherentRead.ofWeakWrite.contradiction : Prop :=
+  ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e : Event n, e.isNcWeakWrite ↔ b.stateBefore n (InitialSystemState.stateAt n init e) e ≠ MREntry n
