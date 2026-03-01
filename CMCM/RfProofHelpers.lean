@@ -117,15 +117,6 @@ lemma non_coherent_request_has_false_mrs_c (vr : ValidRequest) (hnc : vr.val.coh
   | ⟨⟨.w, false, .Rel⟩,_⟩ => simp[]
   | ⟨⟨.r,false,.Acq⟩,_⟩ => simp[]
 
-/-- Helper: If an `e_pred` predecessor to `e_req`, where `e_req` has state before, and e_req is coherent, predecessor is coherent. -/
-lemma pred_missing_perms_req_has_coherent_state_implies_pred_is_coherent
-  {b : Behaviour n} {init : InitialSystemState n} {e_pred e_req : Event n}
-  (hcoh : e_req.isCoherent)
-  (hreq_has_perms : b.hasPerms n init e_req)
-  (hpred_produces : b.reqLeavesStateAtLeast n e_pred init (b.stateReqMadeOn n init e_req))
-  : e_pred.req.val.coherent = true := by
-  sorry
-
 /-- Helper: NC Weak Write contradicts being in reqMissingPerms.noPermsForNonNcRelAcqWeakWrite -/
 lemma nc_weak_write_excluded_by_not_nc_rel_acq_weak_write
   {ce_pred : CacheEvent n}
@@ -999,7 +990,7 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
       intro hdowngrade
       exact hnot_between
 
-    | orderAfterDir hweak_read_on_vd hsucc_encap_dir hsucc_same_protocol =>
+    | orderAfterDir hweak_req_on_vd hsucc_encap_dir hsucc_same_protocol =>
       have hw_r_same_struct : e_w.sameStructure n e_r := by
         unfold Event.sameStructure; exact _hsame_struct
       have hw_eq_r_protocol : e_w.protocol = e_r.protocol :=
@@ -1076,7 +1067,7 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
           -- 4. Therefore default case applies, and write is preserved
 
           -- The successor's request is NC weak (from hweak_read_on_vd)
-          have hweak := hweak_read_on_vd.weakReq
+          have hweak := hweak_req_on_vd.weakReq
           -- The directory event's request is obtained via reqToDirOfRequestEvent
           have hdir_req := hdir_corresponds.dirReq
 
@@ -1117,16 +1108,94 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
               simp [Behaviour.reqToDirOfRequestEvent, Event.reqToDirOfRequestEvent,
                 hsucc_on_vd, hreq_acq, Request.isWrite, VdEntry, EntryState.cache]
             simpa [Event.req, he_cle] using hgoal
-          · -- NcRelease case: release writes stay as writes
-            sorry  -- isNcRelease produces write directory event
-          · -- CRelease case
-            sorry  -- isCRelease produces write directory event
-          · -- VdWriteBack case: explicitly a write-back, so write
-            sorry  -- isVdWriteBack produces write directory event
-          · -- SCWrite case: sequential consistent write stays as write
-            sorry  -- isSCWrite produces write directory event
-          · -- SCRead case: could be acquire or plain read
-            sorry  -- isSCRead on Vd with proper context produces write directory event
+          · -- NcRelease case: NC release writes stay as writes on Vd
+            have hde_req := hdir_corresponds.dirReq
+            change (Event.req n e_inter_cle) =
+                Behaviour.reqToDirOfRequestEvent n b
+                  (InitialSystemState.stateAt n init (Exists.choose hsucc_encap_dir)) true
+                  (Exists.choose hsucc_encap_dir) at hde_req
+            have hreq_nc_rel : Event.req n (Exists.choose hsucc_encap_dir) =
+                ⟨⟨.w, false, .Rel⟩, by simp [Request.IsValid']⟩ := by
+              cases hchoose : Exists.choose hsucc_encap_dir with
+              | directoryEvent de_succ => simp [hchoose, Event.isNcRelease] at hnc_rel
+              | cacheEvent ce_succ =>
+                simpa [hchoose, Event.req, Event.isNcRelease, CacheEvent.isNcRelease, ValidRequest.isNcRelease] using hnc_rel
+            have hgoal : (Event.req n e_inter_cle).val.isWrite := by
+              rw [hde_req]
+              simp [Behaviour.reqToDirOfRequestEvent, Event.reqToDirOfRequestEvent,
+                hsucc_on_vd, hreq_nc_rel, Request.isWrite, Vd]
+            simpa [Event.req, he_cle] using hgoal
+          · -- CRelease case: coherent release writes stay as writes
+            have hde_req := hdir_corresponds.dirReq
+            change (Event.req n e_inter_cle) =
+                Behaviour.reqToDirOfRequestEvent n b
+                  (InitialSystemState.stateAt n init (Exists.choose hsucc_encap_dir)) true
+                  (Exists.choose hsucc_encap_dir) at hde_req
+            have hreq_c_rel : Event.req n (Exists.choose hsucc_encap_dir) =
+                ⟨⟨.w, true, .Rel⟩, by simp [Request.IsValid']⟩ := by
+              cases hchoose : Exists.choose hsucc_encap_dir with
+              | directoryEvent de_succ => simp [hchoose, Event.isCRelease] at hc_rel
+              | cacheEvent ce_succ =>
+                have hval : ce_succ.req.val = ⟨.w, true, .Rel⟩ := by
+                  simp only [Event.isCRelease, hchoose] at hc_rel
+                  exact hc_rel
+                ext
+                · simp [Event.req, hchoose, hval]
+            have hgoal : (Event.req n e_inter_cle).val.isWrite := by
+              rw [hde_req]
+              simp [Behaviour.reqToDirOfRequestEvent, Event.reqToDirOfRequestEvent,
+                hsucc_on_vd, hreq_c_rel, Request.isWrite, Vd]
+            simpa [Event.req, he_cle] using hgoal
+          · -- VdWriteBack case: vd write-back is a downgrade weak write
+            have hde_req := hdir_corresponds.dirReq
+            change (Event.req n e_inter_cle) =
+                Behaviour.reqToDirOfRequestEvent n b
+                  (InitialSystemState.stateAt n init (Exists.choose hsucc_encap_dir)) true
+                  (Exists.choose hsucc_encap_dir) at hde_req
+            have hreq_vdwb : Event.req n (Exists.choose hsucc_encap_dir) =
+                ⟨⟨.w, false, .Weak⟩, by simp [Request.IsValid']⟩ := by
+              cases hchoose : Exists.choose hsucc_encap_dir with
+              | directoryEvent de_succ => simp [hchoose, Event.isVdWriteBack] at hvdwb
+              | cacheEvent ce_succ =>
+                simp only [Event.isVdWriteBack, hchoose] at hvdwb
+                have hval : ce_succ.req.val = ⟨.w, false, .Weak⟩ := hvdwb.isWeakWrite
+                have hdown : ce_succ.down = true := hvdwb.isDown
+                ext
+                · simp [Event.req, hchoose, hval]
+            have hgoal : (Event.req n e_inter_cle).val.isWrite := by
+              sorry  -- TODO: Show VdWriteBack with down=true preserves write through reqToDirOfRequestEvent
+            simpa [Event.req, he_cle] using hgoal
+          · -- SCWrite case: SC write stays as write
+            have hde_req := hdir_corresponds.dirReq
+            change (Event.req n e_inter_cle) =
+                Behaviour.reqToDirOfRequestEvent n b
+                  (InitialSystemState.stateAt n init (Exists.choose hsucc_encap_dir)) true
+                  (Exists.choose hsucc_encap_dir) at hde_req
+            have hreq_sc_write : Event.req n (Exists.choose hsucc_encap_dir) =
+                ⟨⟨.w, true, .SC⟩, by simp [Request.IsValid']⟩ := by
+              cases hchoose : Exists.choose hsucc_encap_dir with
+              | directoryEvent de_succ =>
+                -- TODO: show the directory event of an SC Write is a (SC) Write. (well, techinically all we need to show is the the SC write's directory event is a write.
+                -- don't need to worry about the 'SC' directory write part)
+                sorry
+              | cacheEvent ce_succ =>
+                have : ce_succ.req = ⟨⟨.w, true, .SC⟩, by simp[Request.IsValid']⟩ := by
+                  simp only [Event.isSCWrite, Event.req, hchoose, ValidRequest.isSCWrite] at hsc_write
+                  exact hsc_write
+                simpa [hchoose, Event.req] using this
+            have hgoal : (Event.req n e_inter_cle).val.isWrite := by
+              rw [hde_req]
+              simp [Behaviour.reqToDirOfRequestEvent, Event.reqToDirOfRequestEvent,
+                hsucc_on_vd, hreq_sc_write, Request.isWrite, Vd]
+            simpa [Event.req, he_cle] using hgoal
+          · -- SCRead case: NC weak and SC read can't coexist in same protocol chain
+            -- e_inter is NC weak (non-coherent), successor would be SC read (coherent)
+            -- This can be easily done by using `cmp.eReqOfTheirProtocol` and showing `e_inter` and `hsucc_encap_dir.choose` are in the same protocol
+            -- (with `hsucc_same_protocol : hsucc_encap_dir.choose.sameProtocol n e_req`),
+            -- Then use `e_inter` and `hsucc_encap_dir.choose`'s shared protocol's interface `ProtocolInterface := {vr : Set ValidRequest // FollowsProtocolInterface vr}`
+            -- `FollowsProtocolInterface` property that prohibits NC weak read and SC read from being in the same protocol, which would lead to a contradiction.
+            exfalso
+            sorry  -- TODO: prove NC weak and SC read can't be predecessor/successor on Vd path
       have hsame_protocol_and_dir_write : e_inter_cle.protocol = e_w_cle.protocol ∧
                                           e_inter_cle.protocol = e_r_cle.protocol ∧
                                           Event.isDirWrite n e_inter_cle :=
