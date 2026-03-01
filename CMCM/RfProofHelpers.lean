@@ -460,6 +460,54 @@ lemma nc_acq_weak_write_has_coherent_state_implies_pred_is_coherent
       | ncRelAcqWeakWriteNotOnCoherentState _ hnc _ =>
         exact nc_weak_read_not_acq_or_rel hpred_req_val hnc
 
+/-- Implementation of pred_missing_perms_req_has_coherent_state_implies_pred_is_coherent
+    Placed here after all nc_ helper lemmas are defined. -/
+lemma pred_missing_perms_req_impl
+  {b : Behaviour n} {init : InitialSystemState n} {e_pred e_req : Event n}
+  (hstate_coh : (b.stateReqMadeOn n init e_req).c = true)
+  (hpred_produces : b.reqLeavesStateAtLeast n e_pred init (b.stateReqMadeOn n init e_req))
+  (hpred_not_down : ¬ e_pred.down)
+  (hpred_missing_perms : Behaviour.reqMissingPerms n b init e_pred)
+  (hpred_cache : e_pred.isCacheEvent)
+  : e_pred.req.val.coherent = true :=
+  nc_acq_weak_write_has_coherent_state_implies_pred_is_coherent hstate_coh hpred_produces hpred_not_down hpred_missing_perms hpred_cache
+
+/-- Full implementation of pred_missing_perms_req_has_coherent_state_implies_pred_is_coherent -/
+lemma pred_missing_perms_req_has_coherent_state_impl
+  {b : Behaviour n} {init : InitialSystemState n} {e_pred e_req : Event n}
+  (hcoh : e_req.isCoherent)
+  (hreq_has_perms : b.hasPerms n init e_req)
+  (hpred_produces : b.reqLeavesStateAtLeast n e_pred init (b.stateReqMadeOn n init e_req))
+  (hpred_not_down : ¬ e_pred.down)
+  (hpred_missing_perms : Behaviour.reqMissingPerms n b init e_pred)
+  (hpred_cache : e_pred.isCacheEvent)
+  : e_pred.req.val.coherent = true := by
+  -- Derive that stateReqMadeOn has c=true from coherent + hasPerms
+  have hstate_coh : (b.stateReqMadeOn n init e_req).c = true := by
+    -- For coherent e_req with permissions, stateBefore must have c ≥ MRS.c = true
+    cases e_req with
+    | directoryEvent de =>
+      simp [Event.isCoherent] at hcoh
+    | cacheEvent ce =>
+      unfold Behaviour.stateReqMadeOn Behaviour.hasPerms at *
+      simp [Event.isCoherent] at hcoh
+      -- For coherent requests, MRS.c = true
+      have hmrs_coh : ce.req.MRS.c = true := coherent_request_has_coherent_mrs ce.req hcoh
+      -- hasPerms means MRS ≤ stateBefore
+      have hle : ce.req.MRS.c ≤ (b.stateBefore n (InitialSystemState.stateAt n init (Event.cacheEvent ce)) (Event.cacheEvent ce)).cache.c := by
+        cases hreq_has_perms with
+        | inl hlt => exact hlt.right.left
+        | inr heq => rw [← heq]; exact hmrs_coh ▸ Bool.le_refl true
+      -- Therefore stateBefore.c = true
+      rw [hmrs_coh] at hle
+      cases hbefore : (b.stateBefore n (InitialSystemState.stateAt n init (Event.cacheEvent ce)) (Event.cacheEvent ce)).cache.c
+      · -- c = false, but true ≤ false is impossible (reduces to false = true)
+        rw [hbefore] at hle
+        nomatch hle
+      · rfl
+  -- Now use the existing lemma that does case analysis on e_pred
+  exact nc_acq_weak_write_has_coherent_state_implies_pred_is_coherent hstate_coh hpred_produces hpred_not_down hpred_missing_perms hpred_cache
+
 /-- Helper lemma for Case 2a: Different cache, same protocol/cluster -/
 lemma noInterveningWrites_diffCache_sameProtocol_case
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
@@ -819,16 +867,48 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
                   -- Use the helper lemma: predecessor producing write-permission state must be write
                   exact produces_state_with_write_perms_implies_is_write hwrite hcoh hhas_perms hpred_produces_state_at_least_req_made_on_state hinter_pred_not_down hpred_missing_perms hpred_cache
                 have hcoh_pred : hexists_pred_getting_perms.choose.req.val.coherent = true := by
-                  -- TODO: Use hypotheses `hpred_missing_perms`, `hpred_cache`, `hreq_has_perms` in a similar way to how
-                  -- hypotheses `hreq_has_perms` `hpred_produces` `hpred_missing_perms`
-                  -- are used in lemma `produces_state_with_write_perms_implies_is_write_no_coherence`.
-                  -- Use these hypotheses in helper lemma `pred_missing_perms_req_has_coherent_state_implies_pred_is_coherent`.
-                  -- You'll need to use the hypotheses and consider the cases of the state before `e_pred` and `e_req`, much like in `produces_state_with_write_perms_implies_is_write_no_coherence`.
-                  -- Also check the `RfProofLargeLemmas.lean` file for general approaches that will be useful -- but keep it simpler, split your lemmas into smaller helper lemmas
-
-                  -- The case below will require the additional hypothesis `hreq_on_coherent_state`,
-                  -- and it will be more like the proof process in `produces_state_with_write_perms_implies_is_write`..
-                  sorry
+                  -- Derive that e_inter was made on a coherent state
+                  -- For a coherent write with permissions, the state before must be coherent
+                  have hstate_coh : (b.stateReqMadeOn n init e_inter).c = true := by
+                    unfold Behaviour.stateReqMadeOn
+                    -- For coherent requests with permissions, the state before has c=true
+                    -- This follows from MRS.c = true and MRS ≤ state_before
+                    have hmrs_has_c_true : (Event.req n e_inter).MRS.c = true := by
+                      cases e_inter with
+                      | cacheEvent ce =>
+                        unfold Event.isCoherent ValidRequest.isCoherent Request.isCoherent at hcoh
+                        cases he_req : ce.req with
+                        | mk vr hvr =>
+                          cases vr with
+                          | mk rw coh cons =>
+                            simp at hcoh
+                            rw [he_req] at hcoh
+                            simp at hcoh
+                            cases hcoh
+                            -- Now coh = true, so we need to show MRS.c = true
+                            -- For all coherent requests, MRS has c = true
+                            simp [Event.req, he_req, ValidRequest.MRS, ReadWrite.toPerms, ReadWrite.toRWPerms]
+                            -- Only valid coherent requests: SC (r/w), Rel w, Weak w
+                            -- Invalid: Rel r, Acq (r/w), Weak r - derive contradiction from IsValid'
+                            match cons, rw with
+                            | .SC, .w | .SC, .r | .Rel, .w | .Weak, .w => rfl
+                            | .Rel, .r => exfalso; simp [Request.IsValid'] at hvr
+                            | .Acq, _ => exfalso; simp [Request.IsValid'] at hvr
+                            | .Weak, .r => exfalso; simp [Request.IsValid'] at hvr
+                      | directoryEvent _ =>
+                        exfalso
+                        simp [Event.isCoherent] at hcoh
+                    have hle : (Event.req n e_inter).MRS ≤ (b.stateBefore n (init.stateAt n e_inter) e_inter).cache := hhas_perms
+                    have hc_le : (Event.req n e_inter).MRS.c ≤ (b.stateBefore n (init.stateAt n e_inter) e_inter).cache.c := by
+                      cases hle with
+                      | inl hlt => exact hlt.right.left
+                      | inr heq => rw [← heq]
+                    rw [hmrs_has_c_true] at hc_le
+                    cases h_c : (b.stateBefore n (init.stateAt n e_inter) e_inter).cache.c
+                    · exfalso; rw [h_c] at hc_le; trivial
+                    · rfl
+                  -- Use the implementation lemma
+                  exact pred_missing_perms_req_impl hstate_coh hpred_produces_state_at_least_req_made_on_state hinter_pred_not_down hpred_missing_perms hpred_cache
                 exact reqToDir_preserves_write_of_coherent hexists_pred_getting_perms.choose _ hwrite_pred hcoh_pred
           | ncRelAcqWeakWriteHasCoherentPerms hncraw hhascoh =>
               -- e_inter is NC/rel/acq/weak write with coherent perms
