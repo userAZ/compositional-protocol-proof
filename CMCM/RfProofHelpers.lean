@@ -986,7 +986,10 @@ lemma produces_state_with_write_perms_implies_is_write_no_coherence
               simp [Event.isNcRelease, CacheEvent.isNcRelease, ValidRequest.isNcRelease] at hrel
               have hrw : ce_pred.req.val.rw = .w := by
                 simp [hrel]
-              simp [hrw]
+              simp []
+
+              rw[hpred_req] at hrel
+              simp at hrel
       | ⟨⟨.r,_,_⟩, _⟩ =>
         -- Read isn't a write, contradicts hwrite
         simp[Request.isWrite] at hwrite
