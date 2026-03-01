@@ -471,6 +471,7 @@ structure Behaviour.reqHasNoPermsLeavesStateAtLeast (b : Behaviour n) (init : In
   missingPerms : b.reqMissingPerms n init e_req
   notDown : ¬ e_req.down -- try something new with the condition?
   stateAfterAtLeast : b.reqLeavesStateAtLeast n e_req init state
+  reqCache : e_req.isCacheEvent
   -- encapDir : b.cacheEncapCorrespondingDirEvent n (init.stateAt n e_req) true e_req
 
 /-
