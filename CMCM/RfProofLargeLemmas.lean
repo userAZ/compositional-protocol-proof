@@ -2,6 +2,43 @@ import CMCM.RfProofDefs
 
 variable {n : ℕ}
 
+/-- Helper lemma: NC weak write cannot be made on MR (maximum read) state.
+MR state ⟨some .r, true⟩ can only be produced by coherent SC reads,
+but SC reads and NC weak writes cannot coexist in the same protocol. -/
+lemma nc_weak_write_not_on_mr_state
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+  {e_ww : Event n}
+  (he_ww_in_b : e_ww ∈ b)
+  (hncweakwrite : e_ww.req.val = ⟨.w, false, .Weak⟩)
+  (hmr_state : b.stateBefore n (init.stateAt n e_ww) e_ww = MREntry n)
+  : False := by
+  -- If e_ww is on MR state ⟨some .r, true⟩, then there must be a previous event that produced this state
+  -- MR state (maximum read permissions with coherence) can only be produced by coherent reads
+  -- Specifically, only SC reads produce coherent read state with maximum read permissions
+
+  -- The key insight: if we're in MR state before e_ww, there must be a previous SC read
+  -- in the protocol that produced this state. But SC read and NC weak write cannot coexist
+  -- in the same protocol due to FollowsProtocolInterface.nc_no_sc.
+
+  -- For now, we need to assume there exists a previous SC read event that created the MR state
+  -- This would require a behavior lemma about state production that needs to be written.
+
+  -- TODO: This requires a lemma about how MR state is produced in behaviors
+  -- The full proof would need to trace back through the behavior to find the event
+  -- that produced MR state, show it must be an SC read, and show that the protocol `FollowsProtocolInterface`
+  -- does not contain both SC reads and NC weak writes.
+
+  -- The helper lemma about MR state produced by an SC write can be implemented
+  -- with a lemma that uses strong induction (recursively references itself).
+  -- Show that the state before `e_ww` is the state after the events upto `e_ww`.
+  -- The list of events up to `e_ww` is either empty or a list.
+  -- if it's empty, the state before is I (using a def of init state in Behavior).
+  -- if it's not empty, then there is a last event `e_last` in the list of events up to `e_ww`.
+  -- Then either the state after `e_last` is on MR state (because the state after the list is MR),
+  --   and `e_last` is the SC Coherent Read, or it must be a previous event that produced the MR state, and we can apply the inductive hypothesis to that event,
+  --   or recur on the lemma, depending on if strong induction is implemented by a recursive lemma call, or the `induction` tactic.
+  sorry
+
 /-- Helper: If a request produces a state with write permissions, the request must be a write. -/
 lemma produces_state_with_write_perms_implies_is_write
   {b : Behaviour n} {init : InitialSystemState n} {e_pred e_req : Event n}
