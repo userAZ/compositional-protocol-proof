@@ -1199,9 +1199,14 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
                 ⟨⟨.w, true, .SC⟩, by simp [Request.IsValid']⟩ := by
               cases hchoose : Exists.choose hsucc_encap_dir with
               | directoryEvent de_succ =>
-                -- TODO: show the directory event of an SC Write is a (SC) Write. (well, techinically all we need to show is the the SC write's directory event is a write.
-                -- don't need to worry about the 'SC' directory write part)
-                sorry
+                -- If a directory event satisfies isSCWrite, its request must be an SC write
+                -- by definition of ValidRequest.isSCWrite
+                have hreq_is_sc_write : de_succ.req.isSCWrite := by
+                  simp only [Event.isSCWrite, Event.req, hchoose] at hsc_write
+                  exact hsc_write
+                -- ValidRequest.isSCWrite means the request equals ⟨⟨.w, true, .SC⟩, ...⟩
+                simp only [hchoose, Event.req, ValidRequest.isSCWrite] at hreq_is_sc_write
+                exact hreq_is_sc_write
               | cacheEvent ce_succ =>
                 have : ce_succ.req = ⟨⟨.w, true, .SC⟩, by simp[Request.IsValid']⟩ := by
                   simp only [Event.isSCWrite, Event.req, hchoose, ValidRequest.isSCWrite] at hsc_write
