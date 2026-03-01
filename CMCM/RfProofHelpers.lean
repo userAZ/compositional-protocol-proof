@@ -499,6 +499,74 @@ lemma pred_missing_perms_req_has_coherent_state_impl
   -- Now use the existing lemma that does case analysis on e_pred
   exact nc_acq_weak_write_has_coherent_state_implies_pred_is_coherent hstate_coh hpred_produces hpred_not_down hpred_missing_perms hpred_cache
 
+/-- Helper lemma: Non-coherent weak write and SC read cannot coexist in the same protocol.
+    This captures the constraint that protocols cannot mix MSI (SC) and RCC (NC/Rel/CRel/Acq) requests. -/
+lemma protocol_nc_weak_write_sc_read_contradiction
+  {cmp : CompoundProtocol n} {b : Behaviour n}
+  {e_ncwrite e_scread : Event n}
+  (he_ncwrite_in_b : e_ncwrite ∈ b)
+  (he_scread_in_b : e_scread ∈ b)
+  (hncwrite : e_ncwrite.req.val = ⟨.w, false, .Weak⟩)
+  (hscread : e_scread.req.val = ⟨.r, true, .SC⟩)
+  (hsame_protocol : e_ncwrite.protocol = e_scread.protocol)
+  : False := by
+  -- Both requests are in the same protocol's request set
+  -- NC weak write request: ⟨.w, false, .Weak⟩ is non-coherent
+  -- SC read request: ⟨.r, true, .SC⟩ is coherent
+  -- These cannot coexist in a protocol's request set due to MSI/RCC separation:
+  -- - MSI protocols contain only SC (coherent) requests
+  -- - RCC protocols contain NC/Rel/CRel/Acq (non-coherent, labeled, Coherent Release) requests
+  -- No protocol mixes both types
+
+  -- TODO: Implement this based on the following:
+  -- This can be easily done by using `cmp.eReqOfTheirProtocol` and showing `e_inter` and `hsucc_encap_dir.choose` are in the same protocol
+  -- (with `hsucc_same_protocol : hsucc_encap_dir.choose.sameProtocol n e_req`),
+  -- Then use `e_inter` and `hsucc_encap_dir.choose`'s shared protocol's interface `ProtocolInterface := {vr : Set ValidRequest // FollowsProtocolInterface vr}`
+  -- `FollowsProtocolInterface` property that prohibits NC weak read and SC read from being in the same protocol, which would lead to a contradiction.
+
+  -- Determine which protocol the events belong to and show both requests are in that protocol
+  have h_proto : ∃ p : Protocol n, e_ncwrite.protocol = p.pi ∧ e_scread.protocol = p.pi := by
+    -- They belong to the same protocol by hsame_protocol
+    cases heq : e_ncwrite.protocol with
+    | global => exact ⟨cmp.global, by simp [cmp.globalWellFormed], by rw [←hsame_protocol, heq, cmp.globalWellFormed]⟩
+    | cluster1 => exact ⟨cmp.cluster1, by simp [cmp.cluster1WellFormed], by rw [←hsame_protocol, heq, cmp.cluster1WellFormed]⟩
+    | cluster2 => exact ⟨cmp.cluster2, by simp [cmp.cluster2WellFormed], by rw [←hsame_protocol, heq, cmp.cluster2WellFormed]⟩
+  obtain ⟨proto, hproto_nc, hproto_sc⟩ := h_proto
+  
+  -- Both requests are in the protocol's interface
+  have hncwrite_in_proto : e_ncwrite.req ∈ proto.requests := by
+    apply cmp.eReqOfTheirProtocol proto e_ncwrite
+    exact hproto_nc
+  have hscread_in_proto : e_scread.req ∈ proto.requests := by
+    apply cmp.eReqOfTheirProtocol proto e_scread
+    exact hproto_sc
+  
+  -- Show e_ncwrite.req = NonCoherentWeakWrite (which is ValidRequest with val = ⟨.w, false, .Weak⟩)
+  have hncwrite_eq : e_ncwrite.req = NonCoherentWeakWrite := by
+    ext
+    exact hncwrite
+  
+  -- Show e_scread.req = SCRead (which is ValidRequest with val = ⟨.r, true, .SC⟩)
+  have hscread_eq : e_scread.req = SCRead := by
+    ext
+    exact hscread
+  
+  -- NonCoherentWeakWrite has NonCoherent property
+  have hncwrite_nc : e_ncwrite.req.NonCoherent := by
+    rw [hncwrite_eq]
+    simp only [ValidRequest.NonCoherent, Request.nonCoherent]
+    simp
+  
+  -- Use FollowsProtocolInterface.nc_no_sc: if a NonCoherent request is in the protocol, then SCRead ∉ protocol
+  have hcontra := proto.requests.property.nc_no_sc e_ncwrite.req hncwrite_in_proto
+  have hsc_not_in : SCRead ∉ proto.requests := by
+    have h := hcontra ⟨hncwrite_in_proto, Or.inl hncwrite_nc⟩
+    exact h.right
+  
+  -- But we have SCRead ∈ proto.requests
+  rw [hscread_eq] at hscread_in_proto
+  exact hsc_not_in hscread_in_proto
+
 /-- Helper lemma for Case 2a: Different cache, same protocol/cluster -/
 lemma noInterveningWrites_diffCache_sameProtocol_case
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
