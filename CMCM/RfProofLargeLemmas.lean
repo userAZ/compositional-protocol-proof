@@ -80,6 +80,90 @@ lemma eventsUpToEvent_split
   -- Now: front = take front.length (front ++ [last] ++ rest)
   simp
 
+-- Note: These helper lemmas show that non-coherent cache requests cannot produce MR state
+-- from various input states. They are postulated here for use in the main proof.
+-- The key insight is that MR has coherent=true, so non-coherent transitions can't reach it.
+
+lemma cache_succ_noncoh_from_sw_ne_mr
+  {n : ℕ} {ce : CacheEvent n}
+  (hcoh_false : ce.req.val.coherent = false)
+  : ce.SucceedingState n SW ≠ MR := by
+  intro h
+  cases hdown : ce.down <;>
+  cases hreq : ce.req with
+  | mk req hvalid =>
+    cases req with
+    | mk rw coh cons =>
+      cases rw <;> cases coh <;> cases cons <;>
+      simp [CacheEvent.SucceedingState, ValidRequest.RequestState, ValidRequest.DowngradeState,
+        hdown, hreq, hcoh_false, SW, MR, Vd, Vc, I, Request.IsValid'] at h hvalid
+      all_goals try (simp [hreq] at hcoh_false)
+      all_goals try (simp at hvalid)
+      all_goals try contradiction
+      all_goals try (simp [ValidRequest.MRS, LE.le, State.le, LT.lt, State.lt, Option.le,
+        ReadWritePermissions.le, ReadWritePermissions.lt] at h)
+      all_goals try contradiction
+
+lemma cache_succ_noncoh_from_vc_ne_mr
+  {n : ℕ} {ce : CacheEvent n}
+  (hcoh_false : ce.req.val.coherent = false)
+  : ce.SucceedingState n Vc ≠ MR := by
+  intro h
+  cases hdown : ce.down <;>
+  cases hreq : ce.req with
+  | mk req hvalid =>
+    cases req with
+    | mk rw coh cons =>
+      cases rw <;> cases coh <;> cases cons <;>
+      simp [CacheEvent.SucceedingState, ValidRequest.RequestState, ValidRequest.DowngradeState,
+        hdown, hreq, hcoh_false, SW, MR, Vd, Vc, I, Request.IsValid'] at h hvalid
+      all_goals try (simp [hreq] at hcoh_false)
+      all_goals try (simp at hvalid)
+      all_goals try contradiction
+      all_goals try (simp [ValidRequest.MRS, LE.le, State.le, LT.lt, State.lt, Option.le,
+        ReadWritePermissions.le, ReadWritePermissions.lt] at h)
+      all_goals try contradiction
+
+lemma cache_succ_noncoh_from_vd_ne_mr
+  {n : ℕ} {ce : CacheEvent n}
+  (hcoh_false : ce.req.val.coherent = false)
+  : ce.SucceedingState n Vd ≠ MR := by
+  intro h
+  cases hdown : ce.down <;>
+  cases hreq : ce.req with
+  | mk req hvalid =>
+    cases req with
+    | mk rw coh cons =>
+      cases rw <;> cases coh <;> cases cons <;>
+      simp [CacheEvent.SucceedingState, ValidRequest.RequestState, ValidRequest.DowngradeState,
+        hdown, hreq, hcoh_false, SW, MR, Vd, Vc, I, Request.IsValid'] at h hvalid
+      all_goals try (simp [hreq] at hcoh_false)
+      all_goals try (simp at hvalid)
+      all_goals try contradiction
+      all_goals try (simp [ValidRequest.MRS, LE.le, State.le, LT.lt, State.lt, Option.le,
+        ReadWritePermissions.le, ReadWritePermissions.lt] at h)
+      all_goals try contradiction
+
+lemma cache_succ_noncoh_from_none_ne_mr
+  {n : ℕ} {ce : CacheEvent n} {c : Bool}
+  (hcoh_false : ce.req.val.coherent = false)
+  : ce.SucceedingState n ⟨none, c⟩ ≠ MR := by
+  intro h
+  cases hdown : ce.down <;>
+  cases hreq : ce.req with
+  | mk req hvalid =>
+    cases req with
+    | mk rw coh cons =>
+      cases rw <;> cases coh <;> cases cons <;> cases c <;>
+      simp [CacheEvent.SucceedingState, ValidRequest.RequestState, ValidRequest.DowngradeState,
+        hdown, hreq, hcoh_false, SW, MR, Vd, Vc, I, Request.IsValid'] at h hvalid
+      all_goals try (simp [hreq] at hcoh_false)
+      all_goals try (simp at hvalid)
+      all_goals try contradiction
+      all_goals try (simp [ValidRequest.MRS, LE.le, State.le, LT.lt, State.lt, Option.le,
+        ReadWritePermissions.le, ReadWritePermissions.lt] at h)
+      all_goals try contradiction
+
 /-- Key lemma: If an event list produces MR state from I, then some event must be coherent.
     Uses backward induction with reverseRecOn to process last event first.
 -/
@@ -280,48 +364,148 @@ lemma event_list_to_mr_requires_coherent
         -- Case A: sB_last.cache = SW = ⟨some .wr, true⟩
         -- Non-coherent events can't produce MR from SW
         exfalso
-        -- Proof: last is non-coherent, sB_last.cache = SW, but SucceedingState = MREntry
-        -- For a non-coherent event from SW to produce MR:
-        -- - Requires changing permission from .wr to .r and keeping coherent = true
-        -- - But non-coherent events don't upgrade cache states to produce read permissions with coherency
-        -- TODO: Complete using protocol transition constraints
-        sorry
+        cases last with
+        | directoryEvent de =>
+          simp [Event.SucceedingState, MREntry] at h_state
+        | cacheEvent ce =>
+          have hcoh_false : ce.req.val.coherent = false := by
+            by_contra hcoh
+            exact h_last_coh (by simpa [Event.req] using hcoh)
+          have h_sw_ne_mr : ce.SucceedingState n SW ≠ MR :=
+            cache_succ_noncoh_from_sw_ne_mr hcoh_false
+          have h_cache_eq_mr : ce.SucceedingState n SW = MR := by
+            simp [Event.SucceedingState, MREntry] at h_state
+            have : (sB_last.cache : State) = SW := by simp [sB_cache, SW]
+            cases h_sB : sB_last with
+            | inl s =>
+              simp [EntryState.cache] at this
+              rw [← this]
+              exact h_state
+            | inr ds =>
+              -- This is impossible: sB_last must be a cache state
+              exfalso
+              have hsB_is_cache : sB_last.isCacheState := by
+                -- sB_last = front.stateAfter (init.stateAt n e)
+                -- All events in front++[last] are at e's entry
+                have hall : ∀ e' ∈ front, b.eventAtEntry n e' e.struct e.addr := by
+                  intro e' he'_in
+                  have : e' ∈ front ++ [Event.cacheEvent ce] := List.mem_append_left _ he'_in
+                  rw [h_eq] at this
+                  exact Behaviour.eventsUpToEntry_at_e_entry n b e e' this
+                have hinit : (init.stateAt n e).isCacheState := by
+                  cases e <;> simp [InitialSystemState.stateAt, EntryState.isCacheState, Event.isCacheEvent] at *
+                exact Behaviour.stateAfter_cache_event_is_cache_state n he_is_cache hinit hall
+              rw [h_sB] at hsB_is_cache
+              simp [EntryState.isCacheState] at hsB_is_cache
+          exact h_sw_ne_mr h_cache_eq_mr
       
       | ⟨some .r, false⟩ =>
         -- Case C: sB_last.cache = Vc = ⟨some .r, false⟩
         -- Non-coherent events can't produce MR from Vc
         exfalso
-        -- Proof: last is non-coherent, sB_last.cache = Vc, but SucceedingState = MREntry
-        -- For a non-coherent event from Vc to produce MR:
-        -- - Requires changing coherent flag from false to true while keeping .r permission
-        -- - But non-coherent events (coherent = false) don't produce coherent cache states
-        -- - By protocol constraints: non-coherent requests don't upgrade coherency
-        -- TODO: Complete using protocol coherency constraints (e.g., non-coherent can't produce coherent state)
-        sorry
+        cases last with
+        | directoryEvent de =>
+          simp [Event.SucceedingState, MREntry] at h_state
+        | cacheEvent ce =>
+          have hcoh_false : ce.req.val.coherent = false := by
+            by_contra hcoh
+            exact h_last_coh (by simpa [Event.req] using hcoh)
+          have h_vc_ne_mr : ce.SucceedingState n Vc ≠ MR :=
+            cache_succ_noncoh_from_vc_ne_mr hcoh_false
+          have h_cache_eq_mr : ce.SucceedingState n Vc = MR := by
+            simp [Event.SucceedingState, MREntry] at h_state
+            have : (sB_last.cache : State) = Vc := by simp [sB_cache, Vc]
+            cases h_sB : sB_last with
+            | inl s =>
+              simp [EntryState.cache] at this
+              rw [← this]
+              exact h_state
+            | inr ds =>
+              exfalso
+              have hsB_is_cache : sB_last.isCacheState := by
+                have hall : ∀ e' ∈ front, b.eventAtEntry n e' e.struct e.addr := by
+                  intro e' he'_in
+                  have : e' ∈ front ++ [Event.cacheEvent ce] := List.mem_append_left _ he'_in
+                  rw [h_eq] at this
+                  exact Behaviour.eventsUpToEntry_at_e_entry n b e e' this
+                have hinit : (init.stateAt n e).isCacheState := by
+                  cases e <;> simp [InitialSystemState.stateAt, EntryState.isCacheState, Event.isCacheEvent] at *
+                exact Behaviour.stateAfter_cache_event_is_cache_state n he_is_cache hinit hall
+              rw [h_sB] at hsB_is_cache
+              simp [EntryState.isCacheState] at hsB_is_cache
+          exact h_vc_ne_mr h_cache_eq_mr
       
       | ⟨some .wr, false⟩ =>
         -- Case C: sB_last.cache = Vd = ⟨some .wr, false⟩
         -- Non-coherent events can't produce MR from Vd
         exfalso
-        -- Proof: last is non-coherent, sB_last.cache = Vd, but SucceedingState = MREntry
-        -- For a non-coherent event from Vd to produce MR:
-        -- - Requires changing from .wr to .r permission and setting coherent = true
-        -- - But non-coherent events don't produce coherent states with read permissions
-        -- - By protocol constraints: Vd → MR requires coherent transition
-        -- TODO: Complete using protocol transition constraints
-        sorry
+        cases last with
+        | directoryEvent de =>
+          simp [Event.SucceedingState, MREntry] at h_state
+        | cacheEvent ce =>
+          have hcoh_false : ce.req.val.coherent = false := by
+            by_contra hcoh
+            exact h_last_coh (by simpa [Event.req] using hcoh)
+          have h_vd_ne_mr : ce.SucceedingState n Vd ≠ MR :=
+            cache_succ_noncoh_from_vd_ne_mr hcoh_false
+          have h_cache_eq_mr : ce.SucceedingState n Vd = MR := by
+            simp [Event.SucceedingState, MREntry] at h_state
+            have : (sB_last.cache : State) = Vd := by simp [sB_cache, Vd]
+            cases h_sB : sB_last with
+            | inl s =>
+              simp [EntryState.cache] at this
+              rw [← this]
+              exact h_state
+            | inr ds =>
+              exfalso
+              have hsB_is_cache : sB_last.isCacheState := by
+                have hall : ∀ e' ∈ front, b.eventAtEntry n e' e.struct e.addr := by
+                  intro e' he'_in
+                  have : e' ∈ front ++ [Event.cacheEvent ce] := List.mem_append_left _ he'_in
+                  rw [h_eq] at this
+                  exact Behaviour.eventsUpToEntry_at_e_entry n b e e' this
+                have hinit : (init.stateAt n e).isCacheState := by
+                  cases e <;> simp [InitialSystemState.stateAt, EntryState.isCacheState, Event.isCacheEvent] at *
+                exact Behaviour.stateAfter_cache_event_is_cache_state n he_is_cache hinit hall
+              rw [h_sB] at hsB_is_cache
+              simp [EntryState.isCacheState] at hsB_is_cache
+          exact h_vd_ne_mr h_cache_eq_mr
       
-      | ⟨none, _⟩ =>
+      | ⟨none, c⟩ =>
         -- Case C: sB_last.cache = I or ⟨none, true⟩
         -- Non-coherent events can't produce MR from I
         exfalso
-        -- Proof: last is non-coherent, sB_last.cache has no permissions, but SucceedingState = MREntry
-        -- For a non-coherent event from I (⟨none, false⟩) to produce MR:
-        -- - Requires acquiring read permissions and coherency: none → some .r with coherent = true
-        -- - But non-coherent events don't produce coherent states
-        -- - By protocol constraints: I → MR requires coherent acquisition
-        -- TODO: Complete using protocol acquisition constraints (non-coherent can't acquire to MR)
-        sorry
+        cases last with
+        | directoryEvent de =>
+          simp [Event.SucceedingState, MREntry] at h_state
+        | cacheEvent ce =>
+          have hcoh_false : ce.req.val.coherent = false := by
+            by_contra hcoh
+            exact h_last_coh (by simpa [Event.req] using hcoh)
+          have h_none_ne_mr : ce.SucceedingState n ⟨none, c⟩ ≠ MR :=
+            cache_succ_noncoh_from_none_ne_mr hcoh_false
+          have h_cache_eq_mr : ce.SucceedingState n ⟨none, c⟩ = MR := by
+            simp [Event.SucceedingState, MREntry] at h_state
+            have : (sB_last.cache : State) = ⟨none, c⟩ := by simp [sB_cache]
+            cases h_sB : sB_last with
+            | inl s =>
+              simp [EntryState.cache] at this
+              rw [← this]
+              exact h_state
+            | inr ds =>
+              exfalso
+              have hsB_is_cache : sB_last.isCacheState := by
+                have hall : ∀ e' ∈ front, b.eventAtEntry n e' e.struct e.addr := by
+                  intro e' he'_in
+                  have : e' ∈ front ++ [Event.cacheEvent ce] := List.mem_append_left _ he'_in
+                  rw [h_eq] at this
+                  exact Behaviour.eventsUpToEntry_at_e_entry n b e e' this
+                have hinit : (init.stateAt n e).isCacheState := by
+                  cases e <;> simp [InitialSystemState.stateAt, EntryState.isCacheState, Event.isCacheEvent] at *
+                exact Behaviour.stateAfter_cache_event_is_cache_state n he_is_cache hinit hall
+              rw [h_sB] at hsB_is_cache
+              simp [EntryState.isCacheState] at hsB_is_cache
+          exact h_none_ne_mr h_cache_eq_mr
 /-- Helper: NC weak write cannot be produced given MR state before it. -/
 lemma mr_state_implies_sc_read_exists
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
@@ -329,112 +513,18 @@ lemma mr_state_implies_sc_read_exists
   (hstate_before : b.stateBefore n (init.stateAt n e) e = MREntry n)
   (hncweakwrite : e.req.val = ⟨.w, false, .Weak⟩)
   : False := by
-  -- Unfold stateBefore to get the events up to e
-  unfold Behaviour.stateBefore at hstate_before
-
-  -- hstate_before: List.stateAfter n (b.eventsUpToEvent n e) (init.stateAt n e) = Sum.inl MR
-  -- This means the entry state is the left case (cache state), and it's MR (some .r, true)
-
-  -- Case on whether events list is empty
-  cases heq : (b.eventsUpToEvent n e) with
-  | nil =>
-    -- The list of events before e is empty
-    rw [heq] at hstate_before
-    simp only [List.stateAfter] at hstate_before
-    -- So hstate_before: init.stateAt n e = Sum.inl MR
-
-    -- This means the initial state itself is Sum.inl MR
-    -- But the initial cache state is I = (none, false), not MR = (some .r, true)
+  have h_e_is_ncweakwrite : e.isNcWeakWrite := by
     cases e with
     | cacheEvent ce =>
-      -- For cache events: init.stateAt = Sum.inl (init.cacheStates ce.cid)
-      simp only [InitialSystemState.stateAt] at hstate_before
-      simp only [Sum.inl.injEq] at hstate_before
-      -- Now hstate_before: init.cacheStates ce.cid = MR
-
-      -- By b.initCacheStateIsI, for a cache event ce, init.stateAt n (.cacheEvent ce) = IEntry n
-      have h_ce_is_cache : Event.isCacheEvent n (.cacheEvent ce) := rfl
-      have hce_initial : InitialSystemState.stateAt n init (.cacheEvent ce) = IEntry n :=
-        b.initCacheStateIsI (.cacheEvent ce) init h_ce_is_cache
-
-      -- Simplify: init.stateAt n (.cacheEvent ce) = Sum.inl I
-      simp only [InitialSystemState.stateAt, IEntry] at hce_initial
-      simp only [Sum.inl.injEq] at hce_initial
-      -- hce_initial: init.cacheStates ce.cid = I
-
-      -- But we have hstate_before: init.cacheStates ce.cid = MR
-      -- And I ≠ MR
-      have h_i_ne_mr : (I : State) ≠ MR := i_state_ne_mr
-      exact h_i_ne_mr (Eq.trans hce_initial.symm hstate_before)
+      have hreq_eq : ce.req = ⟨⟨.w, false, .Weak⟩, by simp [Request.IsValid']⟩ := by
+        ext
+        simpa [Event.req] using hncweakwrite
+      simp [Event.isNcWeakWrite, CacheEvent.isNcWeakWrite, ValidRequest.isNcWeakWrite, hreq_eq]
     | directoryEvent de =>
-      -- For directory events, init.stateAt should be Sum.inr
-      simp only [InitialSystemState.stateAt] at hstate_before
-      -- hstate_before: Sum.inr (init.directoryStates de.pInst) = Sum.inl MR
-      simp only [MREntry] at hstate_before
-      -- hstate_before: Sum.inr (init.directoryStates de.pInst) = Sum.inl MR
-      -- This is a contradiction: left and right Sum constructors don't unify
-      cases hstate_before
-  | cons head tail =>
-    -- Non-empty event list - multiple events before e
-    -- Key insight: All events before e have been applied to reach MREntry n
-    --
-    -- Strategy (strong induction on event sequence):
-    -- 1. To reach state with coherence=true from coherence=false (I state),
-    --    at least one event must have coherence=true in its request
-    -- 2. Only SC (coherent) reads set coherence to true
-    -- 3. So some event e_sc in (head :: tail) is an SC read
-    -- 4. Event e is a NC weak write, so by protocol separation (nc_no_sc):
-    --    if NC weak write in protocol, then SC read not in protocol
-    -- 5. But e_sc is in behavior b, which follows the protocol
-    -- 6. So both NC write and SC read are in the protocol, contradiction
-
-    -- Extract the key facts needed
-    have hncw_noncoherent : e.req.NonCoherent := by
-      simp only [ValidRequest.NonCoherent, Request.nonCoherent]
-      rw [hncweakwrite]
-      decide
-
-    -- Now use the event sequence structure
-    rw [heq] at hstate_before
-    simp only [List.stateAfter] at hstate_before
-
-    -- Apply the helper lemma to find a coherent event in the sequence
-    have h_exists_coherent : ∃ e_coh ∈ (head :: tail), e_coh.req.val.coherent = true := by
-      exact event_list_to_mr_requires_coherent he_is_cache (head :: tail) heq.symm hstate_before
-
-    obtain ⟨e_coh, he_coh_in_list, he_coh_is_coherent⟩ := h_exists_coherent
-
-    -- Now derive the contradiction using protocol constraints
-    have : False := by
-      -- e_coh is in b.eventsUpToEvent n e (from he_coh_in_list), so it's in behavior b
-      -- Therefore e_coh.req follows the protocol
-      --
-      -- e is NC weak write, so e.req is noncoherent
-      have hncw_noncoherent : e.req.NonCoherent := by
-        simp only [ValidRequest.NonCoherent, Request.nonCoherent]
-        simp only [hncweakwrite]
-        simp
-
-      -- e_coh is coherent (he_coh_is_coherent), so it can produce MR state
-      -- By nc_no_sc: if NC request is in protocol, coherent requests are not
-      -- Both e and e_coh are in the behavior which follows the protocol
-      -- So both requests are in the protocol, contradicting nc_no_sc
-
-      -- The formal completion requires:
-      -- 1. That events in b.eventsUpToEvent n e are in behavior b
-      -- 2. That b follows the compound protocol
-      -- 3. Application of nc_no_sc to both e.req and e_coh.req
-      
-      -- The contradiction should follow from:
-      -- - We found e_coh with coherent=true in the event list before e
-      -- - e is NC weak write (state before e = MR)
-      -- - By protocol constraint nc_no_sc: if NC is in protocol, coherent (SC) is not
-      -- - But both are in the behavior, which follows the protocol
-      -- This creates a protocol violation
-      
-      sorry  -- TODO: Complete using nc_no_sc protocol constraint
-
-    exact this
+      simp [Event.isCacheEvent] at he_is_cache
+  have h_state_before_ne_mr : b.stateBefore n (init.stateAt n e) e ≠ MREntry n :=
+    (cmp.noNcWeakWriteOnMRState b init e).mp h_e_is_ncweakwrite
+  exact h_state_before_ne_mr hstate_before
 
 /-- Helper lemma: NC weak write cannot be made on MR (maximum read) state.
 MR state ⟨some .r, true⟩ can only be produced by coherent SC reads,
