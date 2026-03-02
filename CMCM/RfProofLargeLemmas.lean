@@ -2,42 +2,286 @@ import CMCM.RfProofDefs
 
 variable {n : ℕ}
 
+/-- Helper: I state is not MR state. -/
+lemma i_state_ne_mr : (I : State) ≠ MR := by
+  simp only [I, MR]
+  norm_num
+
+/-- Helper: If events list equals eventsUpToEvent n e and splits as front ++ [last],
+    then front equals eventsUpToEvent n last. -/
+lemma eventsUpToEvent_split
+  {b : Behaviour n} {e : Event n}
+  {front : List (Event n)} {last : Event n}
+  (h_split : b.eventsUpToEvent n e = front ++ [last])
+  : front = b.eventsUpToEvent n last := by
+  -- Unfold definitions
+  simp only [Behaviour.eventsUpToEvent] at h_split ⊢
+  simp only [List.upToEvent] at h_split ⊢
+
+  -- h_split: List.take (List.idxOf e (eventsAtEventEntry n b e)) (eventsAtEventEntry n b e) = front ++ [last]
+  -- Goal: List.take (List.idxOf last (eventsAtEventEntry n b last)) (eventsAtEventEntry n b last) = front
+
+  --last must be in eventsUpToEvent, so it's at the same entry as e
+  have h_last_at_same_entry : b.eventAtEntry n last e.struct e.addr := by
+    apply Behaviour.eventsUpToEntry_at_e_entry
+    simp only [Behaviour.eventsUpToEvent, List.upToEvent]
+    rw [h_split]
+    exact List.mem_append_right front (List.mem_singleton_self last)
+
+  -- Events at same entry are equal
+  have h_same_events : b.eventsAtEventEntry n last = b.eventsAtEventEntry n e := by
+    apply Behaviour.eventsAtEventEntry_eq_same_entry
+    constructor
+    · simp only [Event.sameStructure]
+      exact h_last_at_same_entry.eAtStruct
+    · simp only [Event.sameAddr]
+      exact h_last_at_same_entry.eAtAddr
+
+  -- Substitute: events at last = events at e
+  rw [h_same_events]
+
+  -- Get nodup for front ++ [last]
+  have h_nodup : (front ++ [last]).Nodup := by
+    have := b.eventsUpToEvent_no_dups n e
+    simp only [Behaviour.eventsUpToEvent, List.upToEvent] at this
+    rw [h_split] at this
+    exact this
+
+  -- last ∉ front (from nodup)
+  have hlast_not_in_front : last ∉ front := by
+    simp [List.nodup_append'] at h_nodup
+    exact h_nodup.right
+
+  -- Since take (idxOf e list) list = front ++ [last], and list starts with at least that much,
+  -- we can reconstruct: list = front ++ [last] ++ (drop (idxOf e list) list)
+  have h_list_decomp : b.eventsAtEventEntry n e =
+      List.take (List.idxOf e (b.eventsAtEventEntry n e)) (b.eventsAtEventEntry n e) ++
+      List.drop (List.idxOf e (b.eventsAtEventEntry n e)) (b.eventsAtEventEntry n e) := by
+    exact (List.take_append_drop _ _).symm
+
+  rw [h_split] at h_list_decomp
+
+  -- Now idxOf last in (front ++ [last] ++ rest) = idxOf last (front ++ [last])
+  have h_idx_last : List.idxOf last (b.eventsAtEventEntry n e) = List.idxOf last (front ++ [last]) := by
+    rw [h_list_decomp]
+    apply List.idxOf_append_of_mem
+    simp
+
+  -- And idxOf last (front ++ [last]) = front.length
+  have h_idx_in_prefix : List.idxOf last (front ++ [last]) = front.length := by
+    rw [List.idxOf_append_of_notMem hlast_not_in_front]
+    simp
+
+  -- Therefore take (idxOf last list) list = take front.length list = front
+  rw [h_idx_last, h_idx_in_prefix]
+  -- Goal: front = take front.length (eventsAtEventEntry)
+  -- Substitute list decomposition
+  rw [h_list_decomp]
+  -- Now: front = take front.length (front ++ [last] ++ rest)
+  simp
+
+/-- Key lemma: If an event list produces MR state from I, then some event must be coherent.
+    Uses backward induction with reverseRecOn to process last event first.
+-/
+lemma event_list_to_mr_requires_coherent
+  {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+  (hlist : List (Event n))
+  (h_list_eq : hlist = b.eventsUpToEvent n e)
+  (h_state_after : List.stateAfter n hlist (init.stateAt n e) = MREntry n)
+  : ∃ e_coh ∈ hlist, e_coh.req.val.coherent = true := by
+  -- Use reverse recursion to work backwards through the event list
+  -- This gives us front ++ [last] structure, where we can apply the lemma recursively
+  revert e h_list_eq h_state_after
+
+  induction hlist using List.reverseRecOn with
+  | nil =>
+    -- Base case: empty list
+    intros e h_eq h_state
+    simp only [List.stateAfter] at h_state
+    -- h_state: init.stateAt n e = MREntry n
+    -- This contradicts that initial state is I for cache events
+    exfalso
+    cases e with
+    | cacheEvent ce =>
+      simp only [InitialSystemState.stateAt, MREntry] at h_state
+      simp only [Sum.inl.injEq] at h_state
+      -- h_state: init.cacheStates ce.cid = MR
+      have h_ce_is_cache : Event.isCacheEvent n (.cacheEvent ce) := rfl
+      have h_init_is_i : InitialSystemState.stateAt n init (.cacheEvent ce) = IEntry n :=
+        b.initCacheStateIsI (.cacheEvent ce) init h_ce_is_cache
+      simp only [InitialSystemState.stateAt, IEntry] at h_init_is_i
+      simp only [Sum.inl.injEq] at h_init_is_i
+      -- h_init_is_i: init.cacheStates ce.cid = I
+      have : (I : State) ≠ MR := i_state_ne_mr
+      exact this (Eq.trans h_init_is_i.symm h_state)
+    | directoryEvent de =>
+      simp only [InitialSystemState.stateAt, MREntry] at h_state
+      -- Sum.inr ≠ Sum.inl
+      cases h_state
+  | append_singleton front last ih =>
+    -- Recursive case: list is front ++ [last]
+    intros e h_eq h_state
+
+    -- We know: front ++ [last] = b.eventsUpToEvent n e
+    -- By helper lemma: front = b.eventsUpToEvent n last
+    have h_front_eq : front = b.eventsUpToEvent n last := by
+      exact eventsUpToEvent_split h_eq.symm
+
+    -- Compute state after applying all events
+    rw [Behaviour.state_after_eq_succeeding_state_before'] at h_state
+
+    -- h_state: Event.SucceedingState n last (front.stateAfter n (init.stateAt n e)) = MREntry n
+
+    -- Check if last is coherent
+    by_cases h_last_coh : last.req.val.coherent = true
+    · -- Case: last is coherent
+      -- last is coherent, we're done
+      use last
+      constructor
+      · exact List.mem_append_right front (List.mem_singleton_self last)
+      · exact h_last_coh
+    · -- Case: last is not coherent
+      -- If last is not coherent, but the state after last has coherent = true,
+      -- then the state before last must also have coherent = true
+      -- This means front must produce a state with coherent = true
+      -- So front must contain a coherent event
+
+      -- Extract that MREntry has coherent = true
+      have h_mr_coherent : (MREntry n).cache.c = true := by
+        simp only [MREntry, MR]
+        rfl
+
+      -- h_state says state after last = MREntry, so it has coherent = true
+      have h_state_after_last_coherent : (last.SucceedingState n (front.stateAfter n (init.stateAt n e))).cache.c = true := by
+        rw [h_state]
+        exact h_mr_coherent
+
+      -- A non-coherent event cannot set coherence to true
+      -- So the state before last must have coherent = true
+      -- This means front.stateAfter must have coherent = true
+      -- Therefore front must contain a coherent event
+
+      -- Key lemma needed: non-coherent events cannot increase the coherent flag
+      -- If state_after.c = true, then state_before.c = true
+      -- This follows from analyzing ValidRequest.RequestState for non-coherent requests
+      sorry
+
+/-- Helper: NC weak write cannot be produced given MR state before it. -/
+lemma mr_state_implies_sc_read_exists
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+  (hstate_before : b.stateBefore n (init.stateAt n e) e = MREntry n)
+  (hncweakwrite : e.req.val = ⟨.w, false, .Weak⟩)
+  : False := by
+  -- Unfold stateBefore to get the events up to e
+  unfold Behaviour.stateBefore at hstate_before
+
+  -- hstate_before: List.stateAfter n (b.eventsUpToEvent n e) (init.stateAt n e) = Sum.inl MR
+  -- This means the entry state is the left case (cache state), and it's MR (some .r, true)
+
+  -- Case on whether events list is empty
+  cases heq : (b.eventsUpToEvent n e) with
+  | nil =>
+    -- The list of events before e is empty
+    rw [heq] at hstate_before
+    simp only [List.stateAfter] at hstate_before
+    -- So hstate_before: init.stateAt n e = Sum.inl MR
+
+    -- This means the initial state itself is Sum.inl MR
+    -- But the initial cache state is I = (none, false), not MR = (some .r, true)
+    cases e with
+    | cacheEvent ce =>
+      -- For cache events: init.stateAt = Sum.inl (init.cacheStates ce.cid)
+      simp only [InitialSystemState.stateAt] at hstate_before
+      simp only [Sum.inl.injEq] at hstate_before
+      -- Now hstate_before: init.cacheStates ce.cid = MR
+
+      -- By b.initCacheStateIsI, for a cache event ce, init.stateAt n (.cacheEvent ce) = IEntry n
+      have h_ce_is_cache : Event.isCacheEvent n (.cacheEvent ce) := rfl
+      have hce_initial : InitialSystemState.stateAt n init (.cacheEvent ce) = IEntry n :=
+        b.initCacheStateIsI (.cacheEvent ce) init h_ce_is_cache
+
+      -- Simplify: init.stateAt n (.cacheEvent ce) = Sum.inl I
+      simp only [InitialSystemState.stateAt, IEntry] at hce_initial
+      simp only [Sum.inl.injEq] at hce_initial
+      -- hce_initial: init.cacheStates ce.cid = I
+
+      -- But we have hstate_before: init.cacheStates ce.cid = MR
+      -- And I ≠ MR
+      have h_i_ne_mr : (I : State) ≠ MR := i_state_ne_mr
+      exact h_i_ne_mr (Eq.trans hce_initial.symm hstate_before)
+    | directoryEvent de =>
+      -- For directory events, init.stateAt should be Sum.inr
+      simp only [InitialSystemState.stateAt] at hstate_before
+      -- hstate_before: Sum.inr (init.directoryStates de.pInst) = Sum.inl MR
+      simp only [MREntry] at hstate_before
+      -- hstate_before: Sum.inr (init.directoryStates de.pInst) = Sum.inl MR
+      -- This is a contradiction: left and right Sum constructors don't unify
+      cases hstate_before
+  | cons head tail =>
+    -- Non-empty event list - multiple events before e
+    -- Key insight: All events before e have been applied to reach MREntry n
+    --
+    -- Strategy (strong induction on event sequence):
+    -- 1. To reach state with coherence=true from coherence=false (I state),
+    --    at least one event must have coherence=true in its request
+    -- 2. Only SC (coherent) reads set coherence to true
+    -- 3. So some event e_sc in (head :: tail) is an SC read
+    -- 4. Event e is a NC weak write, so by protocol separation (nc_no_sc):
+    --    if NC weak write in protocol, then SC read not in protocol
+    -- 5. But e_sc is in behavior b, which follows the protocol
+    -- 6. So both NC write and SC read are in the protocol, contradiction
+
+    -- Extract the key facts needed
+    have hncw_noncoherent : e.req.NonCoherent := by
+      simp only [ValidRequest.NonCoherent, Request.nonCoherent]
+      rw [hncweakwrite]
+      decide
+
+    -- Now use the event sequence structure
+    rw [heq] at hstate_before
+    simp only [List.stateAfter] at hstate_before
+
+    -- Apply the helper lemma to find a coherent event in the sequence
+    have h_exists_coherent : ∃ e_coh ∈ (head :: tail), e_coh.req.val.coherent = true := by
+      exact event_list_to_mr_requires_coherent (head :: tail) heq.symm hstate_before
+
+    obtain ⟨e_coh, he_coh_in_list, he_coh_is_coherent⟩ := h_exists_coherent
+
+    -- Now derive the contradiction using protocol constraints
+    have : False := by
+      -- e_coh is in b.eventsUpToEvent n e (from he_coh_in_list), so it's in behavior b
+      -- Therefore e_coh.req follows the protocol
+      --
+      -- e is NC weak write, so e.req is noncoherent
+      have hncw_noncoherent : e.req.NonCoherent := by
+        simp only [ValidRequest.NonCoherent, Request.nonCoherent]
+        simp only [hncweakwrite]
+        simp
+
+      -- e_coh is coherent (he_coh_is_coherent), so it can produce MR state
+      -- By nc_no_sc: if NC request is in protocol, coherent requests are not
+      -- Both e and e_coh are in the behavior which follows the protocol
+      -- So both requests are in the protocol, contradicting nc_no_sc
+
+      -- The formal completion requires:
+      -- 1. That events in b.eventsUpToEvent n e are in behavior b
+      -- 2. That b follows the compound protocol
+      -- 3. Application of nc_no_sc to both e.req and e_coh.req
+      sorry
+
+    exact this
+
 /-- Helper lemma: NC weak write cannot be made on MR (maximum read) state.
 MR state ⟨some .r, true⟩ can only be produced by coherent SC reads,
 but SC reads and NC weak writes cannot coexist in the same protocol. -/
 lemma nc_weak_write_not_on_mr_state
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
   {e_ww : Event n}
-  (he_ww_in_b : e_ww ∈ b)
+  (_he_ww_in_b : e_ww ∈ b)
   (hncweakwrite : e_ww.req.val = ⟨.w, false, .Weak⟩)
   (hmr_state : b.stateBefore n (init.stateAt n e_ww) e_ww = MREntry n)
   : False := by
-  -- If e_ww is on MR state ⟨some .r, true⟩, then there must be a previous event that produced this state
-  -- MR state (maximum read permissions with coherence) can only be produced by coherent reads
-  -- Specifically, only SC reads produce coherent read state with maximum read permissions
-
-  -- The key insight: if we're in MR state before e_ww, there must be a previous SC read
-  -- in the protocol that produced this state. But SC read and NC weak write cannot coexist
-  -- in the same protocol due to FollowsProtocolInterface.nc_no_sc.
-
-  -- For now, we need to assume there exists a previous SC read event that created the MR state
-  -- This would require a behavior lemma about state production that needs to be written.
-
-  -- TODO: This requires a lemma about how MR state is produced in behaviors
-  -- The full proof would need to trace back through the behavior to find the event
-  -- that produced MR state, show it must be an SC read, and show that the protocol `FollowsProtocolInterface`
-  -- does not contain both SC reads and NC weak writes.
-
-  -- The helper lemma about MR state produced by an SC write can be implemented
-  -- with a lemma that uses strong induction (recursively references itself).
-  -- Show that the state before `e_ww` is the state after the events upto `e_ww`.
-  -- The list of events up to `e_ww` is either empty or a list.
-  -- if it's empty, the state before is I (using a def of init state in Behavior).
-  -- if it's not empty, then there is a last event `e_last` in the list of events up to `e_ww`.
-  -- Then either the state after `e_last` is on MR state (because the state after the list is MR),
-  --   and `e_last` is the SC Coherent Read, or it must be a previous event that produced the MR state, and we can apply the inductive hypothesis to that event,
-  --   or recur on the lemma, depending on if strong induction is implemented by a recursive lemma call, or the `induction` tactic.
-  sorry
+  exact mr_state_implies_sc_read_exists (cmp := cmp) hmr_state hncweakwrite
 
 /-- Helper: If a request produces a state with write permissions, the request must be a write. -/
 lemma produces_state_with_write_perms_implies_is_write
@@ -362,6 +606,7 @@ lemma pred_is_write_of_req_produces_write_perms_and_has_coherent_perms_before
 -- (hreq_has_perms : ce.req.MRS ≤
 --   EntryState.cache n
 --     (Behaviour.stateBefore n b (InitialSystemState.stateAt n init (Event.cacheEvent ce)) (Event.cacheEvent ce)))
+{cmp : CompoundProtocol n}
 (hreq_on_coherent_state : (EntryState.cache n
       (Behaviour.stateBefore n b (InitialSystemState.stateAt n init (Event.cacheEvent ce)) (Event.cacheEvent ce))).c =
   true)
@@ -384,7 +629,7 @@ lemma pred_is_write_of_req_produces_write_perms_and_has_coherent_perms_before
 (hreq_weak_or_rel : hreq_consistency = .Weak ∨ hreq_consistency = .Rel)
 (hno_perms : Behaviour.eventOnStateNoPerms n b init (Event.cacheEvent ce_pred))
 (hpred_req : ce_pred.req = ⟨{ rw := ReadWrite.r, coherent := coh, consistency := cons }, property2⟩)
-(hno_weak_write_on_coherent_read : Behaviour.stateBefore.CoherentRead.ofWeakWrite.contradiction n)
+(he_ce_in_b : Event.cacheEvent ce ∈ b)
   : (ce_pred.req.val).rw = ReadWrite.w := by
   -- : ce_pred.req.val.rw = ReadWrite.w := by
   simp only [Behaviour.eventOnStateNoPerms, Behaviour.eventOnStateHasPerms] at hno_perms
@@ -473,11 +718,14 @@ lemma pred_is_write_of_req_produces_write_perms_and_has_coherent_perms_before
               simp[LE.le, ReadWritePermissions.le] at hpred_produces
               simp[LT.lt, ReadWritePermissions.lt] at hpred_produces
             | some .r, true =>
+              -- State before ce is MR (⟨some .r, true⟩)
+              -- If ce is NC weak write, this contradicts protocol constraints
               simp[hweak] at he_req
-              have hreq_can't_be_nc_weak_write := (hno_weak_write_on_coherent_read b init (Event.cacheEvent ce)).mp (by simp[Event.isNcWeakWrite, CacheEvent.isNcWeakWrite, ValidRequest.isNcWeakWrite, he_req])
+              exfalso
               have hunwrap_req' := hunwrap_req hstate_before_req
-              rw[hunwrap_req'] at hreq_can't_be_nc_weak_write
-              simp[MREntry] at hreq_can't_be_nc_weak_write
+              have hval_eq : (Event.cacheEvent ce).req.val = ⟨.w, false, .Weak⟩ := by simp [Event.req, he_req]
+              exact nc_weak_write_not_on_mr_state (cmp := cmp) (b := b) (init := init)
+                (e_ww := Event.cacheEvent ce) he_ce_in_b hval_eq hunwrap_req'
             | some .wr, false
             | some .r, false
             | none, true
@@ -580,6 +828,7 @@ lemma pred_is_write_of_req_produces_write_perms_and_has_coherent_perms_before
 
 /-- Alternative version for NC requests: If a request produces a state with write permissions, the request must be a write (no coherence assumption). -/
 lemma produces_state_with_write_perms_implies_is_write_no_coherence
+  {cmp : CompoundProtocol n}
   {b : Behaviour n} {init : InitialSystemState n} {e_pred e_req : Event n}
   (hwrite : e_req.isWrite)
   (hreq_has_perms : b.hasPerms n init e_req)
@@ -588,7 +837,7 @@ lemma produces_state_with_write_perms_implies_is_write_no_coherence
   (hpred_not_down : ¬ e_pred.down)
   (hpred_missing_perms : Behaviour.reqMissingPerms n b init e_pred)
   (hpred_cache : e_pred.isCacheEvent)
-  (hno_nc_weak_write_on_coherent_read : Behaviour.stateBefore.CoherentRead.ofWeakWrite.contradiction n)
+  (he_req_in_b : e_req ∈ b)
   : e_pred.req.val.isWrite := by
   -- Strategy: Similar to the first version, but works for NC requests too
   -- Show that e_req needs write permissions, and predecessor produced them
@@ -868,6 +1117,7 @@ lemma produces_state_with_write_perms_implies_is_write_no_coherence
             . case noPermsForNonNcRelAcqWeakWrite =>
               rw[← hpred_req]
               apply pred_is_write_of_req_produces_write_perms_and_has_coherent_perms_before
+              . case cmp => exact cmp
               . case hreq_on_coherent_state => exact hreq_on_coherent_state
               . case hpred_not_down => exact hpred_not_down
               . case hreq_has_perms => exact hreq_has_perms
@@ -877,8 +1127,7 @@ lemma produces_state_with_write_perms_implies_is_write_no_coherence
               . case hreq_weak_or_rel => simp[]
               . case hno_perms => exact hno_perms
               . case hpred_req => exact hpred_req
-              . case hno_weak_write_on_coherent_read => exact hno_nc_weak_write_on_coherent_read
-                --exact property_pred
+              . case he_ce_in_b => exact he_req_in_b
           | ncRelAcqWeakWriteNotOnCoherentState _ hnc_rel_acq _ =>
             -- Predecessor is NC Rel/Acq but not on coherent state
             cases hnc_rel_acq with
