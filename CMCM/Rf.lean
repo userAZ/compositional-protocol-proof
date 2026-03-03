@@ -140,12 +140,25 @@ structure WriteRead.EqGleCle.case (b : Behaviour n) (init : InitialSystemState n
 /- End Defs for WriteRead.EqGleCle.case -/
 
 /- Begin Defs for WriteRead.wObRCle.case -/
-/-- Event is not a directory write event between an `e_w` and `e_r`'s (cluster or global) linearization event. -/
-def Event.Between.noDirWrite (b : Behaviour n) (e_w_le e_r_le : Event n) : Prop :=
-  ∀ e_w_inter ∈ b, e_w_inter.isClusterCache → e_w_inter.isWrite → ¬ e_w_inter.down →
-    ∀ e_inter_le ∈ b, e_inter_le.OrderedBetween n e_w_le e_r_le →
-      e_w_inter.Encapsulates n e_inter_le →
-      ¬ (e_inter_le.isDirWrite ∧ e_inter_le.isDirNotDown)
+
+/-- An intervening directory write from a same-cluster cache write.
+    The CLE of the intervening write is a directory write between the boundary events. -/
+structure Event.Between.sameProtocol.interveningDirWrite
+  (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
+  (e_w_le e_r_le e_w_inter : Event n)
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
+  : Prop where
+  interInB : e_w_inter ∈ b
+  isCluster : e_w_inter.isClusterCache
+  isWrite : e_w_inter.isWrite
+  notDown : ¬ e_w_inter.down
+  sameProtocol : e_w_inter.protocol = e_w_le.protocol
+  cleDirWrite : (hknow_dir_access cmp b init e_w_inter).hreq's_dir_access.choose.isDirWrite
+  cleNotDown : (hknow_dir_access cmp b init e_w_inter).hreq's_dir_access.choose.isDirNotDown
+  cleBetween : (hknow_dir_access cmp b init e_w_inter).hreq's_dir_access.choose.OrderedBetween n e_w_le e_r_le
+
+-- diffProtocol.interveningDirWrite, interveningWrite.sameOrDiffCluster, and noDirWrite
+-- are defined below after Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper.
 
 /-
 structure WriteRead.wObRCle.sameCache.case (b : Behaviour n) (e_w e_r : Event n) : Prop where
@@ -199,6 +212,57 @@ structure Behaviour.gdown.encapProxyAndDirAndCDown {cmp : CompoundProtocol n}
     ∃ e_r_down ∈ b, e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down
   -- sorry
 
+/-- An intervening directory write from a different-cluster cache write.
+    The chain goes: e_w_inter (diff cluster) → CLE → global cache (ClusterToGlobal shim)
+    → GLE → global downgrade → cluster proxy (GlobalToCluster shim) → cluster directory event.
+    Following the pattern of `Behaviour.gdown.encapProxyAndDirAndCDown`. -/
+structure Event.Between.diffProtocol.interveningDirWrite
+  (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
+  (e_w_le e_r_le e_w_inter : Event n)
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
+  : Prop where
+  interInB : e_w_inter ∈ b
+  isCluster : e_w_inter.isClusterCache
+  isWrite : e_w_inter.isWrite
+  notDown : ¬ e_w_inter.down
+  diffProtocol : e_w_inter.protocol ≠ e_w_le.protocol
+  -- Global downgrade from e_w_inter's GLE
+  existsGlobalDown : ∃ e_gdown ∈ b, ∃ e_grant ∈ b,
+    Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init
+      (hknow_dir_access cmp b init e_w_inter) e_gdown e_grant
+  -- Cluster proxy at e_w_le's protocol
+  existsClusterProxy :
+    ∃ e_proxy ∈ b, e_proxy.protocol = e_w_le.protocol ∧ e_proxy.isClusterCache
+  -- Cluster directory event at e_w_le's protocol, between the boundary events
+  existsClusterDirDown :
+    ∃ e_cdir_down ∈ b, e_cdir_down.isDirectoryEvent ∧
+      e_cdir_down.protocol = e_w_le.protocol ∧
+      e_cdir_down.OrderedBetween n e_w_le e_r_le
+
+/-- Complete definition of an intervening write between two linearization events.
+    An intervening write is either from the same cluster or a different cluster. -/
+inductive Event.Between.interveningWrite.sameOrDiffCluster
+  (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
+  (e_w_le e_r_le : Event n)
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
+  : Prop
+| sameCluster
+    (e_w_inter : Event n)
+    (h : Event.Between.sameProtocol.interveningDirWrite cmp b init e_w_le e_r_le e_w_inter hknow_dir_access)
+    : interveningWrite.sameOrDiffCluster cmp b init e_w_le e_r_le hknow_dir_access
+| diffCluster
+    (e_w_inter : Event n)
+    (h : Event.Between.diffProtocol.interveningDirWrite cmp b init e_w_le e_r_le e_w_inter hknow_dir_access)
+    : interveningWrite.sameOrDiffCluster cmp b init e_w_le e_r_le hknow_dir_access
+
+/-- No intervening directory write between two linearization events. -/
+def Event.Between.noDirWrite
+  (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
+  (e_w_le e_r_le : Event n)
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
+  : Prop :=
+  ¬ Event.Between.interveningWrite.sameOrDiffCluster cmp b init e_w_le e_r_le hknow_dir_access
+
 /- (will need to use existing "corresponding event" defs across files)
 Use exists to say there exists `e_r_gdown` that `e_r_gle` encaps a corresponding `e_r_gdown`.
 Exists `e_r_proxy` corresponding to `e_r_gdown` at `e_w`'s cluster.
@@ -220,8 +284,12 @@ structure WriteRead.noEvictBetween.cond.wrapper
 def Event.Between.dirEvict (b : Behaviour n) (e₁ e₂ : Event n) : Prop :=
   ∃ e ∈ b, e.OrderedBetween n e₁ e₂ → e.isDirEvict
 
-structure WriteRead.evictBetween.cond (b : Behaviour n) (e_w_cle e_r_cdir_down : Event n) : Prop where
-  noWriteBtn : Event.Between.noDirWrite b e_w_cle e_r_cdir_down
+structure WriteRead.evictBetween.cond
+  (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
+  (e_w_cle e_r_cdir_down : Event n)
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
+  : Prop where
+  noWriteBtn : Event.Between.noDirWrite cmp b init e_w_cle e_r_cdir_down hknow_dir_access
   evictBtn : Event.Between.dirEvict b e_w_cle e_r_cdir_down
   wObRDown : e_w_cle.OrderedBefore n e_r_cdir_down
 
@@ -234,21 +302,23 @@ structure WriteRead.evictBetween.cond.wrapper
   (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (e_w_cle e_r_cdir_down : Event n)
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop where
   encapProxyAndDir : Behaviour.gdown.encapProxyAndDir cmp b init e_w hr_c_and_g_lin
-  evictBetween : WriteRead.evictBetween.cond b (hw_c_and_g_lin.hreq's_dir_access.choose) encapProxyAndDir.existsRClusterDirDown.choose
+  evictBetween : WriteRead.evictBetween.cond cmp b init (hw_c_and_g_lin.hreq's_dir_access.choose) encapProxyAndDir.existsRClusterDirDown.choose hknow_dir_access
 
 inductive WriteRead.wObRCle.diffCache.wHasPermsAfter.case
   (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (e_w_cle e_r_cdir_down : Event n)
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop
 | noEvictBetween
   (w_ob_r_down : WriteRead.noEvictBetween.cond.wrapper cmp b init e_w_cle e_r_cdir_down hw_c_and_g_lin hr_c_and_g_lin)
-  : WriteRead.wObRCle.diffCache.wHasPermsAfter.case cmp b init e_w_cle e_r_cdir_down hw_c_and_g_lin hr_c_and_g_lin
+  : WriteRead.wObRCle.diffCache.wHasPermsAfter.case cmp b init e_w_cle e_r_cdir_down hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 | evictBetween
-  (w_cle_ob_r_cdir_down : WriteRead.evictBetween.cond.wrapper cmp b init e_w_cle e_r_cdir_down hw_c_and_g_lin hr_c_and_g_lin)
-  : WriteRead.wObRCle.diffCache.wHasPermsAfter.case cmp b init e_w_cle e_r_cdir_down hw_c_and_g_lin hr_c_and_g_lin
+  (w_cle_ob_r_cdir_down : WriteRead.evictBetween.cond.wrapper cmp b init e_w_cle e_r_cdir_down hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
+  : WriteRead.wObRCle.diffCache.wHasPermsAfter.case cmp b init e_w_cle e_r_cdir_down hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 
 -- Cache write with something?
 structure Event.cacheWrite.global (e : Event n) : Prop where
@@ -281,6 +351,7 @@ inductive WriteRead.wObRCle.diffCache.case
   (hw_is_write : e_w.isWrite) (r_is_read : e_r.isRead)
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop
 | wHasPermsAfter -- `e_w`'s CLE is before or encap by `e_w`. (dirAccessOfRequest .before or .encap cases.)
   /- subcases are:
@@ -289,8 +360,8 @@ inductive WriteRead.wObRCle.diffCache.case
   -/
   (hw_nc : e_w.isCoherent)
   -- Use WriteRead.wObRCle.diffCache.wHasPermsAfter.cases
-  (coherent_write : WriteRead.wObRCle.diffCache.wHasPermsAfter.case cmp b init (hw_c_and_g_lin.hreq's_dir_access.choose) (hr_c_and_g_lin.hreq's_dir_access.choose) hw_c_and_g_lin hr_c_and_g_lin)
-  : WriteRead.wObRCle.diffCache.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin
+  (coherent_write : WriteRead.wObRCle.diffCache.wHasPermsAfter.case cmp b init (hw_c_and_g_lin.hreq's_dir_access.choose) (hr_c_and_g_lin.hreq's_dir_access.choose) hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
+  : WriteRead.wObRCle.diffCache.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 | wNoPermsAfter -- `e_w`'s CLE is before or encap by `e_w`. (dirAccessOfRequest .before or .encap cases.)
   -- TODO STUB: Write has no perms (ex. Non-Coherent Release Write). Treat similar to wCleAfter case
   /- Must add constraint that `e_w`'s CLE's corresponding global cache access `e_w_cle_gcache`
@@ -300,7 +371,7 @@ inductive WriteRead.wObRCle.diffCache.case
   (hw_no_perms : b.reqMissingPerms n init e_w)
   (hw_nc : e_w.isNonCoherent)
   (hw_gcache_ob_r_gdown : WriteRead.wCleAfter.cond.wrapper cmp b init hw_c_and_g_lin hr_c_and_g_lin)
-  : WriteRead.wObRCle.diffCache.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin
+  : WriteRead.wObRCle.diffCache.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 | wCleAfter -- `e_w`'s CLE is after `e_w`. (dirAccessOfRequest .after case.)
   /- subcases are:
     (Only one):
@@ -309,7 +380,7 @@ inductive WriteRead.wObRCle.diffCache.case
       case of coherent req after `e_w` (i.e. in RCC-O or L-RCC protocol interfaces).
     -/
   (hw_ob_r_no_writes_btn : WriteRead.wCleAfter.cond.wrapper cmp b init hw_c_and_g_lin hr_c_and_g_lin)
-  : WriteRead.wObRCle.diffCache.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin
+  : WriteRead.wObRCle.diffCache.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 
   /- End Defs for WriteRead.wObRCle.diffCache.case case -/
 
@@ -318,16 +389,18 @@ inductive WriteRead.wObRCle.case
   (hw_is_write : e_w.isWrite) (r_is_read : e_r.isRead)
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop
   | sameCache
     (sameCache : e_w.struct = e_r.struct)
-    (noWriteBetween : Event.Between.noDirWrite b hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose)
-    : WriteRead.wObRCle.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin
+    (noWriteBetween : Event.Between.noDirWrite cmp b init
+      hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose hknow_dir_access)
+    : WriteRead.wObRCle.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
   | diffCache
     (hdiff_cache : e_w.struct ≠ e_r.struct)
     -- STUB: add inductive (WriteRead.wObRCle.diffCache.case) to define subcases of this case.
-    (hdiff_cache_case : WriteRead.wObRCle.diffCache.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin)
-    : WriteRead.wObRCle.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin
+    (hdiff_cache_case : WriteRead.wObRCle.diffCache.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
+    : WriteRead.wObRCle.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 
 /- End Defs for WriteRead.wObRCle.case -/
 
@@ -336,11 +409,12 @@ structure WriteRead.wObR.GleOrCle.cases
   (hw_is_write : e_w.isWrite) (r_is_read : e_r.isRead)
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop where
     (hw_r_cle_ob : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose)
     (hwr_same_cluster : e_w.protocol = e_r.protocol)
     -- add inductive (WriteRead.wObRCle.case) to define goal.
-    (hwr_cle_ob_case : WriteRead.wObRCle.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin)
+    (hwr_cle_ob_case : WriteRead.wObRCle.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
 
 inductive Behaviour.readsFrom.wEqRGle.cases (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (e_w e_r : Event n)
   (hw_cluster : e_w.isClusterCache) (hr_cluster : e_r.isClusterCache)
@@ -348,16 +422,17 @@ inductive Behaviour.readsFrom.wEqRGle.cases (cmp : CompoundProtocol n) (b : Beha
   (hw_not_down : ¬ e_w.down) (r_not_down : ¬ e_r.down)
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop
   | wEqRCle
     (hw_r_cle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
     (hwr_same_cluster : e_w.protocol = e_r.protocol)
     (hwr_com : WriteRead.EqGleCle.case b init e_w e_r hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose)
-    : Behaviour.readsFrom.wEqRGle.cases cmp b init e_w e_r hw_cluster hr_cluster hw_is_write r_is_read hw_not_down r_not_down hw_c_and_g_lin hr_c_and_g_lin
+    : Behaviour.readsFrom.wEqRGle.cases cmp b init e_w e_r hw_cluster hr_cluster hw_is_write r_is_read hw_not_down r_not_down hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
   | wObRCle
     -- NOTE: bundled hypothesis conditions together, for re-use in the wObRGle case below.
-    (hwr_gle_or_cle_case : WriteRead.wObR.GleOrCle.cases hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin)
-    : Behaviour.readsFrom.wEqRGle.cases cmp b init e_w e_r hw_cluster hr_cluster hw_is_write r_is_read hw_not_down r_not_down hw_c_and_g_lin hr_c_and_g_lin
+    (hwr_gle_or_cle_case : WriteRead.wObR.GleOrCle.cases hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
+    : Behaviour.readsFrom.wEqRGle.cases cmp b init e_w e_r hw_cluster hr_cluster hw_is_write r_is_read hw_not_down r_not_down hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 
 inductive Behaviour.readsFrom.cases
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
@@ -365,19 +440,20 @@ inductive Behaviour.readsFrom.cases
   -- {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop
   -- `e_w`'s GLE is the same as `e_r`'s GLE
   | wEqRGle
     (hw_r_gle_eq : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
     -- Use `Behaviour.readsFrom.wEqRGle.cases` to distinguish subcases of this case.
-    (hw_eq_r_gle_cases : Behaviour.readsFrom.wEqRGle.cases cmp b init e_w e_r hw_cluster hr_cluster hw_is_write hr_is_read hw_not_down hr_not_down hw_c_and_g_lin hr_c_and_g_lin)
-    : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin
+    (hw_eq_r_gle_cases : Behaviour.readsFrom.wEqRGle.cases cmp b init e_w e_r hw_cluster hr_cluster hw_is_write hr_is_read hw_not_down hr_not_down hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
+    : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
   -- `e_w`'s GLE is Ordered Before `e_r`'s GLE
   | wObRGle
     (hw_r_gle_ob : hw_c_and_g_lin.hreq's_global_lin.choose.OrderedBefore n hr_c_and_g_lin.hreq's_global_lin.choose)
     -- use inductive to define subcases of this case
-    (hw_ob_r_gle_cases : WriteRead.wObR.GleOrCle.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin)
-    : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin
+    (hw_ob_r_gle_cases : WriteRead.wObR.GleOrCle.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
+    : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 
 -- Define Constraints where RF should be proven to hold.
 
