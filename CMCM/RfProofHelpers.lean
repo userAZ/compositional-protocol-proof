@@ -1005,8 +1005,10 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
                   simp[Behaviour.predHasNoPermsAndLeavesStateAtLeastReq] at hpred_prop
                   have hpred_missing_perms := hpred_prop.missingPerms
                   have hpred_cache : hexists_pred_getting_perms.choose.isCacheEvent := hpred_prop.reqCache
-                  exact produces_state_with_write_perms_implies_is_write_no_coherence hwrite hhascoh.hasPerms hhascoh.onCoherentState hpred_produces_state_at_least_req_made_on_state hinter_pred_not_down hpred_missing_perms hpred_cache
-                    cmp.noNcWeakWriteOnMRState
+                  exact produces_state_with_write_perms_implies_is_write_no_coherence (cmp := cmp) (b := b) (init := init)
+                    (e_pred := hexists_pred_getting_perms.choose) (e_req := e_inter)
+                    hwrite hhascoh.hasPerms hhascoh.onCoherentState
+                    hpred_produces_state_at_least_req_made_on_state hinter_pred_not_down hpred_missing_perms hpred_cache he_inter
                 have hcoh_pred : hexists_pred_getting_perms.choose.req.val.coherent = true := by
                   -- hhascoh.onCoherentState : Behaviour.reqMadeOnCoherentState n b init e_inter
                   -- which means (b.stateReqMadeOn n init e_inter).c = true
