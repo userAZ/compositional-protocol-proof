@@ -47,7 +47,11 @@ theorem CMCM.rf_holds
     . case otherCases hsame_as_gle_ob_cases =>
       cases hsame_as_gle_ob_cases
       . case wImmPredRCle hw_imm_pred_r_cle =>
-        apply CMCM.rf.sameGle.wImmPredRCle hw_c_and_g_lin hr_c_and_g_lin
+        apply CMCM.rf.sameGle.wImmPredRCle
+        . case hw_cluster_cache => exact hw_cluster
+        . case hr_cluster_cache => exact hr_cluster
+        . case hw_now_down => exact hw_not_down
+        . case hr_not_down => exact hr_not_down
         . case hsame_gle => exact hsame_gle
         . case hw_imm_pred_r_cle => exact hw_imm_pred_r_cle
       . case evictOrReadBetweenWAndRCleSameCluster hevict_or_read_between_w_r_cle =>
