@@ -26,7 +26,7 @@ theorem CMCM.rf_holds
   (hr_not_ob_w : ¬ e_r.OrderedBefore n e_w)
   (hsucc_w_of_w_after_r : ∀ e_w_succ ∈ b, e_w_succ.isWrite ∧ e_w_succ.sameProtocol n e_w ∧ e_w_succ.sameStructure n e_w ∧
     e_w.OrderedBefore n e_w_succ → e_r.oEnd < e_w_succ.oEnd)
-  : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin
+  : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
   := by
   -- probably want to start with cases of `e_w` and `e_r`'s GLEs.
   -- Only expand cases of `e_w` and `e_r`'s requests (coherent, non-coherent, release, acquire...) further into the subcases.
@@ -48,12 +48,12 @@ theorem CMCM.rf_holds
       cases hsame_as_gle_ob_cases
       . case wImmPredRCle hw_imm_pred_r_cle =>
         apply CMCM.rf.sameGle.wImmPredRCle
-        . case hw_cluster_cache => exact hw_cluster
-        . case hr_cluster_cache => exact hr_cluster
-        . case hw_now_down => exact hw_not_down
-        . case hr_not_down => exact hr_not_down
-        . case hsame_gle => exact hsame_gle
-        . case hw_imm_pred_r_cle => exact hw_imm_pred_r_cle
+          hw_cluster hr_cluster
+          hw_is_write hr_is_read
+          hw_not_down hr_not_down
+          hw_c_and_g_lin hr_c_and_g_lin
+          hsame_gle hw_imm_pred_r_cle
+          hknow_dir_access hno_intervening_writes
       . case evictOrReadBetweenWAndRCleSameCluster hevict_or_read_between_w_r_cle =>
         apply CMCM.rf.sameGle.evictOrReadBetweenWAndRCleSameCluster hw_c_and_g_lin hr_c_and_g_lin
         . case hsame_gle => exact hsame_gle
