@@ -31,7 +31,7 @@
   const
     ENABLE_QS: false;
     VAL_COUNT: 1;
-    ADR_COUNT: 1;
+    ADR_COUNT: 2;
   
   ---- System network constants
     O_NET_MAX: 12;
@@ -1267,6 +1267,7 @@
           Send_fwd(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O_GetV;
+          undefine cbe.ownerL1C1;
           return true;
         
         case PutOL1C1:
