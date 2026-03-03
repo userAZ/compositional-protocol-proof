@@ -38,7 +38,7 @@
     U_NET_MAX: 12;
   
   ---- SSP declaration constants
-    NrCachesL1C1: 4;
+    NrCachesL1C1: 2;
   
 --Backend/Murphi/MurphiModular/GenTypes
   type
@@ -71,7 +71,7 @@
       
       ------Backend/Murphi/MurphiModular/Types/Enums/SubEnums/GenArchEnums
       s_cacheL1C1: enum {
-        -- cacheL1C1_V_store,
+        cacheL1C1_V_store,
         cacheL1C1_V_release,
         cacheL1C1_V_acquire_GetV_Ack,
         cacheL1C1_V_acquire,
@@ -79,7 +79,7 @@
         cacheL1C1_O_evict_x_V,
         cacheL1C1_O_evict,
         cacheL1C1_O,
-        -- cacheL1C1_I_store,
+        cacheL1C1_I_store,
         cacheL1C1_I_release,
         cacheL1C1_I_load,
         cacheL1C1_I_acquire_GetV_Ack,
@@ -115,7 +115,7 @@
       
     ----Backend/Murphi/MurphiModular/Types/GenMachineSets
       -- Cluster: C1
-      OBJSET_cacheL1C1: scalarset(3);
+      OBJSET_cacheL1C1: scalarset(2);
       OBJSET_directoryL1C1: enum{directoryL1C1};
       C1Machines: union{OBJSET_cacheL1C1, OBJSET_directoryL1C1};
       
@@ -830,15 +830,15 @@
     endalias;
     end;
     
-    -- procedure FSM_Access_cacheL1C1_I_store(adr:Address; m:OBJSET_cacheL1C1);
-    -- var msg: Message;
-    -- begin
-    -- alias cbe: i_cacheL1C1[m].cb[adr] do
-    --   msg := RequestL1C1(adr, GetOL1C1, m, directoryL1C1);
-    --   Send_req(msg, m);
-    --   cbe.State := cacheL1C1_I_store;
-    -- endalias;
-    -- end;
+    procedure FSM_Access_cacheL1C1_I_store(adr:Address; m:OBJSET_cacheL1C1);
+    var msg: Message;
+    begin
+    alias cbe: i_cacheL1C1[m].cb[adr] do
+      msg := RequestL1C1(adr, GetOL1C1, m, directoryL1C1);
+      Send_req(msg, m);
+      cbe.State := cacheL1C1_I_store;
+    endalias;
+    end;
     
     procedure FSM_Access_cacheL1C1_I_acquire_GetV_Ack_acq_eventL1C1(adr:Address; m:OBJSET_cacheL1C1);
     begin
@@ -949,15 +949,15 @@
     endalias;
     end;
     
-    -- procedure FSM_Access_cacheL1C1_V_store(adr:Address; m:OBJSET_cacheL1C1);
-    -- var msg: Message;
-    -- begin
-    -- alias cbe: i_cacheL1C1[m].cb[adr] do
-    --   msg := RequestL1C1(adr, GetOL1C1, m, directoryL1C1);
-    --   Send_req(msg, m);
-    --   cbe.State := cacheL1C1_V_store;
-    -- endalias;
-    -- end;
+    procedure FSM_Access_cacheL1C1_V_store(adr:Address; m:OBJSET_cacheL1C1);
+    var msg: Message;
+    begin
+    alias cbe: i_cacheL1C1[m].cb[adr] do
+      msg := RequestL1C1(adr, GetOL1C1, m, directoryL1C1);
+      Send_req(msg, m);
+      cbe.State := cacheL1C1_V_store;
+    endalias;
+    end;
     
     procedure FSM_Access_cacheL1C1_V_acquire_GetV_Ack_acq_eventL1C1(adr:Address; m:OBJSET_cacheL1C1);
     begin
@@ -971,6 +971,7 @@
     alias cbe: i_directoryL1C1[m].cb[adr] do
       ServeRemoteEvent_directoryL1C1(directoryL1C1_acq_eventL1C1, m, adr);
       cbe.State := directoryL1C1_I;
+      undefine cbe.ownerL1C1;
     endalias;
     end;
     
@@ -989,6 +990,7 @@
       msg_PutO_AckL1 := AckL1C1(adr, PutO_AckL1C1, m, msg_PutOL1.src);
       if !(cbe.ownerL1C1 = msg_PutOL1.src) then
       cbe.State := directoryL1C1_I;
+      undefine cbe.ownerL1C1;
       endif
     endalias;
     end;
@@ -1030,22 +1032,22 @@
       msg := RequestL1C1(adr, Fwd_GetOL1C1, msg_GetOL1.src, cbe.ownerL1C1);
       Send_fwd(msg, m);
       cbe.ownerL1C1 := msg_GetOL1.src;
-      cbe.State := directoryL1C1_dO_GetO_x_pI_release;
+      cbe.State := directoryL1C1_O_GetO;
     endalias;
     end;
     
-    -- procedure FSM_Access_directoryL1C1_O_store(adr:Address; m:OBJSET_directoryL1C1);
-    -- var msg_GetOL1: Message;
-    -- var msg: Message;
-    -- begin
-    -- alias cbe: i_directoryL1C1[m].cb[adr] do
-    --   msg_GetOL1 := RequestL1C1(adr, GetOL1C1, m, m);
-    --   msg := RequestL1C1(adr, Fwd_GetOL1C1, msg_GetOL1.src, cbe.ownerL1C1);
-    --   Send_fwd(msg, m);
-    --   cbe.ownerL1C1 := msg_GetOL1.src;
-    --   cbe.State := directoryL1C1_dO_GetO_x_pI_store;
-    -- endalias;
-    -- end;
+    procedure FSM_Access_directoryL1C1_O_store(adr:Address; m:OBJSET_directoryL1C1);
+    var msg_GetOL1: Message;
+    var msg: Message;
+    begin
+    alias cbe: i_directoryL1C1[m].cb[adr] do
+      msg_GetOL1 := RequestL1C1(adr, GetOL1C1, m, m);
+      msg := RequestL1C1(adr, Fwd_GetOL1C1, msg_GetOL1.src, cbe.ownerL1C1);
+      Send_fwd(msg, m);
+      cbe.ownerL1C1 := msg_GetOL1.src;
+      cbe.State := directoryL1C1_O_GetO;
+    endalias;
+    end;
     
   ----Backend/Murphi/MurphiModular/StateMachines/GenMessageStateMachines
     function FSM_MSG_cacheL1C1(inmsg:Message; m:OBJSET_cacheL1C1) : boolean;
@@ -1099,16 +1101,16 @@
         else return false;
       endswitch;
       
-      -- case cacheL1C1_I_store:
-      -- switch inmsg.mtype
-      --   case GetO_AckL1C1:
-      --     cbe.cl := inmsg.cl;
-      --     Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
-      --     cbe.State := cacheL1C1_O;
-      --     return true;
-      --   
-      --   else return false;
-      -- endswitch;
+      case cacheL1C1_I_store:
+      switch inmsg.mtype
+        case GetO_AckL1C1:
+          cbe.cl := inmsg.cl;
+          Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
+          cbe.State := cacheL1C1_O;
+          return true;
+        
+        else return false;
+      endswitch;
       
       case cacheL1C1_O:
       switch inmsg.mtype
@@ -1183,16 +1185,16 @@
         else return false;
       endswitch;
       
-      -- case cacheL1C1_V_store:
-      -- switch inmsg.mtype
-      --   case GetO_AckL1C1:
-      --     cbe.cl := inmsg.cl;
-      --     Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
-      --     cbe.State := cacheL1C1_O;
-      --     return true;
-      --   
-      --   else return false;
-      -- endswitch;
+      case cacheL1C1_V_store:
+      switch inmsg.mtype
+        case GetO_AckL1C1:
+          cbe.cl := inmsg.cl;
+          Clear_perm(adr, m); Set_perm(load, adr, m); Set_perm(store, adr, m);
+          cbe.State := cacheL1C1_O;
+          return true;
+        
+        else return false;
+      endswitch;
       
     endswitch;
     endalias;
@@ -1311,6 +1313,7 @@
         
         case GetVL1C1:
           msg := RequestL1C1(adr,Fwd_GetOL1C1,inmsg.src,cbe.ownerL1C1);
+          undefine cbe.ownerL1C1;
           Send_fwd(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_O_GetV;
@@ -1365,6 +1368,7 @@
           Send_resp(msg, m);
           Clear_perm(adr, m);
           cbe.State := directoryL1C1_V;
+          undefine cbe.ownerL1C1;
           return true;
         
         else return false;
@@ -1427,34 +1431,34 @@
         else return false;
       endswitch;
       
-      case directoryL1C1_dO_GetO_x_pI_release:
-      switch inmsg.mtype
-        case WB_AckL1C1:
-          msg_GetO_AckL1 := RespL1C1(adr,GetO_AckL1C1,m,inmsg.src,inmsg.cl);
-          cbe.cl := msg_GetO_AckL1.cl;
-          Set_perm(store, adr, m);
-          msg_PutOL1 := RespL1C1(adr,PutOL1C1,m,m,cbe.cl);
-          msg_PutO_AckL1 := AckL1C1(adr,PutO_AckL1C1,m,msg_PutOL1.src);
-          if !(cbe.ownerL1C1 = msg_PutOL1.src) then
-            Clear_perm(adr, m);
-            cbe.State := directoryL1C1_I;
-            -- [Shim Axiom 16]: Global to Cluster downgrade translation
-            assert (cbe.State = directoryL1C1_I) ">[Shim Axiom 16] Global to Cluster Downgrade. Expected Directory State to go to I after getting a WriteBack Response from Cache.\n";
-            return true;
-          endif;
-          if (cbe.ownerL1C1 = msg_PutOL1.src) then
-            cbe.cl := msg_PutOL1.cl;
-            Clear_perm(adr, m);
-            cbe.State := directoryL1C1_I;
-            -- [Shim Axiom 16]: Global to Cluster downgrade translation
-            assert (cbe.State = directoryL1C1_I) ">[Shim Axiom 16] Global to Cluster Downgrade. Expected Directory State to go to I after getting a WriteBack Response from Cache.\n";
-            return true;
-          endif;
-        
-        else return false;
-      endswitch;
+      -- case directoryL1C1_dO_GetO_x_pI_release:
+      -- switch inmsg.mtype
+      --   case WB_AckL1C1:
+      --     msg_GetO_AckL1 := RespL1C1(adr,GetO_AckL1C1,m,inmsg.src,inmsg.cl);
+      --     cbe.cl := msg_GetO_AckL1.cl;
+      --     Set_perm(store, adr, m);
+      --     msg_PutOL1 := RespL1C1(adr,PutOL1C1,m,m,cbe.cl);
+      --     msg_PutO_AckL1 := AckL1C1(adr,PutO_AckL1C1,m,msg_PutOL1.src);
+      --     if !(cbe.ownerL1C1 = msg_PutOL1.src) then
+      --       Clear_perm(adr, m);
+      --       cbe.State := directoryL1C1_I;
+      --       -- [Shim Axiom 16]: Global to Cluster downgrade translation
+      --       assert (cbe.State = directoryL1C1_I) ">[Shim Axiom 16] Global to Cluster Downgrade. Expected Directory State to go to I after getting a WriteBack Response from Cache.\n";
+      --       return true;
+      --     endif;
+      --     if (cbe.ownerL1C1 = msg_PutOL1.src) then
+      --       cbe.cl := msg_PutOL1.cl;
+      --       Clear_perm(adr, m);
+      --       cbe.State := directoryL1C1_I;
+      --       -- [Shim Axiom 16]: Global to Cluster downgrade translation
+      --       assert (cbe.State = directoryL1C1_I) ">[Shim Axiom 16] Global to Cluster Downgrade. Expected Directory State to go to I after getting a WriteBack Response from Cache.\n";
+      --       return true;
+      --     endif;
+      --   
+      --   else return false;
+      -- endswitch;
       
-      -- case directoryL1C1_dO_GetO_x_pI_storey
+      -- case directoryL1C1_dO_GetO_x_pI_store
       -- switch inmsg.mtype
       --   case WB_AckL1C1:
       --     msg_GetO_AckL1 := RespL1C1(adr,GetO_AckL1C1,m,inmsg.src,inmsg.cl);
@@ -1525,12 +1529,12 @@
         
       endrule;
     
-      -- rule "cacheL1C1_I_store"
-      --   cbe.State = cacheL1C1_I & network_ready() 
-      -- ==>
-      --   FSM_Access_cacheL1C1_I_store(adr, m);
-      --   
-      -- endrule;
+      rule "cacheL1C1_I_store"
+        cbe.State = cacheL1C1_I & network_ready() 
+      ==>
+        FSM_Access_cacheL1C1_I_store(adr, m);
+        
+      endrule;
     
       rule "cacheL1C1_O_acquire"
         cbe.State = cacheL1C1_O 
@@ -1567,12 +1571,12 @@
       --   
       -- endrule;
     
-      -- rule "cacheL1C1_V_store"
-      --   cbe.State = cacheL1C1_V & network_ready() 
-      -- ==>
-      --   FSM_Access_cacheL1C1_V_store(adr, m);
-      --   
-      -- endrule;
+      rule "cacheL1C1_V_store"
+        cbe.State = cacheL1C1_V & network_ready() 
+      ==>
+        FSM_Access_cacheL1C1_V_store(adr, m);
+        
+      endrule;
     
       rule "cacheL1C1_V_acquire"
         cbe.State = cacheL1C1_V & network_ready() & TestAtomicEvent_cacheL1C1(m)
@@ -1651,13 +1655,13 @@
         
       endrule;
     
-      -- rule "directoryL1C1_V_store"
-      --   cbe.State = directoryL1C1_V 
-      -- ==>
-      --   -- [Shim Axiom 16]: Global to Cluster downgrade translation
-      --   FSM_Access_directoryL1C1_I_store(adr, m);
-      --   
-      -- endrule;
+      rule "directoryL1C1_V_store"
+        cbe.State = directoryL1C1_V 
+      ==>
+        -- [Shim Axiom 16]: Global to Cluster downgrade translation
+        FSM_Access_directoryL1C1_I_store(adr, m);
+        
+      endrule;
     
       rule "directoryL1C1_O_release"
         cbe.State = directoryL1C1_O & network_ready() 
@@ -1668,14 +1672,14 @@
         
       endrule;
     
-      -- rule "directoryL1C1_O_store"
-      --   cbe.State = directoryL1C1_O & network_ready() 
-      -- ==>
-      --   FSM_Access_directoryL1C1_O_store(adr, m);
-      --   -- [Shim Axiom 16]: Global to Cluster downgrade translation
-      --   assert (cbe.State != directoryL1C1_O) "Global to Cluster translation on O; directory still on O state; But expected to be on a transient state to handle the downgrade.";
-      --   
-      -- endrule;
+      rule "directoryL1C1_O_store"
+        cbe.State = directoryL1C1_O & network_ready() 
+      ==>
+        FSM_Access_directoryL1C1_O_store(adr, m);
+        -- [Shim Axiom 16]: Global to Cluster downgrade translation
+        assert (cbe.State != directoryL1C1_O) "Global to Cluster translation on O; directory still on O state; But expected to be on a transient state to handle the downgrade.";
+        
+      endrule;
     
     
       endalias;
