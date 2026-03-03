@@ -172,6 +172,8 @@
       ENTRY_cacheL1C1: record
         State: s_cacheL1C1;
         cl: ClValue;
+        -- [Axiom 3]
+        cacheEventFlag : boolean;
       end;
       
       MACH_cacheL1C1: record
@@ -2091,6 +2093,10 @@
         FSM_Access_cacheL1C1_E_evict(adr, m);
         Clear_perm(adr, m);
         
+        -- [Axiom 3]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache event starting. Why is the cacheEventFlag already set?\n";
+        cbe.cacheEventFlag := true;
+
       endrule;
     
       rule "cacheL1C1_E_store"
@@ -2117,6 +2123,10 @@
       rule "cacheL1C1_I_store"
         cbe.State = cacheL1C1_I & network_ready() 
       ==>
+        -- [Axiom 3]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache event starting. Why is the cacheEventFlag already set?\n";
+        cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_I_store(adr, m);
         
       endrule;
@@ -2124,6 +2134,10 @@
       rule "cacheL1C1_I_load"
         cbe.State = cacheL1C1_I & network_ready() 
       ==>
+        -- [Axiom 3]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache event starting. Why is the cacheEventFlag already set?\n";
+        cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_I_load(adr, m);
         
       endrule;
@@ -2131,6 +2145,10 @@
       rule "cacheL1C1_M_evict"
         cbe.State = cacheL1C1_M & network_ready() 
       ==>
+        -- [Axiom 3]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache event starting. Why is the cacheEventFlag already set?\n";
+        cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_M_evict(adr, m);
         Clear_perm(adr, m);
         
@@ -2153,6 +2171,10 @@
       rule "cacheL1C1_S_evict"
         cbe.State = cacheL1C1_S & network_ready() 
       ==>
+        -- [Axiom 3]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache event starting. Why is the cacheEventFlag already set?\n";
+        cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_S_evict(adr, m);
         Clear_perm(adr, m);
         
@@ -2161,6 +2183,10 @@
       rule "cacheL1C1_S_store"
         cbe.State = cacheL1C1_S & network_ready() 
       ==>
+        -- [Axiom 3]
+        assert isundefined(cbe.cacheEventFlag) ">[Axiom 3] Cache event starting. Why is the cacheEventFlag already set?\n";
+        cbe.cacheEventFlag := true;
+
         FSM_Access_cacheL1C1_S_store(adr, m);
         
       endrule;
