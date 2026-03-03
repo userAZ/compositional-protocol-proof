@@ -19,36 +19,27 @@ lemma CMCM.rf.sameGle.wImmPredRCle
 
   constructor
   . case hwr_gle_or_cle_case.hw_r_cle_ob =>
-    simp[CompoundProtocol.cleImmediatePredecessor, Behaviour.ImmediateBottomPredecessor] at hw_imm_pred_r_cle
-    have hw_r_cle_pred := hw_imm_pred_r_cle.isImmPred.bPred.isPred
-    simp[Event.Predecessor] at hw_r_cle_pred
-    exact hw_r_cle_pred
+    -- Extract the ordering from cleImmediatePredecessor
+    -- cleImmediatePredecessor unfolds to ImmediateBottomPredecessor,
+    -- which gives us the predecessor ordering
+    unfold CompoundProtocol.cleImmediatePredecessor at hw_imm_pred_r_cle
+    have : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose :=
+      hw_imm_pred_r_cle.isImmPred.bPred.isPred
+    exact this
   . case hwr_same_cluster =>
-    -- Similar to the same cluster case in the same Gle same Cle case, but now `e_w_cle` is the immediate predecessor of `e_r_cle`
-    -- Use the same GLE fact to show `e_w` and `e_r` are in the same protocol cluster.
-    -- TODO: Need to implement a 'same_gle_implies_same_protocol'
-    /- Do so in a similar way to same_cle_implies_same_protocol.
-    Just work from the global protocol first, then work backwards.
-    Take the global request. Use an axiom that says a global request comes from a corresponding directory cluster request.
-    Use axiom 6.5 to link the directory request back to the `e_w` and `e_r` cluster requests' protocol cluster.
-
-    Thus the GLEs of `e_w` and `e_r` will get mapped to the same protocol cluster through
-    1. the fact they have the same GLE,
-    2. the global request that caused the GLE comes from a corresponding directory cluster request,
-    3. the directory cluster request is linked to the `e_w` and `e_r` cluster requests' protocol cluster. (through axiom 6.5)
-
-    You should split the "code" for the cases in this file into lemmas, much like the other case "RfSameGleSameCle".
-    -/
-    sorry
+    -- Use GLE equality to show same protocol
+    -- Even though e_w_cle and e_r_cle are different (immediate predecessor relationship),
+    -- the fact that both events have the same GLE means they're in the same protocol cluster
+    exact same_gle_implies_same_protocol hw_c_and_g_lin hr_c_and_g_lin hsame_gle
   . case hwr_cle_ob_case =>
-    by_cases hsame_cache : e_w.struct = e_r.struct
-    . case pos =>
+    by_cases e_w.struct = e_r.struct
+    . case pos hsame_cache =>
       apply WriteRead.wObRCle.case.sameCache hsame_cache
       -- TODO: also show no intervening dir write between the two
       -- Use hw_imm_pred_r_cle to show `e_w_cle` is the immediate predecessor of `e_r_cle`
       sorry
-    . case neg =>
-      apply WriteRead.wObRCle.case.diffCache hsame_cache
+    . case neg hdiff_cache =>
+      apply WriteRead.wObRCle.case.diffCache hdiff_cache
       -- TODO: prove the branches in this case.
       -- "different cache" cases.
       -- "when considering the cases of what the write and read requests are (coherent write, non-coherent release write, etc..,
