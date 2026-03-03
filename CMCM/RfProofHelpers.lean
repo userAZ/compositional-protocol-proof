@@ -2421,7 +2421,7 @@ lemma dual_encap_via_ordering_chain
 
 /-- Two cluster directory events that both route through ClusterToGlobal and dirAccessOfRequest
     to reach the same global directory must have the same protocol.
-    
+
     This captures the protocol-determinism of the ClusterToGlobal + dirAccessOfRequest chain:
     Two events with different protocols cannot both produce sequences that converge to the
     same global directory endpoint. -/
@@ -2770,37 +2770,36 @@ lemma same_gle_implies_same_protocol
     there are no intervening directory writes. -/
 lemma wimmpredrCle_no_dir_write_between_same_cache
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  (hw_is_write : e_w.isWrite) (hr_is_read : e_r.isRead)
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
   (hsame_cache : e_w.struct = e_r.struct)
-  : Event.Between.noDirWrite b e_w e_r := by
-  intro e he_in_b hbetween
-  -- Create the goal: prove ¬ (e.isDirWrite ∧ e.isDirNotDown)
-  -- Goal is to show: NOT (e is a directory write AND e is not a downgrade)
-  -- This means: either e is not a directory write, OR e is a downgrade
-
-  -- We need to show there's no directory write (that's not a downgrade) between e_w and e_r
-  -- The immediate predecessor between CLEs at the same cache constrains what can happen between them
-
-  -- From hw_imm_pred_r_cle we have:
-  unfold CompoundProtocol.cleImmediatePredecessor at hw_imm_pred_r_cle
-  -- Now hw_imm_pred_r_cle : b.ImmediateBottomPredecessor n ... .choose ... .choose
-
-  -- Extract the predecessor and successor CLEs
-  let e_w_cle := hw_c_and_g_lin.hreq's_dir_access.choose
-  let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
-
-  -- Both are directory events (from dirAccessOfRequest)
-  -- hsame_cache tells us they're at the same cache entry
-  -- hw_imm_pred_r_cle.isImmPred.noIntermediate says:
-  --   ∀ e_inter ∈ b, (bottomSameEntry n e_inter e_r_cle) → ¬ (e_inter.OrderedBetween n e_w_cle e_r_cle)
-
-  -- Since between e_w and e_r in the actual events corresponds to between the CLEs,
-  -- and e has no intermediate directory events between the CLEs,
-  -- we can conclude e cannot be a directory write
-
-  sorry
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
+  (hno_intervening_writes : NoInterveningWrites hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
+  : Event.Between.noDirWrite cmp b init hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose hknow_dir_access := by
+  -- noDirWrite is ¬ sameOrDiffCluster, so we assume sameOrDiffCluster and derive contradiction
+  unfold Event.Between.noDirWrite
+  intro h
+  cases h with
+  | sameCluster e_w_inter hsame =>
+    -- hsame : Event.Between.sameProtocol.interveningDirWrite ...
+    -- Use NoInterveningWrites to get constraints on e_w_inter.
+    have hconstraints := hno_intervening_writes
+      e_w_inter hsame.interInB hsame.isCluster hsame.isWrite hsame.notDown
+    -- hconstraints.notBetweenCles : SameClusterCLE.NotBetweenCLEs ...
+    -- says: if CLE protocol = e_w_cle protocol AND isDirWrite, then CLE NOT between CLEs.
+    -- hsame.cleBetween says CLE IS between, hsame.cleDirWrite says CLE IS dir write.
+    -- Need CLE protocol = e_w_cle protocol (from same-protocol + cluster structure).
+    have hnotBetween := hconstraints.notBetweenCles
+    sorry
+  | diffCluster e_w_inter hdiff =>
+    -- hdiff : Event.Between.diffProtocol.interveningDirWrite ...
+    -- Use NoInterveningWrites.constraints.diffClusterNotBetweenCles.
+    have hconstraints := hno_intervening_writes
+      e_w_inter hdiff.interInB hdiff.isCluster hdiff.isWrite hdiff.notDown
+    have hdiffNotBetween := hconstraints.diffClusterNotBetweenCles
+    sorry
 
 /-- Helper for wImmPredRCle diffCache: Decides which WriteRead.wObRCle.diffCache.case to apply
     based on coherence of the write and its immediate successor CLE. -/
@@ -2811,7 +2810,7 @@ lemma wimmpredrCle_diff_cache_choose_case
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
   (hdiff_cache : e_w.struct ≠ e_r.struct)
-  : WriteRead.wObRCle.diffCache.case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin := by
+  : WriteRead.wObRCle.diffCache.case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin sorry := by
   -- Main decision point: is e_w coherent?
   by_cases hw_coherent : e_w.isCoherent
   · -- Coherent write case: use wHasPermsAfter
@@ -2831,14 +2830,8 @@ lemma wimmpredrCle_diff_cache_choose_case
       · -- e_w.reqMissingPerms: NC release write missing perms
         -- NC release writes access directory in missing perms state
         sorry
-      · -- e_w.isNonCoherent: This should follow from ¬hw_coherent for cache events
-        -- For now, prove via the relationship between the definitions
-        -- Event.isCoherent and Event.isNonCoherent are negations for cache events
-
-        -- The proof requires understanding that:
-        -- ¬(ce.req.isCoherent) ↔ (¬ce.req.val.coherent)
-        -- Both are equivalent statements about the coherent field
-
+      · -- e_w.isNonCoherent: For cache events this follows from ¬hw_coherent
+        -- Relationship: isNonCoherent e ↔ ¬ isCoherent e for cache events
         sorry
       · -- WriteRead.wCleAfter.cond.wrapper: NC write downgrade wrapping
         -- NC release write may have CLE after write, requiring downgrade structure
@@ -2849,3 +2842,4 @@ lemma wimmpredrCle_diff_cache_choose_case
         -- NC non-release write with CLE after write
         -- Requires proving downgrade structure and ordering constraints
         sorry
+
