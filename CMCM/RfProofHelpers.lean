@@ -2418,3 +2418,434 @@ lemma dual_encap_via_ordering_chain
   let h1_before_2 := Event.ordered_trans (n := n) h1_before_mid hmid_before_2
   let h1_before_related := Event.ordered_trans (n := n) h1_before_2 h2_related
   dual_encap_ordered_contradiction he1_encap he2_related_encap h1_before_related
+
+/-- Two cluster directory events that both route through ClusterToGlobal and dirAccessOfRequest
+    to reach the same global directory must have the same protocol.
+    
+    This captures the protocol-determinism of the ClusterToGlobal + dirAccessOfRequest chain:
+    Two events with different protocols cannot both produce sequences that converge to the
+    same global directory endpoint. -/
+lemma cluster_dirs_to_same_global_dir_have_same_protocol
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+  {hw_cle hr_cle hw_gcache hr_gcache e_gdir : Event n}
+  (hw_cle_is_dir : hw_cle.isDirectoryEvent)
+  (hr_cle_is_dir : hr_cle.isDirectoryEvent)
+  (hw_gcache_eq : hw_gcache = Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init hw_cle hw_cle_is_dir)
+  (hw_gcache_to_gdir : b.dirAccessOfRequest n init hw_gcache e_gdir)
+  (hr_gcache_eq : hr_gcache = Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init hr_cle hr_cle_is_dir)
+  (hr_gcache_to_gdir : b.dirAccessOfRequest n init hr_gcache e_gdir)
+  : hw_cle.protocol = hr_cle.protocol := by
+  -- First, if two requests access the same directory event, they are at the same cache struct.
+  have hsame_struct_of_same_dir_access :
+      hw_gcache.struct = hr_gcache.struct := by
+    have hsame_struct_of_entry :
+        ∀ {e₁ e₂ : Event n}, e₁.sameEntry n e₂ → e₁.struct = e₂.struct := by
+      intro e₁ e₂ hentry
+      exact Event.same_entry_impl_same_struct (n := n) e₁ e₂ hentry
+    cases hw_gcache_to_gdir with
+    | encapDir _ hw_encap =>
+      cases hr_gcache_to_gdir with
+      | encapDir _ hr_encap =>
+        have hreq_eq := dir_event_of_req_event_unique hw_encap.dirOfReq hr_encap.dirOfReq
+        simpa [Event.sameStructure, Event.struct] using congrArg (fun e => e.struct) hreq_eq
+      | orderBeforeDir _ hr_pred hr_pred_access _ =>
+        have hreq_eq := dir_event_of_req_event_unique hw_encap.dirOfReq hr_pred_access.dirOfReq
+        have hr_entry := hr_pred.choose_spec.right.isImmPred.bPred.sameEntry
+        have hr_struct := hsame_struct_of_entry hr_entry
+        have hr_struct' : hr_gcache.struct = hw_gcache.struct := by
+          have hr_struct1 : hr_gcache.struct = hr_pred.choose.struct := hr_struct.symm
+          have hr_struct2 : hr_gcache.struct = hw_gcache.struct := by
+            simpa [hreq_eq] using hr_struct1
+          exact hr_struct2
+        exact hr_struct'.symm
+      | orderAfterDir _ hr_succ =>
+        have hreq_eq := dir_event_of_req_event_unique hw_encap.dirOfReq hr_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq
+        have hr_entry := hr_succ.choose_spec.right.isImmBottomSucc.sameEntry
+        have hr_struct := hsame_struct_of_entry hr_entry
+        have hr_struct' : hr_gcache.struct = hw_gcache.struct := by
+          have hr_struct1 : hr_gcache.struct = hr_succ.choose.struct := hr_struct
+          have hr_struct2 : hr_gcache.struct = hw_gcache.struct := by
+            simpa [hreq_eq] using hr_struct1
+          exact hr_struct2
+        exact hr_struct'.symm
+    | orderBeforeDir _ hw_pred hw_pred_access _ =>
+      cases hr_gcache_to_gdir with
+      | encapDir _ hr_encap =>
+        have hreq_eq := dir_event_of_req_event_unique hw_pred_access.dirOfReq hr_encap.dirOfReq
+        have hw_entry := hw_pred.choose_spec.right.isImmPred.bPred.sameEntry
+        have hw_struct := hsame_struct_of_entry hw_entry
+        have hw_struct' : hw_gcache.struct = hr_gcache.struct := by
+          have hw_struct1 : hw_gcache.struct = hw_pred.choose.struct := hw_struct.symm
+          have hw_struct2 : hw_gcache.struct = hr_gcache.struct := by
+            simpa [hreq_eq] using hw_struct1
+          exact hw_struct2
+        exact hw_struct'
+      | orderBeforeDir _ hr_pred hr_pred_access _ =>
+        have hreq_eq := dir_event_of_req_event_unique hw_pred_access.dirOfReq hr_pred_access.dirOfReq
+        have hw_entry := hw_pred.choose_spec.right.isImmPred.bPred.sameEntry
+        have hr_entry := hr_pred.choose_spec.right.isImmPred.bPred.sameEntry
+        have hw_struct := hsame_struct_of_entry hw_entry
+        have hr_struct := hsame_struct_of_entry hr_entry
+        have : hw_gcache.struct = hr_gcache.struct := by
+          have hw' : hw_gcache.struct = hw_pred.choose.struct := hw_struct.symm
+          have hr' : hr_gcache.struct = hr_pred.choose.struct := hr_struct.symm
+          have hr'' : hr_gcache.struct = hw_pred.choose.struct := by
+            simpa [hreq_eq] using hr'
+          exact hw'.trans hr''.symm
+        exact this
+      | orderAfterDir _ hr_succ =>
+        have hreq_eq := dir_event_of_req_event_unique hw_pred_access.dirOfReq hr_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq
+        have hw_entry := hw_pred.choose_spec.right.isImmPred.bPred.sameEntry
+        have hr_entry := hr_succ.choose_spec.right.isImmBottomSucc.sameEntry
+        have hw_struct := hsame_struct_of_entry hw_entry
+        have hr_struct := hsame_struct_of_entry hr_entry
+        have : hw_gcache.struct = hr_gcache.struct := by
+          have hw' : hw_gcache.struct = hw_pred.choose.struct := hw_struct.symm
+          have hr' : hr_gcache.struct = hr_succ.choose.struct := hr_struct
+          have hr'' : hr_gcache.struct = hw_pred.choose.struct := by
+            simpa [hreq_eq] using hr'
+          exact hw'.trans hr''.symm
+        exact this
+    | orderAfterDir _ hw_succ =>
+      cases hr_gcache_to_gdir with
+      | encapDir _ hr_encap =>
+        have hreq_eq := dir_event_of_req_event_unique hw_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq hr_encap.dirOfReq
+        have hw_entry := hw_succ.choose_spec.right.isImmBottomSucc.sameEntry
+        have hw_struct := hsame_struct_of_entry hw_entry
+        have : hw_gcache.struct = hr_gcache.struct := by
+          have hw' : hw_gcache.struct = hw_succ.choose.struct := hw_struct
+          have hw'' : hw_gcache.struct = hr_gcache.struct := by
+            simpa [hreq_eq] using hw'
+          exact hw''
+        exact this
+      | orderBeforeDir _ hr_pred hr_pred_access _ =>
+        have hreq_eq := dir_event_of_req_event_unique hw_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq hr_pred_access.dirOfReq
+        have hw_entry := hw_succ.choose_spec.right.isImmBottomSucc.sameEntry
+        have hr_entry := hr_pred.choose_spec.right.isImmPred.bPred.sameEntry
+        have hw_struct := hsame_struct_of_entry hw_entry
+        have hr_struct := hsame_struct_of_entry hr_entry
+        have : hw_gcache.struct = hr_gcache.struct := by
+          have hw' : hw_gcache.struct = hw_succ.choose.struct := hw_struct
+          have hr' : hr_gcache.struct = hr_pred.choose.struct := hr_struct.symm
+          have hr'' : hr_gcache.struct = hw_succ.choose.struct := by
+            simpa [hreq_eq] using hr'
+          exact hw'.trans hr''.symm
+        exact this
+      | orderAfterDir _ hr_succ =>
+        have hreq_eq := dir_event_of_req_event_unique hw_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq hr_succ.choose_spec.right.satisfyP.encapCorresponding.dirOfReq
+        have hw_entry := hw_succ.choose_spec.right.isImmBottomSucc.sameEntry
+        have hr_entry := hr_succ.choose_spec.right.isImmBottomSucc.sameEntry
+        have hw_struct := hsame_struct_of_entry hw_entry
+        have hr_struct := hsame_struct_of_entry hr_entry
+        have : hw_gcache.struct = hr_gcache.struct := by
+          have hw' : hw_gcache.struct = hw_succ.choose.struct := hw_struct
+          have hr' : hr_gcache.struct = hr_succ.choose.struct := hr_struct
+          have hr'' : hr_gcache.struct = hw_succ.choose.struct := by
+            simpa [hreq_eq] using hr'
+          exact hw'.trans hr''.symm
+        exact this
+
+  -- Extract correspondence constraints from ClusterToGlobal for each CLE.
+  have hw_cle_corr_gcache : Event.reqAtCorrespondingGCacheOfCDir n hw_cle hw_gcache := by
+    rw [hw_gcache_eq]
+    simp [Behaviour.Shim.ClusterToGlobal.cDir'sGReq]
+    cases hshim : cmp.shimAxioms.clusterToGlobal b init hw_cle hw_cle_is_dir with
+    | encapGlobalCache _ hreq =>
+      simpa [hshim] using hreq.choose_spec.right.gReqOfCDir.gReq
+    | noGlobalCache _ hreq =>
+      simpa [hshim] using hreq.choose_spec.right.dirEncapGCache.gReqOfCDir.gReq
+
+  have hr_cle_corr_gcache : Event.reqAtCorrespondingGCacheOfCDir n hr_cle hr_gcache := by
+    rw [hr_gcache_eq]
+    simp [Behaviour.Shim.ClusterToGlobal.cDir'sGReq]
+    cases hshim : cmp.shimAxioms.clusterToGlobal b init hr_cle hr_cle_is_dir with
+    | encapGlobalCache _ hreq =>
+      simpa [hshim] using hreq.choose_spec.right.gReqOfCDir.gReq
+    | noGlobalCache _ hreq =>
+      simpa [hshim] using hreq.choose_spec.right.dirEncapGCache.gReqOfCDir.gReq
+
+  -- Same translated global-cache struct forces same corresponding cluster protocol.
+  cases hw_cle with
+  | cacheEvent _ =>
+    cases hw_cle_is_dir
+  | directoryEvent de_w =>
+    cases hr_cle with
+    | cacheEvent _ =>
+      cases hr_cle_is_dir
+    | directoryEvent de_r =>
+      simp [Event.isDirectoryEvent] at hw_cle_is_dir hr_cle_is_dir
+      match hde_w : de_w.pInst, hde_r : de_r.pInst with
+      | .cluster1, .cluster1 =>
+        simp [Event.protocol, hde_w, hde_r]
+      | .cluster2, .cluster2 =>
+        simp [Event.protocol, hde_w, hde_r]
+      | .cluster1, .cluster2 =>
+        have hw_at_0 : hw_gcache.reqAtGlobalCacheCid n 0 := by
+          simpa [Event.reqAtCorrespondingGCacheOfCDir, Event.protocol, hde_w] using hw_cle_corr_gcache
+        have hr_at_1 : hr_gcache.reqAtGlobalCacheCid n 1 := by
+          simpa [Event.reqAtCorrespondingGCacheOfCDir, Event.protocol, hde_r] using hr_cle_corr_gcache
+        have hr_at_0 : hr_gcache.reqAtGlobalCacheCid n 0 := by
+          cases hw_gcache with
+          | directoryEvent _ =>
+            simp [Event.reqAtGlobalCacheCid] at hw_at_0
+          | cacheEvent ce_w =>
+            cases hr_gcache with
+            | directoryEvent _ =>
+              have : False := by
+                simpa [Event.reqAtGlobalCacheCid] using hr_at_1
+              exact this.elim
+            | cacheEvent ce_r =>
+              simp [Event.struct] at hsame_struct_of_same_dir_access
+              simpa [Event.reqAtGlobalCacheCid, hsame_struct_of_same_dir_access] using hw_at_0
+        have hcontra : False := by
+          cases hr_gcache with
+          | directoryEvent _ =>
+            simp [Event.reqAtGlobalCacheCid] at hr_at_0
+          | cacheEvent ce =>
+            cases hcid : ce.cid with
+            | proxy _ =>
+              simp [Event.reqAtGlobalCacheCid, hcid] at hr_at_0
+            | cache pci =>
+              cases hpci : pci with
+              | cluster1 _ =>
+                simp [Event.reqAtGlobalCacheCid, hcid, hpci] at hr_at_0
+              | cluster2 _ =>
+                simp [Event.reqAtGlobalCacheCid, hcid, hpci] at hr_at_0
+              | globalP fin2 =>
+                simp [Event.reqAtGlobalCacheCid, hcid, hpci] at hr_at_0 hr_at_1
+                have : (0 : Fin 2) = 1 := hr_at_0.symm.trans hr_at_1
+                exact Fin.zero_ne_one this
+        exact hcontra.elim
+      | .cluster2, .cluster1 =>
+        have hw_at_1 : hw_gcache.reqAtGlobalCacheCid n 1 := by
+          simpa [Event.reqAtCorrespondingGCacheOfCDir, Event.protocol, hde_w] using hw_cle_corr_gcache
+        have hr_at_0 : hr_gcache.reqAtGlobalCacheCid n 0 := by
+          simpa [Event.reqAtCorrespondingGCacheOfCDir, Event.protocol, hde_r] using hr_cle_corr_gcache
+        have hr_at_1 : hr_gcache.reqAtGlobalCacheCid n 1 := by
+          cases hw_gcache with
+          | directoryEvent _ =>
+            simp [Event.reqAtGlobalCacheCid] at hw_at_1
+          | cacheEvent ce_w =>
+            cases hr_gcache with
+            | directoryEvent _ =>
+              have : False := by
+                simpa [Event.reqAtGlobalCacheCid] using hr_at_0
+              exact this.elim
+            | cacheEvent ce_r =>
+              simp [Event.struct] at hsame_struct_of_same_dir_access
+              simpa [Event.reqAtGlobalCacheCid, hsame_struct_of_same_dir_access] using hw_at_1
+        have hcontra : False := by
+          cases hr_gcache with
+          | directoryEvent _ =>
+            simp [Event.reqAtGlobalCacheCid] at hr_at_1
+          | cacheEvent ce =>
+            cases hcid : ce.cid with
+            | proxy _ =>
+              simp [Event.reqAtGlobalCacheCid, hcid] at hr_at_1
+            | cache pci =>
+              cases hpci : pci with
+              | cluster1 _ =>
+                simp [Event.reqAtGlobalCacheCid, hcid, hpci] at hr_at_1
+              | cluster2 _ =>
+                simp [Event.reqAtGlobalCacheCid, hcid, hpci] at hr_at_1
+              | globalP fin2 =>
+                simp [Event.reqAtGlobalCacheCid, hcid, hpci] at hr_at_0 hr_at_1
+                have : (0 : Fin 2) = 1 := hr_at_0.symm.trans hr_at_1
+                exact Fin.zero_ne_one this
+        exact hcontra.elim
+      | .global, .global =>
+        have : False := by
+          simpa [Event.reqAtCorrespondingGCacheOfCDir, Event.protocol, hde_w] using hw_cle_corr_gcache
+        exact this.elim
+      | .global, .cluster1 =>
+        have : False := by
+          simpa [Event.reqAtCorrespondingGCacheOfCDir, Event.protocol, hde_w] using hw_cle_corr_gcache
+        exact this.elim
+      | .global, .cluster2 =>
+        have : False := by
+          simpa [Event.reqAtCorrespondingGCacheOfCDir, Event.protocol, hde_w] using hw_cle_corr_gcache
+        exact this.elim
+      | .cluster1, .global =>
+        have : False := by
+          simpa [Event.reqAtCorrespondingGCacheOfCDir, Event.protocol, hde_r] using hr_cle_corr_gcache
+        exact this.elim
+      | .cluster2, .global =>
+        have : False := by
+          simpa [Event.reqAtCorrespondingGCacheOfCDir, Event.protocol, hde_r] using hr_cle_corr_gcache
+        exact this.elim
+
+/-- Helper: If two events have the same GLE, they are in the same protocol cluster.
+    This works because same GLE implies they come from requests that trace back to the same
+    global protocol request, hence same protocol linkage. -/
+lemma same_gle_implies_same_protocol
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hgle_eq : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
+  : e_w.protocol = e_r.protocol := by
+  -- Both events' cluster requests link through their CLEs to the same global request.
+  -- The CLEs belong to directory events that are protocol-specific.
+  -- Since both e_w and e_r contribute to the same GLE, they must be in the same protocol.
+  have hw_cle_protocol :
+      hw_c_and_g_lin.hreq's_dir_access.choose.protocol = e_w.protocol :=
+    write_cle_protocol_eq_write_protocol hw_c_and_g_lin
+  have hr_cle_protocol :
+      hr_c_and_g_lin.hreq's_dir_access.choose.protocol = e_r.protocol :=
+    read_cle_protocol_eq_read_protocol hr_c_and_g_lin
+  -- The same GLE ensures both CLEs are part of the same protocol's global interaction.
+  -- Even if CLEs are different (e.g., predecessor/successor), they must share the same protocol
+  -- because they're both accessed participants in the same global protocol event.
+  -- Trace through ClusterToGlobal infrastructure:
+  -- 1. hw_c_and_g_lin.hreq's_dir_access gives cluster directory event for e_w
+  -- 2. ClusterToGlobal links it to a global cache event
+  -- 3. hw_c_and_g_lin.hreq's_global_lin accesses global directory from that cache
+  -- 4. Since hgle_eq says both access the same GLE, their global paths converge
+  -- 5. Therefore CLEs must have same protocol
+
+  -- The structure is:
+  -- e_w -> cluster_dir(e_w) -> global_cache(e_w) -> global_dir(e_w)
+  -- e_r -> cluster_dir(e_r) -> global_cache(e_r) -> global_dir(e_r)
+  -- Both global_dir events are the same (hgle_eq), so both paths lead to same global request
+
+  -- Alternative approach: use the global directory event directly
+  -- Both CLEs link through ClusterToGlobal to the same global dir (hgle_eq)
+  -- Extract protocol information from that shared endpoint
+  have hw_global_dir := hw_c_and_g_lin.hreq's_global_lin.choose
+  have hr_global_dir := hr_c_and_g_lin.hreq's_global_lin.choose
+  -- hgle_eq directly proves these are equal
+
+  -- The global directory event is accessed through both paths
+  -- dirAccessOfRequest enforces protocol constraints (see its case analysis at lines 569-595)
+  -- Both hw_cle and hr_cle contribute to accessing the same global_dir through :
+  --   ClusterToGlobal(hw_cle) --[dirAccessOfRequest]--> hw_global_dir
+  --   ClusterToGlobal(hr_cle) --[dirAccessOfRequest]--> hr_global_dir
+  -- And hw_global_dir = hr_global_dir (hgle_eq)
+
+  -- The dirAccessOfRequest predicate has three cases (encapDir, orderBeforeDir, orderAfterDir),
+  -- each with protocol preservation properties (sameProtocol field or via encapsulation rules)
+
+  -- Since both paths converge to the same global directory via the same predicate structure,
+  -- and each case of dirAccessOfRequest preserves protocol information through the chain,
+  -- the protocol of hw_cle and hr_cle must be the same
+
+  calc
+    e_w.protocol = hw_c_and_g_lin.hreq's_dir_access.choose.protocol :=
+      hw_cle_protocol.symm
+    _ = hr_c_and_g_lin.hreq's_dir_access.choose.protocol := by
+      let hw_cle := hw_c_and_g_lin.hreq's_dir_access.choose
+      let hr_cle := hr_c_and_g_lin.hreq's_dir_access.choose
+      let hw_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init hw_c_and_g_lin.hreq's_dir_access
+      let hr_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init hr_c_and_g_lin.hreq's_dir_access
+
+      have hw_cle_is_dir : hw_cle.isDirectoryEvent := by
+        simpa [hw_cle] using hw_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+      have hr_cle_is_dir : hr_cle.isDirectoryEvent := by
+        simpa [hr_cle] using hr_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+
+      have hw_gcache_eq : hw_gcache = Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init hw_cle hw_cle_is_dir := by
+        simp [hw_gcache, Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper, hw_cle, hw_cle_is_dir]
+      have hr_gcache_eq : hr_gcache = Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init hr_cle hr_cle_is_dir := by
+        simp [hr_gcache, Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper, hr_cle, hr_cle_is_dir]
+
+      have hw_gcache_to_gdir : b.dirAccessOfRequest n init hw_gcache (hw_c_and_g_lin.hreq's_global_lin.choose) :=
+        hw_c_and_g_lin.hreq's_global_lin.choose_spec.right
+      have hr_gcache_to_gdir' : b.dirAccessOfRequest n init hr_gcache (hr_c_and_g_lin.hreq's_global_lin.choose) :=
+        hr_c_and_g_lin.hreq's_global_lin.choose_spec.right
+      have hr_gcache_to_gdir : b.dirAccessOfRequest n init hr_gcache (hw_c_and_g_lin.hreq's_global_lin.choose) := by
+        simpa [hgle_eq] using hr_gcache_to_gdir'
+
+      simpa [hw_cle, hr_cle] using
+        (cluster_dirs_to_same_global_dir_have_same_protocol
+          (cmp := cmp) (b := b) (init := init)
+          (hw_cle := hw_cle) (hr_cle := hr_cle)
+          (hw_gcache := hw_gcache) (hr_gcache := hr_gcache)
+          (e_gdir := hw_c_and_g_lin.hreq's_global_lin.choose)
+          hw_cle_is_dir hr_cle_is_dir
+          hw_gcache_eq hw_gcache_to_gdir
+          hr_gcache_eq hr_gcache_to_gdir)
+    _ = e_r.protocol :=
+      hr_cle_protocol
+
+/-- Helper for wImmPredRCle: When e_w_cle is immediate predecessor of e_r_cle and same cache,
+    there are no intervening directory writes. -/
+lemma wimmpredrCle_no_dir_write_between_same_cache
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  (hsame_cache : e_w.struct = e_r.struct)
+  : Event.Between.noDirWrite b e_w e_r := by
+  intro e he_in_b hbetween
+  -- Create the goal: prove ¬ (e.isDirWrite ∧ e.isDirNotDown)
+  -- Goal is to show: NOT (e is a directory write AND e is not a downgrade)
+  -- This means: either e is not a directory write, OR e is a downgrade
+
+  -- We need to show there's no directory write (that's not a downgrade) between e_w and e_r
+  -- The immediate predecessor between CLEs at the same cache constrains what can happen between them
+
+  -- From hw_imm_pred_r_cle we have:
+  unfold CompoundProtocol.cleImmediatePredecessor at hw_imm_pred_r_cle
+  -- Now hw_imm_pred_r_cle : b.ImmediateBottomPredecessor n ... .choose ... .choose
+
+  -- Extract the predecessor and successor CLEs
+  let e_w_cle := hw_c_and_g_lin.hreq's_dir_access.choose
+  let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
+
+  -- Both are directory events (from dirAccessOfRequest)
+  -- hsame_cache tells us they're at the same cache entry
+  -- hw_imm_pred_r_cle.isImmPred.noIntermediate says:
+  --   ∀ e_inter ∈ b, (bottomSameEntry n e_inter e_r_cle) → ¬ (e_inter.OrderedBetween n e_w_cle e_r_cle)
+
+  -- Since between e_w and e_r in the actual events corresponds to between the CLEs,
+  -- and e has no intermediate directory events between the CLEs,
+  -- we can conclude e cannot be a directory write
+
+  sorry
+
+/-- Helper for wImmPredRCle diffCache: Decides which WriteRead.wObRCle.diffCache.case to apply
+    based on coherence of the write and its immediate successor CLE. -/
+lemma wimmpredrCle_diff_cache_choose_case
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  (hw_is_write : e_w.isWrite) (hr_is_read : e_r.isRead)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  (hdiff_cache : e_w.struct ≠ e_r.struct)
+  : WriteRead.wObRCle.diffCache.case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin := by
+  -- Main decision point: is e_w coherent?
+  by_cases hw_coherent : e_w.isCoherent
+  · -- Coherent write case: use wHasPermsAfter
+    apply WriteRead.wObRCle.diffCache.case.wHasPermsAfter hw_coherent
+    -- For immediate predecessor CLEs with different cache and coherent write,
+    -- use noEvictBetween (evicts would violate immediate predecessor property)
+    apply WriteRead.wObRCle.diffCache.wHasPermsAfter.case.noEvictBetween
+    -- Build noEvictBetween.cond.wrapper: downgrade encapsulation + no evict
+    constructor
+    · sorry  -- gdownEncapProxyAndDirAndCDown: global downgrade structure
+    · sorry  -- noEvictBetween: no evicts between write and read's downgrade
+  · -- Non-coherent write case: check if it's a non-coherent release write
+    -- For NC writes, we need to check if it's a release write with specific constraints
+    by_cases hw_ncrel : e_w.req.val = ⟨.w, false, .Rel⟩
+    · -- NC release write: use wNoPermsAfter
+      apply WriteRead.wObRCle.diffCache.case.wNoPermsAfter
+      · -- e_w.reqMissingPerms: NC release write missing perms
+        -- NC release writes access directory in missing perms state
+        sorry
+      · -- e_w.isNonCoherent: This should follow from ¬hw_coherent for cache events
+        -- For now, prove via the relationship between the definitions
+        -- Event.isCoherent and Event.isNonCoherent are negations for cache events
+
+        -- The proof requires understanding that:
+        -- ¬(ce.req.isCoherent) ↔ (¬ce.req.val.coherent)
+        -- Both are equivalent statements about the coherent field
+
+        sorry
+      · -- WriteRead.wCleAfter.cond.wrapper: NC write downgrade wrapping
+        -- NC release write may have CLE after write, requiring downgrade structure
+        sorry
+    · -- Other NC write: wCleAfter case (CLE is after write)
+      apply WriteRead.wObRCle.diffCache.case.wCleAfter
+      · -- WriteRead.wCleAfter.cond.wrapper: after-CLE downgrade wrapper
+        -- NC non-release write with CLE after write
+        -- Requires proving downgrade structure and ordering constraints
+        sorry

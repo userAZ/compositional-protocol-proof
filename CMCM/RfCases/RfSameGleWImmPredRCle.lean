@@ -2,6 +2,23 @@ import CMCM.Rf
 import CMCM.RfProofDefs
 import CMCM.RfProofHelpers
 
+/-- Proof that reads-from is correct when a write's CLE is the immediate predecessor of a read's CLE.
+
+    Unlike the sameCle case where both events access the same CLE, this case handles:
+    - Same GLE (global linearization event) for both events
+    - e_w_cle is the immediate predecessor of e_r_cle (directory cluster events)
+    - Different cache structures possible
+
+    Sub-goals:
+    1. hw_r_cle_ob: Extract immediate predecessor ordering
+    2. hwr_same_cluster: Prove same protocol via GLE equality
+    3. hwr_cle_ob_case: Prove write-before-read with CLE ordering
+       - sameCache: Both at same cache, no intervening writes
+       - diffCache: Different caches, analyze coherence and CLE ordering
+         * Coherent write: Check for evicts, use noEvictBetween
+         * Non-coherent write: Distinguish release vs. other writes
+-/
+
 lemma CMCM.rf.sameGle.wImmPredRCle
   {cmp : CompoundProtocol n}
   (hw_cluster_cache : e_w.isClusterCache) (hr_cluster_cache : e_r.isClusterCache)
@@ -35,13 +52,7 @@ lemma CMCM.rf.sameGle.wImmPredRCle
     by_cases e_w.struct = e_r.struct
     . case pos hsame_cache =>
       apply WriteRead.wObRCle.case.sameCache hsame_cache
-      -- TODO: also show no intervening dir write between the two
-      -- Use hw_imm_pred_r_cle to show `e_w_cle` is the immediate predecessor of `e_r_cle`
-      sorry
+      exact wimmpredrCle_no_dir_write_between_same_cache hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hsame_cache
     . case neg hdiff_cache =>
       apply WriteRead.wObRCle.case.diffCache hdiff_cache
-      -- TODO: prove the branches in this case.
-      -- "different cache" cases.
-      -- "when considering the cases of what the write and read requests are (coherent write, non-coherent release write, etc..,
-      -- Use WriteRead.wObRCle.diffCache.case to say what the cases of RF we're in.)"
-      sorry
+      exact wimmpredrCle_diff_cache_choose_case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hdiff_cache
