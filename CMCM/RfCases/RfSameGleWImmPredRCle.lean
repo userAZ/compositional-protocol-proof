@@ -22,13 +22,15 @@ import CMCM.RfProofHelpers
 lemma CMCM.rf.sameGle.wImmPredRCle
   {cmp : CompoundProtocol n}
   (hw_cluster_cache : e_w.isClusterCache) (hr_cluster_cache : e_r.isClusterCache)
-  -- (hw_is_write : e_w.isWrite) (hr_is_read : e_r.isRead)
+  (hw_is_write : e_w.isWrite) (hr_is_read : e_r.isRead)
   (hw_now_down : ¬ e_w.down) (hr_not_down : ¬ e_r.down)
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (hsame_gle : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
   (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
-  : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
+  (hno_intervening_writes : NoInterveningWrites hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
+  : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
   := by
   -- Expand Behaviour.readsFrom.cases case so we can prove this specific case.
   apply Behaviour.readsFrom.cases.wEqRGle hsame_gle (hw_cluster := hw_cluster_cache) (hr_cluster := hr_cluster_cache) (hw_not_down := hw_now_down) (hr_not_down := hr_not_down)
@@ -52,7 +54,7 @@ lemma CMCM.rf.sameGle.wImmPredRCle
     by_cases e_w.struct = e_r.struct
     . case pos hsame_cache =>
       apply WriteRead.wObRCle.case.sameCache hsame_cache
-      exact wimmpredrCle_no_dir_write_between_same_cache hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hsame_cache
+      exact wimmpredrCle_no_dir_write_between_same_cache hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hsame_cache hknow_dir_access hno_intervening_writes
     . case neg hdiff_cache =>
       apply WriteRead.wObRCle.case.diffCache hdiff_cache
       exact wimmpredrCle_diff_cache_choose_case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hdiff_cache

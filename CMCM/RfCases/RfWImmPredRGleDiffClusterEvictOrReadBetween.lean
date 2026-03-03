@@ -9,6 +9,6 @@ lemma CMCM.rf.wImmPredRGle.diffCluster.evictOrReadBetweenWAndRDown
   (hw_imm_pred_r_gle : CompoundProtocol.gleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
   (hdiff_cluster : ¬ Event.sameProtocol n e_w e_r)
   (hw_cle_imm_pred_down : ReadDowngradeAtWrite.evictOrReadBetween.wAndRDown hw_c_and_g_lin hr_c_and_g_lin)
-  : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin
+  : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin sorry
   := by
   sorry
