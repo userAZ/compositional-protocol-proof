@@ -142,7 +142,10 @@ structure WriteRead.EqGleCle.case (b : Behaviour n) (init : InitialSystemState n
 /- Begin Defs for WriteRead.wObRCle.case -/
 /-- Event is not a directory write event between an `e_w` and `e_r`'s (cluster or global) linearization event. -/
 def Event.Between.noDirWrite (b : Behaviour n) (e_w_le e_r_le : Event n) : Prop :=
-  ∀ e_le ∈ b, e_le.OrderedBetween n e_w_le e_r_le → ¬ (e_le.isDirWrite ∧ e_le.isDirNotDown)
+  ∀ e_w_inter ∈ b, e_w_inter.isClusterCache → e_w_inter.isWrite → ¬ e_w_inter.down →
+    ∀ e_inter_le ∈ b, e_inter_le.OrderedBetween n e_w_le e_r_le →
+      e_w_inter.Encapsulates n e_inter_le →
+      ¬ (e_inter_le.isDirWrite ∧ e_inter_le.isDirNotDown)
 
 /-
 structure WriteRead.wObRCle.sameCache.case (b : Behaviour n) (e_w e_r : Event n) : Prop where
