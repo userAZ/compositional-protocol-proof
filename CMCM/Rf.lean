@@ -140,8 +140,9 @@ structure WriteRead.EqGleCle.case (b : Behaviour n) (init : InitialSystemState n
 /- End Defs for WriteRead.EqGleCle.case -/
 
 /- Begin Defs for WriteRead.wObRCle.case -/
-def Event.Between.noDirWrite (b : Behaviour n) (e_w e_r : Event n) : Prop :=
-  ∀ e ∈ b, e.OrderedBetween n e_w e_r → ¬ (e.isDirWrite ∧ e.isDirNotDown)
+/-- Event is not a directory write event between an `e_w` and `e_r`'s (cluster or global) linearization event. -/
+def Event.Between.noDirWrite (b : Behaviour n) (e_w_le e_r_le : Event n) : Prop :=
+  ∀ e_le ∈ b, e_le.OrderedBetween n e_w_le e_r_le → ¬ (e_le.isDirWrite ∧ e_le.isDirNotDown)
 
 /-
 structure WriteRead.wObRCle.sameCache.case (b : Behaviour n) (e_w e_r : Event n) : Prop where
@@ -317,7 +318,7 @@ inductive WriteRead.wObRCle.case
   : Prop
   | sameCache
     (sameCache : e_w.struct = e_r.struct)
-    (noWriteBetween : Event.Between.noDirWrite b e_w e_r)
+    (noWriteBetween : Event.Between.noDirWrite b hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose)
     : WriteRead.wObRCle.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin
   | diffCache
     (hdiff_cache : e_w.struct ≠ e_r.struct)
