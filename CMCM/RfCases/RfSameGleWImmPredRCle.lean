@@ -23,7 +23,6 @@ lemma CMCM.rf.sameGle.wImmPredRCle
     have hw_r_cle_pred := hw_imm_pred_r_cle.isImmPred.bPred.isPred
     simp[Event.Predecessor] at hw_r_cle_pred
     exact hw_r_cle_pred
-    -- AZ NOTE: the rest of the cases in this proof are not really important, so I will try them later if I have time. The main case is the same Gle case, which is the first one.
   . case hwr_same_cluster =>
     -- Similar to the same cluster case in the same Gle same Cle case, but now `e_w_cle` is the immediate predecessor of `e_r_cle`
     -- Use the same GLE fact to show `e_w` and `e_r` are in the same protocol cluster.
@@ -37,6 +36,8 @@ lemma CMCM.rf.sameGle.wImmPredRCle
     1. the fact they have the same GLE,
     2. the global request that caused the GLE comes from a corresponding directory cluster request,
     3. the directory cluster request is linked to the `e_w` and `e_r` cluster requests' protocol cluster. (through axiom 6.5)
+
+    You should split the "code" for the cases in this file into lemmas, much like the other case "RfSameGleSameCle".
     -/
     sorry
   . case hwr_cle_ob_case =>
@@ -47,7 +48,9 @@ lemma CMCM.rf.sameGle.wImmPredRCle
       -- Use hw_imm_pred_r_cle to show `e_w_cle` is the immediate predecessor of `e_r_cle`
       sorry
     . case neg =>
+      apply WriteRead.wObRCle.case.diffCache hsame_cache
       -- TODO: prove the branches in this case.
       -- "different cache" cases.
-      -- AZ NOTE: doesn't really matter. try this later, not really important.
+      -- "when considering the cases of what the write and read requests are (coherent write, non-coherent release write, etc..,
+      -- Use WriteRead.wObRCle.diffCache.case to say what the cases of RF we're in.)"
       sorry
