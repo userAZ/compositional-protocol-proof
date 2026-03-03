@@ -10,7 +10,7 @@ defaultTargets = ["compositional-protocol-proof"]
 [[require]]
 name = "mathlib"
 scope = "leanprover-community"
-rev = "v4.29.0-rc1"
+rev = "v4.29.0-rc3"
 
 # [[require]]
 # name = "Canonical"
