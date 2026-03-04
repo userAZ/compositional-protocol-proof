@@ -200,7 +200,8 @@ structure Behaviour.gdown.encapProxyAndDir (cmp : CompoundProtocol n) (b : Behav
   existsRClusterProxy :
     ∃ e_r_proxy ∈ b, e_r_proxy.protocol = e_w.protocol ∧ e_r_proxy.isClusterCache
   existsRClusterDirDown :
-    ∃ e_r_cdir_down ∈ b, e_r_cdir_down.isDirectoryEvent ∧ e_r_cdir_down.protocol = e_w.protocol
+    ∃ e_r_cdir_down ∈ b, e_r_cdir_down.isDirectoryEvent ∧ e_r_cdir_down.protocol = e_w.protocol ∧
+      hr_c_and_g_lin.hreq's_dir_access.choose.Encapsulates n e_r_cdir_down
 
 structure Behaviour.gdown.encapProxyAndDirAndCDown {cmp : CompoundProtocol n}
   {b : Behaviour n} {init : InitialSystemState n}
