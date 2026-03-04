@@ -15,7 +15,7 @@ cache with different addresses, if one event is ordered before the other, then
 they satisfy a compound linearization order.
 
 % ============================================================
-\section{Paper Definitions}
+\section{Definitions}
 % ============================================================
 
 \begin{definition}[State (Def 5.1)]
@@ -23,7 +23,7 @@ they satisfy a compound linearization order.
   \lean{State}
   \leanok
   (Line 90 in States.lean.)
-  A \emph{state} consists of a permissions level $p$ (none, read, or write)
+  A \emph{state} consists of a tuple of a permissions level $p$ (none, read, or write)
   and a coherence flag $c$ (coherent or non-coherent).
   The five states are:
   \begin{itemize}
@@ -42,10 +42,12 @@ they satisfy a compound linearization order.
   (Line 19 in Requests.lean.)
   An \emph{abstract request} consists of:
   \begin{itemize}
-    \item A read/write indicator,
+    \item A read/write operation,
     \item A coherence flag,
     \item A consistency label (SC, Release, Acquire, or Weak).
   \end{itemize}
+  See ValidRequest at line 66, defining a Request and restricting disallowed
+  Requests such as a Coherent Acquire or Write Acquire.
 \end{definition}
 
 \begin{definition}[Request's Required State (Def 5.3)]
@@ -55,10 +57,22 @@ they satisfy a compound linearization order.
   \uses{def:State, def:Request}
   (Line 503 in BehaviourRelationDefs.lean.)
   A request event $e$ \emph{has permissions} if the cache state it is made on
-  is at least its Minimum Required State (MRS). For coherent requests this means
-  the state is at least the MRS. For acquire/release/weak writes this additionally
-  requires the state is coherent. For non-coherent weak reads this requires the
-  state is not Vd.
+  is at least its Minimum Required State (MRS).
+  Let's start by defining a simple Required State (RS) of a request `r'.
+  Let the read/write operation `rw' and coherence flag `c' of `r' be the State tuple (`rw', `c')
+  to define its RS.
+
+  For coherent requests (ex. a SC Write from a SWMR protocol, or Coherent Release Writes from RCC-O)
+  we use the simple RS definition to define the MRS.
+  This is reflected in the first case in the inductive `Behaviour.reqHasPerms'.
+
+  For non-coherent acquire/release/weak writes from RCC protocols, the request's MRS
+  additionally requires the state is coherent.
+  This is reflected in the second case in the inductive `Behaviour.reqHasPerms'.
+
+  For non-coherent weak read/write requests uses the simple RS definition and specifies
+  the cache state is Read-Non-Coherent. The state is not Vd.
+  This is reflected in the third case in the inductive `Behaviour.reqHasPerms'.
 \end{definition}
 
 \begin{definition}[Local Linearization Point (Def 5.4)]
@@ -67,7 +81,11 @@ they satisfy a compound linearization order.
   \leanok
   \uses{def:reqHasPerms}
   (Line 1083 in BehaviourRelationProofs.lean.)
-  The \emph{linearization event} of a request event $e_{\mathrm{req}}$:
+  The \emph{linearization event} of a request event $e_{\mathrm{req}}$.
+  Either the cluster cache request event linearizes in the cache (on a state with coherent permissions),
+  or at the directory (without coherent permissions). Linearizing at the directory means
+  either linearizing before, during, or after the request (as per inductive `Behaviour.dirAccessOfRequest'
+  on line 569 of BehaviourRelationDefs.lean). More succintly in `Behaviour.linearizationEventOfRequest':
   \begin{itemize}
     \item If $e_{\mathrm{req}}$ is made on a coherent state with sufficient permissions,
       the linearization event is $e_{\mathrm{req}}$ itself (\texttt{requestLin}).
@@ -82,15 +100,20 @@ they satisfy a compound linearization order.
   \leanok
   \uses{def:linearizationEventOfRequest, def:ShimClusterToGlobal, def:CompoundProtocol}
   (Line 139 in CompoundLinearization.lean.)
-  A cluster request linearization event classifies where a cluster cache request
-  linearizes:
+  A cluster request's cluster linearization event classifies where a cluster cache request
+  globally linearizes:
   \begin{itemize}
-    \item \textbf{At cache} (\texttt{clusterCacheLin}): the request has permissions and
+    \item \textbf{At the Cluster Cache} (\texttt{clusterCacheLin}): the request has permissions and
       linearizes locally; the linearization event is the cache event itself.
-    \item \textbf{At directory or beyond} (\texttt{clusterDirLin}): the request does not
+    \item \textbf{At the Cluster Directory or Beyond} (\texttt{clusterDirLin}): the request does not
       have permissions locally and must go through the directory (and possibly
-      the global protocol).
+      the global protocol). The request then either globally linearizes at the directory
+      (with global permissions already) or linearizes at the global directory (needs
+      to access the global directory for permissions).
   \end{itemize}
+  In the case where the cluster request linearizes at the cluster directory or global protocol
+  is defined by the inductive `CompoundProtocol.clusterDirectoryLinearizationEvent' at line 98
+  in the same file.
 \end{definition}
 
 % ============================================================
