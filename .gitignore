@@ -1,2 +1,6 @@
 /.lake
 .lake-manifest.json
+model-check-axioms/CXL/axioms/*.cpp
+model-check-axioms/CXL/axioms/*.run
+model-check-axioms/RCCO/axioms/*.cpp
+model-check-axioms/RCCO/axioms/*.run
