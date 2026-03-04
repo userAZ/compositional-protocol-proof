@@ -1,6 +1,6 @@
 import CMCM.RfProofDefs
 
-set_option linter.unusedSimpArgs false
+-- set_option linter.unusedSimpArgs false
 variable {n : ℕ}
 
 /-- Helper: I state is not MR state. -/

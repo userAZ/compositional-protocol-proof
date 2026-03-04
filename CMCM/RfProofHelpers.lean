@@ -2824,8 +2824,26 @@ lemma wimmpredrCle_no_dir_write_between_same_cache
       ⟨⟨hdiff_w, hdiff_r⟩, hdown_proto_w, hcdir_write, hcdir_down, hcdir_dir, hcdir_encap⟩,
       hcdir_between⟩
 
+/-- For write events (cache events), ¬ isCoherent implies isNonCoherent.
+    Write events are always cache events, and for cache events isNonCoherent ↔ ¬ isCoherent. -/
+lemma isNonCoherent_of_not_isCoherent_write {e : Event n}
+  (hw_is_write : e.isWrite) (h : ¬ e.isCoherent) : e.isNonCoherent := by
+  cases e with
+  | cacheEvent ce =>
+    simp [Event.isCoherent, ValidRequest.isCoherent, Request.isCoherent] at h
+    simp [Event.isNonCoherent, h]
+  | directoryEvent de =>
+    -- directoryEvent cannot be a write
+    simp [Event.isWrite] at hw_is_write
+
 /-- Helper for wImmPredRCle diffCache: Decides which WriteRead.wObRCle.diffCache.case to apply
-    based on coherence of the write and its immediate successor CLE. -/
+    based on coherence of the write and its directory access structure.
+
+    Case analysis:
+    - Coherent write → wHasPermsAfter (write retains/obtains permissions)
+    - Non-coherent write, case-split on dirAccessOfRequest:
+      - encapDir (missing perms) → wNoPermsAfter
+      - orderBeforeDir (has perms) or orderAfterDir (Vd writeback) → wCleAfter -/
 lemma wimmpredrCle_diff_cache_choose_case
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
   (hw_is_write : e_w.isWrite) (hr_is_read : e_r.isRead)
@@ -2833,36 +2851,38 @@ lemma wimmpredrCle_diff_cache_choose_case
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
   (hdiff_cache : e_w.struct ≠ e_r.struct)
-  : WriteRead.wObRCle.diffCache.case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin sorry := by
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
+  : WriteRead.wObRCle.diffCache.case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access := by
   -- Main decision point: is e_w coherent?
   by_cases hw_coherent : e_w.isCoherent
-  · -- Coherent write case: use wHasPermsAfter
+  · -- Coherent write → wHasPermsAfter: write's CLE is before/encapsulates write
     apply WriteRead.wObRCle.diffCache.case.wHasPermsAfter hw_coherent
-    -- For immediate predecessor CLEs with different cache and coherent write,
-    -- use noEvictBetween (evicts would violate immediate predecessor property)
-    apply WriteRead.wObRCle.diffCache.wHasPermsAfter.case.noEvictBetween
-    -- Build noEvictBetween.cond.wrapper: downgrade encapsulation + no evict
-    constructor
-    · sorry  -- gdownEncapProxyAndDirAndCDown: global downgrade structure
-    · sorry  -- noEvictBetween: no evicts between write and read's downgrade
-  · -- Non-coherent write case: check if it's a non-coherent release write
-    -- For NC writes, we need to check if it's a release write with specific constraints
-    by_cases hw_ncrel : e_w.req.val = ⟨.w, false, .Rel⟩
-    · -- NC release write: use wNoPermsAfter
-      apply WriteRead.wObRCle.diffCache.case.wNoPermsAfter
-      · -- e_w.reqMissingPerms: NC release write missing perms
-        -- NC release writes access directory in missing perms state
-        sorry
-      · -- e_w.isNonCoherent: For cache events this follows from ¬hw_coherent
-        -- Relationship: isNonCoherent e ↔ ¬ isCoherent e for cache events
-        sorry
-      · -- WriteRead.wCleAfter.cond.wrapper: NC write downgrade wrapping
-        -- NC release write may have CLE after write, requiring downgrade structure
-        sorry
-    · -- Other NC write: wCleAfter case (CLE is after write)
+    -- TODO: Build wHasPermsAfter.case (noEvictBetween or evictBetween).
+    -- Requires constructing the downgrade chain from the read's GLE to e_w's cache
+    -- via Axiom 9 (coherentWriteDirDowngradeOthers), and proving no evict/evict between
+    -- the write and the read's downgrade at e_w's cache.
+    sorry
+  · -- Non-coherent write: case-split on dirAccessOfRequest for e_w to determine
+    -- whether the write has missing perms (→ wNoPermsAfter) or not (→ wCleAfter).
+    have hw_nc : e_w.isNonCoherent := isNonCoherent_of_not_isCoherent_write hw_is_write hw_coherent
+    have hw_dir_access := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
+    cases hw_dir_access with
+    | encapDir hreq_missing_perms _ =>
+      -- NC write with missing perms → wNoPermsAfter
+      apply WriteRead.wObRCle.diffCache.case.wNoPermsAfter hreq_missing_perms hw_nc
+      -- TODO: Construct wCleAfter.cond.wrapper: find e_r_gdown and e_r_grant witnesses
+      -- in b satisfying downgradeAtPrevOwner and ordering constraints.
+      sorry
+    | orderBeforeDir _ _ _ _ _ _ _ _ =>
+      -- NC write with perms (predecessor obtained dir access) → wCleAfter
       apply WriteRead.wObRCle.diffCache.case.wCleAfter
-      · -- WriteRead.wCleAfter.cond.wrapper: after-CLE downgrade wrapper
-        -- NC non-release write with CLE after write
-        -- Requires proving downgrade structure and ordering constraints
-        sorry
+      -- TODO: Construct wCleAfter.cond.wrapper: find e_r_gdown and e_r_grant witnesses
+      -- in b satisfying downgradeAtPrevOwner and ordering constraints.
+      sorry
+    | orderAfterDir _ _ _ _ =>
+      -- NC weak request on Vd (e.g. writeback) → wCleAfter
+      apply WriteRead.wObRCle.diffCache.case.wCleAfter
+      -- TODO: Construct wCleAfter.cond.wrapper: find e_r_gdown and e_r_grant witnesses
+      -- in b satisfying downgradeAtPrevOwner and ordering constraints.
+      sorry
 
