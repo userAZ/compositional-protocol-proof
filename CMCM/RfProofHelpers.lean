@@ -2985,7 +2985,68 @@ lemma diffCache_coherent_encapProxyAndDir
     existsRClusterDirDown := hdir
   }
 
-/-- Helper: Coherent write at a different cache with CLE immediate predecessor relationship.
+/-- Helper: When a cache-level downgrade exists at e_w's cache (ordered after e_w), and
+    e_w's CLE is the immediate predecessor of e_r's CLE, construct the noEvictBetween.cond.
+
+    The three fields:
+    - noWriteBtn: No intervening write between e_w and e_r_down at the cache level.
+      Since e_w's CLE immediately precedes e_r's CLE, any such write would have its CLE
+      between them, contradicting immediacy.
+    - noEvictBtn: No evict between e_w and e_r_down at the same cache.
+      The downgrade was sent because e_w's cache held the line, so no evict can precede
+      the downgrade (the cache needs to hold the line to receive the downgrade).
+    - wObRDown: e_w is ordered before e_r_down.
+      Extracted directly from the existential witness (hcdown). -/
+lemma diffCache_noEvictBetween_cond
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  (hw_is_write : e_w.isWrite) (hr_is_read : e_r.isRead)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  (hdiff_cache : e_w.struct ≠ e_r.struct)
+  (hw_coherent : e_w.isCoherent)
+  (hencapPDC : Behaviour.gdown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin)
+  : WriteRead.noEvictBetween.cond b init
+      e_w hencapPDC.existsRDownAtW.choose
+      hw_c_and_g_lin.hreq's_dir_access.choose
+      hencapPDC.encapProxyAndDir.existsRClusterDirDown.choose := by
+  sorry
+
+/-- Helper: When no cache-level downgrade exists at e_w's cache (¬hcdown), and
+    e_w's CLE is the immediate predecessor of e_r's CLE, construct the evictBetween.cond.
+
+    The three fields:
+    - noWriteBtn: No intervening directory write between e_w's CLE and e_r's cluster dir down.
+      The CLE immediate predecessor relationship constrains what can appear between them:
+      any intervening write would violate immediacy at the directory level.
+    - evictBtn: An evict exists between e_w's CLE and e_r's cluster dir down.
+      Since the downgrade chain reaches the cluster directory (from encapProxyAndDir) but
+      does NOT reach the cache level (¬hcdown), the cache must have been evicted between
+      e_w and e_r's cluster directory downgrade. The evict is a necessary consequence of
+      the cache losing its line.
+    - wObRDown: e_w's CLE is ordered before e_r's cluster dir down.
+      The CLE immediately precedes e_r's CLE, and e_r's cluster dir down is part of
+      the downgrade chain originating from e_r's GLE. The downgrade chain's ordering
+      ensures the cluster dir down is ordered after e_w's CLE. -/
+lemma diffCache_evictBetween_cond
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  (hw_is_write : e_w.isWrite) (hr_is_read : e_r.isRead)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  (hdiff_cache : e_w.struct ≠ e_r.struct)
+  (hw_coherent : e_w.isCoherent)
+  (hencapPD : Behaviour.gdown.encapProxyAndDir cmp b init e_w hr_c_and_g_lin)
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
+  (hno_cdown : ¬ ∃ e_r_down ∈ b,
+    e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down)
+  : WriteRead.evictBetween.cond cmp b init
+      hw_c_and_g_lin.hreq's_dir_access.choose
+      hencapPD.existsRClusterDirDown.choose
+      hknow_dir_access := by
+  sorry
+
+/-- Coherent write at a different cache with CLE immediate predecessor relationship.
     Builds the wHasPermsAfter.case by constructing the downgrade chain from the read's GLE
     down to e_w's cache, then deciding between noEvictBetween and evictBetween.
 
@@ -3019,23 +3080,19 @@ lemma diffCache_coherent_wHasPermsAfter_case
   by_cases hcdown : ∃ e_r_down ∈ b,
     e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down
   · -- noEvictBetween: downgrade reaches e_w's cache directly
-    -- Package encapProxyAndDir + cache downgrade into encapProxyAndDirAndCDown
     let hencapPDC : Behaviour.gdown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin :=
       { encapProxyAndDir := hencapPD, existsRDownAtW := hcdown }
     exact .noEvictBetween {
       gdownEncapProxyAndDirAndCDown := hencapPDC
-      -- Need: noWriteBtn (no write between e_w and e_r_down — from CLE imm pred),
-      --       noEvictBtn (no evict between e_w and e_r_down — cache still has line),
-      --       wObRDown (e_w ordered before e_r_down — from downgrade chain ordering)
-      noEvictBetween := sorry
+      noEvictBetween := diffCache_noEvictBetween_cond hw_is_write hr_is_read
+        hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hdiff_cache hw_coherent hencapPDC
     }
   · -- evictBetween: cache was evicted, downgrade only reaches cluster directory level
     exact .evictBetween {
       encapProxyAndDir := hencapPD
-      -- Need: noWriteBtn (no dir write between CLEs — from CLE imm pred),
-      --       evictBtn (evict between CLEs — follows from ¬hcdown + downgrade chain),
-      --       wObRDown (e_w_cle ordered before e_r_cdir_down — from downgrade chain ordering)
-      evictBetween := sorry
+      evictBetween := diffCache_evictBetween_cond hw_is_write hr_is_read
+        hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hdiff_cache hw_coherent
+        hencapPD hknow_dir_access hcdown
     }
 
 /-- Helper for wImmPredRCle diffCache: Decides which WriteRead.wObRCle.diffCache.case to apply
