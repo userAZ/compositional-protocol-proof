@@ -1,6 +1,7 @@
 import CMCM.Rf
 import CMCM.RfProofDefs
 import CMCM.RfProofHelpers
+import CMCM.RfCases.RfSameGleWImmPredRCleHelpers
 
 /-- Proof that reads-from is correct when a write's CLE is the immediate predecessor of a read's CLE.
 
