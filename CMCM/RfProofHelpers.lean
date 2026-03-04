@@ -2693,3 +2693,239 @@ lemma Event.getProtocol_pi (cmp : CompoundProtocol n) (e : Event n) :
     (e.getProtocol cmp).pi = e.protocol := by
   simp only [Event.getProtocol]
   split <;> simp_all [cmp.globalWellFormed, cmp.cluster1WellFormed, cmp.cluster2WellFormed]
+
+/- ======================= General RF Helpers ======================= -/
+/- These helpers are reusable across multiple top-level RF subcases.  -/
+
+/-- If two events have the same GLE, they are in the same protocol cluster.
+    Same GLE implies they come from requests that trace back to the same
+    global protocol request, hence same protocol linkage. -/
+lemma same_gle_implies_same_protocol
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hgle_eq : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
+  : e_w.protocol = e_r.protocol := by
+  have hw_cle_protocol :
+      hw_c_and_g_lin.hreq's_dir_access.choose.protocol = e_w.protocol :=
+    write_cle_protocol_eq_write_protocol hw_c_and_g_lin
+  have hr_cle_protocol :
+      hr_c_and_g_lin.hreq's_dir_access.choose.protocol = e_r.protocol :=
+    read_cle_protocol_eq_read_protocol hr_c_and_g_lin
+  calc
+    e_w.protocol = hw_c_and_g_lin.hreq's_dir_access.choose.protocol :=
+      hw_cle_protocol.symm
+    _ = hr_c_and_g_lin.hreq's_dir_access.choose.protocol := by
+      let hw_cle := hw_c_and_g_lin.hreq's_dir_access.choose
+      let hr_cle := hr_c_and_g_lin.hreq's_dir_access.choose
+      let hw_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init hw_c_and_g_lin.hreq's_dir_access
+      let hr_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init hr_c_and_g_lin.hreq's_dir_access
+
+      have hw_cle_is_dir : hw_cle.isDirectoryEvent := by
+        simpa [hw_cle] using hw_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+      have hr_cle_is_dir : hr_cle.isDirectoryEvent := by
+        simpa [hr_cle] using hr_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+
+      have hw_gcache_eq : hw_gcache = Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init hw_cle hw_cle_is_dir := by
+        simp [hw_gcache, Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper, hw_cle, hw_cle_is_dir]
+      have hr_gcache_eq : hr_gcache = Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init hr_cle hr_cle_is_dir := by
+        simp [hr_gcache, Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper, hr_cle, hr_cle_is_dir]
+
+      have hw_gcache_to_gdir : b.dirAccessOfRequest n init hw_gcache (hw_c_and_g_lin.hreq's_global_lin.choose) :=
+        hw_c_and_g_lin.hreq's_global_lin.choose_spec.right
+      have hr_gcache_to_gdir' : b.dirAccessOfRequest n init hr_gcache (hr_c_and_g_lin.hreq's_global_lin.choose) :=
+        hr_c_and_g_lin.hreq's_global_lin.choose_spec.right
+      have hr_gcache_to_gdir : b.dirAccessOfRequest n init hr_gcache (hw_c_and_g_lin.hreq's_global_lin.choose) := by
+        simpa [hgle_eq] using hr_gcache_to_gdir'
+
+      simpa [hw_cle, hr_cle] using
+        (cluster_dirs_to_same_global_dir_have_same_protocol
+          (cmp := cmp) (b := b) (init := init)
+          (hw_cle := hw_cle) (hr_cle := hr_cle)
+          (hw_gcache := hw_gcache) (hr_gcache := hr_gcache)
+          (e_gdir := hw_c_and_g_lin.hreq's_global_lin.choose)
+          hw_cle_is_dir hr_cle_is_dir
+          hw_gcache_eq hw_gcache_to_gdir
+          hr_gcache_eq hr_gcache_to_gdir)
+    _ = e_r.protocol :=
+      hr_cle_protocol
+
+/-- No intervening directory writes between same-cache CLEs. Uses NoInterveningWrites to
+    show that any same-cluster or diff-cluster write's CLE would be between the boundaries,
+    contradicting the constraints. Does not require any specific CLE ordering hypothesis. -/
+lemma no_dir_write_between_same_cache
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  (hw_is_write : e_w.isWrite) (hr_is_read : e_r.isRead)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hsame_cache : e_w.struct = e_r.struct)
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
+  (hno_intervening_writes : NoInterveningWrites hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
+  : Event.Between.noDirWrite cmp b init hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose hknow_dir_access := by
+  unfold Event.Between.noDirWrite
+  intro h
+  have hw_cle_proto := write_cle_protocol_eq_write_protocol hw_c_and_g_lin
+  have hr_cle_proto := read_cle_protocol_eq_read_protocol hr_c_and_g_lin
+  have hw_r_same_struct : e_w.sameStructure n e_r := by
+    unfold Event.sameStructure; exact hsame_cache
+  have hw_r_same_proto : e_w.protocol = e_r.protocol :=
+    sameStructure_implies_sameProtocol hw_r_same_struct
+  cases h with
+  | sameCluster e_w_inter hsame =>
+    have hconstraints := hno_intervening_writes
+      e_w_inter hsame.interInB hsame.isCluster hsame.isWrite hsame.notDown
+    have hinter_cle_proto :=
+      write_cle_protocol_eq_write_protocol (hknow_dir_access cmp b init e_w_inter)
+    have h_proto_w := hinter_cle_proto.trans hsame.sameProtocol
+    have h_proto_r := h_proto_w.trans (hw_cle_proto.trans (hw_r_same_proto.trans hr_cle_proto.symm))
+    exact hconstraints.notBetweenCles ⟨h_proto_w, h_proto_r, hsame.cleDirWrite⟩ hsame.cleBetween
+  | diffCluster e_w_inter hdiff =>
+    have hconstraints := hno_intervening_writes
+      e_w_inter hdiff.interInB hdiff.isCluster hdiff.isWrite hdiff.notDown
+    have hdiff_w : e_w_inter.protocol ≠ e_w.protocol := by
+      intro heq; exact hdiff.diffProtocol (heq.trans hw_cle_proto.symm)
+    have hdiff_r : e_w_inter.protocol ≠ e_r.protocol := by
+      intro heq; exact hdiff_w (heq.trans hw_r_same_proto.symm)
+    obtain ⟨e_cdir_down, hcdir_in_b, hcdir_dir, hcdir_proto, hcdir_write, hcdir_down,
+      hcdir_encap, hcdir_between⟩ := hdiff.existsClusterDirDown
+    have hdown_proto_w := hcdir_proto.trans hw_cle_proto
+    exact hconstraints.diffClusterNotBetweenCles ⟨e_cdir_down, hcdir_in_b,
+      ⟨⟨hdiff_w, hdiff_r⟩, hdown_proto_w, hcdir_write, hcdir_down, hcdir_dir, hcdir_encap⟩,
+      hcdir_between⟩
+
+/-- The read's GLE at the global level triggers a downgrade of the previous owner.
+    Uses protocol Axiom 10 (coherent read directory downgrades others) at the global level. -/
+lemma diffCache_coherent_globalDowngrade
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_r : Event n}
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  : ∃ e_r_gdown ∈ b, ∃ e_r_grant ∈ b,
+    Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init hr_c_and_g_lin e_r_gdown e_r_grant := by
+  let e_r_cle_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
+    (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)
+  let e_r_gle := hr_c_and_g_lin.hreq's_global_lin.choose
+  have he_gcache_in_b : e_r_cle_gcache ∈ b :=
+    Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB cmp b init hr_c_and_g_lin.hreq's_dir_access
+  have he_gle_in_b : e_r_gle ∈ b := hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
+  have haxiom := cmp.global.reqAxioms.coherentReadDowngrades b init
+    e_r_cle_gcache he_gcache_in_b e_r_gle he_gle_in_b
+  cases haxiom.downgradeOtherCaches with
+  | cReadOnSW hfwd => exact hfwd.fwdPrevOwner
+
+/-- If two correspondingClusterOfGlobalCache facts share the same e_gdown,
+    they determine the same cluster — so the protocol outputs are equal. -/
+private lemma correspondingCluster_protocol_eq
+  {n : ℕ} {e_gdown : Event n} {α β : Type} {a : α} {bv : β}
+  {f : α → ProtocolInstance} {g : β → ProtocolInstance}
+  (h1 : e_gdown.correspondingClusterOfGlobalCache n a f)
+  (h2 : e_gdown.correspondingClusterOfGlobalCache n bv g)
+  : f a = g bv := by
+  simp [Event.correspondingClusterOfGlobalCache] at h1 h2
+  match e_gdown with
+  | .directoryEvent _ => simp at h1
+  | .cacheEvent ce =>
+    simp at h1 h2
+    match hcid : ce.cid with
+    | .proxy _ => simp [hcid] at h1
+    | .cache pci =>
+      simp [hcid] at h1 h2
+      match pci with
+      | .cluster1 _ | .cluster2 _ => simp at h1
+      | .globalP fin_2 =>
+        simp at h1 h2
+        match fin_2 with
+        | 0 | 1 => exact h1.trans h2.symm
+
+/-- From a GlobalToCluster shim result at protocol p, extract a cluster proxy cache event
+    and a cluster directory event at e_w's protocol.
+    The proxy is provided by e_w itself (which is a cluster cache event in the behaviour).
+    The directory event is extracted from the GlobalToCluster shim structure. -/
+lemma globalToCluster_extract_proxy_and_dir
+  {n : ℕ} {b : Behaviour n} {init : InitialSystemState n}
+  {p : Protocol n} {e_gdown : Event n}
+  (hg2c : Behaviour.Shim.GlobalToCluster n b init p e_gdown)
+  (e_w : Event n) (hp_eq : p.pi = e_w.protocol)
+  (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache)
+  : (∃ e_proxy ∈ b, e_proxy.protocol = e_w.protocol ∧ e_proxy.isClusterCache) ∧
+    (∃ e_dir ∈ b, e_dir.isDirectoryEvent ∧ e_dir.protocol = e_w.protocol) := by
+  constructor
+  · -- Proxy: use e_w itself
+    exact ⟨e_w, hw_in_b, rfl, hw_cluster⟩
+  · -- Directory: extract from GlobalToCluster
+    cases hg2c with
+    | bothCoherentWriteAndRead hcorrespond _ downTranslation =>
+      cases downTranslation with
+      | scWriteDown _ translation =>
+        obtain ⟨e_cw, _, e_dw, e_ce, _, e_de, _, hstruct⟩ := translation.scGDownTranslation
+        have hproto := correspondingCluster_protocol_eq hcorrespond
+          hstruct.cohWrite.atCorrClusterProxy.clusterMatch.atCorrCluster
+        exact ⟨e_dw, hstruct.cohWriteDir.dirInB, hstruct.cohWriteDir.isDir,
+          hstruct.cohWriteDir.sameProtocol.symm.trans hproto.symm |>.trans hp_eq⟩
+      | scReadDown _ _ translation =>
+        obtain ⟨e_cr, _, e_dr, _, hstruct⟩ := translation
+        have hproto := correspondingCluster_protocol_eq hcorrespond
+          hstruct.cohRead.atCorrClusterProxy.clusterMatch.atCorrCluster
+        exact ⟨e_dr, hstruct.cohReadDir.dirInB, hstruct.cohReadDir.isDir,
+          hstruct.cohReadDir.sameProtocol.symm.trans hproto.symm |>.trans hp_eq⟩
+    | noCoherentRead hcorrespond _ downTranslation =>
+      cases downTranslation with
+      | scWriteDowngrade _ translation =>
+        cases translation with
+        | onDirSW _ htrans =>
+          obtain ⟨_, _, _, _, e_vd, hvd_in_b, _, _, hstruct⟩ := htrans
+          have hproto := correspondingCluster_protocol_eq hcorrespond
+            hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
+          exact ⟨e_vd, hvd_in_b, hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir,
+            hproto.symm.trans hp_eq⟩
+        | onDirVd _ htrans =>
+          obtain ⟨e_vd, hvd_in_b, _, _, hstruct⟩ := htrans
+          have hproto := correspondingCluster_protocol_eq hcorrespond
+            hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
+          exact ⟨e_vd, hvd_in_b, hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir,
+            hproto.symm.trans hp_eq⟩
+        | onDirVc _ htrans =>
+          obtain ⟨e_vc, hvc_in_b, hstruct⟩ := htrans
+          have hproto := correspondingCluster_protocol_eq hcorrespond
+            hstruct.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
+          exact ⟨e_vc, hvc_in_b, hstruct.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.atDir,
+            hproto.symm.trans hp_eq⟩
+      | scReadDowngrade _ _ translation =>
+        cases translation with
+        | onDirSW _ htrans =>
+          obtain ⟨_, _, _, _, e_vd, hvd_in_b, hstruct⟩ := htrans
+          have hproto := correspondingCluster_protocol_eq hcorrespond
+            hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
+          exact ⟨e_vd, hvd_in_b, hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir,
+            hproto.symm.trans hp_eq⟩
+        | onDirVd _ htrans =>
+          obtain ⟨_, _, _, _, e_vd, hvd_in_b, hstruct⟩ := htrans
+          have hproto := correspondingCluster_protocol_eq hcorrespond
+            hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
+          exact ⟨e_vd, hvd_in_b, hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir,
+            hproto.symm.trans hp_eq⟩
+
+/-- Construct the global and cluster level downgrade chain from e_r's GLE to e_w's cluster.
+    This produces existential witnesses for:
+    - e_r_gdown, e_r_grant: global downgrade at previous owner (from `diffCache_coherent_globalDowngrade`)
+    - e_r_proxy: cluster proxy at e_w's protocol (from `globalToCluster_extract_proxy_and_dir`)
+    - e_r_cdir_down: cluster directory downgrade at e_w's protocol
+
+    The chain:
+    1. `diffCache_coherent_globalDowngrade` → Axiom 10 at global level → downgrade at previous owner
+    2. `cmp.shimAxioms.globalToCluster` → map downgrade to e_w's cluster protocol
+    3. `globalToCluster_extract_proxy_and_dir` → extract cluster proxy and directory events -/
+lemma diffCache_coherent_encapProxyAndDir
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  (_hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache)
+  : Behaviour.gdown.encapProxyAndDir cmp b init e_w hr_c_and_g_lin := by
+  have hgdown := diffCache_coherent_globalDowngrade hr_c_and_g_lin
+  obtain ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, he_r_grant_in_b, hdowngrade⟩ := hgdown
+  have hg2c := cmp.shimAxioms.globalToCluster b init (e_w.getProtocol cmp) e_r_gdown he_r_gdown_in_b
+  have hp_eq := Event.getProtocol_pi cmp e_w
+  have ⟨hproxy, hdir⟩ := globalToCluster_extract_proxy_and_dir hg2c e_w hp_eq hw_in_b hw_cluster
+  exact {
+    existsRGlobalDown := ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, he_r_grant_in_b, hdowngrade⟩
+    existsRClusterProxy := hproxy
+    existsRClusterDirDown := hdir
+  }

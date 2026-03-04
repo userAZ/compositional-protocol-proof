@@ -17,6 +17,7 @@ theorem CMCM.rf_holds
   {hw_cluster : e_w.isClusterCache} {hr_cluster : e_r.isClusterCache}
   (hw_is_write : e_w.isWrite) (hr_is_read : e_r.isRead)
   {hw_not_down : ¬ e_w.down} {hr_not_down : ¬ e_r.down}
+  {hw_in_b : e_w ∈ b}
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   /- Synchronization conditions -/
@@ -54,10 +55,16 @@ theorem CMCM.rf_holds
           hw_c_and_g_lin hr_c_and_g_lin
           hsame_gle hw_imm_pred_r_cle
           hknow_dir_access hno_intervening_writes
+          hw_in_b
       . case evictOrReadBetweenWAndRCleSameCluster hevict_or_read_between_w_r_cle =>
-        apply CMCM.rf.sameGle.evictOrReadBetweenWAndRCleSameCluster hw_c_and_g_lin hr_c_and_g_lin
-        . case hsame_gle => exact hsame_gle
-        . case hevict_or_read_between_w_r_cle => exact hevict_or_read_between_w_r_cle
+        apply CMCM.rf.sameGle.evictOrReadBetweenWAndRCleSameCluster
+          hw_cluster hr_cluster
+          hw_is_write hr_is_read
+          hw_not_down hr_not_down
+          hw_c_and_g_lin hr_c_and_g_lin
+          hsame_gle hevict_or_read_between_w_r_cle
+          hknow_dir_access hno_intervening_writes
+          hw_in_b
   . case wImmPredRGle hw_imm_pred_r_gle hcle_cases =>
       cases hcle_cases
       . case sameCluster hsame_cluster hsame_cluster_cases =>

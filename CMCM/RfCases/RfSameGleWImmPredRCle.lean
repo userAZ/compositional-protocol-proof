@@ -31,6 +31,7 @@ lemma CMCM.rf.sameGle.wImmPredRCle
   (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   (hno_intervening_writes : NoInterveningWrites hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
+  (hw_in_b : e_w ∈ b)
   : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
   := by
   -- Expand Behaviour.readsFrom.cases case so we can prove this specific case.
@@ -58,4 +59,4 @@ lemma CMCM.rf.sameGle.wImmPredRCle
       exact wimmpredrCle_no_dir_write_between_same_cache hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hsame_cache hknow_dir_access hno_intervening_writes
     . case neg hdiff_cache =>
       apply WriteRead.wObRCle.case.diffCache hdiff_cache
-      exact wimmpredrCle_diff_cache_choose_case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hdiff_cache hknow_dir_access
+      exact wimmpredrCle_diff_cache_choose_case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hdiff_cache hknow_dir_access hw_in_b hw_cluster_cache
