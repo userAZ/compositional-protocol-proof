@@ -233,10 +233,16 @@ structure Event.Between.diffProtocol.interveningDirWrite
   -- Cluster proxy at e_w_le's protocol
   existsClusterProxy :
     ∃ e_proxy ∈ b, e_proxy.protocol = e_w_le.protocol ∧ e_proxy.isClusterCache
-  -- Cluster directory event at e_w_le's protocol, between the boundary events
+  -- Cluster directory event at e_w_le's protocol, between the boundary events.
+  -- The additional fields (isWrite, down, Encapsulates) capture that this directory event
+  -- is a write-downgrade encapsulated by the originating cache write, matching
+  -- the structure of DiffClusterCLE.NotBetweenCLEs.constraints.
   existsClusterDirDown :
     ∃ e_cdir_down ∈ b, e_cdir_down.isDirectoryEvent ∧
       e_cdir_down.protocol = e_w_le.protocol ∧
+      e_cdir_down.isWrite ∧
+      e_cdir_down.down ∧
+      e_w_inter.Encapsulates n e_cdir_down ∧
       e_cdir_down.OrderedBetween n e_w_le e_r_le
 
 /-- Complete definition of an intervening write between two linearization events.

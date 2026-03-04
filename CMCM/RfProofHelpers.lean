@@ -2781,25 +2781,48 @@ lemma wimmpredrCle_no_dir_write_between_same_cache
   -- noDirWrite is ¬ sameOrDiffCluster, so we assume sameOrDiffCluster and derive contradiction
   unfold Event.Between.noDirWrite
   intro h
+  -- Shared CLE-to-event protocol equalities
+  have hw_cle_proto := write_cle_protocol_eq_write_protocol hw_c_and_g_lin
+  have hr_cle_proto := read_cle_protocol_eq_read_protocol hr_c_and_g_lin
+  have hw_r_same_struct : e_w.sameStructure n e_r := by
+    unfold Event.sameStructure; exact hsame_cache
+  have hw_r_same_proto : e_w.protocol = e_r.protocol :=
+    sameStructure_implies_sameProtocol hw_r_same_struct
   cases h with
   | sameCluster e_w_inter hsame =>
-    -- hsame : Event.Between.sameProtocol.interveningDirWrite ...
-    -- Use NoInterveningWrites to get constraints on e_w_inter.
+    -- Get NoInterveningWrites constraints for e_w_inter
     have hconstraints := hno_intervening_writes
       e_w_inter hsame.interInB hsame.isCluster hsame.isWrite hsame.notDown
-    -- hconstraints.notBetweenCles : SameClusterCLE.NotBetweenCLEs ...
-    -- says: if CLE protocol = e_w_cle protocol AND isDirWrite, then CLE NOT between CLEs.
-    -- hsame.cleBetween says CLE IS between, hsame.cleDirWrite says CLE IS dir write.
-    -- Need CLE protocol = e_w_cle protocol (from same-protocol + cluster structure).
-    have hnotBetween := hconstraints.notBetweenCles
-    sorry
+    -- Derive: e_inter_cle.protocol = e_w_cle.protocol
+    -- Chain: e_inter_cle → e_w_inter (write_cle_protocol) → e_w_cle (sameProtocol)
+    have hinter_cle_proto :=
+      write_cle_protocol_eq_write_protocol (hknow_dir_access cmp b init e_w_inter)
+    have h_proto_w := hinter_cle_proto.trans hsame.sameProtocol
+    -- Derive: e_inter_cle.protocol = e_r_cle.protocol
+    -- Chain: e_inter_cle → e_w_cle → e_w → e_r → e_r_cle
+    have h_proto_r := h_proto_w.trans (hw_cle_proto.trans (hw_r_same_proto.trans hr_cle_proto.symm))
+    -- notBetweenCles: same protocol + isDirWrite → NOT between CLEs.
+    -- But cleBetween says IS between. Contradiction.
+    exact hconstraints.notBetweenCles ⟨h_proto_w, h_proto_r, hsame.cleDirWrite⟩ hsame.cleBetween
   | diffCluster e_w_inter hdiff =>
-    -- hdiff : Event.Between.diffProtocol.interveningDirWrite ...
-    -- Use NoInterveningWrites.constraints.diffClusterNotBetweenCles.
+    -- Get NoInterveningWrites constraints for e_w_inter
     have hconstraints := hno_intervening_writes
       e_w_inter hdiff.interInB hdiff.isCluster hdiff.isWrite hdiff.notDown
-    have hdiffNotBetween := hconstraints.diffClusterNotBetweenCles
-    sorry
+    -- Derive: e_w_inter different protocol from e_w and e_r
+    have hdiff_w : e_w_inter.protocol ≠ e_w.protocol := by
+      intro heq; exact hdiff.diffProtocol (heq.trans hw_cle_proto.symm)
+    have hdiff_r : e_w_inter.protocol ≠ e_r.protocol := by
+      intro heq; exact hdiff_w (heq.trans hw_r_same_proto.symm)
+    -- Extract the directory downgrade witness from the diff-cluster chain
+    obtain ⟨e_cdir_down, hcdir_in_b, hcdir_dir, hcdir_proto, hcdir_write, hcdir_down,
+      hcdir_encap, hcdir_between⟩ := hdiff.existsClusterDirDown
+    -- Derive: e_cdir_down has same protocol as e_w (via CLE protocol)
+    have hdown_proto_w := hcdir_proto.trans hw_cle_proto
+    -- Construct DiffClusterCLE.NotBetweenCLEs.constraints and derive contradiction.
+    -- diffClusterNotBetweenCles says no such witness exists, but we have one.
+    exact hconstraints.diffClusterNotBetweenCles ⟨e_cdir_down, hcdir_in_b,
+      ⟨⟨hdiff_w, hdiff_r⟩, hdown_proto_w, hcdir_write, hcdir_down, hcdir_dir, hcdir_encap⟩,
+      hcdir_between⟩
 
 /-- Helper for wImmPredRCle diffCache: Decides which WriteRead.wObRCle.diffCache.case to apply
     based on coherence of the write and its immediate successor CLE. -/
