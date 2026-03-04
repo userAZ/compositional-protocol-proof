@@ -1,6 +1,6 @@
 name = "compositional-protocol-proof"
 version = "0.1.0"
-defaultTargets = ["compositional-protocol-proof"]
+defaultTargets = ["CompositionalProtocolProof"]
 
 # [[require]]
 # name = "Hammer"
@@ -17,15 +17,21 @@ rev = "v4.29.0-rc3"
 # scope = "chasenorman"
 # rev = "v4.22.0"
 
+
+[[require]]
+name = "checkdecls"
+git = "https://github.com/PatrickMassot/checkdecls.git"
+
+[[require]]
+name = "«doc-gen4»"
+git = "https://github.com/leanprover/doc-gen4"
+rev = "main"
+
+[[lean_lib]]
+name = "CompositionalProtocolProof"
+
 [[lean_lib]]
 name = "CMCM"
 
 [[lean_lib]]
 name = "Herd"
-
-[[lean_lib]]
-name = "CompositionalProtocolProof"
-
-[[lean_exe]]
-name = "compositional-protocol-proof"
-root = "Main"
