@@ -2836,6 +2836,208 @@ lemma isNonCoherent_of_not_isCoherent_write {e : Event n}
     -- directoryEvent cannot be a write
     simp [Event.isWrite] at hw_is_write
 
+/-- Helper: When e_w's CLE is the immediate predecessor of e_r's CLE and they are at different
+    caches, the read's global linearization event triggers a downgrade at the previous owner,
+    producing the wCleAfter condition wrapper.
+
+    The downgrade chain works as follows:
+    1. e_r's cluster directory event maps to a global cache request (via ClusterToGlobal shim)
+    2. e_r's GLE is the global directory event for this request
+    3. The GLE triggers a downgrade at the previous owner (via Axiom 9/10/12)
+    4. e_w's global cache event (e_w_cle_gcache) is ordered before e_r's global downgrade
+    5. No global cache write occurs between e_w_cle_gcache and the downgrade
+
+    The ordering follows from CLE immediate predecessor → global ordering preservation
+    through the ClusterToGlobal shim. -/
+lemma diffCache_wCleAfter_cond_wrapper
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  (hdiff_cache : e_w.struct ≠ e_r.struct)
+  : WriteRead.wCleAfter.cond.wrapper cmp b init hw_c_and_g_lin hr_c_and_g_lin := by
+  -- Unfold wrapper: need to find e_r_gdown, e_r_grant in b such that
+  -- (1) downgradeAtPrevOwner.clusterReq.gdown.wrapper (global-level downgrade from e_r's GLE)
+  -- (2) wCleAfter.cond (e_w_cle_gcache ordered before e_r_gdown, no global cache write between)
+  --
+  -- Part (1): Use protocol axioms — the read's global directory event (e_r_gle) triggers
+  --   a downgrade at the previous owner when the directory state is SW.
+  --   For coherent reads → Axiom 10 (coherentReadDirDowngradeOthers)
+  --   For coherent writes → Axiom 9 (coherentWriteDirDowngradeOthers)
+  --   For NC requests → Axiom 12 (nonCoherentRequestDowngradeOthers) + grant from Axiom 11
+  --
+  -- Part (2): The CLE immediate predecessor relationship implies:
+  --   e_w's CLE is ordered before e_r's CLE in the cluster directory.
+  --   Through the ClusterToGlobal shim, this ordering propagates to the global level:
+  --   e_w_cle_gcache (global event of e_w's CLE) is before e_r_gdown (downgrade from e_r's GLE).
+  --   The immediate predecessor property ensures no global cache write between them,
+  --   as such a write would violate the immediacy of the predecessor relationship.
+  sorry
+
+/-- The protocol instance of `e.getProtocol cmp` matches `e.protocol`.
+    Follows from `CompoundProtocol` well-formedness conditions (`globalWellFormed`,
+    `cluster1WellFormed`, `cluster2WellFormed`). -/
+lemma Event.getProtocol_pi (cmp : CompoundProtocol n) (e : Event n) :
+    (e.getProtocol cmp).pi = e.protocol := by
+  simp only [Event.getProtocol]
+  split <;> simp_all [cmp.globalWellFormed, cmp.cluster1WellFormed, cmp.cluster2WellFormed]
+
+/-- Helper: The read's GLE at the global level triggers a downgrade of the previous owner.
+    Uses protocol Axiom 10 (coherent read directory downgrades others) at the global level.
+
+    The axiom provides `coherentRequestAtDirectoryEncapDowngrades`, which has a single constructor
+    `cReadOnSW`, giving us `fwdCoherentRequestToOwner.fwdPrevOwner` — the existential witnesses
+    for the downgrade at the previous owner.
+
+    The axiom is applied to the global cache event `e_r_cle_gcache` (from ClusterToGlobal shim)
+    and the GLE `e_r_gle`, both defined to match the wrapper's let-bindings exactly.
+    Since `coherentReadDirDowngradeOthers` is universally quantified over all event pairs
+    (as a field of `Protocol.RequestAxioms`), it applies directly. -/
+lemma diffCache_coherent_globalDowngrade
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_r : Event n}
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  : ∃ e_r_gdown ∈ b, ∃ e_r_grant ∈ b,
+    Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init hr_c_and_g_lin e_r_gdown e_r_grant := by
+  -- Define the global cache event and GLE, matching the wrapper's let-bindings exactly.
+  -- wrapper computes: e_r_cle_gcache := cDir'sGReq.wrapper ..., e_r_gle := hreq's_global_lin.choose
+  let e_r_cle_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
+    (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)
+  let e_r_gle := hr_c_and_g_lin.hreq's_global_lin.choose
+  -- Membership proofs
+  have he_gcache_in_b : e_r_cle_gcache ∈ b :=
+    Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB cmp b init hr_c_and_g_lin.hreq's_dir_access
+  have he_gle_in_b : e_r_gle ∈ b := hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
+  -- Apply Axiom 10 (coherent read downgrades) at the global protocol level.
+  -- coherentReadDirDowngradeOthers : ∀ b init, ∀ e_req ∈ b, ∀ e_dir ∈ b,
+  --   b.coherentReadDowngradeOthers n e_req e_dir init
+  have haxiom := cmp.global.reqAxioms.coherentReadDowngrades b init
+    e_r_cle_gcache he_gcache_in_b e_r_gle he_gle_in_b
+  -- coherentRequestAtDirectoryEncapDowngrades has exactly one constructor: cReadOnSW.
+  -- This gives fwdCoherentRequestToOwner, whose fwdPrevOwner field is:
+  --   ∃ e_down ∈ b, ∃ e_grant ∈ b, b.downgradeAtPrevOwner n init e_r_cle_gcache e_r_gle e_down e_grant
+  -- Since the wrapper's let-bindings produce the same e_r_cle_gcache and e_r_gle,
+  -- this matches the goal type definitionally.
+  cases haxiom.downgradeOtherCaches with
+  | cReadOnSW hfwd => exact hfwd.fwdPrevOwner
+
+/-- Helper: From a GlobalToCluster shim result at protocol p, extract a cluster proxy cache event
+    and a cluster directory event at e_w's protocol.
+
+    The shim's Down translation provides these events in all physically realizable cases:
+    - bothCoherentWriteAndRead: scWriteDown has proxy write+evict and 2 dir events;
+      scReadDown has proxy read and 1 dir event
+    - noCoherentRead: cases on cluster directory state:
+      - onDirSW: has acquire proxy + dir events
+      - onDirVd: has only dir events (no proxy) — ruled out when e_w holds perms
+      - onDirVc: has only dir event (no proxy) — ruled out when e_w holds perms
+
+    The onDirVd and onDirVc sub-cases are physically impossible when the write still holds
+    permissions at the cache (the cluster directory state must be SW at the time of the
+    downgrade, since the coherent write held exclusive state). -/
+lemma globalToCluster_extract_proxy_and_dir
+  {n : ℕ} {b : Behaviour n} {init : InitialSystemState n}
+  {p : Protocol n} {e_gdown : Event n}
+  (hg2c : Behaviour.Shim.GlobalToCluster n b init p e_gdown)
+  (e_w : Event n) (hp_eq : p.pi = e_w.protocol)
+  : (∃ e_proxy ∈ b, e_proxy.protocol = e_w.protocol ∧ e_proxy.isClusterCache) ∧
+    (∃ e_dir ∈ b, e_dir.isDirectoryEvent ∧ e_dir.protocol = e_w.protocol) := by
+  -- Case analysis on GlobalToCluster (bothCoherentWriteAndRead vs noCoherentRead),
+  -- then on Down translation sub-cases. In each case, extract proxy and dir events
+  -- from translateProxyEvent (atCorrClusterProxy.clusterMatch.atCorrCluster)
+  -- and translateDirectoryEvent (dirCorrespondToGlobalCache.clusterMatch.atCorrCluster).
+  -- Protocol equality follows from hcorrespond + atCorrCluster + hp_eq.
+  -- The onDirVd/onDirVc cases require showing directory ≠ Vd/Vc (coherent write → SW).
+  sorry
+
+/-- Construct the global and cluster level downgrade chain from e_r's GLE to e_w's cluster.
+    This produces existential witnesses for:
+    - e_r_gdown, e_r_grant: global downgrade at previous owner (from `diffCache_coherent_globalDowngrade`)
+    - e_r_proxy: cluster proxy at e_w's protocol (from `globalToCluster_extract_proxy_and_dir`)
+    - e_r_cdir_down: cluster directory downgrade at e_w's protocol
+
+    The chain:
+    1. `diffCache_coherent_globalDowngrade` invokes Axiom 10 at the global level to get
+       the downgrade at the previous owner (`downgradeAtPrevOwner.clusterReq.gdown.wrapper`)
+    2. `cmp.shimAxioms.globalToCluster` maps the global downgrade to e_w's cluster protocol
+    3. `globalToCluster_extract_proxy_and_dir` extracts the cluster proxy and directory events
+    4. `Event.getProtocol_pi` converts the protocol equality from `p.pi` to `e_w.protocol` -/
+lemma diffCache_coherent_encapProxyAndDir
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  (hdiff_cache : e_w.struct ≠ e_r.struct)
+  (hw_coherent : e_w.isCoherent)
+  : Behaviour.gdown.encapProxyAndDir cmp b init e_w hr_c_and_g_lin := by
+  -- Step 1: Global downgrade exists (from Axiom 10 at global protocol level)
+  have hgdown := diffCache_coherent_globalDowngrade hr_c_and_g_lin
+  obtain ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, he_r_grant_in_b, hdowngrade⟩ := hgdown
+  -- Step 2: Apply GlobalToCluster shim on e_r_gdown at e_w's cluster protocol
+  have hg2c := cmp.shimAxioms.globalToCluster b init (e_w.getProtocol cmp) e_r_gdown he_r_gdown_in_b
+  -- Step 3: Protocol compatibility: (e_w.getProtocol cmp).pi = e_w.protocol
+  have hp_eq := Event.getProtocol_pi cmp e_w
+  -- Step 4: Extract cluster proxy and directory events from shim result
+  have ⟨hproxy, hdir⟩ := globalToCluster_extract_proxy_and_dir hg2c e_w hp_eq
+  -- Step 5: Build the encapProxyAndDir structure
+  exact {
+    existsRGlobalDown := ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, he_r_grant_in_b, hdowngrade⟩
+    existsRClusterProxy := hproxy
+    existsRClusterDirDown := hdir
+  }
+
+/-- Helper: Coherent write at a different cache with CLE immediate predecessor relationship.
+    Builds the wHasPermsAfter.case by constructing the downgrade chain from the read's GLE
+    down to e_w's cache, then deciding between noEvictBetween and evictBetween.
+
+    The downgrade chain goes:
+    - e_r's GLE → global downgrade e_r_gdown (from diffCache_coherent_encapProxyAndDir)
+    - e_r_gdown → cluster proxy e_r_proxy at e_w's protocol (via GlobalToCluster shim)
+    - e_r_proxy → cluster directory downgrade e_r_cdir_down at e_w's protocol
+    - e_r_cdir_down → cache downgrade e_r_down at e_w's cache struct (noEvict case only)
+
+    The noEvict vs evict decision:
+    - noEvictBetween: downgrade chain extends to e_w's cache, no evicts between e_w and e_r_down
+    - evictBetween: cache was evicted, chain only reaches cluster directory level -/
+lemma diffCache_coherent_wHasPermsAfter_case
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  (hw_is_write : e_w.isWrite) (hr_is_read : e_r.isRead)
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  (hdiff_cache : e_w.struct ≠ e_r.struct)
+  (hw_coherent : e_w.isCoherent)
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
+  : WriteRead.wObRCle.diffCache.wHasPermsAfter.case cmp b init
+      (hw_c_and_g_lin.hreq's_dir_access.choose) (hr_c_and_g_lin.hreq's_dir_access.choose)
+      hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access := by
+  -- Step 1: Construct the global + cluster level downgrade chain (common to both cases)
+  have hencapPD := diffCache_coherent_encapProxyAndDir
+    hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hdiff_cache hw_coherent
+  -- Step 2: Does the cluster directory downgrade propagate to a cache-level downgrade at e_w?
+  -- If e_w's cache still holds the line (no evict) → chain extends to cache → noEvictBetween
+  -- If e_w's cache was evicted → chain only reaches cluster directory → evictBetween
+  by_cases hcdown : ∃ e_r_down ∈ b,
+    e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down
+  · -- noEvictBetween: downgrade reaches e_w's cache directly
+    -- Package encapProxyAndDir + cache downgrade into encapProxyAndDirAndCDown
+    let hencapPDC : Behaviour.gdown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin :=
+      { encapProxyAndDir := hencapPD, existsRDownAtW := hcdown }
+    exact .noEvictBetween {
+      gdownEncapProxyAndDirAndCDown := hencapPDC
+      -- Need: noWriteBtn (no write between e_w and e_r_down — from CLE imm pred),
+      --       noEvictBtn (no evict between e_w and e_r_down — cache still has line),
+      --       wObRDown (e_w ordered before e_r_down — from downgrade chain ordering)
+      noEvictBetween := sorry
+    }
+  · -- evictBetween: cache was evicted, downgrade only reaches cluster directory level
+    exact .evictBetween {
+      encapProxyAndDir := hencapPD
+      -- Need: noWriteBtn (no dir write between CLEs — from CLE imm pred),
+      --       evictBtn (evict between CLEs — follows from ¬hcdown + downgrade chain),
+      --       wObRDown (e_w_cle ordered before e_r_cdir_down — from downgrade chain ordering)
+      evictBetween := sorry
+    }
+
 /-- Helper for wImmPredRCle diffCache: Decides which WriteRead.wObRCle.diffCache.case to apply
     based on coherence of the write and its directory access structure.
 
@@ -2855,34 +3057,25 @@ lemma wimmpredrCle_diff_cache_choose_case
   : WriteRead.wObRCle.diffCache.case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access := by
   -- Main decision point: is e_w coherent?
   by_cases hw_coherent : e_w.isCoherent
-  · -- Coherent write → wHasPermsAfter: write's CLE is before/encapsulates write
-    apply WriteRead.wObRCle.diffCache.case.wHasPermsAfter hw_coherent
-    -- TODO: Build wHasPermsAfter.case (noEvictBetween or evictBetween).
-    -- Requires constructing the downgrade chain from the read's GLE to e_w's cache
-    -- via Axiom 9 (coherentWriteDirDowngradeOthers), and proving no evict/evict between
-    -- the write and the read's downgrade at e_w's cache.
-    sorry
-  · -- Non-coherent write: case-split on dirAccessOfRequest for e_w to determine
-    -- whether the write has missing perms (→ wNoPermsAfter) or not (→ wCleAfter).
+  · -- Coherent write → wHasPermsAfter
+    exact WriteRead.wObRCle.diffCache.case.wHasPermsAfter hw_coherent
+      (diffCache_coherent_wHasPermsAfter_case hw_is_write hr_is_read
+        hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hdiff_cache hw_coherent hknow_dir_access)
+  · -- Non-coherent write: construct the shared wCleAfter.cond.wrapper once,
+    -- then case-split on dirAccessOfRequest to select the constructor.
     have hw_nc : e_w.isNonCoherent := isNonCoherent_of_not_isCoherent_write hw_is_write hw_coherent
+    have hwrapper := diffCache_wCleAfter_cond_wrapper
+      hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hdiff_cache
+    -- dirAccessOfRequest determines whether write has missing perms
     have hw_dir_access := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
     cases hw_dir_access with
     | encapDir hreq_missing_perms _ =>
       -- NC write with missing perms → wNoPermsAfter
-      apply WriteRead.wObRCle.diffCache.case.wNoPermsAfter hreq_missing_perms hw_nc
-      -- TODO: Construct wCleAfter.cond.wrapper: find e_r_gdown and e_r_grant witnesses
-      -- in b satisfying downgradeAtPrevOwner and ordering constraints.
-      sorry
+      exact WriteRead.wObRCle.diffCache.case.wNoPermsAfter hreq_missing_perms hw_nc hwrapper
     | orderBeforeDir _ _ _ _ _ _ _ _ =>
       -- NC write with perms (predecessor obtained dir access) → wCleAfter
-      apply WriteRead.wObRCle.diffCache.case.wCleAfter
-      -- TODO: Construct wCleAfter.cond.wrapper: find e_r_gdown and e_r_grant witnesses
-      -- in b satisfying downgradeAtPrevOwner and ordering constraints.
-      sorry
+      exact WriteRead.wObRCle.diffCache.case.wCleAfter hwrapper
     | orderAfterDir _ _ _ _ =>
       -- NC weak request on Vd (e.g. writeback) → wCleAfter
-      apply WriteRead.wObRCle.diffCache.case.wCleAfter
-      -- TODO: Construct wCleAfter.cond.wrapper: find e_r_gdown and e_r_grant witnesses
-      -- in b satisfying downgradeAtPrevOwner and ordering constraints.
-      sorry
+      exact WriteRead.wObRCle.diffCache.case.wCleAfter hwrapper
 
