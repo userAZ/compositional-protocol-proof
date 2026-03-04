@@ -2903,16 +2903,109 @@ lemma globalToCluster_extract_proxy_and_dir
           exact ⟨e_vd, hvd_in_b, hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir,
             hproto.symm.trans hp_eq⟩
 
+/-- Extract directory event from GlobalToCluster shim, with proof that the global downgrade
+    encapsulates the extracted directory event. -/
+lemma globalToCluster_extract_dir_with_encap
+  {n : ℕ} {b : Behaviour n} {init : InitialSystemState n}
+  {p : Protocol n} {e_gdown : Event n}
+  (hg2c : Behaviour.Shim.GlobalToCluster n b init p e_gdown)
+  (e_w : Event n) (hp_eq : p.pi = e_w.protocol)
+  : ∃ e_dir ∈ b, e_dir.isDirectoryEvent ∧ e_dir.protocol = e_w.protocol ∧
+      e_gdown.Encapsulates n e_dir := by
+  cases hg2c with
+  | bothCoherentWriteAndRead hcorrespond _ downTranslation =>
+    cases downTranslation with
+    | scWriteDown _ translation =>
+      obtain ⟨e_cw, _, e_dw, e_ce, _, e_de, _, hstruct⟩ := translation.scGDownTranslation
+      have hproto := correspondingCluster_protocol_eq hcorrespond
+        hstruct.cohWrite.atCorrClusterProxy.clusterMatch.atCorrCluster
+      exact ⟨e_dw, hstruct.cohWriteDir.dirInB, hstruct.cohWriteDir.isDir,
+        hstruct.cohWriteDir.sameProtocol.symm.trans hproto.symm |>.trans hp_eq,
+        Event.encap_encap_trans n
+          (hstruct.cohWrite.globalEncap)
+          (hstruct.cohWriteDir.reqEncapDir)⟩
+    | scReadDown _ _ translation =>
+      obtain ⟨e_cr, _, e_dr, _, hstruct⟩ := translation
+      have hproto := correspondingCluster_protocol_eq hcorrespond
+        hstruct.cohRead.atCorrClusterProxy.clusterMatch.atCorrCluster
+      exact ⟨e_dr, hstruct.cohReadDir.dirInB, hstruct.cohReadDir.isDir,
+        hstruct.cohReadDir.sameProtocol.symm.trans hproto.symm |>.trans hp_eq,
+        Event.encap_encap_trans n
+          (hstruct.cohRead.globalEncap)
+          (hstruct.cohReadDir.reqEncapDir)⟩
+  | noCoherentRead hcorrespond _ downTranslation =>
+    cases downTranslation with
+    | scWriteDowngrade _ translation =>
+      cases translation with
+      | onDirSW _ htrans =>
+        obtain ⟨_, _, _, _, e_vd, hvd_in_b, _, _, hstruct⟩ := htrans
+        have hproto := correspondingCluster_protocol_eq hcorrespond
+          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
+        exact ⟨e_vd, hvd_in_b, hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir,
+          hproto.symm.trans hp_eq,
+          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap⟩
+      | onDirVd _ htrans =>
+        obtain ⟨e_vd, hvd_in_b, _, _, hstruct⟩ := htrans
+        have hproto := correspondingCluster_protocol_eq hcorrespond
+          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
+        exact ⟨e_vd, hvd_in_b, hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir,
+          hproto.symm.trans hp_eq,
+          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap⟩
+      | onDirVc _ htrans =>
+        obtain ⟨e_vc, hvc_in_b, hstruct⟩ := htrans
+        have hproto := correspondingCluster_protocol_eq hcorrespond
+          hstruct.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
+        exact ⟨e_vc, hvc_in_b, hstruct.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.atDir,
+          hproto.symm.trans hp_eq,
+          hstruct.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.globalEncap⟩
+    | scReadDowngrade _ _ translation =>
+      cases translation with
+      | onDirSW _ htrans =>
+        obtain ⟨_, _, _, _, e_vd, hvd_in_b, hstruct⟩ := htrans
+        have hproto := correspondingCluster_protocol_eq hcorrespond
+          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
+        exact ⟨e_vd, hvd_in_b, hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir,
+          hproto.symm.trans hp_eq,
+          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap⟩
+      | onDirVd _ htrans =>
+        obtain ⟨_, _, _, _, e_vd, hvd_in_b, hstruct⟩ := htrans
+        have hproto := correspondingCluster_protocol_eq hcorrespond
+          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
+        exact ⟨e_vd, hvd_in_b, hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir,
+          hproto.symm.trans hp_eq,
+          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap⟩
+
+/-- The cluster directory event (CLE) encapsulates its corresponding global cache request.
+    In both ClusterToGlobal cases:
+    - encapGlobalCache: direct encapsulation via `clusterDirEncapCorrespondingGlobalCache`
+    - noGlobalCache: encapsulation via `dirEncapGCache.encapGlobalCache` -/
+lemma cle_encapsulates_cDirsGReq_wrapper
+  {n : ℕ} {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+  {e_creq : Event n}
+  (hexists_cdir : ∃ e_cdir ∈ b, b.dirAccessOfRequest n init e_creq e_cdir)
+  : hexists_cdir.choose.Encapsulates n
+      (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init hexists_cdir) := by
+  simp [Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper,
+        Behaviour.Shim.ClusterToGlobal.cDir'sGReq]
+  cases cmp.shimAxioms.clusterToGlobal b init hexists_cdir.choose
+    hexists_cdir.choose_spec.right.isDirEvent with
+  | encapGlobalCache _ hreq =>
+    exact hreq.choose_spec.right.encapGlobalCache
+  | noGlobalCache _ hreq =>
+    exact hreq.choose_spec.right.dirEncapGCache.encapGlobalCache
+
 /-- Construct the global and cluster level downgrade chain from e_r's GLE to e_w's cluster.
     This produces existential witnesses for:
     - e_r_gdown, e_r_grant: global downgrade at previous owner (from `diffCache_coherent_globalDowngrade`)
     - e_r_proxy: cluster proxy at e_w's protocol (from `globalToCluster_extract_proxy_and_dir`)
-    - e_r_cdir_down: cluster directory downgrade at e_w's protocol
+    - e_r_cdir_down: cluster directory downgrade at e_w's protocol, with proof that
+      e_r's CLE encapsulates e_r_cdir_down (full encapsulation chain)
 
     The chain:
     1. `diffCache_coherent_globalDowngrade` → Axiom 10 at global level → downgrade at previous owner
     2. `cmp.shimAxioms.globalToCluster` → map downgrade to e_w's cluster protocol
-    3. `globalToCluster_extract_proxy_and_dir` → extract cluster proxy and directory events -/
+    3. `globalToCluster_extract_dir_with_encap` → extract directory event with encapsulation
+    4. Chain encapsulation: e_r_cle ≻ e_r_cle_gcache ≻ e_r_gle ≻ e_r_gdown ≻ e_r_cdir_down -/
 lemma diffCache_coherent_encapProxyAndDir
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
   (_hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
@@ -2923,9 +3016,22 @@ lemma diffCache_coherent_encapProxyAndDir
   obtain ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, he_r_grant_in_b, hdowngrade⟩ := hgdown
   have hg2c := cmp.shimAxioms.globalToCluster b init (e_w.getProtocol cmp) e_r_gdown he_r_gdown_in_b
   have hp_eq := Event.getProtocol_pi cmp e_w
-  have ⟨hproxy, hdir⟩ := globalToCluster_extract_proxy_and_dir hg2c e_w hp_eq hw_in_b hw_cluster
+  -- Extract directory event with encapsulation: e_r_gdown ≻ e_dir
+  have hdir_encap := globalToCluster_extract_dir_with_encap hg2c e_w hp_eq
+  obtain ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, he_gdown_encap_dir⟩ := hdir_encap
+  -- Build the full encapsulation chain: e_r_cle ≻ e_dir
+  -- Step 1: e_r_cle ≻ e_r_cle_gcache (ClusterToGlobal shim)
+  have hstep1 := cle_encapsulates_cDirsGReq_wrapper (cmp := cmp) (b := b) (init := init)
+    hr_c_and_g_lin.hreq's_dir_access
+  -- Step 2-3: e_r_cle_gcache ≻ e_r_gle ≻ e_r_gdown (downgradeAtPrevOwner)
+  unfold Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper at hdowngrade
+  have hstep2 := hdowngrade.downgradePrevOwner.reqEncapDir
+  have hstep3 := hdowngrade.downgradePrevOwner.dirEncapDowngrade
+  -- Chain: e_r_cle ≻ e_r_gdown ≻ e_dir
+  have hcle_encap_dir : hr_c_and_g_lin.hreq's_dir_access.choose.Encapsulates n e_dir :=
+    Trans.trans (Trans.trans (Trans.trans hstep1 hstep2) hstep3) he_gdown_encap_dir
   exact {
     existsRGlobalDown := ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, he_r_grant_in_b, hdowngrade⟩
-    existsRClusterProxy := hproxy
-    existsRClusterDirDown := hdir
+    existsRClusterProxy := ⟨e_w, hw_in_b, rfl, hw_cluster⟩
+    existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, hcle_encap_dir⟩
   }

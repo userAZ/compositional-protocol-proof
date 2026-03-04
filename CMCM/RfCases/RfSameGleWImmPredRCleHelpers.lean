@@ -79,26 +79,59 @@ lemma diffCache_noEvictBetween_noEvict
     violating the immediate predecessor property. -/
 lemma diffCache_noEvictBetween_noWrite
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
-  (hw_is_write : e_w.isWrite) (hr_is_read : e_r.isRead)
+  (_hw_is_write : e_w.isWrite) (_hr_is_read : e_r.isRead)
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
-  (hdiff_cache : e_w.struct ≠ e_r.struct)
-  (hw_coherent : e_w.isCoherent)
-  (hencapPDC : Behaviour.gdown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin)
+  (_hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (_hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin _hr_c_and_g_lin)
+  (_hdiff_cache : e_w.struct ≠ e_r.struct)
+  (_hw_coherent : e_w.isCoherent)
+  (hencapPDC : Behaviour.gdown.encapProxyAndDirAndCDown e_w _hr_c_and_g_lin)
   : Event.Between.noWrite b init e_w hencapPDC.existsRDownAtW.choose
       hw_c_and_g_lin.hreq's_dir_access.choose
       hencapPDC.encapProxyAndDir.existsRClusterDirDown.choose := by
-  -- noWrite = ∀ e_inter ∈ b, isClusterCache → isWrite → ¬down →
-  --   excludeOtherWrites b init e_inter e_w e_r_down e_w_cle e_r_cdir_down
-  -- For each e_inter, case-split on its location relative to e_w:
-  --   1. Same cache → otherWSameCache
-  --   2. Different cache, same cluster → otherWDiffCacheSameCluster
-  --   3. Different cluster → otherWDiffCluster
-  -- In each case, the interCleNotBetween field follows from the CLE immediate
-  -- predecessor property: no bottom event at the same entry can be between e_w_cle
-  -- and e_r_cle, and e_r_cdir_down is related to e_r_cle through the downgrade chain.
-  sorry
+  -- noWrite quantifies over all cluster cache writes (not down).
+  -- For each e_inter, case-split on same cache / diff cache same cluster / diff cluster.
+  -- In each case, the interCleNotBetween field is satisfied vacuously:
+  -- using e_w_cle as the existential witness, e_w_cle.OrderedBetween n e_w_cle e_r_cdir_down
+  -- requires e_w_cle.OrderedBefore n e_w_cle which is false (reflexive ordered before).
+  intro e_inter _hinter_in_b _hinter_cluster _hinter_write hinter_not_down
+  have hr_down_struct := hencapPDC.existsRDownAtW.choose_spec.right.left
+  have he_w_cle_in_b := hw_c_and_g_lin.hreq's_dir_access.choose_spec.left
+  by_cases h_same_cache : e_inter.struct = e_w.struct
+  · -- Same cache → otherWSameCache
+    have hsame_w : e_inter.sameStructure n e_w := by unfold Event.sameStructure; exact h_same_cache
+    have hsame_r : e_inter.sameStructure n hencapPDC.existsRDownAtW.choose := by
+      unfold Event.sameStructure; exact h_same_cache.trans hr_down_struct.symm
+    exact .otherWSameCache {
+      notDown := hinter_not_down
+      sameProtocol := ⟨sameStructure_implies_sameProtocol hsame_w,
+                       sameStructure_implies_sameProtocol hsame_r⟩
+      sameCache := ⟨hsame_w, hsame_r⟩
+      interCleNotBetween := ⟨hw_c_and_g_lin.hreq's_dir_access.choose, he_w_cle_in_b,
+        fun _ => fun ⟨_, hcle_ob⟩ => Event.contradiction_of_reflexive_ordered_before n hcle_ob.pred⟩
+    }
+  · by_cases h_same_proto : e_inter.protocol = e_w.protocol
+    · -- Different cache, same cluster → otherWDiffCacheSameCluster
+      have hr_down_proto : hencapPDC.existsRDownAtW.choose.protocol = e_w.protocol :=
+        sameStructure_implies_sameProtocol (by unfold Event.sameStructure; exact hr_down_struct)
+      exact .otherWDiffCacheSameCluster {
+        sameProtocol := ⟨by unfold Event.sameProtocol; exact h_same_proto,
+                         by unfold Event.sameProtocol; exact h_same_proto.trans hr_down_proto.symm⟩
+        diffCache := ⟨by unfold Event.diffStructure; exact h_same_cache,
+                      by unfold Event.diffStructure; intro heq; exact h_same_cache (heq.trans hr_down_struct)⟩
+        interCleNotBetween := ⟨hw_c_and_g_lin.hreq's_dir_access.choose, he_w_cle_in_b,
+          fun _ => fun hob => Event.contradiction_of_reflexive_ordered_before n hob.pred⟩
+      }
+    · -- Different cluster → otherWDiffCluster
+      exact .otherWDiffCluster {
+        interCleNotBetween := by
+          intro ⟨e_inter_down, _, _, hdown_between⟩
+          -- e_inter_down is at e_w's protocol (from downToW), between e_w_cle and e_r_cdir_down.
+          -- This contradicts the CLE immediate predecessor: e_r_cdir_down is inside e_r_cle,
+          -- so e_inter_down is either between e_w_cle and e_r_cle (contradicting no-intermediate)
+          -- or inside e_r_cle (making it non-bottom, also contradicting).
+          sorry
+      }
 
 /-- Helper: When a cache-level downgrade exists at e_w's cache (ordered after e_w), and
     e_w's CLE is the immediate predecessor of e_r's CLE, construct the noEvictBetween.cond.
@@ -174,7 +207,13 @@ lemma diffCache_evictBetween_wObRDown
   (hencapPD : Behaviour.gdown.encapProxyAndDir cmp b init e_w hr_c_and_g_lin)
   : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n
       hencapPD.existsRClusterDirDown.choose := by
-  sorry
+  -- e_w_cle < e_r_cle (CLE immediate predecessor)
+  have hpred : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n
+      hr_c_and_g_lin.hreq's_dir_access.choose := hw_imm_pred_r_cle.isImmPred.bPred.isPred
+  -- e_r_cle ≻ e_r_cdir_down (from enriched encapProxyAndDir)
+  have hencap := hencapPD.existsRClusterDirDown.choose_spec.right.right.right
+  -- By Trans (OrderedBefore ∘ Encapsulates → OrderedBefore)
+  exact Trans.trans hpred hencap
 
 /-- Helper: When no cache-level downgrade exists at e_w's cache (¬hcdown), and
     e_w's CLE is the immediate predecessor of e_r's CLE, construct the evictBetween.cond.
