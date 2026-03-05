@@ -128,6 +128,8 @@ they satisfy a compound linearization order.
   Events at the same directory address are totally ordered:
   for any two directory events $de_1, de_2$ at the same address,
   either $de_1$ is ordered before $de_2$ or vice versa.
+  This is stated by the structure fields in `DirectoryEvent.AreOrdered',
+  `sameDirectoryEntry' and `ordered'.
 \end{definition}
 
 \begin{definition}[Ordered/Encapsulated Cache Events (Well-Formedness Axiom 2)]
@@ -138,6 +140,8 @@ they satisfy a compound linearization order.
   For any two cache events $e_1, e_2$ at the same cache entry,
   either $e_1$ is encapsulated by $e_2$, $e_2$ is encapsulated by
   $e_1$, $e_1$ is ordered before $e_2$, or $e_2$ is ordered before $e_1$.
+  This is stated by the structure fields in `CacheEvent.AreOrdered',
+  `sameCacheEntry' and `ordered'.
 \end{definition}
 
 \begin{definition}[Cache Events Encapsulate Corresponding Directory Event (Well-Formedness Axiom 3)]
@@ -149,6 +153,7 @@ they satisfy a compound linearization order.
   A cache operation event encapsulates a corresponding directory event,
   whose request field, address, downgrade flag, and protocol match
   the cache event.
+  This is reflected in the fields of structure `Behaviour.requestDirectoryEvent'.
 \end{definition}
 
 \begin{definition}[Cache Events Access Dir If Insufficient Permissions (Well-Formedness Axiom 4)]
