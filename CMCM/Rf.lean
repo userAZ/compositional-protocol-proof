@@ -327,6 +327,41 @@ inductive WriteRead.wObRCle.diffCache.wHasPermsAfter.case
   (w_cle_ob_r_cdir_down : WriteRead.evictBetween.cond.wrapper cmp b init e_w_cle e_r_cdir_down hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
   : WriteRead.wObRCle.diffCache.wHasPermsAfter.case cmp b init e_w_cle e_r_cdir_down hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 
+def CompoundProtocol.cleImmediatePredecessor
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  : Prop :=
+  b.ImmediateBottomPredecessor n
+    hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose
+
+/-- When the write is coherent and at a different cache from the read,
+    either the CLE of e_w immediately precedes the CLE of e_r (so the
+    downgrade chain is constructed from CLE immediate predecessor),
+    or the more general wHasPermsAfter.case applies (noEvict/evict subcases). -/
+inductive WriteRead.wObRCle.diffCache.wCoherent.case
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
+  : Prop
+| immPred
+  (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  : WriteRead.wObRCle.diffCache.wCoherent.case hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
+| notImmPred
+  (hw_has_perms_case : WriteRead.wObRCle.diffCache.wHasPermsAfter.case cmp b init
+    (hw_c_and_g_lin.hreq's_dir_access.choose) (hr_c_and_g_lin.hreq's_dir_access.choose)
+    hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
+  : WriteRead.wObRCle.diffCache.wCoherent.case hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
+
+/-- e_r's proxy directory access (CLE) is ordered after e_w's CLE. -/
+def WriteRead.wObRCle.diffCache.rCleAfterWCle
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  : Prop :=
+  hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose
+
 -- Cache write with something?
 structure Event.cacheWrite.global (e : Event n) : Prop where
   isCacheWrite : e.isWrite
@@ -362,22 +397,21 @@ inductive WriteRead.wObRCle.diffCache.case
   : Prop
 | wHasPermsAfter -- `e_w`'s CLE is before or encap by `e_w`. (dirAccessOfRequest .before or .encap cases.)
   /- subcases are:
-    if no evict, then e_r downgrade is after e_w;
-    if evict, then e_r's CLE is after e_w's CLE, with an evict in between.
+    immPred: e_w_cle is immediate predecessor of e_r_cle (cluster-level downgrade via Axiom 9)
+    notImmPred: the general case with noEvict/evict subcases
   -/
-  (hw_nc : e_w.isCoherent)
-  -- Use WriteRead.wObRCle.diffCache.wHasPermsAfter.cases
-  (coherent_write : WriteRead.wObRCle.diffCache.wHasPermsAfter.case cmp b init (hw_c_and_g_lin.hreq's_dir_access.choose) (hr_c_and_g_lin.hreq's_dir_access.choose) hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
+  (hw_coherent : e_w.isCoherent)
+  -- Use WriteRead.wObRCle.diffCache.wCoherent.case to distinguish immPred vs notImmPred
+  (coherent_write : WriteRead.wObRCle.diffCache.wCoherent.case hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
   : WriteRead.wObRCle.diffCache.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 | wNoPermsAfter -- `e_w`'s CLE is before or encap by `e_w`. (dirAccessOfRequest .before or .encap cases.)
   -- TODO STUB: Write has no perms (ex. Non-Coherent Release Write). Treat similar to wCleAfter case
-  /- Must add constraint that `e_w`'s CLE's corresponding global cache access `e_w_cle_gcache`
-  is ordered before `e_r`'s downgrade `e_r_gdown`
-  -- and there is no global cache write between `e_w_cle_gcache` and `e_r_gdown`.
+  /- e_r's CLE (proxy directory access) is ordered after e_w's CLE.
+     No global downgrade in the sameGle case since e_w and e_r share the same cluster.
   -/
   (hw_no_perms : b.reqMissingPerms n init e_w)
   (hw_nc : e_w.isNonCoherent)
-  (hw_gcache_ob_r_gdown : WriteRead.wCleAfter.cond.wrapper cmp b init hw_c_and_g_lin hr_c_and_g_lin)
+  (hr_cle_after_w_cle : WriteRead.wObRCle.diffCache.rCleAfterWCle hw_c_and_g_lin hr_c_and_g_lin)
   : WriteRead.wObRCle.diffCache.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 | wCleAfter -- `e_w`'s CLE is after `e_w`. (dirAccessOfRequest .after case.)
   /- subcases are:
@@ -386,7 +420,10 @@ inductive WriteRead.wObRCle.diffCache.case
     (Not allowed, coherent req is a competing write!):
       case of coherent req after `e_w` (i.e. in RCC-O or L-RCC protocol interfaces).
     -/
-  (hw_ob_r_no_writes_btn : WriteRead.wCleAfter.cond.wrapper cmp b init hw_c_and_g_lin hr_c_and_g_lin)
+  /- e_r's CLE (proxy directory access) is ordered after e_w's CLE.
+     No global downgrade in the sameGle case since e_w and e_r share the same cluster.
+  -/
+  (hr_cle_after_w_cle : WriteRead.wObRCle.diffCache.rCleAfterWCle hw_c_and_g_lin hr_c_and_g_lin)
   : WriteRead.wObRCle.diffCache.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 
   /- End Defs for WriteRead.wObRCle.diffCache.case case -/
@@ -473,14 +510,6 @@ def CompoundProtocol.gleImmediatePredecessor
   : Prop :=
   b.ImmediateBottomPredecessor n
     hw_c_and_g_lin.hreq's_global_lin.choose hr_c_and_g_lin.hreq's_global_lin.choose
-
-def CompoundProtocol.cleImmediatePredecessor
-  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  : Prop :=
-  b.ImmediateBottomPredecessor n
-    hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose
 
 structure IntermediateDirEvictOrRead
   (e_cdir_inter e_w_cle e_r_cle : Event n)
