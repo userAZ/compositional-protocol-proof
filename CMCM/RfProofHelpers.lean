@@ -3032,6 +3032,9 @@ lemma diffCache_coherent_encapProxyAndDir
     Trans.trans (Trans.trans (Trans.trans hstep1 hstep2) hstep3) he_gdown_encap_dir
   exact {
     existsRGlobalDown := ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, he_r_grant_in_b, hdowngrade⟩
-    existsRClusterProxy := ⟨e_w, hw_in_b, rfl, hw_cluster⟩
+    existsRClusterProxy := by
+      sorry -- TODO: extract proxyOnDirSW from GlobalToCluster shim
     existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, hcle_encap_dir⟩
+    clusterDirDownFromProxy := by
+      sorry -- TODO: instantiate cluster-level axiom (fwdCoherentRequestToOwner or nonCoherentReqOnSWDowngradeOthers)
   }
