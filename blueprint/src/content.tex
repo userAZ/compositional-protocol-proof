@@ -197,7 +197,7 @@ they satisfy a compound linearization order.
   If a request event $e_{req}$ has permissions, there exists an
   immediate predecessor that obtained those permissions by accessing
   the directory, and all intermediate events maintain sufficient state for $e_{req}$.
-  This is reflected by the fields in structure `Behaviour.exists_predecessor_setting_state'.
+  This is reflected by the fields in structure `Behaviour.exists\_predecessor\_setting\_state'.
 \end{definition}
 
 \begin{definition}[Weak Request on Vd Has Successor WB or Get SW (Well-Formedness Axiom 8)]
@@ -209,7 +209,7 @@ they satisfy a compound linearization order.
   linearizes at the write-back evict.
   There exists an immediate bottom successor that encapsulates a corresponding
   directory event.
-  This is reflected by the fields in structure `Behaviour.exists_vd_successor_wb_or_get_sw'.
+  This is reflected by the fields in structure `Behaviour.exists\_vd\_successor\_wb\_or\_get\_sw'.
 \end{definition}
 
 \begin{definition}[Acquire Invalidation OB Weak Read Predecessor (Well-Formedness Axiom 9)]
@@ -220,7 +220,7 @@ they satisfy a compound linearization order.
   A non-coherent weak read ordered after a cache entry invalidation (from an
   acquire) will linearize after the invalidation: the invalidation event is
   ordered before the predecessor that gets permissions.
-  This is reflected by the parameters in def `CompoundProtocol.acquire_invalidation_OrderedBefore_weak_read_predecessor_that_gets_perms'
+  This is reflected by the parameters in def `CompoundProtocol.acquire\_invalidation\_OrderedBefore\_weak\_read\_predecessor\_that\_gets\_perms'
 \end{definition}
 
 % ============================================================
