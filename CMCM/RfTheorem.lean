@@ -18,6 +18,7 @@ theorem CMCM.rf_holds
   (hw_is_write : e_w.isWrite) (hr_is_read : e_r.isRead)
   {hw_not_down : ¬ e_w.down} {hr_not_down : ¬ e_r.down}
   {hw_in_b : e_w ∈ b}
+  {hsame_addr : e_w.sameAddr n e_r}
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   /- Synchronization conditions -/
