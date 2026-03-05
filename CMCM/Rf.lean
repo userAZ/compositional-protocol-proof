@@ -234,7 +234,13 @@ structure Behaviour.gdown.encapProxyAndDirAndCDown {cmp : CompoundProtocol n}
 /-- An intervening directory write from a different-cluster cache write.
     The chain goes: e_w_inter (diff cluster) → CLE → global cache (ClusterToGlobal shim)
     → GLE → global downgrade → cluster proxy (GlobalToCluster shim) → cluster directory event.
-    Following the pattern of `Behaviour.gdown.encapProxyAndDirAndCDown`. -/
+    Following the pattern of `Behaviour.gdown.encapProxyAndDirAndCDown`.
+
+    TODO (post-theorem): Strengthen this structure similarly to `Behaviour.gdown.encapProxyAndDir`:
+    - Replace existsClusterProxy with `globalWriteDownOnDirSW.wrapper` (since the intervening
+      event is a write, the `globalWriteDownOnDirSW` case of the GlobalToCluster shim applies,
+      i.e. `Event.Shim.Global.ToCluster.noCoherentRead.globalWriteDownOnDirSW.wrapper`).
+    - Add `clusterDirDownFromProxy` using `Behaviour.gdown.clusterDirDown`. -/
 structure Event.Between.diffProtocol.interveningDirWrite
   (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
   (e_w_le e_r_le e_w_inter : Event n)
