@@ -161,16 +161,18 @@ they satisfy a compound linearization order.
   \lean{Behaviour.axRequestAccessesDirectory}
   \leanok
   \uses{def:reqHasPerms, def:requestDirectoryEvent}
-  (Line 225 in BehaviourRelationDefs.lean.)
+  (Line 209 in BehaviourRelationDefs.lean.)
   If a cache event does not have sufficient permissions (its state is below
   the Minimum Required State), it accesses the directory.
+  The inductive `Behaviour.requestAccessesDirectory' describes the cases of different request events
+  encapsulating corresponding directory accesses.
 \end{definition}
 
 \begin{definition}[Cache Events of Directory Responses Arrive In-Order (Well-Formedness Axiom 5)]
   \label{def:axiom5_dir_responses_ordered}
   This axiom states that cache events of directory responses arrive in-order.
-  It does not have a separate Lean declaration; it is coincidentally
-  implemented by Axiom 1 (\ref{def:DirectoryEventAreOrdered}) combined with
+  It does not have a separate Lean declaration; it is
+  realized by Axiom 1 (\ref{def:DirectoryEventAreOrdered}) combined with
   the Downgrade Abstract State Invariants --- downgrades are encapsulated by
   a directory event, so they are in order because directory events are ordered.
 \end{definition}
@@ -183,6 +185,7 @@ they satisfy a compound linearization order.
   (Line 532 in EventRelations.lean.)
   A request event encapsulates a grant event that is ordered after
   the directory event, and the grant ends the request.
+  This is reflected in the fields of structure `Event.encapGrantAfterDirEvent'.
 \end{definition}
 
 \begin{definition}[Cache with Perms Has Predecessor That Obtained Perms (Well-Formedness Axiom 7)]
@@ -191,20 +194,22 @@ they satisfy a compound linearization order.
   \leanok
   \uses{def:reqHasPerms, def:axRequestAccessesDirectory}
   (Line 494 in BehaviourRelationProofs.lean.)
-  If a non-downgrade request event has permissions, there exists an
+  If a request event $e_{req}$ has permissions, there exists an
   immediate predecessor that obtained those permissions by accessing
-  the directory, and all intermediate events maintain sufficient state.
+  the directory, and all intermediate events maintain sufficient state for $e_{req}$.
+  This is reflected by the fields in structure `Behaviour.exists_predecessor_setting_state'.
 \end{definition}
 
 \begin{definition}[Weak Request on Vd Has Successor WB or Get SW (Well-Formedness Axiom 8)]
   \label{def:exists_vd_successor_wb_or_get_sw}
   \lean{Behaviour.exists_vd_successor_wb_or_get_sw}
   \leanok
-  (Line 504 in BehaviourRelationProofs.lean.)
+  (Line 508 in BehaviourRelationProofs.lean.)
   A weak request on Write-Non-Coherent state ordered before a write-back evict
   linearizes at the write-back evict.
   There exists an immediate bottom successor that encapsulates a corresponding
   directory event.
+  This is reflected by the fields in structure `Behaviour.exists_vd_successor_wb_or_get_sw'.
 \end{definition}
 
 \begin{definition}[Acquire Invalidation OB Weak Read Predecessor (Well-Formedness Axiom 9)]
@@ -215,6 +220,7 @@ they satisfy a compound linearization order.
   A non-coherent weak read ordered after a cache entry invalidation (from an
   acquire) will linearize after the invalidation: the invalidation event is
   ordered before the predecessor that gets permissions.
+  This is reflected by the parameters in def `CompoundProtocol.acquire_invalidation_OrderedBefore_weak_read_predecessor_that_gets_perms'
 \end{definition}
 
 % ============================================================
@@ -225,10 +231,14 @@ they satisfy a compound linearization order.
   \label{def:vdCacheEntryWBOrGetSWLaterWrapper}
   \lean{Behaviour.vdCacheEntryWBOrGetSWLaterWrapper}
   \leanok
-  (Line 238 in BehaviourRelationDefs.lean.)
+  (Line 233 in BehaviourRelationDefs.lean.)
   Non-coherent weak write request linearizes after its cache event.
-  A cache entry in Vd state has an immediate bottom successor that is
-  either a VdWriteBack or a CoherentWrite (which would transition the state).
+  Its cache entry in Vd state means there's an immediate successor that is
+  either a VdWriteBack or a CoherentWrite (which would linearize the weak write).
+  This is reflected in the fields of structure `Behaviour.vdCacheEntryWriteBackLater'.
+  Field `vdStateAfterEvent' states the non-coherent weak write results
+  in cache state Vd (Non-Coherent Write).
+  Field `wbImmPred' states the weak write an immediate successor as described above.
 \end{definition}
 
 \begin{definition}[Coherent Write Dir Events Result in Downgrades (Abstract State Invariant 2)]
@@ -241,6 +251,9 @@ they satisfy a compound linearization order.
   A coherent write request to the directory results in downgrades at other
   caches. On SW state, it forwards to the owner; on MR state, it forwards
   to all sharers.
+  This is reflected in inductive `Behaviour.coherentWriteAtDirectoryEncapDowngrades'.
+  Case `cWriteOnSW' represents forwarding a coherent write to the owner cache.
+  Case `cWriteOnMR' represents forwarding a coherent write to the sharer caches.
 \end{definition}
 
 \begin{definition}[Coherent Read Dir on SW Downgrades Owner (Abstract State Invariant 3)]
@@ -250,8 +263,10 @@ they satisfy a compound linearization order.
   \uses{def:requestDirectoryEvent}
   (Line 324 in BehaviourRelationDefs.lean.)
   Coherent read directory event on Write-Coherent state downgrades the owner.
-  A coherent read request to the directory on SW state results in
-  a downgrade forwarded to the owner.
+  This is reflected in structure `Behaviour.coherentReadDowngradeOthers' at line 316 used by
+  the definition of `Behaviour.coherentReadDirDowngradeOthers' at line 324.
+  Field `downgradeOtherCaches' specifically downgrades the owner on Write-Coherent state,
+  with a coherent-read downgrade.
 \end{definition}
 
 \begin{definition}[NC Requests on SW Downgrade Owner (Abstract State Invariant 4)]
@@ -260,9 +275,10 @@ they satisfy a compound linearization order.
   \leanok
   \uses{def:requestDirectoryEvent}
   (Line 345 in BehaviourRelationDefs.lean.)
-  Non-coherent requests on Write-Coherent state will downgrade the owner.
-  Non-coherent write/read requests on SW directory state result in
-  downgrades forwarded to the previous owner.
+  Non-coherent write/read requests on Write-Coherent state will downgrade the owner.
+  This is reflected in the structure `Behaviour.nonCoherentReqOnSWDowngradeOthers'
+  used by definition `Behaviour.nonCoherentRequestDowngradeOthers'.
+  Field `fwdPrevOwner' specifically downgrades the owner on Write-Coherent state.
 \end{definition}
 
 \begin{definition}[Protocol Enforces SWMR (Abstract State Invariant 5)]
@@ -275,6 +291,8 @@ they satisfy a compound linearization order.
   at any point in time, cache states across the protocol instance
   cannot simultaneously have both SW and MR, and at most one cache
   can be in SW state.
+  This is reflected in definition `SWMR', where there cannot be both a Write-Coherent (SW)
+  and Read-Coherent (MR) cache simultaneously. The number of Write-Coherent caches must be at most 1.
 \end{definition}
 
 % ============================================================
@@ -289,10 +307,11 @@ they satisfy a compound linearization order.
   (Line 374 in BehaviourRelationDefs.lean.)
   Acquire cache operations access the directory, then invalidate
   Read-Non-Coherent cache entries.
-  An acquire cache operation invalidates Vc cache entries
-  at other addresses after accessing the directory: for every other address,
-  there is a Vc invalidation event encapsulated by the acquire, ordered
-  after the directory event.
+  The acquire cache operation encapsulates Vc (Read-Non-Coherent) evicts
+  to cache entries at other addresses after accessing the directory.
+  The structure `Behaviour.nonCoherentReqOnSWDowngradeOthers' field
+  broadcastInval invalidates the other cache entries after the acquire's directory access
+  event.
 \end{definition}
 
 \begin{definition}[NC Release Writes Back Other Entries (Consistency Label Axiom 2)]
@@ -303,10 +322,10 @@ they satisfy a compound linearization order.
   (Line 385 in BehaviourRelationDefs.lean.)
   Non-coherent release cache operations write back Write-Non-Coherent entries,
   then access the directory.
-  A non-coherent release cache operation writes back Vd
-  entries at other addresses before accessing the directory: for every other
-  address, there is a Vd write-back event encapsulated by the release, ordered
-  before the directory event.
+  This is achieved by using Vd (Write-Non-Coherent) write-back
+  events encapsulated by the release, ordered before the directory event.
+  The structure `Behaviour.relWriteBackOtherEntries' field broadcastWB writes back
+  the other cache entries before the release's directory access.
 \end{definition}
 
 \begin{definition}[L-RCC Coherent Release Downgrade Write-Back (Consistency Label Axiom 3)]
@@ -315,9 +334,15 @@ they satisfy a compound linearization order.
   \leanok
   (Line 407 in BehaviourRelationDefs.lean.)
   L-RCC variant with Coherent Release Write and Non-Coherent Weak Write.
-  When receiving a downgrade, a coherent release writes back Vd entries
-  at other addresses. This is the L-RCC variant where the protocol interface
-  contains both a coherent release and a non-coherent weak write.
+  When receiving a downgrade to a cache line with Coherent-Write state,
+  the downgrade writes back Vd entries at other addresses. This is the
+  L-RCC variant where the protocol interface contains both a coherent
+  release and a non-coherent weak write.
+  This is reflected by the broadcastWBs field in the structure
+  `Behaviour.coherentRelDowngradeWriteBackOthers'.
+  The fields `cRelInPI' and `ncWeakWriteInPI' state the protocol's request
+  interface contains a Coherent Release and Non-Coherent Weak Write respectively,
+  as per L-RCC.
 \end{definition}
 
 % ============================================================
@@ -335,9 +360,10 @@ they satisfy a compound linearization order.
   \begin{itemize}
     \item \textbf{encapGlobalCache}: the global cache lacks permissions,
       so the directory event encapsulates a global cache access.
-    \item \textbf{noGlobalCache}: the global cache already has permissions,
-      and a prior global cache event with permissions exists.
+    \item \textbf{noGlobalCache}: the global cache already has permissions
+      (so no global directory access), and a prior global cache event with permissions exists.
   \end{itemize}
+  These are the two cases of the inductive `Behaviour.Shim.ClusterToGlobal'.
 \end{definition}
 
 \begin{definition}[Global to Cluster Propagation Shim (Shim Axiom 2)]
@@ -348,8 +374,13 @@ they satisfy a compound linearization order.
   (Line 903 in BehaviourShim.lean.)
   Downgrades at a global cache are translated to cluster directory accesses.
   The translation depends on whether the cluster protocol has both coherent
-  write and read, or only non-coherent reads.
+  write and read (an SWMR protocol), or only non-coherent reads (a RCC-style protocol).
+  This is reflected in the inductive `Behaviour.Shim.GlobalToCluster'.
 \end{definition}
+
+% ============================================================
+\section{Ordered Before and Encapsulates Relations}
+% ============================================================
 
 \begin{definition}[Ordered Before]
   \label{def:OrderedBefore}
@@ -357,6 +388,7 @@ they satisfy a compound linearization order.
   \leanok
   An event $e_1$ is \emph{ordered before} $e_2$ if $e_1$ completes before $e_2$
   starts: $e_1.\mathrm{oEnd} < e_2.\mathrm{oStart}$.
+  This is defined on line 12 in EventRelations.lean as `Event.OrderedBefore'.
 \end{definition}
 
 \begin{definition}[Encapsulates]
@@ -366,7 +398,12 @@ they satisfy a compound linearization order.
   An event $e_1$ \emph{encapsulates} $e_2$ if $e_1$ starts before $e_2$ starts and
   $e_2$ ends before $e_1$ ends:
   $e_1.\mathrm{oStart} < e_2.\mathrm{oStart} \;\wedge\; e_2.\mathrm{oEnd} < e_1.\mathrm{oEnd}$.
+  This is defined on line 6 in EventRelations.lean as `Event.Encapsulates.
 \end{definition}
+
+% ============================================================
+\section{Compound Protocol}
+% ============================================================
 
 \begin{definition}[Compound Protocol]
   \label{def:CompoundProtocol}
@@ -383,6 +420,10 @@ they satisfy a compound linearization order.
       and weak write / non-coherent release pairs cannot both linearize at cache.
   \end{itemize}
 \end{definition}
+
+% ============================================================
+\section{Compound (Global) Linearization Order}
+% ============================================================
 
 \begin{definition}[Lazy Compound Linearization Order]
   \label{def:lazyCompoundLinearizationOrder}
@@ -407,7 +448,7 @@ they satisfy a compound linearization order.
 \end{definition}
 
 % ============================================================
-\section{Auxiliary Structures}
+\section{Auxiliary Definitions Organized in Structures}
 % ============================================================
 
 \begin{definition}[Coherent Write Succeeded by Directory Request]
