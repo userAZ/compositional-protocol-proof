@@ -3054,7 +3054,6 @@ lemma diffCache_coherent_encapProxyAndDir
     existsRClusterProxy := hproxy
     existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, hcle_encap_dir⟩
     clusterDirDownFromProxy := by
-      -- Need to find a proxy event and show it satisfies clusterDirDown with e_dir.
       -- The proxy is the shim's acquire event (e_shim_acq from globalReadDownOnDirSW).
       -- Case-split on GlobalToCluster to correlate e_dir with the shim's directory event.
       -- Then instantiate coherentReq or nonCoherentReq from cluster-level axioms.
