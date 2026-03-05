@@ -204,7 +204,15 @@ inductive Behaviour.gdown.clusterDirDown
   (hfwd : b.nonCoherentReqOnSWDowngradeOthers n e_r_proxy e_r_cdir_down init)
   : clusterDirDown n b init e_r_proxy e_r_cdir_down
 
-/-- Specifically gdown when cdir is SW (Coherent Write). Then downgrade the e_w cache. -/
+/-- The full read-from-write downgrade chain: e_r's read triggers a global downgrade at
+    e_w's cluster, producing a proxy event that causes a cluster directory downgrade.
+    The chain: e_r_cle ≻ e_r_cle_gcache ≻ e_r_gle ≻ e_r_gdown ≻ e_r_proxy ≻ e_r_cdir_down.
+
+    Fields:
+    - existsRGlobalDown: global downgrade at previous owner (from Axiom 10 at global level)
+    - existsRClusterProxy: cluster proxy translation (GlobalToCluster shim, onDirSW case)
+    - existsRClusterDirDown: cluster directory downgrade event at e_w's protocol
+    - clusterDirDownFromProxy: proxy triggers coherentReq or nonCoherentReq downgrade -/
 structure Behaviour.gdown.encapProxyAndDir (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
   (e_w : Event n)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
@@ -362,7 +370,9 @@ def CompoundProtocol.cleImmediatePredecessor
 /-- When the write is coherent and at a different cache from the read,
     either the CLE of e_w immediately precedes the CLE of e_r (so the
     downgrade chain is constructed from CLE immediate predecessor),
-    or the more general wHasPermsAfter.case applies (noEvict/evict subcases). -/
+    or the more general wHasPermsAfter.case applies (noEvict/evict subcases).
+    In both cases, the coherent write triggers a downgrade, producing a
+    cluster directory event at e_w's protocol encapsulated by e_r's CLE. -/
 inductive WriteRead.wObRCle.diffCache.wCoherent.case
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
@@ -371,6 +381,7 @@ inductive WriteRead.wObRCle.diffCache.wCoherent.case
   : Prop
 | immPred
   (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  (hencapPD : Behaviour.gdown.encapProxyAndDir cmp b init e_w hr_c_and_g_lin)
   : WriteRead.wObRCle.diffCache.wCoherent.case hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 | notImmPred
   (hw_has_perms_case : WriteRead.wObRCle.diffCache.wHasPermsAfter.case cmp b init

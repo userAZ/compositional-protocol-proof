@@ -42,7 +42,11 @@ lemma evictOrReadBtn_diffCache_noEvictBetween_noEvict
   (hw_coherent : e_w.isCoherent)
   (hencapPDC : Behaviour.gdown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin)
   : Event.Between.noEvict b e_w hencapPDC.existsRDownAtW.choose := by
-  sorry
+  exfalso
+  have h := hevict_or_read_between.interDirEvictOrRead
+    hw_c_and_g_lin.hreq's_dir_access.choose
+    hw_c_and_g_lin.hreq's_dir_access.choose_spec.left
+  exact Event.contradiction_of_reflexive_ordered_before n h.betweenWR.pred
 
 /-- Helper: Every intervening write between e_w and e_r_down falls into one of the three
     excludeOtherWrites cases. With evictOrReadBetween, intermediate directory events are
@@ -96,14 +100,11 @@ lemma evictOrReadBtn_diffCache_noEvictBetween_noWrite
     · -- Different cluster → otherWDiffCluster
       exact .otherWDiffCluster {
         interCleNotBetween := by
-          -- Need: ¬ ∃ e_inter_down, dirWriteDowngradeFromDiffCluster ∧ OrderedBetween
-          -- An e_inter_down from diff cluster would be a dir write-downgrade at e_w's protocol,
-          -- between e_w_cle and e_r_cdir_down. By interDirEvictOrRead from evictOrReadBetween,
-          -- all dir events between e_w_cle and e_r_cle are dir-reads. Since e_r_cdir_down is
-          -- encapsulated by e_r_cle, e_inter_down between e_w_cle and e_r_cdir_down should also
-          -- be constrained. However, the precise ordering relationship between e_r_cdir_down and
-          -- e_r_cle needs further analysis.
-          sorry
+          exfalso
+          have h := hevict_or_read_between.interDirEvictOrRead
+            hw_c_and_g_lin.hreq's_dir_access.choose
+            hw_c_and_g_lin.hreq's_dir_access.choose_spec.left
+          exact Event.contradiction_of_reflexive_ordered_before n h.betweenWR.pred
       }
 
 /-- Construct the noEvictBetween.cond for the evictOrReadBetween case.
@@ -148,7 +149,11 @@ lemma evictOrReadBtn_diffCache_evictBetween_noWriteBtn
       hw_c_and_g_lin.hreq's_dir_access.choose
       hencapPD.existsRClusterDirDown.choose
       hknow_dir_access := by
-  sorry
+  exfalso
+  have h := hevict_or_read_between.interDirEvictOrRead
+    hw_c_and_g_lin.hreq's_dir_access.choose
+    hw_c_and_g_lin.hreq's_dir_access.choose_spec.left
+  exact Event.contradiction_of_reflexive_ordered_before n h.betweenWR.pred
 
 /-- e_w_cle is ordered before e_r_cdir_down.
     With evictOrReadBetween, we have e_w_cle ordered before e_r_cle (from wObR).
