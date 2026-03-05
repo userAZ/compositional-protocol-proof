@@ -191,17 +191,35 @@ def Event.getProtocol (cmp : CompoundProtocol n) (e : Event n) : Protocol n :=
   | .cluster1 => cmp.cluster1
   | .cluster2 => cmp.cluster2
 
+/-- Cases for how the proxy request at the cluster directory generates a downgrade to the owner.
+    Two cases: coherent request (fwdCoherentRequestToOwner) or non-coherent request
+    (nonCoherentReqOnSWDowngradeOthers). In the coherent-write e_w case, the coherent case
+    can be contradicted since e_w is a coherent write (owner), not the requesting proxy. -/
+inductive Behaviour.gdown.clusterDirDown
+  (n : ℕ) (b : Behaviour n) (init : InitialSystemState n) (e_r_proxy e_r_cdir_down : Event n) : Prop
+| coherentReq
+  (hfwd : b.fwdCoherentRequestToOwner n init e_r_proxy e_r_cdir_down)
+  : clusterDirDown n b init e_r_proxy e_r_cdir_down
+| nonCoherentReq
+  (hfwd : b.nonCoherentReqOnSWDowngradeOthers n e_r_proxy e_r_cdir_down init)
+  : clusterDirDown n b init e_r_proxy e_r_cdir_down
+
+/-- Specifically gdown when cdir is SW (Coherent Write). Then downgrade the e_w cache. -/
 structure Behaviour.gdown.encapProxyAndDir (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
   (e_w : Event n)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   : Prop where
   existsRGlobalDown : ∃ e_r_gdown ∈ b, ∃ e_r_grant ∈ b,
     Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init hr_c_and_g_lin e_r_gdown e_r_grant
+  /-- e_r is a read, so only the globalReadDownOnDirSW case of the GlobalToCluster shim applies.
+      (The globalWriteDownOnDirSW case would only apply for intervening writes, which are excluded.) -/
   existsRClusterProxy :
-    ∃ e_r_proxy ∈ b, e_r_proxy.protocol = e_w.protocol ∧ e_r_proxy.isClusterCache
+    Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirSW.wrapper n b init existsRGlobalDown.choose
   existsRClusterDirDown :
     ∃ e_r_cdir_down ∈ b, e_r_cdir_down.isDirectoryEvent ∧ e_r_cdir_down.protocol = e_w.protocol ∧
       hr_c_and_g_lin.hreq's_dir_access.choose.Encapsulates n e_r_cdir_down
+  clusterDirDownFromProxy : ∃ e_r_proxy ∈ b,
+    Behaviour.gdown.clusterDirDown n b init e_r_proxy existsRClusterDirDown.choose
 
 structure Behaviour.gdown.encapProxyAndDirAndCDown {cmp : CompoundProtocol n}
   {b : Behaviour n} {init : InitialSystemState n}
