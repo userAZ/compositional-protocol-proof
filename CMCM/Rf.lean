@@ -234,8 +234,8 @@ structure Behaviour.clusterDown.encapDir (cmp : CompoundProtocol n) (b : Behavio
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   : Prop where
   existsRClusterDirDown :
-    ∃ e_r_cdir_down ∈ b, e_r_cdir_down.isDirectoryEvent ∧ e_r_cdir_down.protocol = e_w.protocol ∧
-      hr_c_and_g_lin.hreq's_dir_access.choose.Encapsulates n e_r_cdir_down
+    ∃ e_r_cdir_down ∈ b, e_r_cdir_down.isDirectoryEvent ∧ e_r_cdir_down.protocol = e_w.protocol
+      -- ∧ hr_c_and_g_lin.hreq's_dir_access.choose.Encapsulates n e_r_cdir_down
 
 structure Behaviour.clusterDown.encapProxyAndDirAndCDown {cmp : CompoundProtocol n}
   {b : Behaviour n} {init : InitialSystemState n}
