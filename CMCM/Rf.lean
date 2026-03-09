@@ -221,13 +221,17 @@ structure Behaviour.gdown.encapProxyAndDir (cmp : CompoundProtocol n) (b : Behav
     Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init hr_c_and_g_lin e_r_gdown e_r_grant
   /-- e_r is a read, so only the globalReadDownOnDirSW case of the GlobalToCluster shim applies.
       (The globalWriteDownOnDirSW case would only apply for intervening writes, which are excluded.) -/
-  existsRClusterProxy :
-    Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirSW.wrapper n b init existsRGlobalDown.choose
+  -- existsRClusterProxy :
+  --   Behaviour.Shim.GlobalToCluster n b init (existsRGlobalDown.choose.getProtocol cmp) existsRGlobalDown.choose
   existsRClusterDirDown :
-    ∃ e_r_cdir_down ∈ b, e_r_cdir_down.isDirectoryEvent ∧ e_r_cdir_down.protocol = e_w.protocol ∧
-      hr_c_and_g_lin.hreq's_dir_access.choose.Encapsulates n e_r_cdir_down
-  clusterDirDownFromProxy : ∃ e_r_proxy ∈ b,
-    Behaviour.gdown.clusterDirDown n b init e_r_proxy existsRClusterDirDown.choose
+    Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init existsRGlobalDown.choose SW
+      → ∃ e_r_cdir_down ∈ b, e_r_cdir_down.isDirectoryEvent ∧ e_r_cdir_down.protocol = e_w.protocol ∧
+        hr_c_and_g_lin.hreq's_dir_access.choose.Encapsulates n e_r_cdir_down
+  dirSWImplDown :
+    Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init existsRGlobalDown.choose SW
+    → ∃ e_r_proxy ∈ b, Behaviour.gdown.clusterDirDown n b init e_r_proxy existsRClusterDirDown.choose
+  -- clusterDirDownFromProxy : ∃ e_r_proxy ∈ b,
+  --   Behaviour.gdown.clusterDirDown n b init e_r_proxy existsRClusterDirDown.choose
 
 structure Behaviour.gdown.encapProxyAndDirAndCDown {cmp : CompoundProtocol n}
   {b : Behaviour n} {init : InitialSystemState n}
