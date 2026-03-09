@@ -40,7 +40,7 @@ lemma evictOrReadBtn_diffCache_noEvictBetween_noEvict
   (hevict_or_read_between : CLE.WROrdering.evictOrReadBetween hw_c_and_g_lin hr_c_and_g_lin)
   (hdiff_cache : e_w.struct ≠ e_r.struct)
   (hw_coherent : e_w.isCoherent)
-  (hencapPDC : Behaviour.gdown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin)
+  (hencapPDC : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin)
   : Event.Between.noEvict b e_w hencapPDC.existsRDownAtW.choose := by
   exfalso
   have h := hevict_or_read_between.interDirEvictOrRead
@@ -60,10 +60,10 @@ lemma evictOrReadBtn_diffCache_noEvictBetween_noWrite
   (hevict_or_read_between : CLE.WROrdering.evictOrReadBetween hw_c_and_g_lin hr_c_and_g_lin)
   (hdiff_cache : e_w.struct ≠ e_r.struct)
   (hw_coherent : e_w.isCoherent)
-  (hencapPDC : Behaviour.gdown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin)
+  (hencapPDC : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin)
   : Event.Between.noWrite b init e_w hencapPDC.existsRDownAtW.choose
       hw_c_and_g_lin.hreq's_dir_access.choose
-      hencapPDC.encapProxyAndDir.existsRClusterDirDown.choose := by
+      hencapPDC.encapDir.existsRClusterDirDown.choose := by
   -- noWrite quantifies over all cluster cache writes (not down).
   -- For each e_inter, case-split on same cache / diff cache same cluster / diff cluster.
   -- In same cache and diff-cache-same-cluster cases, pick e_w_cle as the existential
@@ -120,11 +120,11 @@ lemma evictOrReadBtn_diffCache_noEvictBetween_cond
   (hevict_or_read_between : CLE.WROrdering.evictOrReadBetween hw_c_and_g_lin hr_c_and_g_lin)
   (hdiff_cache : e_w.struct ≠ e_r.struct)
   (hw_coherent : e_w.isCoherent)
-  (hencapPDC : Behaviour.gdown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin)
+  (hencapPDC : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin)
   : WriteRead.noEvictBetween.cond b init
       e_w hencapPDC.existsRDownAtW.choose
       hw_c_and_g_lin.hreq's_dir_access.choose
-      hencapPDC.encapProxyAndDir.existsRClusterDirDown.choose := {
+      hencapPDC.encapDir.existsRClusterDirDown.choose := {
     wObRDown := hencapPDC.existsRDownAtW.choose_spec.right.right.right
     noEvictBtn := evictOrReadBtn_diffCache_noEvictBetween_noEvict hw_is_write hr_is_read
       hw_c_and_g_lin hr_c_and_g_lin hevict_or_read_between hdiff_cache hw_coherent hencapPDC
@@ -143,7 +143,7 @@ lemma evictOrReadBtn_diffCache_evictBetween_noWriteBtn
   (hevict_or_read_between : CLE.WROrdering.evictOrReadBetween hw_c_and_g_lin hr_c_and_g_lin)
   (hdiff_cache : e_w.struct ≠ e_r.struct)
   (hw_coherent : e_w.isCoherent)
-  (hencapPD : Behaviour.gdown.encapProxyAndDir cmp b init e_w hr_c_and_g_lin)
+  (hencapPD : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   : Event.Between.noDirWrite cmp b init
       hw_c_and_g_lin.hreq's_dir_access.choose
@@ -164,7 +164,7 @@ lemma evictOrReadBtn_diffCache_evictBetween_wObRDown
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (hevict_or_read_between : CLE.WROrdering.evictOrReadBetween hw_c_and_g_lin hr_c_and_g_lin)
-  (hencapPD : Behaviour.gdown.encapProxyAndDir cmp b init e_w hr_c_and_g_lin)
+  (hencapPD : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin)
   : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n
       hencapPD.existsRClusterDirDown.choose := by
   -- e_w_cle < e_r_cle (from evictOrReadBetween.wObR)
@@ -187,7 +187,7 @@ lemma evictOrReadBtn_diffCache_evictBetween_cond
   (hevict_or_read_between : CLE.WROrdering.evictOrReadBetween hw_c_and_g_lin hr_c_and_g_lin)
   (hdiff_cache : e_w.struct ≠ e_r.struct)
   (hw_coherent : e_w.isCoherent)
-  (hencapPD : Behaviour.gdown.encapProxyAndDir cmp b init e_w hr_c_and_g_lin)
+  (hencapPD : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   (hno_cdown : ¬ ∃ e_r_down ∈ b,
     e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down)
@@ -228,8 +228,8 @@ lemma evictOrReadBtn_diffCache_coherent_wHasPermsAfter_case
   by_cases hcdown : ∃ e_r_down ∈ b,
     e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down
   · -- noEvictBetween: downgrade reaches e_w's cache directly
-    let hencapPDC : Behaviour.gdown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin :=
-      { encapProxyAndDir := hencapPD, existsRDownAtW := hcdown }
+    let hencapPDC : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin :=
+      { encapDir := hencapPD, existsRDownAtW := hcdown }
     exact .noEvictBetween {
       gdownEncapProxyAndDirAndCDown := hencapPDC
       noEvictBetween := evictOrReadBtn_diffCache_noEvictBetween_cond hw_is_write hr_is_read

@@ -3011,9 +3011,9 @@ lemma diffCache_coherent_encapProxyAndDir
   (_hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache)
-  : Behaviour.gdown.encapProxyAndDir cmp b init e_w hr_c_and_g_lin := by
+  : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin := by
   have hgdown := diffCache_coherent_globalDowngrade hr_c_and_g_lin
-  obtain ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, he_r_grant_in_b, hdowngrade⟩ := hgdown
+  obtain ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b, hdowngrade⟩ := hgdown
   have hg2c := cmp.shimAxioms.globalToCluster b init (e_w.getProtocol cmp) e_r_gdown he_r_gdown_in_b
   have hp_eq := Event.getProtocol_pi cmp e_w
   -- Extract directory event with encapsulation: e_r_gdown ≻ e_dir
