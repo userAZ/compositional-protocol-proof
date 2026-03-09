@@ -2793,6 +2793,21 @@ lemma no_dir_write_between_same_cache
       ⟨⟨hdiff_w, hdiff_r⟩, hdown_proto_w, hcdir_write, hcdir_down, hcdir_dir, hcdir_encap⟩,
       hcdir_between⟩
 
+/-- Extract `sameReq` from `downgradeCorrespondingToRequest`: the downgrade event carries
+    the same request as the requesting event. Both events must be cache events (otherwise
+    `downgradeCorrespondingToRequest` is `False`). -/
+private lemma downgradeCorrespondingToRequest_sameReq
+  {e₁ e₂ : Event n}
+  (hfwd : e₁.downgradeCorrespondingToRequest n e₂)
+  : e₁.req = e₂.req := by
+  unfold Event.downgradeCorrespondingToRequest at hfwd
+  cases e₁ with
+  | cacheEvent ce₁ =>
+    cases e₂ with
+    | cacheEvent ce₂ => exact hfwd.sameReq
+    | directoryEvent _ => exact absurd hfwd (by simp)
+  | directoryEvent _ => exact absurd hfwd (by simp)
+
 /-- The read's GLE at the global level triggers a downgrade of the previous owner.
     Uses protocol Axiom 10 (coherent read directory downgrades others) at the global level. -/
 lemma diffCache_coherent_globalDowngrade
@@ -2995,11 +3010,8 @@ lemma cle_encapsulates_cDirsGReq_wrapper
     exact hreq.choose_spec.right.dirEncapGCache.encapGlobalCache
 
 /-- Construct the global and cluster level downgrade chain from e_r's GLE to e_w's cluster.
-    This produces existential witnesses for:
-    - e_r_gdown, e_r_grant: global downgrade at previous owner (from `diffCache_coherent_globalDowngrade`)
-    - e_r_proxy: cluster proxy at e_w's protocol (from `globalToCluster_extract_proxy_and_dir`)
-    - e_r_cdir_down: cluster directory downgrade at e_w's protocol, with proof that
-      e_r's CLE encapsulates e_r_cdir_down (full encapsulation chain)
+    Produces the existential witness for `existsRClusterDirDown`: a cluster directory event
+    at e_w's protocol, encapsulated by e_r's CLE.
 
     The chain:
     1. `diffCache_coherent_globalDowngrade` → Axiom 10 at global level → downgrade at previous owner
@@ -3030,32 +3042,4 @@ lemma diffCache_coherent_encapProxyAndDir
   -- Chain: e_r_cle ≻ e_r_gdown ≻ e_dir
   have hcle_encap_dir : hr_c_and_g_lin.hreq's_dir_access.choose.Encapsulates n e_dir :=
     Trans.trans (Trans.trans (Trans.trans hstep1 hstep2) hstep3) he_gdown_encap_dir
-  -- Build existsRGlobalDown first, then extract its .choose for existsRClusterProxy
-  let hexists_gdown : ∃ e_r_gdown ∈ b, ∃ e_r_grant ∈ b,
-    Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init hr_c_and_g_lin e_r_gdown e_r_grant :=
-    ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, he_r_grant_in_b, hdowngrade⟩
-  -- Obtain GlobalToCluster shim for the chosen witness
-  have hg2c' := cmp.shimAxioms.globalToCluster b init (e_w.getProtocol cmp)
-    hexists_gdown.choose hexists_gdown.choose_spec.left
-  -- Extract globalReadDownOnDirSW.wrapper for the chosen witness
-  have hproxy : Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirSW.wrapper
-      n b init hexists_gdown.choose := by
-    cases hg2c' with
-    | noCoherentRead _ _ dt =>
-      cases dt with
-      | scReadDowngrade _ _ t =>
-        cases t with
-        | onDirSW _ trans => exact trans
-        | onDirVd _ _ => sorry -- dir state is SW (from prior coherent write), not Vd
-      | scWriteDowngrade _ _ => sorry -- e_r is a read, global downgrade is read downgrade
-    | bothCoherentWriteAndRead _ _ _ => sorry -- protocol has noCoherentRead
-  exact {
-    existsRGlobalDown := hexists_gdown
-    existsRClusterProxy := hproxy
-    existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, hcle_encap_dir⟩
-    clusterDirDownFromProxy := by
-      -- The proxy is the shim's acquire event (e_shim_acq from globalReadDownOnDirSW).
-      -- Case-split on GlobalToCluster to correlate e_dir with the shim's directory event.
-      -- Then instantiate coherentReq or nonCoherentReq from cluster-level axioms.
-      sorry
-  }
+  exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, hcle_encap_dir⟩ }
