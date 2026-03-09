@@ -20,6 +20,13 @@ noncomputable def Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper {e_creq : Ev
   (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (hexists_cdir : ∃ e_cdir ∈ b, b.dirAccessOfRequest n init e_creq e_cdir) : Event n :=
   Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init hexists_cdir.choose hexists_cdir.choose_spec.right.isDirEvent
 
+/-- No valid request's MRS is ≤ I, since all MRS values have `some` permissions but `I.p = none`. -/
+private lemma ValidRequest.MRS_not_le_I (vr : ValidRequest) : ¬ (vr.MRS ≤ I) := by
+  obtain ⟨⟨rw, coh, cons⟩, hvalid⟩ := vr
+  cases rw <;> cases coh <;> cases cons <;> simp [Request.IsValid'] at hvalid <;>
+    simp [ValidRequest.MRS, ReadWrite.toPerms, ReadWrite.toRWPerms,
+      LE.le, State.le, LT.lt, State.lt, I, Vc, Vd, Option.le]
+
 /-- If a cluster directory event has global cache permissions, then
 `immediateFinishesBeforeAtGlobalCacheNotEncapEvents` is nonempty.
 Proof: If the set is empty, `globalCacheStateOfDirectoryEvent` returns the init cache state (`I`).
@@ -28,7 +35,24 @@ lemma Behaviour.hasPermsInGlobalCache_implies_nonempty_immFinishBefore
   (b : Behaviour n) (init : InitialSystemState n) (e_cdir : Event n)
   (hcdir_has_gperms : b.clusterDirHasPermsInGlobalCache n init e_cdir)
   : Nonempty (b.immediateFinishesBeforeAtGlobalCacheNotEncapEvents n e_cdir) := by
-  sorry
+  by_contra h
+  -- When ¬ Nonempty, Set.toOption = none, so globalCacheStateOfDirectoryEvent
+  -- returns init.entryStateAtStruct, whose .state is init.cacheStates gcid
+  let gcid := e_cdir.globalCidCorrespondingToClusterDir n
+  -- All initial cache states are I (from Behaviour axiom)
+  have h_init_I : init.cacheStates gcid = I := by
+    let dummy_occ : Occurrence := ⟨0, 1, by omega⟩
+    have := b.initCacheStateIsI (.cacheEvent
+      ⟨dummy_occ, 0, 1, dummy_occ.oWellFormed, SCWrite, default, gcid, 0, false, none, 0⟩) init rfl
+    simp only [InitialSystemState.stateAt, IEntry, Sum.inl.injEq] at this
+    exact this
+  -- Unfold the definition chain and substitute
+  unfold clusterDirHasPermsInGlobalCache globalCacheStateOfDirectoryEvent
+    stateOfSubsingletonEventSet at hcdir_has_gperms
+  simp only [Set.toOption, h, ↓reduceDIte, Behaviour.eventToEntryState,
+    InitialSystemState.entryStateAtStruct, EntryState.state] at hcdir_has_gperms
+  rw [h_init_I] at hcdir_has_gperms
+  exact absurd hcdir_has_gperms (ValidRequest.MRS_not_le_I _)
 
 lemma Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB
   (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (hexists_cdir : ∃ e_cdir ∈ b, b.dirAccessOfRequest n init e_creq e_cdir)
