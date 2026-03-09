@@ -2552,10 +2552,11 @@ lemma cluster_dirs_to_same_global_dir_have_same_protocol
     cases hshim : cmp.shimAxioms.clusterToGlobal b init hw_cle hw_cle_is_dir with
     | encapGlobalCache _ hreq =>
       simpa [hshim] using hreq.choose_spec.right.gReqOfCDir.gReq
-    | noGlobalCache _ hreq =>
-      -- noGlobalCache: gcache is from getLatestGlobalCacheEventOfClusterDirectoryEvent
-      -- which has gCacheOfCDir from immediateFinishesBeforeAtGlobalCacheNotEncap
-      sorry
+    | noGlobalCache hhas_perms _ =>
+      simp [hshim, Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent]
+      split
+      · case isTrue h => exact h.some.prop.2.finishBefore.gCacheOfCDir
+      · case isFalse h => exact absurd (Behaviour.hasPermsInGlobalCache_implies_nonempty_immFinishBefore b init _ hhas_perms) h
 
   have hr_cle_corr_gcache : Event.reqAtCorrespondingGCacheOfCDir n hr_cle hr_gcache := by
     rw [hr_gcache_eq]
@@ -2563,10 +2564,11 @@ lemma cluster_dirs_to_same_global_dir_have_same_protocol
     cases hshim : cmp.shimAxioms.clusterToGlobal b init hr_cle hr_cle_is_dir with
     | encapGlobalCache _ hreq =>
       simpa [hshim] using hreq.choose_spec.right.gReqOfCDir.gReq
-    | noGlobalCache _ hreq =>
-      -- noGlobalCache: gcache is from getLatestGlobalCacheEventOfClusterDirectoryEvent
-      -- which has gCacheOfCDir from immediateFinishesBeforeAtGlobalCacheNotEncap
-      sorry
+    | noGlobalCache hhas_perms _ =>
+      simp [hshim, Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent]
+      split
+      · case isTrue h => exact h.some.prop.2.finishBefore.gCacheOfCDir
+      · case isFalse h => exact absurd (Behaviour.hasPermsInGlobalCache_implies_nonempty_immFinishBefore b init _ hhas_perms) h
 
   -- Same translated global-cache struct forces same corresponding cluster protocol.
   cases hw_cle with
@@ -3010,9 +3012,10 @@ lemma cle_encapsulates_cDirsGReq_wrapper
     hexists_cdir.choose_spec.right.isDirEvent with
   | encapGlobalCache _ hreq =>
     exact hreq.choose_spec.right.encapGlobalCache
-  | noGlobalCache _ hreq =>
-    -- noGlobalCache: CLE does NOT encapsulate gcache (by definition).
-    -- This chain needs restructuring for the noGlobalCache case.
+  | noGlobalCache hhas_perms hno_encap =>
+    -- noGlobalCache: CLE does NOT encapsulate gcache (by definition of finishesBeforeNotEncap).
+    -- The encapsulation chain CLE ≻ gcache ≻ GLE ≻ gdown ≻ dir_down needs restructuring
+    -- for the noGlobalCache case, where CLE has perms and there is no encapsulated gcache.
     sorry
 
 /-- Construct the global and cluster level downgrade chain from e_r's GLE to e_w's cluster.

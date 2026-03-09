@@ -20,6 +20,16 @@ noncomputable def Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper {e_creq : Ev
   (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (hexists_cdir : ∃ e_cdir ∈ b, b.dirAccessOfRequest n init e_creq e_cdir) : Event n :=
   Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init hexists_cdir.choose hexists_cdir.choose_spec.right.isDirEvent
 
+/-- If a cluster directory event has global cache permissions, then
+`immediateFinishesBeforeAtGlobalCacheNotEncapEvents` is nonempty.
+Proof: If the set is empty, `globalCacheStateOfDirectoryEvent` returns the init cache state (`I`).
+`MRS ≤ I` is impossible for any valid request, contradicting `hcdir_has_gperms`. -/
+lemma Behaviour.hasPermsInGlobalCache_implies_nonempty_immFinishBefore
+  (b : Behaviour n) (init : InitialSystemState n) (e_cdir : Event n)
+  (hcdir_has_gperms : b.clusterDirHasPermsInGlobalCache n init e_cdir)
+  : Nonempty (b.immediateFinishesBeforeAtGlobalCacheNotEncapEvents n e_cdir) := by
+  sorry
+
 lemma Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB
   (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (hexists_cdir : ∃ e_cdir ∈ b, b.dirAccessOfRequest n init e_creq e_cdir)
   : Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init (hexists_cdir) ∈ b
@@ -28,17 +38,12 @@ lemma Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB
   cases cmp.shimAxioms.clusterToGlobal b init hexists_cdir.choose hexists_cdir.choose_spec.right.isDirEvent
   . case encapGlobalCache _ hexists_global_access => simp[hexists_global_access.choose_spec]
   . case noGlobalCache hcdir_has_gperms hno_gcache_encap =>
-    -- getLatestGlobalCacheEventOfClusterDirectoryEvent returns an event from {e_pred ∈ b | ...}
     simp [Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent]
     split
     · case isTrue h =>
       exact h.some.prop.1
     · case isFalse h =>
-      -- TODO NOTE: show a contradiction. Show that for e_cdir to have permissions, (from `hcdir_has_gperms`)
-      -- there must be a cache event (since by the init state axiom, where there are no cache events, the perms is `I`).
-      -- So there must be a global cache request event.
-      -- Extract this reasoning into a lemma if needed for other lemmas/proofs.
-      exact absurd (by sorry) h -- nonemptiness of the set
+      exact absurd (Behaviour.hasPermsInGlobalCache_implies_nonempty_immFinishBefore b init _ hcdir_has_gperms) h
 
 /-- The Cluster Memory Order and Global Memory Order events (or Cluster Linearization Event CLE and Global Linearization Event GLE).
 Note these terms are different from the PPO Linearization event of a request event from the PPO ordering proof.
