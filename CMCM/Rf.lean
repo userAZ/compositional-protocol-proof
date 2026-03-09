@@ -14,10 +14,7 @@ noncomputable def Behaviour.Shim.ClusterToGlobal.cDir'sGReq
   : Event n :=
   match (cmp.shimAxioms.clusterToGlobal b init e_cdir hcdir_is_dir) with
   | .encapGlobalCache _ hgreq_spec_no_perms => hgreq_spec_no_perms.choose
-  | .noGlobalCache _ hgreq_spec_has_perms =>
-    -- use `Behaviour.globalCacheStateOfDirectoryEvent` to show there exists a previous global cache event `e_gcache` that got perms for `e_cdir`.
-    -- Use `e_gcache`.
-    sorry
+  | .noGlobalCache _ _ => b.getLatestGlobalCacheEventOfClusterDirectoryEvent n e_cdir
 
 noncomputable def Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper {e_creq : Event n}
   (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (hexists_cdir : ∃ e_cdir ∈ b, b.dirAccessOfRequest n init e_creq e_cdir) : Event n :=
@@ -30,10 +27,13 @@ lemma Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB
   simp[wrapper, cDir'sGReq]
   cases cmp.shimAxioms.clusterToGlobal b init hexists_cdir.choose hexists_cdir.choose_spec.right.isDirEvent
   . case encapGlobalCache _ hexists_global_access => simp[hexists_global_access.choose_spec]
-  . case noGlobalCache _ hgreq_spec_has_perms =>
-    -- use `Behaviour.globalCacheStateOfDirectoryEvent` to show there exists a previous global cache event `e_gcache` in b, that got perms for `e_cdir`.
-    -- Use `e_gcache` in b.
-    simp[hexists_global_access.choose_spec]
+  . case noGlobalCache _ hno_gcache_encap =>
+    -- getLatestGlobalCacheEventOfClusterDirectoryEvent returns an event from {e_pred ∈ b | ...}
+    simp [Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent]
+    split
+    · case isTrue h =>
+      exact h.some.prop.1
+    · case isFalse h => exact absurd (by sorry) h -- nonemptiness of the set
 
 /-- The Cluster Memory Order and Global Memory Order events (or Cluster Linearization Event CLE and Global Linearization Event GLE).
 Note these terms are different from the PPO Linearization event of a request event from the PPO ordering proof.
