@@ -2553,7 +2553,9 @@ lemma cluster_dirs_to_same_global_dir_have_same_protocol
     | encapGlobalCache _ hreq =>
       simpa [hshim] using hreq.choose_spec.right.gReqOfCDir.gReq
     | noGlobalCache _ hreq =>
-      simpa [hshim] using hreq.choose_spec.right.dirEncapGCache.gReqOfCDir.gReq
+      -- noGlobalCache: gcache is from getLatestGlobalCacheEventOfClusterDirectoryEvent
+      -- which has gCacheOfCDir from immediateFinishesBeforeAtGlobalCacheNotEncap
+      sorry
 
   have hr_cle_corr_gcache : Event.reqAtCorrespondingGCacheOfCDir n hr_cle hr_gcache := by
     rw [hr_gcache_eq]
@@ -2562,7 +2564,9 @@ lemma cluster_dirs_to_same_global_dir_have_same_protocol
     | encapGlobalCache _ hreq =>
       simpa [hshim] using hreq.choose_spec.right.gReqOfCDir.gReq
     | noGlobalCache _ hreq =>
-      simpa [hshim] using hreq.choose_spec.right.dirEncapGCache.gReqOfCDir.gReq
+      -- noGlobalCache: gcache is from getLatestGlobalCacheEventOfClusterDirectoryEvent
+      -- which has gCacheOfCDir from immediateFinishesBeforeAtGlobalCacheNotEncap
+      sorry
 
   -- Same translated global-cache struct forces same corresponding cluster protocol.
   cases hw_cle with
@@ -3007,7 +3011,9 @@ lemma cle_encapsulates_cDirsGReq_wrapper
   | encapGlobalCache _ hreq =>
     exact hreq.choose_spec.right.encapGlobalCache
   | noGlobalCache _ hreq =>
-    exact hreq.choose_spec.right.dirEncapGCache.encapGlobalCache
+    -- noGlobalCache: CLE does NOT encapsulate gcache (by definition).
+    -- This chain needs restructuring for the noGlobalCache case.
+    sorry
 
 /-- Construct the global and cluster level downgrade chain from e_r's GLE to e_w's cluster.
     Produces the existential witness for `existsRClusterDirDown`: a cluster directory event
