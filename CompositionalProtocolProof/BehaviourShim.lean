@@ -110,19 +110,21 @@ def Behaviour.clusterDirHasPermsInGlobalCache (b : Behaviour n) (init : InitialS
 def Behaviour.existsGlobalCacheAccessOfDirEvent (b : Behaviour n) (e_dir : Event n) : Prop :=
   ∃ e_greq ∈ b, Event.clusterDirEncapCorrespondingGlobalCache n b e_dir e_greq
 
-/-
+-- /-
 def Event.clusterDirNotEncapCorrespondingGlobalCache (b : Behaviour n) (e_dir : Event n) : Prop :=
   ∀ e_gcache ∈ b, e_dir.reqAtCorrespondingGCacheOfCDir n e_gcache →
     e_gcache.isGlobalCache → ¬ e_dir.Encapsulates n e_gcache
--/
+-- -/
 
 -- Prove rf relation.
+/-
 structure Event.clusterDirEncapsulatesGlobalCacheWithPerms (b : Behaviour n) (init : InitialSystemState n) (e_dir e_greq : Event n) : Prop where
   dirEncapGCache : Event.clusterDirEncapCorrespondingGlobalCache n b e_dir e_greq
   gCacheHasPerms : b.hasPerms n init e_greq
 
 def Event.existsGlobalCacheAccessOfDirEventWithPerms (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n) : Prop :=
   ∃ e_greq ∈ b, Event.clusterDirEncapsulatesGlobalCacheWithPerms n b init e_dir e_greq
+-/
 
 /-- (Shim) Axiom 15: Cluster Directory Events are translated to Request Events at the corresponding Cache in the Global Protocol. -/
 inductive Behaviour.Shim.ClusterToGlobal (b : Behaviour n) (init : InitialSystemState n) (e_dir : Event n)
@@ -130,8 +132,8 @@ inductive Behaviour.Shim.ClusterToGlobal (b : Behaviour n) (init : InitialSystem
   (request_global_cache : b.existsGlobalCacheAccessOfDirEvent n e_dir)
   : Behaviour.Shim.ClusterToGlobal b init e_dir
 | noGlobalCache (has_global_cache_perms : b.clusterDirHasPermsInGlobalCache n init e_dir)
-  -- (no_global_cache_request : e_dir.clusterDirNotEncapCorrespondingGlobalCache n b)
-  (global_cache_has_perms : Event.existsGlobalCacheAccessOfDirEventWithPerms n b init e_dir)
+  (no_global_cache_request : e_dir.clusterDirNotEncapCorrespondingGlobalCache n b)
+  -- (global_cache_has_perms : Event.existsGlobalCacheAccessOfDirEventWithPerms n b init e_dir)
   : Behaviour.Shim.ClusterToGlobal b init e_dir
 
 /- For Stating the Global Cache State a Directory Event has corresponding permissions of. -/
