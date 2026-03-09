@@ -169,10 +169,9 @@ lemma evictOrReadBtn_diffCache_evictBetween_wObRDown
       hencapPD.existsRClusterDirDown.choose := by
   -- e_w_cle < e_r_cle (from evictOrReadBetween.wObR)
   have hpred := hevict_or_read_between.wObR
-  -- e_r_cle ≻ e_r_cdir_down (from encapProxyAndDir)
-  have hencap := hencapPD.existsRClusterDirDown.choose_spec.right.right.right
-  -- By Trans (OrderedBefore ∘ Encapsulates → OrderedBefore)
-  exact Trans.trans hpred hencap
+  -- e_r_cdir_down is at e_w's protocol, but Encapsulates was removed from encapDir.
+  -- The ordering e_w_cle < e_r_cdir_down needs to be derived from protocol structure.
+  sorry
 
 /-- Construct the evictBetween.cond for the evictOrReadBetween case.
     Fields:
@@ -262,7 +261,8 @@ lemma evictOrReadBtn_diff_cache_choose_case
   have hr_cle_after := evictOrReadBtn_diffCache_rCleAfterWCle hw_c_and_g_lin hr_c_and_g_lin hevict_or_read_between
   by_cases hw_coherent : e_w.isCoherent
   · -- Coherent write → wHasPermsAfter with notImmPred (evictOrReadBetween case)
-    exact .wHasPermsAfter hw_coherent
+    have hw_leaves_SW : b.reqLeavesStateAtLeast n e_w init SW := sorry
+    exact .wHasPermsAfter hw_leaves_SW
       (.notImmPred (evictOrReadBtn_diffCache_coherent_wHasPermsAfter_case hw_is_write hr_is_read
         hw_c_and_g_lin hr_c_and_g_lin hevict_or_read_between hdiff_cache hw_coherent hknow_dir_access
         hw_in_b hw_cluster))

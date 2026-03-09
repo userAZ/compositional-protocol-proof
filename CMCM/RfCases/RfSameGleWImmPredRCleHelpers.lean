@@ -67,7 +67,10 @@ lemma wimmpredrCle_diff_cache_choose_case
   by_cases hw_coherent : e_w.isCoherent
   · -- Coherent write → wHasPermsAfter with immPred (CLE immediate predecessor)
     have hencapPD := diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster
-    exact .wHasPermsAfter hw_coherent (.immPred hw_imm_pred_r_cle hencapPD)
+    have hw_leaves_SW : b.reqLeavesStateAtLeast n e_w init SW := sorry
+    have hencapPDC : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin :=
+      { encapDir := hencapPD, existsRDownAtW := sorry }
+    exact .wHasPermsAfter hw_leaves_SW (.immPred hw_imm_pred_r_cle hencapPDC)
   · -- Non-coherent write: use rCleAfterWCle for the new constructors
     have hw_nc : e_w.isNonCoherent := isNonCoherent_of_not_isCoherent_write hw_is_write hw_coherent
     -- dirAccessOfRequest determines whether write has missing perms
