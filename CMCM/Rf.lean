@@ -210,35 +210,23 @@ inductive Behaviour.gdown.clusterDirDown
 
     Fields:
     - existsRGlobalDown: global downgrade at previous owner (from Axiom 10 at global level)
-    - existsRClusterProxy: cluster proxy translation (GlobalToCluster shim, onDirSW case)
     - existsRClusterDirDown: cluster directory downgrade event at e_w's protocol
-    - clusterDirDownFromProxy: proxy triggers coherentReq or nonCoherentReq downgrade -/
-structure Behaviour.gdown.encapProxyAndDir (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
+    - clusterDirDownFromProxy: when cluster dir state is SW, proxy triggers coherentReq or
+      nonCoherentReq downgrade (conditional on clusterDirStateBefore = SW) -/
+structure Behaviour.clusterDown.encapDir (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
   (e_w : Event n)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   : Prop where
-  existsRGlobalDown : ∃ e_r_gdown ∈ b, ∃ e_r_grant ∈ b,
-    Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init hr_c_and_g_lin e_r_gdown e_r_grant
-  /-- e_r is a read, so only the globalReadDownOnDirSW case of the GlobalToCluster shim applies.
-      (The globalWriteDownOnDirSW case would only apply for intervening writes, which are excluded.) -/
-  -- existsRClusterProxy :
-  --   Behaviour.Shim.GlobalToCluster n b init (existsRGlobalDown.choose.getProtocol cmp) existsRGlobalDown.choose
   existsRClusterDirDown :
-    Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init existsRGlobalDown.choose SW
-      → ∃ e_r_cdir_down ∈ b, e_r_cdir_down.isDirectoryEvent ∧ e_r_cdir_down.protocol = e_w.protocol ∧
-        hr_c_and_g_lin.hreq's_dir_access.choose.Encapsulates n e_r_cdir_down
-  dirSWImplDown :
-    Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init existsRGlobalDown.choose SW
-    → ∃ e_r_proxy ∈ b, Behaviour.gdown.clusterDirDown n b init e_r_proxy existsRClusterDirDown.choose
-  -- clusterDirDownFromProxy : ∃ e_r_proxy ∈ b,
-  --   Behaviour.gdown.clusterDirDown n b init e_r_proxy existsRClusterDirDown.choose
+    ∃ e_r_cdir_down ∈ b, e_r_cdir_down.isDirectoryEvent ∧ e_r_cdir_down.protocol = e_w.protocol ∧
+      hr_c_and_g_lin.hreq's_dir_access.choose.Encapsulates n e_r_cdir_down
 
-structure Behaviour.gdown.encapProxyAndDirAndCDown {cmp : CompoundProtocol n}
+structure Behaviour.clusterDown.encapProxyAndDirAndCDown {cmp : CompoundProtocol n}
   {b : Behaviour n} {init : InitialSystemState n}
   (e_w : Event n)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   : Prop where
-  encapProxyAndDir : Behaviour.gdown.encapProxyAndDir cmp b init e_w hr_c_and_g_lin
+  encapDir : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin
   existsRDownAtW :
     ∃ e_r_down ∈ b, e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down
   -- sorry
@@ -246,7 +234,7 @@ structure Behaviour.gdown.encapProxyAndDirAndCDown {cmp : CompoundProtocol n}
 /-- An intervening directory write from a different-cluster cache write.
     The chain goes: e_w_inter (diff cluster) → CLE → global cache (ClusterToGlobal shim)
     → GLE → global downgrade → cluster proxy (GlobalToCluster shim) → cluster directory event.
-    Following the pattern of `Behaviour.gdown.encapProxyAndDirAndCDown`.
+    Following the pattern of `Behaviour.clusterDown.encapProxyAndDirAndCDown`.
 
     TODO (post-theorem): Strengthen this structure similarly to `Behaviour.gdown.encapProxyAndDir`:
     - Replace existsClusterProxy with `globalWriteDownOnDirSW.wrapper` (since the intervening
@@ -317,12 +305,12 @@ structure WriteRead.noEvictBetween.cond.wrapper
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   : Prop where
-  gdownEncapProxyAndDirAndCDown : Behaviour.gdown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin
+  gdownEncapProxyAndDirAndCDown : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin
   noEvictBetween :
     WriteRead.noEvictBetween.cond b init
       e_w gdownEncapProxyAndDirAndCDown.existsRDownAtW.choose
         hw_c_and_g_lin.hreq's_dir_access.choose
-        gdownEncapProxyAndDirAndCDown.encapProxyAndDir.existsRClusterDirDown.choose
+        gdownEncapProxyAndDirAndCDown.encapDir.existsRClusterDirDown.choose
 
 def Event.Between.dirEvict (b : Behaviour n) (e₁ e₂ : Event n) : Prop :=
   ∃ e ∈ b, e.OrderedBetween n e₁ e₂ → e.isDirEvict
@@ -347,7 +335,7 @@ structure WriteRead.evictBetween.cond.wrapper
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop where
-  encapProxyAndDir : Behaviour.gdown.encapProxyAndDir cmp b init e_w hr_c_and_g_lin
+  encapProxyAndDir : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin
   evictBetween : WriteRead.evictBetween.cond cmp b init (hw_c_and_g_lin.hreq's_dir_access.choose) encapProxyAndDir.existsRClusterDirDown.choose hknow_dir_access
 
 inductive WriteRead.wObRCle.diffCache.wHasPermsAfter.case
@@ -385,7 +373,7 @@ inductive WriteRead.wObRCle.diffCache.wCoherent.case
   : Prop
 | immPred
   (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
-  (hencapPD : Behaviour.gdown.encapProxyAndDir cmp b init e_w hr_c_and_g_lin)
+  (hencapPD : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin)
   : WriteRead.wObRCle.diffCache.wCoherent.case hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 | notImmPred
   (hw_has_perms_case : WriteRead.wObRCle.diffCache.wHasPermsAfter.case cmp b init
@@ -590,13 +578,21 @@ inductive CompoundProtocol.gleEq.SameCluster.cleEq.cleOb.cleOrdering.Cases
   | wEqRCle (w_r_cle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
   | otherCases (same_as_gle_ob_cases : CompoundProtocol.SameCluster.cleOb.cleOrdering.Cases hw_c_and_g_lin hr_c_and_g_lin)
 
+structure Behaviour.gdown.encapProxyAndDirAndCDown {cmp : CompoundProtocol n} {e_r : Event n} (e_w : Event n) (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r) : Prop where
+  clusterDown : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin
+  existsRGlobalDown : ∃ e_r_gdown ∈ b, ∃ e_r_grant ∈ b,
+    Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init hr_c_and_g_lin e_r_gdown e_r_grant
+  clusterDirDownFromProxy :
+    Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init existsRGlobalDown.choose SW
+    → ∃ e_r_proxy ∈ b, Behaviour.gdown.clusterDirDown n b init e_r_proxy clusterDown.encapDir.existsRClusterDirDown.choose
+
 structure ReadDowngradeAtWrite.evictOrReadBetween.wAndRDown
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
   {e_w : Event n} {e_r : Event n}
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   : Prop where
-  rDown : Behaviour.gdown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin
+  rDown : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin
   wCleImmPredRDown : ∀ e_cdir_inter ∈ b,
      IntermediateDirEvictOrRead e_cdir_inter
       hw_c_and_g_lin.hreq's_dir_access.choose
@@ -610,7 +606,7 @@ structure ReadDowngradeAtWrite.wCleImmPredDown
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   : Prop where
-  rDown : Behaviour.gdown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin
+  rDown : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin
   wCleImmPredRDown : b.ImmediateBottomPredecessor n
     hw_c_and_g_lin.hreq's_dir_access.choose rDown.existsRDownAtW.choose
 
