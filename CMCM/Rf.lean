@@ -27,13 +27,18 @@ lemma Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB
   simp[wrapper, cDir'sGReq]
   cases cmp.shimAxioms.clusterToGlobal b init hexists_cdir.choose hexists_cdir.choose_spec.right.isDirEvent
   . case encapGlobalCache _ hexists_global_access => simp[hexists_global_access.choose_spec]
-  . case noGlobalCache _ hno_gcache_encap =>
+  . case noGlobalCache hcdir_has_gperms hno_gcache_encap =>
     -- getLatestGlobalCacheEventOfClusterDirectoryEvent returns an event from {e_pred ∈ b | ...}
     simp [Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent]
     split
     · case isTrue h =>
       exact h.some.prop.1
-    · case isFalse h => exact absurd (by sorry) h -- nonemptiness of the set
+    · case isFalse h =>
+      -- TODO NOTE: show a contradiction. Show that for e_cdir to have permissions, (from `hcdir_has_gperms`)
+      -- there must be a cache event (since by the init state axiom, where there are no cache events, the perms is `I`).
+      -- So there must be a global cache request event.
+      -- Extract this reasoning into a lemma if needed for other lemmas/proofs.
+      exact absurd (by sorry) h -- nonemptiness of the set
 
 /-- The Cluster Memory Order and Global Memory Order events (or Cluster Linearization Event CLE and Global Linearization Event GLE).
 Note these terms are different from the PPO Linearization event of a request event from the PPO ordering proof.
