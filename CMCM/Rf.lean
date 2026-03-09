@@ -427,7 +427,8 @@ inductive WriteRead.wObRCle.diffCache.case
     immPred: e_w_cle is immediate predecessor of e_r_cle (cluster-level downgrade via Axiom 9)
     notImmPred: the general case with noEvict/evict subcases
   -/
-  (hw_coherent : e_w.isCoherent)
+  -- TODO: Perms after is coherent (SW.)
+  (hw_coherent : b.reqLeavesStateAtLeast n e_w init SW)
   -- Use WriteRead.wObRCle.diffCache.wCoherent.case to distinguish immPred vs notImmPred
   (coherent_write : WriteRead.wObRCle.diffCache.wCoherent.case hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
   : WriteRead.wObRCle.diffCache.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
