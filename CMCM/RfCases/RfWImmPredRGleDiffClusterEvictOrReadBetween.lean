@@ -87,7 +87,7 @@ lemma CMCM.rf.wImmPredRGle.diffCluster.evictOrReadBetweenWAndRDown
           -- are isDirRead. An intervening dir write would be isDirWrite, contradicting isDirRead.
           intro hinter
           cases hinter with
-          | sameCluster e_w_inter h =>
+          | sameCluster e_w_inter _ h =>
             -- h.cleDirWrite says the CLE of e_w_inter is isDirWrite
             -- wCleImmPredRDown will say it must be isDirRead → contradiction
             have he_in_b := (hknow_dir_access cmp b init e_w_inter).hreq's_dir_access.choose_spec.left
@@ -106,8 +106,20 @@ lemma CMCM.rf.wImmPredRGle.diffCluster.evictOrReadBetweenWAndRDown
               | .directoryEvent de₁, .directoryEvent de₂ =>
                 simp [Event.protocol, h_e1, h_e2] at h_cle_prot
                 simp [Event.struct, h_cle_prot]
+            have h_cle_unique : (hknow_dir_access cmp b init e_w_inter).hreq's_dir_access.choose.unique
+                hw_c_and_g_lin.hreq's_dir_access.choose
+                hw_cle_imm_pred_down.rDown.encapDir.existsRClusterDirDown.choose := by
+              constructor
+              · intro heq
+                have := h.cleBetween.pred
+                rw [← heq] at this
+                exact Event.contradiction_of_reflexive_ordered_before _ this
+              · intro heq
+                have := h.cleBetween.succ
+                rw [heq] at this
+                exact Event.contradiction_of_reflexive_ordered_before _ this
             have h_is_read := hw_cle_imm_pred_down.wCleImmPredRDown _ he_in_b
-              ⟨h_cle_prot, h_same_struct, h.cleBetween⟩
+              ⟨h_cle_prot, h_same_struct, ⟨h_cle_unique, h.cleBetween⟩⟩
             -- isDirReadOrEvict = isDirRead, contradicts isDirWrite
             unfold Event.isDirReadOrEvict at h_is_read
             have h_write := h.cleDirWrite
@@ -119,7 +131,7 @@ lemma CMCM.rf.wImmPredRGle.diffCluster.evictOrReadBetweenWAndRDown
               simp [Event.isDirRead, Request.isRead, h_ev] at h_is_read
               rw [h_write] at h_is_read
               exact absurd h_is_read (by decide)
-          | diffCluster e_w_inter h =>
+          | diffCluster e_w_inter _ h =>
             -- existsClusterDirDown gives a dir event that is isDirWrite between the boundaries
             obtain ⟨e_cdir_down, he_in_b, h_is_dir, h_prot_eq, h_is_write, _, _, h_between⟩ :=
               h.existsClusterDirDown
@@ -132,8 +144,20 @@ lemma CMCM.rf.wImmPredRGle.diffCluster.evictOrReadBetweenWAndRDown
               | .directoryEvent de₁, .directoryEvent de₂ =>
                 simp [Event.protocol, h_e1, h_e2] at h_prot_eq
                 simp [Event.struct, h_prot_eq]
+            have h_cdir_unique : e_cdir_down.unique
+                hw_c_and_g_lin.hreq's_dir_access.choose
+                hw_cle_imm_pred_down.rDown.encapDir.existsRClusterDirDown.choose := by
+              constructor
+              · intro heq
+                have := h_between.pred
+                rw [← heq] at this
+                exact Event.contradiction_of_reflexive_ordered_before _ this
+              · intro heq
+                have := h_between.succ
+                rw [heq] at this
+                exact Event.contradiction_of_reflexive_ordered_before _ this
             have h_is_read := hw_cle_imm_pred_down.wCleImmPredRDown e_cdir_down he_in_b
-              ⟨h_prot_eq, h_same_struct, h_between⟩
+              ⟨h_prot_eq, h_same_struct, ⟨h_cdir_unique, h_between⟩⟩
             unfold Event.isDirReadOrEvict at h_is_read
             match h_ev : e_cdir_down with
             | .cacheEvent _ => simp [Event.isDirectoryEvent, h_ev] at h_is_dir
@@ -143,12 +167,13 @@ lemma CMCM.rf.wImmPredRGle.diffCluster.evictOrReadBetweenWAndRDown
               rw [h_is_write] at h_is_read
               exact absurd h_is_read (by decide)
         · -- evictBtn: Event.Between.dirEvict b e_w_cle e_r_cdir_down
-          -- dirEvict uses →, so picking e_w_cle itself makes the premise false
-          -- (e_w_cle.OrderedBetween n e_w_cle e_r_cdir_down needs e_w_cle.OrderedBefore n e_w_cle, contradicting well-formedness)
-          -- NOTE: why is this proven by a
-          exact ⟨hw_c_and_g_lin.hreq's_dir_access.choose,
-            hw_c_and_g_lin.hreq's_dir_access.choose_spec.left,
-            fun hbtn => absurd hbtn.pred (fun h => Event.contradiction_of_reflexive_ordered_before _ h)⟩
+          -- All events uniqueBetween e_w_cle and e_r_cdir_down are dir evict or dir read.
+          -- Use wCleImmPredRDown which gives isDirReadOrEvict (= isDirRead) from IntermediateDirEvictOrRead.
+          intro e he_in_b h_unique_between
+          have h_is_read_or_evict := hw_cle_imm_pred_down.wCleImmPredRDown e he_in_b
+            ⟨sorry, sorry, h_unique_between⟩
+          unfold Event.isDirReadOrEvict at h_is_read_or_evict
+          exact Or.inr h_is_read_or_evict
     · -- e_w does NOT leave SW state → use wNoPermsAfter or wCleAfter
       have hr_cle_after : WriteRead.wObRCle.diffCache.rCleAfterWCle hw_c_and_g_lin hr_c_and_g_lin := by
         sorry -- TODO: derive from GLE ordering chain via gle_ordered_implies_cle_ordered
