@@ -168,12 +168,36 @@ lemma CMCM.rf.wImmPredRGle.diffCluster.evictOrReadBetweenWAndRDown
               exact absurd h_is_read (by decide)
         · -- evictBtn: Event.Between.dirEvict b e_w_cle e_r_cdir_down
           -- All events uniqueBetween e_w_cle and e_r_cdir_down are dir evict or dir read.
-          -- Use wCleImmPredRDown which gives isDirReadOrEvict (= isDirRead) from IntermediateDirEvictOrRead.
+          -- Strategy: show e can't be a non-down dir write; then either de.down (isDirEvict)
+          -- or de.req.val.rw = .r (isDirRead).
           intro e he_in_b h_unique_between
-          have h_is_read_or_evict := hw_cle_imm_pred_down.wCleImmPredRDown e he_in_b
-            ⟨sorry, sorry, h_unique_between⟩
-          unfold Event.isDirReadOrEvict at h_is_read_or_evict
-          exact Or.inr h_is_read_or_evict
+          cases e with
+          | cacheEvent ce =>
+            -- Cache events: isDirEvict and isDirRead are both False for cacheEvent constructor.
+            -- A cache event should not be uniqueBetween two bottom dir events at the same entry.
+            exact absurd h_unique_between sorry
+          | directoryEvent de =>
+            -- isDirEvict = de.down, isDirRead = de.req.val.rw = .r
+            -- Case split: is de down (isDirEvict)?
+            by_cases h_down : (de.down : Prop)
+            · exact Or.inl h_down
+            · -- ¬ de.down → show isDirRead (de.req.val.rw = .r)
+              right
+              show de.req.val.isRead
+              unfold Request.isRead
+              -- de.req.val.rw is either .r or .w
+              cases h_rw : de.req.val.rw with
+              | r => rfl
+              | w =>
+                -- de is a non-down dir write between e_w_cle and e_r_cdir_down
+                -- wCleImmPredRDown says intermediate dir events (with right protocol/structure) are isDirRead
+                -- isDirRead requires rw = .r, contradicting rw = .w
+                exfalso
+                have h_is_read := hw_cle_imm_pred_down.wCleImmPredRDown (.directoryEvent de) he_in_b
+                  ⟨sorry /- sameProtocol: needs uniqueBetween-implies-same-entry -/,
+                   sorry /- sameStructure: needs uniqueBetween-implies-same-entry -/,
+                   h_unique_between⟩
+                simp [Event.isDirReadOrEvict, Event.isDirRead, Request.isRead, h_rw] at h_is_read
     · -- e_w does NOT leave SW state → use wNoPermsAfter or wCleAfter
       have hr_cle_after : WriteRead.wObRCle.diffCache.rCleAfterWCle hw_c_and_g_lin hr_c_and_g_lin := by
         sorry -- TODO: derive from GLE ordering chain via gle_ordered_implies_cle_ordered
