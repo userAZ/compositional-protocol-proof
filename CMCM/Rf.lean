@@ -622,10 +622,11 @@ def CompoundProtocol.gleImmediatePredecessor
   b.ImmediateBottomPredecessor n
     hw_c_and_g_lin.hreq's_global_lin.choose hr_c_and_g_lin.hreq's_global_lin.choose
 
+def Event.isDirReadOrEvict (e : Event n) : Prop := e.isDirRead
+
 structure IntermediateDirEvictOrRead
   (e_cdir_inter e_w_cle e_r_cle : Event n)
   : Prop where
-  readOrEvict : e_cdir_inter.isDirRead -- Not a write or write-downgrade.
   sameProtocol : e_cdir_inter.sameProtocol n e_w_cle
   sameStructure : e_cdir_inter.sameStructure n e_w_cle
   betweenWR : e_cdir_inter.OrderedBetween n e_w_cle e_r_cle
@@ -640,6 +641,7 @@ structure CLE.WROrdering.evictOrReadBetween
     IntermediateDirEvictOrRead e_cdir_inter
       hw_c_and_g_lin.hreq's_dir_access.choose
       hr_c_and_g_lin.hreq's_dir_access.choose
+      → e_cdir_inter.isDirReadOrEvict
   wObR : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n
         hr_c_and_g_lin.hreq's_dir_access.choose
 
