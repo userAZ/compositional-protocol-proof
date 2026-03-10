@@ -103,7 +103,7 @@ structure Event.Between.noWrite.cond.sameCacheNoInterWrite
   sameProtocol : e_inter.sameProtocol n e_w ∧ e_inter.sameProtocol n e_r
   sameCache : e_inter.sameStructure n e_w ∧ e_inter.sameStructure n e_r
   interCleNotBetween :
-    ∃ e_inter_cle ∈ b, b.dirAccessOfRequest n init e_inter e_inter_cle ∧
+    ∀ e_inter_cle ∈ b, b.dirAccessOfRequest n init e_inter e_inter_cle ∧
     e_inter.uniqueBetween e_w e_r →
     ¬ (e_inter.isWrite ∧ e_inter_cle.OrderedBetween n e_w_cle e_r_cle)
 
@@ -119,8 +119,11 @@ structure Event.Between.noWrite.cond.diffCacheNoInterWriteDowngrade
   sameProtocol : e_inter.sameProtocol n e_w ∧ e_inter.sameProtocol n e_r
   diffCache : e_inter.diffStructure n e_w ∧ e_inter.diffStructure n e_r
   interUnique : e_inter.unique e_w e_r
+  -- `e_inter_down` is an intervening directory write "downgrade" (not necessarily a downgrade, as per GlobalToCluster shim)
+  -- from `e_inter` to `e_w`. Show `e_inter_down` cannot be OrderedBetween `e_w_cle` and `e_r_cle`, as per
+  -- NoInterveningWrites.
   interCleNotBetween :
-    ∃ e_inter_down ∈ b,
+    ∀ e_inter_down ∈ b,
       Event.dirWriteDowngradeAtSameCluster e_inter_down e_inter e_w →
         ¬ (e_inter_down.OrderedBetween n e_w_cle e_r_cle)
 
@@ -134,10 +137,13 @@ structure Event.dirWriteDowngradeFromDiffCluster (e_inter_down e_inter e_w e_r :
 
 structure Event.Between.noWrite.cond.diffClusterNoInterWriteDowngrade
   (b : Behaviour n) (e_inter e_w e_r e_w_cle e_r_cle : Event n) where
+  -- `e_inter_down` is an intervening directory write "downgrade" (not necessarily a downgrade, as per GlobalToCluster shim)
+  -- from `e_inter` to `e_w`. Show `e_inter_down` cannot be OrderedBetween `e_w_cle` and `e_r_cle`, as per
+  -- NoInterveningWrites.
   interCleNotBetween :
-    ¬ ∃ e_inter_down ∈ b,
-      Event.dirWriteDowngradeFromDiffCluster e_inter_down e_inter e_w e_r ∧
-        (e_inter_down.OrderedBetween n e_w_cle e_r_cle)
+    ∀ e_inter_down ∈ b,
+      Event.dirWriteDowngradeFromDiffCluster e_inter_down e_inter e_w e_r →
+        ¬ (e_inter_down.OrderedBetween n e_w_cle e_r_cle)
 
 inductive Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites
   (b : Behaviour n) (init : InitialSystemState n) (e_inter e_w e_r e_w_cle e_r_cle : Event n)
