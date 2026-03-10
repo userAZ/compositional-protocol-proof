@@ -56,53 +56,48 @@ lemma CMCM.rf.wImmPredRGle.diffCluster.wCleImmPredDown
       · -- ce.down (from downgradeCorrespondingToRequest → downgradeOfReq.isDown)
         exact downgradeCorrespondingToRequest_isDown h_fwd
   · -- diffCache.case
-    -- Why by_cases on e_w.isCoherent? Why not by_cases of if e_w leaves SW state?
-    by_cases hw_coherent : e_w.isCoherent
-    · -- Coherent case: write has permissions after
-      have hw_leaves_SW : b.reqLeavesStateAtLeast n e_w init SW :=
-        coherent_write_leaves_at_least_SW hw_is_write hw_coherent hw_not_down hw_cluster_cache.eAtCache
+    -- Note 1: by_cases on whether e_w leaves SW state (permissions after).
+    -- This separates wHasPermsAfter (leaves SW) from wNoPermsAfter/wCleAfter (doesn't).
+    by_cases hw_leaves_SW : b.reqLeavesStateAtLeast n e_w init SW
+    · -- e_w leaves SW state → use wHasPermsAfter
+      -- Note 2: by_cases on whether e_w's CLE is immPred of e_r's cluster downgrade.
+      -- We know immPred is TRUE from hw_cle_imm_pred_r_down.wCleImmPredRDown.
+      -- This selects .noEvictBetween (nothing between immPred pair, so noWrite/noEvict are easy).
       refine .wHasPermsAfter hw_leaves_SW (.notImmPred (.noEvictBetween ⟨hw_cle_imm_pred_r_down.rDown, ?_, ?_, hw_cle_imm_pred_r_down.rDown.existsRDownAtW.choose_spec.right.right.right⟩))
       · -- noWriteBtn: Event.Between.noWrite b init e_w e_r_down e_w_cle e_r_cdir_down
-        -- Proof strategy: For any intervening cluster-cache write e_inter (not a downgrade):
-        --   - Same cache as e_w: e_inter's CLE can't be between e_w_cle and e_r_cdir_down
-        --     because e_w_cle is the immediate predecessor of e_r_cdir_down (nothing between them).
-        --   - Different cache, same cluster: the dir write downgrade from e_inter can't be
-        --     between e_w_cle and e_r_cdir_down by the same immPred argument.
-        --   - Different cluster: no diff-cluster dir write downgrade between the CLEs,
-        --     using NoInterveningWrites.constraints.diffClusterNotBetweenCles
-        --     (the interval [e_w_cle, e_r_cdir_down] ⊂ [e_w_cle, e_r_cle]).
-        -- All cases are proved by showing the boundary events are too tight for any write's
-        -- CLE to fit between them.
-        intro e_inter he_inter hcluster hwrite hnotdown
-        have hcontra := hno_intervening_writes e_inter he_inter hcluster hwrite hnotdown
-        -- Use immPred to show nothing can be between e_w_cle and e_r_cdir_down
+        -- For each cluster-cache write e_inter, show excludeOtherWrites using immPred:
+        --   ImmediateBottomPredecessor says no bottom dir event at the same entry as
+        --   e_r_cdir_down can be OrderedBetween e_w_cle and e_r_cdir_down.
+        --   All three excludeOtherWrites cases involve a dir event at e_w's cluster directory
+        --   (same entry as e_r_cdir_down), so immPred excludes them.
+        -- noWriteBtn: Event.Between.noWrite b init e_w e_r_down e_w_cle e_r_cdir_down
+        -- Strategy: Use otherWDiffCluster for ALL e_inter.
+        -- For same-protocol e_inter: dirWriteDowngradeFromDiffCluster.diffProtocol fails → ∃ vacuously false.
+        -- For diff-protocol e_inter: use hw_cle_imm_pred_r_down.wCleImmPredRDown.isImmPred.noIntermediate
+        --   to show any bottom dir event with sameEntry to e_r_cdir_down cannot be between e_w_cle and e_r_cdir_down.
+        --   Need: directory_event_is_bottom + sameEntry (sameStruct from sameProtocol + sameAddr).
+        -- Requires: sameAddr lemma connecting dirWriteDowngradeFromDiffCluster to e_r_cdir_down.
         sorry
       · -- noEvictBtn: Event.Between.noEvict b e_w e_r_down
-        -- Proof strategy: ∀ e_inter ∈ b, e_inter.Between e_w e_r_down → ¬ e_inter.isEvictSW
-        -- Since e_w_cle is immPred of e_r_cdir_down, any cache event at the same cache
-        -- between e_w and e_r_down would need a CLE between e_w_cle and e_r_cdir_down,
-        -- but nothing is between them (from ImmediateBottomPredecessor).
-        intro e_inter he_inter hbetween
-        -- hbetween.interBetween gives e_inter ordered between e_w and e_r_down
-        -- hbetween.sameCache gives e_inter at same cache as e_w and e_r_down
-        -- hbetween.coherentRead gives e_r_down.isCoherent
-        -- Use hw_cle_imm_pred_r_down.wCleImmPredRDown to show no intermediate events
+        -- Strategy: Event.Between requires coherentRead (e_r_down.isCoherent) and
+        --   sameCache (e_inter.sameStructure n e_w ∧ e_inter.sameStructure n e_r_down).
+        -- If e_r_down is not coherent, Between is vacuously False → noEvict trivially holds.
+        -- Otherwise: use hw_cle_imm_pred_r_down.wCleImmPredRDown.isImmPred.noIntermediate + the fact
+        --   that an evict's CLE is a bottom dir event at the same entry → cannot be between.
+        -- See RfSameGleSameCle.lean for the 9-case dirAccessOfRequest analysis pattern.
         sorry
-    · -- Non-coherent case: split on whether write has perms or not
-      have hw_nc : e_w.isNonCoherent := isNonCoherent_of_not_isCoherent_write hw_is_write hw_coherent
-      -- Need rCleAfterWCle: e_w_cle.OrderedBefore n e_r_cle
-      -- From hw_cle_imm_pred_r_down: e_w_cle is immPred of e_r_cdir_down, which is before e_r_cle
+    · -- e_w does NOT leave SW state → use wNoPermsAfter or wCleAfter
+      -- These don't require noWriteBtn/noEvictBtn, just rCleAfterWCle.
       have hr_cle_after : WriteRead.wObRCle.diffCache.rCleAfterWCle hw_c_and_g_lin hr_c_and_g_lin := by
-        sorry -- Derive from e_w_cle < e_r_cdir_down < e_r_cle ordering chain
-      -- dirAccessOfRequest determines whether write has missing perms
+        sorry -- TODO: derive from GLE ordering chain via gle_ordered_implies_cle_ordered
       have hw_dir_access := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
       cases hw_dir_access with
       | encapDir hreq_missing_perms _ =>
-        -- NC write with missing perms → wNoPermsAfter
+        have hw_not_coherent : ¬ e_w.isCoherent := fun h_coh =>
+          hw_leaves_SW (coherent_write_leaves_at_least_SW hw_is_write h_coh hw_not_down hw_cluster_cache.eAtCache)
+        have hw_nc := isNonCoherent_of_not_isCoherent_write hw_is_write hw_not_coherent
         exact .wNoPermsAfter hreq_missing_perms hw_nc hr_cle_after
       | orderBeforeDir _ _ _ _ _ _ _ _ =>
-        -- NC write with perms (predecessor obtained dir access) → wCleAfter
         exact .wCleAfter hr_cle_after
       | orderAfterDir _ _ _ _ =>
-        -- NC weak request on Vd (e.g. writeback) → wCleAfter
         exact .wCleAfter hr_cle_after
