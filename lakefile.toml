@@ -1,6 +1,6 @@
 name = "compositional-protocol-proof"
 version = "0.1.0"
-defaultTargets = ["CompositionalProtocolProof"]
+defaultTargets = ["CompositionalProtocolProof", "CMCM"]
 
 # [[require]]
 # name = "Hammer"
