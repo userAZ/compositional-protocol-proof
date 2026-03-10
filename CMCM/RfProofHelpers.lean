@@ -653,6 +653,10 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
       simp[_hsame_struct] at *
       exact hsame_cache
     exact ⟨hsame_cache, hdiff_r⟩
+  · -- Prove: interUnique
+    constructor
+    · intro heq; subst heq; exact hsame_cache (by unfold Event.sameStructure; rfl)
+    · intro heq; subst heq; exact hsame_cache (by unfold Event.sameStructure; exact _hsame_struct.symm)
   · -- Prove: interCleNotBetween
     -- Strategy: Use hcontra.notBetweenCles to contradict any attempt to show
     -- that some directory downgrade IS between e_w_cle and e_r_cle
@@ -1537,8 +1541,8 @@ lemma noInterveningWrites_implies_no_writes_between
         · exact hinter_lin.hreq's_dir_access.choose_spec.left
         intro ⟨hdir_access, hbetween⟩ ⟨_, hcle_between⟩
         -- Use successive writes constraint: timing contradiction
-        have hw_ob_e : e_w.OrderedBefore n e := hbetween.pred
-        have he_ob_r : e.OrderedBefore n e_r := hbetween.succ
+        have hw_ob_e : e_w.OrderedBefore n e := hbetween.between.pred
+        have he_ob_r : e.OrderedBefore n e_r := hbetween.between.succ
         have hr_end_before_e_end : e_r.oEnd < e.oEnd := _hsucc_w_of_w_after_r e he ⟨hwrite, hsame_protocol, hsame_cache, hw_ob_e⟩
         simp [Event.OrderedBefore] at he_ob_r
         have hr_well_formed := e_r.oWellFormed
@@ -2808,7 +2812,7 @@ lemma no_dir_write_between_same_cache
   (hsame_cache : e_w.struct = e_r.struct)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   (hno_intervening_writes : NoInterveningWrites hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
-  : Event.Between.noDirWrite cmp b init hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose hknow_dir_access := by
+  : Event.Between.noDirWrite cmp b init e_w e_r hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose hknow_dir_access := by
   unfold Event.Between.noDirWrite
   intro h
   have hw_cle_proto := write_cle_protocol_eq_write_protocol hw_c_and_g_lin
@@ -2818,7 +2822,7 @@ lemma no_dir_write_between_same_cache
   have hw_r_same_proto : e_w.protocol = e_r.protocol :=
     sameStructure_implies_sameProtocol hw_r_same_struct
   cases h with
-  | sameCluster e_w_inter hsame =>
+  | sameCluster e_w_inter _ hsame =>
     have hconstraints := hno_intervening_writes
       e_w_inter hsame.interInB hsame.isCluster hsame.isWrite hsame.notDown
     have hinter_cle_proto :=
@@ -2826,7 +2830,7 @@ lemma no_dir_write_between_same_cache
     have h_proto_w := hinter_cle_proto.trans hsame.sameProtocol
     have h_proto_r := h_proto_w.trans (hw_cle_proto.trans (hw_r_same_proto.trans hr_cle_proto.symm))
     exact hconstraints.notBetweenCles ⟨h_proto_w, h_proto_r, hsame.cleDirWrite⟩ hsame.cleBetween
-  | diffCluster e_w_inter hdiff =>
+  | diffCluster e_w_inter _ hdiff =>
     have hconstraints := hno_intervening_writes
       e_w_inter hdiff.interInB hdiff.isCluster hdiff.isWrite hdiff.notDown
     have hdiff_w : e_w_inter.protocol ≠ e_w.protocol := by
