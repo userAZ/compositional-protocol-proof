@@ -2855,6 +2855,21 @@ private lemma downgradeCorrespondingToRequest_sameReq
     | directoryEvent _ => exact absurd hfwd (by simp)
   | directoryEvent _ => exact absurd hfwd (by simp)
 
+/-- Extract `isDown` from `downgradeCorrespondingToRequest`: the downgrade event has its
+    `down` field set. Both events must be cache events (otherwise
+    `downgradeCorrespondingToRequest` is `False`). -/
+lemma downgradeCorrespondingToRequest_isDown
+  {e₁ e₂ : Event n}
+  (hfwd : e₁.downgradeCorrespondingToRequest n e₂)
+  : e₂.down := by
+  unfold Event.downgradeCorrespondingToRequest at hfwd
+  cases e₁ with
+  | cacheEvent ce₁ =>
+    cases e₂ with
+    | cacheEvent ce₂ => exact hfwd.isDown
+    | directoryEvent _ => exact absurd hfwd (by simp)
+  | directoryEvent _ => exact absurd hfwd (by simp)
+
 /-- The read's GLE at the global level triggers a downgrade of the previous owner.
     Uses protocol Axiom 10 (coherent read directory downgrades others) at the global level. -/
 lemma diffCache_coherent_globalDowngrade
