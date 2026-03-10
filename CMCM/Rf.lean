@@ -8,6 +8,14 @@ import CompositionalProtocolProof.CompositionalProof.CompoundLinearization
 
 variable {n : Nat}
 
+structure Event.unique (e e₁ e₂ : Event n) where
+ notLeft : e ≠ e₁
+ notRight : e ≠ e₂
+
+structure Event.uniqueBetween (e e₁ e₂ : Event n) where
+  unique : e.unique e₁ e₂
+  between : e.OrderedBetween n e₁ e₂
+
 /-- Cluster Directory event's Global Request. -/
 noncomputable def Behaviour.Shim.ClusterToGlobal.cDir'sGReq
   (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (e_cdir : Event n) (hcdir_is_dir : e_cdir.isDirectoryEvent n)
@@ -96,7 +104,7 @@ structure Event.Between.noWrite.cond.sameCacheNoInterWrite
   sameCache : e_inter.sameStructure n e_w ∧ e_inter.sameStructure n e_r
   interCleNotBetween :
     ∃ e_inter_cle ∈ b, b.dirAccessOfRequest n init e_inter e_inter_cle ∧
-    e_inter.OrderedBetween n e_w e_r →
+    e_inter.uniqueBetween e_w e_r →
     ¬ (e_inter.isWrite ∧ e_inter_cle.OrderedBetween n e_w_cle e_r_cle)
 
 structure Event.dirWriteDowngradeAtSameCluster (e_inter_down e_inter e_w : Event n) : Prop where
@@ -110,6 +118,7 @@ structure Event.Between.noWrite.cond.diffCacheNoInterWriteDowngrade
   (b : Behaviour n) (e_inter e_w e_r e_w_cle e_r_cle : Event n) where
   sameProtocol : e_inter.sameProtocol n e_w ∧ e_inter.sameProtocol n e_r
   diffCache : e_inter.diffStructure n e_w ∧ e_inter.diffStructure n e_r
+  interUnique : e_inter.unique e_w e_r
   interCleNotBetween :
     ∃ e_inter_down ∈ b,
       Event.dirWriteDowngradeAtSameCluster e_inter_down e_inter e_w →
@@ -154,7 +163,7 @@ structure Event.Between (e_inter e_w e_r : Event n) : Prop where
   isCache : e_inter.isCacheEvent
   sameProtocol : e_inter.sameProtocol n e_w ∧ e_inter.sameProtocol n e_r
   sameCache : e_inter.sameStructure n e_w ∧ e_inter.sameStructure n e_r
-  interBetween : e_inter.OrderedBetween n e_w e_r
+  interBetween : e_inter.uniqueBetween e_w e_r
   coherentRead : e_r.isCoherent
 
 def Event.Between.noEvict (b : Behaviour n) (e_w e_r : Event n) : Prop :=
@@ -192,6 +201,7 @@ structure Event.Between.sameProtocol.interveningDirWrite
   isCluster : e_w_inter.isClusterCache
   isWrite : e_w_inter.isWrite
   notDown : ¬ e_w_inter.down
+  interUnique : e_w_inter.unique e_w_le e_r_le
   sameProtocol : e_w_inter.protocol = e_w_le.protocol
   cleDirWrite : (hknow_dir_access cmp b init e_w_inter).hreq's_dir_access.choose.isDirWrite
   cleNotDown : (hknow_dir_access cmp b init e_w_inter).hreq's_dir_access.choose.isDirNotDown
@@ -327,25 +337,27 @@ structure Event.Between.diffProtocol.interveningDirWrite
     An intervening write is either from the same cluster or a different cluster. -/
 inductive Event.Between.interveningWrite.sameOrDiffCluster
   (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
-  (e_w_le e_r_le : Event n)
+  (e_w e_r e_w_le e_r_le : Event n)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop
 | sameCluster
     (e_w_inter : Event n)
+    (inter_unique : e_w_inter.unique e_w_le e_r_le)
     (h : Event.Between.sameProtocol.interveningDirWrite cmp b init e_w_le e_r_le e_w_inter hknow_dir_access)
-    : interveningWrite.sameOrDiffCluster cmp b init e_w_le e_r_le hknow_dir_access
+    : interveningWrite.sameOrDiffCluster cmp b init e_w e_r e_w_le e_r_le hknow_dir_access
 | diffCluster
     (e_w_inter : Event n)
+    (inter_unique : e_w_inter.unique e_w_le e_r_le)
     (h : Event.Between.diffProtocol.interveningDirWrite cmp b init e_w_le e_r_le e_w_inter hknow_dir_access)
-    : interveningWrite.sameOrDiffCluster cmp b init e_w_le e_r_le hknow_dir_access
+    : interveningWrite.sameOrDiffCluster cmp b init e_w e_r e_w_le e_r_le hknow_dir_access
 
 /-- No intervening directory write between two linearization events. -/
 def Event.Between.noDirWrite
   (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
-  (e_w_le e_r_le : Event n)
+  (e_w e_r e_w_le e_r_le : Event n)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop :=
-  ¬ Event.Between.interveningWrite.sameOrDiffCluster cmp b init e_w_le e_r_le hknow_dir_access
+  ¬ Event.Between.interveningWrite.sameOrDiffCluster cmp b init e_w e_r e_w_le e_r_le hknow_dir_access
 
 /- (will need to use existing "corresponding event" defs across files)
 Use exists to say there exists `e_r_gdown` that `e_r_gle` encaps a corresponding `e_r_gdown`.
@@ -366,14 +378,14 @@ structure WriteRead.noEvictBetween.cond.wrapper
         gdownEncapProxyAndDirAndCDown.encapDir.existsRClusterDirDown.choose
 
 def Event.Between.dirEvict (b : Behaviour n) (e₁ e₂ : Event n) : Prop :=
-  ∃ e ∈ b, e.OrderedBetween n e₁ e₂ → e.isDirEvict
+  ∃ e ∈ b, e ≠ e₁ ∧ e ≠ e₂ ∧ e.OrderedBetween n e₁ e₂ → (e.isDirEvict ∨ e.isDirRead)
 
 structure WriteRead.evictBetween.cond
   (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
-  (e_w_cle e_r_cdir_down : Event n)
+  (e_w e_r e_w_cle e_r_cdir_down : Event n)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop where
-  noWriteBtn : Event.Between.noDirWrite cmp b init e_w_cle e_r_cdir_down hknow_dir_access
+  noWriteBtn : Event.Between.noDirWrite cmp b init e_w e_r e_w_cle e_r_cdir_down hknow_dir_access
   evictBtn : Event.Between.dirEvict b e_w_cle e_r_cdir_down
   wObRDown : e_w_cle.OrderedBefore n e_r_cdir_down
 
@@ -383,15 +395,15 @@ Exists `e_r_proxy` corresponding to `e_r_gdown` at `e_w`'s cluster.
 Exists `e_r_cdir_down` corresponding to `e_r_proxy` at `e_w`'s directory.
 -/
 structure WriteRead.evictBetween.cond.wrapper
-  (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (e_w_cle e_r_cdir_down : Event n)
+  (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (e_w e_r e_w_cle e_r_cdir_down : Event n)
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop where
   encapProxyAndDir : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin
-  evictBetween : WriteRead.evictBetween.cond cmp b init (hw_c_and_g_lin.hreq's_dir_access.choose) encapProxyAndDir.existsRClusterDirDown.choose hknow_dir_access
+  evictBetween : WriteRead.evictBetween.cond cmp b init e_w e_r (hw_c_and_g_lin.hreq's_dir_access.choose) encapProxyAndDir.existsRClusterDirDown.choose hknow_dir_access
 
-inductive WriteRead.wObRCle.diffCache.wHasPermsAfter.case
+inductive WriteRead.wObRCle.diffCache.wHasPermsAfter.case {e_w e_r}
   (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (e_w_cle e_r_cdir_down : Event n)
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
@@ -401,7 +413,7 @@ inductive WriteRead.wObRCle.diffCache.wHasPermsAfter.case
   (w_ob_r_down : WriteRead.noEvictBetween.cond.wrapper cmp b init e_w_cle e_r_cdir_down hw_c_and_g_lin hr_c_and_g_lin)
   : WriteRead.wObRCle.diffCache.wHasPermsAfter.case cmp b init e_w_cle e_r_cdir_down hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 | evictBetween
-  (w_cle_ob_r_cdir_down : WriteRead.evictBetween.cond.wrapper cmp b init e_w_cle e_r_cdir_down hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
+  (w_cle_ob_r_cdir_down : WriteRead.evictBetween.cond.wrapper cmp b init e_w e_r e_w_cle e_r_cdir_down hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
   : WriteRead.wObRCle.diffCache.wHasPermsAfter.case cmp b init e_w_cle e_r_cdir_down hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 
 def CompoundProtocol.cleImmediatePredecessor
@@ -448,7 +460,7 @@ structure Event.cacheWrite.global (e : Event n) : Prop where
   isGlobal : e.protocol = .global
 
 def Event.Between.noGlobalCacheWrite (b : Behaviour n) (e₁ e₂ : Event n) : Prop :=
-  ∀ e ∈ b, e.OrderedBetween n e₁ e₂ → ¬ Event.cacheWrite.global e
+  ∀ e ∈ b, e.uniqueBetween e₁ e₂ → ¬ Event.cacheWrite.global e
 
 structure WriteRead.wCleAfter.cond (b : Behaviour n) (e_w_cle_gcache e_r_gdown : Event n) : Prop where
   noWriteBtn : Event.Between.noGlobalCacheWrite b e_w_cle_gcache e_r_gdown
@@ -518,7 +530,7 @@ inductive WriteRead.wObRCle.case
   : Prop
   | sameCache
     (sameCache : e_w.struct = e_r.struct)
-    (noWriteBetween : Event.Between.noDirWrite cmp b init
+    (noWriteBetween : Event.Between.noDirWrite cmp b init e_w e_r
       hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose hknow_dir_access)
     : WriteRead.wObRCle.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
   | diffCache
@@ -631,7 +643,7 @@ structure IntermediateDirEvictOrRead
   : Prop where
   sameProtocol : e_cdir_inter.sameProtocol n e_w_cle
   sameStructure : e_cdir_inter.sameStructure n e_w_cle
-  betweenWR : e_cdir_inter.OrderedBetween n e_w_cle e_r_cle
+  betweenWR : e_cdir_inter.uniqueBetween e_w_cle e_r_cle
 
 structure CLE.WROrdering.evictOrReadBetween
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
