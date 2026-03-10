@@ -3064,6 +3064,35 @@ lemma diffCache_coherent_encapProxyAndDir
   have h_gcache_encap_dir : e_gcache.Encapsulates n e_dir :=
     Trans.trans (Trans.trans hdowngrade.downgradePrevOwner.reqEncapDir
       hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dir
+  -- Prove e_dir.oEnd < e_r_cle.oEnd (where e_r_cle = hr_c_and_g_lin.hreq's_dir_access.choose)
+  -- e_dir.oEnd < e_gcache.oEnd (from encapsulation)
+  -- e_gcache.oEnd < e_r_cle.oEnd (from ClusterToGlobal shim: either encap or finishesBefore)
+  have h_dir_end_before_cle : e_dir.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd := by
+    have h_dir_lt_gcache : e_dir.oEnd < e_gcache.oEnd := h_gcache_encap_dir.2
+    -- e_gcache is defined by case-splitting on the ClusterToGlobal shim.
+    -- In both cases, e_gcache.oEnd < e_r_cle.oEnd:
+    --   encapGlobalCache: e_r_cle ≻ e_gcache → e_gcache.oEnd < e_r_cle.oEnd
+    --   noGlobalCache: e_gcache finishes before e_r_cle → e_gcache.oEnd < e_r_cle.oEnd
+    let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
+    let hcdir_is_dir := hr_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+    have hshim := cmp.shimAxioms.clusterToGlobal b init e_r_cle hcdir_is_dir
+    have h_gcache_lt_cle : e_gcache.oEnd < e_r_cle.oEnd := by
+      show (Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init e_r_cle hcdir_is_dir).oEnd < e_r_cle.oEnd
+      unfold Behaviour.Shim.ClusterToGlobal.cDir'sGReq
+      -- Case-split on the ClusterToGlobal shim result
+      match h : cmp.shimAxioms.clusterToGlobal b init e_r_cle hcdir_is_dir with
+      | .encapGlobalCache _ hgreq_spec =>
+        -- e_r_cle ≻ e_gcache (from encapGlobalCache)
+        exact hgreq_spec.choose_spec.right.encapGlobalCache.2
+      | .noGlobalCache hhas_perms _ =>
+        -- e_gcache = getLatestGlobalCacheEventOfClusterDirectoryEvent, finishes before e_r_cle
+        unfold Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent
+        have hnonempty := Behaviour.hasPermsInGlobalCache_implies_nonempty_immFinishBefore
+            b init _ hhas_perms
+        rw [dif_pos hnonempty]
+        exact hnonempty.some.prop.2.finishBefore.finBefore.endBefore
+    exact Nat.lt_trans h_dir_lt_gcache h_gcache_lt_cle
   -- Use gcacheEncap: the global cache event encapsulates the directory downgrade
   exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
-    Behaviour.clusterDown.encapDirRelation.gcacheEncap ⟨e_gcache, he_gcache_in_b, h_gcache_encap_dir⟩⟩ }
+    Behaviour.clusterDown.encapDirRelation.gcacheEncap
+      ⟨e_gcache, he_gcache_in_b, h_gcache_encap_dir⟩ h_dir_end_before_cle⟩ }
