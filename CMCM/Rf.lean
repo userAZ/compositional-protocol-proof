@@ -378,7 +378,7 @@ structure WriteRead.noEvictBetween.cond.wrapper
         gdownEncapProxyAndDirAndCDown.encapDir.existsRClusterDirDown.choose
 
 def Event.Between.dirEvict (b : Behaviour n) (e₁ e₂ : Event n) : Prop :=
-  ∃ e ∈ b, e ≠ e₁ ∧ e ≠ e₂ ∧ e.OrderedBetween n e₁ e₂ → (e.isDirEvict ∨ e.isDirRead)
+  ∀ e ∈ b, e.uniqueBetween e₁ e₂ → (e.isDirEvict ∨ e.isDirRead)
 
 structure WriteRead.evictBetween.cond
   (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
