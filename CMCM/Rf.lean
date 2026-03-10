@@ -249,7 +249,8 @@ inductive Behaviour.gdown.clusterDirDown
     - `cleEncap`: When e_r is in the same protocol/cluster as e_w, e_r's CLE directly
       encapsulates e_r_cdir_down.
     - `gcacheEncap`: When e_r is in a different protocol/cluster, a global cache event
-      e_gcache (that got perms for e_r's CLE) encapsulates e_r_cdir_down. -/
+      e_gcache (that got perms for e_r's CLE) encapsulates e_r_cdir_down.
+    Both cases ensure e_r_cdir_down finishes before e_r's CLE (`cdownEndBeforeCle`). -/
 inductive Behaviour.clusterDown.encapDirRelation
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
@@ -257,6 +258,7 @@ inductive Behaviour.clusterDown.encapDirRelation
   : Prop
 | cleEncap (h : hr_c_and_g_lin.hreq's_dir_access.choose.Encapsulates n e_r_cdir_down)
 | gcacheEncap (h : ∃ e_gcache ∈ b, e_gcache.Encapsulates n e_r_cdir_down)
+    (cdownEndBeforeCle : e_r_cdir_down.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd)
 
 /-- The full read-from-write downgrade chain: e_r's read triggers a global downgrade at
     e_w's cluster, producing a proxy event that causes a cluster directory downgrade.
