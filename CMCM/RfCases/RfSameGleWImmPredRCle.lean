@@ -36,27 +36,22 @@ lemma CMCM.rf.sameGle.wImmPredRCle
   := by
   -- Expand Behaviour.readsFrom.cases case so we can prove this specific case.
   apply Behaviour.readsFrom.cases.wEqRGle hsame_gle (hw_cluster := hw_cluster_cache) (hr_cluster := hr_cluster_cache) (hw_not_down := hw_now_down) (hr_not_down := hr_not_down)
-  apply Behaviour.readsFrom.wEqRGle.cases.wObRCle
-
-  constructor
-  . case hwr_gle_or_cle_case.hw_r_cle_ob =>
-    -- Extract the ordering from cleImmediatePredecessor
-    -- cleImmediatePredecessor unfolds to ImmediateBottomPredecessor,
-    -- which gives us the predecessor ordering
-    unfold CompoundProtocol.cleImmediatePredecessor at hw_imm_pred_r_cle
-    have : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose :=
-      hw_imm_pred_r_cle.isImmPred.bPred.isPred
-    exact this
-  . case hwr_same_cluster =>
-    -- Use GLE equality to show same protocol
-    -- Even though e_w_cle and e_r_cle are different (immediate predecessor relationship),
-    -- the fact that both events have the same GLE means they're in the same protocol cluster
+  · -- hwr_same_cluster: protocol equality
     exact same_gle_implies_same_protocol hw_c_and_g_lin hr_c_and_g_lin hsame_gle
-  . case hwr_cle_ob_case =>
-    by_cases e_w.struct = e_r.struct
-    . case pos hsame_cache =>
-      apply WriteRead.wObRCle.case.sameCache hsame_cache
-      exact wimmpredrCle_no_dir_write_between_same_cache hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hsame_cache hknow_dir_access hno_intervening_writes
-    . case neg hdiff_cache =>
-      apply WriteRead.wObRCle.case.diffCache hdiff_cache
-      exact wimmpredrCle_diff_cache_choose_case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hdiff_cache hknow_dir_access hw_in_b hw_cluster_cache hw_now_down
+  · -- hw_eq_r_gle_cases: wObRCle
+    apply Behaviour.readsFrom.wEqRGle.cases.wObRCle
+    constructor
+    . case hwr_gle_or_cle_case.hw_r_cle_ob =>
+      -- Extract the ordering from cleImmediatePredecessor
+      unfold CompoundProtocol.cleImmediatePredecessor at hw_imm_pred_r_cle
+      have : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose :=
+        hw_imm_pred_r_cle.isImmPred.bPred.isPred
+      exact this
+    . case hwr_cle_ob_case =>
+      by_cases e_w.struct = e_r.struct
+      . case pos hsame_cache =>
+        apply WriteRead.wObRCle.case.sameCache hsame_cache
+        exact wimmpredrCle_no_dir_write_between_same_cache hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hsame_cache hknow_dir_access hno_intervening_writes
+      . case neg hdiff_cache =>
+        apply WriteRead.wObRCle.case.diffCache hdiff_cache
+        exact wimmpredrCle_diff_cache_choose_case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hdiff_cache hknow_dir_access hw_in_b hw_cluster_cache hw_now_down

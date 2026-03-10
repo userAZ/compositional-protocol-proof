@@ -32,25 +32,24 @@ lemma CMCM.rf.sameGle.evictOrReadBetweenWAndRCleSameCluster
   apply Behaviour.readsFrom.cases.wEqRGle hsame_gle
     (hw_cluster := hw_cluster_cache) (hr_cluster := hr_cluster_cache)
     (hw_not_down := hw_not_down) (hr_not_down := hr_not_down)
-  apply Behaviour.readsFrom.wEqRGle.cases.wObRCle
-
-  constructor
-  . case hwr_gle_or_cle_case.hw_r_cle_ob =>
-    -- CLE ordering directly from evictOrReadBetween hypothesis
-    exact hevict_or_read_between_w_r_cle.wObR
-  . case hwr_same_cluster =>
-    -- Same protocol from same GLE (reuse general helper)
+  · -- hwr_same_cluster
     exact same_gle_implies_same_protocol hw_c_and_g_lin hr_c_and_g_lin hsame_gle
-  . case hwr_cle_ob_case =>
-    by_cases hsame_cache : e_w.struct = e_r.struct
-    . case pos =>
-      -- Same cache: no intervening directory writes (reuse general helper)
-      apply WriteRead.wObRCle.case.sameCache hsame_cache
-      exact no_dir_write_between_same_cache hw_is_write hr_is_read
-        hw_c_and_g_lin hr_c_and_g_lin hsame_cache hknow_dir_access hno_intervening_writes
-    . case neg =>
-      -- Different cache: delegates to case-specific helpers
-      apply WriteRead.wObRCle.case.diffCache hsame_cache
-      exact evictOrReadBtn_diff_cache_choose_case hw_is_write hr_is_read
-        hw_c_and_g_lin hr_c_and_g_lin hevict_or_read_between_w_r_cle hsame_cache hknow_dir_access
-        hw_in_b hw_cluster_cache hw_not_down
+  · -- hw_eq_r_gle_cases
+    apply Behaviour.readsFrom.wEqRGle.cases.wObRCle
+    constructor
+    . case hwr_gle_or_cle_case.hw_r_cle_ob =>
+      -- CLE ordering directly from evictOrReadBetween hypothesis
+      exact hevict_or_read_between_w_r_cle.wObR
+    . case hwr_cle_ob_case =>
+      by_cases hsame_cache : e_w.struct = e_r.struct
+      . case pos =>
+        -- Same cache: no intervening directory writes (reuse general helper)
+        apply WriteRead.wObRCle.case.sameCache hsame_cache
+        exact no_dir_write_between_same_cache hw_is_write hr_is_read
+          hw_c_and_g_lin hr_c_and_g_lin hsame_cache hknow_dir_access hno_intervening_writes
+      . case neg =>
+        -- Different cache: delegates to case-specific helpers
+        apply WriteRead.wObRCle.case.diffCache hsame_cache
+        exact evictOrReadBtn_diff_cache_choose_case hw_is_write hr_is_read
+          hw_c_and_g_lin hr_c_and_g_lin hevict_or_read_between_w_r_cle hsame_cache hknow_dir_access
+          hw_in_b hw_cluster_cache hw_not_down

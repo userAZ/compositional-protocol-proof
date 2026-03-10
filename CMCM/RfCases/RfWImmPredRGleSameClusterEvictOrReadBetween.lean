@@ -24,17 +24,13 @@ lemma CMCM.rf.wImmPredRGle.sameCluster.evictOrReadBetweenWAndRCleSameCluster
   -- Use wObRGle since GLEs are ordered (immediate predecessor → ordered before)
   apply Behaviour.readsFrom.cases.wObRGle
     (hw_imm_pred_r_gle.isImmPred.bPred.isPred)
-  constructor
-  · -- CLE ordering from evictOrReadBetween
-    exact hevict_or_read_between_w_r_cle.wObR
-  · -- Same protocol from same cluster hypothesis
-    exact hsame_cluster
-  · -- Same/diff cache case split
-    by_cases hsame_cache : e_w.struct = e_r.struct
-    · apply WriteRead.wObRCle.case.sameCache hsame_cache
-      exact no_dir_write_between_same_cache hw_is_write hr_is_read
-        hw_c_and_g_lin hr_c_and_g_lin hsame_cache hknow_dir_access hno_intervening_writes
-    · apply WriteRead.wObRCle.case.diffCache hsame_cache
-      exact evictOrReadBtn_diff_cache_choose_case hw_is_write hr_is_read
-        hw_c_and_g_lin hr_c_and_g_lin hevict_or_read_between_w_r_cle hsame_cache hknow_dir_access
-        hw_in_b hw_cluster_cache hw_not_down
+  refine .sameCluster hsame_cluster ⟨hevict_or_read_between_w_r_cle.wObR, ?_⟩
+  -- Same/diff cache case split
+  by_cases hsame_cache : e_w.struct = e_r.struct
+  · apply WriteRead.wObRCle.case.sameCache hsame_cache
+    exact no_dir_write_between_same_cache hw_is_write hr_is_read
+      hw_c_and_g_lin hr_c_and_g_lin hsame_cache hknow_dir_access hno_intervening_writes
+  · apply WriteRead.wObRCle.case.diffCache hsame_cache
+    exact evictOrReadBtn_diff_cache_choose_case hw_is_write hr_is_read
+      hw_c_and_g_lin hr_c_and_g_lin hevict_or_read_between_w_r_cle hsame_cache hknow_dir_access
+      hw_in_b hw_cluster_cache hw_not_down
