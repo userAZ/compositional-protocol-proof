@@ -684,9 +684,10 @@ structure ReadDowngradeAtWrite.evictOrReadBetween.wAndRDown
   wCleImmPredRDown : ∀ e_cdir_inter ∈ b,
      IntermediateDirEvictOrRead e_cdir_inter
       hw_c_and_g_lin.hreq's_dir_access.choose
-      rDown.existsRDownAtW.choose
+      rDown.encapDir.existsRClusterDirDown.choose
+     → e_cdir_inter.isDirReadOrEvict
   wObRDown : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n
-    rDown.existsRDownAtW.choose
+    rDown.encapDir.existsRClusterDirDown.choose
 
 structure ReadDowngradeAtWrite.wCleImmPredDown
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
@@ -696,7 +697,7 @@ structure ReadDowngradeAtWrite.wCleImmPredDown
   : Prop where
   rDown : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin
   wCleImmPredRDown : b.ImmediateBottomPredecessor n
-    hw_c_and_g_lin.hreq's_dir_access.choose rDown.existsRDownAtW.choose
+    hw_c_and_g_lin.hreq's_dir_access.choose rDown.encapDir.existsRClusterDirDown.choose
 
 /- Cases of CLE if `e_w` GLE ImmPred `e_r` GLE. Different Cluster case. -/
 inductive CompoundProtocol.DifferentCluster.cleOB.cleOrdering.Cases
