@@ -318,7 +318,7 @@ structure Event.Between.diffProtocol.interveningDirWrite
   existsClusterDirDown :
     ∃ e_cdir_down ∈ b, e_cdir_down.isDirectoryEvent ∧
       e_cdir_down.protocol = e_w_le.protocol ∧
-      e_cdir_down.isWrite ∧
+      e_cdir_down.isDirWrite ∧
       e_cdir_down.down ∧
       e_w_inter.Encapsulates n e_cdir_down ∧
       e_cdir_down.OrderedBetween n e_w_le e_r_le
