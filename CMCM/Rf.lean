@@ -244,22 +244,33 @@ inductive Behaviour.gdown.clusterDirDown
   (hfwd : b.nonCoherentReqOnSWDowngradeOthers n e_r_proxy e_r_cdir_down init)
   : clusterDirDown n b init e_r_proxy e_r_cdir_down
 
+/-- The encapsulation relationship between the read's request chain and the cluster
+    directory downgrade `e_r_cdir_down`.
+    - `cleEncap`: When e_r is in the same protocol/cluster as e_w, e_r's CLE directly
+      encapsulates e_r_cdir_down.
+    - `gcacheEncap`: When e_r is in a different protocol/cluster, a global cache event
+      e_gcache (that got perms for e_r's CLE) encapsulates e_r_cdir_down. -/
+inductive Behaviour.clusterDown.encapDirRelation
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (e_r_cdir_down : Event n)
+  : Prop
+| cleEncap (h : hr_c_and_g_lin.hreq's_dir_access.choose.Encapsulates n e_r_cdir_down)
+| gcacheEncap (h : ∃ e_gcache ∈ b, e_gcache.Encapsulates n e_r_cdir_down)
+
 /-- The full read-from-write downgrade chain: e_r's read triggers a global downgrade at
     e_w's cluster, producing a proxy event that causes a cluster directory downgrade.
-    The chain: e_r_cle ≻ e_r_cle_gcache ≻ e_r_gle ≻ e_r_gdown ≻ e_r_proxy ≻ e_r_cdir_down.
+    The chain: e_r_cle → e_r_cle_gcache → e_r_gle → e_r_gdown → e_r_proxy → e_r_cdir_down.
 
-    Fields:
-    - existsRGlobalDown: global downgrade at previous owner (from Axiom 10 at global level)
-    - existsRClusterDirDown: cluster directory downgrade event at e_w's protocol
-    - clusterDirDownFromProxy: when cluster dir state is SW, proxy triggers coherentReq or
-      nonCoherentReq downgrade (conditional on clusterDirStateBefore = SW) -/
+    When e_r and e_w are in the same cluster, CLE ≻ e_r_cdir_down (cleEncap).
+    When e_r and e_w are in different clusters, e_gcache ≻ e_r_cdir_down (gcacheEncap). -/
 structure Behaviour.clusterDown.encapDir (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
   (e_w : Event n)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   : Prop where
   existsRClusterDirDown :
     ∃ e_r_cdir_down ∈ b, e_r_cdir_down.isDirectoryEvent ∧ e_r_cdir_down.protocol = e_w.protocol
-      ∧ hr_c_and_g_lin.hreq's_dir_access.choose.Encapsulates n e_r_cdir_down
+      ∧ Behaviour.clusterDown.encapDirRelation hr_c_and_g_lin e_r_cdir_down
 
 structure Behaviour.clusterDown.encapProxyAndDirAndCDown {cmp : CompoundProtocol n}
   {b : Behaviour n} {init : InitialSystemState n}

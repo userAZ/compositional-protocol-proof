@@ -169,10 +169,18 @@ lemma evictOrReadBtn_diffCache_evictBetween_wObRDown
       hencapPD.existsRClusterDirDown.choose := by
   -- e_w_cle < e_r_cle (from evictOrReadBetween.wObR)
   have hpred := hevict_or_read_between.wObR
-  -- e_r_cle ≻ e_r_cdir_down (from encapDir's Encapsulates field)
-  have hencap := hencapPD.existsRClusterDirDown.choose_spec.right.right.right
-  -- By order_encap_trans: e_w_cle < e_r_cdir_down
-  exact Trans.trans hpred hencap
+  -- Case-split on encapDirRelation
+  have hrel : Behaviour.clusterDown.encapDirRelation hr_c_and_g_lin
+      hencapPD.existsRClusterDirDown.choose :=
+    hencapPD.existsRClusterDirDown.choose_spec.right.right.right
+  match hrel with
+  | .cleEncap h =>
+    -- e_r_cle ≻ e_r_cdir_down → e_w_cle < e_r_cdir_down by Trans
+    exact Trans.trans hpred h
+  | .gcacheEncap h =>
+    -- e_gcache ≻ e_r_cdir_down, but we need e_w_cle < e_r_cdir_down
+    -- This requires relating e_w_cle to e_gcache (different protocol case)
+    sorry
 
 /-- Construct the evictBetween.cond for the evictOrReadBetween case.
     Fields:

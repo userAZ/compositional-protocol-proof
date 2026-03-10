@@ -3039,13 +3039,11 @@ lemma globalToCluster_extract_dir_with_encap
 
 /-- Construct the global and cluster level downgrade chain from e_r's GLE to e_w's cluster.
     Produces the existential witness for `existsRClusterDirDown`: a cluster directory event
-    at e_w's protocol, encapsulated by the read's CLE.
+    at e_w's protocol, with encapDirRelation (either CLE or gcache encapsulates it).
 
-    The encapsulation chain:
-    1. `e_r_cle ≻ e_r_cle_gcache` (CLE encapsulates its global cache event)
-    2. `e_r_cle_gcache ≻ e_r_gle` (from downgradeAtPrevOwner.reqEncapDir)
-    3. `e_r_gle ≻ e_r_gdown` (from downgradeAtPrevOwner.dirEncapDowngrade)
-    4. `e_r_gdown ≻ e_dir` (from globalToCluster_extract_dir_with_encap) -/
+    The chain: e_r_cle → e_gcache → e_r_gle → e_r_gdown → e_dir.
+    Steps 2-4 prove: e_gcache ≻ e_r_gle ≻ e_r_gdown ≻ e_dir, i.e., e_gcache ≻ e_dir.
+    We use `gcacheEncap` to record that the global cache event encapsulates e_dir. -/
 lemma diffCache_coherent_encapProxyAndDir
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
   (_hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
@@ -3058,21 +3056,14 @@ lemma diffCache_coherent_encapProxyAndDir
   have hp_eq := Event.getProtocol_pi cmp e_w
   have hdir_encap := globalToCluster_extract_dir_with_encap hg2c e_w hp_eq
   obtain ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, he_gdown_encap_dir⟩ := hdir_encap
-  -- Build the encapsulation chain: e_r_cle ≻ ... ≻ e_dir
-  -- Steps 2-4: e_r_cle_gcache ≻ e_r_gle ≻ e_r_gdown ≻ e_dir
-  have h_gcache_encap_dir : (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
-      (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)).Encapsulates n e_dir :=
+  -- Steps 2-4: e_gcache ≻ e_r_gle ≻ e_r_gdown ≻ e_dir
+  let e_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
+      (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)
+  have he_gcache_in_b : e_gcache ∈ b :=
+    Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB cmp b init hr_c_and_g_lin.hreq's_dir_access
+  have h_gcache_encap_dir : e_gcache.Encapsulates n e_dir :=
     Trans.trans (Trans.trans hdowngrade.downgradePrevOwner.reqEncapDir
       hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dir
-  -- Step 1: e_r_cle ≻ e_r_cle_gcache (CLE encapsulates its global cache event)
-  -- This requires case-splitting on ClusterToGlobal for the CLE.
-  have h_cle_encap_dir : hr_c_and_g_lin.hreq's_dir_access.choose.Encapsulates n e_dir := by
-    have h_cle := hr_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
-    have h_c2g := cmp.shimAxioms.clusterToGlobal b init
-      hr_c_and_g_lin.hreq's_dir_access.choose h_cle
-    -- The CLE encapsulates e_r_cle_gcache, which encapsulates e_dir (via chain)
-    -- In the encapGlobalCache case: CLE ≻ gcache from clusterDirEncapCorrespondingGlobalCache
-    -- In the noGlobalCache case: the global cache event is NOT encapsulated by the CLE;
-    -- this case requires showing it is unreachable or deriving the ordering differently.
-    sorry
-  exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, h_cle_encap_dir⟩ }
+  -- Use gcacheEncap: the global cache event encapsulates the directory downgrade
+  exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
+    Behaviour.clusterDown.encapDirRelation.gcacheEncap ⟨e_gcache, he_gcache_in_b, h_gcache_encap_dir⟩⟩ }
