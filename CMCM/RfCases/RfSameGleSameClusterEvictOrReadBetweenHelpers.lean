@@ -145,12 +145,93 @@ lemma evictOrReadBtn_diffCache_evictBetween_noWriteBtn
   intro h
   cases h with
   | diffCluster e_w_inter hdiff =>
-    -- existsClusterDirDown requires isDirectoryEvent ∧ isWrite, which is impossible
-    -- for any event: directory events have isWrite = False, cache events have isDirectoryEvent = False
-    obtain ⟨e_cdir_down, _, hcdir_dir, _, hcdir_write, _⟩ := hdiff.existsClusterDirDown
-    cases e_cdir_down with
-    | cacheEvent _ => exact absurd hcdir_dir (by simp [Event.isDirectoryEvent])
-    | directoryEvent _ => exact absurd hcdir_write (by simp [Event.isWrite])
+    -- existsClusterDirDown gives e_cdir_down: a dir-write between e_w_cle and e_r_cdir_down
+    -- Use dir_ordered on e_cdir_down vs e_r_cle (both directory events)
+    -- Case 1: e_cdir_down < e_r_cle → interDirEvictOrRead gives isDirRead, contradicting isDirWrite
+    -- Case 2: e_r_cle < e_cdir_down → timing contradiction via encapDirRelation
+    obtain ⟨e_cdir_down, hcdir_mem, hcdir_dir, hcdir_proto, hcdir_isDirWrite, _, _, hcdir_between⟩ :=
+      hdiff.existsClusterDirDown
+    -- Extract DirectoryEvent from e_cdir_down
+    have ⟨de_cdir, hev_cdir⟩ : ∃ de, e_cdir_down = .directoryEvent de := by
+      match h : e_cdir_down with
+      | .directoryEvent de => exact ⟨de, rfl⟩
+      | .cacheEvent _ => simp [Event.isDirectoryEvent, h] at hcdir_dir
+    -- Extract DirectoryEvent from e_r_cle
+    have hr_cle_dir_event : hr_c_and_g_lin.hreq's_dir_access.choose.isDirectoryEvent :=
+      hr_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+    have ⟨de_r_cle, hev_r_cle⟩ : ∃ de, hr_c_and_g_lin.hreq's_dir_access.choose = .directoryEvent de := by
+      match h : hr_c_and_g_lin.hreq's_dir_access.choose with
+      | .directoryEvent de => exact ⟨de, rfl⟩
+      | .cacheEvent _ => simp [Event.isDirectoryEvent, h] at hr_cle_dir_event
+    -- Use dir_ordered: e_cdir_down and e_r_cle are both directory events
+    have hdir_ordered := b.orderedAtEntry.dir_ordered de_cdir de_r_cle |>.ordered
+    simp [DirectoryEvent.Ordered] at hdir_ordered
+    cases hdir_ordered with
+    | inl hcdir_ob_r_cle =>
+      -- Case 1: e_cdir_down < e_r_cle → interDirEvictOrRead gives isDirRead
+      have h_proto : e_cdir_down.sameProtocol n hw_c_and_g_lin.hreq's_dir_access.choose := by
+        unfold Event.sameProtocol
+        exact hcdir_proto
+      have h_struct : e_cdir_down.sameStructure n hw_c_and_g_lin.hreq's_dir_access.choose := by
+        have hw_cle_dir : hw_c_and_g_lin.hreq's_dir_access.choose.isDirectoryEvent :=
+          hw_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+        have ⟨de_w_cle, hev_w_cle⟩ : ∃ de, hw_c_and_g_lin.hreq's_dir_access.choose = .directoryEvent de := by
+          match h : hw_c_and_g_lin.hreq's_dir_access.choose with
+          | .directoryEvent de => exact ⟨de, rfl⟩
+          | .cacheEvent _ => simp [Event.isDirectoryEvent, h] at hw_cle_dir
+        unfold Event.sameStructure Event.struct
+        rw [hev_cdir, hev_w_cle]
+        simp
+        unfold Event.sameProtocol Event.protocol at h_proto
+        rw [hev_cdir, hev_w_cle] at h_proto
+        simp at h_proto
+        exact h_proto
+      have hsucc : e_cdir_down.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose := by
+        have h_ob := @DirectoryEvent.ordered_events n de_cdir de_r_cle
+          (.directoryEvent de_cdir) (.directoryEvent de_r_cle)
+          rfl rfl hcdir_ob_r_cle
+        rwa [← hev_cdir, ← hev_r_cle] at h_ob
+      have hbetween : e_cdir_down.OrderedBetween n
+          hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose := {
+        pred := hcdir_between.pred
+        succ := hsucc
+      }
+      have hdir_read : e_cdir_down.isDirReadOrEvict :=
+        hevict_or_read_between.interDirEvictOrRead _ hcdir_mem ⟨h_proto, h_struct, hbetween⟩
+      -- isDirRead contradicts isDirWrite
+      rw [hev_cdir] at hdir_read hcdir_isDirWrite
+      simp [Event.isDirReadOrEvict, Event.isDirRead] at hdir_read
+      simp [Event.isDirWrite] at hcdir_isDirWrite
+      simp [Request.isRead] at hdir_read
+      simp [Request.isWrite] at hcdir_isDirWrite
+      rw [hcdir_isDirWrite] at hdir_read
+      exact absurd hdir_read (by decide)
+    | inr hr_cle_ob_cdir =>
+      -- Case 2: e_r_cle < e_cdir_down → timing contradiction
+      have h1 : hr_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n e_cdir_down := by
+        have h_ob := @DirectoryEvent.ordered_events n de_r_cle de_cdir
+          (.directoryEvent de_r_cle) (.directoryEvent de_cdir)
+          rfl rfl hr_cle_ob_cdir
+        rwa [← hev_r_cle, ← hev_cdir] at h_ob
+      have h2 := hcdir_between.succ
+      -- e_r_cdir_down.oEnd < e_r_cle.oEnd from encapDirRelation
+      have hrel := hencapPD.existsRClusterDirDown.choose_spec.right.right.right
+      have h3 : hencapPD.existsRClusterDirDown.choose.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd := by
+        match hrel with
+        | .cleEncap h => exact h.2
+        | .gcacheEncap _ cdownEndBeforeCle => exact cdownEndBeforeCle
+      -- Chain: e_cdir.oEnd < e_r_cle.oEnd < e_cdir_down.oStart < e_cdir_down.oEnd < e_r_cdir.oStart
+      -- with e_r_cdir.oEnd < e_r_cle.oEnd gives e_r_cdir.oEnd < e_r_cdir.oStart
+      unfold Event.OrderedBefore at h1 h2
+      rw [hev_r_cle, hev_cdir] at h1
+      simp [Event.oStart, Event.oEnd] at h1
+      rw [hev_cdir] at h2
+      simp [Event.oStart, Event.oEnd] at h2
+      rw [hev_r_cle] at h3
+      simp [Event.oEnd] at h3
+      have hwf_cdir := de_cdir.oWellFormed
+      have hwf_rcd := hencapPD.existsRClusterDirDown.choose.oWellFormed
+      exact absurd (Nat.lt_trans (Nat.lt_trans (Nat.lt_trans (Nat.lt_trans h3 h1) hwf_cdir) h2) hwf_rcd) (Nat.lt_irrefl _)
   | sameCluster e_w_inter hsame =>
     -- CLE(inter) is a dir-write between e_w_cle and e_r_cdir_down.
     -- Use dir_ordered to compare CLE(inter) vs e_r_cle (both directory events).
