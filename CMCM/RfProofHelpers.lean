@@ -117,6 +117,47 @@ lemma non_coherent_request_has_false_mrs_c (vr : ValidRequest) (hnc : vr.val.coh
   | ⟨⟨.w, false, .Rel⟩,_⟩ => simp[]
   | ⟨⟨.r,false,.Acq⟩,_⟩ => simp[]
 
+/-- A coherent write (not a downgrade) always leaves the cache state at least SW.
+    This is because CacheEvent.SucceedingState uses RequestState when down=false,
+    and for coherent requests, RequestState s = if MRS ≤ s then s else MRS.
+    For all coherent writes, MRS = SW, so the result is always ≥ SW. -/
+lemma coherent_write_leaves_at_least_SW
+  {b : Behaviour n} {init : InitialSystemState n} {e_w : Event n}
+  (hw_is_write : e_w.isWrite) (hw_coherent : e_w.isCoherent)
+  (hw_not_down : ¬ e_w.down) (hw_is_cache : e_w.isCacheEvent)
+  : b.reqLeavesStateAtLeast n e_w init SW := by
+  unfold Behaviour.reqLeavesStateAtLeast
+  rw [Behaviour.state_after_eq_succeeding_state_before]
+  cases he_w : e_w with
+  | directoryEvent de =>
+    exfalso; rw [he_w] at hw_is_cache; simp [Event.isCacheEvent] at hw_is_cache
+  | cacheEvent ce =>
+    simp only [Event.SucceedingState, EntryState.cache]
+    have hdown : ce.down = false := by
+      have h := hw_not_down; rw [he_w] at h; simp [Event.down] at h; omega
+    simp only [CacheEvent.SucceedingState, hdown]
+    suffices ∀ (s : State), SW ≤ ce.req.RequestState s by exact this _
+    intro s
+    have hcoh : ce.req.val.coherent = true := by
+      have h := hw_coherent; rw [he_w] at h
+      simpa [Event.isCoherent, ValidRequest.isCoherent, Request.isCoherent] using h
+    have hrw : ce.req.val.rw = .w := by
+      have h := hw_is_write; rw [he_w] at h
+      simpa [Event.isWrite, Request.isWrite] using h
+    generalize hreq : ce.req = req
+    rw [hreq] at hcoh hrw
+    cases req with
+    | mk val hvr =>
+      cases val with
+      | mk rw coh cons =>
+        simp at hcoh hrw
+        subst hcoh; subst hrw
+        cases cons with
+        | Acq => exact absurd ⟨rfl, rfl⟩ hvr.2.1
+        | _ =>
+          dsimp [ValidRequest.RequestState, ValidRequest.MRS, ReadWrite.toPerms]
+          split <;> first | assumption | exact Or.inr rfl
+
 /-- Helper: NC Weak Write contradicts being in reqMissingPerms.noPermsForNonNcRelAcqWeakWrite -/
 lemma nc_weak_write_excluded_by_not_nc_rel_acq_weak_write
   {ce_pred : CacheEvent n}
@@ -2998,12 +3039,13 @@ lemma globalToCluster_extract_dir_with_encap
 
 /-- Construct the global and cluster level downgrade chain from e_r's GLE to e_w's cluster.
     Produces the existential witness for `existsRClusterDirDown`: a cluster directory event
-    at e_w's protocol.
+    at e_w's protocol, encapsulated by the read's CLE.
 
-    The chain:
-    1. `diffCache_coherent_globalDowngrade` → Axiom 10 at global level → downgrade at previous owner
-    2. `cmp.shimAxioms.globalToCluster` → map downgrade to e_w's cluster protocol
-    3. `globalToCluster_extract_dir_with_encap` → extract directory event -/
+    The encapsulation chain:
+    1. `e_r_cle ≻ e_r_cle_gcache` (CLE encapsulates its global cache event)
+    2. `e_r_cle_gcache ≻ e_r_gle` (from downgradeAtPrevOwner.reqEncapDir)
+    3. `e_r_gle ≻ e_r_gdown` (from downgradeAtPrevOwner.dirEncapDowngrade)
+    4. `e_r_gdown ≻ e_dir` (from globalToCluster_extract_dir_with_encap) -/
 lemma diffCache_coherent_encapProxyAndDir
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
   (_hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
@@ -3015,5 +3057,22 @@ lemma diffCache_coherent_encapProxyAndDir
   have hg2c := cmp.shimAxioms.globalToCluster b init (e_w.getProtocol cmp) e_r_gdown he_r_gdown_in_b
   have hp_eq := Event.getProtocol_pi cmp e_w
   have hdir_encap := globalToCluster_extract_dir_with_encap hg2c e_w hp_eq
-  obtain ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, _he_gdown_encap_dir⟩ := hdir_encap
-  exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto⟩ }
+  obtain ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, he_gdown_encap_dir⟩ := hdir_encap
+  -- Build the encapsulation chain: e_r_cle ≻ ... ≻ e_dir
+  -- Steps 2-4: e_r_cle_gcache ≻ e_r_gle ≻ e_r_gdown ≻ e_dir
+  have h_gcache_encap_dir : (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
+      (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)).Encapsulates n e_dir :=
+    Trans.trans (Trans.trans hdowngrade.downgradePrevOwner.reqEncapDir
+      hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dir
+  -- Step 1: e_r_cle ≻ e_r_cle_gcache (CLE encapsulates its global cache event)
+  -- This requires case-splitting on ClusterToGlobal for the CLE.
+  have h_cle_encap_dir : hr_c_and_g_lin.hreq's_dir_access.choose.Encapsulates n e_dir := by
+    have h_cle := hr_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+    have h_c2g := cmp.shimAxioms.clusterToGlobal b init
+      hr_c_and_g_lin.hreq's_dir_access.choose h_cle
+    -- The CLE encapsulates e_r_cle_gcache, which encapsulates e_dir (via chain)
+    -- In the encapGlobalCache case: CLE ≻ gcache from clusterDirEncapCorrespondingGlobalCache
+    -- In the noGlobalCache case: the global cache event is NOT encapsulated by the CLE;
+    -- this case requires showing it is unreachable or deriving the ordering differently.
+    sorry
+  exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, h_cle_encap_dir⟩ }

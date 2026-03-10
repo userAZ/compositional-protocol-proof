@@ -60,6 +60,7 @@ lemma wimmpredrCle_diff_cache_choose_case
   (hdiff_cache : e_w.struct ≠ e_r.struct)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache)
+  (hw_not_down : ¬ e_w.down)
   : WriteRead.wObRCle.diffCache.case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access := by
   -- Extract rCleAfterWCle from CLE immediate predecessor
   have hr_cle_after := diffCache_rCleAfterWCle hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle
@@ -67,10 +68,16 @@ lemma wimmpredrCle_diff_cache_choose_case
   by_cases hw_coherent : e_w.isCoherent
   · -- Coherent write → wHasPermsAfter with immPred (CLE immediate predecessor)
     have hencapPD := diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster
-    have hw_leaves_SW : b.reqLeavesStateAtLeast n e_w init SW := sorry
-    have hencapPDC : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin :=
-      { encapDir := hencapPD, existsRDownAtW := sorry }
-    exact .wHasPermsAfter hw_leaves_SW (.immPred hw_imm_pred_r_cle hencapPDC)
+    have hw_leaves_SW : b.reqLeavesStateAtLeast n e_w init SW :=
+      coherent_write_leaves_at_least_SW hw_is_write hw_coherent hw_not_down hw_cluster.eAtCache
+    by_cases hcdown : ∃ e_r_down ∈ b,
+      e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down
+    · -- Cache-level downgrade exists → construct full encapPDC and use immPred
+      have hencapPDC : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin :=
+        { encapDir := hencapPD, existsRDownAtW := hcdown }
+      exact .wHasPermsAfter hw_leaves_SW (.immPred hw_imm_pred_r_cle hencapPDC)
+    · -- No cache-level downgrade → fall back to wCleAfter
+      exact .wCleAfter hr_cle_after
   · -- Non-coherent write: use rCleAfterWCle for the new constructors
     have hw_nc : e_w.isNonCoherent := isNonCoherent_of_not_isCoherent_write hw_is_write hw_coherent
     -- dirAccessOfRequest determines whether write has missing perms

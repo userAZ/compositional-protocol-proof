@@ -59,4 +59,4 @@ lemma CMCM.rf.sameGle.wImmPredRCle
       exact wimmpredrCle_no_dir_write_between_same_cache hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hsame_cache hknow_dir_access hno_intervening_writes
     . case neg hdiff_cache =>
       apply WriteRead.wObRCle.case.diffCache hdiff_cache
-      exact wimmpredrCle_diff_cache_choose_case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hdiff_cache hknow_dir_access hw_in_b hw_cluster_cache
+      exact wimmpredrCle_diff_cache_choose_case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hw_imm_pred_r_cle hdiff_cache hknow_dir_access hw_in_b hw_cluster_cache hw_now_down
