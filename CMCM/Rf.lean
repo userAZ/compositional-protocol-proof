@@ -118,7 +118,7 @@ structure Event.Between.noWrite.cond.diffCacheNoInterWriteDowngrade
 structure Event.dirWriteDowngradeFromDiffCluster (e_inter_down e_inter e_w e_r : Event n) : Prop where
   diffProtocol : e_inter.diffProtocol n e_w ∧ e_inter.diffProtocol n e_r
   downToW : e_inter_down.sameProtocol n e_w
-  isWrite : e_inter_down.isWrite
+  isDirWrite : e_inter_down.isDirWrite
   isDown : e_inter_down.down
   isDir : e_inter_down.isDirectoryEvent
   interEncapDown : e_inter.Encapsulates n e_inter_down
