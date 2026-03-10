@@ -91,8 +91,10 @@ theorem CMCM.rf_holds
           . case hw_imm_pred_r_gle => exact hw_imm_pred_r_gle
           . case hdiff_cluster => exact hdiff_cluster
           . case hw_cle_imm_pred_r_down => exact hw_cle_imm_pred_r_down
+          . case hw_not_down => exact hw_not_down
         . case evictOrReadBetweenWAndRDown hw_cle_imm_pred_down =>
           apply CMCM.rf.wImmPredRGle.diffCluster.evictOrReadBetweenWAndRDown hw_c_and_g_lin hr_c_and_g_lin
           . case hw_imm_pred_r_gle => exact hw_imm_pred_r_gle
           . case hdiff_cluster => exact hdiff_cluster
           . case hw_cle_imm_pred_down => exact hw_cle_imm_pred_down
+          . case hw_not_down => exact hw_not_down
