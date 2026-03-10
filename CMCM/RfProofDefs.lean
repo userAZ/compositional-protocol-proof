@@ -32,7 +32,7 @@ def SameClusterCLE.NotBetweenCLEs (e_inter_cle e_w_cle e_r_cle : Event n) : Prop
 structure DiffClusterCLE.NotBetweenCLEs.constraints (e_inter e_w e_r e_inter_down : Event n) : Prop where
   diffProtocol : e_inter.diffProtocol n e_w ∧ e_inter.diffProtocol n e_r
   downToW : e_inter_down.sameProtocol n e_w
-  isWrite : e_inter_down.isWrite
+  isDirWrite : e_inter_down.isDirWrite
   downIsDown : e_inter_down.down
   isDir : e_inter_down.isDirectoryEvent
   interEncapDown : e_inter.Encapsulates n e_inter_down
@@ -47,7 +47,7 @@ lemma DiffClusterCLE.NotBetweenCLEs.constraints_of_downgrade
   (hdown : Event.dirWriteDowngradeFromDiffCluster e_inter_down e_inter e_w e_r)
   (hediff_w : e_inter.protocol ≠ e_w.protocol) (hediff_r : e_inter.protocol ≠ e_r.protocol)
   : DiffClusterCLE.NotBetweenCLEs.constraints e_inter e_w e_r e_inter_down :=
-  ⟨⟨hediff_w, hediff_r⟩, hdown.downToW, hdown.isWrite, hdown.isDown, hdown.isDir, hdown.interEncapDown⟩
+  ⟨⟨hediff_w, hediff_r⟩, hdown.downToW, hdown.isDirWrite, hdown.isDown, hdown.isDir, hdown.interEncapDown⟩
 
 structure NoInterveningWrites.constraints
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}

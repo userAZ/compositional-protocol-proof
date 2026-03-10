@@ -466,13 +466,25 @@ lemma evictOrReadBtn_diff_cache_choose_case
   -- Extract rCleAfterWCle from evictOrReadBetween.wObR
   have hr_cle_after := evictOrReadBtn_diffCache_rCleAfterWCle hw_c_and_g_lin hr_c_and_g_lin hevict_or_read_between
   by_cases hw_coherent : e_w.isCoherent
-  · -- Coherent write → wHasPermsAfter with notImmPred (evictOrReadBetween case)
+  · -- Coherent write: first check if e_w's CLE is the immediate predecessor of e_r's CLE
     have hw_leaves_SW : b.reqLeavesStateAtLeast n e_w init SW :=
       coherent_write_leaves_at_least_SW hw_is_write hw_coherent hw_not_down hw_cluster.eAtCache
-    exact .wHasPermsAfter hw_leaves_SW
-      (.notImmPred (evictOrReadBtn_diffCache_coherent_wHasPermsAfter_case hw_is_write hr_is_read
-        hw_c_and_g_lin hr_c_and_g_lin hevict_or_read_between hdiff_cache hw_coherent hknow_dir_access
-        hw_in_b hw_cluster))
+    by_cases h_imm : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin
+    · -- immPred: e_w_cle is immediate predecessor of e_r_cle (same structure as wImmPredRCle)
+      have hencapPD := diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster
+      by_cases hcdown : ∃ e_r_down ∈ b,
+        e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down
+      · -- Cache-level downgrade exists → use immPred directly (skips noEvict/noWrite)
+        have hencapPDC : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin :=
+          { encapDir := hencapPD, existsRDownAtW := hcdown }
+        exact .wHasPermsAfter hw_leaves_SW (.immPred h_imm hencapPDC)
+      · -- No cache-level downgrade → fall back to wCleAfter
+        exact .wCleAfter hr_cle_after
+    · -- notImmPred: use the general wHasPermsAfter case with noEvict/evict subcases
+      exact .wHasPermsAfter hw_leaves_SW
+        (.notImmPred (evictOrReadBtn_diffCache_coherent_wHasPermsAfter_case hw_is_write hr_is_read
+          hw_c_and_g_lin hr_c_and_g_lin hevict_or_read_between hdiff_cache hw_coherent hknow_dir_access
+          hw_in_b hw_cluster))
   · -- Non-coherent write: use rCleAfterWCle for the new constructors
     have hw_nc : e_w.isNonCoherent := isNonCoherent_of_not_isCoherent_write hw_is_write hw_coherent
     have hw_dir_access := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
