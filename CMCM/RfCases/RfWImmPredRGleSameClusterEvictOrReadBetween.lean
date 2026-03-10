@@ -18,6 +18,7 @@ lemma CMCM.rf.wImmPredRGle.sameCluster.evictOrReadBetweenWAndRCleSameCluster
   (hevict_or_read_between_w_r_cle : CLE.WROrdering.evictOrReadBetween hw_c_and_g_lin hr_c_and_g_lin)
   (hno_intervening_writes : NoInterveningWrites hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
   (hw_in_b : e_w ∈ b) (hw_cluster_cache : e_w.isClusterCache)
+  (hw_not_down : ¬ e_w.down)
   : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
   := by
   -- Use wObRGle since GLEs are ordered (immediate predecessor → ordered before)
@@ -36,4 +37,4 @@ lemma CMCM.rf.wImmPredRGle.sameCluster.evictOrReadBetweenWAndRCleSameCluster
     · apply WriteRead.wObRCle.case.diffCache hsame_cache
       exact evictOrReadBtn_diff_cache_choose_case hw_is_write hr_is_read
         hw_c_and_g_lin hr_c_and_g_lin hevict_or_read_between_w_r_cle hsame_cache hknow_dir_access
-        hw_in_b hw_cluster_cache
+        hw_in_b hw_cluster_cache hw_not_down

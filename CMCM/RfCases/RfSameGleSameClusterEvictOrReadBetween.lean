@@ -53,4 +53,4 @@ lemma CMCM.rf.sameGle.evictOrReadBetweenWAndRCleSameCluster
       apply WriteRead.wObRCle.case.diffCache hsame_cache
       exact evictOrReadBtn_diff_cache_choose_case hw_is_write hr_is_read
         hw_c_and_g_lin hr_c_and_g_lin hevict_or_read_between_w_r_cle hsame_cache hknow_dir_access
-        hw_in_b hw_cluster_cache
+        hw_in_b hw_cluster_cache hw_not_down
