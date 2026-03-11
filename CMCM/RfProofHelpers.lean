@@ -653,10 +653,6 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
       simp[_hsame_struct] at *
       exact hsame_cache
     exact ⟨hsame_cache, hdiff_r⟩
-  · -- Prove: interUnique
-    constructor
-    · intro heq; subst heq; exact hsame_cache (by unfold Event.sameStructure; rfl)
-    · intro heq; subst heq; exact hsame_cache (by unfold Event.sameStructure; exact _hsame_struct.symm)
   · -- Prove: interCleNotBetween
     -- Strategy: Use hcontra.notBetweenCles to contradict any attempt to show
     -- that some directory downgrade IS between e_w_cle and e_r_cle
@@ -857,12 +853,12 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
                                           e_inter_cle.protocol = e_r_cle.protocol ∧
                                           Event.isDirWrite n e_inter_cle :=
         ⟨hsame_protocol_cles.1, hsame_protocol_cles.2, hinter_cle_is_dir_write⟩
-      have hnot_between := hcontra.notBetweenCles hsame_protocol_and_dir_write
-      exists e_inter_cle
-      constructor
-      · exact hinter_lin.hreq's_dir_access.choose_spec.left
-      intro hdowngrade
-      exact hnot_between
+      have _hnot_between := hcontra.notBetweenCles hsame_protocol_and_dir_write
+      intro e_inter_down _he_mem _hdowngrade
+      -- e_inter_down is a directory write at the same cluster, encapsulated by e_inter
+      -- hnot_between proves this for the specific e_inter_cle; extending to arbitrary e_inter_down
+      -- requires uniqueness of encapsulated directory events per cache request
+      sorry
     | orderBeforeDir hreq_has_perms hexists_pred_getting_perms hpred_accesses_dir hinter_leaves_state_at_least hpred_same_protocol
       _ hpred_produces_state_at_least_req_made_on_state hinter_pred_not_down =>
       have hw_r_same_struct : e_w.sameStructure n e_r := by
@@ -1098,12 +1094,11 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
                                           e_inter_cle.protocol = e_r_cle.protocol ∧
                                           Event.isDirWrite n e_inter_cle :=
         ⟨hsame_protocol_cles.1, hsame_protocol_cles.2, hinter_cle_is_dir_write⟩
-      have hnot_between := hcontra.notBetweenCles hsame_protocol_and_dir_write
-      exists e_inter_cle
-      constructor
-      · exact hinter_lin.hreq's_dir_access.choose_spec.left
-      intro hdowngrade
-      exact hnot_between
+      have _hnot_between := hcontra.notBetweenCles hsame_protocol_and_dir_write
+      intro e_inter_down _he_mem _hdowngrade
+      -- hnot_between proves this for the specific e_inter_cle; extending to arbitrary e_inter_down
+      -- requires uniqueness of encapsulated directory events per cache request
+      sorry
 
     | orderAfterDir hweak_req_on_vd hsucc_encap_dir hsucc_same_protocol =>
       have hw_r_same_struct : e_w.sameStructure n e_r := by
@@ -1405,12 +1400,11 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
                                           e_inter_cle.protocol = e_r_cle.protocol ∧
                                           Event.isDirWrite n e_inter_cle :=
         ⟨hsame_protocol_cles.1, hsame_protocol_cles.2, hinter_cle_is_dir_write⟩
-      have hnot_between := hcontra.notBetweenCles hsame_protocol_and_dir_write
-      exists e_inter_cle
-      constructor
-      · exact hinter_lin.hreq's_dir_access.choose_spec.left
-      intro hdowngrade
-      exact hnot_between
+      have _hnot_between := hcontra.notBetweenCles hsame_protocol_and_dir_write
+      intro e_inter_down _he_mem _hdowngrade
+      -- hnot_between proves this for the specific e_inter_cle; extending to arbitrary e_inter_down
+      -- requires uniqueness of encapsulated directory events per cache request
+      sorry
 /-- Helper lemma for Case 2b: Different protocol/cluster -/
 lemma noInterveningWrites_diffCache_diffProtocol_case
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
@@ -1452,7 +1446,7 @@ lemma noInterveningWrites_diffCache_diffProtocol_case
   -- Apply the constructor with the negation proof
   apply Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites.otherWDiffCluster
   constructor
-  intro ⟨e_inter_down, he_mem, hdown, hob⟩
+  intro e_inter_down he_mem hdown hob
   apply hcontra.diffClusterNotBetweenCles
   use e_inter_down, he_mem
   exact ⟨DiffClusterCLE.NotBetweenCLEs.constraints_of_downgrade hdown hdiff_w_protocol hdiff_r_protocol, hob⟩
@@ -1536,13 +1530,10 @@ lemma noInterveningWrites_implies_no_writes_between
           exact hsame_cache
         exact ⟨hsame_cache, hsame_r⟩
       · -- Prove: interCleNotBetween
-        exists hinter_lin.hreq's_dir_access.choose
-        constructor
-        · exact hinter_lin.hreq's_dir_access.choose_spec.left
-        intro ⟨hdir_access, hbetween⟩ ⟨_, hcle_between⟩
+        intro _e_inter_cle _he_mem ⟨_hdir_access, hbetween⟩ ⟨_, _hcle_between⟩
         -- Use successive writes constraint: timing contradiction
-        have hw_ob_e : e_w.OrderedBefore n e := hbetween.between.pred
-        have he_ob_r : e.OrderedBefore n e_r := hbetween.between.succ
+        have hw_ob_e : e_w.OrderedBefore n e := hbetween.pred
+        have he_ob_r : e.OrderedBefore n e_r := hbetween.succ
         have hr_end_before_e_end : e_r.oEnd < e.oEnd := _hsucc_w_of_w_after_r e he ⟨hwrite, hsame_protocol, hsame_cache, hw_ob_e⟩
         simp [Event.OrderedBefore] at he_ob_r
         have hr_well_formed := e_r.oWellFormed
@@ -2822,7 +2813,7 @@ lemma no_dir_write_between_same_cache
   have hw_r_same_proto : e_w.protocol = e_r.protocol :=
     sameStructure_implies_sameProtocol hw_r_same_struct
   cases h with
-  | sameCluster e_w_inter _ hsame =>
+  | sameCluster e_w_inter hsame =>
     have hconstraints := hno_intervening_writes
       e_w_inter hsame.interInB hsame.isCluster hsame.isWrite hsame.notDown
     have hinter_cle_proto :=
@@ -2830,7 +2821,7 @@ lemma no_dir_write_between_same_cache
     have h_proto_w := hinter_cle_proto.trans hsame.sameProtocol
     have h_proto_r := h_proto_w.trans (hw_cle_proto.trans (hw_r_same_proto.trans hr_cle_proto.symm))
     exact hconstraints.notBetweenCles ⟨h_proto_w, h_proto_r, hsame.cleDirWrite⟩ hsame.cleBetween
-  | diffCluster e_w_inter _ hdiff =>
+  | diffCluster e_w_inter hdiff =>
     have hconstraints := hno_intervening_writes
       e_w_inter hdiff.interInB hdiff.isCluster hdiff.isWrite hdiff.notDown
     have hdiff_w : e_w_inter.protocol ≠ e_w.protocol := by

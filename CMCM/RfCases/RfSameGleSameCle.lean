@@ -111,7 +111,7 @@ lemma CMCM.rf.sameGle.sameCle
           -- - Therefore: e_r has no need for a predecessor to grant permissions
           -- - But orderBeforeDir requires such a predecessor
           -- - Contradiction!
-          have hevict_perms := hinter_leaves_r e_evict hevict_in_b hbetween_w_r.interBetween.between
+          have hevict_perms := hinter_leaves_r e_evict hevict_in_b hbetween_w_r.interBetween
           have hevict_perms_after := hevict_perms.hinter_leaves_state_at_least
 
           -- The contradiction:
@@ -219,10 +219,10 @@ lemma CMCM.rf.sameGle.sameCle
             simp[autoParam]
             . case pred =>
               calc hexists_pred_w.choose.OrderedBefore n e_w := hpred_before_ew
-                e_w.OrderedBefore n e_evict := hbetween_w_r.interBetween.between.pred
+                e_w.OrderedBefore n e_evict := hbetween_w_r.interBetween.pred
             . case succ =>
               simp[autoParam]
-              simp[hbetween_w_r.interBetween.between.succ]
+              simp[hbetween_w_r.interBetween.succ]
 
           -- Now use hinter_leaves_r to get evict permissions relative to e_r
           have hevict_perms := hinter_leaves_r e_evict hevict_in_b hevict_btn_wpred_r
