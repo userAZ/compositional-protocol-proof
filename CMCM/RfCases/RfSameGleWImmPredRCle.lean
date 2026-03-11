@@ -28,7 +28,7 @@ lemma CMCM.rf.sameGle.wImmPredRCle
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (hsame_gle : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
-  (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  (hw_imm_pred_r_cle : WriteRead.wObRCle.diffCache.rCleOrDownAtWAfterWCle hw_c_and_g_lin hr_c_and_g_lin)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   (hno_intervening_writes : NoInterveningWrites hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
   (hw_in_b : e_w ∈ b)
@@ -42,11 +42,14 @@ lemma CMCM.rf.sameGle.wImmPredRCle
     apply Behaviour.readsFrom.wEqRGle.cases.wObRCle
     constructor
     . case hwr_gle_or_cle_case.hw_r_cle_ob =>
-      -- Extract the ordering from cleImmediatePredecessor
-      unfold CompoundProtocol.cleImmediatePredecessor at hw_imm_pred_r_cle
-      have : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose :=
-        hw_imm_pred_r_cle.isImmPred.bPred.isPred
-      exact this
+      -- Extract the ordering from rCleOrDownAtWAfterWCle
+      -- In the sameGle case, e_w and e_r are in the same cluster, so this must be .sameCluster
+      match hw_imm_pred_r_cle with
+      | .sameCluster _ hw_ob_r_cle => exact hw_ob_r_cle
+      | .diffCluster hdiff_prot _ =>
+        -- Contradiction: sameGle implies same protocol, but diffCluster says different
+        have hsame_prot := same_gle_implies_same_protocol hw_c_and_g_lin hr_c_and_g_lin hsame_gle
+        exact absurd hsame_prot hdiff_prot
     . case hwr_cle_ob_case =>
       by_cases e_w.struct = e_r.struct
       . case pos hsame_cache =>

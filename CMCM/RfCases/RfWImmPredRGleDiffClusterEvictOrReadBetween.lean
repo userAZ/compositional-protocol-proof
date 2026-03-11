@@ -52,37 +52,12 @@ lemma CMCM.rf.wImmPredRGle.diffCluster.evictOrReadBetweenWAndRDown
   · -- diffCache.case
     -- Note 1: by_cases on whether e_w leaves SW state (permissions after).
     by_cases hw_leaves_SW : b.reqLeavesStateAtLeast n e_w init SW
-    · -- e_w leaves SW state → use wHasPermsAfter
-      -- Note 2: by_cases on whether e_w's CLE is immPred of e_r's cluster downgrade.
-      -- In the evictOrReadBetween case, we don't know this a priori, so we do an actual by_cases.
-      by_cases h_cle_imm : b.ImmediateBottomPredecessor n
-        hw_c_and_g_lin.hreq's_dir_access.choose
-        hw_cle_imm_pred_down.rDown.encapDir.existsRClusterDirDown.choose
-      · -- e_w_cle IS immPred of e_r_cdir_down → use noEvictBetween (nothing between them)
-        refine .wHasPermsAfter hw_leaves_SW (.notImmPred (.noEvictBetween
-          ⟨hw_cle_imm_pred_down.rDown, ?_, ?_,
-           hw_cle_imm_pred_down.rDown.existsRDownAtW.choose_spec.right.right.right⟩))
-        · -- noWriteBtn: Event.Between.noWrite b init e_w e_r_down e_w_cle e_r_cdir_down
-          -- Strategy: Use otherWDiffCluster for ALL e_inter.
-          -- For same-protocol e_inter: dirWriteDowngradeFromDiffCluster.diffProtocol fails → ∃ vacuously false.
-          -- For diff-protocol e_inter: use h_cle_imm.isImmPred.noIntermediate to show
-          --   any bottom dir event at e_w's cluster with sameEntry to e_r_cdir_down
-          --   cannot be OrderedBetween e_w_cle and e_r_cdir_down.
-          --   Need: directory_event_is_bottom + sameEntry (sameStruct from sameProtocol + sameAddr).
-          -- Requires: sameAddr lemma connecting dirWriteDowngradeFromDiffCluster to e_r_cdir_down.
-          sorry
-        · -- noEvictBtn: Event.Between.noEvict b e_w e_r_down
-          -- Strategy: Event.Between requires coherentRead (e_r_down.isCoherent) and
-          --   sameCache (e_inter.sameStructure n e_w ∧ e_inter.sameStructure n e_r_down).
-          -- If e_r_down is not coherent, Between is vacuously False → noEvict trivially holds.
-          -- Otherwise: use h_cle_imm.isImmPred.noIntermediate + the fact that
-          --   an evict's CLE is a bottom dir event at the same entry → cannot be between.
-          -- See RfSameGleSameCle.lean for the 9-case dirAccessOfRequest analysis pattern.
-          sorry
-      · -- e_w_cle is NOT immPred → use evictBetween (intermediate events exist)
-        refine .wHasPermsAfter hw_leaves_SW (.notImmPred (.evictBetween
-          ⟨hw_cle_imm_pred_down.rDown.encapDir, ?_, ?_, hw_cle_imm_pred_down.wObRDown⟩))
-        · -- noDirWrite: Event.Between.noDirWrite
+    · -- e_w leaves SW state → use wHasPermsAfter with evictBetween
+      -- The evictBetween path works regardless of whether e_w_cle is immPred of e_r_cdir_down,
+      -- since wCleImmPredRDown gives that all intermediate dir events are reads or evicts.
+      refine .wHasPermsAfter hw_leaves_SW (.notImmPred (.evictBetween
+        ⟨hw_cle_imm_pred_down.rDown.encapDir, ?_, ?_, hw_cle_imm_pred_down.wObRDown⟩))
+      · -- noDirWrite: Event.Between.noDirWrite
           -- From wCleImmPredRDown: all intermediate dir events between e_w_cle and e_r_cdir_down
           -- are isDirRead. An intervening dir write would be isDirWrite, contradicting isDirRead.
           intro hinter
@@ -142,49 +117,49 @@ lemma CMCM.rf.wImmPredRGle.diffCluster.evictOrReadBetweenWAndRDown
               simp [Event.isDirWrite, Request.isWrite, h_ev] at h_is_write
               rw [h_is_write] at h_is_read
               exact absurd h_is_read (by decide)
-        · -- evictBtn: Event.Between.dirEvict b e_w_cle e_r_cdir_down
-          -- All same-structure events between e_w_cle and e_r_cdir_down are dir evict or dir read.
-          -- Strategy: show e can't be a non-down dir write; then either de.down (isDirEvict)
-          -- or de.req.val.rw = .r (isDirRead).
-          intro e he_in_b h_same_struct h_ordered_between
-          cases e with
-          | cacheEvent ce =>
-            -- Cache events can't have sameStructure with a directory event
-            exfalso
-            have h_w_cle_dir := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
-            match h_cle_ev : hw_c_and_g_lin.hreq's_dir_access.choose with
-            | .directoryEvent _ =>
-              simp [Event.sameStructure, Event.struct, h_cle_ev] at h_same_struct
-            | .cacheEvent _ =>
-              simp [Event.isDirectoryEvent, h_cle_ev] at h_w_cle_dir
-          | directoryEvent de =>
-            -- isDirEvict = de.down, isDirRead = de.req.val.rw = .r
-            -- Case split: is de down (isDirEvict)?
-            by_cases h_down : (de.down : Prop)
-            · exact Or.inl h_down
-            · -- ¬ de.down → show isDirRead (de.req.val.rw = .r)
-              right
-              show de.req.val.isRead
-              unfold Request.isRead
-              -- de.req.val.rw is either .r or .w
-              cases h_rw : de.req.val.rw with
-              | r => rfl
-              | w =>
-                -- de is a non-down dir write between e_w_cle and e_r_cdir_down
-                -- wCleImmPredRDown says intermediate dir events (with right protocol/structure) are isDirRead
-                -- isDirRead requires rw = .r, contradicting rw = .w
-                exfalso
-                -- Derive sameProtocol from sameStructure (both are directory events)
-                have h_same_prot : (Event.directoryEvent de).sameProtocol n
-                    hw_c_and_g_lin.hreq's_dir_access.choose :=
-                  sameStructure_implies_sameProtocol h_same_struct
-                -- Construct IntermediateDirEvictOrRead from OrderedBetween
-                have h_is_read := hw_cle_imm_pred_down.wCleImmPredRDown (.directoryEvent de) he_in_b
-                  ⟨h_same_prot, h_same_struct, h_ordered_between⟩
-                simp [Event.isDirReadOrEvict, Event.isDirRead, Request.isRead, h_rw] at h_is_read
+      · -- evictBtn: Event.Between.dirEvict b e_w_cle e_r_cdir_down
+        -- All same-structure events between e_w_cle and e_r_cdir_down are dir evict or dir read.
+        -- Strategy: show e can't be a non-down dir write; then either de.down (isDirEvict)
+        -- or de.req.val.rw = .r (isDirRead).
+        intro e he_in_b h_same_struct h_ordered_between
+        cases e with
+        | cacheEvent ce =>
+          -- Cache events can't have sameStructure with a directory event
+          exfalso
+          have h_w_cle_dir := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+          match h_cle_ev : hw_c_and_g_lin.hreq's_dir_access.choose with
+          | .directoryEvent _ =>
+            simp [Event.sameStructure, Event.struct, h_cle_ev] at h_same_struct
+          | .cacheEvent _ =>
+            simp [Event.isDirectoryEvent, h_cle_ev] at h_w_cle_dir
+        | directoryEvent de =>
+          -- isDirEvict = de.down, isDirRead = de.req.val.rw = .r
+          -- Case split: is de down (isDirEvict)?
+          by_cases h_down : (de.down : Prop)
+          · exact Or.inl h_down
+          · -- ¬ de.down → show isDirRead (de.req.val.rw = .r)
+            right
+            show de.req.val.isRead
+            unfold Request.isRead
+            -- de.req.val.rw is either .r or .w
+            cases h_rw : de.req.val.rw with
+            | r => rfl
+            | w =>
+              -- de is a non-down dir write between e_w_cle and e_r_cdir_down
+              -- wCleImmPredRDown says intermediate dir events (with right protocol/structure) are isDirRead
+              -- isDirRead requires rw = .r, contradicting rw = .w
+              exfalso
+              -- Derive sameProtocol from sameStructure (both are directory events)
+              have h_same_prot : (Event.directoryEvent de).sameProtocol n
+                  hw_c_and_g_lin.hreq's_dir_access.choose :=
+                sameStructure_implies_sameProtocol h_same_struct
+              -- Construct IntermediateDirEvictOrRead from OrderedBetween
+              have h_is_read := hw_cle_imm_pred_down.wCleImmPredRDown (.directoryEvent de) he_in_b
+                ⟨h_same_prot, h_same_struct, h_ordered_between⟩
+              simp [Event.isDirReadOrEvict, Event.isDirRead, Request.isRead, h_rw] at h_is_read
     · -- e_w does NOT leave SW state → use wNoPermsAfter or wCleAfter
-      have hr_cle_after : WriteRead.wObRCle.diffCache.rCleAfterWCle hw_c_and_g_lin hr_c_and_g_lin := by
-        sorry -- TODO: derive from GLE ordering chain via gle_ordered_implies_cle_ordered
+      have hr_cle_after : WriteRead.wObRCle.diffCache.rCleOrDownAtWAfterWCle hw_c_and_g_lin hr_c_and_g_lin :=
+        .diffCluster hdiff_cluster hw_cle_imm_pred_down.rDown.encapDir
       have hw_dir_access := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
       cases hw_dir_access with
       | encapDir hreq_missing_perms _ =>
