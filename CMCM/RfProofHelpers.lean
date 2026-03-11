@@ -855,10 +855,10 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
         ⟨hsame_protocol_cles.1, hsame_protocol_cles.2, hinter_cle_is_dir_write⟩
       have _hnot_between := hcontra.notBetweenCles hsame_protocol_and_dir_write
       intro e_inter_down _he_mem _hdowngrade
-      -- e_inter_down is a directory write at the same cluster, encapsulated by e_inter
-      -- hnot_between proves this for the specific e_inter_cle; extending to arbitrary e_inter_down
-      -- requires uniqueness of encapsulated directory events per cache request
-      sorry
+      intro hob
+      rw [_hcle_eq] at hob
+      exact Event.contradiction_of_reflexive_ordered_before _
+        (Trans.trans hob.pred hob.succ)
     | orderBeforeDir hreq_has_perms hexists_pred_getting_perms hpred_accesses_dir hinter_leaves_state_at_least hpred_same_protocol
       _ hpred_produces_state_at_least_req_made_on_state hinter_pred_not_down =>
       have hw_r_same_struct : e_w.sameStructure n e_r := by
@@ -1096,9 +1096,10 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
         ⟨hsame_protocol_cles.1, hsame_protocol_cles.2, hinter_cle_is_dir_write⟩
       have _hnot_between := hcontra.notBetweenCles hsame_protocol_and_dir_write
       intro e_inter_down _he_mem _hdowngrade
-      -- hnot_between proves this for the specific e_inter_cle; extending to arbitrary e_inter_down
-      -- requires uniqueness of encapsulated directory events per cache request
-      sorry
+      intro hob
+      rw [_hcle_eq] at hob
+      exact Event.contradiction_of_reflexive_ordered_before _
+        (Trans.trans hob.pred hob.succ)
 
     | orderAfterDir hweak_req_on_vd hsucc_encap_dir hsucc_same_protocol =>
       have hw_r_same_struct : e_w.sameStructure n e_r := by
@@ -1402,9 +1403,10 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
         ⟨hsame_protocol_cles.1, hsame_protocol_cles.2, hinter_cle_is_dir_write⟩
       have _hnot_between := hcontra.notBetweenCles hsame_protocol_and_dir_write
       intro e_inter_down _he_mem _hdowngrade
-      -- hnot_between proves this for the specific e_inter_cle; extending to arbitrary e_inter_down
-      -- requires uniqueness of encapsulated directory events per cache request
-      sorry
+      intro hob
+      rw [_hcle_eq] at hob
+      exact Event.contradiction_of_reflexive_ordered_before _
+        (Trans.trans hob.pred hob.succ)
 /-- Helper lemma for Case 2b: Different protocol/cluster -/
 lemma noInterveningWrites_diffCache_diffProtocol_case
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
