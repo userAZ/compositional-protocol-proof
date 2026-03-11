@@ -15,7 +15,7 @@ lemma CMCM.rf.wImmPredRGle.sameCluster.wImmPredRCle
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (hw_imm_pred_r_gle : CompoundProtocol.gleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
   (hsame_cluster : Event.sameProtocol n e_w e_r)
-  (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  (hw_imm_pred_r_cle : WriteRead.wObRCle.diffCache.rCleOrDownAtWAfterWCle hw_c_and_g_lin hr_c_and_g_lin)
   (hno_intervening_writes : NoInterveningWrites hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
   (hw_in_b : e_w ∈ b) (hw_cluster_cache : e_w.isClusterCache)
   (hw_not_down : ¬ e_w.down)
@@ -24,7 +24,13 @@ lemma CMCM.rf.wImmPredRGle.sameCluster.wImmPredRCle
   -- Use wObRGle since GLEs are ordered (immediate predecessor → ordered before)
   apply Behaviour.readsFrom.cases.wObRGle
     (hw_imm_pred_r_gle.isImmPred.bPred.isPred)
-  refine .sameCluster hsame_cluster ⟨hw_imm_pred_r_cle.isImmPred.bPred.isPred, ?_⟩
+  -- Extract CLE ordering from rCleOrDownAtWAfterWCle
+  -- In the sameCluster case, this must be .sameCluster
+  have hw_cle_ob : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose :=
+    match hw_imm_pred_r_cle with
+    | .sameCluster _ hw_ob_r_cle => hw_ob_r_cle
+    | .diffCluster hdiff_prot _ => absurd hsame_cluster hdiff_prot
+  refine .sameCluster hsame_cluster ⟨hw_cle_ob, ?_⟩
   -- Same/diff cache case split
   by_cases hsame_cache : e_w.struct = e_r.struct
   · apply WriteRead.wObRCle.case.sameCache hsame_cache

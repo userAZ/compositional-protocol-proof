@@ -21,8 +21,8 @@ lemma evictOrReadBtn_diffCache_rCleAfterWCle
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (hevict_or_read_between : CLE.WROrdering.evictOrReadBetween hw_c_and_g_lin hr_c_and_g_lin)
-  : WriteRead.wObRCle.diffCache.rCleAfterWCle hw_c_and_g_lin hr_c_and_g_lin :=
-  hevict_or_read_between.wObR
+  : WriteRead.wObRCle.diffCache.rCleOrDownAtWAfterWCle hw_c_and_g_lin hr_c_and_g_lin :=
+  .sameCluster hevict_or_read_between.wRSameCluster hevict_or_read_between.wObR
 
 /-- diffCache case decision for evictOrReadBetween: coherent vs non-coherent write.
     - Coherent write → wHasPermsAfter
@@ -46,7 +46,7 @@ lemma evictOrReadBtn_diff_cache_choose_case
   · -- Coherent write: first check if e_w's CLE is the immediate predecessor of e_r's CLE
     have hw_leaves_SW : b.reqLeavesStateAtLeast n e_w init SW :=
       coherent_write_leaves_at_least_SW hw_is_write hw_coherent hw_not_down hw_cluster.eAtCache
-    by_cases h_imm : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin
+    by_cases h_imm : WriteRead.wObRCle.diffCache.rCleOrDownAtWAfterWCle hw_c_and_g_lin hr_c_and_g_lin
     · -- immPred: e_w_cle is immediate predecessor of e_r_cle (same structure as wImmPredRCle)
       have hencapPD := diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster
       by_cases hcdown : ∃ e_r_down ∈ b,

@@ -623,7 +623,7 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
   (hwrite_cluster : e_inter.isClusterCache)
   (hwrite : e_inter.isWrite)
   (hwrite_not_down : ¬ e_inter.down)
-  (hcontra : NoInterveningWrites.constraints _hw_is_write _r_is_read hw_c_and_g_lin hr_c_and_g_lin e_inter _hknow_dir_access)
+  (hcontra : NoInterveningWrites.constraints _hw_is_write _r_is_read hw_c_and_g_lin hr_c_and_g_lin e_inter _hknow_dir_access (_hknow_dir_access cmp b init e_inter))
   (hinter_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_inter)
   (hsame_cache : ¬e_inter.sameStructure n e_w)
   (hsame_protocol : e_inter.sameProtocol n e_w)
@@ -1420,7 +1420,7 @@ lemma noInterveningWrites_diffCache_diffProtocol_case
   (_hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   {he_inter : e_inter ∈ b}
   (hwrite : e_inter.isWrite)
-  (hcontra : NoInterveningWrites.constraints _hw_is_write _r_is_read hw_c_and_g_lin hr_c_and_g_lin e_inter _hknow_dir_access)
+  (hcontra : NoInterveningWrites.constraints _hw_is_write _r_is_read hw_c_and_g_lin hr_c_and_g_lin e_inter _hknow_dir_access (_hknow_dir_access cmp b init e_inter))
   (hinter_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_inter)
   (hsame_cache : ¬e_inter.sameStructure n e_w)
   (hsame_protocol : ¬e_inter.sameProtocol n e_w)
@@ -1449,9 +1449,10 @@ lemma noInterveningWrites_diffCache_diffProtocol_case
   apply Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites.otherWDiffCluster
   constructor
   intro e_inter_down he_mem hdown hob
-  apply hcontra.diffClusterNotBetweenCles
-  use e_inter_down, he_mem
-  exact ⟨DiffClusterCLE.NotBetweenCLEs.constraints_of_downgrade hdown hdiff_w_protocol hdiff_r_protocol, hob⟩
+  -- In the same-CLE case (_hcle_eq), e_w_cle = e_r_cle, so nothing can be OrderedBetween.
+  rw [_hcle_eq] at hob
+  exact Event.contradiction_of_reflexive_ordered_before _
+    (Trans.trans hob.pred hob.succ)
 
 /-- Helper lemma for Case 2: Different cache case with protocol analysis -/
 lemma noInterveningWrites_diffCache_case
@@ -1468,7 +1469,7 @@ lemma noInterveningWrites_diffCache_case
   (hwrite_cluster : e_inter.isClusterCache)
   (hwrite : e_inter.isWrite)
   (hwrite_not_down : ¬ e_inter.down)
-  (hcontra : NoInterveningWrites.constraints _hw_is_write _r_is_read hw_c_and_g_lin hr_c_and_g_lin e_inter _hknow_dir_access)
+  (hcontra : NoInterveningWrites.constraints _hw_is_write _r_is_read hw_c_and_g_lin hr_c_and_g_lin e_inter _hknow_dir_access (_hknow_dir_access cmp b init e_inter))
   (hinter_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_inter)
   (hsame_cache : ¬e_inter.sameStructure n e_w)
   : Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites b init e_inter e_w e_r
@@ -1505,8 +1506,8 @@ lemma noInterveningWrites_implies_no_writes_between
   let e_w_cle := hw_c_and_g_lin.hreq's_dir_access.choose
   let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
 
-  have hcontra := _hno_intervening e he hwrite_cluster hwrite hwrite_not_down
   have hinter_lin := _hknow_dir_access cmp b init e
+  have hcontra := _hno_intervening e he hwrite_cluster hwrite hwrite_not_down hinter_lin
 
   by_cases hsame_protocol : e.sameProtocol n e_w
   .
@@ -2816,25 +2817,25 @@ lemma no_dir_write_between_same_cache
     sameStructure_implies_sameProtocol hw_r_same_struct
   cases h with
   | sameCluster e_w_inter hsame =>
+    have hinter_lin := hknow_dir_access cmp b init e_w_inter
     have hconstraints := hno_intervening_writes
-      e_w_inter hsame.interInB hsame.isCluster hsame.isWrite hsame.notDown
+      e_w_inter hsame.interInB hsame.isCluster hsame.isWrite hsame.notDown hinter_lin
     have hinter_cle_proto :=
       write_cle_protocol_eq_write_protocol (hknow_dir_access cmp b init e_w_inter)
     have h_proto_w := hinter_cle_proto.trans hsame.sameProtocol
     have h_proto_r := h_proto_w.trans (hw_cle_proto.trans (hw_r_same_proto.trans hr_cle_proto.symm))
     exact hconstraints.notBetweenCles ⟨h_proto_w, h_proto_r, hsame.cleDirWrite⟩ hsame.cleBetween
   | diffCluster e_w_inter hdiff =>
+    have hinter_lin := hknow_dir_access cmp b init e_w_inter
     have hconstraints := hno_intervening_writes
-      e_w_inter hdiff.interInB hdiff.isCluster hdiff.isWrite hdiff.notDown
+      e_w_inter hdiff.interInB hdiff.isCluster hdiff.isWrite hdiff.notDown hinter_lin
     have hdiff_w : e_w_inter.protocol ≠ e_w.protocol := by
       intro heq; exact hdiff.diffProtocol (heq.trans hw_cle_proto.symm)
-    have hdiff_r : e_w_inter.protocol ≠ e_r.protocol := by
-      intro heq; exact hdiff_w (heq.trans hw_r_same_proto.symm)
     obtain ⟨e_cdir_down, hcdir_in_b, hcdir_dir, hcdir_proto, hcdir_write, hcdir_down,
       hcdir_encap, hcdir_between⟩ := hdiff.existsClusterDirDown
     have hdown_proto_w := hcdir_proto.trans hw_cle_proto
-    exact hconstraints.diffClusterNotBetweenCles ⟨e_cdir_down, hcdir_in_b,
-      ⟨⟨hdiff_w, hdiff_r⟩, hdown_proto_w, hcdir_write, hcdir_down, hcdir_dir, hcdir_encap⟩,
+    exact hconstraints.diffClusterNotBetweenCles_sameCache ⟨e_cdir_down, hcdir_in_b,
+      ⟨hdiff_w, hdown_proto_w, hcdir_write, hcdir_down, hcdir_dir, hcdir_encap⟩,
       hcdir_between⟩
 
 /-- Extract `sameReq` from `downgradeCorrespondingToRequest`: the downgrade event carries

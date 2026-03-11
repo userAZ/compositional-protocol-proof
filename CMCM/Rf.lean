@@ -424,13 +424,18 @@ inductive WriteRead.wObRCle.diffCache.wHasPermsAfter.case {e_w e_r}
   (w_cle_ob_r_cdir_down : WriteRead.evictBetween.cond.wrapper cmp b init e_w e_r e_w_cle e_r_cdir_down hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
   : WriteRead.wObRCle.diffCache.wHasPermsAfter.case cmp b init e_w_cle e_r_cdir_down hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 
-def CompoundProtocol.cleImmediatePredecessor
+/-- e_r's proxy directory access (CLE) is ordered after e_w's CLE. -/
+inductive WriteRead.wObRCle.diffCache.rCleOrDownAtWAfterWCle
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  : Prop :=
-  b.ImmediateBottomPredecessor n
-    hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose
+  : Prop
+| sameCluster
+  (sameProtocol : e_w.protocol = e_r.protocol)
+  (hw_ob_r_cle : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose)
+| diffCluster
+  (diffProtocol : e_w.protocol ≠ e_r.protocol)
+  (existsRClusterDownAtW : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin)
 
 /-- When the write is coherent and at a different cache from the read,
     either the CLE of e_w immediately precedes the CLE of e_r (so the
@@ -445,7 +450,7 @@ inductive WriteRead.wObRCle.diffCache.wCoherent.case
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop
 | immPred
-  (hw_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  (hw_imm_pred_r_cle : WriteRead.wObRCle.diffCache.rCleOrDownAtWAfterWCle hw_c_and_g_lin hr_c_and_g_lin)
   (hencapPD : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin)
   : WriteRead.wObRCle.diffCache.wCoherent.case hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 | notImmPred
@@ -453,14 +458,6 @@ inductive WriteRead.wObRCle.diffCache.wCoherent.case
     (hw_c_and_g_lin.hreq's_dir_access.choose) (hr_c_and_g_lin.hreq's_dir_access.choose)
     hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
   : WriteRead.wObRCle.diffCache.wCoherent.case hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
-
-/-- e_r's proxy directory access (CLE) is ordered after e_w's CLE. -/
-def WriteRead.wObRCle.diffCache.rCleAfterWCle
-  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
-  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
-  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  : Prop :=
-  hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose
 
 -- Cache write with something?
 structure Event.cacheWrite.global (e : Event n) : Prop where
@@ -512,7 +509,7 @@ inductive WriteRead.wObRCle.diffCache.case
   -/
   (hw_no_perms : b.reqMissingPerms n init e_w)
   (hw_nc : e_w.isNonCoherent)
-  (hr_cle_after_w_cle : WriteRead.wObRCle.diffCache.rCleAfterWCle hw_c_and_g_lin hr_c_and_g_lin)
+  (hr_cle_after_w_cle : WriteRead.wObRCle.diffCache.rCleOrDownAtWAfterWCle hw_c_and_g_lin hr_c_and_g_lin)
   : WriteRead.wObRCle.diffCache.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 | wCleAfter -- `e_w`'s CLE is after `e_w`. (dirAccessOfRequest .after case.)
   /- subcases are:
@@ -524,7 +521,7 @@ inductive WriteRead.wObRCle.diffCache.case
   /- e_r's CLE (proxy directory access) is ordered after e_w's CLE.
      No global downgrade in the sameGle case since e_w and e_r share the same cluster.
   -/
-  (hr_cle_after_w_cle : WriteRead.wObRCle.diffCache.rCleAfterWCle hw_c_and_g_lin hr_c_and_g_lin)
+  (hr_cle_after_w_cle : WriteRead.wObRCle.diffCache.rCleOrDownAtWAfterWCle hw_c_and_g_lin hr_c_and_g_lin)
   : WriteRead.wObRCle.diffCache.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 
   /- End Defs for WriteRead.wObRCle.diffCache.case case -/
@@ -673,7 +670,7 @@ inductive CompoundProtocol.SameCluster.cleOb.cleOrdering.Cases
     (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
     (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   : Prop
-  | wImmPredRCle (w_imm_pred_r_cle : CompoundProtocol.cleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  | wImmPredRCle (w_imm_pred_r_cle : WriteRead.wObRCle.diffCache.rCleOrDownAtWAfterWCle hw_c_and_g_lin hr_c_and_g_lin)
   | evictOrReadBetweenWAndRCleSameCluster (evict_or_read_btn_w_r_cle :
       CLE.WROrdering.evictOrReadBetween hw_c_and_g_lin hr_c_and_g_lin)
 
@@ -718,6 +715,13 @@ structure ReadDowngradeAtWrite.wCleImmPredDown
   rDown : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin
   wCleImmPredRDown : b.ImmediateBottomPredecessor n
     hw_c_and_g_lin.hreq's_dir_access.choose rDown.encapDir.existsRClusterDirDown.choose
+  wCleImmPredRDownReadOrEvict : ∀ e_cdir_inter ∈ b,
+     IntermediateDirEvictOrRead e_cdir_inter
+      hw_c_and_g_lin.hreq's_dir_access.choose
+      rDown.encapDir.existsRClusterDirDown.choose
+     → e_cdir_inter.isDirReadOrEvict
+  wObRDown : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n
+    rDown.encapDir.existsRClusterDirDown.choose
 
 /- Cases of CLE if `e_w` GLE ImmPred `e_r` GLE. Different Cluster case. -/
 inductive CompoundProtocol.DifferentCluster.cleOB.cleOrdering.Cases
