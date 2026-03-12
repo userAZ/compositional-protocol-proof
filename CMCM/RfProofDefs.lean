@@ -45,16 +45,20 @@ structure DiffClusterCLE.NotBetweenCLEs.constraints {cmp} (e_inter e_w e_r e_int
 /-- Same-cache variant of diff-cluster constraints.
     Uses the original constraint shape: only requires `interDiffProtocol`
     (the intervening write is from a different cluster than e_w), not `rDiffProtocol`.
-    Uses `e_inter.Encapsulates` directly instead of `clusterDown.encapDirRelation`.
+  Uses the full diff-cluster translation chain rather than incorrectly treating
+  `e_inter_down` as a direct `dirAccessOfRequest` of `e_inter`.
     Right endpoint is `e_r_cle` (not `rClusterDownToW.existsRClusterDirDown.choose`). -/
-structure DiffClusterCLE.NotBetweenCLEs.sameCacheConstraints
-    (e_inter e_w e_inter_down : Event n) : Prop where
+structure DiffClusterCLE.NotBetweenCLEs.sameCacheConstraints {cmp}
+    (e_inter e_w e_inter_down : Event n)
+    (hinter_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_inter)
+    : Prop where
   interDiffProtocol : e_inter.diffProtocol n e_w
   downToW : e_inter_down.sameProtocol n e_w
   isDirWrite : e_inter_down.isDirWrite
   downIsDown : e_inter_down.down
   isDir : e_inter_down.isDirectoryEvent
-  interEncapDown : e_inter.Encapsulates n e_inter_down
+  translatedDir : Event.clusterDirFromDiffProtocolRequest b init e_inter e_inter_down
+    hinter_c_and_g_lin
 
 /-
 def DiffClusterCLE.NotBetweenCLEs {cmp} (e_inter e_w e_r e_inter_down e_w_cle e_r_cle : Event n)
@@ -106,11 +110,11 @@ structure NoInterveningWrites.constraints
     ∀ e_inter_down ∈ b,
       (interBtn : DiffClusterCLE.NotBetweenCLEs.constraints e_w_inter e_w e_r e_inter_down hr_c_and_g_lin hinter_c_and_g_lin) →
       ¬ e_inter_down.OrderedBetween n hw_c_and_g_lin.hreq's_dir_access.choose interBtn.rClusterDownToW.existsRClusterDirDown.choose
-  /-- Same-cache variant: uses simpler constraints (no `rDiffProtocol`) and
+  /-- Same-cache variant: uses `dirAccessOfRequest` (no `rDiffProtocol`) and
       `e_r_cle` as the right endpoint instead of `rClusterDownToW`'s dir down. -/
   diffClusterNotBetweenCles_sameCache :
     ¬ ∃ e_inter_down ∈ b,
-      DiffClusterCLE.NotBetweenCLEs.sameCacheConstraints e_w_inter e_w e_inter_down ∧
+      DiffClusterCLE.NotBetweenCLEs.sameCacheConstraints e_w_inter e_w e_inter_down hinter_c_and_g_lin ∧
       e_inter_down.OrderedBetween n hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose
 --   sameCacheNoInterWrite:
 --     e_w.sameStructure n e_r →

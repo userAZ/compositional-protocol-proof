@@ -109,15 +109,19 @@ structure Event.Between.noWrite.cond.sameCacheNoInterWrite
     e_inter.OrderedBetween n e_w e_r →
     ¬ (e_inter.isWrite ∧ e_inter_cle.OrderedBetween n e_w_cle e_r_cle)
 
-structure Event.dirWriteDowngradeAtSameCluster (e_inter_down e_inter e_w : Event n) : Prop where
+structure Event.dirWriteDowngradeAtSameCluster
+    (b : Behaviour n) (init : InitialSystemState n)
+    (e_inter_down e_inter e_w : Event n) : Prop where
   isWrite : e_inter_down.isWrite
   notDown : ¬ e_inter_down.down
   sameCluster : e_inter_down.sameProtocol n e_w
   isDir : e_inter_down.isDirectoryEvent
-  interEncapDown : e_inter.Encapsulates n e_inter_down
+  -- `e_inter_down` is the directory access of `e_inter` via the axiomatic dirAccessOfRequest relation,
+  -- making the link between e_inter and e_inter_down more precise than bare Encapsulates.
+  dirAccess : b.dirAccessOfRequest n init e_inter e_inter_down
 
 structure Event.Between.noWrite.cond.diffCacheNoInterWriteDowngrade
-  (b : Behaviour n) (e_inter e_w e_r e_w_cle e_r_cle : Event n) where
+  (b : Behaviour n) (init : InitialSystemState n) (e_inter e_w e_r e_w_cle e_r_cle : Event n) where
   sameProtocol : e_inter.sameProtocol n e_w ∧ e_inter.sameProtocol n e_r
   diffCache : e_inter.diffStructure n e_w ∧ e_inter.diffStructure n e_r
   -- interUnique : e_inter.unique e_w e_r
@@ -126,7 +130,7 @@ structure Event.Between.noWrite.cond.diffCacheNoInterWriteDowngrade
   -- NoInterveningWrites.
   interCleNotBetween :
     ∀ e_inter_down ∈ b,
-      Event.dirWriteDowngradeAtSameCluster e_inter_down e_inter e_w →
+      Event.dirWriteDowngradeAtSameCluster b init e_inter_down e_inter e_w →
         ¬ (e_inter_down.OrderedBetween n e_w_cle e_r_cle)
 
 structure Event.dirWriteDowngradeFromDiffCluster (e_inter_down e_inter e_w e_r : Event n) : Prop where
@@ -153,7 +157,7 @@ inductive Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites
 | otherWSameCache
   (no_write_btn_w_r : Event.Between.noWrite.cond.sameCacheNoInterWrite b init e_inter e_w e_r e_w_cle e_r_cle)
 | otherWDiffCacheSameCluster
-  (no_write_same_cluster_down : Event.Between.noWrite.cond.diffCacheNoInterWriteDowngrade b e_inter e_w e_r e_w_cle e_r_cle)
+  (no_write_same_cluster_down : Event.Between.noWrite.cond.diffCacheNoInterWriteDowngrade b init e_inter e_w e_r e_w_cle e_r_cle)
 | otherWDiffCluster
   (no_write_diff_cluster_down : Event.Between.noWrite.cond.diffClusterNoInterWriteDowngrade b e_inter e_w e_r e_w_cle e_r_cle)
 
@@ -243,6 +247,26 @@ def Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper (cmp : CompoundProto
   -- fwdPrevOwner : ∃ e_down ∈ b, ∃ e_grant ∈ b, b.downgradeAtPrevOwner n init e_req e_dir e_down e_grant
   b.downgradeAtPrevOwner n init e_r_cle_gcache e_r_gle e_down e_grant
 
+/-- A cluster directory event `e_inter_down` induced by a request `e_inter` from a different
+    protocol/cluster than `e_w`.
+
+    The full relation is:
+    `e_inter` has a cluster dir access and induced global-linearization chain via
+    `globalLinearizationEventOfRequest`; that global request triggers a downgrade `e_gdown`, and
+    `e_gdown` is translated by the GlobalToCluster shim to both a proxy-cache event and the
+    cluster directory event `e_inter_down` at `e_w`'s cluster. -/
+structure Event.clusterDirFromDiffProtocolRequest {cmp : CompoundProtocol n}
+  (b : Behaviour n) (init : InitialSystemState n)
+  (e_inter e_inter_down : Event n)
+  (hinter_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_inter)
+  : Prop where
+  existsGlobalDownTranslation :
+    ∃ e_gdown ∈ b, ∃ e_grant ∈ b, ∃ e_proxy ∈ b,
+      Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init
+        hinter_c_and_g_lin e_gdown e_grant ∧
+      Event.Shim.Global.ToCluster.proxyCacheEvent n e_gdown e_proxy ∧
+      Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_inter_down
+
 def Event.getProtocol (cmp : CompoundProtocol n) (e : Event n) : Protocol n :=
   match e.protocol with
   | .global => cmp.global
@@ -275,7 +299,11 @@ inductive Behaviour.clusterDown.encapDirRelation
   (e_r_cdir_down : Event n)
   : Prop
 | cleEncap (h : hr_c_and_g_lin.hreq's_dir_access.choose.Encapsulates n e_r_cdir_down)
-| gcacheEncap (h : ∃ e_gcache ∈ b, e_gcache.Encapsulates n e_r_cdir_down)
+| gcacheEncap
+    -- The cluster-to-global shim's global cache event (the canonical gcache for this CLE)
+    -- encapsulates e_r_cdir_down, pinning down the gcache via ClusterToGlobal.
+    (h : (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
+        hr_c_and_g_lin.hreq's_dir_access).Encapsulates n e_r_cdir_down)
     (cdownEndBeforeCle : e_r_cdir_down.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd)
 
 /-- The full read-from-write downgrade chain: e_r's read triggers a global downgrade at
@@ -338,7 +366,8 @@ structure Event.Between.diffProtocol.interveningDirWrite
       e_cdir_down.protocol = e_w_le.protocol ∧
       e_cdir_down.isDirWrite ∧
       e_cdir_down.down ∧
-      e_w_inter.Encapsulates n e_cdir_down ∧
+      Event.clusterDirFromDiffProtocolRequest b init e_w_inter e_cdir_down
+        (hknow_dir_access cmp b init e_w_inter) ∧
       e_cdir_down.OrderedBetween n e_w_le e_r_le
 
 /-- Complete definition of an intervening write between two linearization events.

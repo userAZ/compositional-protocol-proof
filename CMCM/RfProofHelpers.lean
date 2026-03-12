@@ -3105,7 +3105,7 @@ lemma diffCache_coherent_encapProxyAndDir
         rw [dif_pos hnonempty]
         exact hnonempty.some.prop.2.finishBefore.finBefore.endBefore
     exact Nat.lt_trans h_dir_lt_gcache h_gcache_lt_cle
-  -- Use gcacheEncap: the global cache event encapsulates the directory downgrade
+  -- Use gcacheEncap: the canonical ClusterToGlobal gcache event encapsulates the directory downgrade
   exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
     Behaviour.clusterDown.encapDirRelation.gcacheEncap
-      ⟨e_gcache, he_gcache_in_b, h_gcache_encap_dir⟩ h_dir_end_before_cle⟩ }
+      h_gcache_encap_dir h_dir_end_before_cle⟩ }
