@@ -30,7 +30,7 @@ Acquire indicates subsequent reads are forced to read from the upper level memor
 This means that the acquire linearizes in memory before the subsequent read linearizes in memory.
 Section \ref{sec:defs}, Definition \ref{def:request-ppos}, introduces our PPO mechanization in Lean.
 We'll briefly re-introduce the idea of a cache request ``linearizing'' from Paper Section 5.3's Paper Definition 5.4 and 5.5.
-Section \ref{sec:defs}, Definitions \ref{def:def:linearizationEventOfRequest}
+Section \ref{sec:defs}, Definitions \ref{def:linearizationEventOfRequest}
 and \ref{def:ClusterRequestLinearizationEvent}, introduces our linearization events of a cache request event in Lean.
 Section \ref{sec:temporal-event-relations} introduces temporal relations between events (ordered before, and
 encapsulates).
@@ -551,7 +551,7 @@ a few in definition files such as EventRelations.lean.
 
 % ============================================================
 \section{Auxiliary Definitions Organized in Structures}
-\label(sec:some-auxiliary-defs)
+\label{sec:some-auxiliary-defs}
 % ============================================================
 
 \begin{definition}[Coherent Write Succeeded by Directory Request]
