@@ -106,7 +106,6 @@ lemma Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncap_eq_immediateFinishe
   : e ∈ {e_pred | e_pred ∈ b ∧ immediateFinishesBeforeAtGlobalCache n b e_pred e_cdir} := by
   simp_all --at he_in_not_encap_set
   obtain ⟨he_in_b, he_fin_before_not_encap⟩ := he_in_not_encap_set
-  case intro =>
   constructor
   . case finishBefore =>
     constructor
@@ -153,7 +152,6 @@ lemma Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncap_eq_immediateFinishe
   : e ∈ {e_pred | e_pred ∈ b ∧ immediateFinishesBeforeAtGlobalCacheNotEncap n b e_pred e_cdir} := by
   simp_all --at he_in_not_encap_set
   obtain ⟨he_in_b, he_fin_before⟩ := he_in_set
-  case intro =>
   constructor
   . case finishBefore =>
     constructor
