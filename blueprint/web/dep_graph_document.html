@@ -74,8 +74,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">20</span><span class="definition_thmtitle">Acquire Invalidates Other Entries (Consistency Label Axiom 1)</span></div>
-    <div class="thm_thmcontent"><p>    (Line 374 in BehaviourRelationDefs.lean.) Acquire cache operations access the directory, then invalidate Read-Non-Coherent cache entries. An acquire cache operation invalidates Vc cache entries at other addresses after accessing the directory: for every other address, there is a Vc invalidation event encapsulated by the acquire, ordered after the directory event. </p>
+      <span class="definition_thmlabel">22</span><span class="definition_thmtitle">Acquire Invalidates Other Entries (Consistency Label Axiom 1)</span></div>
+    <div class="thm_thmcontent"><p>    (Line 374 in BehaviourRelationDefs.lean.) Acquire cache operations access the directory, then invalidate Read-Non-Coherent cache entries. The acquire cache operation encapsulates Vc (Read-Non-Coherent) evicts to cache entries at other addresses after accessing the directory. The structure ‘Behaviour.nonCoherentReqOnSWDowngradeOthers’ field broadcastInval invalidates the other cache entries after the acquire’s directory access event. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:acqInvalOtherEntries">LaTeX</a>
@@ -104,8 +104,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">14</span><span class="definition_thmtitle">Acquire Invalidation OB Weak Read Predecessor (Well-Formedness Axiom 9)</span></div>
-    <div class="thm_thmcontent"><p>   (Line 8 in Protocol.lean.) A non-coherent weak read ordered after a cache entry invalidation (from an acquire) will linearize after the invalidation: the invalidation event is ordered before the predecessor that gets permissions. </p>
+      <span class="definition_thmlabel">16</span><span class="definition_thmtitle">Acquire Invalidation OB Weak Read Predecessor (Well-Formedness Axiom 9)</span></div>
+    <div class="thm_thmcontent"><p>   (Line 8 in Protocol.lean.) A non-coherent weak read ordered after a cache entry invalidation (from an acquire) will linearize after the invalidation: the invalidation event is ordered before the predecessor that gets permissions. This is reflected by the parameters in def ‘CompoundProtocol.acquire_invalidation_OrderedBefore_weak_read_predecessor_that_gets_perms’ </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:acquire_invalidation_ob_weak_read">LaTeX</a>
@@ -134,8 +134,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">10</span><span class="definition_thmtitle">Cache Events of Directory Responses Arrive In-Order (Well-Formedness Axiom 5)</span></div>
-    <div class="thm_thmcontent"><p>  This axiom states that cache events of directory responses arrive in-order. It does not have a separate Lean declaration; it is coincidentally implemented by Axiom 1 (<a href="sect0001.html#def:DirectoryEventAreOrdered">6</a>) combined with the Downgrade Abstract State Invariants — downgrades are encapsulated by a directory event, so they are in order because directory events are ordered. </p>
+      <span class="definition_thmlabel">12</span><span class="definition_thmtitle">Cache Events of Directory Responses Arrive In-Order (Well-Formedness Axiom 5)</span></div>
+    <div class="thm_thmcontent"><p>  This axiom states that cache events of directory responses arrive in-order. It does not have a separate Lean declaration; it is realized by Axiom 1 (<a href="sect0001.html#def:DirectoryEventAreOrdered">8</a>) combined with the Downgrade Abstract State Invariants — downgrades are encapsulated by a directory event, so they are in order because directory events are ordered. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:axiom5_dir_responses_ordered">LaTeX</a>
@@ -164,8 +164,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">9</span><span class="definition_thmtitle">Cache Events Access Dir If Insufficient Permissions (Well-Formedness Axiom 4)</span></div>
-    <div class="thm_thmcontent"><p>    (Line 225 in BehaviourRelationDefs.lean.) If a cache event does not have sufficient permissions (its state is below the Minimum Required State), it accesses the directory. </p>
+      <span class="definition_thmlabel">11</span><span class="definition_thmtitle">Cache Events Access Dir If Insufficient Permissions (Well-Formedness Axiom 4)</span></div>
+    <div class="thm_thmcontent"><p>    (Line 209 in BehaviourRelationDefs.lean.) If a cache event does not have sufficient permissions (its state is below the Minimum Required State), it accesses the directory. The inductive ‘Behaviour.requestAccessesDirectory’ describes the cases of different request events encapsulating corresponding directory accesses. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:axRequestAccessesDirectory">LaTeX</a>
@@ -194,8 +194,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">7</span><span class="definition_thmtitle">Ordered/Encapsulated Cache Events (Well-Formedness Axiom 2)</span></div>
-    <div class="thm_thmcontent"><p>   (Line 341 in EventRelations.lean.) For any two cache events \(e_1, e_2\) at the same cache entry, either \(e_1\) is encapsulated by \(e_2\), \(e_2\) is encapsulated by \(e_1\), \(e_1\) is ordered before \(e_2\), or \(e_2\) is ordered before \(e_1\). </p>
+      <span class="definition_thmlabel">9</span><span class="definition_thmtitle">Ordered/Encapsulated Cache Events (Well-Formedness Axiom 2)</span></div>
+    <div class="thm_thmcontent"><p>   (Line 341 in EventRelations.lean.) For any two cache events \(e_1, e_2\) at the same cache entry, either \(e_1\) is encapsulated by \(e_2\), \(e_2\) is encapsulated by \(e_1\), \(e_1\) is ordered before \(e_2\), or \(e_2\) is ordered before \(e_1\). This is stated by the structure fields in ‘CacheEvent.AreOrdered’, ‘sameCacheEntry’ and ‘ordered’. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:CacheEventAreOrdered">LaTeX</a>
@@ -224,14 +224,15 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">5</span><span class="definition_thmtitle">Global Linearization Point (Def 5.5)</span></div>
-    <div class="thm_thmcontent"><p>    (Line 139 in CompoundLinearization.lean.) A cluster request linearization event classifies where a cluster cache request linearizes: </p>
+      <span class="definition_thmlabel">5</span><span class="definition_thmtitle">Global Linearization Point (Paper Def 5.5)</span></div>
+    <div class="thm_thmcontent"><p>    (Line 139 in CompoundLinearization.lean.) A cluster request’s cluster linearization event classifies where a cluster cache request globally linearizes: </p>
 <ul class="itemize">
-  <li><p><b class="bfseries">At cache</b> (<span class="ttfamily">clusterCacheLin</span>): the request has permissions and linearizes locally; the linearization event is the cache event itself. </p>
+  <li><p><b class="bfseries">At the Cluster Cache</b> (<span class="ttfamily">clusterCacheLin</span>): the request has permissions and linearizes locally; the linearization event is the cache event itself. </p>
 </li>
-  <li><p><b class="bfseries">At directory or beyond</b> (<span class="ttfamily">clusterDirLin</span>): the request does not have permissions locally and must go through the directory (and possibly the global protocol). </p>
+  <li><p><b class="bfseries">At the Cluster Directory or Beyond</b> (<span class="ttfamily">clusterDirLin</span>): the request does not have permissions locally and must go through the directory (and possibly the global protocol). The request then either globally linearizes at the directory (with global permissions already) or linearizes at the global directory (needs to access the global directory for permissions). </p>
 </li>
 </ul>
+<p> In the case where the cluster request linearizes at the cluster directory or global protocol is defined by the inductive ‘CompoundProtocol.clusterDirectoryLinearizationEvent’ at line 98 in the same file. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:ClusterRequestLinearizationEvent">LaTeX</a>
@@ -260,8 +261,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">17</span><span class="definition_thmtitle">Coherent Read Dir on SW Downgrades Owner (Abstract State Invariant 3)</span></div>
-    <div class="thm_thmcontent"><p>    (Line 324 in BehaviourRelationDefs.lean.) Coherent read directory event on Write-Coherent state downgrades the owner. A coherent read request to the directory on SW state results in a downgrade forwarded to the owner. </p>
+      <span class="definition_thmlabel">19</span><span class="definition_thmtitle">Coherent Read Dir on SW Downgrades Owner (Abstract State Invariant 3)</span></div>
+    <div class="thm_thmcontent"><p>    (Line 324 in BehaviourRelationDefs.lean.) Coherent read directory event on Write-Coherent state downgrades the owner. This is reflected in structure ‘Behaviour.coherentReadDowngradeOthers’ at line 316 used by the definition of ‘Behaviour.coherentReadDirDowngradeOthers’ at line 324. Field ‘downgradeOtherCaches’ specifically downgrades the owner on Write-Coherent state, with a coherent-read downgrade. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:coherentReadDirDowngradeOthers">LaTeX</a>
@@ -290,8 +291,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">22</span><span class="definition_thmtitle">L-RCC Coherent Release Downgrade Write-Back (Consistency Label Axiom 3)</span></div>
-    <div class="thm_thmcontent"><p>   (Line 407 in BehaviourRelationDefs.lean.) L-RCC variant with Coherent Release Write and Non-Coherent Weak Write. When receiving a downgrade, a coherent release writes back Vd entries at other addresses. This is the L-RCC variant where the protocol interface contains both a coherent release and a non-coherent weak write. </p>
+      <span class="definition_thmlabel">24</span><span class="definition_thmtitle">L-RCC Coherent Release Downgrade Write-Back (Consistency Label Axiom 3)</span></div>
+    <div class="thm_thmcontent"><p>   (Line 407 in BehaviourRelationDefs.lean.) L-RCC variant with Coherent Release Write and Non-Coherent Weak Write. When receiving a downgrade to a cache line with Coherent-Write state, the downgrade writes back Vd entries at other addresses. This is the L-RCC variant where the protocol interface contains both a coherent release and a non-coherent weak write. This is reflected by the broadcastWBs field in the structure ‘Behaviour.coherentRelDowngradeWriteBackOthers’. The fields ‘cRelInPI’ and ‘ncWeakWriteInPI’ state the protocol’s request interface contains a Coherent Release and Non-Coherent Weak Write respectively, as per L-RCC. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:coherentRelDowngradeWriteBackOthers">LaTeX</a>
@@ -320,8 +321,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">16</span><span class="definition_thmtitle">Coherent Write Dir Events Result in Downgrades (Abstract State Invariant 2)</span></div>
-    <div class="thm_thmcontent"><p>    (Line 294 in BehaviourRelationDefs.lean.) Coherent write directory events result in downgrades. A coherent write request to the directory results in downgrades at other caches. On SW state, it forwards to the owner; on MR state, it forwards to all sharers. </p>
+      <span class="definition_thmlabel">18</span><span class="definition_thmtitle">Coherent Write Dir Events Result in Downgrades (Abstract State Invariant 2)</span></div>
+    <div class="thm_thmcontent"><p>    (Line 294 in BehaviourRelationDefs.lean.) Coherent write directory events result in downgrades. A coherent write request to the directory results in downgrades at other caches. On SW state, it forwards to the owner; on MR state, it forwards to all sharers. This is reflected in inductive ‘Behaviour.coherentWriteAtDirectoryEncapDowngrades’. Case ‘cWriteOnSW’ represents forwarding a coherent write to the owner cache. Case ‘cWriteOnMR’ represents forwarding a coherent write to the sharer caches. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:coherentWriteAtDirectoryEncapDowngrades">LaTeX</a>
@@ -350,7 +351,7 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">30</span><span class="definition_thmtitle">Coherent Write Succeeded by Directory Request</span></div>
+      <span class="definition_thmlabel">32</span><span class="definition_thmtitle">Coherent Write Succeeded by Directory Request</span></div>
     <div class="thm_thmcontent"><p>   Structure capturing the auxiliary data for a coherent write event that is succeeded by a directory request. </p>
 </div>
 
@@ -380,7 +381,7 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">29</span><span class="definition_thmtitle">Compound Linearization Order</span></div>
+      <span class="definition_thmlabel">31</span><span class="definition_thmtitle">Compound Linearization Order</span></div>
     <div class="thm_thmcontent"><p>    For a PPO pair \((e_1, e_2)\), <em>compound linearization order</em> holds if either their compound linearization events are ordered (\(e_{\mathrm{lin}_1}\) is ordered before \(e_{\mathrm{lin}_2}\)), or the lazy compound linearization order holds between \(e_{\mathrm{lin}_1}\) and \(e_2\). </p>
 </div>
 
@@ -410,7 +411,7 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">27</span><span class="definition_thmtitle">Compound Protocol</span></div>
+      <span class="definition_thmlabel">29</span><span class="definition_thmtitle">Compound Protocol</span></div>
     <div class="thm_thmcontent"><p>   A <em>compound protocol</em> bundles: </p>
 <ul class="itemize">
   <li><p>A global protocol and two cluster protocols, </p>
@@ -452,8 +453,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">6</span><span class="definition_thmtitle">Ordered Directory Events (Well-Formedness Axiom 1)</span></div>
-    <div class="thm_thmcontent"><p>   (Line 305 in EventRelations.lean.) Events at the same directory address are totally ordered: for any two directory events \(de_1, de_2\) at the same address, either \(de_1\) is ordered before \(de_2\) or vice versa. </p>
+      <span class="definition_thmlabel">8</span><span class="definition_thmtitle">Ordered Directory Events (Well-Formedness Axiom 1)</span></div>
+    <div class="thm_thmcontent"><p>   (Line 305 in EventRelations.lean.) Events at the same directory address are totally ordered: for any two directory events \(de_1, de_2\) at the same address, either \(de_1\) is ordered before \(de_2\) or vice versa. This is stated by the structure fields in ‘DirectoryEvent.AreOrdered’, ‘sameDirectoryEntry’ and ‘ordered’. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:DirectoryEventAreOrdered">LaTeX</a>
@@ -482,8 +483,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">11</span><span class="definition_thmtitle">Directory Responses to Caches Are Ordered (Well-Formedness Axiom 6)</span></div>
-    <div class="thm_thmcontent"><p>    (Line 532 in EventRelations.lean.) A request event encapsulates a grant event that is ordered after the directory event, and the grant ends the request. </p>
+      <span class="definition_thmlabel">13</span><span class="definition_thmtitle">Directory Responses to Caches Are Ordered (Well-Formedness Axiom 6)</span></div>
+    <div class="thm_thmcontent"><p>    (Line 532 in EventRelations.lean.) A request event encapsulates a grant event that is ordered after the directory event, and the grant ends the request. This is reflected in the fields of structure ‘Event.encapGrantAfterDirEvent’. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:encapGrantAfterDirEvent">LaTeX</a>
@@ -512,8 +513,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">26</span><span class="definition_thmtitle">Encapsulates</span></div>
-    <div class="thm_thmcontent"><p>   An event \(e_1\) <em>encapsulates</em> \(e_2\) if \(e_1\) starts before \(e_2\) starts and \(e_2\) ends before \(e_1\) ends: \(e_1.\mathrm{oStart} {\lt} e_2.\mathrm{oStart} \; \wedge \;  e_2.\mathrm{oEnd} {\lt} e_1.\mathrm{oEnd}\). </p>
+      <span class="definition_thmlabel">28</span><span class="definition_thmtitle">Encapsulates</span></div>
+    <div class="thm_thmcontent"><p>   An event \(e_1\) <em>encapsulates</em> \(e_2\) if \(e_1\) starts before \(e_2\) starts and \(e_2\) ends before \(e_1\) ends: \(e_1.\mathrm{oStart} {\lt} e_2.\mathrm{oStart} \; \wedge \;  e_2.\mathrm{oEnd} {\lt} e_1.\mathrm{oEnd}\). This is defined on line 6 in EventRelations.lean as ‘Event.Encapsulates. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:Encapsulates">LaTeX</a>
@@ -542,8 +543,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">12</span><span class="definition_thmtitle">Cache with Perms Has Predecessor That Obtained Perms (Well-Formedness Axiom 7)</span></div>
-    <div class="thm_thmcontent"><p>    (Line 494 in BehaviourRelationProofs.lean.) If a non-downgrade request event has permissions, there exists an immediate predecessor that obtained those permissions by accessing the directory, and all intermediate events maintain sufficient state. </p>
+      <span class="definition_thmlabel">14</span><span class="definition_thmtitle">Cache with Perms Has Predecessor That Obtained Perms (Well-Formedness Axiom 7)</span></div>
+    <div class="thm_thmcontent"><p>    (Line 494 in BehaviourRelationProofs.lean.) If a request event \(e_{req}\) has permissions, there exists an immediate predecessor that obtained those permissions by accessing the directory, and all intermediate events maintain sufficient state for \(e_{req}\). This is reflected by the fields in structure ‘Behaviour.exists_predecessor_setting_state’. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:exists_predecessor_setting_state">LaTeX</a>
@@ -572,8 +573,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">13</span><span class="definition_thmtitle">Weak Request on Vd Has Successor WB or Get SW (Well-Formedness Axiom 8)</span></div>
-    <div class="thm_thmcontent"><p>   (Line 504 in BehaviourRelationProofs.lean.) A weak request on Write-Non-Coherent state ordered before a write-back evict linearizes at the write-back evict. There exists an immediate bottom successor that encapsulates a corresponding directory event. </p>
+      <span class="definition_thmlabel">15</span><span class="definition_thmtitle">Weak Request on Vd Has Successor WB or Get SW (Well-Formedness Axiom 8)</span></div>
+    <div class="thm_thmcontent"><p>   (Line 508 in BehaviourRelationProofs.lean.) A weak request on Write-Non-Coherent state ordered before a write-back evict linearizes at the write-back evict. There exists an immediate bottom successor that encapsulates a corresponding directory event. This is reflected by the fields in structure ‘Behaviour.exists_vd_successor_wb_or_get_sw’. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:exists_vd_successor_wb_or_get_sw">LaTeX</a>
@@ -602,7 +603,7 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">28</span><span class="definition_thmtitle">Lazy Compound Linearization Order</span></div>
+      <span class="definition_thmlabel">30</span><span class="definition_thmtitle">Lazy Compound Linearization Order</span></div>
     <div class="thm_thmcontent"><p>    A <em>lazy compound linearization order</em> between a linearization event \(e_{\mathrm{lin}_1}\) and a second event \(e_2\) holds if: for every immediate bottom predecessor \(e_3\) of \(e_2\)’s directory event at the same address, \(e_{\mathrm{lin}_1}\) finishes before \(e_3\)’s directory event. </p>
 </div>
 
@@ -632,8 +633,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">4</span><span class="definition_thmtitle">Local Linearization Point (Def 5.4)</span></div>
-    <div class="thm_thmcontent"><p>    (Line 1083 in BehaviourRelationProofs.lean.) The <em>linearization event</em> of a request event \(e_{\mathrm{req}}\): </p>
+      <span class="definition_thmlabel">4</span><span class="definition_thmtitle">Local Linearization Point (Paper Def 5.4)</span></div>
+    <div class="thm_thmcontent"><p>    (Line 1083 in BehaviourRelationProofs.lean.) The <em>linearization event</em> of a request event \(e_{\mathrm{req}}\). Either the cluster cache request event linearizes in the cache (on a state with coherent permissions), or at the directory (without coherent permissions). Linearizing at the directory means either linearizing before, during, or after the request (as per inductive ‘Behaviour.dirAccessOfRequest’ on line 569 of BehaviourRelationDefs.lean). More succintly in ‘Behaviour.linearizationEventOfRequest’: </p>
 <ul class="itemize">
   <li><p>If \(e_{\mathrm{req}}\) is made on a coherent state with sufficient permissions, the linearization event is \(e_{\mathrm{req}}\) itself (<span class="ttfamily">requestLin</span>). </p>
 </li>
@@ -668,8 +669,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">18</span><span class="definition_thmtitle">NC Requests on SW Downgrade Owner (Abstract State Invariant 4)</span></div>
-    <div class="thm_thmcontent"><p>    (Line 345 in BehaviourRelationDefs.lean.) Non-coherent requests on Write-Coherent state will downgrade the owner. Non-coherent write/read requests on SW directory state result in downgrades forwarded to the previous owner. </p>
+      <span class="definition_thmlabel">20</span><span class="definition_thmtitle">NC Requests on SW Downgrade Owner (Abstract State Invariant 4)</span></div>
+    <div class="thm_thmcontent"><p>    (Line 345 in BehaviourRelationDefs.lean.) Non-coherent write/read requests on Write-Coherent state will downgrade the owner. This is reflected in the structure ‘Behaviour.nonCoherentReqOnSWDowngradeOthers’ used by definition ‘Behaviour.nonCoherentRequestDowngradeOthers’. Field ‘fwdPrevOwner’ specifically downgrades the owner on Write-Coherent state. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:nonCoherentRequestDowngradeOthers">LaTeX</a>
@@ -698,8 +699,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">25</span><span class="definition_thmtitle">Ordered Before</span></div>
-    <div class="thm_thmcontent"><p>   An event \(e_1\) is <em>ordered before</em> \(e_2\) if \(e_1\) completes before \(e_2\) starts: \(e_1.\mathrm{oEnd} {\lt} e_2.\mathrm{oStart}\). </p>
+      <span class="definition_thmlabel">27</span><span class="definition_thmtitle">Ordered Before</span></div>
+    <div class="thm_thmcontent"><p>   An event \(e_1\) is <em>ordered before</em> \(e_2\) if \(e_1\) completes before \(e_2\) starts: \(e_1.\mathrm{oEnd} {\lt} e_2.\mathrm{oStart}\). This is defined on line 12 in EventRelations.lean as ‘Event.OrderedBefore’. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:OrderedBefore">LaTeX</a>
@@ -728,7 +729,7 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">31</span><span class="definition_thmtitle">RCCO-Style Downgrade</span></div>
+      <span class="definition_thmlabel">33</span><span class="definition_thmtitle">RCCO-Style Downgrade</span></div>
     <div class="thm_thmcontent"><p>   Structure capturing the chain of events in an RCCO-style downgrade: a directory event, a downgrade event, and a write-back event. </p>
 </div>
 
@@ -758,8 +759,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">21</span><span class="definition_thmtitle">NC Release Writes Back Other Entries (Consistency Label Axiom 2)</span></div>
-    <div class="thm_thmcontent"><p>    (Line 385 in BehaviourRelationDefs.lean.) Non-coherent release cache operations write back Write-Non-Coherent entries, then access the directory. A non-coherent release cache operation writes back Vd entries at other addresses before accessing the directory: for every other address, there is a Vd write-back event encapsulated by the release, ordered before the directory event. </p>
+      <span class="definition_thmlabel">23</span><span class="definition_thmtitle">NC Release Writes Back Other Entries (Consistency Label Axiom 2)</span></div>
+    <div class="thm_thmcontent"><p>    (Line 385 in BehaviourRelationDefs.lean.) Non-coherent release cache operations write back Write-Non-Coherent entries, then access the directory. This is achieved by using Vd (Write-Non-Coherent) write-back events encapsulated by the release, ordered before the directory event. The structure ‘Behaviour.relWriteBackOtherEntries’ field broadcastWB writes back the other cache entries before the release’s directory access. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:relWriteBackOtherEntries">LaTeX</a>
@@ -788,8 +789,11 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">3</span><span class="definition_thmtitle">Request’s Required State (Def 5.3)</span></div>
-    <div class="thm_thmcontent"><p>    (Line 503 in BehaviourRelationDefs.lean.) A request event \(e\) <em>has permissions</em> if the cache state it is made on is at least its Minimum Required State (MRS). For coherent requests this means the state is at least the MRS. For acquire/release/weak writes this additionally requires the state is coherent. For non-coherent weak reads this requires the state is not Vd. </p>
+      <span class="definition_thmlabel">3</span><span class="definition_thmtitle">Request’s Required State (Paper Def 5.3)</span></div>
+    <div class="thm_thmcontent"><p>    (Line 503 in BehaviourRelationDefs.lean.) A request event \(e\) <em>has permissions</em> if the cache state it is made on is at least its Minimum Required State (MRS). Let’s start by defining a simple Required State (RS) of a request ‘r’. Let the read/write operation ‘rw’ and coherence flag ‘c’ of ‘r’ be the State tuple (‘rw’, ‘c’) to define its RS. </p>
+<p>For coherent requests (ex. a SC Write from a SWMR protocol, or Coherent Release Writes from RCC-O) we use the simple RS definition to define the MRS. This is reflected in the first case in the inductive ‘Behaviour.reqHasPerms’. </p>
+<p>For non-coherent acquire/release/weak writes from RCC protocols, the request’s MRS additionally requires the state is coherent. This is reflected in the second case in the inductive ‘Behaviour.reqHasPerms’. </p>
+<p>For non-coherent weak read/write requests uses the simple RS definition and specifies the cache state is Read-Non-Coherent. The state is not Vd. This is reflected in the third case in the inductive ‘Behaviour.reqHasPerms’. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:reqHasPerms">LaTeX</a>
@@ -818,22 +822,53 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">2</span><span class="definition_thmtitle">Abstract Request (Def 5.2)</span></div>
+      <span class="definition_thmlabel">2</span><span class="definition_thmtitle">Abstract Request (Paper Def 5.2)</span></div>
     <div class="thm_thmcontent"><p>   (Line 19 in Requests.lean.) An <em>abstract request</em> consists of: </p>
 <ul class="itemize">
-  <li><p>A read/write indicator, </p>
+  <li><p>A read/write operation, </p>
 </li>
   <li><p>A coherence flag, </p>
 </li>
   <li><p>A consistency label (SC, Release, Acquire, or Weak). </p>
 </li>
 </ul>
+<p> See ValidRequest at line 66, defining a Request and restricting disallowed Requests such as a Coherent Acquire or Write Acquire. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:Request">LaTeX</a>
     
     
   <a class="lean_link lean_decl" href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Request">Lean</a>
+    
+    
+  
+    
+  </div>
+    
+      </div>
+    </div>
+
+
+    
+    <div class="dep-modal-container" id="def:request-ppos_modal">
+      <div class="dep-modal-content">
+          <button class="dep-closebtn">
+<svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        
+  <div class="thm" id="def:request-ppos" style="display: none">
+    <div class="thm_thmheading">
+      <span class="definition_thmcaption">
+      Definition
+      </span>
+      <span class="definition_thmlabel">6</span><span class="definition_thmtitle">Request PPOs</span></div>
+    <div class="thm_thmcontent"><p>   (Line 3 in RequestPPOs.lean.) A simple proposition between two Requests, stating if the two requests are a PPO pair. </p>
+</div>
+
+    <a class="latex_link" href="sect0001.html#def:request-ppos">LaTeX</a>
+    
+    
+  <a class="lean_link lean_decl" href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/ValidRequest.isPPOPair">Lean</a>
     
     
   
@@ -856,8 +891,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">8</span><span class="definition_thmtitle">Cache Events Encapsulate Corresponding Directory Event (Well-Formedness Axiom 3)</span></div>
-    <div class="thm_thmcontent"><p>    (Line 55 in BehaviourRelationDefs.lean.) A cache operation event encapsulates a corresponding directory event, whose request field, address, downgrade flag, and protocol match the cache event. </p>
+      <span class="definition_thmlabel">10</span><span class="definition_thmtitle">Cache Events Encapsulate Corresponding Directory Event (Well-Formedness Axiom 3)</span></div>
+    <div class="thm_thmcontent"><p>    (Line 55 in BehaviourRelationDefs.lean.) A cache operation event encapsulates a corresponding directory event, whose request field, address, downgrade flag, and protocol match the cache event. This is reflected in the fields of structure ‘Behaviour.requestDirectoryEvent’. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:requestDirectoryEvent">LaTeX</a>
@@ -886,14 +921,15 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">23</span><span class="definition_thmtitle">Cluster to Global Propagation Shim (Shim Axiom 1)</span></div>
+      <span class="definition_thmlabel">25</span><span class="definition_thmtitle">Cluster to Global Propagation Shim (Shim Axiom 1)</span></div>
     <div class="thm_thmcontent"><p>    (Line 128 in BehaviourShim.lean.) Cluster directory events are translated to request events at the corresponding cache in the global protocol. Two cases: </p>
 <ul class="itemize">
   <li><p><b class="bfseries">encapGlobalCache</b>: the global cache lacks permissions, so the directory event encapsulates a global cache access. </p>
 </li>
-  <li><p><b class="bfseries">noGlobalCache</b>: the global cache already has permissions, and a prior global cache event with permissions exists. </p>
+  <li><p><b class="bfseries">noGlobalCache</b>: the global cache already has permissions (so no global directory access), and a prior global cache event with permissions exists. </p>
 </li>
 </ul>
+<p> These are the two cases of the inductive ‘Behaviour.Shim.ClusterToGlobal’. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:ShimClusterToGlobal">LaTeX</a>
@@ -922,8 +958,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">24</span><span class="definition_thmtitle">Global to Cluster Propagation Shim (Shim Axiom 2)</span></div>
-    <div class="thm_thmcontent"><p>    (Line 903 in BehaviourShim.lean.) Downgrades at a global cache are translated to cluster directory accesses. The translation depends on whether the cluster protocol has both coherent write and read, or only non-coherent reads. </p>
+      <span class="definition_thmlabel">26</span><span class="definition_thmtitle">Global to Cluster Propagation Shim (Shim Axiom 2)</span></div>
+    <div class="thm_thmcontent"><p>    (Line 903 in BehaviourShim.lean.) Downgrades at a global cache are translated to cluster directory accesses. The translation depends on whether the cluster protocol has both coherent write and read (an SWMR protocol), or only non-coherent reads (a RCC-style protocol). This is reflected in the inductive ‘Behaviour.Shim.GlobalToCluster’. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:ShimGlobalToCluster">LaTeX</a>
@@ -952,8 +988,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">1</span><span class="definition_thmtitle">State (Def 5.1)</span></div>
-    <div class="thm_thmcontent"><p>   (Line 90 in States.lean.) A <em>state</em> consists of a permissions level \(p\) (none, read, or write) and a coherence flag \(c\) (coherent or non-coherent). The five states are: </p>
+      <span class="definition_thmlabel">1</span><span class="definition_thmtitle">State (Paper Def 5.1)</span></div>
+    <div class="thm_thmcontent"><p>   (Line 90 in States.lean.) A <em>state</em> consists of a tuple of a permissions level \(p\) (none, read, or write) and a coherence flag \(c\) (coherent or non-coherent). The five states are: </p>
 <ul class="itemize">
   <li><p>\(\mathrm{SW}\) (Shared-Write): write permissions, coherent, </p>
 </li>
@@ -983,6 +1019,37 @@
 
 
     
+    <div class="dep-modal-container" id="def:state-req-made-on_modal">
+      <div class="dep-modal-content">
+          <button class="dep-closebtn">
+<svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        
+  <div class="thm" id="def:state-req-made-on" style="display: none">
+    <div class="thm_thmheading">
+      <span class="definition_thmcaption">
+      Definition
+      </span>
+      <span class="definition_thmlabel">7</span><span class="definition_thmtitle">Cache State a Cache Request Event is Made on</span></div>
+    <div class="thm_thmcontent"><p>    (Line 15 in BehaviourRelationDefs.lean.) This definition refers to the state a cache request event arrives at a cache entry on. This def uses other definitions and the cache ordered axiom (Well-Formedness Axiom 1) to project the events at a cache in a list following the order they’re made. The state before an event \(e_{req}\) is the state after the list of events up to \(e_{req}\). </p>
+<p>There is a similar definition for directory events (events at a directory) on line 17 of BehaviourRelationDefs.lean. </p>
+</div>
+
+    <a class="latex_link" href="sect0001.html#def:state-req-made-on">LaTeX</a>
+    
+    
+  <a class="lean_link lean_decl" href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.cacheStateMadeOn">Lean</a>
+    
+    
+  
+    
+  </div>
+    
+      </div>
+    </div>
+
+
+    
     <div class="dep-modal-container" id="def:SWMR_wrapper_modal">
       <div class="dep-modal-content">
           <button class="dep-closebtn">
@@ -994,8 +1061,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">19</span><span class="definition_thmtitle">Protocol Enforces SWMR (Abstract State Invariant 5)</span></div>
-    <div class="thm_thmcontent"><p>    (Line 96 in SWMR.lean.) The protocol enforces Single-Writer Multiple-Reader (SWMR): at any point in time, cache states across the protocol instance cannot simultaneously have both SW and MR, and at most one cache can be in SW state. </p>
+      <span class="definition_thmlabel">21</span><span class="definition_thmtitle">Protocol Enforces SWMR (Abstract State Invariant 5)</span></div>
+    <div class="thm_thmcontent"><p>    (Line 96 in SWMR.lean.) The protocol enforces Single-Writer Multiple-Reader (SWMR): at any point in time, cache states across the protocol instance cannot simultaneously have both SW and MR, and at most one cache can be in SW state. This is reflected in definition ‘SWMR’, where there cannot be both a Write-Coherent (SW) and Read-Coherent (MR) cache simultaneously. The number of Write-Coherent caches must be at most 1. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:SWMR_wrapper">LaTeX</a>
@@ -1024,8 +1091,8 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">15</span><span class="definition_thmtitle">NC Weak Write Linearizes After Cache Event (Abstract State Invariant 1)</span></div>
-    <div class="thm_thmcontent"><p>   (Line 238 in BehaviourRelationDefs.lean.) Non-coherent weak write request linearizes after its cache event. A cache entry in Vd state has an immediate bottom successor that is either a VdWriteBack or a CoherentWrite (which would transition the state). </p>
+      <span class="definition_thmlabel">17</span><span class="definition_thmtitle">NC Weak Write Linearizes After Cache Event (Abstract State Invariant 1)</span></div>
+    <div class="thm_thmcontent"><p>   (Line 233 in BehaviourRelationDefs.lean.) Non-coherent weak write request linearizes after its cache event. Its cache entry in Vd state means there’s an immediate successor that is either a VdWriteBack or a CoherentWrite (which would linearize the weak write). This is reflected in the fields of structure ‘Behaviour.vdCacheEntryWriteBackLater’. Field ‘vdStateAfterEvent’ states the non-coherent weak write results in cache state Vd (Non-Coherent Write). Field ‘wbImmPred’ states the weak write an immediate successor as described above. </p>
 </div>
 
     <a class="latex_link" href="sect0001.html#def:vdCacheEntryWBOrGetSWLaterWrapper">LaTeX</a>
@@ -1054,7 +1121,7 @@
       <span class="definition_thmcaption">
       Definition
       </span>
-      <span class="definition_thmlabel">32</span><span class="definition_thmtitle">Write-Back at Event</span></div>
+      <span class="definition_thmlabel">34</span><span class="definition_thmtitle">Write-Back at Event</span></div>
     <div class="thm_thmcontent"><p>   Structure recording a VdWriteBack at a given event’s entry. </p>
 </div>
 
@@ -1084,7 +1151,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">47</span><span class="lemma_thmtitle">Acquire and Weak Request Linearize at Directory</span></div>
+      <span class="lemma_thmlabel">49</span><span class="lemma_thmtitle">Acquire and Weak Request Linearize at Directory</span></div>
     <div class="thm_thmcontent"><p>    If an acquire and a weak request both linearize at directory, their linearization events are ordered. </p>
 </div>
 
@@ -1114,7 +1181,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">42</span><span class="lemma_thmtitle">Acquire Encapsulates Compound Lin Event</span></div>
+      <span class="lemma_thmlabel">44</span><span class="lemma_thmtitle">Acquire Encapsulates Compound Lin Event</span></div>
     <div class="thm_thmcontent"><p>    An acquire request encapsulates its compound linearization event. </p>
 </div>
 
@@ -1144,7 +1211,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">45</span><span class="lemma_thmtitle">Cluster Dir Encap Global Lin at Dir</span></div>
+      <span class="lemma_thmlabel">47</span><span class="lemma_thmtitle">Cluster Dir Encap Global Lin at Dir</span></div>
     <div class="thm_thmcontent"><p>    A cluster directory event encapsulates its compound linearization event when linearizing at directory. </p>
 </div>
 
@@ -1174,7 +1241,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">58</span><span class="lemma_thmtitle">CLO: Acquire and Weak Request</span></div>
+      <span class="lemma_thmlabel">60</span><span class="lemma_thmtitle">CLO: Acquire and Weak Request</span></div>
     <div class="thm_thmcontent"><p>    Acquire ordered before a weak non-coherent request satisfies compound linearization order. </p>
 </div>
 
@@ -1204,7 +1271,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">54</span><span class="lemma_thmtitle">CLO: Two Events Encapsulating Their Lin Events</span></div>
+      <span class="lemma_thmlabel">56</span><span class="lemma_thmtitle">CLO: Two Events Encapsulating Their Lin Events</span></div>
     <div class="thm_thmcontent"><p>    Handles PPO cases where both events are non-coherent release, acquire, or coherent (e.g. SC\(\times \)SC, Rel\(\times \)Acq, Acq\(\times \)Rel). Shows that each event encapsulates its compound linearization event, so ordered-before is preserved to the linearization events. </p>
 </div>
 
@@ -1234,7 +1301,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">55</span><span class="lemma_thmtitle">CLO: Weak Read and NC Release</span></div>
+      <span class="lemma_thmlabel">57</span><span class="lemma_thmtitle">CLO: Weak Read and NC Release</span></div>
     <div class="thm_thmcontent"><p>    Weak read ordered before a non-coherent release satisfies compound linearization order. </p>
 </div>
 
@@ -1264,7 +1331,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">59</span><span class="lemma_thmtitle">CLO: Weak Request and Coherent Release</span></div>
+      <span class="lemma_thmlabel">61</span><span class="lemma_thmtitle">CLO: Weak Request and Coherent Release</span></div>
     <div class="thm_thmcontent"><p>    Weak non-coherent request ordered before a coherent release satisfies compound linearization order. </p>
 </div>
 
@@ -1294,7 +1361,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">57</span><span class="lemma_thmtitle">CLO: Weak Request and NC Release</span></div>
+      <span class="lemma_thmlabel">59</span><span class="lemma_thmtitle">CLO: Weak Request and NC Release</span></div>
     <div class="thm_thmcontent"><p>    Weak non-coherent request ordered before a non-coherent release satisfies compound linearization order. </p>
 </div>
 
@@ -1324,7 +1391,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">56</span><span class="lemma_thmtitle">CLO: Weak Write or Read and NC Release</span></div>
+      <span class="lemma_thmlabel">58</span><span class="lemma_thmtitle">CLO: Weak Write or Read and NC Release</span></div>
     <div class="thm_thmcontent"><p>    Generic lemma: weak write or read before a non-coherent release. Handles all sub-cases (cache\(\times \)cache, dir\(\times \)cache, cache\(\times \)dir, dir\(\times \)dir linearization). </p>
 </div>
 
@@ -1354,7 +1421,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">43</span><span class="lemma_thmtitle">Coherent Encapsulates Compound Lin Event</span></div>
+      <span class="lemma_thmlabel">45</span><span class="lemma_thmtitle">Coherent Encapsulates Compound Lin Event</span></div>
     <div class="thm_thmcontent"><p>    A coherent request encapsulates its compound linearization event. </p>
 </div>
 
@@ -1384,7 +1451,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">36</span><span class="lemma_thmtitle">Contradiction: Acquire Has Perms and No Perms</span></div>
+      <span class="lemma_thmlabel">38</span><span class="lemma_thmtitle">Contradiction: Acquire Has Perms and No Perms</span></div>
     <div class="thm_thmcontent"><p>    An acquire request cannot simultaneously have and lack permissions. </p>
 </div>
 
@@ -1414,7 +1481,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">37</span><span class="lemma_thmtitle">Contradiction: Coherent Has Perms and No Perms</span></div>
+      <span class="lemma_thmlabel">39</span><span class="lemma_thmtitle">Contradiction: Coherent Has Perms and No Perms</span></div>
     <div class="thm_thmcontent"><p>    A coherent request cannot simultaneously have and lack permissions. </p>
 </div>
 
@@ -1444,7 +1511,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">33</span><span class="lemma_thmtitle">Contradiction: Has Perms and No Perms</span></div>
+      <span class="lemma_thmlabel">35</span><span class="lemma_thmtitle">Contradiction: Has Perms and No Perms</span></div>
     <div class="thm_thmcontent"><p>   A coherent event cannot simultaneously have and lack permissions. </p>
 </div>
 
@@ -1474,7 +1541,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">34</span><span class="lemma_thmtitle">Contradiction: NC Release Has Perms and No Perms</span></div>
+      <span class="lemma_thmlabel">36</span><span class="lemma_thmtitle">Contradiction: NC Release Has Perms and No Perms</span></div>
     <div class="thm_thmcontent"><p>    A non-coherent release request cannot simultaneously have and lack permissions. </p>
 </div>
 
@@ -1504,7 +1571,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">53</span><span class="lemma_thmtitle">Contradiction: Weak Write Encapsulating Directory Event</span></div>
+      <span class="lemma_thmlabel">55</span><span class="lemma_thmtitle">Contradiction: Weak Write Encapsulating Directory Event</span></div>
     <div class="thm_thmcontent"><p>   A contradiction arises if a weak write encapsulates its corresponding directory event. </p>
 </div>
 
@@ -1534,7 +1601,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">35</span><span class="lemma_thmtitle">Contradiction: Weak Write Has Perms and No Perms</span></div>
+      <span class="lemma_thmlabel">37</span><span class="lemma_thmtitle">Contradiction: Weak Write Has Perms and No Perms</span></div>
     <div class="thm_thmcontent"><p>    A weak write request cannot simultaneously have and lack permissions. </p>
 </div>
 
@@ -1564,7 +1631,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">38</span><span class="lemma_thmtitle">Directory Lin Encapsulates Global Directory Lin</span></div>
+      <span class="lemma_thmlabel">40</span><span class="lemma_thmtitle">Directory Lin Encapsulates Global Directory Lin</span></div>
     <div class="thm_thmcontent"><p>    If a cluster directory event encapsulates the global directory linearization event, then the encapsulation relation is preserved through the linearization chain. </p>
 </div>
 
@@ -1594,7 +1661,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">39</span><span class="lemma_thmtitle">Event Encaps Dir Lin Encaps Global Dir Lin</span></div>
+      <span class="lemma_thmlabel">41</span><span class="lemma_thmtitle">Event Encaps Dir Lin Encaps Global Dir Lin</span></div>
     <div class="thm_thmcontent"><p>    If a cache event encapsulates a cluster directory event, and the cluster directory event encapsulates the global directory linearization event, then the cache event encapsulates the global directory linearization event. </p>
 </div>
 
@@ -1624,7 +1691,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">51</span><span class="lemma_thmtitle">Lazy Coherent Release Ordering</span></div>
+      <span class="lemma_thmlabel">53</span><span class="lemma_thmtitle">Lazy Coherent Release Ordering</span></div>
     <div class="thm_thmcontent"><p>    Establishes the lazy linearization ordering for coherent releases. </p>
 </div>
 
@@ -1654,7 +1721,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">50</span><span class="lemma_thmtitle">Lazy Coherent Release Ordering (Helper)</span></div>
+      <span class="lemma_thmlabel">52</span><span class="lemma_thmtitle">Lazy Coherent Release Ordering (Helper)</span></div>
     <div class="thm_thmcontent"><p>   Helper lemma for lazy coherent release ordering. </p>
 </div>
 
@@ -1684,7 +1751,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">41</span><span class="lemma_thmtitle">NC Release Encapsulates Compound Lin Event</span></div>
+      <span class="lemma_thmlabel">43</span><span class="lemma_thmtitle">NC Release Encapsulates Compound Lin Event</span></div>
     <div class="thm_thmcontent"><p>    A non-coherent release request encapsulates its compound linearization event. </p>
 </div>
 
@@ -1714,7 +1781,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">44</span><span class="lemma_thmtitle">Ordered Before and Linearizes at Cache</span></div>
+      <span class="lemma_thmlabel">46</span><span class="lemma_thmtitle">Ordered Before and Linearizes at Cache</span></div>
     <div class="thm_thmcontent"><p>    If both events linearize at cache and \(e_1\) is ordered before \(e_2\), then compound linearization order holds. The linearization events are the events themselves. </p>
 </div>
 
@@ -1744,7 +1811,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">60</span><span class="lemma_thmtitle">PPO Cluster Events Satisfy Compound Linearization</span></div>
+      <span class="lemma_thmlabel">62</span><span class="lemma_thmtitle">PPO Cluster Events Satisfy Compound Linearization</span></div>
     <div class="thm_thmcontent"><p>    For same-cluster PPO cache events satisfying ordered-before, the compound linearization order holds. The proof is by exhaustive case match on the request types of \(e_1\) and \(e_2\), dispatching to the appropriate per-case lemma. </p>
 </div>
 
@@ -1774,7 +1841,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">40</span><span class="lemma_thmtitle">Request Encapsulates Compound Linearization Event</span></div>
+      <span class="lemma_thmlabel">42</span><span class="lemma_thmtitle">Request Encapsulates Compound Linearization Event</span></div>
     <div class="thm_thmcontent"><p>    A request event encapsulates its compound linearization event (generic version for all request types). </p>
 </div>
 
@@ -1804,7 +1871,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">49</span><span class="lemma_thmtitle">State Before Vd of No Between Events</span></div>
+      <span class="lemma_thmlabel">51</span><span class="lemma_thmtitle">State Before Vd of No Between Events</span></div>
     <div class="thm_thmcontent"><p>   If there are no between-events on a Vd entry, the state before the Vd event produces a Vd state. </p>
 </div>
 
@@ -1834,7 +1901,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">46</span><span class="lemma_thmtitle">Weak Write/Read and NC Release Linearize at Directory</span></div>
+      <span class="lemma_thmlabel">48</span><span class="lemma_thmtitle">Weak Write/Read and NC Release Linearize at Directory</span></div>
     <div class="thm_thmcontent"><p>    If a weak write or read and a non-coherent release both linearize at directory, their linearization events are ordered. </p>
 </div>
 
@@ -1864,7 +1931,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">52</span><span class="lemma_thmtitle">Weak Request to Dir and Coherent Release at Cache</span></div>
+      <span class="lemma_thmlabel">54</span><span class="lemma_thmtitle">Weak Request to Dir and Coherent Release at Cache</span></div>
     <div class="thm_thmcontent"><p>   When a weak request linearizes at directory and a coherent release linearizes at cache, compound linearization order holds. </p>
 </div>
 
@@ -1894,7 +1961,7 @@
       <span class="lemma_thmcaption">
       Lemma
       </span>
-      <span class="lemma_thmlabel">48</span><span class="lemma_thmtitle">Weak Write Ordered Before VdWriteBack</span></div>
+      <span class="lemma_thmlabel">50</span><span class="lemma_thmtitle">Weak Write Ordered Before VdWriteBack</span></div>
     <div class="thm_thmcontent"><p>   A weak write that is ordered before a VdWriteBack linearizes before the write-back. </p>
 </div>
 
@@ -1924,7 +1991,7 @@
       <span class="theorem_thmcaption">
       Theorem
       </span>
-      <span class="theorem_thmlabel">61</span><span class="theorem_thmtitle">Compound Protocol Enforces Consistency (Theorem 6.1)</span></div>
+      <span class="theorem_thmlabel">63</span><span class="theorem_thmtitle">Compound Protocol Enforces Consistency (Theorem 6.1)</span></div>
     <div class="thm_thmcontent"><p>    (Line 8 in CompositionalMCM.lean.) For any PPO pair of non-downgrade cache events \(e_1, e_2\) at the same cache with different addresses in a behaviour \(b\) of a compound protocol: if \(e_1\) is ordered before \(e_2\), then compound linearization order holds between \(e_1\) and \(e_2\). </p>
 </div>
 
@@ -1959,7 +2026,7 @@ graphContainer.graphviz({useWorker: true})
     .width(width)
     .height(height)
     .fit(true)
-    .renderDot(`strict digraph "" {	graph [bgcolor=transparent];	node [label="\N",		penwidth=1.8	];	edge [arrowhead=vee];	"def:axRequestAccessesDirectory"	[color=green,		fillcolor="#B0ECA3",		label=axRequestAccessesDirectory,		shape=box,		style=filled];	"def:exists_predecessor_setting_state"	[color=green,		fillcolor="#B0ECA3",		label=exists_predecessor_setting_state,		shape=box,		style=filled];	"def:axRequestAccessesDirectory" -> "def:exists_predecessor_setting_state"	[style=dashed];	"def:coherentReadDirDowngradeOthers"	[color=green,		fillcolor="#B0ECA3",		label=coherentReadDirDowngradeOthers,		shape=box,		style=filled];	"def:acqInvalOtherEntries"	[color=green,		fillcolor="#B0ECA3",		label=acqInvalOtherEntries,		shape=box,		style=filled];	"def:ShimGlobalToCluster"	[color=green,		fillcolor="#B0ECA3",		label=ShimGlobalToCluster,		shape=box,		style=filled];	"def:rccOStyleDowngrade"	[color=green,		fillcolor="#B0ECA3",		label=rccOStyleDowngrade,		shape=box,		style=filled];	"lem:acquire_encapsulates_cmp_lin"	[color=green,		label=acquire_encapsulates_cmp_lin,		shape=ellipse];	"lem:clo_two_events_encap_lin"	[color=green,		label=clo_two_events_encap_lin,		shape=ellipse];	"lem:acquire_encapsulates_cmp_lin" -> "lem:clo_two_events_encap_lin"	[style=dashed];	"lem:ppo_cluster_events"	[color=green,		label=ppo_cluster_events,		shape=ellipse];	"lem:clo_two_events_encap_lin" -> "lem:ppo_cluster_events"	[style=dashed];	"thm:enforce_compound_consistency"	[color=green,		label=enforce_compound_consistency,		shape=ellipse];	"lem:ppo_cluster_events" -> "thm:enforce_compound_consistency"	[style=dashed];	"lem:coherent_encapsulates_cmp_lin"	[color=green,		label=coherent_encapsulates_cmp_lin,		shape=ellipse];	"lem:coherent_encapsulates_cmp_lin" -> "lem:clo_two_events_encap_lin"	[style=dashed];	"lem:cdir_encap_glin_at_dir"	[color=green,		label=cdir_encap_glin_at_dir,		shape=ellipse];	"lem:weak_and_nc_release_at_dir"	[color=green,		label=weak_and_nc_release_at_dir,		shape=ellipse];	"lem:cdir_encap_glin_at_dir" -> "lem:weak_and_nc_release_at_dir"	[style=dashed];	"lem:acquire_and_weak_at_dir"	[color=green,		label=acquire_and_weak_at_dir,		shape=ellipse];	"lem:cdir_encap_glin_at_dir" -> "lem:acquire_and_weak_at_dir"	[style=dashed];	"lem:clo_weak_read_nc_release"	[color=green,		label=clo_weak_read_nc_release,		shape=ellipse];	"lem:weak_and_nc_release_at_dir" -> "lem:clo_weak_read_nc_release"	[style=dashed];	"lem:clo_acquire_weak"	[color=green,		label=clo_acquire_weak,		shape=ellipse];	"lem:acquire_and_weak_at_dir" -> "lem:clo_acquire_weak"	[style=dashed];	"lem:clo_weak_wr_nc_release"	[color=green,		label=clo_weak_wr_nc_release,		shape=ellipse];	"lem:clo_weak_read_nc_release" -> "lem:clo_weak_wr_nc_release"	[style=dashed];	"lem:clo_acquire_weak" -> "lem:ppo_cluster_events"	[style=dashed];	"lem:lazy_coherent_release_ordering"	[color=green,		label=lazy_coherent_release_ordering,		shape=ellipse];	"lem:clo_weak_req_crel"	[color=green,		label=clo_weak_req_crel,		shape=ellipse];	"lem:lazy_coherent_release_ordering" -> "lem:clo_weak_req_crel"	[style=dashed];	"lem:clo_weak_req_crel" -> "lem:ppo_cluster_events"	[style=dashed];	"def:linearizationEventOfRequest"	[color=green,		fillcolor="#B0ECA3",		label=linearizationEventOfRequest,		shape=box,		style=filled];	"def:ClusterRequestLinearizationEvent"	[color=green,		fillcolor="#B0ECA3",		label=ClusterRequestLinearizationEvent,		shape=box,		style=filled];	"def:linearizationEventOfRequest" -> "def:ClusterRequestLinearizationEvent"	[style=dashed];	"def:CompoundLinearizationOrder"	[color=green,		fillcolor="#B0ECA3",		label=CompoundLinearizationOrder,		shape=box,		style=filled];	"def:ClusterRequestLinearizationEvent" -> "def:CompoundLinearizationOrder"	[style=dashed];	"lem:dir_lin_encap_global_dir_lin"	[color=green,		label=dir_lin_encap_global_dir_lin,		shape=ellipse];	"def:ClusterRequestLinearizationEvent" -> "lem:dir_lin_encap_global_dir_lin"	[style=dashed];	"lem:ob_linearizes_at_cache"	[color=green,		label=ob_linearizes_at_cache,		shape=ellipse];	"def:CompoundLinearizationOrder" -> "lem:ob_linearizes_at_cache"	[style=dashed];	"lem:dir_lin_encap_global_dir_lin" -> "lem:cdir_encap_glin_at_dir"	[style=dashed];	"lem:e_encap_dir_lin_encap_global_dir_lin"	[color=green,		label=e_encap_dir_lin_encap_global_dir_lin,		shape=ellipse];	"lem:dir_lin_encap_global_dir_lin" -> "lem:e_encap_dir_lin_encap_global_dir_lin"	[style=dashed];	"def:encapGrantAfterDirEvent"	[color=green,		fillcolor="#B0ECA3",		label=encapGrantAfterDirEvent,		shape=box,		style=filled];	"def:vdCacheEntryWBOrGetSWLaterWrapper"	[color=green,		fillcolor="#B0ECA3",		label=vdCacheEntryWBOrGetSWLaterWrapper,		shape=box,		style=filled];	"def:CompoundProtocol"	[color=green,		fillcolor="#B0ECA3",		label=CompoundProtocol,		shape=box,		style=filled];	"def:CompoundProtocol" -> "def:ShimGlobalToCluster"	[style=dashed];	"def:ShimClusterToGlobal"	[color=green,		fillcolor="#B0ECA3",		label=ShimClusterToGlobal,		shape=box,		style=filled];	"def:CompoundProtocol" -> "def:ShimClusterToGlobal"	[style=dashed];	"def:lazyCompoundLinearizationOrder"	[color=green,		fillcolor="#B0ECA3",		label=lazyCompoundLinearizationOrder,		shape=box,		style=filled];	"def:CompoundProtocol" -> "def:lazyCompoundLinearizationOrder"	[style=dashed];	"def:ShimClusterToGlobal" -> "def:ClusterRequestLinearizationEvent"	[style=dashed];	"def:lazyCompoundLinearizationOrder" -> "def:CompoundLinearizationOrder"	[style=dashed];	"def:Request"	[color=green,		fillcolor="#B0ECA3",		label=Request,		shape=box,		style=filled];	"def:reqHasPerms"	[color=green,		fillcolor="#B0ECA3",		label=reqHasPerms,		shape=box,		style=filled];	"def:Request" -> "def:reqHasPerms"	[style=dashed];	"def:reqHasPerms" -> "def:axRequestAccessesDirectory"	[style=dashed];	"def:reqHasPerms" -> "def:linearizationEventOfRequest"	[style=dashed];	"def:coherentRelDowngradeWriteBackOthers"	[color=green,		fillcolor="#B0ECA3",		label=coherentRelDowngradeWriteBackOthers,		shape=box,		style=filled];	"def:coherentWriteSucceededByDirectoryRequest"	[color=green,		fillcolor="#B0ECA3",		label=coherentWriteSucceededByDirectoryRequest,		shape=box,		style=filled];	"def:writeBackAtEvent"	[color=green,		fillcolor="#B0ECA3",		label=writeBackAtEvent,		shape=box,		style=filled];	"lem:weak_req_dir_crel_cache"	[color=green,		label=weak_req_dir_crel_cache,		shape=ellipse];	"lem:weak_req_dir_crel_cache" -> "lem:clo_weak_req_crel"	[style=dashed];	"def:CacheEventAreOrdered"	[color=green,		fillcolor="#B0ECA3",		label=CacheEventAreOrdered,		shape=box,		style=filled];	"def:requestDirectoryEvent"	[color=green,		fillcolor="#B0ECA3",		label=requestDirectoryEvent,		shape=box,		style=filled];	"def:CacheEventAreOrdered" -> "def:requestDirectoryEvent"	[style=dashed];	"def:requestDirectoryEvent" -> "def:axRequestAccessesDirectory"	[style=dashed];	"def:requestDirectoryEvent" -> "def:coherentReadDirDowngradeOthers"	[style=dashed];	"def:requestDirectoryEvent" -> "def:acqInvalOtherEntries"	[style=dashed];	"def:coherentWriteAtDirectoryEncapDowngrades"	[color=green,		fillcolor="#B0ECA3",		label=coherentWriteAtDirectoryEncapDowngrades,		shape=box,		style=filled];	"def:requestDirectoryEvent" -> "def:coherentWriteAtDirectoryEncapDowngrades"	[style=dashed];	"def:nonCoherentRequestDowngradeOthers"	[color=green,		fillcolor="#B0ECA3",		label=nonCoherentRequestDowngradeOthers,		shape=box,		style=filled];	"def:requestDirectoryEvent" -> "def:nonCoherentRequestDowngradeOthers"	[style=dashed];	"def:relWriteBackOtherEntries"	[color=green,		fillcolor="#B0ECA3",		label=relWriteBackOtherEntries,		shape=box,		style=filled];	"def:requestDirectoryEvent" -> "def:relWriteBackOtherEntries"	[style=dashed];	"lem:ob_linearizes_at_cache" -> "lem:clo_two_events_encap_lin"	[style=dashed];	"lem:ob_linearizes_at_cache" -> "lem:clo_weak_read_nc_release"	[style=dashed];	"lem:ob_linearizes_at_cache" -> "lem:clo_acquire_weak"	[style=dashed];	"lem:ob_linearizes_at_cache" -> "lem:clo_weak_req_crel"	[style=dashed];	"lem:contradiction_has_perms_and_no_perms"	[color=green,		label=contradiction_has_perms_and_no_perms,		shape=ellipse];	"lem:contradiction_weak_write_perms"	[color=green,		label=contradiction_weak_write_perms,		shape=ellipse];	"lem:contradiction_has_perms_and_no_perms" -> "lem:contradiction_weak_write_perms"	[style=dashed];	"lem:contradiction_nc_release_perms"	[color=green,		label=contradiction_nc_release_perms,		shape=ellipse];	"lem:contradiction_has_perms_and_no_perms" -> "lem:contradiction_nc_release_perms"	[style=dashed];	"lem:contradiction_coherent_perms"	[color=green,		label=contradiction_coherent_perms,		shape=ellipse];	"lem:contradiction_has_perms_and_no_perms" -> "lem:contradiction_coherent_perms"	[style=dashed];	"lem:contradiction_acquire_perms"	[color=green,		label=contradiction_acquire_perms,		shape=ellipse];	"lem:contradiction_has_perms_and_no_perms" -> "lem:contradiction_acquire_perms"	[style=dashed];	"lem:nc_release_encapsulates_cmp_lin"	[color=green,		label=nc_release_encapsulates_cmp_lin,		shape=ellipse];	"lem:contradiction_nc_release_perms" -> "lem:nc_release_encapsulates_cmp_lin"	[style=dashed];	"lem:contradiction_coherent_perms" -> "lem:coherent_encapsulates_cmp_lin"	[style=dashed];	"lem:contradiction_acquire_perms" -> "lem:acquire_encapsulates_cmp_lin"	[style=dashed];	"lem:nc_release_encapsulates_cmp_lin" -> "lem:clo_two_events_encap_lin"	[style=dashed];	"lem:e_encap_dir_lin_encap_global_dir_lin" -> "lem:acquire_encapsulates_cmp_lin"	[style=dashed];	"lem:e_encap_dir_lin_encap_global_dir_lin" -> "lem:coherent_encapsulates_cmp_lin"	[style=dashed];	"lem:e_encap_dir_lin_encap_global_dir_lin" -> "lem:nc_release_encapsulates_cmp_lin"	[style=dashed];	"lem:request_encapsulates_cmp_lin"	[color=green,		label=request_encapsulates_cmp_lin,		shape=ellipse];	"lem:e_encap_dir_lin_encap_global_dir_lin" -> "lem:request_encapsulates_cmp_lin"	[style=dashed];	"lem:weak_write_ob_vd_wb"	[color=green,		label=weak_write_ob_vd_wb,		shape=ellipse];	"def:SWMR_wrapper"	[color=green,		fillcolor="#B0ECA3",		label=SWMR_wrapper,		shape=box,		style=filled];	"lem:contradiction_weak_write_encap_dir"	[color=green,		label=contradiction_weak_write_encap_dir,		shape=ellipse];	"lem:contradiction_weak_write_encap_dir" -> "lem:clo_acquire_weak"	[style=dashed];	"lem:clo_weak_req_nc_release"	[color=green,		label=clo_weak_req_nc_release,		shape=ellipse];	"lem:clo_weak_req_nc_release" -> "lem:ppo_cluster_events"	[style=dashed];	"def:State"	[color=green,		fillcolor="#B0ECA3",		label=State,		shape=box,		style=filled];	"def:State" -> "def:reqHasPerms"	[style=dashed];	"def:State" -> "def:SWMR_wrapper"	[style=dashed];	"def:axiom5_dir_responses_ordered"	[color=blue,		fillcolor="#A3D6FF",		label=axiom5_dir_responses_ordered,		shape=box,		style=filled];	"def:axiom5_dir_responses_ordered" -> "def:encapGrantAfterDirEvent"	[style=dashed];	"def:exists_vd_successor_wb_or_get_sw"	[color=green,		fillcolor="#B0ECA3",		label=exists_vd_successor_wb_or_get_sw,		shape=box,		style=filled];	"def:OrderedBefore"	[color=green,		fillcolor="#B0ECA3",		label=OrderedBefore,		shape=box,		style=filled];	"def:OrderedBefore" -> "lem:ob_linearizes_at_cache"	[style=dashed];	"def:Encapsulates"	[color=green,		fillcolor="#B0ECA3",		label=Encapsulates,		shape=box,		style=filled];	"def:Encapsulates" -> "lem:dir_lin_encap_global_dir_lin"	[style=dashed];	"lem:clo_weak_wr_nc_release" -> "lem:clo_weak_req_nc_release"	[style=dashed];	"def:DirectoryEventAreOrdered"	[color=green,		fillcolor="#B0ECA3",		label=DirectoryEventAreOrdered,		shape=box,		style=filled];	"def:DirectoryEventAreOrdered" -> "def:encapGrantAfterDirEvent"	[style=dashed];	"def:DirectoryEventAreOrdered" -> "def:requestDirectoryEvent"	[style=dashed];	"lem:state_before_vd_no_btn"	[color=green,		label=state_before_vd_no_btn,		shape=ellipse];	"def:acquire_invalidation_ob_weak_read"	[color=green,		fillcolor="#B0ECA3",		label=acquire_invalidation_ob_weak_read,		shape=box,		style=filled];	"lem:lazy_coherent_release_ordering_helper"	[color=green,		label=lazy_coherent_release_ordering_helper,		shape=ellipse];	"lem:lazy_coherent_release_ordering_helper" -> "lem:lazy_coherent_release_ordering"	[style=dashed];}`)
+    .renderDot(`strict digraph "" {	graph [bgcolor=transparent];	node [label="\N",		penwidth=1.8	];	edge [arrowhead=vee];	"def:linearizationEventOfRequest"	[color=green,		fillcolor="#B0ECA3",		label=linearizationEventOfRequest,		shape=box,		style=filled];	"def:ClusterRequestLinearizationEvent"	[color=green,		fillcolor="#B0ECA3",		label=ClusterRequestLinearizationEvent,		shape=box,		style=filled];	"def:linearizationEventOfRequest" -> "def:ClusterRequestLinearizationEvent"	[style=dashed];	"def:CompoundLinearizationOrder"	[color=green,		fillcolor="#B0ECA3",		label=CompoundLinearizationOrder,		shape=box,		style=filled];	"def:ClusterRequestLinearizationEvent" -> "def:CompoundLinearizationOrder"	[style=dashed];	"lem:dir_lin_encap_global_dir_lin"	[color=green,		label=dir_lin_encap_global_dir_lin,		shape=ellipse];	"def:ClusterRequestLinearizationEvent" -> "lem:dir_lin_encap_global_dir_lin"	[style=dashed];	"lem:ob_linearizes_at_cache"	[color=green,		label=ob_linearizes_at_cache,		shape=ellipse];	"def:CompoundLinearizationOrder" -> "lem:ob_linearizes_at_cache"	[style=dashed];	"lem:cdir_encap_glin_at_dir"	[color=green,		label=cdir_encap_glin_at_dir,		shape=ellipse];	"lem:dir_lin_encap_global_dir_lin" -> "lem:cdir_encap_glin_at_dir"	[style=dashed];	"lem:e_encap_dir_lin_encap_global_dir_lin"	[color=green,		label=e_encap_dir_lin_encap_global_dir_lin,		shape=ellipse];	"lem:dir_lin_encap_global_dir_lin" -> "lem:e_encap_dir_lin_encap_global_dir_lin"	[style=dashed];	"def:SWMR_wrapper"	[color=green,		fillcolor="#B0ECA3",		label=SWMR_wrapper,		shape=box,		style=filled];	"lem:contradiction_acquire_perms"	[color=green,		label=contradiction_acquire_perms,		shape=ellipse];	"lem:acquire_encapsulates_cmp_lin"	[color=green,		label=acquire_encapsulates_cmp_lin,		shape=ellipse];	"lem:contradiction_acquire_perms" -> "lem:acquire_encapsulates_cmp_lin"	[style=dashed];	"lem:clo_two_events_encap_lin"	[color=green,		label=clo_two_events_encap_lin,		shape=ellipse];	"lem:acquire_encapsulates_cmp_lin" -> "lem:clo_two_events_encap_lin"	[style=dashed];	"lem:ppo_cluster_events"	[color=green,		label=ppo_cluster_events,		shape=ellipse];	"lem:clo_two_events_encap_lin" -> "lem:ppo_cluster_events"	[style=dashed];	"lem:acquire_and_weak_at_dir"	[color=green,		label=acquire_and_weak_at_dir,		shape=ellipse];	"lem:clo_acquire_weak"	[color=green,		label=clo_acquire_weak,		shape=ellipse];	"lem:acquire_and_weak_at_dir" -> "lem:clo_acquire_weak"	[style=dashed];	"lem:clo_acquire_weak" -> "lem:ppo_cluster_events"	[style=dashed];	"thm:enforce_compound_consistency"	[color=green,		label=enforce_compound_consistency,		shape=ellipse];	"lem:ppo_cluster_events" -> "thm:enforce_compound_consistency"	[style=dashed];	"def:DirectoryEventAreOrdered"	[color=green,		fillcolor="#B0ECA3",		label=DirectoryEventAreOrdered,		shape=box,		style=filled];	"def:requestDirectoryEvent"	[color=green,		fillcolor="#B0ECA3",		label=requestDirectoryEvent,		shape=box,		style=filled];	"def:DirectoryEventAreOrdered" -> "def:requestDirectoryEvent"	[style=dashed];	"def:encapGrantAfterDirEvent"	[color=green,		fillcolor="#B0ECA3",		label=encapGrantAfterDirEvent,		shape=box,		style=filled];	"def:DirectoryEventAreOrdered" -> "def:encapGrantAfterDirEvent"	[style=dashed];	"def:coherentWriteAtDirectoryEncapDowngrades"	[color=green,		fillcolor="#B0ECA3",		label=coherentWriteAtDirectoryEncapDowngrades,		shape=box,		style=filled];	"def:requestDirectoryEvent" -> "def:coherentWriteAtDirectoryEncapDowngrades"	[style=dashed];	"def:axRequestAccessesDirectory"	[color=green,		fillcolor="#B0ECA3",		label=axRequestAccessesDirectory,		shape=box,		style=filled];	"def:requestDirectoryEvent" -> "def:axRequestAccessesDirectory"	[style=dashed];	"def:acqInvalOtherEntries"	[color=green,		fillcolor="#B0ECA3",		label=acqInvalOtherEntries,		shape=box,		style=filled];	"def:requestDirectoryEvent" -> "def:acqInvalOtherEntries"	[style=dashed];	"def:nonCoherentRequestDowngradeOthers"	[color=green,		fillcolor="#B0ECA3",		label=nonCoherentRequestDowngradeOthers,		shape=box,		style=filled];	"def:requestDirectoryEvent" -> "def:nonCoherentRequestDowngradeOthers"	[style=dashed];	"def:relWriteBackOtherEntries"	[color=green,		fillcolor="#B0ECA3",		label=relWriteBackOtherEntries,		shape=box,		style=filled];	"def:requestDirectoryEvent" -> "def:relWriteBackOtherEntries"	[style=dashed];	"def:coherentReadDirDowngradeOthers"	[color=green,		fillcolor="#B0ECA3",		label=coherentReadDirDowngradeOthers,		shape=box,		style=filled];	"def:requestDirectoryEvent" -> "def:coherentReadDirDowngradeOthers"	[style=dashed];	"def:exists_predecessor_setting_state"	[color=green,		fillcolor="#B0ECA3",		label=exists_predecessor_setting_state,		shape=box,		style=filled];	"def:axRequestAccessesDirectory" -> "def:exists_predecessor_setting_state"	[style=dashed];	"def:coherentRelDowngradeWriteBackOthers"	[color=green,		fillcolor="#B0ECA3",		label=coherentRelDowngradeWriteBackOthers,		shape=box,		style=filled];	"def:writeBackAtEvent"	[color=green,		fillcolor="#B0ECA3",		label=writeBackAtEvent,		shape=box,		style=filled];	"lem:contradiction_coherent_perms"	[color=green,		label=contradiction_coherent_perms,		shape=ellipse];	"lem:coherent_encapsulates_cmp_lin"	[color=green,		label=coherent_encapsulates_cmp_lin,		shape=ellipse];	"lem:contradiction_coherent_perms" -> "lem:coherent_encapsulates_cmp_lin"	[style=dashed];	"lem:coherent_encapsulates_cmp_lin" -> "lem:clo_two_events_encap_lin"	[style=dashed];	"lem:weak_req_dir_crel_cache"	[color=green,		label=weak_req_dir_crel_cache,		shape=ellipse];	"lem:clo_weak_req_crel"	[color=green,		label=clo_weak_req_crel,		shape=ellipse];	"lem:weak_req_dir_crel_cache" -> "lem:clo_weak_req_crel"	[style=dashed];	"lem:clo_weak_req_crel" -> "lem:ppo_cluster_events"	[style=dashed];	"lem:contradiction_weak_write_encap_dir"	[color=green,		label=contradiction_weak_write_encap_dir,		shape=ellipse];	"lem:contradiction_weak_write_encap_dir" -> "lem:clo_acquire_weak"	[style=dashed];	"def:state-req-made-on"	[color=green,		fillcolor="#B0ECA3",		label="state-req-made-on",		shape=box,		style=filled];	"def:CacheEventAreOrdered"	[color=green,		fillcolor="#B0ECA3",		label=CacheEventAreOrdered,		shape=box,		style=filled];	"def:CacheEventAreOrdered" -> "def:requestDirectoryEvent"	[style=dashed];	"def:coherentWriteSucceededByDirectoryRequest"	[color=green,		fillcolor="#B0ECA3",		label=coherentWriteSucceededByDirectoryRequest,		shape=box,		style=filled];	"lem:weak_and_nc_release_at_dir"	[color=green,		label=weak_and_nc_release_at_dir,		shape=ellipse];	"lem:clo_weak_read_nc_release"	[color=green,		label=clo_weak_read_nc_release,		shape=ellipse];	"lem:weak_and_nc_release_at_dir" -> "lem:clo_weak_read_nc_release"	[style=dashed];	"lem:clo_weak_wr_nc_release"	[color=green,		label=clo_weak_wr_nc_release,		shape=ellipse];	"lem:clo_weak_read_nc_release" -> "lem:clo_weak_wr_nc_release"	[style=dashed];	"lem:clo_weak_req_nc_release"	[color=green,		label=clo_weak_req_nc_release,		shape=ellipse];	"lem:clo_weak_wr_nc_release" -> "lem:clo_weak_req_nc_release"	[style=dashed];	"lem:clo_weak_req_nc_release" -> "lem:ppo_cluster_events"	[style=dashed];	"def:request-ppos"	[color=green,		fillcolor="#B0ECA3",		label="request-ppos",		shape=box,		style=filled];	"def:vdCacheEntryWBOrGetSWLaterWrapper"	[color=green,		fillcolor="#B0ECA3",		label=vdCacheEntryWBOrGetSWLaterWrapper,		shape=box,		style=filled];	"def:ShimGlobalToCluster"	[color=green,		fillcolor="#B0ECA3",		label=ShimGlobalToCluster,		shape=box,		style=filled];	"lem:ob_linearizes_at_cache" -> "lem:clo_two_events_encap_lin"	[style=dashed];	"lem:ob_linearizes_at_cache" -> "lem:clo_acquire_weak"	[style=dashed];	"lem:ob_linearizes_at_cache" -> "lem:clo_weak_req_crel"	[style=dashed];	"lem:ob_linearizes_at_cache" -> "lem:clo_weak_read_nc_release"	[style=dashed];	"lem:cdir_encap_glin_at_dir" -> "lem:acquire_and_weak_at_dir"	[style=dashed];	"lem:cdir_encap_glin_at_dir" -> "lem:weak_and_nc_release_at_dir"	[style=dashed];	"lem:weak_write_ob_vd_wb"	[color=green,		label=weak_write_ob_vd_wb,		shape=ellipse];	"lem:e_encap_dir_lin_encap_global_dir_lin" -> "lem:acquire_encapsulates_cmp_lin"	[style=dashed];	"lem:e_encap_dir_lin_encap_global_dir_lin" -> "lem:coherent_encapsulates_cmp_lin"	[style=dashed];	"lem:nc_release_encapsulates_cmp_lin"	[color=green,		label=nc_release_encapsulates_cmp_lin,		shape=ellipse];	"lem:e_encap_dir_lin_encap_global_dir_lin" -> "lem:nc_release_encapsulates_cmp_lin"	[style=dashed];	"lem:request_encapsulates_cmp_lin"	[color=green,		label=request_encapsulates_cmp_lin,		shape=ellipse];	"lem:e_encap_dir_lin_encap_global_dir_lin" -> "lem:request_encapsulates_cmp_lin"	[style=dashed];	"def:axiom5_dir_responses_ordered"	[color=blue,		fillcolor="#A3D6FF",		label=axiom5_dir_responses_ordered,		shape=box,		style=filled];	"def:axiom5_dir_responses_ordered" -> "def:encapGrantAfterDirEvent"	[style=dashed];	"def:exists_vd_successor_wb_or_get_sw"	[color=green,		fillcolor="#B0ECA3",		label=exists_vd_successor_wb_or_get_sw,		shape=box,		style=filled];	"def:ShimClusterToGlobal"	[color=green,		fillcolor="#B0ECA3",		label=ShimClusterToGlobal,		shape=box,		style=filled];	"def:ShimClusterToGlobal" -> "def:ClusterRequestLinearizationEvent"	[style=dashed];	"def:Encapsulates"	[color=green,		fillcolor="#B0ECA3",		label=Encapsulates,		shape=box,		style=filled];	"def:Encapsulates" -> "lem:dir_lin_encap_global_dir_lin"	[style=dashed];	"def:CompoundProtocol"	[color=green,		fillcolor="#B0ECA3",		label=CompoundProtocol,		shape=box,		style=filled];	"def:CompoundProtocol" -> "def:ShimGlobalToCluster"	[style=dashed];	"def:CompoundProtocol" -> "def:ShimClusterToGlobal"	[style=dashed];	"def:lazyCompoundLinearizationOrder"	[color=green,		fillcolor="#B0ECA3",		label=lazyCompoundLinearizationOrder,		shape=box,		style=filled];	"def:CompoundProtocol" -> "def:lazyCompoundLinearizationOrder"	[style=dashed];	"def:lazyCompoundLinearizationOrder" -> "def:CompoundLinearizationOrder"	[style=dashed];	"lem:contradiction_weak_write_perms"	[color=green,		label=contradiction_weak_write_perms,		shape=ellipse];	"def:reqHasPerms"	[color=green,		fillcolor="#B0ECA3",		label=reqHasPerms,		shape=box,		style=filled];	"def:reqHasPerms" -> "def:linearizationEventOfRequest"	[style=dashed];	"def:reqHasPerms" -> "def:axRequestAccessesDirectory"	[style=dashed];	"def:acquire_invalidation_ob_weak_read"	[color=green,		fillcolor="#B0ECA3",		label=acquire_invalidation_ob_weak_read,		shape=box,		style=filled];	"def:OrderedBefore"	[color=green,		fillcolor="#B0ECA3",		label=OrderedBefore,		shape=box,		style=filled];	"def:OrderedBefore" -> "lem:ob_linearizes_at_cache"	[style=dashed];	"def:rccOStyleDowngrade"	[color=green,		fillcolor="#B0ECA3",		label=rccOStyleDowngrade,		shape=box,		style=filled];	"lem:contradiction_has_perms_and_no_perms"	[color=green,		label=contradiction_has_perms_and_no_perms,		shape=ellipse];	"lem:contradiction_has_perms_and_no_perms" -> "lem:contradiction_acquire_perms"	[style=dashed];	"lem:contradiction_has_perms_and_no_perms" -> "lem:contradiction_coherent_perms"	[style=dashed];	"lem:contradiction_has_perms_and_no_perms" -> "lem:contradiction_weak_write_perms"	[style=dashed];	"lem:contradiction_nc_release_perms"	[color=green,		label=contradiction_nc_release_perms,		shape=ellipse];	"lem:contradiction_has_perms_and_no_perms" -> "lem:contradiction_nc_release_perms"	[style=dashed];	"lem:contradiction_nc_release_perms" -> "lem:nc_release_encapsulates_cmp_lin"	[style=dashed];	"lem:nc_release_encapsulates_cmp_lin" -> "lem:clo_two_events_encap_lin"	[style=dashed];	"def:State"	[color=green,		fillcolor="#B0ECA3",		label=State,		shape=box,		style=filled];	"def:State" -> "def:SWMR_wrapper"	[style=dashed];	"def:State" -> "def:reqHasPerms"	[style=dashed];	"lem:state_before_vd_no_btn"	[color=green,		label=state_before_vd_no_btn,		shape=ellipse];	"lem:lazy_coherent_release_ordering_helper"	[color=green,		label=lazy_coherent_release_ordering_helper,		shape=ellipse];	"lem:lazy_coherent_release_ordering"	[color=green,		label=lazy_coherent_release_ordering,		shape=ellipse];	"lem:lazy_coherent_release_ordering_helper" -> "lem:lazy_coherent_release_ordering"	[style=dashed];	"lem:lazy_coherent_release_ordering" -> "lem:clo_weak_req_crel"	[style=dashed];	"def:Request"	[color=green,		fillcolor="#B0ECA3",		label=Request,		shape=box,		style=filled];	"def:Request" -> "def:reqHasPerms"	[style=dashed];}`)
     .on("end", interactive);
 
 latexLabelEscaper = function(label) {
