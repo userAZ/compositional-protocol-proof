@@ -8,17 +8,85 @@
 
 \chapter{Compound Protocol Consistency}
 
-We prove that compound protocols (an SWMR global protocol connecting two (SWMR or RCC-Style) cluster protocols
-via translation shims) enforce the CMCM (Compound Memory Consistency Model) PPOs:
-for any PPO (Preserved Program Order) pair of cache request events at the same
-cache with different addresses, if one event is ordered before the other, then
-they satisfy a compound linearization order.
+We prove Theorem 6.1 described in Paper Section 6.5. Our theorem states that Compound Protocols (consisting of an SWMR Global Protocol connecting two (SWMR or RCC-Style) Cluster Protocols
+via translation shims) enforce the CMCM (Compound Memory Consistency Model) PPOs (Preserved Program Orderings).
+In this document, our Lean mechanization of a Compound Protocol is introduced
+in Section \ref{sec:compound-protocol}.
+When referring to our paper's sections, we will use ``Paper Section''. For sections
+of this document, we will use ``Section''.
+
+We'll (re-)motivate the definitions and components of the proof
+in a top-down manner, with a running example.
+We'll note which definitions are
+from the paper, and indicate where those definitions are in the Lean
+mechanization.
+First, we
+(re-)present the idea of what Theorem 6.1 states, and how it's proven.
+
+Paper Section 6.4 provides intuition on Theorem 6.1's proof.
+It uses the example of an Acquire ordered before a weakly ordered read in an RCC-style protocol as an ordered PPO pair.
+An Acquire followed by a weakly ordered read is a PPO pair because the
+Acquire indicates subsequent reads are forced to read from the upper level memory after the Acquire reads from the upper level memory.
+This means that the acquire linearizes in memory before the subsequent read linearizes in memory.
+Section \ref{sec:defs}, Definition \ref{def:request-ppos}, introduces our PPO mechanization in Lean.
+We'll briefly re-introduce the idea of a cache request ``linearizing'' from Paper Section 5.3's Paper Definition 5.4 and 5.5.
+Section \ref{sec:defs}, Definitions \ref{def:def:linearizationEventOfRequest}
+and \ref{def:ClusterRequestLinearizationEvent}, introduces our linearization events of a cache request event in Lean.
+Section \ref{sec:temporal-event-relations} introduces temporal relations between events (ordered before, and
+encapsulates).
+
+The proof proceeds by considering the cases of when does a cache request
+event $e_{req}$ linearizes.
+$e_{req}$ may linearize prior to, during, or after its request in cache.
+When $e_{req}$ linearizes depends on two factors:
+\begin{enumerate}
+  \item
+    The kind of request it is,
+    based on its Consistency Label.
+  \item
+    If $e_{req}$ is made on cache \textit{State} with coherent Permissions.
+\end{enumerate}
+Requests (Paper Definition 5.2) are introduced in Section \ref{sec:defs}, Definition \ref{def:Request}.
+State and having Permissions are introduced in Section \ref{sec:defs},
+Definitions \ref{def:State} and \ref{def:reqHasPerms} respectively.
+The notion of the state a cache is made on is introduced in Section \ref{sec:defs},
+Definition \ref{def:state-req-made-on}. The state of a cache before a cache
+request event depends on the events before it, at its cache's address, of an
+execution. Note that we refer to an execution as a ``Behaviour''.
+
+A cache request event $e_{req}$ may linearize by accessing its cluster's
+directory. If the directory has permissions at the
+Interconnect interface (Global Protocol), then $e_{req}$ linearizes at its
+directory access.
+Otherwise, the Translation Shim between Cluster and Global protocols then translate $e_{req}$'s directory request to a Global Protocol access. Then $e_{req}$
+linearizes when it reaches the Global Protocol's Directory.
+Section \ref{sec:axioms:shim}
+introduces the Lean mechanization of the Translation Shim.
+
+We break down the cases of proving the PPO requests linearize in order
+into linearization-ordering lemmas
+(introduced in Sections \ref{sec:cache-request-linearization-ordering},
+and \ref{sec:cache-request-linearization-of-specific-cases}).
+
+The linearization-ordering lemmas are supported by
+more lemmas about the cases of a cache request $e_{req}$'s linearization event,
+and axioms across Sections \ref{sec:axioms:well-formedness},
+\ref{sec:axioms:abstract-state}, \ref{sec:axioms:consistency-labels},
+\ref{sec:axioms:shim}, \ref{sec:some-auxiliary-defs},
+\ref{sec:contradiction-of-nonsense-cases},
+and \ref{sec:cache-request-linearization-encapsulation}.
+
+There are more supporting lemmas that reason about events, execution traces
+(``Behaviours'') across files BehaviourHelpers.lean,
+BehaviourRelationProofs.lean, ProofBasicHelperLemmas.lean, and
+a few in definition files such as EventRelations.lean.
 
 % ============================================================
 \section{Definitions}
+\label{sec:defs}
 % ============================================================
 
-\begin{definition}[State (Def 5.1)]
+\begin{definition}[State (Paper Def 5.1)]
   \label{def:State}
   \lean{State}
   \leanok
@@ -35,7 +103,7 @@ they satisfy a compound linearization order.
   \end{itemize}
 \end{definition}
 
-\begin{definition}[Abstract Request (Def 5.2)]
+\begin{definition}[Abstract Request (Paper Def 5.2)]
   \label{def:Request}
   \lean{Request}
   \leanok
@@ -50,7 +118,7 @@ they satisfy a compound linearization order.
   Requests such as a Coherent Acquire or Write Acquire.
 \end{definition}
 
-\begin{definition}[Request's Required State (Def 5.3)]
+\begin{definition}[Request's Required State (Paper Def 5.3)]
   \label{def:reqHasPerms}
   \lean{Behaviour.reqHasPerms}
   \leanok
@@ -75,7 +143,7 @@ they satisfy a compound linearization order.
   This is reflected in the third case in the inductive `Behaviour.reqHasPerms'.
 \end{definition}
 
-\begin{definition}[Local Linearization Point (Def 5.4)]
+\begin{definition}[Local Linearization Point (Paper Def 5.4)]
   \label{def:linearizationEventOfRequest}
   \lean{Behaviour.linearizationEventOfRequest}
   \leanok
@@ -94,7 +162,7 @@ they satisfy a compound linearization order.
   \end{itemize}
 \end{definition}
 
-\begin{definition}[Global Linearization Point (Def 5.5)]
+\begin{definition}[Global Linearization Point (Paper Def 5.5)]
   \label{def:ClusterRequestLinearizationEvent}
   \lean{ClusterRequestLinearizationEvent}
   \leanok
@@ -116,8 +184,36 @@ they satisfy a compound linearization order.
   in the same file.
 \end{definition}
 
+\begin{definition}[Request PPOs]
+  \label{def:request-ppos}
+  \lean{ValidRequest.isPPOPair}
+  \leanok
+  %\uses{}
+  (Line 3 in RequestPPOs.lean.)
+  A simple proposition between two Requests, stating
+  if the two requests are a PPO pair.
+\end{definition}
+
+\begin{definition}[Cache State a Cache Request Event is Made on]
+  \label{def:state-req-made-on}
+  \lean{Behaviour.cacheStateMadeOn}
+  \leanok
+  \uses{Behaviour.stateBefore, Behaviour.eventsUpToEvent, List.stateAfter}
+  (Line 15 in BehaviourRelationDefs.lean.)
+  This definition refers to the state a cache request event arrives at a cache
+  entry on.
+  This def uses other definitions and the cache ordered axiom (Well-Formedness Axiom 1)
+  to project the events at a cache in a list following the order they're made.
+  The state before an event $e_{req}$ is the state after the list of events up to
+  $e_{req}$.
+
+  There is a similar definition for directory events (events at a directory) on
+  line 17 of BehaviourRelationDefs.lean.
+\end{definition}
+
 % ============================================================
 \section{Well-Formedness Axioms}
+\label{sec:axioms:well-formedness}
 % ============================================================
 
 \begin{definition}[Ordered Directory Events (Well-Formedness Axiom 1)]
@@ -225,6 +321,7 @@ they satisfy a compound linearization order.
 
 % ============================================================
 \section{Abstract State Invariants}
+\label{sec:axioms:abstract-state}
 % ============================================================
 
 \begin{definition}[NC Weak Write Linearizes After Cache Event (Abstract State Invariant 1)]
@@ -297,6 +394,7 @@ they satisfy a compound linearization order.
 
 % ============================================================
 \section{Consistency Label Axioms}
+\label{sec:axioms:consistency-labels}
 % ============================================================
 
 \begin{definition}[Acquire Invalidates Other Entries (Consistency Label Axiom 1)]
@@ -347,6 +445,7 @@ they satisfy a compound linearization order.
 
 % ============================================================
 \section{Shim Axioms}
+\label{sec:axioms:shim}
 % ============================================================
 
 \begin{definition}[Cluster to Global Propagation Shim (Shim Axiom 1)]
@@ -380,6 +479,7 @@ they satisfy a compound linearization order.
 
 % ============================================================
 \section{Ordered Before and Encapsulates Relations}
+\label{sec:temporal-event-relations}
 % ============================================================
 
 \begin{definition}[Ordered Before]
@@ -403,6 +503,7 @@ they satisfy a compound linearization order.
 
 % ============================================================
 \section{Compound Protocol}
+\label{sec:compound-protocol}
 % ============================================================
 
 \begin{definition}[Compound Protocol]
@@ -423,6 +524,7 @@ they satisfy a compound linearization order.
 
 % ============================================================
 \section{Compound (Global) Linearization Order}
+\label{sec:global-linearization-order}
 % ============================================================
 
 \begin{definition}[Lazy Compound Linearization Order]
@@ -449,6 +551,7 @@ they satisfy a compound linearization order.
 
 % ============================================================
 \section{Auxiliary Definitions Organized in Structures}
+\label(sec:some-auxiliary-defs)
 % ============================================================
 
 \begin{definition}[Coherent Write Succeeded by Directory Request]
@@ -476,6 +579,7 @@ they satisfy a compound linearization order.
 
 % ============================================================
 \section{Contradiction Lemmas}
+\label{sec:contradiction-of-nonsense-cases}
 % ============================================================
 
 \begin{lemma}[Contradiction: Has Perms and No Perms]
@@ -520,6 +624,7 @@ they satisfy a compound linearization order.
 
 % ============================================================
 \section{Encapsulation Lemmas}
+\label{sec:cache-request-linearization-encapsulation}
 % ============================================================
 
 \begin{lemma}[Directory Lin Encapsulates Global Directory Lin]
@@ -577,6 +682,7 @@ they satisfy a compound linearization order.
 
 % ============================================================
 \section{Linearization Ordering Lemmas}
+\label{sec:cache-request-linearization-ordering}
 % ============================================================
 
 \begin{lemma}[Ordered Before and Linearizes at Cache]
@@ -665,6 +771,7 @@ they satisfy a compound linearization order.
 
 % ============================================================
 \section{Per-Case Compound Linearization Lemmas}
+\label{sec:cache-request-linearization-of-specific-cases}
 % ============================================================
 
 \begin{lemma}[CLO: Two Events Encapsulating Their Lin Events]
@@ -729,6 +836,7 @@ they satisfy a compound linearization order.
 
 % ============================================================
 \section{Main Results}
+\label{sec:main-theorem}
 % ============================================================
 
 \begin{lemma}[PPO Cluster Events Satisfy Compound Linearization]
