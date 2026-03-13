@@ -599,13 +599,6 @@ def Behaviour.dirAccessOfRequest.isDirEvent {b : Behaviour n} {init : InitialSys
   | .orderBeforeDir _ _ hpred_accesses_dir _ _ _ _ _ => hpred_accesses_dir.isDir
   | .orderAfterDir _ hsucc_encap_dir _ _ => hsucc_encap_dir.choose_spec.right.satisfyP.encapCorresponding.isDir
 
-/-- Axiom 6.5 Directory Event is caused by a corresponding cache event in the same protocol.
-A directory access event should not spontaneously occur without a corresponding cache event. -/
-def Behaviour.axDirectoryEventHasRequest : Prop :=
-  ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e_cdir ∈ b,
-    e_cdir.isDirectoryEvent →
-    ∃ e_creq ∈ b, e_creq.isCacheEvent ∧ b.dirAccessOfRequest n init e_creq e_cdir
-
 /-- Top Level Def. Prop on a Coherent Request `e_coh_req`, and where will the directory event that gave it cache permissions for `e_coh_req`'s access is. -/
 structure Behaviour.coherentReqDirEventNoPerms (b : Behaviour n) (init : InitialSystemState n) (e_req : Event n) : Prop where
   coherentReq : e_req.isCoherent
