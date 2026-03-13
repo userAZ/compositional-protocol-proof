@@ -265,15 +265,48 @@ lemma CompoundProtocol.clusterDirectoryEvent.satisfies_compound_swmr
         . case hhas_global_perms => exact hhas_global_perms
         . case hno_encap => exact hno_encap
 
-/-
-/-- Lemma 4 : A Cluster Request Event leaves a protocol in Compound SWMR. -/
 lemma Behaviour.cluster_request_enforces_compound_swmr
   (b : Behaviour n) (init : InitialSystemState n)
   (cmp : CompoundProtocol n)
   (e : Event n) (he_in_b : e ∈ b)
+  (hcluster_non_proxy : e.clusterNonProxyCacheEvent n)
   -- Initial or Current state just before Event `e` in Compound SWMR
   (hpred_cdir_cmp_swmr : ∀ e_cdir ∈ b, e_cdir.isClusterDir → b.clusterDirFinishBeforeUnrelated n init e e_cdir → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache n b init e_cdir)
   (hpred_gcache_cmp_swmr : ∀ e_gcache ∈ b, e_gcache.isGlobalCache → b.globalCacheFinishBeforeUnrelated n init e e_gcache → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache' n b init e_gcache)
   : b.allClusterEventCorrespondingDirEventSatisfyCompoundSWMR n init e := by
-  sorry
--/
+  have hall_corr_global_downgrades : b.allCorrespondingGlobalDowngradeSatisfyCompoundSWMR n init e := by
+    intro e_cdir he_cdir_in_b he_cdir_is_cluster_dir _
+    refine ⟨?_, ?_⟩
+    · exact CompoundProtocol.clusterDirectoryEvent.satisfies_compound_swmr n cmp init he_cdir_in_b he_cdir_is_cluster_dir
+    · intro e_gcache he_gcache_in_b _ _
+      intro e_gdir he_gdir_in_b he_gdir _
+      intro e_gdown he_gdown_in_b he_gdown
+      exact CompoundProtocol.global_request_enforces_compound_swmr n cmp b init e_gdown he_gdown_in_b he_gdown
+
+  have hnc_rel_on_i_two_dirs : e.isNcRelease → b.cacheStateMadeOn n init e = I →
+      b.ncRelOnICorrespondingClusterDirSatisfyCompoundSWMR n init e := by
+    intro _ _
+    refine ⟨e, he_in_b, e, he_in_b, ?_⟩
+    intro htwo_dirs
+    refine ⟨?_, ?_⟩
+    · refine ⟨?_, ?_⟩
+      · exact CompoundProtocol.clusterDirectoryEvent.satisfies_compound_swmr n cmp init he_in_b htwo_dirs.vcClusterDir
+      · intro e_gcache he_gcache_in_b _ _
+        intro e_gdir he_gdir_in_b he_gdir _
+        intro e_gdown he_gdown_in_b he_gdown
+        exact CompoundProtocol.global_request_enforces_compound_swmr n cmp b init e_gdown he_gdown_in_b he_gdown
+    · refine ⟨?_, ?_⟩
+      · exact CompoundProtocol.clusterDirectoryEvent.satisfies_compound_swmr n cmp init he_in_b htwo_dirs.vdClusterDir
+      · intro e_gcache he_gcache_in_b _ _
+        intro e_gdir he_gdir_in_b he_gdir _
+        intro e_gdown he_gdown_in_b he_gdown
+        exact CompoundProtocol.global_request_enforces_compound_swmr n cmp b init e_gdown he_gdown_in_b he_gdown
+
+  by_cases hnc_rel : e.isNcRelease
+  · by_cases hon_i : b.cacheStateMadeOn n init e = I
+    · exact Behaviour.allClusterEventCorrespondingDirEventSatisfyCompoundSWMR.ncRelOnI
+        hnc_rel hon_i hcluster_non_proxy (hnc_rel_on_i_two_dirs hnc_rel hon_i)
+    · exact Behaviour.allClusterEventCorrespondingDirEventSatisfyCompoundSWMR.ncRelNotOnI
+        hnc_rel hon_i hcluster_non_proxy hall_corr_global_downgrades
+  · exact Behaviour.allClusterEventCorrespondingDirEventSatisfyCompoundSWMR.notNcRel
+      hnc_rel hcluster_non_proxy hall_corr_global_downgrades
