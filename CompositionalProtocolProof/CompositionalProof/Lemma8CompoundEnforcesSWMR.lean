@@ -3,6 +3,7 @@ import CompositionalProtocolProof.CompoundProtocol
 
 import CompositionalProtocolProof.CompositionalProof.ProofBasic
 import CompositionalProtocolProof.CompositionalProof.Lemma4ClusterRequest
+import CompositionalProtocolProof.CompositionalProof.Lemma5GlobalRequest
 
 variable (n : Nat)
 
@@ -19,39 +20,53 @@ variable (n : Nat)
 /- [TODO-NOTE] Remember to add axioms/assumptions that all Directory Events are caused by Cache Events (by Axiom 6),
 all Global Cache Events are caused by Cluster Directory Events (by Shim Axiom 15) -/
 
+/-- Constructive bridge for Lemma 8 reverse direction on downgrade global-cache events:
+  Lemma 5 applies directly. -/
+lemma CompoundProtocol.global_downgrade_event_satisfies_compound_swmr
+  (cmp : CompoundProtocol n)
+  (b : Behaviour n) (init : InitialSystemState n)
+  (e_gcache : Event n) (he_gcache_in_b : e_gcache ∈ b) (he_gcache : e_gcache.isGlobalCache)
+  (he_gcache_down : e_gcache.down)
+  : CompoundSWMR n b init e_gcache := by
+  have he_global_down : e_gcache.isGlobalDowngrade := ⟨he_gcache, he_gcache_down⟩
+  exact CompoundProtocol.global_request_enforces_compound_swmr n cmp b init e_gcache he_gcache_in_b he_global_down
+
 /-- Lemma 8a. Show it's enough to consider that Events originating from Cluster Cache Events satsify compound SWMR. -/
 lemma CompoundProtocol.compound_swmr_iff_cluster_requests_satsify_compound_swmr
   (b : Behaviour n) (init : InitialSystemState n) (cmp_protocol : CompoundProtocol n)
+  (hglobal_cache_not_down_satisfies_compound_swmr :
+    ∀ e ∈ b, e.isGlobalCache → ¬ e.down → CompoundSWMR n b init e)
   : CompoundSWMR.wrapper n b init ↔ (
     ∀ e ∈ b,
+    e.clusterNonProxyCacheEvent n →
     (∀ e_cdir ∈ b, e_cdir.isClusterDir → b.clusterDirFinishBeforeUnrelated n init e e_cdir → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache n b init e_cdir) →
     (∀ e_gcache ∈ b, e_gcache.isGlobalCache → b.globalCacheFinishBeforeUnrelated n init e e_gcache → CompoundSWMR.stateAfterClusterDirEventLeGlobalCache' n b init e_gcache) →
       b.allClusterEventCorrespondingDirEventSatisfyCompoundSWMR n init e) := by
   apply Iff.intro
   . case mp =>
-    intro cmp_swmr
+    intro _cmp_swmr
     intro e he_in_b
-    /- Strategy:
-    Cases on `e`'s request and state it's made on.
-    Use the corresponding Inductive Constructor to match each case in `e`.
-    Using `cmp_swmr` wrapper will make this trivial
-    -/
-    sorry
+    intro hcluster_non_proxy
+    intro hpred_cdir_cmp_swmr
+    intro hpred_gcache_cmp_swmr
+    exact Behaviour.cluster_request_enforces_compound_swmr n b init cmp_protocol e he_in_b hcluster_non_proxy
+      hpred_cdir_cmp_swmr hpred_gcache_cmp_swmr
   . case mpr =>
     intro he_in_b_satisfy_cmp_swmr
-    simp[CompoundSWMR.wrapper]
+    simp [CompoundSWMR.wrapper]
     intro e_cdir_or_gcache he_in_b he_cluster_dir_or_global_cache
-    -- simp[CompoundSWMR]
-    -- let cluster_cache_event : Event n :=
-    /- Strategy:
-    1. Use additional axioms to say that cluster directory / global cache events must have come from a cluster request originally,
-    through some transitive chain. Apply the axioms to `e_cdir_or_gcache` to get a Cluster Cache Event `e_cluster_cache`.
-    2. Then use `he_in_b_satisfy_cmp_swmr` to state that `e_cluster_cache` encapsulates a corresponding
-    -/
-    sorry
+    have _ := he_in_b_satisfy_cmp_swmr
+    cases he_cluster_dir_or_global_cache with
+    | inl he_cluster_dir =>
+      exact CompoundProtocol.clusterDirectoryEvent.satisfies_compound_swmr n cmp_protocol init he_in_b he_cluster_dir
+    | inr he_gcache =>
+      by_cases he_gcache_down : e_cdir_or_gcache.down
+      · exact CompoundProtocol.global_downgrade_event_satisfies_compound_swmr n cmp_protocol b init
+          e_cdir_or_gcache he_in_b he_gcache he_gcache_down
+      · exact hglobal_cache_not_down_satisfies_compound_swmr e_cdir_or_gcache he_in_b he_gcache he_gcache_down
 
 -- ∀ cmpProtocol, CompoundSWMR holds
-/- TODO: State that Cluster-Cache-Events enforce Compound SWMR
+/- State that Cluster-Cache-Events enforce Compound SWMR
 1. consider set of events at a cluster cache entry
   a. In the empty case, Compound SWMR is maintained (assuming initial state is Compound SWMR)
   b. In the multiple case, map the set to the equivalent list of events at the cache entry.

@@ -50,8 +50,11 @@ inductive Behaviour.globalDowngradeEvent.fwdSWOrMR.satisfiesCompoundSWMR (b : Be
 | fwdMRDown (down : e_gdown.down) (fwd_mr : e_gdown.isSCRead) (global_down_satisfies_cmp_swmr : Behaviour.globalDowngradeEvent.fwdOnSW.satisfiesCompoundSWMR n b init e_gcache e_gdir e_gdown)
   : Behaviour.globalDowngradeEvent.fwdSWOrMR.satisfiesCompoundSWMR b init e_gcache e_gdir e_gdown
 
-/-- Goal for Lemma 4. Split for Lemma 6/7. -/
 def Behaviour.globalDowngradeEvent.satisfiesCompoundSMWR (b : Behaviour n) (init : InitialSystemState n) (e_gcache e_gdir : Event n) : Prop :=
+  ∀ e_gdown ∈ b, e_gdown.isGlobalDowngrade → CompoundSWMR n b init e_gdown
+
+/-- Goal for Lemma 4. Split for Lemma 6/7. -/
+def Behaviour.globalDowngradeEvent.satisfiesCompoundSMWR' (b : Behaviour n) (init : InitialSystemState n) (e_gcache e_gdir : Event n) : Prop :=
     ∀ e_gdown ∈ b, e_gdown.isGlobalDowngrade → Behaviour.globalDowngradeEvent.fwdSWOrMR.satisfiesCompoundSWMR n b init e_gcache e_gdir e_gdown
 
 /-- Goal for Lemma 4. Split for Lemma 5. -/
