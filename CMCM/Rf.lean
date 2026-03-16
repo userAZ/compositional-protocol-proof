@@ -236,8 +236,6 @@ structure WriteRead.noEvictBetween.cond (b : Behaviour n) (init : InitialSystemS
   noEvictBtn : Event.Between.noEvict b e_w e_r_down
   wObRDown : e_w.OrderedBefore n e_r_down
 
-  -- rGleDowngrade : sorry -- e_r_gle encapsulates a corresponding downgrade to e_w's corresponding global cache
-
 def Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (e_down e_grant : Event n) : Prop :=
@@ -328,7 +326,6 @@ structure Behaviour.clusterDown.encapProxyAndDirAndCDown {cmp : CompoundProtocol
   encapDir : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin
   existsRDownAtW :
     ∃ e_r_down ∈ b, e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down
-  -- sorry
 
 /-- An intervening directory write from a different-cluster cache write.
     The chain goes: e_w_inter (diff cluster) → CLE → global cache (ClusterToGlobal shim)
