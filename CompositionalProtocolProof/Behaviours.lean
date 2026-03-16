@@ -1284,7 +1284,6 @@ lemma Set.finSetEvents'_e_in_result  {b} {st} {addr} (es : Set (EventAtEntry n b
   simp[finSetEvents'] at he_in_finset_events
   exact he_in_finset_events
 
---https://leanprover.zulipchat.com/#narrow/channel/113489-new-members/topic/How.20to.20prove.20fin.20subtype.20with.20stricter.20restriction.20is.20fin/with/526216387
 lemma Subtype.equiv_fin_impl_equiv_fin' {α : Type*} {n} {p q : α → Prop} (himpl : ∀ x, q x → p x)
   (f : {x // p x} ≃ Fin n) : ∃ m, m ≤ n ∧ Nonempty ({x // q x} ≃ Fin m) :=
 by
