@@ -32,6 +32,3 @@ name = "CompositionalProtocolProof"
 
 [[lean_lib]]
 name = "CMCM"
-
-[[lean_lib]]
-name = "Herd"
