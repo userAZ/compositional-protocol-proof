@@ -16,7 +16,7 @@ Please look over the theorems and lemmas in the lean mechanization.
 In VSCode, theorems and lemmas that are verified by lean have blue checkmarks to
 their left. You may check that the theorems and lemmas bear the blue checkmarks.
 
-The Chapter \ref{ch:proof-overview} provides an overview of the structure of the proof
+The next Chapter provides an overview of the structure of the proof
 from the paper. You may use it to get an idea of how to navigate parts of the lean
 mechanization.
 
@@ -53,7 +53,7 @@ We've pre-run the generate pdf and webpage commands.
 The pdf can be viewed by opening it with a pdf viewing program.
 To view the webpage, you will need to serve the webpage first with the command:
 \begin{verbatim}
-  leanblueprint serve
+  $ leanblueprint serve
 \end{verbatim}
 Which will then produce some output:
 \begin{verbatim}
@@ -365,8 +365,8 @@ a few in definition files such as EventRelations.lean.
   the directory. Intermediate events maintain sufficient state for $e_{req}$.
   This is reflected by the fields in structure `Behaviour.exists\_predecessor\_setting\_state'.
   This axiom uses Axiom \ref{def:axRequestAccessesDirectory} to state the predecessor accesses the
-  directory for permissions (in field `hexists_pred_getting_perms'). Axiom \ref{requestDirectoryEvent} is used to state the directory request
-  matches the preceeding request (field `hpred_accesses_dir').
+  directory for permissions (in field `hexists\_pred\_getting\_perms'). Axiom \ref{requestDirectoryEvent} is used to state the directory request
+  matches the preceeding request (field `hpred\_accesses\_dir').
 \end{definition}
 
 \begin{definition}[Weak Request on Vd Has Successor WB or Get SW (Well-Formedness Axiom 8)]
