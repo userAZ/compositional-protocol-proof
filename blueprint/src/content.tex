@@ -6,7 +6,76 @@
 % the current file can be a simple sequence of \input. Otherwise It
 % can start with a \section or \chapter for instance.
 
+\chapter{Artifact Evaluation}
+
+% ====================================================
+\section{Evaluating the Lean Mechanization}
+% ====================================================
+
+Please look over the theorems and lemmas in the lean mechanization.
+In VSCode, theorems and lemmas that are verified by lean have blue checkmarks to
+their left. You may check that the theorems and lemmas bear the blue checkmarks.
+
+The Chapter \ref{ch:proof-overview} provides an overview of the structure of the proof
+from the paper. You may use it to get an idea of how to navigate parts of the lean
+mechanization.
+
+% ====================================================
+\section{Using the Leanblueprint Theorem Graph Visualization}
+% ====================================================
+
+This lean mechanization has a leanblueprint project you can run to see a graph of
+some of the theorems, lemmas, and definitions to help navigate the mechanization.
+To run leanblueprint, we've included both a nix \texttt{flake} file and \texttt{nix-shell} file
+to setup the dependencies.
+
+% ====================================================
+\subsection{Set Up Dependencies}
+% ====================================================
+
+To setup the leanblueprint environment using nix \texttt{flake} (\texttt{nix develop}), use the
+following command (you can use the command from a sub-directory as well. nix will search upward for
+the flake.nix file):
+\begin{verbatim}
+  $ nix develop
+\end{verbatim}
+
+To setup the leanblueprint environment using the \texttt{nix-shell} command:
+\begin{verbatim}
+  $ nix-shell leanblueprint-shell.nix
+\end{verbatim}
+
+% ====================================================
+\subsection{Use Leanblueprint}
+% ====================================================
+
+We've pre-run the generate pdf and webpage commands.
+The pdf can be viewed by opening it with a pdf viewing program.
+To view the webpage, you will need to serve the webpage first with the command:
+\begin{verbatim}
+  leanblueprint serve
+\end{verbatim}
+Which will then produce some output:
+\begin{verbatim}
+  $ leanblueprint serve
+  Serving http://0.0.0.0:8000/ 
+  Press Ctrl-c to interrupt.
+\end{verbatim}
+Where you can view the generated lean theorem dependency graph from the locally served
+URL (the ``http://0.0.0.0:8000/'' link after ``Serving'').
+
+You can optionally re-generate the pdf with the commands:
+\begin{verbatim}
+  $ leanblueprint pdf
+\end{verbatim}
+to re-generate the webpage:
+\begin{verbatim}
+  $ leanblueprint web
+\end{verbatim}
+
+
 \chapter{Compound Protocol Consistency}
+\label{ch:proof-overview}
 
 We prove Theorem 6.1 described in Paper Section 6.5. Our theorem states that Compound Protocols (consisting of an SWMR Global Protocol connecting two (SWMR or RCC-Style) Cluster Protocols
 via translation shims) enforce the CMCM (Compound Memory Consistency Model) PPOs (Preserved Program Orderings).
