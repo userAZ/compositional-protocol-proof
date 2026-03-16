@@ -488,7 +488,6 @@ lemma Behaviour.contradiction_of_intermediate_finishes_before_event_and_translat
   simp[Event.finishesBefore]
   simp[Nat.le_iff_lt_or_eq]
   apply Or.intro_right
-  -- rw [show e_inter = e_greq from (htranslation.onlyGlobalReq e_inter sorry sorry sorry sorry)]
   rw[hinter_eq_greq]
 
 lemma Behaviour.clusterToGlobal.global_req_noIntermediateFinishesBeforeOfSameEntry_from_cluster_dir_translation
@@ -1480,7 +1479,6 @@ lemma Behaviour.cluster_directory_matching_global_cache_same_entry {e_gdown e_cd
                           simp at hpred_cluster_of_gcache
                       | .proxy _ =>
                         simp[hgcid] at hpred_cluster_of_gcache
-                      -- sorry
                     | .global =>
                       simp[hpred_p] at hpred_cluster_of_gcache
                   | .cacheEvent _ =>
