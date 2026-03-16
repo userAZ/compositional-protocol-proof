@@ -20,9 +20,3 @@ def Event.LinearizationOrder (b : Behaviour n) (init : InitialSystemState n)
     | .requestLin _ => False -- Cannot have another request `e₃` linearize with cache permissions
     | .dirLin e_lin₃ =>
       e_lin₂.orderedBeforeToSameEntry n e_lin₃.choose → e_lin₁.lazyLinearizationOrder n e_lin₂ e_lin₃.choose
-
-/-- Lemma 10 -/
-lemma Behaviour.events_are_in_ppo {b : Behaviour n} {init : InitialSystemState n}
-  (e₁ e₂ : Event n) (hsame_protocol : e₁.sameProtocol n e₂) (lin : Behaviour.linearizationEventOfRequestWrapper n)
-  : e₁.isPPOPair n e₂ → e₁.LinearizationOrder n b init e₂ lin := by
-  sorry
