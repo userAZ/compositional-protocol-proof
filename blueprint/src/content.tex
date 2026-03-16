@@ -202,7 +202,8 @@ a few in definition files such as EventRelations.lean.
   (Line 15 in BehaviourRelationDefs.lean.)
   This definition refers to the state a cache request event arrives at a cache
   entry on.
-  This def uses other definitions and the cache ordered axiom (Well-Formedness Axiom 1)
+  This def uses other definitions and the cache ordered axiom (Well-Formedness Axiom 1
+  and 2)
   to project the events at a cache in a list following the order they're made.
   The state before an event $e_{req}$ is the state after the list of events up to
   $e_{req}$.
@@ -292,8 +293,11 @@ a few in definition files such as EventRelations.lean.
   (Line 494 in BehaviourRelationProofs.lean.)
   If a request event $e_{req}$ has permissions, there exists an
   immediate predecessor that obtained those permissions by accessing
-  the directory, and all intermediate events maintain sufficient state for $e_{req}$.
+  the directory. Intermediate events maintain sufficient state for $e_{req}$.
   This is reflected by the fields in structure `Behaviour.exists\_predecessor\_setting\_state'.
+  This axiom uses Axiom \ref{def:axRequestAccessesDirectory} to state the predecessor accesses the
+  directory for permissions (in field `hexists_pred_getting_perms'). Axiom \ref{requestDirectoryEvent} is used to state the directory request
+  matches the preceeding request (field `hpred_accesses_dir').
 \end{definition}
 
 \begin{definition}[Weak Request on Vd Has Successor WB or Get SW (Well-Formedness Axiom 8)]
