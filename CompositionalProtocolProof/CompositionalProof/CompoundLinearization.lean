@@ -56,7 +56,6 @@ def Behaviour.compoundLinearizationEvent.OfGlobalCacheEvent {b : Behaviour n} {i
 
 /- [TODO] Prepare a Lemma, to state the `latest_global_cache_event` before `e_cdir` comes from a set from
 `Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent` that is Singleton, if the Initial State is `I`, and `e_cdir` has Global Cache Permissions. -/
--- Sorry-lemma is in BehaviourShim.lean called `Behaviour.immediateFinishesBeforeAtGlobalCacheNotEncapEvents_is_singleton`
 def Behaviour.Shim.ClusterToGlobal.hasPerms.globalDirectoryEvent (b : Behaviour n) (init : InitialSystemState n) (e_cdir e_glin : Event n) (e_cdir_shim : Behaviour.Shim.ClusterToGlobal n b init e_cdir)
   : Prop :=
   match e_cdir_shim with
