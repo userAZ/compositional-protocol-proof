@@ -9,7 +9,7 @@
 \chapter{Overview}
 
 This is the ``Lean blueprint''\footnote{i.e. using the blueprint tool: \url{https://github.com/PatrickMassot/leanblueprint}} accompanying the artifact of ``A Formally Verified Foundation for Compositional Heterogeneous Coherence''.
-This document gives an overview of the mechanized proofs, and the blueprint tool synchronizes the definitions and proofs in the mechanization with this document.
+This document gives an overview of the mechanized proofs, and the blueprint tool helps synchronize the definitions and proofs in the mechanization with this document.
 In the following, we will discuss the mechanized proofs and their relation to the claims in the paper.
 
 \section{Checking the Entire Artifact}
@@ -34,9 +34,16 @@ To check this, you can run a command (in a separate line) to print all axioms as
 #print axioms CompoundProtocol.enforce_compound_consistency
 \end{verbatim}
 
-This returns the following message (you can see the message on the right in the infoview panel in VSCode, or if you run it on the command line using \texttt{lake lean CompositionalProtocolProof/CompositionalMCM.lean}, it will print it to \texttt{stdout}):
+This returns the following message (you can see the message on the right in the infoview panel in VSCode, or if you run it on the command line using
+\begin{verbatim}
+lake lean CompositionalProtocolProof/CompositionalMCM.lean
+\end{verbatim}
+it will print it to \texttt{stdout}):
 
-'CompoundProtocol.enforce\_compound\_consistency' depends on axioms: [propext, Classical.choice, Quot.sound]
+\begin{verbatim}
+'CompoundProtocol.enforce_compound_consistency' depends on axioms:
+  [propext, Classical.choice, Quot.sound]
+\end{verbatim}
 
 This means that our main theorem, \texttt{CompoundProtocol.enforce\_compound\_consistency} only depends on the built-in axioms of propositional extensionality, soundness of quotients and the axiom of choice (our proof is classical).
 Notably, the axiom \texttt{sorryAx} is missing, since no helper lemma has been admitted using the \texttt{sorry} keyword.
