@@ -3,17 +3,17 @@ import CMCM.RfProofDefs
 import CMCM.RfProofHelpers
 import CMCM.RfCases.RfSameGleSameClusterEvictOrReadBetweenHelpers
 
-/-- Proof that reads-from is correct when e_w's GLE is the immediate predecessor of e_r's GLE,
+/-- Proof that reads-from is correct when e_w's GLE is ordered before e_r's GLE,
     both events are in the same cluster, and the CLE relationship is evictOrReadBetween.
 
     This parallels the sameGle.evictOrReadBetweenWAndRCleSameCluster case, but uses `wObRGle`
     instead of `wEqRGle` since the GLEs are ordered (not equal). The inner structure (CLE
     ordering, same/diff cache) is identical and reuses the same helper lemmas. -/
-lemma CMCM.rf.wImmPredRGle.sameCluster.evictOrReadBetweenWAndRCleSameCluster
+lemma CMCM.rf.wObRGle.sameCluster.evictOrReadBetweenWAndRCleSameCluster
   {cmp : CompoundProtocol n}
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  (hw_imm_pred_r_gle : CompoundProtocol.gleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  (hw_ob_r_gle : CompoundProtocol.gleOrderedBefore hw_c_and_g_lin hr_c_and_g_lin)
   (hsame_cluster : Event.sameProtocol n e_w e_r)
   (hevict_or_read_between_w_r_cle : CLE.WROrdering.evictOrReadBetween hw_c_and_g_lin hr_c_and_g_lin)
   (hno_intervening_writes : NoInterveningWrites hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
@@ -23,7 +23,7 @@ lemma CMCM.rf.wImmPredRGle.sameCluster.evictOrReadBetweenWAndRCleSameCluster
   := by
   -- Use wObRGle since GLEs are ordered (immediate predecessor → ordered before)
   apply Behaviour.readsFrom.cases.wObRGle
-    (hw_imm_pred_r_gle.isImmPred.bPred.isPred)
+    hw_ob_r_gle
   refine .sameCluster hsame_cluster ⟨hevict_or_read_between_w_r_cle.wObR, ?_⟩
   -- Same/diff cache case split
   by_cases hsame_cache : e_w.struct = e_r.struct

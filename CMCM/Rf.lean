@@ -659,13 +659,13 @@ inductive Behaviour.readsFrom.cases
 
 /- ========= BEGIN RF Constraints ========= -/
 
-def CompoundProtocol.gleImmediatePredecessor
+def CompoundProtocol.gleOrderedBefore
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   : Prop :=
-  b.ImmediateBottomPredecessor n
-    hw_c_and_g_lin.hreq's_global_lin.choose hr_c_and_g_lin.hreq's_global_lin.choose
+  hw_c_and_g_lin.hreq's_global_lin.choose.OrderedBefore n
+    hr_c_and_g_lin.hreq's_global_lin.choose
 
 def Event.isDirReadOrEvict (e : Event n) : Prop := e.isDirRead
 
@@ -779,8 +779,8 @@ inductive CompoundProtocol.gleOrdering.Cases
   | sameGle
     (same_gle : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
     (cle_cases : CompoundProtocol.gleEq.SameCluster.cleEq.cleOb.cleOrdering.Cases hw_c_and_g_lin hr_c_and_g_lin)
-  | wImmPredRGle
-    (w_imm_pred_r_gle : CompoundProtocol.gleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  | wObRGle
+    (w_ob_r_gle : CompoundProtocol.gleOrderedBefore hw_c_and_g_lin hr_c_and_g_lin)
     (cle_cases : CompoundProtocol.gleOB.Cluster.SameOrDiff.cleOrdering.Cases hw_c_and_g_lin hr_c_and_g_lin)
 
 /- ========== END RF Constraints ========== -/
