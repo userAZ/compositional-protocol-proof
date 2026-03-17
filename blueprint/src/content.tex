@@ -15,7 +15,7 @@ In the following, we will discuss the mechanized proofs and their relation to th
 \section{Checking the Entire Artifact}
 We have provided a script to run the entire artifact.
 You can run it by just typing \texttt{/check-artifact.sh}.
-This will elaborate and check the Lean mechanization and print the axioms of our main theorem, \texttt{CompoundProtocol.enforce_compound_consistency}.
+This will elaborate and check the Lean mechanization and print the axioms of our main theorem, \texttt{CompoundProtocol.enforce\_compound\_consistency}.
 It will also run the Murphi model checker on the case studies.
 The rest of this chapter explains the individual parts of the artifact in more detail (what the above script runs), and the subsequent chapters explain the mechanization in even more detail.
 
@@ -30,13 +30,15 @@ This docker image should already have the dependencies for VSCode and Lean.
 However, that the proof type checks does not mean that it is not missing some helper lemma that was axiomatized.
 To check this, you can run a command (in a separate line) to print all axioms assumed to prove a theorem. For example, for our main theorem we have
 
-\texttt{#print axioms CompoundProtocol.enforce_compound_consistency}
+\begin{verbatim}
+#print axioms CompoundProtocol.enforce_compound_consistency
+\end{verbatim}
 
 This returns the following message (you can see the message on the right in the infoview panel in VSCode, or if you run it on the command line using \texttt{lake lean CompositionalProtocolProof/CompositionalMCM.lean}, it will print it to \texttt{stdout}):
 
-'CompoundProtocol.enforce_compound_consistency' depends on axioms: [propext, Classical.choice, Quot.sound]
+'CompoundProtocol.enforce\_compound\_consistency' depends on axioms: [propext, Classical.choice, Quot.sound]
 
-This means that our main theorem, \texttt{CompoundProtocol.enforce_compound_consistency} only depends on the built-in axioms of propositional extensionality, soundness of quotients and the axiom of choice (our proof is classical).
+This means that our main theorem, \texttt{CompoundProtocol.enforce\_compound\_consistency} only depends on the built-in axioms of propositional extensionality, soundness of quotients and the axiom of choice (our proof is classical).
 Notably, the axiom \texttt{sorryAx} is missing, since no helper lemma has been admitted using the \texttt{sorry} keyword.
 
 The next Chapter (Chapter \ref{ch:proof-overview}) provides an overview of the structure of the proof from the paper.
@@ -244,20 +246,19 @@ Additional claims about our paper are in the table below:
 \chapter{Compound Protocol Consistency}
 \label{ch:proof-overview}
 
-We prove Theorem 6.1 described in Paper Section 6.5. Our theorem states that Compound Protocols (consisting of an SWMR Global Protocol connecting two (SWMR or RCC-Style) Cluster Protocols
-via translation shims) enforce the CMCM (Compound Memory Consistency Model) PPOs (Preserved Program Orderings).
-In this document, our Lean mechanization of a Compound Protocol is introduced
-in Section \ref{sec:compound-protocol}.
-When referring to our paper's sections, we will use ``Paper Section''. For sections
-of this document, we will use ``Section''.
+The main result of this artifact is Theorem 6.1, described in Paper Section 6.5.
+It states that a class of compound protocols enforce the compound memory consistency model (CMCM).
+More precisely, the the class of compound protocols consistinc of a global protocl satisfying the Single-Writer Multiple-Reader (SWMR) property 
+connecting with two cluster protocols, each of which is either SWMR or Release-Consistency Coherence (RCC)-Style.
+In this case, the compound protocol built using the principle of synchronous propagation enforces the preseved program order (PPO) of the individual clusters.
 
-We'll (re-)motivate the definitions and components of the proof
-in a top-down manner, with a running example.
-We'll note which definitions are
-from the paper, and indicate where those definitions are in the Lean
-mechanization.
-First, we
-(re-)present the idea of what Theorem 6.1 states, and how it's proven.
+In Section \ref{sec:compound-protocol}, we introduce the Lean mechanization of a Compound Protocol.
+When referring to our paper's sections, we will use ``Paper Section''.
+For sections of this document, we will use ``Section''.
+
+We'll (re-)motivate the definitions and components of the proof in a top-down manner, with a running example.
+We'll note which definitions are from the paper, and indicate where those definitions are in the Lean mechanization.
+First, we (re-)present the idea of what Theorem 6.1 states, and how it's proven.
 
 Paper Section 6.4 provides intuition on Theorem 6.1's proof.
 It uses the example of an Acquire ordered before a weakly ordered read in an RCC-style protocol as an ordered PPO pair.
