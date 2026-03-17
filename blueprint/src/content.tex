@@ -14,9 +14,36 @@ In the following, we will discuss the mechanized proofs and their relation to th
 
 \section{Checking the Entire Artifact}
 We have provided a script to run the entire artifact.
-You can run it by just typing \texttt{/check-artifact.sh}.
-This will elaborate and check the Lean mechanization and print the axioms of our main theorem, \texttt{CompoundProtocol.enforce\_compound\_consistency}.
+You can run it by just typing 
+\begin{verbatim}
+/check-artifact.sh
+\end{verbatim}
+This will elaborate and check the Lean mechanization and print the axioms of the core main theorems.
 It will also run the Murphi model checker on the case studies.
+The output should look like this:
+\begin{verbatim}
+Checking Lean mechanization
+  ✓ CompoundProtocol.enforce_compound_consistency
+
+All 1 theorem(s) are sorry-free!
+TODO: add murphi scripts here!
+\end{verbatim}
+
+You can also test this by adding something that depends on a sorried statement, e.g.
+\begin{verbatim}
+theorem one_plus_one_false : 1 + 1 = 1 := by sorry
+theorem false_for_testing : False := 
+  False.elim (Eq.mp (OfNat.ofNat_ne_one._simp_1 2) one_plus_one_false)
+#print axioms false_for_testing
+\end{verbatim}
+
+Which results in something like
+\begin{verbatim}
+ ✗ false_for_testing (contains sorryAx)
+
+1/2 theorem(s) contain sorryAx
+\end{verbatim}
+
 The rest of this chapter explains the individual parts of the artifact in more detail (what the above script runs), and the subsequent chapters explain the mechanization in even more detail.
 
 % ====================================================
