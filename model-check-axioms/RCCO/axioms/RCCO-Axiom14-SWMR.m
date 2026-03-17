@@ -31,7 +31,7 @@
   const
     ENABLE_QS: false;
     VAL_COUNT: 1;
-    ADR_COUNT: 2;
+    ADR_COUNT: 1;
   
   ---- System network constants
     O_NET_MAX: 12;
@@ -1313,9 +1313,14 @@
       switch inmsg.mtype
         case WB_AckL1C1:
           msg := RespL1C1(adr,GetO_AckL1C1,m,inmsg.src,inmsg.cl);
-          Send_resp(msg, m);
           Clear_perm(adr, m);
-          cbe.State := directoryL1C1_O;
+          if !(msg.dst = directoryL1C1) then
+            Send_resp(msg, m);
+            cbe.State := directoryL1C1_O;
+          else
+            cbe.cl := msg.cl;
+            cbe.State := directoryL1C1_I;
+          endif;
           return true;
         
         else return false;
@@ -1326,9 +1331,14 @@
         case WB_AckL1C1:
           cbe.cl := inmsg.cl;
           msg := RespL1C1(adr,GetV_AckL1C1,m,inmsg.src,cbe.cl);
-          Send_resp(msg, m);
           Clear_perm(adr, m);
-          cbe.State := directoryL1C1_V;
+          if !(msg.dst = directoryL1C1) then
+            Send_resp(msg, m);
+            cbe.State := directoryL1C1_V;
+          else
+            cbe.cl := msg.cl;
+            cbe.State := directoryL1C1_I;
+          endif;
           return true;
         
         else return false;
