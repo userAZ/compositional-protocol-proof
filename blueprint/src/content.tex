@@ -12,6 +12,13 @@ This is the ``Lean blueprint''\footnote{i.e. using the blueprint tool: \url{http
 This document gives an overview of the mechanized proofs, and the blueprint tool synchronizes the definitions and proofs in the mechanization with this document.
 In the following, we will discuss the mechanized proofs and their relation to the claims in the paper.
 
+\section{Checking the Entire Artifact}
+We have provided a script to run the entire artifact.
+You can run it by just typing \texttt{/check-artifact.sh}.
+This will elaborate and check the Lean mechanization and print the axioms of our main theorem, \texttt{CompoundProtocol.enforce_compound_consistency}.
+It will also run the Murphi model checker on the case studies.
+The rest of this chapter explains the individual parts of the artifact in more detail (what the above script runs), and the subsequent chapters explain the mechanization in even more detail.
+
 % ====================================================
 \section{Evaluating the Lean Mechanization}
 \label{sec:readme-lean-mechianization}
