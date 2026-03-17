@@ -31,7 +31,7 @@
   const
     ENABLE_QS: false;
     VAL_COUNT: 1;
-    ADR_COUNT: 2;
+    ADR_COUNT: 1;
   
   ---- System network constants
     O_NET_MAX: 12;
