@@ -15,10 +15,20 @@ lake lean CompositionalProtocolProof/CompositionalMCM.lean 2>&1 | grep axioms | 
   if echo "$line" | grep -q 'sorryAx'; then
     printf "${RED}  ✗ %s${RESET} (contains sorryAx)\n" "$name"
   else
-    printf "${GREEN}  ✓ %s${RESET}\n" "$name"
+    printf "${GREEN}  ✓ %s (PASS)${RESET}\n" "$name"
   fi
 done
 
 
 #Now we run the murphi scripts
-echo "TODO: add murphi scripts here!"
+echo "Checking Murphi axioms"
+(
+  cd /home/anqi/compositional-protocol-proof/model-check-axioms || exit 1
+  # Extra args passed to this script are forwarded to run_axioms.py.
+  MURPHI_ARGS="$*"
+  if nix-shell python-murphi-script.nix --run "python3 scripts/run_axioms.py --clean --axioms-file axioms-to-run.txt --table-html runs/results.html ${MURPHI_ARGS}"; then
+    printf "${GREEN}  ✓ PASS${RESET}\n"
+  else
+    printf "${RED}  ✗ FAIL${RESET}\n"
+  fi
+)
