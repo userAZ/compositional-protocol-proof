@@ -34,7 +34,7 @@ fi
 
 axiom_lines=$(printf "%s\n" "$lean_output" | grep axioms || true)
 if [ -z "$axiom_lines" ]; then
-  printf "%s  ✓ %s (PASS - no axioms reported)%s\n" "$GREEN" "CMCM/RfTheorem.lean" "$RESET"
+  printf "%s  ✓ %s (PASS)%s\n" "$GREEN" "CMCM/RfTheorem.lean" "$RESET"
 else
 while IFS= read -r line; do
   name=$(echo "$line" | sed "s/^'\\([^']*\\)'.*/\\1/")
