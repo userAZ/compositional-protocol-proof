@@ -81,6 +81,64 @@ The claims of our paper (and so the items for you to evaluate) are summarized in
 \end{tabular}
 \end{center}
 
+Additional claims about our paper are in the table below:
+
+\begin{center}
+\begin{tabular}{ | c | c | }
+  \hline
+    Claim  & How the Artifact Captures the Claim
+    \\ 
+  \hline \hline
+    \makecell{
+      Industry Context: \\
+      Provides assurance for modern designs.
+    }
+    &
+    \makecell{
+      The proof handles systems with both \\
+      an SWMR and RCC (CPU and GPU) style protocols.\\
+      This relates our work to industry systems\\
+      such as Nvidia Grace-Hopper.
+    }
+    \\  
+  \hline
+    \makecell{
+      We handle heterogenous protocol\\
+      compositions. (i.e. SWMR and RCC)
+    }
+    &
+    \makecell{
+      The proof (introduced in Chapter \ref{ch:proof-overview}) \\
+      proves any requests (with preserved MCM ordering) \\
+      from any cluster composed in our system \\
+      satisfy their MCM. This allows any \\
+      combination of cluster protocols.
+    }
+    \\  
+  \hline
+    \makecell{
+      We don't unnecessarily constrain \\
+      the processor core to ensure \\
+      the CMCM is enforced.
+    }
+    &
+    \makecell{
+      The proof (introduced in Chapter \ref{ch:proof-overview}) \\
+      states for any two requests (with \\
+      with preserved MCM ordering) \\
+      that are ordered, will \\
+      linearize in order. \\
+      This does not bar the core from \\
+      issuing requests out-of-order or \\
+      overlapping requests (for efficiency) \\
+      if it doesn't need ordering \\
+      between memory requests
+    }
+    \\  
+  \hline
+\end{tabular}
+\end{center}
+
 % ====================================================
 \section{Evaluating the Lean Mechanization}
 \label{sec:readme-lean-mechianization}
