@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 from dataclasses import dataclass
 from pathlib import Path
-from subprocess import STDOUT, TimeoutExpired, run
+from subprocess import PIPE, STDOUT, TimeoutExpired, run
 from typing import Optional
 
 AXIOM_RE = re.compile(r"Axiom(\d+)")
@@ -22,6 +22,11 @@ FAIL_TOKENS = (
     "The undefined value",
 )
 
+GREEN = "\033[0;32m"
+YELLOW = "\033[0;33m"
+RED = "\033[0;31m"
+RESET = "\033[0m"
+
 
 @dataclass(frozen=True)
 class AxiomEntry:
@@ -29,6 +34,7 @@ class AxiomEntry:
     number: int
     m_path: Path
     stem: str
+    numbers: tuple[int, ...]
 
 
 def slugify(text: str) -> str:
@@ -42,6 +48,21 @@ def parse_axiom_number(stem: str) -> Optional[int]:
         return None
     return int(match.group(1))
 
+def parse_axiom_numbers(stem: str) -> tuple[int, ...]:
+    match = AXIOM_RE.search(stem)
+    if not match:
+        return ()
+    nums = [int(match.group(1))]
+    tail = stem[match.end() :]
+    nums.extend(int(num) for num in re.findall(r"-and-(\d+)", tail, re.IGNORECASE))
+    return tuple(sorted(set(nums)))
+
+def format_axiom_numbers(numbers: tuple[int, ...]) -> str:
+    if not numbers:
+        return ""
+    if len(numbers) == 1:
+        return str(numbers[0])
+    return ", ".join(str(n) for n in numbers)
 
 def discover_axioms(root: Path) -> list[AxiomEntry]:
     entries: list[AxiomEntry] = []
@@ -54,7 +75,16 @@ def discover_axioms(root: Path) -> list[AxiomEntry]:
             number = parse_axiom_number(stem)
             if number is None:
                 continue
-            entries.append(AxiomEntry(family=family, number=number, m_path=m_path, stem=stem))
+            numbers = parse_axiom_numbers(stem)
+            entries.append(
+                AxiomEntry(
+                    family=family,
+                    number=number,
+                    m_path=m_path,
+                    stem=stem,
+                    numbers=numbers,
+                )
+            )
     return entries
 
 
@@ -132,9 +162,12 @@ def clean_artifacts(root: Path, out_dir: Path) -> None:
         for cpp_file in axioms_dir.glob("*.cpp"):
             cpp_file.unlink(missing_ok=True)
 
-def format_results_table(results: list[tuple[str, str, str]]) -> str:
+def format_results_table(results: list[tuple[str, str, str, str]]) -> str:
     rows = sorted(results)
-    data = [{"Axiom": name, "Status": status, "Detail": detail} for name, status, detail in rows]
+    data = [
+        {"File": name, "Axiom(s)": axiom_nums, "Status": status, "Detail": detail}
+        for name, axiom_nums, status, detail in rows
+    ]
 
     try:
         from py_markdown_table.markdown_table import markdown_table  # type: ignore
@@ -144,13 +177,41 @@ def format_results_table(results: list[tuple[str, str, str]]) -> str:
         pass
 
     # Fallback: simple markdown pipe table.
-    lines = ["| Axiom | Status | Detail |", "| --- | --- | --- |"]
-    for name, status, detail in rows:
-        lines.append(f"| {name} | {status} | {detail} |")
+    lines = ["| File | Axiom(s) | Status | Detail |", "| --- | --- | --- | --- |"]
+    for name, axiom_nums, status, detail in rows:
+        lines.append(f"| {name} | {axiom_nums} | {status} | {detail} |")
     return "\n".join(lines)
 
 
-def write_results_html(results: list[tuple[str, str, str]], html_path: Path) -> bool:
+def print_results_rich(results: list[tuple[str, str, str, str]]) -> bool:
+    try:
+        from rich.console import Console  # type: ignore
+        from rich.table import Table  # type: ignore
+    except Exception:
+        return False
+
+    console = Console()
+    table = Table(title="Axiom Check Results", show_lines=False)
+    table.add_column("File", style="bold")
+    table.add_column("Axiom(s)", justify="center")
+    table.add_column("Status", justify="center")
+    table.add_column("Detail")
+
+    for name, axiom_nums, status, detail in sorted(results):
+        if status == "PASS":
+            status_cell = "[green]✓ PASS[/green]"
+        elif status == "FAIL":
+            status_cell = "[red]✗ FAIL[/red]"
+        elif status == "TIMEOUT":
+            status_cell = "[yellow]⧗ TIMEOUT[/yellow]"
+        else:
+            status_cell = "[yellow]⚠ UNKNOWN[/yellow]"
+        table.add_row(name, axiom_nums, status_cell, detail)
+
+    console.print(table)
+    return True
+
+def write_results_html(results: list[tuple[str, str, str, str]], html_path: Path) -> bool:
     try:
         import pandas as pd  # type: ignore
         from great_tables import GT  # type: ignore
@@ -158,7 +219,7 @@ def write_results_html(results: list[tuple[str, str, str]], html_path: Path) -> 
         return False
 
     rows = sorted(results)
-    df = pd.DataFrame(rows, columns=["Axiom", "Status", "Detail"])
+    df = pd.DataFrame(rows, columns=["File", "Axiom(s)", "Status", "Detail"])
     gt = GT(df)
     html_path.parent.mkdir(parents=True, exist_ok=True)
     html_path.write_text(gt.as_raw_html(), encoding="utf-8")
@@ -193,10 +254,21 @@ def main() -> int:
         help="Value for the -m flag passed to the binary (default: %(default)s)",
     )
     parser.add_argument(
+        "--memory-per-thread",
+        default="",
+        help="Alias for --m (memory per run/thread). Overrides --m when set.",
+    )
+    parser.add_argument(
         "--timeout-seconds",
         type=int,
         default=0,
         help="Timeout in seconds for each axiom run (0 disables, default: %(default)s)",
+    )
+    parser.add_argument(
+        "--timeout-minutes",
+        type=int,
+        default=0,
+        help="Timeout in minutes for each axiom run (0 disables, overrides --timeout-seconds).",
     )
     parser.add_argument(
         "--clean",
@@ -214,8 +286,25 @@ def main() -> int:
         default=1,
         help="Number of axioms to run in parallel (default: %(default)s)",
     )
+    parser.add_argument(
+        "--threads",
+        type=int,
+        default=0,
+        help="Alias for --jobs (parallel runs). Overrides --jobs when set.",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Print commands without running.")
+    parser.add_argument(
+        "--print-parsed",
+        action="store_true",
+        help="Print a table of parsed axiom numbers and exit.",
+    )
     args = parser.parse_args()
+    if args.timeout_minutes:
+        args.timeout_seconds = args.timeout_minutes * 60
+    if args.threads:
+        args.jobs = args.threads
+    if args.memory_per_thread:
+        args.m = args.memory_per_thread
 
     root = Path(__file__).resolve().parents[1]
     mu_path = Path(os.path.expanduser(args.mu_path))
@@ -243,6 +332,16 @@ def main() -> int:
         print("Error: no axioms matched selection file")
         return 2
 
+    if args.print_parsed:
+        parsed_rows = [
+            (entry.m_path.name, format_axiom_numbers(entry.numbers), "PARSED", "")
+            for entry in selected
+        ]
+        print("\nParsed Axiom(s):")
+        if not print_results_rich(parsed_rows):
+            print(format_results_table(parsed_rows))
+        return 0
+
     out_dir.mkdir(parents=True, exist_ok=True)
     if args.clean:
         clean_artifacts(root, out_dir)
@@ -259,7 +358,7 @@ def main() -> int:
         return f"{base}-{count + 1}"
 
     failures: list[str] = []
-    results: list[tuple[str, str, str]] = []
+    results: list[tuple[str, str, str, str]] = []
     failures_lock = Lock()
     print(f"Selected {len(selected)} axiom(s) from {selection_path}.")
 
@@ -268,7 +367,7 @@ def main() -> int:
         base_name = unique_name(slugify(f"{entry.family}-{entry.stem}"))
         tasks.append((entry, base_name))
 
-    def run_axiom(entry: AxiomEntry, base_name: str) -> tuple[str | None, tuple[str, str, str] | None]:
+    def run_axiom(entry: AxiomEntry, base_name: str) -> tuple[str | None, tuple[str, str, str, str] | None]:
         axiom_start = time.monotonic()
         cpp_path = entry.m_path.with_suffix(".cpp")
         bin_path = out_dir / base_name
@@ -295,27 +394,36 @@ def main() -> int:
         if entry.family == "RCCO" and entry.number == 4:
             run_cmd.append("-sym1")
 
-        print(f"\n==> {entry.family} Axiom {entry.number}: {entry.m_path.name}")
-        print(f"mu: {' '.join(mu_cmd)}")
-        print(f"g++: {' '.join(gpp_cmd)}")
-        print(f"run: {' '.join(run_cmd)}")
+        axiom_nums = format_axiom_numbers(entry.numbers)
+        axiom_label = f"Axiom(s) {axiom_nums}" if axiom_nums else "Axiom(s) ?"
+        print(f"\n==> Launching Murphi Model Checking Thread: {entry.family} {axiom_label}: {entry.m_path.name}")
 
         if args.dry_run:
             return None, None
 
         mu_start = time.monotonic()
-        mu_result = run(mu_cmd)
+        mu_result = run(mu_cmd, stdout=PIPE, stderr=STDOUT, text=True)
         mu_end = time.monotonic()
         if mu_result.returncode != 0:
-            return f"mu failed for {entry.m_path}", (entry.m_path.name, "FAIL", "mu failed")
+            print(mu_result.stdout.strip())
+            print(
+                f"Thread finished ({entry.family} {axiom_label}): "
+                f"{RED}✗ FAIL{RESET} (mu)"
+            )
+            return f"mu failed for {entry.m_path}", (entry.m_path.name, axiom_nums, "FAIL", "mu failed")
 
         env = os.environ.copy()
         env["CPLUS_INCLUDE_PATH"] = str(include_path)
         gpp_start = time.monotonic()
-        gpp_result = run(gpp_cmd, env=env)
+        gpp_result = run(gpp_cmd, env=env, stdout=PIPE, stderr=STDOUT, text=True)
         gpp_end = time.monotonic()
         if gpp_result.returncode != 0:
-            return f"g++ failed for {cpp_path}", (entry.m_path.name, "FAIL", "g++ failed")
+            print(gpp_result.stdout.strip())
+            print(
+                f"Thread finished ({entry.family} {axiom_label}): "
+                f"{RED}✗ FAIL{RESET} (g++)"
+            )
+            return f"g++ failed for {cpp_path}", (entry.m_path.name, axiom_nums, "FAIL", "g++ failed")
 
         with run_log.open("w", encoding="utf-8") as log_handle:
             run_start = time.monotonic()
@@ -332,14 +440,20 @@ def main() -> int:
                 log_handle.write(f"\nTimed out after {args.timeout_seconds}s.\n")
                 return f"run timed out for {bin_path} (see {run_log})", (
                     entry.m_path.name,
+                    axiom_nums,
                     "TIMEOUT",
                     f"timeout {args.timeout_seconds}s",
                 )
             run_end = time.monotonic()
 
         if run_result.returncode != 0:
+            print(
+                f"Thread finished ({entry.family} {axiom_label}): "
+                f"{RED}✗ FAIL{RESET} (run exit {run_result.returncode})"
+            )
             return f"run failed for {bin_path} (see {run_log})", (
                 entry.m_path.name,
+                axiom_nums,
                 "FAIL",
                 "nonzero exit",
             )
@@ -353,23 +467,33 @@ def main() -> int:
                 detail = "deadlock"
             elif "The undefined value" in log_text:
                 detail = "undefined value"
+            print(
+                f"Thread finished ({entry.family} {axiom_label}): "
+                f"{RED}✗ FAIL{RESET} ({detail})"
+            )
             return f"run reported failure for {bin_path} (see {run_log})", (
                 entry.m_path.name,
+                axiom_nums,
                 "FAIL",
                 detail,
             )
 
         axiom_end = time.monotonic()
+        if "No error found." in log_text:
+            status_text = f"{GREEN}✓ PASS{RESET}"
+            result = (entry.m_path.name, axiom_nums, "PASS", "")
+        else:
+            status_text = f"{YELLOW}⚠ UNKNOWN{RESET}"
+            result = (entry.m_path.name, axiom_nums, "UNKNOWN", "")
+
         print(
-            "timing:"
-            f" mu={mu_end - mu_start:.2f}s"
+            f"Thread finished ({entry.family} {axiom_label}): {status_text}, "
+            f"Timing: mu={mu_end - mu_start:.2f}s"
             f" g++={gpp_end - gpp_start:.2f}s"
             f" run={run_end - run_start:.2f}s"
             f" total={axiom_end - axiom_start:.2f}s"
         )
-        if "No error found." in log_text:
-            return None, (entry.m_path.name, "PASS", "")
-        return None, (entry.m_path.name, "UNKNOWN", "")
+        return None, result
 
     if args.jobs <= 1:
         for entry, base_name in tasks:
@@ -394,7 +518,8 @@ def main() -> int:
 
     if results:
         print("\nResults:")
-        print(format_results_table(results))
+        if not print_results_rich(results):
+            print(format_results_table(results))
 
         if args.table_html:
             html_path = Path(args.table_html)
@@ -403,7 +528,7 @@ def main() -> int:
             else:
                 print("\nHTML table not written (great_tables and pandas not available).")
 
-        all_pass = all(status == "PASS" for _, status, _ in results)
+        all_pass = all(status == "PASS" for _, _, status, _ in results)
         if all_pass:
             print("\nAll axioms successfully model checked.")
         else:
