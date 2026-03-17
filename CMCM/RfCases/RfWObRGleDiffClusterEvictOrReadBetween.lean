@@ -3,17 +3,17 @@ import CMCM.RfProofDefs
 import CMCM.RfProofHelpers
 import CMCM.RfCases.RfSameGleSameClusterEvictOrReadBetweenHelpers
 
-/-- Proof that reads-from is correct when e_w's GLE is the immediate predecessor of e_r's GLE,
+/-- Proof that reads-from is correct when e_w's GLE is ordered before e_r's GLE,
     the events are in different clusters, and all intermediate directory events between e_w's CLE
     and the directory-level read downgrade are reads or evicts.
 
     Uses the `diffCluster` constructor of `sameOrDifferentCluster.cases` with
     `wHasPermsAfter.notImmPred.evictBetween` for the coherent case. -/
-lemma CMCM.rf.wImmPredRGle.diffCluster.evictOrReadBetweenWAndRDown
+lemma CMCM.rf.wObRGle.diffCluster.evictOrReadBetweenWAndRDown
   {cmp : CompoundProtocol n}
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  (hw_imm_pred_r_gle : CompoundProtocol.gleImmediatePredecessor hw_c_and_g_lin hr_c_and_g_lin)
+  (hw_ob_r_gle : CompoundProtocol.gleOrderedBefore hw_c_and_g_lin hr_c_and_g_lin)
   (hdiff_cluster : ¬ Event.sameProtocol n e_w e_r)
   (hw_cle_imm_pred_down : ReadDowngradeAtWrite.evictOrReadBetween.wAndRDown hw_c_and_g_lin hr_c_and_g_lin)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
@@ -24,7 +24,7 @@ lemma CMCM.rf.wImmPredRGle.diffCluster.evictOrReadBetweenWAndRDown
   := by
   -- GLE_w is ordered before GLE_r (from immediate predecessor)
   apply Behaviour.readsFrom.cases.wObRGle
-    (hw_imm_pred_r_gle.isImmPred.bPred.isPred)
+    hw_ob_r_gle
   -- Different cluster → different cache
   have hdiff_cache : e_w.struct ≠ e_r.struct :=
     fun h => hdiff_cluster (sameStructure_implies_sameProtocol h)

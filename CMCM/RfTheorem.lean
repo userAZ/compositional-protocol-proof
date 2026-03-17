@@ -5,10 +5,10 @@ import CMCM.RfProofHelpers
 import CMCM.RfCases.RfSameGleSameCle
 import CMCM.RfCases.RfSameGleWImmPredRCle
 import CMCM.RfCases.RfSameGleSameClusterEvictOrReadBetween
-import CMCM.RfCases.RfWImmPredRGleSameClusterWImmPredRCle
-import CMCM.RfCases.RfWImmPredRGleSameClusterEvictOrReadBetween
-import CMCM.RfCases.RfWImmPredRGleDiffClusterWCleImmPredDown
-import CMCM.RfCases.RfWImmPredRGleDiffClusterEvictOrReadBetween
+import CMCM.RfCases.RfWObRGleSameClusterWImmPredRCle
+import CMCM.RfCases.RfWObRGleSameClusterEvictOrReadBetween
+import CMCM.RfCases.RfWObRGleDiffClusterWCleImmPredDown
+import CMCM.RfCases.RfWObRGleDiffClusterEvictOrReadBetween
 
 variable {n : ℕ}
 
@@ -66,31 +66,31 @@ theorem CMCM.rf_holds
           hsame_gle hevict_or_read_between_w_r_cle
           hknow_dir_access hno_intervening_writes
           hw_in_b
-  . case wImmPredRGle hw_imm_pred_r_gle hcle_cases =>
+  . case wObRGle hw_ob_r_gle hcle_cases =>
       cases hcle_cases
       . case sameCluster hsame_cluster hsame_cluster_cases =>
         -- NOTE: potential to reuse some of the same cluster case lemmas
         -- from the same GLE & CLE case
         cases hsame_cluster_cases
         . case wImmPredRCle hw_imm_pred_r_cle =>
-          exact CMCM.rf.wImmPredRGle.sameCluster.wImmPredRCle
+          exact CMCM.rf.wObRGle.sameCluster.wImmPredRCle
             hw_c_and_g_lin hr_c_and_g_lin
-            hw_imm_pred_r_gle hsame_cluster hw_imm_pred_r_cle
+            hw_ob_r_gle hsame_cluster hw_imm_pred_r_cle
             hno_intervening_writes hw_in_b hw_cluster hw_not_down
         . case evictOrReadBetweenWAndRCleSameCluster hevict_or_read_between_w_r_cle =>
-          exact CMCM.rf.wImmPredRGle.sameCluster.evictOrReadBetweenWAndRCleSameCluster
+          exact CMCM.rf.wObRGle.sameCluster.evictOrReadBetweenWAndRCleSameCluster
             hw_c_and_g_lin hr_c_and_g_lin
-            hw_imm_pred_r_gle hsame_cluster hevict_or_read_between_w_r_cle
+            hw_ob_r_gle hsame_cluster hevict_or_read_between_w_r_cle
             hno_intervening_writes hw_in_b hw_cluster hw_not_down
       . case diffCluster hdiff_cluster hdiff_cluster_cases =>
         cases hdiff_cluster_cases
         . case wCleImmPredDown hw_cle_imm_pred_r_down =>
-          exact CMCM.rf.wImmPredRGle.diffCluster.wCleImmPredDown
+          exact CMCM.rf.wObRGle.diffCluster.wCleImmPredDown
             hw_c_and_g_lin hr_c_and_g_lin
-            hw_imm_pred_r_gle hdiff_cluster hw_cle_imm_pred_r_down
+            hw_ob_r_gle hdiff_cluster hw_cle_imm_pred_r_down
             hknow_dir_access hno_intervening_writes hw_in_b hw_cluster hw_not_down
-        . case evictOrReadBetweenWAndRDown hw_cle_imm_pred_down =>
-          exact CMCM.rf.wImmPredRGle.diffCluster.evictOrReadBetweenWAndRDown
+        . case evictOrReadBetweenWAndRDown hw_cle_evict_or_read_btn_down =>
+          exact CMCM.rf.wObRGle.diffCluster.evictOrReadBetweenWAndRDown
             hw_c_and_g_lin hr_c_and_g_lin
-            hw_imm_pred_r_gle hdiff_cluster hw_cle_imm_pred_down
+            hw_ob_r_gle hdiff_cluster hw_cle_evict_or_read_btn_down
             hknow_dir_access hno_intervening_writes hw_in_b hw_cluster hw_not_down
