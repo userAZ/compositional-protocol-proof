@@ -1,9 +1,26 @@
-# List axioms to run. One per line. Examples:
-# CXL-1                -> all CXL Axiom 1 files
-# RCCO-4               -> all RCCO Axiom 4 files
-# CXL-Axiom15          -> all CXL Axiom 15 files
-# CXL-Axiom1-ordered-directory-events.m
-# ordered-directory-events
-
-CXL-1
-RCCO-1
+# All axioms
+CXL-Axiom1-ordered-directory-events.m
+CXL-Axiom10-coherent-read-at-directory-encapsulates-downgrade.m
+CXL-Axiom11-coherent-requests-at-directory-get-grant.m
+CXL-Axiom14-swmr.m
+CXL-Axiom15-Cluster-cluster-to-global-shim.m
+CXL-Axiom15-Global-cluster-to-global-shim.m
+CXL-Axiom16-Cluster-global-to-cluster-shim.m
+CXL-Axiom16-Global-global-to-cluster-shim.m
+CXL-Axiom17-request-on-state-with-permissions-then-predecessor-got-permissions.m
+CXL-Axiom2-ordered-cache-events-or-encapsulated-downgrade.m
+CXL-Axiom3-and-6.m
+CXL-Axiom8-and-11-ordered-directory-responses-requests.m
+CXL-Axiom9-coherent-write-at-directory-encapsulates-downgrade.m
+RCCO-Axiom1-ordered-directory-events.m
+RCCO-Axiom14-SWMR.m
+RCCO-Axiom15-and-16-global-cluster-shim.m
+RCCO-Axiom17-previous-request-gets-perms-current-request-has-perms.m
+RCCO-Axiom19-vc-inval-on-vc-means-weak-read-linearize-after-vc-inval.m
+RCCO-Axiom2-ordered-requests-or-encapulated-downgrade-cache-events.m
+RCCO-Axiom3-directory-event-of-request-corresponding-cache-request.m
+RCCO-Axiom4-unified-release-and-store-also-immediate-invalidation-finish.m
+RCCO-Axiom6-when-do-requests-access-directory.m
+RCCO-Axiom8-and-11-ordered-directory-messages-fwd-and-response.m
+RCCO-Axiom9-and-12-coherent-write-or-non-coherent-request-at-directory-encapsulates-corresponding-downgrade.m
+RCCO-Axiom4-v2.m
