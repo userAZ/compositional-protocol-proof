@@ -40,3 +40,5 @@ theorem CompoundProtocol.enforce_compound_consistency
   . case a => exact he₁_ob_e₂
   . case a => exact hppo
   . case a => exact hppo
+
+#print axioms CompoundProtocol.enforce_compound_consistency

@@ -12,6 +12,97 @@ This is the ``Lean blueprint''\footnote{i.e. using the blueprint tool: \url{http
 This document gives an overview of the mechanized proofs, and the blueprint tool synchronizes the definitions and proofs in the mechanization with this document.
 In the following, we will discuss the mechanized proofs and their relation to the claims in the paper.
 
+% ====================================================
+\section{Evaluating the Lean Mechanization}
+\label{sec:readme-lean-mechianization}
+% ====================================================
+
+This section discusses how to check and evaluate theorems/lemmas in the Lean mechanization.
+In VSCode, theorems and lemmas that are verified by lean have blue checkmarks to their left, which means they type check. 
+This docker image should already have the dependencies for VSCode and Lean.
+However, that the proof type checks does not mean that it is not missing some helper lemma that was axiomatized.
+To check this, you can run a command (in a separate line) to print all axioms assumed to prove a theorem. For example, for our main theorem we have
+
+\texttt{#print axioms CompoundProtocol.enforce_compound_consistency}
+
+This returns the following message (you can see the message on the right in the infoview panel in VSCode, or if you run it on the command line using \texttt{lake lean CompositionalProtocolProof/CompositionalMCM.lean}, it will print it to \texttt{stdout}):
+
+'CompoundProtocol.enforce_compound_consistency' depends on axioms: [propext, Classical.choice, Quot.sound]
+
+This means that our main theorem, \texttt{CompoundProtocol.enforce_compound_consistency} only depends on the built-in axioms of propositional extensionality, soundness of quotients and the axiom of choice (our proof is classical).
+Notably, the axiom \texttt{sorryAx} is missing, since no helper lemma has been admitted using the \texttt{sorry} keyword.
+
+The next Chapter (Chapter \ref{ch:proof-overview}) provides an overview of the structure of the proof from the paper.
+You can use it to get an idea of how to navigate parts of the Lean mechanization.
+
+% ====================================================
+\section{Running the Murphi Case Study Models}
+\label{sec:readme-murphi-case-studies}
+% ====================================================
+
+\textcolor{blue}{We've included a script to run the axiom checks on the
+CXL and RCC-O murphi models for you. You can run them one by one, or 
+try to run them in one go. If running them in one go fails, just run
+the axiom model checking runs one by one.}
+
+\textcolor{red}{TODO: Here we need to expalin what the script is and how to use it!}
+
+% [TODO-NOTE]: This section is subject to change: if I add leanblueprint dependencies to the docker image, we don't need this explanation.
+% % ====================================================
+% \section{Using the Leanblueprint Theorem Graph Visualization}
+% % ====================================================
+
+% This lean mechanization has a leanblueprint project you can run to see a graph of
+% some of the theorems, lemmas, and definitions to help navigate the mechanization.
+% To run leanblueprint, we've included both a nix \texttt{flake} file and \texttt{nix-shell} file
+% to setup the dependencies. You may use either \texttt{flake} or \texttt{nix-shell}.
+
+% % ====================================================
+% \subsection{Set Up Dependencies}
+% % ====================================================
+
+% To setup the leanblueprint environment using nix \texttt{flake} (\texttt{nix develop}), use the
+% following command (you can use the command from a sub-directory as well. nix will search upward for
+% the flake.nix file):
+% \begin{verbatim}
+%   $ nix develop
+% \end{verbatim}
+
+% To setup the leanblueprint environment using the \texttt{nix-shell} command:
+% \begin{verbatim}
+%   $ nix-shell leanblueprint-shell.nix
+% \end{verbatim}
+
+% [NOTE]: This section can stay. The evaluator will need to know how to start the website server.
+% ====================================================
+\subsection{Use Leanblueprint}
+% ====================================================
+
+This pdf was generated with \LaTeX{} and \texttt{leanblueprint}.
+To generate a webpage version that includes a graph visualization of the main theorem, and some of the main lemmas and definitions, run the command:
+\begin{verbatim}
+  $ leanblueprint web
+\end{verbatim}
+
+To view the webpage, you will need to serve the webpage first with the command:
+\begin{verbatim}
+  $ leanblueprint serve
+\end{verbatim}
+Which will then produce some output:
+\begin{verbatim}
+  $ leanblueprint serve
+  Serving http://0.0.0.0:8000/ 
+  Press Ctrl-c to interrupt.
+\end{verbatim}
+Where you can view the generated lean theorem dependency graph from the locally served
+URL (the ``http://0.0.0.0:8000/'' link after ``Serving'').
+
+You can generate another copy of this pdf if you desire, with the command:
+\begin{verbatim}
+  $ leanblueprint pdf
+\end{verbatim}
+The pdf can be viewed by opening it with a pdf viewing program.
+
 \section{Overview of Claims from our Paper}
 
 The claims of our paper that correspond to this mechanization are summarized in the table below, which also explain how these can be checked/verified.
@@ -142,87 +233,6 @@ Additional claims about our paper are in the table below:
   \hline
 \end{tabular}
 \end{center}
-
-% ====================================================
-\section{Evaluating the Lean Mechanization}
-\label{sec:readme-lean-mechianization}
-% ====================================================
-
-Please look over the theorems and lemmas in the lean mechanization.
-In VSCode, theorems and lemmas that are verified by lean have blue checkmarks to
-their left. You may check that the theorems and lemmas bear the blue checkmarks.
-This docker image should already have the dependencies for VSCode and Lean.
-
-The next Chapter (Chapter \ref{ch:proof-overview}) provides an overview of the structure of the proof
-from the paper. You may use it to get an idea of how to navigate parts of the lean
-mechanization.
-
-% ====================================================
-\section{Running the Murphi Case Study Models}
-\label{sec:readme-murphi-case-studies}
-% ====================================================
-
-\textcolor{blue}{We've included a script to run the axiom checks on the
-CXL and RCC-O murphi models for you. You can run them one by one, or 
-try to run them in one go. If running them in one go fails, just run
-the axiom model checking runs one by one.}
-
-% [TODO-NOTE]: This section is subject to change: if I add leanblueprint dependencies to the docker image, we don't need this explanation.
-% % ====================================================
-% \section{Using the Leanblueprint Theorem Graph Visualization}
-% % ====================================================
-
-% This lean mechanization has a leanblueprint project you can run to see a graph of
-% some of the theorems, lemmas, and definitions to help navigate the mechanization.
-% To run leanblueprint, we've included both a nix \texttt{flake} file and \texttt{nix-shell} file
-% to setup the dependencies. You may use either \texttt{flake} or \texttt{nix-shell}.
-
-% % ====================================================
-% \subsection{Set Up Dependencies}
-% % ====================================================
-
-% To setup the leanblueprint environment using nix \texttt{flake} (\texttt{nix develop}), use the
-% following command (you can use the command from a sub-directory as well. nix will search upward for
-% the flake.nix file):
-% \begin{verbatim}
-%   $ nix develop
-% \end{verbatim}
-
-% To setup the leanblueprint environment using the \texttt{nix-shell} command:
-% \begin{verbatim}
-%   $ nix-shell leanblueprint-shell.nix
-% \end{verbatim}
-
-% [NOTE]: This section can stay. The evaluator will need to know how to start the website server.
-% ====================================================
-\subsection{Use Leanblueprint}
-% ====================================================
-
-This pdf was generated with \LaTeX{} and \texttt{leanblueprint}.
-To generate a webpage version that includes a graph visualization of the
-main theorem, and some of the main lemmas and definitions, run the command:
-\begin{verbatim}
-  $ leanblueprint web
-\end{verbatim}
-
-To view the webpage, you will need to serve the webpage first with the command:
-\begin{verbatim}
-  $ leanblueprint serve
-\end{verbatim}
-Which will then produce some output:
-\begin{verbatim}
-  $ leanblueprint serve
-  Serving http://0.0.0.0:8000/ 
-  Press Ctrl-c to interrupt.
-\end{verbatim}
-Where you can view the generated lean theorem dependency graph from the locally served
-URL (the ``http://0.0.0.0:8000/'' link after ``Serving'').
-
-You can generate another copy of this pdf if you desire, with the command:
-\begin{verbatim}
-  $ leanblueprint pdf
-\end{verbatim}
-The pdf can be viewed by opening it with a pdf viewing program.
 
 \chapter{Compound Protocol Consistency}
 \label{ch:proof-overview}
