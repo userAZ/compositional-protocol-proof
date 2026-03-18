@@ -52,7 +52,11 @@ echo "Checking Murphi axioms from the Paper's Case Studies."
 (
   cd /home/anqi/compositional-protocol-proof/model-check-axioms || exit 1
   # Extra args passed to this script are forwarded to run_axioms.py.
-  murphi_args=("$@")
+  if [ "$#" -eq 0 ]; then
+    murphi_args=(--threads 1 --memory-per-thread 50)
+  else
+    murphi_args=("$@")
+  fi
   printf -v murphi_args_esc "%q " "${murphi_args[@]}"
   if nix-shell python-murphi-script.nix --run "python3 scripts/run_axioms.py --clean --axioms-file axioms-to-run.txt --table-html runs/results.html ${murphi_args_esc}"; then
     printf "%s  ✓ PASS%s\n" "$GREEN" "$RESET"
