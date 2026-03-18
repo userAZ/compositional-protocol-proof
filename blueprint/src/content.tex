@@ -230,28 +230,34 @@ You may optionally examine these files for a deeper understanding.
       \\
       Definitions files:
       \\
+        In Section \ref{sec:defs} (definitions):
+      \\
+        In the directory \\
+        \texttt{CompositionalProtocolProof/CompositionalProof/},
+        \\
+        \texttt{CompoundLinearization.lean}
+      \\
         In the directory \\
         \texttt{CompositionalProtocolProof/}
         \\
         \texttt{States.lean},
         \texttt{Requests.lean},
       \\
+        \texttt{RequestPPOs.lean}, \\
+        Across the Axioms Sections
+          \ref{sec:axioms:well-formedness}-\ref{sec:axioms:shim}
+      \\
         \texttt{BehaviourRelationDefs.lean},
       \\
         \texttt{BehaviourRelationProofs.lean},
-      \\
-        \texttt{RequestPPOs.lean},
-        \texttt{EventRelations.lean},
       \\
         \texttt{Protocol.lean},
         \texttt{SWMR.lean},
       \\
         \texttt{BehaviourShim.lean}
       \\
-        In the directory \\
-        \texttt{CompositionalProtocolProof/CompositionalProof/},
-        \\
-        \texttt{CompoundLinearization.lean}
+        In Section \ref{sec:temporal-event-relations}:\\
+        \texttt{EventRelations.lean},
     }
     \\  
   \hline
@@ -274,6 +280,9 @@ You may optionally examine these files for a deeper understanding.
       Python Script to Run Murphi Axiom Files:
       \\
       \texttt{model-check-axioms/scripts/run\_axioms.py}
+      \\
+      Running the Murphi Case Studies is \\
+      Described in Section \ref{sec:readme-murphi-case-studies}.
     }
     \\
   \hline
@@ -299,7 +308,9 @@ Additional claims about our paper are in the table below:
       handles SWMR and RCC cluster protocol\\
       requests in a compound protocol system.\\
       This relates our work to industry systems\\
-      such as Nvidia Grace-Hopper.
+      such as Nvidia Grace-Hopper.\\
+      Related to main theorem described in\\
+      Section \ref{sec:main-theorem}
     }
     \\  
   \hline
@@ -311,6 +322,10 @@ Additional claims about our paper are in the table below:
     \makecell{
       File \texttt{CompoundPPOs.lean}\\
       in directory \texttt{CompositionalProtocolProof}.\\
+      Related to main theorem described in\\
+      Section \ref{sec:main-theorem}.\\
+      No restrictions on cluster protocol\\
+      combinations.
     }
     \\  
   \hline
@@ -323,11 +338,11 @@ Additional claims about our paper are in the table below:
     \makecell{
       File \texttt{CompoundPPOs.lean}\\
       in directory \texttt{CompositionalProtocolProof}.\\
-      This does not bar the core from \\
-      issuing requests out-of-order or \\
-      overlapping requests (for efficiency) \\
-      if it doesn't need ordering \\
-      between memory requests.
+      We don't bar the core from \\
+      issuing requests out-of-order. \\
+      Ordered preserved orderings are enforced.\\
+      Related to main theorem described in\\
+      Section \ref{sec:main-theorem}
     }
     \\  
   \hline
