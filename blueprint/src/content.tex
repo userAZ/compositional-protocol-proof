@@ -16,19 +16,54 @@ In the following, we will discuss the mechanized proofs and their relation to th
 We have provided a script to run the entire artifact.
 You can run it by just typing 
 \begin{verbatim}
-/check-artifact.sh
+./check-artifact.sh
 \end{verbatim}
 This will elaborate and check the Lean mechanization and print the axioms of the core main theorems.
 It will also run the Murphi model checker on the case studies.
-The output should look like this:
+The output should look similar to:
 \begin{verbatim}
 Checking Lean mechanization
   ✓ CompoundProtocol.enforce_compound_consistency
+Checking Lean mechanization: Load Value Axiom (Reads read from Latest Write)
+is enforced.
+  ✓ CMCM/RfTheorem.lean (PASS)
+Checking Murphi axioms from the Paper's Case Studies.
+Selected 24 axiom file(s) from axioms-to-run.txt
+covering 29 unique axiom number(s) (CXL: 15, RCCO: 14).
 
-TODO: add murphi scripts here!
+==> Launching Murphi Model Checking Thread: CXL Axiom(s) 1:
+CXL-Axiom1-ordered-directory-events.m
+Thread finished (CXL Axiom(s) 1): ✓ PASS, Timing:
+mu=0.01s g++=8.67s run=1.70s total=10.38s
+
+... (the rest of the axioms launch and finish info) ...
+
+Results:
+
+<Table with Cast Study Axiom Pass/Fail Results>
+
+HTML table written to runs/results.html.
+
+All axioms successfully model checked.
+
+All selected axioms completed successfully.
+  ✓ PASS
 \end{verbatim}
+The HTML table is the same as the table printed in the command line.
+You may view the HTML table if it's easier for you.
 
-You can also test this by adding something that depends on a sorried statement, e.g.
+You can run the Murphi Case Study axiom checks with multiple threads using the
+\texttt{--threads} flag like so:
+\begin{verbatim}
+./check-artifact.sh --threads <N_threads>
+\end{verbatim}
+Just replace \texttt{<N\_threads>} with the number of threads you want to use.
+There's one axiom that takes about 10 minutes to run, so expect to wait around 20
+minutes for the model checking to run, if only using 1 thread.
+For that reason, using at least 2 threads is ideal, as the other thread can complete
+the other axioms while the other is stuck on the longer axiom.
+
+You can also test the Lean Mechanization Check by adding something that depends on a sorried statement, e.g.
 \begin{verbatim}
 theorem one_plus_one_false : 1 + 1 = 1 := by sorry
 theorem false_for_testing : False := 
@@ -80,12 +115,32 @@ You can use it to get an idea of how to navigate parts of the Lean mechanization
 \label{sec:readme-murphi-case-studies}
 % ====================================================
 
-\textcolor{blue}{We've included a script to run the axiom checks on the
-CXL and RCC-O murphi models for you. You can run them one by one, or 
-try to run them in one go. If running them in one go fails, just run
-the axiom model checking runs one by one.}
+Section 7 in our paper lists two case studies for using combinations
+of CXL and RCC-O in a compound protocol.
+We've included a script to run the axiom checks on the
+CXL and RCC-O murphi models for you. You can run them one at a time, or 
+launch multiple threads at a time, by using the \texttt{threads} parameter.
+The \texttt{check-artifact.sh} script will run the Lean Mechanization check
+as well as the axiom checks.
+As mentioned earlier, without passing the thread count to \texttt{check-artifact.sh}, it will
+run the axiom checks sequentially.
 
-\textcolor{red}{TODO: Here we need to expalin what the script is and how to use it!}
+If you'd like to run the axiom model checking separately, you can run the
+script directly, invoking the python script like so:
+\begin{verbatim}
+python3 model-check-axioms/scripts/run_axioms.py --clean --axioms-file axioms-to-run.txt
+\end{verbatim}
+The \texttt{--clean} flag deletes old generated files from previous runs.
+The \texttt{--axioms-file} flag indicates an input file to the script,
+that contains the list of Murphi axiom files to model check.
+The \texttt{axioms-to-run.txt} file contains the axioms checked in
+the case studies.
+
+You can supply the \texttt{--threads <N>} flag to specify how many threads
+to use.
+The script uses a default of 50MB for each model checking instance, which
+is sufficient for all axiom model checking runs (including the longer 10 min
+axiom).
 
 % [TODO-NOTE]: This section is subject to change: if I add leanblueprint dependencies to the docker image, we don't need this explanation.
 % % ====================================================
@@ -135,7 +190,7 @@ Which will then produce some output:
   Press Ctrl-c to interrupt.
 \end{verbatim}
 Where you can view the generated lean theorem dependency graph from the locally served
-URL (the ``http://0.0.0.0:8000/'' link after ``Serving'').
+URL (the ``\texttt{http://0.0.0.0:8000/}'' link after ``\texttt{Serving}'').
 
 You can generate another copy of this pdf if you desire, with the command:
 \begin{verbatim}
