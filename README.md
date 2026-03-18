@@ -8,7 +8,8 @@ protcols.
 
 ## Artifact Evaluation Instructions
 
-Please check the pdf `Instructions.pdf`.
+Please check the pdf `Instructions.pdf`. It contains instructions
+on running the artifact evaluation.
 
 ### Extra Help for Running `leanblueprint web` Website, and Loading It
 
