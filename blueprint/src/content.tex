@@ -128,7 +128,8 @@ run the axiom checks sequentially.
 If you'd like to run the axiom model checking separately, you can run the
 script directly, invoking the python script like so:
 \begin{verbatim}
-python3 model-check-axioms/scripts/run_axioms.py --clean --axioms-file axioms-to-run.txt
+python3 model-check-axioms/scripts/run_axioms.py --clean
+  --axioms-file axioms-to-run.txt
 \end{verbatim}
 The \texttt{--clean} flag deletes old generated files from previous runs.
 The \texttt{--axioms-file} flag indicates an input file to the script,
@@ -200,7 +201,8 @@ The pdf can be viewed by opening it with a pdf viewing program.
 
 \section{Overview of Claims from our Paper}
 
-The claims of our paper that correspond to this mechanization are summarized in the table below, which also explain how these can be checked/verified.
+The claims of our paper that correspond to this mechanization are summarized in the table below.
+You may optionally examine these files for a deeper understanding.
 
 \begin{center}
 \begin{tabular}{ | c | c | }
@@ -221,27 +223,35 @@ The claims of our paper that correspond to this mechanization are summarized in 
     }
     &
     \makecell{
-      Read Section \ref{sec:readme-lean-mechianization} and Chapter \ref{ch:proof-overview}.
+      % List files that correspond to the chapters/sections.
+      Main theorem file:
       \\
-      Check in VSCode Theorem and Lemmas
+      \texttt{CompositionalMCM.lean}.
       \\
-      have blue checkmarks.
+      Definitions files:
       \\
-      Match paper definitions to Lean definitions.
+        In the directory \\
+        \texttt{CompositionalProtocolProof/}
+        \\
+        \texttt{States.lean},
+        \texttt{Requests.lean},
       \\
-      Comment: Those sections/chapter
+        \texttt{BehaviourRelationDefs.lean},
       \\
-      will help give a sense of how
+        \texttt{BehaviourRelationProofs.lean},
       \\
-      to navigate the Lean codebase.
+        \texttt{RequestPPOs.lean},
+        \texttt{EventRelations.lean},
       \\
-      (i.e. where the definitions/theorem
+        \texttt{Protocol.lean},
+        \texttt{SWMR.lean},
       \\
-      from the paper are located.)
+        \texttt{BehaviourShim.lean}
       \\
-      You don't have to read it in
-      \\
-      its entirety.
+        In the directory \\
+        \texttt{CompositionalProtocolProof/CompositionalProof/},
+        \\
+        \texttt{CompoundLinearization.lean}
     }
     \\  
   \hline
@@ -254,17 +264,16 @@ The claims of our paper that correspond to this mechanization are summarized in 
     }
     &
     \makecell{
-      Read Section \ref{sec:readme-murphi-case-studies}.
+      % Murphi Axiom files and launch script
+      Murphi Case Study Axiom Check Files:
       \\
-      Run Murphi Models.
+      \texttt{model-check-axioms/CXL/axioms/*.m}
       \\
-      Comment: The mentioned Section provides
+      \texttt{model-check-axioms/RCCO/axioms/*.m}
       \\
-      instructions on how to use our
+      Python Script to Run Murphi Axiom Files:
       \\
-      scripts to run the axiom checks
-      \\
-      protocol with the Murphi Models.
+      \texttt{model-check-axioms/scripts/run\_axioms.py}
     }
     \\
   \hline
@@ -285,8 +294,10 @@ Additional claims about our paper are in the table below:
     }
     &
     \makecell{
-      The proof handles systems with both \\
-      an SWMR and RCC (CPU and GPU) style protocols.\\
+      File \texttt{CompoundPPOs.lean}\\
+      in directory \texttt{CompositionalProtocolProof}\\
+      handles SWMR and RCC cluster protocol\\
+      requests in a compound protocol system.\\
       This relates our work to industry systems\\
       such as Nvidia Grace-Hopper.
     }
@@ -298,11 +309,8 @@ Additional claims about our paper are in the table below:
     }
     &
     \makecell{
-      The proof (introduced in Chapter \ref{ch:proof-overview}) \\
-      proves any requests (with preserved MCM ordering) \\
-      from any cluster composed in our system \\
-      satisfy their MCM. This allows any \\
-      combination of cluster protocols.
+      File \texttt{CompoundPPOs.lean}\\
+      in directory \texttt{CompositionalProtocolProof}.\\
     }
     \\  
   \hline
@@ -313,16 +321,13 @@ Additional claims about our paper are in the table below:
     }
     &
     \makecell{
-      The proof (introduced in Chapter \ref{ch:proof-overview}) \\
-      states for any two requests (with \\
-      with preserved MCM ordering) \\
-      that are ordered, will \\
-      linearize in order. \\
+      File \texttt{CompoundPPOs.lean}\\
+      in directory \texttt{CompositionalProtocolProof}.\\
       This does not bar the core from \\
       issuing requests out-of-order or \\
       overlapping requests (for efficiency) \\
       if it doesn't need ordering \\
-      between memory requests
+      between memory requests.
     }
     \\  
   \hline
