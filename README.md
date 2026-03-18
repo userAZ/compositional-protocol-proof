@@ -9,7 +9,9 @@ protcols.
 ## Artifact Evaluation Instructions
 
 Please check the pdf `Instructions.pdf`. It contains instructions
-on running the artifact evaluation.
+on running the artifact evaluation. This README.md mainly has some
+extra insturctions for viewing the `leanblueprint web` website, if
+you're interested in viewing it.
 
 ### Extra Help for Running `leanblueprint web` Website, and Loading It
 
