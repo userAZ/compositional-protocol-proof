@@ -54,6 +54,7 @@ def parse_axiom_numbers(stem: str) -> tuple[int, ...]:
         return ()
     nums = [int(match.group(1))]
     tail = stem[match.end() :]
+    # Handle patterns like "-and-16" and "-and-11-..." as well as "-and-11-ordered-".
     nums.extend(int(num) for num in re.findall(r"-and-(\d+)", tail, re.IGNORECASE))
     return tuple(sorted(set(nums)))
 
@@ -93,17 +94,21 @@ def load_selection(selection_path: Path, entries: list[AxiomEntry]) -> list[Axio
         return entries
 
     patterns: list[str] = []
+    raw_lines: list[str] = []
     with selection_path.open("r", encoding="utf-8") as handle:
         for line in handle:
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
+            raw_lines.append(line)
             patterns.append(line)
 
     if not patterns:
         return entries
 
     selected: list[AxiomEntry] = []
+    missing_files: list[str] = []
+    name_set = {entry.m_path.name for entry in entries}
     for entry in entries:
         for pat in patterns:
             if pat.endswith(".m"):
@@ -136,6 +141,15 @@ def load_selection(selection_path: Path, entries: list[AxiomEntry]) -> list[Axio
             if pat.lower() in entry.stem.lower():
                 selected.append(entry)
                 break
+
+    for pat in raw_lines:
+        if pat.endswith(".m") and pat not in name_set and Path(pat).stem not in {e.stem for e in entries}:
+            missing_files.append(pat)
+
+    if missing_files:
+        print("Warning: missing axiom files referenced in selection:")
+        for missing in missing_files:
+            print(f"  - {missing}")
 
     return selected
 
@@ -255,7 +269,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--memory-per-thread",
-        default="",
+        default="50", # 50 MB should be enough!
         help="Alias for --m (memory per run/thread). Overrides --m when set.",
     )
     parser.add_argument(
@@ -360,7 +374,19 @@ def main() -> int:
     failures: list[str] = []
     results: list[tuple[str, str, str, str]] = []
     failures_lock = Lock()
-    print(f"Selected {len(selected)} axiom(s) from {selection_path}.")
+    expanded_count = sum(len(entry.numbers) for entry in selected)
+    per_family: dict[str, int] = {}
+    for entry in selected:
+        per_family[entry.family] = per_family.get(entry.family, 0) + len(entry.numbers)
+    breakdown = ", ".join(
+        f"{family}: {count}"
+        for family, count in sorted(per_family.items())
+    )
+    print(
+        f"Selected {len(selected)} axiom file(s) from {selection_path} "
+        f"covering {expanded_count} unique axiom number(s) "
+        f"({breakdown})."
+    )
 
     tasks: list[tuple[AxiomEntry, str]] = []
     for entry in selected:
