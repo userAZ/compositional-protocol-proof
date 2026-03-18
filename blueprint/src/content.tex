@@ -175,9 +175,21 @@ axiom).
 % ====================================================
 
 This pdf was generated with \LaTeX{} and \texttt{leanblueprint}.
+
+First, setup the leanblueprint dependencies:
+\begin{verbatim}
+  $ nix-shell leanblueprint-shell.nix
+\end{verbatim}
+This may take a moment to setup a shell with the dependencies installed.
+
 To generate a webpage version that includes a graph visualization of the main theorem, and some of the main lemmas and definitions, run the command:
 \begin{verbatim}
   $ leanblueprint web
+\end{verbatim}
+
+Note, you may need to get permissions first for some files:
+\begin{verbatim}
+chmod +rw blueprint/web/js/svgxuse.js blueprint/web/js/jquery.min.js blueprint/web/js/plastex.js blueprint/web/styles/* blueprint/web/symbol-defs.svg
 \end{verbatim}
 
 To view the webpage, you will need to serve the webpage first with the command:
@@ -192,6 +204,9 @@ Which will then produce some output:
 \end{verbatim}
 Where you can view the generated lean theorem dependency graph from the locally served
 URL (the ``\texttt{http://0.0.0.0:8000/}'' link after ``\texttt{Serving}'').
+
+If you remembered to forward the port 8000 from the docker image for this project, you can open
+\texttt{http://localhost:8000/} from your machine's web browser.
 
 You can generate another copy of this pdf if you desire, with the command:
 \begin{verbatim}
