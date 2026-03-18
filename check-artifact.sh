@@ -50,7 +50,7 @@ fi
 echo "Checking Murphi axioms from the Paper's Case Studies."
 
 (
-  cd /home/anqi/compositional-protocol-proof/model-check-axioms || exit 1
+  cd model-check-axioms || exit 1
   # Extra args passed to this script are forwarded to run_axioms.py.
   if [ "$#" -eq 0 ]; then
     murphi_args=(--threads 1 --memory-per-thread 50)
