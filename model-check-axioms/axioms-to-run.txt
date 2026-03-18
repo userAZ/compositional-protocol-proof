@@ -23,4 +23,3 @@ RCCO-Axiom4-unified-release-and-store-also-immediate-invalidation-finish.m
 RCCO-Axiom6-when-do-requests-access-directory.m
 RCCO-Axiom8-and-11-ordered-directory-messages-fwd-and-response.m
 RCCO-Axiom9-and-12-coherent-write-or-non-coherent-request-at-directory-encapsulates-corresponding-downgrade.m
-RCCO-Axiom4-v2.m
