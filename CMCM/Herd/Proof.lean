@@ -1,22 +1,24 @@
 import CMCM.Herd.Relations
-import CompositionalProtocolProof.CompoundPPOs
 
 /-!
 # CMCM Acyclicity Proof
 
-Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` via a well-founded (GLE, CLE) lexicographic order.
+Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` via a well-founded (GLE, GCR, CLE, cache)
+4-level lexicographic order.
 
 ## Proof strategy
 
-Since `globalLinearizationEventOfRequest` is `Prop`, the GLE and CLE of each event are
-uniquely determined (all witnesses are propositionally equal). The `wrapper` axiom provides
-canonical witnesses for every event.
+Since `globalLinearizationEventOfRequest` is `Prop`, the GLE, GCR, and CLE of each event
+are uniquely determined (all witnesses are propositionally equal). The `wrapper` axiom
+provides canonical witnesses for every event.
 
 Every `com` edge implies `hierarchicallyOrdered` on canonical witnesses:
 - `co`: directly from definition (witnesses are propositionally equal to canonical)
-- `rfe`: from `readsFrom.cases` (GLE/CLE ordering)
-- `fr`: from the fr structure (w co-before e₂ gives hierarchicallyOrdered)
-- `ppoi`: link lemma — bridges `CompoundLinearizationOrder` to (GLE, CLE) ordering
+- `rfe`: from `readsFrom.cases` (GLE ordering via `wObRGle`)
+- `fr`: from the fr structure (carries hierarchicallyOrdered directly)
+- `ppoi`: from same-cluster OrderedBefore — case-split on `dirAccessOfRequest` for each
+  event. When events share the same CLE (e.g., orderAfterDir nc.Weak + encapDir Release),
+  the cache-level ordering (e₁ OB e₂) provides the 4th-level tiebreaker.
 
 Since `hierarchicallyOrdered` is irreflexive and transitive, a cycle in `com` would give
 `hierarchicallyOrdered he he` for some event e, contradicting irreflexivity.
@@ -35,12 +37,17 @@ theorem hierarchicallyOrdered_irrefl
     (h : CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     : ¬ hierarchicallyOrdered h h := by
   intro hord
-  unfold hierarchicallyOrdered gleOrderedBefore sameGleCleOrderedBefore at hord
-  rcases hord with hgle | ⟨_, hcle⟩
+  unfold hierarchicallyOrdered gleOrderedBefore at hord
+  rcases hord with hgle | ⟨_, hgcr | ⟨_, hcle | ⟨_, hcache⟩⟩⟩
   · exact Event.contradiction_of_reflexive_ordered_before n hgle
+  · exact Event.contradiction_of_reflexive_ordered_before n hgcr
   · exact Event.contradiction_of_reflexive_ordered_before n hcle
+  · exact Event.contradiction_of_reflexive_ordered_before n hcache
 
-/-- The hierarchical order is transitive. -/
+/-- The hierarchical order is transitive.
+    Proof: at each level, if one step is strict and the other is equal, propagate the strict
+    ordering. If both are strict at the same level, use transitivity of OrderedBefore.
+    The result is at the highest (most significant) level used by either step. -/
 theorem hierarchicallyOrdered_trans
     {h₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
@@ -48,14 +55,32 @@ theorem hierarchicallyOrdered_trans
     (h12 : hierarchicallyOrdered h₁ h₂)
     (h23 : hierarchicallyOrdered h₂ h₃)
     : hierarchicallyOrdered h₁ h₃ := by
-  unfold hierarchicallyOrdered gleOrderedBefore sameGleCleOrderedBefore at *
-  rcases h12 with hgle12 | ⟨hgle_eq12, hcle12⟩
+  unfold hierarchicallyOrdered gleOrderedBefore at *
+  -- Level 1: GLE
+  rcases h12 with hgle12 | ⟨hgle_eq12, hsub12⟩
   · rcases h23 with hgle23 | ⟨hgle_eq23, _⟩
     · exact Or.inl (Trans.trans hgle12 hgle23)
     · rw [← hgle_eq23]; exact Or.inl hgle12
-  · rcases h23 with hgle23 | ⟨hgle_eq23, hcle23⟩
+  · rcases h23 with hgle23 | ⟨hgle_eq23, hsub23⟩
     · rw [hgle_eq12]; exact Or.inl hgle23
-    · exact Or.inr ⟨hgle_eq12.trans hgle_eq23, Trans.trans hcle12 hcle23⟩
+    · refine Or.inr ⟨hgle_eq12.trans hgle_eq23, ?_⟩
+      -- Level 2: GCR
+      rcases hsub12 with hgcr12 | ⟨hgcr_eq12, hsub12'⟩
+      · rcases hsub23 with hgcr23 | ⟨hgcr_eq23, _⟩
+        · exact Or.inl (Trans.trans hgcr12 hgcr23)
+        · rw [← hgcr_eq23]; exact Or.inl hgcr12
+      · rcases hsub23 with hgcr23 | ⟨hgcr_eq23, hsub23'⟩
+        · rw [hgcr_eq12]; exact Or.inl hgcr23
+        · refine Or.inr ⟨hgcr_eq12.trans hgcr_eq23, ?_⟩
+          -- Level 3: CLE
+          rcases hsub12' with hcle12 | ⟨hcle_eq12, hcache12⟩
+          · rcases hsub23' with hcle23 | ⟨hcle_eq23, _⟩
+            · exact Or.inl (Trans.trans hcle12 hcle23)
+            · rw [← hcle_eq23]; exact Or.inl hcle12
+          · rcases hsub23' with hcle23 | ⟨hcle_eq23, hcache23⟩
+            · rw [hcle_eq12]; exact Or.inl hcle23
+            · -- Level 4: cache event
+              exact Or.inr ⟨hcle_eq12.trans hcle_eq23, Trans.trans hcache12 hcache23⟩
 
 /-! ## Witness canonicalization
 
@@ -67,6 +92,13 @@ edge structures and canonical witnesses from `wrapper`. -/
 theorem gle_canonical
     (h₁ h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     : gle h₁ = gle h₂ := by
+  have : h₁ = h₂ := Subsingleton.elim h₁ h₂
+  subst this; rfl
+
+/-- Any two linearization witnesses for the same event give the same GCR. -/
+theorem gcr_canonical
+    (h₁ h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    : gcr h₁ = gcr h₂ := by
   have : h₁ = h₂ := Subsingleton.elim h₁ h₂
   subst this; rfl
 
@@ -119,18 +151,16 @@ theorem fr_hierarchicallyOrdered
     : hierarchicallyOrdered h.e₁_lin h.e₂_lin :=
   h.ordering
 
-/-- Link lemma: PPOi edges preserve the hierarchical order.
+/-- PPOi edges imply hierarchical ordering.
+    Proof approach: e₁.OrderedBefore e₂ (same cluster, same cache) must induce
+    CLE₁ < CLE₂ or GLE₁ < GLE₂ in the (GLE, CLE) hierarchy.
 
-    The proof requires bridging from `CompoundLinearizationOrder` (ordering on compound
-    linearization events) to `hierarchicallyOrdered` (ordering on GLE/CLE pairs).
-
-    In the non-lazy case, `e_lin₁.OrderedBefore e_lin₂` implies GLE/CLE ordering.
-    In the lazy case (nc.weak → c.release in orderAfterDir), the weaker `finishesBefore`
-    still gives hierarchical ordering because the lazy case is restricted to single PPOi
-    pairs and cannot accumulate. -/
+    This is proven directly via the `dirAccessOfRequest` case structure,
+    bypassing `CompoundLinearizationOrder` (which has structural issues with
+    the weak nc write → nc release `orderAfterDir` case). -/
 theorem ppoi_hierarchicallyOrdered
     {e₁ e₂ : Event n}
-    (hppoi : PPOi e₁ e₂)
+    (hppoi : @PPOi n b e₁ e₂)
     (h₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
     (h₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
     : hierarchicallyOrdered h₁_lin h₂_lin := by
@@ -145,7 +175,8 @@ theorem com_step_hierarchicallyOrdered
     : hierarchicallyOrdered (hknow compound b init e₁) (hknow compound b init e₂) := by
   cases hcom with
   | ppoi h =>
-    exact ppoi_hierarchicallyOrdered h _ _
+    exact @ppoi_hierarchicallyOrdered n compound b init e₁ e₂ h
+      (hknow compound b init e₁) (hknow compound b init e₂)
   | rfe h =>
     exact hierarchicallyOrdered_subst (rfe_hierarchicallyOrdered h)
   | co h =>

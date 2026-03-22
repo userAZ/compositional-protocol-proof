@@ -7,33 +7,41 @@ import CompositionalProtocolProof.CompositionalMCM
 Define the Herd axiomatic representation of the Compositional Memory Consistency Model (CMCM):
   `acyclic(PPOi ∪ rfe ∪ fr ∪ co)`
 
-The relations are defined on protocol `Event n`, using the (GLE, CLE) two-level hierarchy
+The relations are defined on protocol `Event n`, using a 4-level hierarchy
 from `globalLinearizationEventOfRequest`.
 
 ## Ordering hierarchy
 
-The global ordering is a two-level lexicographic order:
-- **Level 1 (GLE)**: `globalLinearizationEventOfRequest.hreq's_global_lin` — global directory ordering
-- **Level 2 (CLE)**: `globalLinearizationEventOfRequest.hreq's_dir_access` — cluster directory ordering
+The global ordering is a 4-level lexicographic order (highest to lowest):
+1. **GLE** (global directory): `hreq's_global_lin.choose`
+2. **GCR** (global cache request): `cDir'sGReq.wrapper` corresponding to the CLE
+3. **CLE** (cluster directory): `hreq's_dir_access.choose`
+4. **Cache event**: the request event itself (`e₁.OrderedBefore e₂`)
 
-Two events are ordered if their GLEs are strictly ordered, or their GLEs are equal and
-their CLEs are strictly ordered. This mirrors the RF definition's `wEqRGle`/`wObRGle` split.
+Two events are ordered at the highest level where they differ. When GLE, GCR, and CLE
+are all equal (e.g., events sharing a predecessor's CLE), the cache event ordering breaks
+the tie. The RF definition demonstrates the GLE/CLE split with `wEqRGle`/`wObRGle`.
 -/
 
 variable {n : Nat}
 
 namespace Herd
 
-/-! ## Hierarchical ordering on (GLE, CLE) pairs -/
+/-! ## Hierarchical ordering on (GLE, GCR, CLE, cache) tuples -/
 
 variable {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
 
-/-- The GLE of a request's linearization. -/
+/-- The GLE (global directory event) of a request's linearization. -/
 noncomputable def gle
     (h : CompoundProtocol.globalLinearizationEventOfRequest compound b init e) : Event n :=
   h.hreq's_global_lin.choose
 
-/-- The CLE of a request's linearization. -/
+/-- The GCR (global cache request) of a request's linearization. -/
+noncomputable def gcr
+    (h : CompoundProtocol.globalLinearizationEventOfRequest compound b init e) : Event n :=
+  Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init h.hreq's_dir_access
+
+/-- The CLE (cluster directory event) of a request's linearization. -/
 noncomputable def cle
     (h : CompoundProtocol.globalLinearizationEventOfRequest compound b init e) : Event n :=
   h.hreq's_dir_access.choose
@@ -44,36 +52,41 @@ def gleOrderedBefore
     (h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂) : Prop :=
   (gle h₁).OrderedBefore n (gle h₂)
 
-/-- Hierarchical ordering: same GLE, CLE₁ strictly before CLE₂. -/
-def sameGleCleOrderedBefore
-    (h₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
-    (h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂) : Prop :=
-  gle h₁ = gle h₂ ∧ (cle h₁).OrderedBefore n (cle h₂)
+/-- The (GLE, GCR, CLE, cache) 4-level lexicographic order. Two events are hierarchically
+    ordered at the highest level where they differ:
+    1. GLE₁ strictly before GLE₂, OR
+    2. Same GLE, GCR₁ strictly before GCR₂, OR
+    3. Same GLE and GCR, CLE₁ strictly before CLE₂, OR
+    4. Same GLE, GCR, and CLE, cache event e₁ strictly before e₂.
 
-/-- The (GLE, CLE) hierarchical order. Two events are hierarchically ordered if:
-    1. Their GLEs are strictly ordered (OrderedBefore), OR
-    2. Their GLEs are equal AND their CLEs are strictly ordered.
-
-    This is the "global order G" for the Herd CMCM acyclicity proof. -/
+    This is the ranking function for the Herd CMCM acyclicity proof. -/
 def hierarchicallyOrdered
     (h₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
     (h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂) : Prop :=
-  gleOrderedBefore h₁ h₂ ∨ sameGleCleOrderedBefore h₁ h₂
+  gleOrderedBefore h₁ h₂ ∨
+  (gle h₁ = gle h₂ ∧
+    ((gcr h₁).OrderedBefore n (gcr h₂) ∨
+      (gcr h₁ = gcr h₂ ∧
+        ((cle h₁).OrderedBefore n (cle h₂) ∨
+          (cle h₁ = cle h₂ ∧ e₁.OrderedBefore n e₂)))))
 
 /-! ## Edge definitions -/
 
-/-- PPOi: Preserved Program Order (intra-thread).
-    Two events on the same cache, at different addresses, forming a PPO pair,
-    with e₁ program-ordered before e₂. -/
+/-- PPOi: Preserved Program Order (intra-cluster).
+    Two events on the same cache forming a PPO pair, with e₁ ordered before e₂.
+    Both events must be in the behaviour. -/
 structure PPOi (e₁ e₂ : Event n) : Prop where
   ppo : e₁.isPPOPair n e₂
   orderedBefore : e₁.OrderedBefore n e₂
-  diffAddr : e₁.addr ≠ e₂.addr
   sameProtocol : e₁.sameProtocol n e₂
+  sameCid : e₁.sameCid n e₂
+  sameCid' : e₁.cid = e₂.cid
   notDown₁ : ¬ e₁.down
   notDown₂ : ¬ e₂.down
   cache₁ : e₁.isCacheEvent
   cache₂ : e₂.isCacheEvent
+  in_b₁ : e₁ ∈ b
+  in_b₂ : e₂ ∈ b
 
 /-- rfe: Reads-from external.
     A write e₁ that is read by e₂, at the same address, from different clusters. -/
