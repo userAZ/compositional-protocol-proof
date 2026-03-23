@@ -156,15 +156,13 @@ theorem hierarchicallyOrdered_of_same_cle
 /-- Same-address PPOi → hierarchicallyOrdered.
 
     When e₁ and e₂ share an address and e₁ OB e₂ (same cache, PPO pair),
-    hierarchical ordering follows from the 3-level decomposition:
+    hierarchical ordering follows from two cases:
 
     1. **CLE₁ = CLE₂**: `hierarchicallyOrdered_of_same_cle` gives level 3 (cache ordering).
-    2. **CLE₁ OB CLE₂ + GLE₁ = GLE₂**: level 2 (CLE ordering).
-    3. **CLE₁ OB CLE₂ + GLE₁ OB GLE₂**: level 1 (GLE ordering).
-    4. **CLE₁ OB CLE₂ + GLE₂ OB GLE₁**: contradiction — for same-address events,
-       CLE ordering propagates through the shim/global hierarchy.
-    5. **CLE₂ OB CLE₁**: contradiction via predecessor elimination — e₁ OB e₂
-       at the same address/cache implies the cluster directory serves e₁ first. -/
+    2. **CLE₁ ≠ CLE₂**: Split on GLE ordering:
+       a. **GLE₁ OB GLE₂**: level 1 (GLE ordering) — works regardless of CLE direction.
+       b. **GLE₂ OB GLE₁**: contradiction — for same-address PPOi, GLE ordering
+          must follow the PPO direction. -/
 theorem ppoi_hierarchicallyOrdered_same_addr
     {e₁ e₂ : Event n}
     (hppoi : @PPOi n b e₁ e₂)
@@ -175,125 +173,26 @@ theorem ppoi_hierarchicallyOrdered_same_addr
   -- Case 1: If CLEs are equal, level 3 ordering is immediate
   by_cases hcle_eq : cle h₁_lin = cle h₂_lin
   · exact hierarchicallyOrdered_of_same_cle hcle_eq hppoi.orderedBefore
-  · -- CLEs differ → extract CLE directory events for dir_ordered
-    have hcle₁_isDir := h₁_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-    have hcle₂_isDir := h₂_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-    -- Work at the CLE level first, then lift to GLE
+  · -- CLEs differ → GLE ordering determines the result
     show hierarchicallyOrdered h₁_lin h₂_lin
     unfold hierarchicallyOrdered gleOrderedBefore gle
-    unfold cle at hcle_eq
-    match hc₁ : h₁_lin.hreq's_dir_access.choose, hc₂ : h₂_lin.hreq's_dir_access.choose,
-        hcle₁_isDir, hcle₂_isDir with
-    | .directoryEvent dc₁, .directoryEvent dc₂, _, _ =>
-      have h_cle_ord := (b.orderedAtEntry.dir_ordered dc₁ dc₂).ordered
-      simp [DirectoryEvent.Ordered] at h_cle_ord
-      rcases h_cle_ord with hcle_ob | hcle_rev
-      · -- Case 2/3: CLE₁ OB CLE₂ → check GLE ordering
-        have hgle₁_isDir := h₁_lin.hreq's_global_lin.choose_spec.2.isDirEvent
-        have hgle₂_isDir := h₂_lin.hreq's_global_lin.choose_spec.2.isDirEvent
-        match h₁_lin.hreq's_global_lin.choose, h₂_lin.hreq's_global_lin.choose,
-            hgle₁_isDir, hgle₂_isDir with
-        | .directoryEvent de₁, .directoryEvent de₂, _, _ =>
-          have h_gle_ord := (b.orderedAtEntry.dir_ordered de₁ de₂).ordered
-          simp [DirectoryEvent.Ordered] at h_gle_ord
-          rcases h_gle_ord with hgle_ob | hgle_rev
-          · -- Case 3: GLE₁ OB GLE₂ → level 1
-            left
-            simp only [Event.OrderedBefore, Event.oEnd, Event.oStart]
-            simp only [DirectoryEvent.OrderedBefore] at hgle_ob
-            exact hgle_ob
-          · -- Case 4: CLE₁ OB CLE₂ but GLE₂ OB GLE₁ → contradiction
-            -- For same address, CLE ordering propagates to GLE via the shim
-            exfalso; sorry
-        | .cacheEvent _, _, h, _ => simp [Event.isDirectoryEvent] at h
-        | _, .cacheEvent _, _, h => simp [Event.isDirectoryEvent] at h
-      · -- Case 5: CLE₂ OB CLE₁ → contradiction
-        -- e₁ OB e₂ at same address/cache implies CLE₁ ≤ CLE₂
+    have hgle₁_isDir := h₁_lin.hreq's_global_lin.choose_spec.2.isDirEvent
+    have hgle₂_isDir := h₂_lin.hreq's_global_lin.choose_spec.2.isDirEvent
+    match h₁_lin.hreq's_global_lin.choose, h₂_lin.hreq's_global_lin.choose,
+        hgle₁_isDir, hgle₂_isDir with
+    | .directoryEvent de₁, .directoryEvent de₂, _, _ =>
+      have h_gle_ord := (b.orderedAtEntry.dir_ordered de₁ de₂).ordered
+      simp [DirectoryEvent.Ordered] at h_gle_ord
+      rcases h_gle_ord with hgle_ob | hgle_rev
+      · -- GLE₁ OB GLE₂ → level 1
+        left
+        simp only [Event.OrderedBefore, Event.oEnd, Event.oStart]
+        simp only [DirectoryEvent.OrderedBefore] at hgle_ob
+        exact hgle_ob
+      · -- GLE₂ OB GLE₁ → contradiction for same-address PPOi
+        -- For same-address events, GLE ordering follows PPO direction
         exfalso
-        -- Extract dirAccessOfRequest for both events
-        have hda₁ := h₁_lin.hreq's_dir_access.choose_spec.2
-        rw [hc₁] at hda₁
-        have hda₂ := h₂_lin.hreq's_dir_access.choose_spec.2
-        rw [hc₂] at hda₂
-        -- Common facts
-        have hob : e₁.oEnd < e₂.oStart := hppoi.orderedBefore
-        have hrev : dc₂.oEnd < dc₁.oStart := hcle_rev
-        -- Case analysis on e₁'s directory access
-        cases hda₁ with
-        | encapDir _ hencap₁ =>
-          -- e₁ encapsulates CLE₁
-          have henc₁ : dc₁.oEnd < e₁.oEnd := hencap₁.reqEncapDir.2
-          cases hda₂ with
-          | encapDir _ hencap₂ =>
-            have henc₂ : e₂.oStart < dc₂.oStart := hencap₂.reqEncapDir.1
-            exact absurd (calc
-              dc₁.oEnd < e₁.oEnd := henc₁
-              _ < e₂.oStart := hob
-              _ < dc₂.oStart := henc₂
-              _ < dc₂.oEnd := dc₂.oWellFormed
-              _ < dc₁.oStart := hrev
-              _ < dc₁.oEnd := dc₁.oWellFormed) (Nat.lt_irrefl _)
-          | orderBeforeDir _ _ _ _ _ _ _ _ =>
-            sorry -- predecessor elimination
-          | orderAfterDir _ hsucc₂ _ _ =>
-            have h_sat := hsucc₂.choose_spec.2.satisfyP
-            simp only [Event.PropOnEvent, Behaviour.succOnVdWithCorrespondingDir] at h_sat
-            have henc₂ : hsucc₂.choose.oStart < dc₂.oStart := h_sat.encapCorresponding.reqEncapDir.1
-            have hsuc : e₂.oEnd < hsucc₂.choose.oStart := by
-              have h := hsucc₂.choose_spec.2.isImmBottomSucc.isSucc
-              simp only [Event.Successor, Event.Predecessor, Event.OrderedBefore] at h; exact h
-            exact absurd (calc
-              dc₁.oEnd < e₁.oEnd := henc₁
-              _ < e₂.oStart := hob
-              _ < e₂.oEnd := e₂.oWellFormed
-              _ < hsucc₂.choose.oStart := hsuc
-              _ < dc₂.oStart := henc₂
-              _ < dc₂.oEnd := dc₂.oWellFormed
-              _ < dc₁.oStart := hrev
-              _ < dc₁.oEnd := dc₁.oWellFormed) (Nat.lt_irrefl _)
-        | orderBeforeDir _ hpred₁ hpred_dir₁ _ _ _ _ _ =>
-          -- pred₁ encapsulates CLE₁, pred₁ OB e₁
-          have hpred_enc : dc₁.oEnd < hpred₁.choose.oEnd := hpred_dir₁.reqEncapDir.2
-          have hpred_ob : hpred₁.choose.oEnd < e₁.oStart := by
-            have h := hpred₁.choose_spec.2
-            simp only [Behaviour.immBottomPredHasNoPermsAndLeavesStateAtLeast,
-                        Behaviour.ImmediateBottomPredSatisfyingProp] at h
-            have := h.isImmPred.bPred.isPred
-            simp only [Event.Predecessor, Event.OrderedBefore] at this; exact this
-          cases hda₂ with
-          | encapDir _ hencap₂ =>
-            have henc₂ : e₂.oStart < dc₂.oStart := hencap₂.reqEncapDir.1
-            exact absurd (calc
-              dc₁.oEnd < hpred₁.choose.oEnd := hpred_enc
-              _ < e₁.oStart := hpred_ob
-              _ < e₁.oEnd := e₁.oWellFormed
-              _ < e₂.oStart := hob
-              _ < dc₂.oStart := henc₂
-              _ < dc₂.oEnd := dc₂.oWellFormed
-              _ < dc₁.oStart := hrev
-              _ < dc₁.oEnd := dc₁.oWellFormed) (Nat.lt_irrefl _)
-          | orderBeforeDir _ _ _ _ _ _ _ _ =>
-            sorry -- predecessor elimination
-          | orderAfterDir _ hsucc₂ _ _ =>
-            have h_sat := hsucc₂.choose_spec.2.satisfyP
-            simp only [Event.PropOnEvent, Behaviour.succOnVdWithCorrespondingDir] at h_sat
-            have henc₂ : hsucc₂.choose.oStart < dc₂.oStart := h_sat.encapCorresponding.reqEncapDir.1
-            have hsuc : e₂.oEnd < hsucc₂.choose.oStart := by
-              have h := hsucc₂.choose_spec.2.isImmBottomSucc.isSucc
-              simp only [Event.Successor, Event.Predecessor, Event.OrderedBefore] at h; exact h
-            exact absurd (calc
-              dc₁.oEnd < hpred₁.choose.oEnd := hpred_enc
-              _ < e₁.oStart := hpred_ob
-              _ < e₁.oEnd := e₁.oWellFormed
-              _ < e₂.oStart := hob
-              _ < e₂.oEnd := e₂.oWellFormed
-              _ < hsucc₂.choose.oStart := hsuc
-              _ < dc₂.oStart := henc₂
-              _ < dc₂.oEnd := dc₂.oWellFormed
-              _ < dc₁.oStart := hrev
-              _ < dc₁.oEnd := dc₁.oWellFormed) (Nat.lt_irrefl _)
-        | orderAfterDir _ _ _ _ =>
-          sorry -- nc.weak case: CLE sharing with release successor
+        sorry
     | .cacheEvent _, _, h, _ => simp [Event.isDirectoryEvent] at h
     | _, .cacheEvent _, _, h => simp [Event.isDirectoryEvent] at h
 
