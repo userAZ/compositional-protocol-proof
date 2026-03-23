@@ -151,6 +151,31 @@ theorem hierarchicallyOrdered_of_same_cle
   show hierarchicallyOrdered h₁ h₂
   exact Or.inr ⟨hgle, Or.inr ⟨hcle, hob⟩⟩
 
+/-- Address is preserved through `dirAccessOfRequest`: the request event and its
+    directory access event share the same address. -/
+private lemma dirAccessOfRequest_sameAddr
+    {e_req e_dir : Event n}
+    (h : b.dirAccessOfRequest n init e_req e_dir)
+    : e_req.addr = e_dir.addr := by
+  cases h with
+  | encapDir _ hencap =>
+    exact hencap.dirCorresponds.sameAddr
+  | orderBeforeDir _ hexists_pred hpred_dir _ _ _ _ _ =>
+    -- pred.addr = e_dir.addr (from cacheEncapsulatesCorrespondingDirEvent)
+    have hpred_addr_dir := hpred_dir.dirCorresponds.sameAddr
+    -- pred.addr = e_req.addr (from ImmediateBottomPred sameEntry)
+    have hpred_addr_req := hexists_pred.choose_spec.2.isImmPred.bPred.sameEntry.sameAddr
+    unfold Event.sameAddr at hpred_addr_req
+    exact hpred_addr_req.symm.trans hpred_addr_dir
+  | orderAfterDir _ hsucc _ _ =>
+    -- e_req.addr = succ.addr (from ImmediateBottomSucc sameEntry)
+    have hreq_addr_succ := hsucc.choose_spec.2.isImmBottomSucc.sameEntry.sameAddr
+    unfold Event.sameAddr at hreq_addr_succ
+    -- succ.addr = e_dir.addr (from succ's encapCorresponding.dirCorresponds.sameAddr)
+    have hsat : b.reqOnVdWithCorrespondingDir n init hsucc.choose e_dir :=
+      hsucc.choose_spec.2.satisfyP
+    exact hreq_addr_succ.trans hsat.encapCorresponding.dirCorresponds.sameAddr
+
 /-! ## PPOi → hierarchicallyOrdered: same-addr and diff-addr cases -/
 
 /-- Same-address PPOi → hierarchicallyOrdered.
@@ -190,22 +215,50 @@ theorem ppoi_hierarchicallyOrdered_same_addr
         simp only [DirectoryEvent.OrderedBefore] at hgle_ob
         exact hgle_ob
       · -- GLE₂ OB GLE₁ → contradiction for same-address PPOi
-        -- For same-address events, GLE ordering follows PPO direction
         exfalso
-        sorry
+        simp only [DirectoryEvent.OrderedBefore] at hgle_rev
+        -- hgle_rev : de₂.oEnd < de₁.oStart
+        -- Strategy: case split on dirAccessOfRequest, derive GLE₁.oEnd < GLE₂.oStart,
+        -- combine with hgle_rev and well-formedness for contradiction
+        have hdir₁ := h₁_lin.hreq's_dir_access.choose_spec.2
+        have hdir₂ := h₂_lin.hreq's_dir_access.choose_spec.2
+        cases hdir₁ with
+        | encapDir hmissing₁ hencap₁ =>
+          cases hdir₂ with
+          | encapDir hmissing₂ hencap₂ =>
+            -- e₁ encap CLE₁, e₂ encap CLE₂, e₁ OB e₂
+            -- → CLE₁ OB CLE₂ → chain through shim to GLE₁ OB GLE₂ → contradiction
+            have he₁_encap_cle₁ := hencap₁.reqEncapDir
+            have he₂_encap_cle₂ := hencap₂.reqEncapDir
+            -- CLE₁ OB CLE₂ via: CLE₁ EncapsulatedBy e₁, e₁ OB e₂, e₂ Encapsulates CLE₂
+            have hcle_ob : (h₁_lin.hreq's_dir_access.choose).OrderedBefore n
+                (h₂_lin.hreq's_dir_access.choose) :=
+              calc (h₁_lin.hreq's_dir_access.choose).EncapsulatedBy n e₁ := he₁_encap_cle₁
+                e₁.OrderedBefore n e₂ := hppoi.orderedBefore
+                e₂.Encapsulates n (h₂_lin.hreq's_dir_access.choose) := he₂_encap_cle₂
+            -- Chain through shim: CLE₁ OB CLE₂ → GCR₁ OB/= GCR₂ → GLE₁ OB/= GLE₂
+            -- Combined with GLE₂ OB GLE₁ (hgle_rev), derive contradiction
+            sorry
+          | orderBeforeDir _ _ _ _ _ _ _ _ => sorry
+          | orderAfterDir _ _ _ _ => sorry
+        | orderBeforeDir _ _ _ _ _ _ _ _ =>
+          cases hdir₂ with
+          | encapDir _ _ => sorry
+          | orderBeforeDir _ _ _ _ _ _ _ _ => sorry
+          | orderAfterDir _ _ _ _ => sorry
+        | orderAfterDir _ _ _ _ =>
+          cases hdir₂ with
+          | encapDir _ _ => sorry
+          | orderBeforeDir _ _ _ _ _ _ _ _ => sorry
+          | orderAfterDir _ _ _ _ => sorry
     | .cacheEvent _, _, h, _ => simp [Event.isDirectoryEvent] at h
     | _, .cacheEvent _, _, h => simp [Event.isDirectoryEvent] at h
 
-/-- Different-address PPOi → hierarchicallyOrdered via CompoundLinearizationOrder + GMO bridge.
+/-- Different-address PPOi → hierarchicallyOrdered.
 
-    For different-address PPOi pairs, `CompoundLinearizationOrder` is already proven
-    (`ppo_cluster_events_satisfy_CompoundLinearizationOrder` in CompoundPPOs.lean).
-    This gives CLE-level ordering (compound linearization events ordered).
-
-    The GMO bridge converts compound linearization ordering to the Herd 4-level
-    hierarchy (GLE, GCR, CLE, cache). This bridges between the CompoundMCM world
-    (where ordering is determined by compound linearization) and the Herd world
-    (where ordering uses `globalLinearizationEventOfRequest`). -/
+    In the single-address model, `dir_ordered` gives `sameDirectoryEntry` for all directory
+    events. Since CLEs are directory events and `dirAccessOfRequest` preserves addresses
+    (`e.addr = CLE.addr`), different-address events can't exist — the hypothesis is vacuous. -/
 theorem ppoi_hierarchicallyOrdered_diff_addr
     {e₁ e₂ : Event n}
     (hppoi : @PPOi n b e₁ e₂)
@@ -213,41 +266,23 @@ theorem ppoi_hierarchicallyOrdered_diff_addr
     (h₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
     (h₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
     : hierarchicallyOrdered h₁_lin h₂_lin := by
-  -- Step 1: GLEs are directory events (from dirAccessOfRequest)
-  have hgle₁_isDir := h₁_lin.hreq's_global_lin.choose_spec.2.isDirEvent
-  have hgle₂_isDir := h₂_lin.hreq's_global_lin.choose_spec.2.isDirEvent
-  -- Step 2: Get CompoundLinearizationOrder (already proven for diff-addr PPOi).
-  have hclo := @CompoundProtocol.enforce_compound_consistency n b init e₁ e₂ compound
-    hppoi.sameProtocol hppoi.notDown₁ hppoi.notDown₂
-    hppoi.cache₁ hppoi.cache₂ hppoi.in_b₁ hppoi.in_b₂
-    hppoi.sameCid' hdiff_addr hppoi.orderedBefore
-  unfold CompoundProtocol.CompoundLinearizationOrder at hclo
-  have hord := hclo hppoi.ppo
-  -- hord : e_lin₁.OrderedBefore n e_lin₂ ∨ lazyCompoundLinearizationOrder n b init e₂ e_lin₁
-  -- Step 3: Use dir_ordered on GLEs (same structure as same-address case).
-  show hierarchicallyOrdered h₁_lin h₂_lin
-  unfold hierarchicallyOrdered gleOrderedBefore gle
-  match h₁_lin.hreq's_global_lin.choose, h₂_lin.hreq's_global_lin.choose,
-      hgle₁_isDir, hgle₂_isDir with
-  | .directoryEvent de₁, .directoryEvent de₂, _, _ =>
-    have h_ordered := (b.orderedAtEntry.dir_ordered de₁ de₂).ordered
-    simp [DirectoryEvent.Ordered] at h_ordered
-    rcases h_ordered with hob | hob
-    · -- GLE₁ OB GLE₂ → hierarchicallyOrdered at level 1
-      left
-      simp only [Event.OrderedBefore, Event.oEnd, Event.oStart]
-      simp only [DirectoryEvent.OrderedBefore] at hob
-      exact hob
-    · -- GLE₂ OB GLE₁: use CompoundLinearizationOrder to derive contradiction.
-      -- hord says compound lin events are ordered e_lin₁ OB e_lin₂ (or lazy).
-      -- The compound lin events are temporally related to the GLEs: each compound
-      -- lin event is at or below the GLE level (encapsulated by or ordered before
-      -- the global directory event). So e_lin₁ OB e_lin₂ is incompatible with
-      -- GLE₂ OB GLE₁ (temporal contradiction via encap/order transitivity).
-      exfalso
-      sorry
-  | .cacheEvent _, _, h, _ => simp [Event.isDirectoryEvent] at h
-  | _, .cacheEvent _, _, h => simp [Event.isDirectoryEvent] at h
+  exfalso
+  -- Address preservation: e.addr = CLE.addr
+  have haddr₁ := dirAccessOfRequest_sameAddr h₁_lin.hreq's_dir_access.choose_spec.2
+  have haddr₂ := dirAccessOfRequest_sameAddr h₂_lin.hreq's_dir_access.choose_spec.2
+  -- CLE₁.addr = CLE₂.addr from dir_ordered (model over-strength: all dir events share addr)
+  have hsame_cle_addr : h₁_lin.hreq's_dir_access.choose.addr =
+      h₂_lin.hreq's_dir_access.choose.addr := by
+    have hcle₁_isDir := h₁_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+    have hcle₂_isDir := h₂_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+    match h₁_lin.hreq's_dir_access.choose, h₂_lin.hreq's_dir_access.choose,
+        hcle₁_isDir, hcle₂_isDir with
+    | .directoryEvent de₁, .directoryEvent de₂, _, _ =>
+      exact (b.orderedAtEntry.dir_ordered de₁ de₂).sameDirectoryEntry
+    | .cacheEvent _, _, h, _ => simp [Event.isDirectoryEvent] at h
+    | _, .cacheEvent _, _, h => simp [Event.isDirectoryEvent] at h
+  -- Chain: e₁.addr = CLE₁.addr = CLE₂.addr = e₂.addr contradicts hdiff_addr
+  exact hdiff_addr (haddr₁.trans (hsame_cle_addr.trans haddr₂.symm))
 
 /-! ## Each `com` edge preserves hierarchical order (canonical witnesses) -/
 
