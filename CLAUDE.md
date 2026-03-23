@@ -292,6 +292,7 @@ Trans instances: `EncapsulatedBy → OB → OB`, `OB → Encapsulates → OB`, `
 - **`/learn`** after discovering patterns, user corrections, dead ends — IMMEDIATELY when you figure something out or learn something new, not later
 - **`/reflect`** every ~20-30 min: am I correct? efficient? going in circles?
 - **`/philosophy`** before major proof decisions, when stuck, when something feels architecturally wrong
+- **Consult philosophy PROACTIVELY** — before proving, implementing, planning, or thinking about anything significant. Ask: "Is the abstraction right? Does this match the protocol mechanism? Will a reviewer find this convincing? Am I being vacuous?" Don't wait until stuck — think deeply FIRST.
 - **Always save key insights to CLAUDE.md** (not just memory files) — this file is loaded every session
 - **Re-read CLAUDE.md before investigating questions** — the accumulated knowledge answers most protocol questions. Trace through definitions yourself using what's recorded here.
 - **Track all TODOs in CLAUDE.md** — sessions crash! Progress must survive.
