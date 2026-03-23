@@ -122,10 +122,22 @@ The "no intermediate write" argument from rf's `noBetween` is needed to exclude 
 Rather than implementing this complex composition proof, FR carries `co.cases e₁_lin e₂_lin` directly.
 The rf/co⁺ witness documents the protocol-level justification.
 
-**REMAINING SORRY's (3 declarations):**
-1. `co_cases_hierarchicallyOrdered` (Proof.lean:354): 1 sorry for `sameGle.diffCle.wImmPredRCle.diffCluster`. Need: `rCleOrDownAtWAfterWCle.diffCluster`'s `encapDir` → CLE₁ OB CLE₂. The downgrade chain gives temporal containment (cdir_down inside CLE₂) but we need CLE₁.oEnd < CLE₂.oStart. Missing link: formal proof that the downgrade at e₁'s cluster happens AFTER CLE₁ completes.
-2. `ppoi_hierarchicallyOrdered_same_addr` (Proof.lean:266-278): 9 sorry's in GLE₂ OB GLE₁ contradiction case (dirAccessOfRequest 3×3 case split). Pre-existing.
-3. `cmcm` + `PartialOrder (Event n)` (Proof.lean:437-443): Alternative proof approach, WIP.
+**REMAINING SORRY's (4 declarations, Proof.lean):**
+1. `fr_eventLt` (line 165): FR composition — compose rf(e_w, e₁) + co⁺(e_w, e₂) → eventLt(e₁, e₂). Needs noBetween argument.
+2. `ppoi_eventLt_same_addr` (line 221): 9 dirAccessOfRequest sub-cases for GLE₂ OB GLE₁ contradiction.
+3. `ppoi_eventLt_diff_addr` (line 236): Use CompoundMCM's `enforce_compound_consistency` to get CompoundLinearizationOrder, then map to eventLt. NOT vacuous.
+4. `eventPartialOrder` (line 304): Construct PartialOrder from eventLt. Straightforward (standard strict-order-to-partial-order construction).
+
+**TODO (in priority order):**
+- [ ] Verify CO definition is correct: `co.cases` mirrors `readsFrom.cases` with sameGle/wObRGle. Check `co_cases_eventLt` proof works (diffCluster case closed by `same_gle_implies_same_protocol`).
+- [ ] Verify FR definition is correct: carries `comm` existential with rf⁻¹;co decomposition. No `ordering` field.
+- [ ] Prove `ppoi_eventLt_diff_addr` using CompoundMCM (non-vacuous, bridges CompoundLinearizationOrder → eventLt)
+- [ ] Prove `ppoi_eventLt_same_addr` GLE₂ OB GLE₁ contradiction (9 dirAccessOfRequest cases)
+- [ ] Prove `fr_eventLt` composition (rf + co through e_w, using noBetween)
+- [ ] Construct `eventPartialOrder` from eventLt (standard construction)
+- [ ] Vacuity check: verify `ppoi_eventLt_diff_addr` is NOT vacuous (different addresses can exist)
+- [ ] Vacuity check: verify all edge proofs use communication evidence, not shortcuts
+- [ ] Consider: should `hierarchicallyOrdered` constructors carry ordering evidence (eventLt proofs) alongside communication evidence?
 
 **DEAD ENDS (don't repeat):**
 1. Temporal chaining of GLE/CLE for PPOi is a rabbit hole. The `previousGlobalCacheGotPerms` case decouples GLEs from CLE ordering for different addresses. Don't re-derive this.
