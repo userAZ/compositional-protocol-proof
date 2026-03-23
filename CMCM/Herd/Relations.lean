@@ -24,6 +24,33 @@ inductive com (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystem
   | fr : @Herd.fr n cmp b init e₁ e₂ → com cmp b init e₁ e₂
   | co : @Herd.co n cmp b init e₁ e₂ → com cmp b init e₁ e₂
 
+/-- The hierarchical ordering: PPOi ∪ com, with each constructor mirroring
+    the communication mechanism that establishes the ordering.
+
+    - `ppoi`: Preserved Program Order — uses CompoundMCM (compound linearization ordering)
+    - `com`: Communication — rfe/co/fr, each carrying its communication evidence
+
+    Acyclicity is proven by showing each constructor strictly decreases
+    the (GLE, CLE, cache) ranking function (`eventLt`). -/
+inductive hierarchicallyOrdered
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    (e₁ e₂ : Event n) : Prop where
+  | ppoi (h : @PPOi n b e₁ e₂)
+  | com (h : com cmp b init e₁ e₂)
+
+/-- hierarchicallyOrdered = PPOi ∪ com -/
+theorem hierarchicallyOrdered_iff_ppoi_union_com
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    {e₁ e₂ : Event n}
+    : @hierarchicallyOrdered n cmp b init e₁ e₂ ↔ (@PPOi n b ∪ com cmp b init) e₁ e₂ := by
+  constructor
+  · intro h; cases h with
+    | ppoi h => exact Or.inl h
+    | com h => exact Or.inr h
+  · intro h; cases h with
+    | inl h => exact .ppoi h
+    | inr h => exact .com h
+
 /-! ## Generic acyclicity definitions -/
 
 /-- A relation is cyclic if there exists an element reachable from itself

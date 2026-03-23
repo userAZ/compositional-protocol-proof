@@ -46,29 +46,19 @@ noncomputable def cle
     (h : CompoundProtocol.globalLinearizationEventOfRequest compound b init e) : Event n :=
   h.hreq's_dir_access.choose
 
-/-- Hierarchical ordering: GLE₁ strictly before GLE₂. -/
-def gleOrderedBefore
+/-- The (GLE, CLE, cache) 3-level lexicographic strict order.
+    This is the ranking function used to prove acyclicity of the Herd CMCM.
+    Each event maps to a (GLE, CLE, cache) triple via its linearization witness;
+    this order compares at the highest level where they differ.
+
+    GCR is redundant (CLE → GCR → GLE is functionally determined). -/
+def eventLt
     (h₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
     (h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂) : Prop :=
-  (gle h₁).OrderedBefore n (gle h₂)
-
-/-- The (GLE, CLE, cache) 3-level lexicographic order as communication levels.
-    Each constructor corresponds to the level at which two events communicate:
-    - `gleOB`: cross-cluster — GLE₁ strictly before GLE₂
-    - `cleOB`: cross-cache (same cluster) — same GLE, CLE₁ strictly before CLE₂
-    - `cacheOB`: local (same cache) — same CLE (→ same GLE), e₁ strictly before e₂
-
-    GCR is redundant (CLE → GCR → GLE is functionally determined).
-    This is the ranking function for the Herd CMCM acyclicity proof. -/
-inductive hierarchicallyOrdered
-    (h₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
-    (h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂) : Prop where
-  /-- Cross-cluster: GLE₁ strictly before GLE₂. -/
-  | gleOB (gle_ob : (gle h₁).OrderedBefore n (gle h₂))
-  /-- Cross-cache, same cluster: same GLE, CLE₁ strictly before CLE₂. -/
-  | cleOB (gle_eq : gle h₁ = gle h₂) (cle_ob : (cle h₁).OrderedBefore n (cle h₂))
-  /-- Local, same cache: same CLE (implies same GLE), e₁ strictly before e₂. -/
-  | cacheOB (cle_eq : cle h₁ = cle h₂) (cache_ob : e₁.OrderedBefore n e₂)
+  (gle h₁).OrderedBefore n (gle h₂) ∨
+  (gle h₁ = gle h₂ ∧
+    ((cle h₁).OrderedBefore n (cle h₂) ∨
+      (cle h₁ = cle h₂ ∧ e₁.OrderedBefore n e₂)))
 
 /-! ## Edge definitions -/
 
