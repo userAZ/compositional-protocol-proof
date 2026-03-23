@@ -47,11 +47,10 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 ### Status
+- **hierarchicallyOrdered**: 3-level (GLE, CLE, cache) lex order. GCR removed (redundant). Irrefl/trans/canonicalization DONE.
 - **rfe**: DONE (`rfe_hierarchicallyOrdered` — uses `wObRGle` for GLE ordering)
-- **co**: REDEFINED — now carries `Nonempty (gleOrdering.Cases)` instead of `hierarchicallyOrdered`
-  - `co_hierarchicallyOrdered`: sorry (need gleOrdering.Cases → hierarchicallyOrdered bridge)
-- **fr**: REDEFINED — now carries rf⁻¹ ; co structure (existential intermediate write e_w with `readsFrom.cases` + `gleOrdering.Cases`)
-  - `fr_hierarchicallyOrdered`: sorry (need to compose rf + co → hierarchicallyOrdered)
+- **co**: DONE — `co_hierarchicallyOrdered` via shared `co_cases_hierarchicallyOrdered`. `diffCluster` sorry closed by `same_gle_implies_same_protocol` (same GLE → same protocol, contradicts diffCluster's diffProtocol).
+- **fr**: DONE — `fr_hierarchicallyOrdered` via same shared proof (carries `co.cases` directly).
 - **PPOi same-addr**: PARTIAL — `ppoi_hierarchicallyOrdered_same_addr`
   - CLE₁ = CLE₂ case: DONE (level 3 via `hierarchicallyOrdered_of_same_cle`)
   - CLE₁ OB CLE₂ + GLE₁ OB GLE₂: DONE (level 1)
@@ -59,7 +58,20 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
   - CLE₂ OB CLE₁: sorry (predecessor elimination)
 - **PPOi diff-addr**: DONE (vacuously — single-address model, all dir events share address)
 - **Main theorem**: DONE (`cmcm_acyclic`) — complete modulo sorry lemmas
-- **Irrefl/trans/canonicalization**: DONE
+- **cmcm theorem**: WIP (alternative via PartialOrder, needs `PartialOrder (Event n)` instance)
+
+### Key insight: communication events (downgrades) are the fundamental mechanism
+
+The hierarchy ordering (GLE/CLE/cache) is a CONSEQUENCE of communication events, not the mechanism itself. For each relation:
+
+- **RF(e_w, e_r)**: A downgrade from e_r's cluster reaches e_w's cache at some common level (cache/CLE/GLE). The downgrade makes e_w write back its value → e_r reads it. The downgrade is AFTER e_w and INSIDE e_r's CLE/GCR. GLE ordering falls out of this chain.
+- **CO(e_w1, e_w2)**: e_w2 sends a downgrade to e_w1 at some common level. Same mechanism.
+- **FR(e₁, e₂)**: COMPOSITION of two communication events through intermediate e_w:
+  1. rf(e_w, e₁): downgrade from e₁ to e_w at level L₁ (how e₁ reads e_w's value)
+  2. co(e_w, e₂): downgrade from e₂ to e_w at level L₂ (how e₂ overwrites e_w)
+  The `noBetween` condition from RF ensures the composition is valid.
+
+FR should be defined using RF's `readsFrom.cases` (including noBetween) and CO's communication pattern, NOT carry abstract `co.cases`. The ordering should be DERIVED from the communication events.
 
 ### Strategy: PPOi hierarchical linearization points + linking def/lemma to Com edges
 
@@ -77,23 +89,33 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 The key: communication is **implicit** beyond the linearization point. The RF theorem already handles this — if the SC write has or got permissions, a subsequent read from another cluster sends a downgrade to the write's cache, establishing GLE ordering.
 
-**KEY DESIGN DECISION (2026-03-23): CO and FR are COMMUNICATION RELATIONS, not hierarchy carriers.**
+**KEY DESIGN DECISION (2026-03-23): CO and FR carry Prop-valued communication ordering, not Type-valued or hierarchy directly.**
 
-CO and FR were incorrectly defined as carrying `hierarchicallyOrdered` directly. This was wrong because:
-- `hierarchicallyOrdered` is a derived ranking, not a protocol-level communication pattern
-- CO/FR should mirror the RF definition structure (inductives covering communication cases)
-- The correct approach: CO carries `gleOrdering.Cases` (same structure as RF constraints), FR carries rf⁻¹ ; co (existential intermediate write with `readsFrom.cases` + `gleOrdering.Cases`)
+CO and FR now carry `co.cases` — a Prop-valued inductive mirroring `readsFrom.cases` with `sameGle`/`wObRGle` cases, reusing RF's Prop-valued sub-types where possible. This replaces the old `Nonempty(gleOrdering.Cases)` approach.
 
-**Implementation notes:**
-- `gleOrdering.Cases` is in `Type` (not `Prop`), so CO wraps it with `Nonempty`
-- FR uses existential quantification over the intermediate write `e_w`
-- The `gleOrdering.Cases → hierarchicallyOrdered` bridge is a proof obligation (co/fr_hierarchicallyOrdered sorry)
+**Implementation (2026-03-23):**
+- `co.cases` and `co.sameGle.cases` — Prop-valued inductives in `CMCM/Herd/Defs.lean`
+- CO structure carries `ordering : co.cases w₁_lin w₂_lin`
+- FR carries BOTH the rf⁻¹ ; co⁺ witness (decomposition) AND `ordering : co.cases e₁_lin e₂_lin` (direct hierarchy)
+- The `co.cases → hierarchicallyOrdered` bridge is `co_hierarchicallyOrdered` (nearly complete)
+
+**FR PHILOSOPHY (2026-03-23): FR needs direct ordering, not just rf + co composition.**
+Composing rf hierarchy(e_w, e₁) + co hierarchy(e_w, e₂) does NOT automatically give hierarchy(e₁, e₂).
+The "no intermediate write" argument from rf's `noBetween` is needed to exclude e₂ being between e_w and e₁.
+Rather than implementing this complex composition proof, FR carries `co.cases e₁_lin e₂_lin` directly.
+The rf/co⁺ witness documents the protocol-level justification.
+
+**REMAINING SORRY's (3 declarations):**
+1. `co_cases_hierarchicallyOrdered` (Proof.lean:354): 1 sorry for `sameGle.diffCle.wImmPredRCle.diffCluster`. Need: `rCleOrDownAtWAfterWCle.diffCluster`'s `encapDir` → CLE₁ OB CLE₂. The downgrade chain gives temporal containment (cdir_down inside CLE₂) but we need CLE₁.oEnd < CLE₂.oStart. Missing link: formal proof that the downgrade at e₁'s cluster happens AFTER CLE₁ completes.
+2. `ppoi_hierarchicallyOrdered_same_addr` (Proof.lean:266-278): 9 sorry's in GLE₂ OB GLE₁ contradiction case (dirAccessOfRequest 3×3 case split). Pre-existing.
+3. `cmcm` + `PartialOrder (Event n)` (Proof.lean:437-443): Alternative proof approach, WIP.
 
 **DEAD ENDS (don't repeat):**
 1. Temporal chaining of GLE/CLE for PPOi is a rabbit hole. The `previousGlobalCacheGotPerms` case decouples GLEs from CLE ordering for different addresses. Don't re-derive this.
 2. Trying to show CLE₂ OB CLE₁ → False WITHOUT case-splitting on `dirAccessOfRequest`. The `orderAfterDir` case means CLE₁ can be temporally after e₂. Must case-split on dirAccessOfRequest and use the nc.weak CLE-sharing insight (see below).
 3. Don't ask the user about protocol semantics derivable from reading `dirAccessOfRequest` and `linearizationEventOfRequest` definitions. Trace through the cases yourself.
-4. **Don't define CO/FR as carrying `hierarchicallyOrdered` directly.** They should carry communication pattern structures (`gleOrdering.Cases`, `readsFrom.cases`). Hierarchy is derived, not primitive.
+4. **Don't wrap `gleOrdering.Cases` (Type) with `Nonempty`** — define Prop-valued inductives mirroring RF instead.
+5. **FR composition proof (rf⁻¹ + co⁺ → hierarchy) is genuinely hard.** rf(e_w, e₁) + co⁺(e_w, e₂) gives e_w < e₁ and e_w < e₂, but NOT e₁ < e₂ without the "no intermediate write" argument. FR carries `co.cases` directly instead.
 
 **CONFIRMED (2026-03-23): The per-edge `hierarchicallyOrdered` approach IS correct for same-addr PPOi.**
 

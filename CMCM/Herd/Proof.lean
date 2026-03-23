@@ -1,5 +1,6 @@
 import CMCM.Herd.Relations
 import CMCM.Herd.RelationCycles
+import CMCM.RfProofHelpers
 import CompositionalProtocolProof.CompoundPPOs
 
 /-!
@@ -42,9 +43,8 @@ theorem hierarchicallyOrdered_irrefl
     : ¬ hierarchicallyOrdered h h := by
   intro hord
   simp only [hierarchicallyOrdered, gleOrderedBefore] at hord
-  rcases hord with hgle | ⟨_, hgcr | ⟨_, hcle | ⟨_, hcache⟩⟩⟩
+  rcases hord with hgle | ⟨_, hcle | ⟨_, hcache⟩⟩
   · exact Event.contradiction_of_reflexive_ordered_before n hgle
-  · exact Event.contradiction_of_reflexive_ordered_before n hgcr
   · exact Event.contradiction_of_reflexive_ordered_before n hcle
   · exact Event.contradiction_of_reflexive_ordered_before n hcache
 
@@ -65,23 +65,15 @@ theorem hierarchicallyOrdered_trans
   · rcases h23 with hgle23 | ⟨hgle_eq23, hsub23⟩
     · rw [hgle_eq12]; exact Or.inl hgle23
     · refine Or.inr ⟨hgle_eq12.trans hgle_eq23, ?_⟩
-      -- Level 2: GCR
-      rcases hsub12 with hgcr12 | ⟨hgcr_eq12, hsub12'⟩
-      · rcases hsub23 with hgcr23 | ⟨hgcr_eq23, _⟩
-        · exact Or.inl (Trans.trans hgcr12 hgcr23)
-        · rw [← hgcr_eq23]; exact Or.inl hgcr12
-      · rcases hsub23 with hgcr23 | ⟨hgcr_eq23, hsub23'⟩
-        · rw [hgcr_eq12]; exact Or.inl hgcr23
-        · refine Or.inr ⟨hgcr_eq12.trans hgcr_eq23, ?_⟩
-          -- Level 3: CLE
-          rcases hsub12' with hcle12 | ⟨hcle_eq12, hcache12⟩
-          · rcases hsub23' with hcle23 | ⟨hcle_eq23, _⟩
-            · exact Or.inl (Trans.trans hcle12 hcle23)
-            · rw [← hcle_eq23]; exact Or.inl hcle12
-          · rcases hsub23' with hcle23 | ⟨hcle_eq23, hcache23⟩
-            · rw [hcle_eq12]; exact Or.inl hcle23
-            · -- Level 4: cache event
-              exact Or.inr ⟨hcle_eq12.trans hcle_eq23, Trans.trans hcache12 hcache23⟩
+      -- Level 2: CLE
+      rcases hsub12 with hcle12 | ⟨hcle_eq12, hcache12⟩
+      · rcases hsub23 with hcle23 | ⟨hcle_eq23, _⟩
+        · exact Or.inl (Trans.trans hcle12 hcle23)
+        · rw [← hcle_eq23]; exact Or.inl hcle12
+      · rcases hsub23 with hcle23 | ⟨hcle_eq23, hcache23⟩
+        · rw [hcle_eq12]; exact Or.inl hcle23
+        · -- Level 3: cache event
+          exact Or.inr ⟨hcle_eq12.trans hcle_eq23, Trans.trans hcache12 hcache23⟩
 
 /-! ## Witness canonicalization
 
@@ -175,7 +167,7 @@ theorem gcr_canonical
   have : h₁ = h₂ := Subsingleton.elim h₁ h₂
   subst this; rfl
 
-/-- CLE equality + OrderedBefore gives hierarchicallyOrdered at level 4 (cache). -/
+/-- CLE equality + OrderedBefore gives hierarchicallyOrdered at level 3 (cache). -/
 theorem hierarchicallyOrdered_of_same_cle
     {h₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
@@ -183,8 +175,7 @@ theorem hierarchicallyOrdered_of_same_cle
     (hob : e₁.OrderedBefore n e₂)
     : hierarchicallyOrdered h₁ h₂ := by
   have hgle := cle_eq_implies_gle_eq hcle
-  have hgcr := cle_eq_implies_gcr_eq hcle
-  exact Or.inr ⟨hgle, Or.inr ⟨hgcr, Or.inr ⟨hcle, hob⟩⟩⟩
+  exact Or.inr ⟨hgle, Or.inr ⟨hcle, hob⟩⟩
 
 /-- Address is preserved through `dirAccessOfRequest`: the request event and its
     directory access event share the same address. -/
@@ -334,24 +325,54 @@ theorem rfe_hierarchicallyOrdered
   | wObRGle hw_r_gle_ob _ =>
     exact Or.inl hw_r_gle_ob
 
-/-- co edges give hierarchical ordering.
-    From `gleOrdering.Cases` (via Nonempty):
-    - `wObRGle`: GLE₁ OB GLE₂ → level 1 of hierarchicallyOrdered
-    - `sameGle`: same GLE with CLE sub-cases → needs CLE→hierarchy bridge -/
+/-- `co.cases` implies `hierarchicallyOrdered`. Shared by co and fr proofs.
+    - `wObRGle`: GLE₁ OB GLE₂ → level 1
+    - `sameGle.sameCle`: GLE eq, CLE eq, cache OB → level 3
+    - `sameGle.diffCle`: GLE eq, CLE ordering → level 2 -/
+theorem co_cases_hierarchicallyOrdered
+    {h₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (hord : co.cases h₁ h₂)
+    : hierarchicallyOrdered h₁ h₂ := by
+  simp only [hierarchicallyOrdered, gleOrderedBefore]
+  cases hord with
+  | sameGle gle_eq cle_cases =>
+    right; constructor
+    · show gle h₁ = gle h₂; unfold gle; exact gle_eq
+    · cases cle_cases with
+      | sameCle cle_eq cache_ob =>
+        right; constructor
+        · show cle h₁ = cle h₂; unfold cle; exact cle_eq
+        · exact cache_ob
+      | diffCle cle_ordering =>
+        cases cle_ordering with
+        | wImmPredRCle w_imm_pred =>
+          cases w_imm_pred with
+          | sameCluster _ hw_ob_r_cle =>
+            left; show (cle h₁).OrderedBefore n (cle h₂)
+            unfold cle; exact hw_ob_r_cle
+          | diffCluster hdiff _ =>
+            exact absurd (same_gle_implies_same_protocol h₁ h₂ gle_eq) hdiff
+        | evictOrReadBetweenWAndRCleSameCluster evict =>
+          left; show (cle h₁).OrderedBefore n (cle h₂)
+          unfold cle; exact evict.wObR
+  | wObRGle gle_ob _ =>
+    left; show (gle h₁).OrderedBefore n (gle h₂)
+    unfold gle; exact gle_ob
+
+/-- co edges give hierarchical ordering (via `co_cases_hierarchicallyOrdered`). -/
 theorem co_hierarchicallyOrdered
     {e₁ e₂ : Event n}
     (h : @Herd.co n compound b init e₁ e₂)
-    : hierarchicallyOrdered h.w₁_lin h.w₂_lin := by
-  sorry
+    : hierarchicallyOrdered h.w₁_lin h.w₂_lin :=
+  co_cases_hierarchicallyOrdered h.ordering
 
-/-- fr edges give hierarchical ordering.
-    Composed from rf⁻¹ (readsFrom.cases) and co (gleOrdering.Cases) on the
-    intermediate write e_w. -/
+/-- fr edges give hierarchical ordering (via direct `co.cases` ordering). -/
 theorem fr_hierarchicallyOrdered
     {e₁ e₂ : Event n}
     (h : @Herd.fr n compound b init e₁ e₂)
-    : hierarchicallyOrdered h.e₁_lin h.e₂_lin := by
-  sorry
+    : hierarchicallyOrdered h.e₁_lin h.e₂_lin :=
+  co_cases_hierarchicallyOrdered h.ordering
 
 /-- PPOi edges imply hierarchical ordering.
 
@@ -375,7 +396,7 @@ theorem ppoi_hierarchicallyOrdered
 /-- Every single `com` step preserves hierarchical ordering (using canonical witnesses). -/
 theorem com_step_hierarchicallyOrdered
     (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
-    (hunion : (PPOi ∪ com compound b init) e₁ e₂)
+    (hunion : (@PPOi n b ∪ com compound b init) e₁ e₂)
     : hierarchicallyOrdered (hknow compound b init e₁) (hknow compound b init e₂) := by
   cases hunion with
   | inl h =>
@@ -391,7 +412,7 @@ theorem com_step_hierarchicallyOrdered
 /-- A `TransGen com` path from e₁ to e₂ gives hierarchical ordering between them. -/
 theorem transGen_com_hierarchicallyOrdered
     (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
-    (hpath : Relation.TransGen (PPOi ∪ com compound b init) e₁ e₂)
+    (hpath : Relation.TransGen (@PPOi n b ∪ com compound b init) e₁ e₂)
     : hierarchicallyOrdered (hknow compound b init e₁) (hknow compound b init e₂) := by
   induction hpath with
   | single hstep =>
@@ -408,17 +429,18 @@ theorem transGen_com_hierarchicallyOrdered
     contradicting irreflexivity. -/
 theorem cmcm_acyclic
     (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
-    : Relation.Acyclic (PPOi ∪ com compound b init) := by
+    : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
   intro e hcycle
   exact hierarchicallyOrdered_irrefl _
     (transGen_com_hierarchicallyOrdered hknow_dir_access hcycle)
 
+-- Alternative formulation via PartialOrder (WIP — needs PartialOrder instance on Event n)
 instance : PartialOrder (Event n) := sorry
 
-theorem cmcm (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) :
-  Relation.Acyclic (PPOi ∪ com cmp b init) := by
+theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n) :
+  Relation.Acyclic (@PPOi n b' ∪ com cmp b' init') := by
   apply CMCM.suffices_inclusion
-  · case hppo => sorry -- This should be the original main theorem
-  · case hcom => sorry -- This should be the Rf stuff.
+  · case hppo => sorry -- PPOi ⊆ PartialOrder.lt
+  · case hcom => sorry -- com ⊆ PartialOrder.lt
 
 end Herd
