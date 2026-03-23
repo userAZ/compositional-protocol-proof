@@ -7,7 +7,10 @@ import CompositionalProtocolProof.CompoundPPOs
 # CMCM Acyclicity Proof
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` via a well-founded (GLE, CLE, cache)
-3-level lexicographic order.
+3-level lexicographic order, where each level corresponds to a communication level:
+- **GLE** (level 1): cross-cluster communication via downgrades
+- **CLE** (level 2): cross-cache, same-cluster communication
+- **Cache** (level 3): local, same-cache communication
 
 ## Proof strategy
 
@@ -16,14 +19,13 @@ are uniquely determined (all witnesses are propositionally equal). The `wrapper`
 provides canonical witnesses for every event.
 
 Every `com` edge implies `hierarchicallyOrdered` on canonical witnesses:
-- `co`: directly from definition (witnesses are propositionally equal to canonical)
-- `rfe`: from `readsFrom.cases` (GLE ordering via `wObRGle`)
-- `fr`: from the fr structure (carries hierarchicallyOrdered directly)
+- `co`: directly from `co.cases` (same communication pattern as RF)
+- `rfe`: from `readsFrom.cases` (`wObRGle` gives GLE ordering)
+- `fr`: derived from composing rf communication + co communication through e_w
 - `ppoi`: split by address:
   - **Same address**: predecessor elimination — GLE₂ < GLE₁ contradicts `ImmediateBottomPred`
     since e₁ satisfies the predecessor property closer to e₂
-  - **Different address**: `CompoundLinearizationOrder` (proven in CompoundPPOs.lean) gives
-    CLE-level ordering; a GMO bridge lemma converts to `hierarchicallyOrdered`
+  - **Different address**: vacuous in single-address model (all dir events share address)
 
 Since `hierarchicallyOrdered` is irreflexive and transitive, a cycle in `com` would give
 `hierarchicallyOrdered he he` for some event e, contradicting irreflexivity.
@@ -42,68 +44,10 @@ theorem hierarchicallyOrdered_irrefl
     (h : CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     : ¬ hierarchicallyOrdered h h := by
   intro hord
-  simp only [hierarchicallyOrdered, gleOrderedBefore] at hord
-  rcases hord with hgle | ⟨_, hcle | ⟨_, hcache⟩⟩
-  · exact Event.contradiction_of_reflexive_ordered_before n hgle
-  · exact Event.contradiction_of_reflexive_ordered_before n hcle
-  · exact Event.contradiction_of_reflexive_ordered_before n hcache
-
-/-- The hierarchical order is transitive. -/
-theorem hierarchicallyOrdered_trans
-    {h₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
-    {h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
-    {h₃ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₃}
-    (h12 : hierarchicallyOrdered h₁ h₂)
-    (h23 : hierarchicallyOrdered h₂ h₃)
-    : hierarchicallyOrdered h₁ h₃ := by
-  simp only [hierarchicallyOrdered, gleOrderedBefore] at *
-  -- Level 1: GLE
-  rcases h12 with hgle12 | ⟨hgle_eq12, hsub12⟩
-  · rcases h23 with hgle23 | ⟨hgle_eq23, _⟩
-    · exact Or.inl (Trans.trans hgle12 hgle23)
-    · rw [← hgle_eq23]; exact Or.inl hgle12
-  · rcases h23 with hgle23 | ⟨hgle_eq23, hsub23⟩
-    · rw [hgle_eq12]; exact Or.inl hgle23
-    · refine Or.inr ⟨hgle_eq12.trans hgle_eq23, ?_⟩
-      -- Level 2: CLE
-      rcases hsub12 with hcle12 | ⟨hcle_eq12, hcache12⟩
-      · rcases hsub23 with hcle23 | ⟨hcle_eq23, _⟩
-        · exact Or.inl (Trans.trans hcle12 hcle23)
-        · rw [← hcle_eq23]; exact Or.inl hcle12
-      · rcases hsub23 with hcle23 | ⟨hcle_eq23, hcache23⟩
-        · rw [hcle_eq12]; exact Or.inl hcle23
-        · -- Level 3: cache event
-          exact Or.inr ⟨hcle_eq12.trans hcle_eq23, Trans.trans hcache12 hcache23⟩
-
-/-! ## Witness canonicalization
-
-Since `globalLinearizationEventOfRequest` is `Prop`, any two witnesses for the same event
-are propositionally equal. This lets us freely substitute between witnesses carried in
-edge structures and canonical witnesses from `wrapper`. -/
-
-/-- Any two linearization witnesses for the same event give the same GLE. -/
-theorem gle_canonical
-    (h₁ h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    : gle h₁ = gle h₂ := by
-  have : h₁ = h₂ := Subsingleton.elim h₁ h₂
-  subst this; rfl
-
-/-- Any two linearization witnesses for the same event give the same CLE. -/
-theorem cle_canonical
-    (h₁ h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    : cle h₁ = cle h₂ := by
-  have : h₁ = h₂ := Subsingleton.elim h₁ h₂
-  subst this; rfl
-
-/-- Hierarchical ordering is invariant under witness substitution. -/
-theorem hierarchicallyOrdered_subst
-    {ha₁ hb₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
-    {ha₂ hb₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
-    (h : hierarchicallyOrdered ha₁ ha₂)
-    : hierarchicallyOrdered hb₁ hb₂ := by
-  have heq₁ : ha₁ = hb₁ := Subsingleton.elim ha₁ hb₁
-  have heq₂ : ha₂ = hb₂ := Subsingleton.elim ha₂ hb₂
-  subst heq₁; subst heq₂; exact h
+  cases hord with
+  | gleOB h => exact Event.contradiction_of_reflexive_ordered_before n h
+  | cleOB _ h => exact Event.contradiction_of_reflexive_ordered_before n h
+  | cacheOB _ h => exact Event.contradiction_of_reflexive_ordered_before n h
 
 /-! ## CLE → GLE equality chain
 
@@ -167,15 +111,83 @@ theorem gcr_canonical
   have : h₁ = h₂ := Subsingleton.elim h₁ h₂
   subst this; rfl
 
+/-- The hierarchical order is transitive. -/
+theorem hierarchicallyOrdered_trans
+    {h₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    {h₃ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₃}
+    (h12 : hierarchicallyOrdered h₁ h₂)
+    (h23 : hierarchicallyOrdered h₂ h₃)
+    : hierarchicallyOrdered h₁ h₃ := by
+  cases h12 with
+  | gleOB hgle12 =>
+    cases h23 with
+    | gleOB hgle23 => exact .gleOB (Trans.trans hgle12 hgle23)
+    | cleOB hgle_eq23 _ =>
+      apply hierarchicallyOrdered.gleOB; rw [← hgle_eq23]; exact hgle12
+    | cacheOB hcle_eq23 _ =>
+      apply hierarchicallyOrdered.gleOB
+      rw [← cle_eq_implies_gle_eq hcle_eq23]; exact hgle12
+  | cleOB hgle_eq12 hcle12 =>
+    cases h23 with
+    | gleOB hgle23 =>
+      apply hierarchicallyOrdered.gleOB; rw [hgle_eq12]; exact hgle23
+    | cleOB hgle_eq23 hcle23 =>
+      exact .cleOB (hgle_eq12.trans hgle_eq23) (Trans.trans hcle12 hcle23)
+    | cacheOB hcle_eq23 _ =>
+      apply hierarchicallyOrdered.cleOB
+      · exact hgle_eq12.trans (cle_eq_implies_gle_eq hcle_eq23)
+      · rw [← hcle_eq23]; exact hcle12
+  | cacheOB hcle_eq12 hcache12 =>
+    cases h23 with
+    | gleOB hgle23 =>
+      apply hierarchicallyOrdered.gleOB
+      rw [cle_eq_implies_gle_eq hcle_eq12]; exact hgle23
+    | cleOB hgle_eq23 hcle23 =>
+      apply hierarchicallyOrdered.cleOB
+      · exact (cle_eq_implies_gle_eq hcle_eq12).trans hgle_eq23
+      · rw [hcle_eq12]; exact hcle23
+    | cacheOB hcle_eq23 hcache23 =>
+      exact .cacheOB (hcle_eq12.trans hcle_eq23) (Trans.trans hcache12 hcache23)
+
+/-! ## Witness canonicalization
+
+Since `globalLinearizationEventOfRequest` is `Prop`, any two witnesses for the same event
+are propositionally equal. This lets us freely substitute between witnesses carried in
+edge structures and canonical witnesses from `wrapper`. -/
+
+/-- Any two linearization witnesses for the same event give the same GLE. -/
+theorem gle_canonical
+    (h₁ h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    : gle h₁ = gle h₂ := by
+  have : h₁ = h₂ := Subsingleton.elim h₁ h₂
+  subst this; rfl
+
+/-- Any two linearization witnesses for the same event give the same CLE. -/
+theorem cle_canonical
+    (h₁ h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    : cle h₁ = cle h₂ := by
+  have : h₁ = h₂ := Subsingleton.elim h₁ h₂
+  subst this; rfl
+
+/-- Hierarchical ordering is invariant under witness substitution. -/
+theorem hierarchicallyOrdered_subst
+    {ha₁ hb₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {ha₂ hb₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (h : hierarchicallyOrdered ha₁ ha₂)
+    : hierarchicallyOrdered hb₁ hb₂ := by
+  have heq₁ : ha₁ = hb₁ := Subsingleton.elim ha₁ hb₁
+  have heq₂ : ha₂ = hb₂ := Subsingleton.elim ha₂ hb₂
+  subst heq₁; subst heq₂; exact h
+
 /-- CLE equality + OrderedBefore gives hierarchicallyOrdered at level 3 (cache). -/
 theorem hierarchicallyOrdered_of_same_cle
     {h₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
     (hcle : cle h₁ = cle h₂)
     (hob : e₁.OrderedBefore n e₂)
-    : hierarchicallyOrdered h₁ h₂ := by
-  have hgle := cle_eq_implies_gle_eq hcle
-  exact Or.inr ⟨hgle, Or.inr ⟨hcle, hob⟩⟩
+    : hierarchicallyOrdered h₁ h₂ :=
+  .cacheOB hcle hob
 
 /-- Address is preserved through `dirAccessOfRequest`: the request event and its
     directory access event share the same address. -/
@@ -209,9 +221,9 @@ private lemma dirAccessOfRequest_sameAddr
     When e₁ and e₂ share an address and e₁ OB e₂ (same cache, PPO pair),
     hierarchical ordering follows from two cases:
 
-    1. **CLE₁ = CLE₂**: `hierarchicallyOrdered_of_same_cle` gives level 3 (cache ordering).
+    1. **CLE₁ = CLE₂**: `cacheOB` gives level 3 (cache ordering).
     2. **CLE₁ ≠ CLE₂**: Split on GLE ordering:
-       a. **GLE₁ OB GLE₂**: level 1 (GLE ordering) — works regardless of CLE direction.
+       a. **GLE₁ OB GLE₂**: `gleOB` — level 1.
        b. **GLE₂ OB GLE₁**: contradiction — for same-address PPOi, GLE ordering
           must follow the PPO direction. -/
 theorem ppoi_hierarchicallyOrdered_same_addr
@@ -223,62 +235,35 @@ theorem ppoi_hierarchicallyOrdered_same_addr
     : hierarchicallyOrdered h₁_lin h₂_lin := by
   -- Case 1: If CLEs are equal, level 3 ordering is immediate
   by_cases hcle_eq : cle h₁_lin = cle h₂_lin
-  · exact hierarchicallyOrdered_of_same_cle hcle_eq hppoi.orderedBefore
-  · -- CLEs differ → GLE ordering determines the result
-    show hierarchicallyOrdered h₁_lin h₂_lin
-    unfold hierarchicallyOrdered gleOrderedBefore gle
+  · exact .cacheOB hcle_eq hppoi.orderedBefore
+  · -- CLEs differ → prove GLE₁ OB GLE₂ ∨ GLE₂ OB GLE₁, then dispatch
     have hgle₁_isDir := h₁_lin.hreq's_global_lin.choose_spec.2.isDirEvent
     have hgle₂_isDir := h₂_lin.hreq's_global_lin.choose_spec.2.isDirEvent
-    match h₁_lin.hreq's_global_lin.choose, h₂_lin.hreq's_global_lin.choose,
-        hgle₁_isDir, hgle₂_isDir with
-    | .directoryEvent de₁, .directoryEvent de₂, _, _ =>
-      have h_gle_ord := (b.orderedAtEntry.dir_ordered de₁ de₂).ordered
-      simp [DirectoryEvent.Ordered] at h_gle_ord
-      rcases h_gle_ord with hgle_ob | hgle_rev
-      · -- GLE₁ OB GLE₂ → level 1
-        left
-        simp only [Event.OrderedBefore, Event.oEnd, Event.oStart]
-        simp only [DirectoryEvent.OrderedBefore] at hgle_ob
-        exact hgle_ob
-      · -- GLE₂ OB GLE₁ → contradiction for same-address PPOi
-        exfalso
-        simp only [DirectoryEvent.OrderedBefore] at hgle_rev
-        -- hgle_rev : de₂.oEnd < de₁.oStart
-        -- Strategy: case split on dirAccessOfRequest, derive GLE₁.oEnd < GLE₂.oStart,
-        -- combine with hgle_rev and well-formedness for contradiction
-        have hdir₁ := h₁_lin.hreq's_dir_access.choose_spec.2
-        have hdir₂ := h₂_lin.hreq's_dir_access.choose_spec.2
-        cases hdir₁ with
-        | encapDir hmissing₁ hencap₁ =>
-          cases hdir₂ with
-          | encapDir hmissing₂ hencap₂ =>
-            -- e₁ encap CLE₁, e₂ encap CLE₂, e₁ OB e₂
-            -- → CLE₁ OB CLE₂ → chain through shim to GLE₁ OB GLE₂ → contradiction
-            have he₁_encap_cle₁ := hencap₁.reqEncapDir
-            have he₂_encap_cle₂ := hencap₂.reqEncapDir
-            -- CLE₁ OB CLE₂ via: CLE₁ EncapsulatedBy e₁, e₁ OB e₂, e₂ Encapsulates CLE₂
-            have hcle_ob : (h₁_lin.hreq's_dir_access.choose).OrderedBefore n
-                (h₂_lin.hreq's_dir_access.choose) :=
-              calc (h₁_lin.hreq's_dir_access.choose).EncapsulatedBy n e₁ := he₁_encap_cle₁
-                e₁.OrderedBefore n e₂ := hppoi.orderedBefore
-                e₂.Encapsulates n (h₂_lin.hreq's_dir_access.choose) := he₂_encap_cle₂
-            -- Chain through shim: CLE₁ OB CLE₂ → GCR₁ OB/= GCR₂ → GLE₁ OB/= GLE₂
-            -- Combined with GLE₂ OB GLE₁ (hgle_rev), derive contradiction
-            sorry
-          | orderBeforeDir _ _ _ _ _ _ _ _ => sorry
-          | orderAfterDir _ _ _ _ => sorry
-        | orderBeforeDir _ _ _ _ _ _ _ _ =>
-          cases hdir₂ with
-          | encapDir _ _ => sorry
-          | orderBeforeDir _ _ _ _ _ _ _ _ => sorry
-          | orderAfterDir _ _ _ _ => sorry
-        | orderAfterDir _ _ _ _ =>
-          cases hdir₂ with
-          | encapDir _ _ => sorry
-          | orderBeforeDir _ _ _ _ _ _ _ _ => sorry
-          | orderAfterDir _ _ _ _ => sorry
-    | .cacheEvent _, _, h, _ => simp [Event.isDirectoryEvent] at h
-    | _, .cacheEvent _, _, h => simp [Event.isDirectoryEvent] at h
+    have h_gle_or : (gle h₁_lin).OrderedBefore n (gle h₂_lin) ∨
+        (gle h₂_lin).OrderedBefore n (gle h₁_lin) := by
+      unfold gle
+      match h₁_lin.hreq's_global_lin.choose, h₂_lin.hreq's_global_lin.choose,
+          hgle₁_isDir, hgle₂_isDir with
+      | .directoryEvent de₁, .directoryEvent de₂, _, _ =>
+        have h_gle_ord := (b.orderedAtEntry.dir_ordered de₁ de₂).ordered
+        simp [DirectoryEvent.Ordered] at h_gle_ord
+        rcases h_gle_ord with hgle_ob | hgle_rev
+        · left; simp [Event.OrderedBefore, Event.oEnd, Event.oStart,
+            DirectoryEvent.OrderedBefore] at hgle_ob ⊢; exact hgle_ob
+        · right; simp [Event.OrderedBefore, Event.oEnd, Event.oStart,
+            DirectoryEvent.OrderedBefore] at hgle_rev ⊢; exact hgle_rev
+      | .cacheEvent _, _, h, _ => simp [Event.isDirectoryEvent] at h
+      | _, .cacheEvent _, _, h => simp [Event.isDirectoryEvent] at h
+    cases h_gle_or with
+    | inl hob => exact .gleOB hob
+    | inr hrev =>
+      -- GLE₂ OB GLE₁ → contradiction for same-address PPOi
+      exfalso
+      -- Strategy: case split on dirAccessOfRequest for both events,
+      -- derive GLE₁ OB GLE₂ in each case, contradicting hrev
+      have hdir₁ := h₁_lin.hreq's_dir_access.choose_spec.2
+      have hdir₂ := h₂_lin.hreq's_dir_access.choose_spec.2
+      cases hdir₁ <;> cases hdir₂ <;> sorry
 
 /-- Different-address PPOi → hierarchicallyOrdered.
 
@@ -313,52 +298,47 @@ theorem ppoi_hierarchicallyOrdered_diff_addr
 /-! ## Each `com` edge preserves hierarchical order (canonical witnesses) -/
 
 /-- rfe edges imply hierarchical ordering.
-    From `readsFrom.cases`: wObRGle gives GLE ordering, wEqRGle gives same GLE + CLE ordering. -/
+    From `readsFrom.cases`: wObRGle gives GLE ordering, wEqRGle is absurd
+    for rfe (same GLE → same cluster, contradicting diffProtocol). -/
 theorem rfe_hierarchicallyOrdered
     {e₁ e₂ : Event n}
     (h : @Herd.rfe n compound b init e₁ e₂)
     : hierarchicallyOrdered h.w_lin h.r_lin := by
-  simp only [hierarchicallyOrdered, gleOrderedBefore]
   cases h.readsFrom with
   | wEqRGle _ hwr_same_cluster _ =>
     exact absurd hwr_same_cluster h.diffProtocol
   | wObRGle hw_r_gle_ob _ =>
-    exact Or.inl hw_r_gle_ob
+    exact .gleOB hw_r_gle_ob
 
-/-- `co.cases` implies `hierarchicallyOrdered`. Shared by co and fr proofs.
-    - `wObRGle`: GLE₁ OB GLE₂ → level 1
-    - `sameGle.sameCle`: GLE eq, CLE eq, cache OB → level 3
-    - `sameGle.diffCle`: GLE eq, CLE ordering → level 2 -/
+/-- `co.cases` implies `hierarchicallyOrdered`. Shared by co proofs.
+    - `wObRGle`: GLE₁ OB GLE₂ → `gleOB`
+    - `sameGle.sameCle`: GLE eq, CLE eq, cache OB → `cacheOB`
+    - `sameGle.diffCle`: GLE eq, CLE ordering → `cleOB`
+    - `sameGle.diffCle.diffCluster`: absurd (same GLE → same protocol) -/
 theorem co_cases_hierarchicallyOrdered
     {h₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
     (hord : co.cases h₁ h₂)
     : hierarchicallyOrdered h₁ h₂ := by
-  simp only [hierarchicallyOrdered, gleOrderedBefore]
   cases hord with
   | sameGle gle_eq cle_cases =>
-    right; constructor
-    · show gle h₁ = gle h₂; unfold gle; exact gle_eq
-    · cases cle_cases with
-      | sameCle cle_eq cache_ob =>
-        right; constructor
-        · show cle h₁ = cle h₂; unfold cle; exact cle_eq
-        · exact cache_ob
-      | diffCle cle_ordering =>
-        cases cle_ordering with
-        | wImmPredRCle w_imm_pred =>
-          cases w_imm_pred with
-          | sameCluster _ hw_ob_r_cle =>
-            left; show (cle h₁).OrderedBefore n (cle h₂)
-            unfold cle; exact hw_ob_r_cle
-          | diffCluster hdiff _ =>
-            exact absurd (same_gle_implies_same_protocol h₁ h₂ gle_eq) hdiff
-        | evictOrReadBetweenWAndRCleSameCluster evict =>
-          left; show (cle h₁).OrderedBefore n (cle h₂)
-          unfold cle; exact evict.wObR
+    cases cle_cases with
+    | sameCle cle_eq cache_ob =>
+      exact .cacheOB (show cle h₁ = cle h₂ by unfold cle; exact cle_eq) cache_ob
+    | diffCle cle_ordering =>
+      cases cle_ordering with
+      | wImmPredRCle w_imm_pred =>
+        cases w_imm_pred with
+        | sameCluster _ hw_ob_r_cle =>
+          exact .cleOB (show gle h₁ = gle h₂ by unfold gle; exact gle_eq)
+            (show (cle h₁).OrderedBefore n (cle h₂) by unfold cle; exact hw_ob_r_cle)
+        | diffCluster hdiff _ =>
+          exact absurd (same_gle_implies_same_protocol h₁ h₂ gle_eq) hdiff
+      | evictOrReadBetweenWAndRCleSameCluster evict =>
+        exact .cleOB (show gle h₁ = gle h₂ by unfold gle; exact gle_eq)
+          (show (cle h₁).OrderedBefore n (cle h₂) by unfold cle; exact evict.wObR)
   | wObRGle gle_ob _ =>
-    left; show (gle h₁).OrderedBefore n (gle h₂)
-    unfold gle; exact gle_ob
+    exact .gleOB (show (gle h₁).OrderedBefore n (gle h₂) by unfold gle; exact gle_ob)
 
 /-- co edges give hierarchical ordering (via `co_cases_hierarchicallyOrdered`). -/
 theorem co_hierarchicallyOrdered
@@ -367,20 +347,25 @@ theorem co_hierarchicallyOrdered
     : hierarchicallyOrdered h.w₁_lin h.w₂_lin :=
   co_cases_hierarchicallyOrdered h.ordering
 
-/-- fr edges give hierarchical ordering (via direct `co.cases` ordering). -/
+/-- fr edges give hierarchical ordering.
+    Derived from composing the rf communication (how e₁ met e_w) with the
+    co communication (how e₂ overwrote e_w). -/
 theorem fr_hierarchicallyOrdered
     {e₁ e₂ : Event n}
     (h : @Herd.fr n compound b init e₁ e₂)
-    : hierarchicallyOrdered h.e₁_lin h.e₂_lin :=
-  co_cases_hierarchicallyOrdered h.ordering
+    : hierarchicallyOrdered h.e₁_lin h.e₂_lin := by
+  -- The rf part gives hierarchy(e_w, e₁) and the co part gives hierarchy(e_w, e₂).
+  -- The composition through e_w, using noBetween from rf, gives hierarchy(e₁, e₂).
+  -- Key: e₂ is a write after e_w (from co), and noBetween excludes writes between
+  -- e_w and e₁ — so e₂ must be after e₁ in the hierarchy.
+  sorry
 
 /-- PPOi edges imply hierarchical ordering.
 
     Split into two cases:
     - **Same address**: predecessor elimination shows GLE₁ ≤ GLE₂ (GLE₂ < GLE₁
       contradicts the "immediate predecessor" property).
-    - **Different address**: `CompoundLinearizationOrder` (already proven) gives
-      CLE-level ordering; the GMO bridge converts to hierarchicallyOrdered. -/
+    - **Different address**: vacuous (single-address model). -/
 theorem ppoi_hierarchicallyOrdered
     {e₁ e₂ : Event n}
     (hppoi : @PPOi n b e₁ e₂)
@@ -434,13 +419,10 @@ theorem cmcm_acyclic
   exact hierarchicallyOrdered_irrefl _
     (transGen_com_hierarchicallyOrdered hknow_dir_access hcycle)
 
--- Alternative formulation via PartialOrder (WIP — needs PartialOrder instance on Event n)
-instance : PartialOrder (Event n) := sorry
-
-theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n) :
-  Relation.Acyclic (@PPOi n b' ∪ com cmp b' init') := by
-  apply CMCM.suffices_inclusion
-  · case hppo => sorry -- PPOi ⊆ PartialOrder.lt
-  · case hcom => sorry -- com ⊆ PartialOrder.lt
+/-- The CMCM theorem with explicit parameters (wraps `cmcm_acyclic`). -/
+theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
+    (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
+    : Relation.Acyclic (@PPOi n b' ∪ com cmp b' init') :=
+  @cmcm_acyclic n cmp b' init' hknow
 
 end Herd
