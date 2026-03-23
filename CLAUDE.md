@@ -77,10 +77,16 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 The key: communication is **implicit** beyond the linearization point. The RF theorem already handles this — if the SC write has or got permissions, a subsequent read from another cluster sends a downgrade to the write's cache, establishing GLE ordering.
 
-**DEAD END (don't repeat):**
+**DEAD ENDS (don't repeat):**
 1. Trying to prove each PPOi edge independently produces `hierarchicallyOrdered` is the WRONG APPROACH. PPOi doesn't need to produce GLE/CLE ordering — it produces linearization event ordering (PPOi_lin). GLE/CLE are only relevant for rfe/co/fr.
 2. Temporal chaining of GLE/CLE for PPOi is a rabbit hole. The `previousGlobalCacheGotPerms` case decouples GLEs from CLE ordering for different addresses. Don't re-derive this.
 3. The current per-edge `com_step_hierarchicallyOrdered` proof structure is wrong for PPOi. The proof needs a compositional argument that composes PPOi_lin + linking def + com ordering.
+4. **`hierarchicallyOrdered` is PROVABLY FALSE for same-addr PPOi** in the CLE₂ OB CLE₁ case (2026-03-22 analysis): When e₂ has perms from predecessor E_pred BEFORE e₁, `orderBeforeDir` gives CLE₂ inside E_pred (before e₁), while `encapDir` gives CLE₁ inside e₁. So CLE₂ OB CLE₁. And via `encapGlobalCache` chain: GCR₂ OB GCR₁ → GLE₂ OB GLE₁. This makes `hierarchicallyOrdered(e₁_lin, e₂_lin)` false (would need GLE₁ OB GLE₂). Sorry #2 at line 212 is **unprovable** — the scenario it tries to rule out actually exists. The three sorry's are not missing sub-lemmas; they reflect a fundamentally wrong proof architecture.
+5. **No single simple ranking function works for ALL four edge types:**
+   - GLE.oEnd: works for rfe/co/fr, fails for PPOi (diff-addr GLE unconstrained, same-addr GLE can decrease)
+   - compound_lin.oEnd: works for PPOi, uncertain for rfe/co/fr (compound_lin often CONTAINS GLE, so GLE ordering ≠ compound_lin ordering)
+   - e.oEnd (cache event): works for PPOi (e₁ OB e₂), fails for rfe (cross-cluster events not temporally ordered)
+   - The encapsulation goes the WRONG way: compound_lin ⊂ cache event, GLE ⊂ CLE ⊂ cache event. So bigger events (cache) have BIGGER oEnd, not smaller.
 
 **KEY CONCEPTUAL CORRECTION (2026-03-22): PPOi does NOT need to produce `hierarchicallyOrdered`**
 
@@ -125,13 +131,35 @@ The current proof architecture (each edge → `hierarchicallyOrdered` independen
 - Reverse direction (Herd acyclicity → protocol guarantees): separate later goal
 - The linking def should be designed to potentially support both directions
 
+**PROMISING DIRECTION: compound_lin.oEnd via rfe downgrade chain (2026-03-22)**
+
+For rfe(e_w, e_r) with `cleEncap` case:
+1. compound_lin(e_w).oEnd < e_w.oEnd (e_w encapsulates compound_lin)
+2. e_w.oEnd < e_r_down.oStart (`existsRDownAtW`: write OB downgrade at its cache)
+3. e_r_cdir_down is inside CLE(e_r) (`cleEncap`: CLE encapsulates dir downgrade)
+4. IF e_r_cdir_down encapsulates e_r_down (dir triggers cache downgrade): e_r_down.oEnd < e_r_cdir_down.oEnd
+5. Then: compound_lin(e_w).oEnd < e_w.oEnd < e_r_down.oStart < e_r_down.oEnd < e_r_cdir_down.oEnd < CLE(e_r).oEnd
+6. For `clusterCacheLin`/`previousGotPerms` on reader: compound_lin(e_r).oEnd ≥ CLE(e_r).oEnd
+7. Chain gives: compound_lin(e_w).oEnd < compound_lin(e_r).oEnd ✓
+
+**KEY GAP**: Step 4 — need `e_r_cdir_down.Encapsulates n e_r_down` (dir downgrade encapsulates cache downgrade). NOT stated in `encapProxyAndDirAndCDown` — the two existentials are independent with no formal link. TODO comment at Rf.lean:730 acknowledges this is not yet formalized. `rccOStyleDowngrade.dirEncapDowngrade` has the relationship but in a different context.
+
+**GOOD NEWS**: Step 3 works in BOTH encapDirRelation cases:
+- `cleEncap`: CLE encapsulates e_r_cdir_down → e_r_cdir_down.oEnd < CLE.oEnd ✓
+- `gcacheEncap`: explicit `cdownEndBeforeCle : e_r_cdir_down.oEnd < CLE.oEnd` ✓
+So IF we can connect e_r_down to e_r_cdir_down, we get compound_lin(w).oEnd < CLE(r).oEnd.
+
+**Also check**: `getGlobalCachePerms` case on reader — compound_lin is INSIDE CLE (compound_lin.oEnd < CLE.oEnd), but we only showed compound_lin(w).oEnd < CLE(r).oEnd, so compound_lin(w).oEnd < CLE(r).oEnd but compound_lin(r).oEnd < CLE(r).oEnd too — can't conclude compound_lin(w).oEnd < compound_lin(r).oEnd.
+
+**Possible resolution**: The chain might NOT go through compound_lin at all. Instead, the ranking function might be something like `max(compound_lin.oEnd, CLE.oEnd)` or the cache event's oEnd. Or a completely different proof structure may be needed.
+
 **TODO:**
 - [x] Verify: rfe carries "downgrade after system-lin" — YES, via `encapProxyAndDirAndCDown.existsRDownAtW` (e_w OB e_r_down)
-- [ ] Formalize system-lin as a named concept (extract from CompoundLinearizationOrder)
-- [ ] Show that system_lin.oEnd is a ranking function all edges increase (PPOi: system_lin OB; rfe: downgrade chain; co/fr: hierarchy)
-- [ ] Restructure Proof.lean: replace per-edge `hierarchicallyOrdered` with system_lin.oEnd ranking
-- [ ] Handle co/fr: show hierarchy ordering implies system_lin ordering for same-address events
-- [ ] Prove acyclicity via system_lin.oEnd ranking (irreflexive + transitive + all edges increase it)
+- [ ] **CRITICAL**: Find/verify that dir downgrade encapsulates cache downgrade in the rfe chain (or that e_r_down.oEnd < CLE(e_r).oEnd directly)
+- [ ] Verify the chain works for `getGlobalCachePerms` case on the reader
+- [ ] Handle co/fr: show hierarchy ordering implies compound_lin ordering for same-address events
+- [ ] Formalize compound_lin.oEnd as ranking function if above checks pass
+- [ ] Restructure Proof.lean accordingly
 
 ## Key architecture
 
