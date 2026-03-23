@@ -48,17 +48,17 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 ### Status
 - **rfe**: DONE (`rfe_hierarchicallyOrdered` — uses `wObRGle` for GLE ordering)
-- **co**: DONE (carries `hierarchicallyOrdered` directly in structure)
-- **fr**: DONE (carries `hierarchicallyOrdered` directly in structure)
+- **co**: REDEFINED — now carries `Nonempty (gleOrdering.Cases)` instead of `hierarchicallyOrdered`
+  - `co_hierarchicallyOrdered`: sorry (need gleOrdering.Cases → hierarchicallyOrdered bridge)
+- **fr**: REDEFINED — now carries rf⁻¹ ; co structure (existential intermediate write e_w with `readsFrom.cases` + `gleOrdering.Cases`)
+  - `fr_hierarchicallyOrdered`: sorry (need to compose rf + co → hierarchicallyOrdered)
 - **PPOi same-addr**: PARTIAL — `ppoi_hierarchicallyOrdered_same_addr`
   - CLE₁ = CLE₂ case: DONE (level 3 via `hierarchicallyOrdered_of_same_cle`)
   - CLE₁ OB CLE₂ + GLE₁ OB GLE₂: DONE (level 1)
   - CLE₁ OB CLE₂ + GLE₂ OB GLE₁: sorry (CLE→GLE propagation for same-addr)
   - CLE₂ OB CLE₁: sorry (predecessor elimination)
-- **PPOi diff-addr**: PARTIAL — `ppoi_hierarchicallyOrdered_diff_addr`
-  - GLE₁ OB GLE₂: DONE (level 1)
-  - GLE₂ OB GLE₁: sorry (need framework 2→1 bridge using CompoundLinearizationOrder)
-- **Main theorem**: DONE (`cmcm_acyclic`) — complete modulo PPOi sorry lemmas
+- **PPOi diff-addr**: DONE (vacuously — single-address model, all dir events share address)
+- **Main theorem**: DONE (`cmcm_acyclic`) — complete modulo sorry lemmas
 - **Irrefl/trans/canonicalization**: DONE
 
 ### Strategy: PPOi hierarchical linearization points + linking def/lemma to Com edges
@@ -73,93 +73,39 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 **The linking def bridges between:**
 - PPOi's `CompoundLinearizationOrder` (compound linearization events — cache or directory level)
-- Com's linearization orderings (rfe uses `gleOrdering.Cases`, co/fr carry `hierarchicallyOrdered`)
+- Com's linearization orderings (rfe uses `readsFrom.cases`, co/fr use `gleOrdering.Cases`)
 
 The key: communication is **implicit** beyond the linearization point. The RF theorem already handles this — if the SC write has or got permissions, a subsequent read from another cluster sends a downgrade to the write's cache, establishing GLE ordering.
 
+**KEY DESIGN DECISION (2026-03-23): CO and FR are COMMUNICATION RELATIONS, not hierarchy carriers.**
+
+CO and FR were incorrectly defined as carrying `hierarchicallyOrdered` directly. This was wrong because:
+- `hierarchicallyOrdered` is a derived ranking, not a protocol-level communication pattern
+- CO/FR should mirror the RF definition structure (inductives covering communication cases)
+- The correct approach: CO carries `gleOrdering.Cases` (same structure as RF constraints), FR carries rf⁻¹ ; co (existential intermediate write with `readsFrom.cases` + `gleOrdering.Cases`)
+
+**Implementation notes:**
+- `gleOrdering.Cases` is in `Type` (not `Prop`), so CO wraps it with `Nonempty`
+- FR uses existential quantification over the intermediate write `e_w`
+- The `gleOrdering.Cases → hierarchicallyOrdered` bridge is a proof obligation (co/fr_hierarchicallyOrdered sorry)
+
 **DEAD ENDS (don't repeat):**
-1. Trying to prove each PPOi edge independently produces `hierarchicallyOrdered` is the WRONG APPROACH. PPOi doesn't need to produce GLE/CLE ordering — it produces linearization event ordering (PPOi_lin). GLE/CLE are only relevant for rfe/co/fr.
-2. Temporal chaining of GLE/CLE for PPOi is a rabbit hole. The `previousGlobalCacheGotPerms` case decouples GLEs from CLE ordering for different addresses. Don't re-derive this.
-3. The current per-edge `com_step_hierarchicallyOrdered` proof structure is wrong for PPOi. The proof needs a compositional argument that composes PPOi_lin + linking def + com ordering.
-4. **`hierarchicallyOrdered` is PROVABLY FALSE for same-addr PPOi** in the CLE₂ OB CLE₁ case (2026-03-22 analysis): When e₂ has perms from predecessor E_pred BEFORE e₁, `orderBeforeDir` gives CLE₂ inside E_pred (before e₁), while `encapDir` gives CLE₁ inside e₁. So CLE₂ OB CLE₁. And via `encapGlobalCache` chain: GCR₂ OB GCR₁ → GLE₂ OB GLE₁. This makes `hierarchicallyOrdered(e₁_lin, e₂_lin)` false (would need GLE₁ OB GLE₂). Sorry #2 at line 212 is **unprovable** — the scenario it tries to rule out actually exists. The three sorry's are not missing sub-lemmas; they reflect a fundamentally wrong proof architecture.
-5. **No single simple ranking function works for ALL four edge types:**
-   - GLE.oEnd: works for rfe/co/fr, fails for PPOi (diff-addr GLE unconstrained, same-addr GLE can decrease)
-   - compound_lin.oEnd: works for PPOi, uncertain for rfe/co/fr (compound_lin often CONTAINS GLE, so GLE ordering ≠ compound_lin ordering)
-   - e.oEnd (cache event): works for PPOi (e₁ OB e₂), fails for rfe (cross-cluster events not temporally ordered)
-   - The encapsulation goes the WRONG way: compound_lin ⊂ cache event, GLE ⊂ CLE ⊂ cache event. So bigger events (cache) have BIGGER oEnd, not smaller.
+1. Temporal chaining of GLE/CLE for PPOi is a rabbit hole. The `previousGlobalCacheGotPerms` case decouples GLEs from CLE ordering for different addresses. Don't re-derive this.
+2. Trying to show CLE₂ OB CLE₁ → False WITHOUT case-splitting on `dirAccessOfRequest`. The `orderAfterDir` case means CLE₁ can be temporally after e₂. Must case-split on dirAccessOfRequest and use the nc.weak CLE-sharing insight (see below).
+3. Don't ask the user about protocol semantics derivable from reading `dirAccessOfRequest` and `linearizationEventOfRequest` definitions. Trace through the cases yourself.
+4. **Don't define CO/FR as carrying `hierarchicallyOrdered` directly.** They should carry communication pattern structures (`gleOrdering.Cases`, `readsFrom.cases`). Hierarchy is derived, not primitive.
 
-**KEY CONCEPTUAL CORRECTION (2026-03-22): PPOi does NOT need to produce `hierarchicallyOrdered`**
+**CONFIRMED (2026-03-23): The per-edge `hierarchicallyOrdered` approach IS correct for same-addr PPOi.**
 
-The current proof architecture (each edge → `hierarchicallyOrdered` independently) is WRONG for PPOi. The correct approach:
-
-**PPOi_lin** (the PPOi linearization ordering) is about LOCAL ordering of linearization events, NOT about GLE/CLE ordering. GLE and CLE are structural artifacts of `globalLinearizationEventOfRequest` — they are relevant for rfe/co/fr, but NOT for PPOi.
-
-**Three distinct concepts (don't conflate!):**
-1. **GLE** — a PRIMITIVE protocol event (global directory event from `globalLinearizationEventOfRequest.hreq's_global_lin`). Just a building block.
-2. **CLE** — a PRIMITIVE protocol event (cluster directory event from `globalLinearizationEventOfRequest.hreq's_dir_access`). Just a building block.
-3. **system-lin** — a HIGHER-LEVEL DERIVED concept: the point at which a request's effect globally linearizes across the system. This is what `CompoundLinearizationOrder` establishes ordering on. It is NOT the same as GLE, though it's related. system-lin indicates when other requests WILL BE ABLE TO SEE this request's effect, via the protocol mechanisms (CLE, GLE, RF, CO).
-
-**How system-lin works (PPOi_lin ordering):**
-- CompoundLinearizationOrder gives `system_lin₁ OB system_lin₂` — the system linearization events are ordered
-- WHERE a request's system-lin is depends on its type:
-  - SC coherent writes with permissions → system-lin at cache. Multiple such writes sharing the same CLE are ordered by local OrderedBefore.
-  - Weak nc writes (possibly with weak nc reads) → share a CLE, ordered locally. system-lin carries forward to when they write back (or coherent release gets perms for the line).
-  - Requests without permissions → system-lin at directory or beyond.
-
-**How other requests OBSERVE the system-lin ordering (linking def):**
-- Other requests see system-lin ordering by using their own CLEs, GLEs, and the RF/CO protocol mechanisms
-- **rfe example**: SC coherent write e₂ has system-lin at cache. An external read from another cluster triggers a **downgrade** to e₂'s cache → the downgrade mechanism (via GLE ordering from RF theorem) lets the reader observe e₂'s write
-- **nc rel write example**: nc rel write e₂ has system-lin at directory. External read accesses e₂'s directory → directory access establishes ordering
-- The protocol GUARANTEES: if system_lin_A is before system_lin_B, then any observer using RF/CO will see them in that order
-
-**NO EXTRA LINKING DEFINITION NEEDED**: The existing PPOi and rfe/co/fr definitions ALREADY carry the relationships:
-- PPOi: system_lin(e1) OB system_lin(e2) (from CompoundLinearizationOrder)
-- rfe(e2, e3): the downgrade to e2's cache (triggered by e3's read) is AFTER e2's system-lin (because e2's write must be committed before data can be sent)
-- co/fr: carry hierarchicallyOrdered by definition
-
-**Acyclicity contradiction**: In a cycle, following from e3 back to e2 gives "e3's effects are before e2's system-lin." But rfe says the downgrade (e3's effect on e2) is AFTER e2's system-lin. Downgrade can't be both before and after e2's system-lin → contradiction.
-
-**The proof should COMPOSE the existing edge definitions directly**, not convert each to `hierarchicallyOrdered`.
-
-**Proof architecture needs to change:**
-- Current: `com_step_hierarchicallyOrdered` (each edge → same ranking) → transitivity → irreflexivity
-- Correct: compose PPOi_lin ordering + linking def + com ordering around the cycle → contradiction
-- The sorry's at lines 207, 212, 265 are symptoms of the wrong architecture, NOT missing sub-lemmas
-
-**Bigger picture (Herd equivalence):**
-- Forward direction (protocol → Herd acyclicity): `cmcm_acyclic` — needs architectural rework
-- Reverse direction (Herd acyclicity → protocol guarantees): separate later goal
-- The linking def should be designed to potentially support both directions
-
-**PROMISING DIRECTION: compound_lin.oEnd via rfe downgrade chain (2026-03-22)**
-
-For rfe(e_w, e_r) with `cleEncap` case:
-1. compound_lin(e_w).oEnd < e_w.oEnd (e_w encapsulates compound_lin)
-2. e_w.oEnd < e_r_down.oStart (`existsRDownAtW`: write OB downgrade at its cache)
-3. e_r_cdir_down is inside CLE(e_r) (`cleEncap`: CLE encapsulates dir downgrade)
-4. IF e_r_cdir_down encapsulates e_r_down (dir triggers cache downgrade): e_r_down.oEnd < e_r_cdir_down.oEnd
-5. Then: compound_lin(e_w).oEnd < e_w.oEnd < e_r_down.oStart < e_r_down.oEnd < e_r_cdir_down.oEnd < CLE(e_r).oEnd
-6. For `clusterCacheLin`/`previousGotPerms` on reader: compound_lin(e_r).oEnd ≥ CLE(e_r).oEnd
-7. Chain gives: compound_lin(e_w).oEnd < compound_lin(e_r).oEnd ✓
-
-**KEY GAP**: Step 4 — need `e_r_cdir_down.Encapsulates n e_r_down` (dir downgrade encapsulates cache downgrade). NOT stated in `encapProxyAndDirAndCDown` — the two existentials are independent with no formal link. TODO comment at Rf.lean:730 acknowledges this is not yet formalized. `rccOStyleDowngrade.dirEncapDowngrade` has the relationship but in a different context.
-
-**GOOD NEWS**: Step 3 works in BOTH encapDirRelation cases:
-- `cleEncap`: CLE encapsulates e_r_cdir_down → e_r_cdir_down.oEnd < CLE.oEnd ✓
-- `gcacheEncap`: explicit `cdownEndBeforeCle : e_r_cdir_down.oEnd < CLE.oEnd` ✓
-So IF we can connect e_r_down to e_r_cdir_down, we get compound_lin(w).oEnd < CLE(r).oEnd.
-
-**Also check**: `getGlobalCachePerms` case on reader — compound_lin is INSIDE CLE (compound_lin.oEnd < CLE.oEnd), but we only showed compound_lin(w).oEnd < CLE(r).oEnd, so compound_lin(w).oEnd < CLE(r).oEnd but compound_lin(r).oEnd < CLE(r).oEnd too — can't conclude compound_lin(w).oEnd < compound_lin(r).oEnd.
-
-**Possible resolution**: The chain might NOT go through compound_lin at all. Instead, the ranking function might be something like `max(compound_lin.oEnd, CLE.oEnd)` or the cache event's oEnd. Or a completely different proof structure may be needed.
+The key insight (from Anqi): same-address PPOi events share a CLE or have CLE ordering that follows the PPOi direction. The `hierarchicallyOrdered` ranking function works.
 
 **TODO:**
-- [x] Verify: rfe carries "downgrade after system-lin" — YES, via `encapProxyAndDirAndCDown.existsRDownAtW` (e_w OB e_r_down)
-- [ ] **CRITICAL**: Find/verify that dir downgrade encapsulates cache downgrade in the rfe chain (or that e_r_down.oEnd < CLE(e_r).oEnd directly)
-- [ ] Verify the chain works for `getGlobalCachePerms` case on the reader
-- [ ] Handle co/fr: show hierarchy ordering implies compound_lin ordering for same-address events
-- [ ] Formalize compound_lin.oEnd as ranking function if above checks pass
-- [ ] Restructure Proof.lean accordingly
+- [x] Redefine CO with `gleOrdering.Cases` (communication pattern structure)
+- [x] Redefine FR as rf⁻¹ ; co (existential intermediate write)
+- [ ] Prove `co_hierarchicallyOrdered`: gleOrdering.Cases → hierarchicallyOrdered
+- [ ] Prove `fr_hierarchicallyOrdered`: rf⁻¹ ; co → hierarchicallyOrdered
+- [ ] Prove sorry #1 (line ~274): CLE₁ OB CLE₂ + GLE₂ OB GLE₁ → False (same-addr PPOi)
+- [ ] Redesign `hierarchicallyOrdered` if gleOrdering.Cases → hierarchy bridge is too hard (may need to match communication structure directly)
 
 ## Key architecture
 
@@ -178,6 +124,20 @@ The GMO bridge lemma connects framework 2 to framework 1.
 
 ### CLE equality shortcut (same address)
 For same-address PPOi (e₁ OB e₂), if CLE₁ = CLE₂, then `cle_eq_implies_gle_eq` gives GLE₁ = GLE₂, and `hierarchicallyOrdered_of_same_cle` closes the goal at level 3 (cache ordering from PPOi.orderedBefore). This handles the common case where both events share a directory access (e.g., both use `orderBeforeDir` pointing to the same predecessor). Always check CLE equality first via `by_cases` before doing harder case analysis.
+
+### nc.weak shares CLE with its PPO successor (same address) — KEY INSIGHT (2026-03-23)
+For same-address PPOi with nc.weak as e₁ (PPO pairs: nc.weak → nc.release, nc.weak → c.release):
+The nc.weak event linearizes at the SAME directory event as its release successor. They share a CLE.
+
+**Trace through `dirAccessOfRequest` cases for nc.weak (e₁):**
+- **nc.weak WRITE on Vd**: `orderAfterDir` → CLE₁ from successor. The successor IS the release (e₂), which writes back to directory. So CLE₁ = CLE₂.
+- **nc.weak READ on Vd**: `orderAfterDir` → same as write case. The read observes a value that gets written out when the release writes back. CLE₁ = CLE₂.
+- **nc.weak READ on Vc**: CLE₁ comes from the event that originally brought the entry to Vc (a predecessor). If the release is nc, there can't be a coherent state between them. Even if there was, the weak nc read IS the system-lin event.
+- **nc.weak READ on Invalid**: `encapDir` → the read encapsulates its own directory event. Standard temporal chaining gives CLE₁ before CLE₂.
+
+**Consequence**: For same-address PPOi where e₁ is nc.weak, either CLE₁ = CLE₂ (handled by `by_cases hcle_eq`) or CLE₁ OB CLE₂ (standard temporal). The CLE₂ OB CLE₁ case (sorry #2) is vacuous for nc.weak.
+
+**How to verify**: Read `dirAccessOfRequest` (BehaviourRelationDefs.lean:569-592) and `ncWeakReqOnVd` (line 536). The `orderAfterDir` successor from `immBottomSuccOnVdEncapCorrDir` encapsulates the SAME directory event that the release's `encapDir` gives. They share a CLE because the directory event corresponds to the same cache-level operation.
 
 ### Predecessor elimination (same address)
 When two events e₁ OB e₂ share an address, to show GLE₁ ≤ GLE₂:
@@ -278,10 +238,11 @@ Trans instances: `EncapsulatedBy → OB → OB`, `OB → Encapsulates → OB`, `
 ## Auto-habits (run these without being asked)
 
 - **`/checkpoint`** every ~15 min, after milestones, after corrections, before risky changes
-- **`/learn`** after discovering patterns, user corrections, dead ends
+- **`/learn`** after discovering patterns, user corrections, dead ends — IMMEDIATELY when you figure something out or learn something new, not later
 - **`/reflect`** every ~20-30 min: am I correct? efficient? going in circles?
 - **`/philosophy`** before major proof decisions, when stuck, when something feels architecturally wrong
 - **Always save key insights to CLAUDE.md** (not just memory files) — this file is loaded every session
+- **Re-read CLAUDE.md before investigating questions** — the accumulated knowledge answers most protocol questions. Trace through definitions yourself using what's recorded here.
 - **Track all TODOs in CLAUDE.md** — sessions crash! Progress must survive.
 - **Git commit after implementing** — after completing any code change, commit immediately to avoid losing progress on crash. Don't wait to batch commits.
 
