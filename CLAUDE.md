@@ -47,10 +47,10 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 ### Status
-- **hierarchicallyOrdered**: 3-level (GLE, CLE, cache) lex order. GCR removed (redundant). Irrefl/trans/canonicalization DONE.
-- **rfe**: DONE (`rfe_hierarchicallyOrdered` — uses `wObRGle` for GLE ordering)
-- **co**: DONE — `co_hierarchicallyOrdered` via shared `co_cases_hierarchicallyOrdered`. `diffCluster` sorry closed by `same_gle_implies_same_protocol` (same GLE → same protocol, contradicts diffCluster's diffProtocol).
-- **fr**: DONE — `fr_hierarchicallyOrdered` via same shared proof (carries `co.cases` directly).
+- **hierarchicallyOrdered**: RESTRUCTURED as inductive with 3 named constructors: `gleOB`, `cleOB`, `cacheOB` — each maps to a communication level. Irrefl/trans/canonicalization DONE.
+- **rfe**: DONE (`rfe_hierarchicallyOrdered` — `wObRGle` → `.gleOB`, `wEqRGle` absurd for rfe)
+- **co**: DONE — `co_hierarchicallyOrdered` via `co_cases_hierarchicallyOrdered`
+- **fr**: RESTRUCTURED — now carries `comm` (rf⁻¹ ; co⁺ via existential, no `ordering` field). `fr_hierarchicallyOrdered` needs composition proof (1 sorry).
 - **PPOi same-addr**: PARTIAL — `ppoi_hierarchicallyOrdered_same_addr`
   - CLE₁ = CLE₂ case: DONE (level 3 via `hierarchicallyOrdered_of_same_cle`)
   - CLE₁ OB CLE₂ + GLE₁ OB GLE₂: DONE (level 1)
@@ -58,7 +58,7 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
   - CLE₂ OB CLE₁: sorry (predecessor elimination)
 - **PPOi diff-addr**: DONE (vacuously — single-address model, all dir events share address)
 - **Main theorem**: DONE (`cmcm_acyclic`) — complete modulo sorry lemmas
-- **cmcm theorem**: WIP (alternative via PartialOrder, needs `PartialOrder (Event n)` instance)
+- **cmcm theorem**: DONE — wraps `cmcm_acyclic` directly (removed PartialOrder approach)
 
 ### Key insight: communication events (downgrades) are the fundamental mechanism
 

@@ -52,21 +52,23 @@ def gleOrderedBefore
     (h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂) : Prop :=
   (gle h₁).OrderedBefore n (gle h₂)
 
-/-- The (GLE, CLE, cache) 3-level lexicographic order. Two events are hierarchically
-    ordered at the highest level where they differ:
-    1. GLE₁ strictly before GLE₂, OR
-    2. Same GLE, CLE₁ strictly before CLE₂, OR
-    3. Same GLE and CLE, cache event e₁ strictly before e₂.
+/-- The (GLE, CLE, cache) 3-level lexicographic order as communication levels.
+    Each constructor corresponds to the level at which two events communicate:
+    - `gleOB`: cross-cluster — GLE₁ strictly before GLE₂
+    - `cleOB`: cross-cache (same cluster) — same GLE, CLE₁ strictly before CLE₂
+    - `cacheOB`: local (same cache) — same CLE (→ same GLE), e₁ strictly before e₂
 
     GCR is redundant (CLE → GCR → GLE is functionally determined).
     This is the ranking function for the Herd CMCM acyclicity proof. -/
-def hierarchicallyOrdered
+inductive hierarchicallyOrdered
     (h₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
-    (h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂) : Prop :=
-  gleOrderedBefore h₁ h₂ ∨
-  (gle h₁ = gle h₂ ∧
-    ((cle h₁).OrderedBefore n (cle h₂) ∨
-      (cle h₁ = cle h₂ ∧ e₁.OrderedBefore n e₂)))
+    (h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂) : Prop where
+  /-- Cross-cluster: GLE₁ strictly before GLE₂. -/
+  | gleOB (gle_ob : (gle h₁).OrderedBefore n (gle h₂))
+  /-- Cross-cache, same cluster: same GLE, CLE₁ strictly before CLE₂. -/
+  | cleOB (gle_eq : gle h₁ = gle h₂) (cle_ob : (cle h₁).OrderedBefore n (cle h₂))
+  /-- Local, same cache: same CLE (implies same GLE), e₁ strictly before e₂. -/
+  | cacheOB (cle_eq : cle h₁ = cle h₂) (cache_ob : e₁.OrderedBefore n e₂)
 
 /-! ## Edge definitions -/
 
@@ -143,16 +145,16 @@ structure co (e₁ e₂ : Event n) : Prop where
   ordering : co.cases w₁_lin w₂_lin
 
 /-- fr: From-reads (rf⁻¹ ; co⁺).
-    A read e₁ reads from some write e_w, and e₂ is reachable from e_w by a
-    transitive chain of co steps.
+    A read e₁ reads from some write e_w, and e₂ is a write reachable from e_w
+    by a transitive chain of co steps.
 
-    Carries BOTH:
-    - `witness`: the rf⁻¹ ; co⁺ decomposition (protocol-level justification)
-    - `ordering`: direct `co.cases` between e₁ and e₂ (hierarchy ordering)
+    The rf⁻¹ part carries the full `readsFrom.cases` structure (communication
+    events, noBetween conditions, same/diff cache cases). The co part is a
+    transitive chain of co steps, each carrying its own communication pattern.
 
-    The direct ordering is needed because composing rf hierarchy(e_w, e₁) + co hierarchy(e_w, e₂)
-    does not automatically give hierarchy(e₁, e₂) — the rf witness's "no intermediate write"
-    condition is what forces e₁ before e₂ in the hierarchy. -/
+    The hierarchy ordering between e₁ and e₂ is DERIVED from composing the
+    rf communication (how e₁ met e_w) with the co communication (how e₂
+    overwrote e_w), using rf's noBetween to establish the composition. -/
 structure fr (e₁ e₂ : Event n) : Prop where
   read : e₁.isRead
   write : e₂.isWrite
@@ -160,13 +162,12 @@ structure fr (e₁ e₂ : Event n) : Prop where
   e₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
   e₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
-  /-- Intermediate write e_w that e₁ reads from, with co⁺(e_w, e₂). -/
-  witness : ∃ (e_w : Event n) (e_w_write : e_w.isWrite)
+  /-- rf⁻¹ ; co⁺ decomposition: e₁ reads from e_w at some communication level
+      (full readsFrom.cases structure), and e₂ overwrites e_w via co⁺. -/
+  comm : ∃ (e_w : Event n) (e_w_write : e_w.isWrite)
     (e_w_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e_w),
     e_w.addr = e₁.addr ∧
     Behaviour.readsFrom.cases e_w_write read e_w_lin e₁_lin hknow_dir_access ∧
     Relation.TransGen (@co n compound b init) e_w e₂
-  /-- Direct ordering between e₁ and e₂ (same case structure as co). -/
-  ordering : co.cases e₁_lin e₂_lin
 
 end Herd
