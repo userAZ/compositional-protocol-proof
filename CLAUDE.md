@@ -51,11 +51,10 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **rfe**: DONE (`rfe_hierarchicallyOrdered` — `wObRGle` → `.gleOB`, `wEqRGle` absurd for rfe)
 - **co**: DONE — `co_hierarchicallyOrdered` via `co_cases_hierarchicallyOrdered`
 - **fr**: RESTRUCTURED — now carries `comm` (rf⁻¹ ; co⁺ via existential, no `ordering` field). `fr_hierarchicallyOrdered` needs composition proof (1 sorry).
-- **PPOi same-addr**: PARTIAL — `ppoi_hierarchicallyOrdered_same_addr`
-  - CLE₁ = CLE₂ case: DONE (level 3 via `hierarchicallyOrdered_of_same_cle`)
-  - CLE₁ OB CLE₂ + GLE₁ OB GLE₂: DONE (level 1)
-  - CLE₁ OB CLE₂ + GLE₂ OB GLE₁: sorry (CLE→GLE propagation for same-addr)
-  - CLE₂ OB CLE₁: sorry (predecessor elimination)
+- **PPOi same-addr**: PARTIAL — `ppoi_hierarchicallyOrdered_same_addr` (Proof.lean:229)
+  - CLE₁ = CLE₂ case: DONE (`.cacheOB` from PPOi.orderedBefore)
+  - GLE₁ OB GLE₂ case: DONE (`.gleOB`)
+  - GLE₂ OB GLE₁ case: 1 sorry at line 266 (`cases hdir₁ <;> cases hdir₂ <;> sorry` — 9 dirAccessOfRequest sub-cases)
 - **PPOi diff-addr**: DONE (vacuously — single-address model, all dir events share address)
 - **Main theorem**: DONE (`cmcm_acyclic`) — complete modulo sorry lemmas
 - **cmcm theorem**: DONE — wraps `cmcm_acyclic` directly (removed PartialOrder approach)
