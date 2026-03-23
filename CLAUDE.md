@@ -59,6 +59,20 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **Main theorem**: DONE (`cmcm_acyclic`) — complete modulo sorry lemmas
 - **cmcm theorem**: DONE — wraps `cmcm_acyclic` directly (removed PartialOrder approach)
 
+### Key insight: `hierarchicallyOrdered` IS `CompoundLinearizationOrder` (same concept)
+
+`CompoundLinearizationOrder` says: PPO events linearize at specific points in the hierarchy (cache, CLE, or GLE level), and their linearization points are ordered. `hierarchicallyOrdered` says: events are ordered at the highest differing level (GLE, CLE, cache). **These are the same concept** — both ask "where does this event meet the protocol hierarchy, and what's the order at that meeting point?"
+
+The "GMO bridge" is NOT a separate thing — it's recognizing they're the same. There's no gap to bridge. The compound linearization event for each request IS its position in the (GLE, CLE, cache) hierarchy.
+
+**CONSEQUENCE**: `hierarchicallyOrdered` should carry communication evidence (like `readsFrom.cases` does for RF), not just abstract ordering proofs. Each edge type provides its OWN communication evidence:
+- **PPOi**: uses `CompoundLinearizationOrder` from CompoundMCM (proven in CompoundPPOs.lean)
+- **RF**: uses `readsFrom.cases` (downgrade chains, noBetween)
+- **CO**: uses `co.cases` (overwrite communication pattern)
+- **FR**: uses rf⁻¹ ; co composition (noBetween ensures validity)
+
+The GLE/CLE/cache lex ordering falls out as a CONSEQUENCE of this communication evidence, used for irrefl/trans.
+
 ### Key insight: communication events (downgrades) are the fundamental mechanism
 
 The hierarchy ordering (GLE/CLE/cache) is a CONSEQUENCE of communication events, not the mechanism itself. For each relation:
@@ -70,7 +84,11 @@ The hierarchy ordering (GLE/CLE/cache) is a CONSEQUENCE of communication events,
   2. co(e_w, e₂): downgrade from e₂ to e_w at level L₂ (how e₂ overwrites e_w)
   The `noBetween` condition from RF ensures the composition is valid.
 
-FR should be defined using RF's `readsFrom.cases` (including noBetween) and CO's communication pattern, NOT carry abstract `co.cases`. The ordering should be DERIVED from the communication events.
+### Reviewer concerns / vacuity checks
+
+**Always verify proofs are not vacuous.** A proof that exploits single-address model quirks (e.g., all dir events share address → different addresses impossible) does NOT convince reviewers that the right thing was proven. Specifically:
+- `ppoi_hierarchicallyOrdered_diff_addr`: Currently vacuous. MUST use CompoundMCM's `enforce_compound_consistency` to give a real proof via CompoundLinearizationOrder.
+- All edge-type proofs should use the actual communication evidence, not shortcuts.
 
 ### Strategy: PPOi hierarchical linearization points + linking def/lemma to Com edges
 
