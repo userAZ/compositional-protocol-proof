@@ -1,4 +1,5 @@
 import CMCM.Herd.Relations
+import CMCM.Herd.RelationCycles
 import CompositionalProtocolProof.CompoundPPOs
 
 /-!
@@ -141,22 +142,23 @@ theorem ppoi_hierarchicallyOrdered
 /-- Every single `com` step preserves hierarchical ordering (using canonical witnesses). -/
 theorem com_step_hierarchicallyOrdered
     (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
-    (hcom : com compound b init e₁ e₂)
+    (hunion : (PPOi ∪ com compound b init) e₁ e₂)
     : hierarchicallyOrdered (hknow compound b init e₁) (hknow compound b init e₂) := by
-  cases hcom with
-  | ppoi h =>
+  cases hunion with
+  | inl h =>
     exact ppoi_hierarchicallyOrdered h _ _
-  | rfe h =>
-    exact hierarchicallyOrdered_subst (rfe_hierarchicallyOrdered h)
-  | co h =>
-    exact hierarchicallyOrdered_subst (co_hierarchicallyOrdered h)
-  | fr h =>
-    exact hierarchicallyOrdered_subst (fr_hierarchicallyOrdered h)
+  | inr hcom => cases hcom with
+    | rfe h =>
+      exact hierarchicallyOrdered_subst (rfe_hierarchicallyOrdered h)
+    | co h =>
+      exact hierarchicallyOrdered_subst (co_hierarchicallyOrdered h)
+    | fr h =>
+      exact hierarchicallyOrdered_subst (fr_hierarchicallyOrdered h)
 
 /-- A `TransGen com` path from e₁ to e₂ gives hierarchical ordering between them. -/
 theorem transGen_com_hierarchicallyOrdered
     (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
-    (hpath : Relation.TransGen (com compound b init) e₁ e₂)
+    (hpath : Relation.TransGen (PPOi ∪ com compound b init) e₁ e₂)
     : hierarchicallyOrdered (hknow compound b init e₁) (hknow compound b init e₂) := by
   induction hpath with
   | single hstep =>
@@ -173,10 +175,17 @@ theorem transGen_com_hierarchicallyOrdered
     contradicting irreflexivity. -/
 theorem cmcm_acyclic
     (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
-    : CMCM compound b init := by
-  unfold CMCM acyclic
+    : Relation.Acyclic (PPOi ∪ com compound b init) := by
   intro e hcycle
   exact hierarchicallyOrdered_irrefl _
     (transGen_com_hierarchicallyOrdered hknow_dir_access hcycle)
+
+instance : PartialOrder (Event n) := sorry
+
+theorem cmcm (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) :
+  Relation.Acyclic (PPOi ∪ com cmp b init) := by
+  apply CMCM.suffices_inclusion
+  · case hppo => sorry -- This should be the original main theorem
+  · case hcom => sorry -- This should be the Rf stuff.
 
 end Herd
