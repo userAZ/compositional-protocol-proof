@@ -19,7 +19,7 @@ namespace Herd
     Defined over protocol events, parameterized by the compound protocol. -/
 inductive com (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
     (e₁ e₂ : Event n) : Prop where
-  | ppoi : PPOi e₁ e₂ → com cmp b init e₁ e₂
+  | ppoi : @PPOi n b e₁ e₂ → com cmp b init e₁ e₂
   | rfe : @Herd.rfe n cmp b init e₁ e₂ → com cmp b init e₁ e₂
   | fr : @Herd.fr n cmp b init e₁ e₂ → com cmp b init e₁ e₂
   | co : @Herd.co n cmp b init e₁ e₂ → com cmp b init e₁ e₂
