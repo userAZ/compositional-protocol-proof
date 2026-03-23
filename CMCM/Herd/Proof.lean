@@ -40,8 +40,9 @@ theorem hierarchicallyOrdered_irrefl
     : ¬ hierarchicallyOrdered h h := by
   intro hord
   simp only [hierarchicallyOrdered, gleOrderedBefore] at hord
-  rcases hord with hgle | ⟨_, hcle | ⟨_, hcache⟩⟩
+  rcases hord with hgle | ⟨_, hgcr | ⟨_, hcle | ⟨_, hcache⟩⟩⟩
   · exact Event.contradiction_of_reflexive_ordered_before n hgle
+  · exact Event.contradiction_of_reflexive_ordered_before n hgcr
   · exact Event.contradiction_of_reflexive_ordered_before n hcle
   · exact Event.contradiction_of_reflexive_ordered_before n hcache
 
@@ -62,15 +63,23 @@ theorem hierarchicallyOrdered_trans
   · rcases h23 with hgle23 | ⟨hgle_eq23, hsub23⟩
     · rw [hgle_eq12]; exact Or.inl hgle23
     · refine Or.inr ⟨hgle_eq12.trans hgle_eq23, ?_⟩
-      -- Level 2: CLE
-      rcases hsub12 with hcle12 | ⟨hcle_eq12, hcache12⟩
-      · rcases hsub23 with hcle23 | ⟨hcle_eq23, _⟩
-        · exact Or.inl (Trans.trans hcle12 hcle23)
-        · rw [← hcle_eq23]; exact Or.inl hcle12
-      · rcases hsub23 with hcle23 | ⟨hcle_eq23, hcache23⟩
-        · rw [hcle_eq12]; exact Or.inl hcle23
-        · -- Level 3: cache event
-          exact Or.inr ⟨hcle_eq12.trans hcle_eq23, Trans.trans hcache12 hcache23⟩
+      -- Level 2: GCR
+      rcases hsub12 with hgcr12 | ⟨hgcr_eq12, hsub12'⟩
+      · rcases hsub23 with hgcr23 | ⟨hgcr_eq23, _⟩
+        · exact Or.inl (Trans.trans hgcr12 hgcr23)
+        · rw [← hgcr_eq23]; exact Or.inl hgcr12
+      · rcases hsub23 with hgcr23 | ⟨hgcr_eq23, hsub23'⟩
+        · rw [hgcr_eq12]; exact Or.inl hgcr23
+        · refine Or.inr ⟨hgcr_eq12.trans hgcr_eq23, ?_⟩
+          -- Level 3: CLE
+          rcases hsub12' with hcle12 | ⟨hcle_eq12, hcache12⟩
+          · rcases hsub23' with hcle23 | ⟨hcle_eq23, _⟩
+            · exact Or.inl (Trans.trans hcle12 hcle23)
+            · rw [← hcle_eq23]; exact Or.inl hcle12
+          · rcases hsub23' with hcle23 | ⟨hcle_eq23, hcache23⟩
+            · rw [hcle_eq12]; exact Or.inl hcle23
+            · -- Level 4: cache event
+              exact Or.inr ⟨hcle_eq12.trans hcle_eq23, Trans.trans hcache12 hcache23⟩
 
 /-! ## Witness canonicalization
 
@@ -140,7 +149,31 @@ theorem cle_eq_implies_gle_eq
   subst heq
   exact congrArg Exists.choose (Subsingleton.elim hgl₁ hgl₂)
 
-/-- CLE equality + OrderedBefore gives hierarchicallyOrdered at level 3 (cache). -/
+/-- CLE equality implies GCR equality (GCR is functionally determined by CLE). -/
+theorem cle_eq_implies_gcr_eq
+    {h₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (hcle : cle h₁ = cle h₂)
+    : gcr h₁ = gcr h₂ := by
+  unfold gcr Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper
+  unfold cle at hcle
+  suffices ∀ (d₁ d₂ : Event n)
+      (hd₁ : d₁.isDirectoryEvent n) (hd₂ : d₂.isDirectoryEvent n),
+      d₁ = d₂ →
+      Behaviour.Shim.ClusterToGlobal.cDir'sGReq compound b init d₁ hd₁ =
+      Behaviour.Shim.ClusterToGlobal.cDir'sGReq compound b init d₂ hd₂ from
+    this _ _ _ _ hcle
+  intro d₁ d₂ hd₁ hd₂ heq
+  cases heq; exact congrArg _ (Subsingleton.elim _ _)
+
+/-- Any two linearization witnesses for the same event give the same GCR. -/
+theorem gcr_canonical
+    (h₁ h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    : gcr h₁ = gcr h₂ := by
+  have : h₁ = h₂ := Subsingleton.elim h₁ h₂
+  subst this; rfl
+
+/-- CLE equality + OrderedBefore gives hierarchicallyOrdered at level 4 (cache). -/
 theorem hierarchicallyOrdered_of_same_cle
     {h₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
@@ -148,8 +181,8 @@ theorem hierarchicallyOrdered_of_same_cle
     (hob : e₁.OrderedBefore n e₂)
     : hierarchicallyOrdered h₁ h₂ := by
   have hgle := cle_eq_implies_gle_eq hcle
-  show hierarchicallyOrdered h₁ h₂
-  exact Or.inr ⟨hgle, Or.inr ⟨hcle, hob⟩⟩
+  have hgcr := cle_eq_implies_gcr_eq hcle
+  exact Or.inr ⟨hgle, Or.inr ⟨hgcr, Or.inr ⟨hcle, hob⟩⟩⟩
 
 /-- Address is preserved through `dirAccessOfRequest`: the request event and its
     directory access event share the same address. -/
@@ -299,19 +332,24 @@ theorem rfe_hierarchicallyOrdered
   | wObRGle hw_r_gle_ob _ =>
     exact Or.inl hw_r_gle_ob
 
-/-- co edges give hierarchical ordering (directly by definition). -/
+/-- co edges give hierarchical ordering.
+    From `gleOrdering.Cases` (via Nonempty):
+    - `wObRGle`: GLE₁ OB GLE₂ → level 1 of hierarchicallyOrdered
+    - `sameGle`: same GLE with CLE sub-cases → needs CLE→hierarchy bridge -/
 theorem co_hierarchicallyOrdered
     {e₁ e₂ : Event n}
     (h : @Herd.co n compound b init e₁ e₂)
-    : hierarchicallyOrdered h.w₁_lin h.w₂_lin :=
-  h.ordering
+    : hierarchicallyOrdered h.w₁_lin h.w₂_lin := by
+  sorry
 
-/-- fr edges give hierarchical ordering (directly from the fr structure). -/
+/-- fr edges give hierarchical ordering.
+    Composed from rf⁻¹ (readsFrom.cases) and co (gleOrdering.Cases) on the
+    intermediate write e_w. -/
 theorem fr_hierarchicallyOrdered
     {e₁ e₂ : Event n}
     (h : @Herd.fr n compound b init e₁ e₂)
-    : hierarchicallyOrdered h.e₁_lin h.e₂_lin :=
-  h.ordering
+    : hierarchicallyOrdered h.e₁_lin h.e₂_lin := by
+  sorry
 
 /-- PPOi edges imply hierarchical ordering.
 

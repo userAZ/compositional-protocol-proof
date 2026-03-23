@@ -101,29 +101,46 @@ structure rfe (e₁ e₂ : Event n) : Prop where
   readsFrom : Behaviour.readsFrom.cases write read w_lin r_lin hknow_dir_access
 
 /-- co: Coherence order.
-    Two writes to the same address, ordered in the (GLE, CLE) hierarchy. -/
+    Two writes to the same address, where w₂ overwrites w₁. Mirrors the RF theorem
+    structure: the communication pattern between w₁ and w₂ is captured by
+    `gleOrdering.Cases` — w₂ downgrades w₁'s ownership through the same protocol
+    mechanisms as the RF theorem (downgrade chain through GLE/CLE hierarchy).
+
+    `gleOrdering.Cases` provides either:
+    - `sameGle`: same GLE, with CLE sub-cases (same CLE, CLE ordering, or downgrade at writer)
+    - `wObRGle`: GLE₁ strictly before GLE₂, with same/diff cluster CLE sub-cases
+
+    Wrapped in `Nonempty` since `gleOrdering.Cases` lives in `Type` (not `Prop`). -/
 structure co (e₁ e₂ : Event n) : Prop where
   write₁ : e₁.isWrite
   write₂ : e₂.isWrite
   sameAddr : e₁.addr = e₂.addr
   w₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
   w₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
-  ordering : hierarchicallyOrdered w₁_lin w₂_lin
+  ordering : Nonempty (CompoundProtocol.gleOrdering.Cases w₁_lin w₂_lin)
 
-/-- fr: From-reads.
-    A read e₁ reads from some write w, and e₂ is a write that is co-after w.
-    Semantically: fr = rf⁻¹ ; co. The ordering between e₁ and e₂ follows because:
-    - rf(w, e₁) gives w ≤ e₁ in the (GLE, CLE) hierarchy (from RF theorem)
-    - co(w, e₂) gives w < e₂ in the (GLE, CLE) hierarchy
-    - Combined: e₁ < e₂ (since w < e₂ and w ≤ e₁ means w ≤ e₁ < e₂, but the strict
-      ordering e₁ < e₂ follows from the fact that e₁ is a read and e₂ is a different write).
-    The structure directly carries the hierarchical ordering conclusion. -/
+/-- fr: From-reads (rf⁻¹ ; co).
+    A read e₁ reads from some write e_w, and e₂ is a write that is co-after e_w.
+    The intermediate write e_w is existentially witnessed:
+    - `readsFrom`: captures the rf(e_w, e₁) communication pattern via `readsFrom.cases`
+    - `co_ordering`: captures the co(e_w, e₂) communication pattern via `gleOrdering.Cases`
+
+    This decomposition into rf⁻¹ and co reflects the protocol communication:
+    - rf: e₁ reads e_w's data (downgrade chain from e₁ to e_w)
+    - co: e₂ overwrites e_w (downgrade chain from e₂ to e_w) -/
 structure fr (e₁ e₂ : Event n) : Prop where
   read : e₁.isRead
   write : e₂.isWrite
   sameAddr : e₁.addr = e₂.addr
   e₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
   e₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
-  ordering : hierarchicallyOrdered e₁_lin e₂_lin
+  hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
+  /-- Intermediate write e_w that e₁ reads from, with co(e_w, e₂).
+      Existentially quantified since `Event n` and `gleOrdering.Cases` are not `Prop`. -/
+  witness : ∃ (e_w : Event n) (e_w_write : e_w.isWrite)
+    (e_w_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e_w),
+    e_w.addr = e₁.addr ∧
+    Behaviour.readsFrom.cases e_w_write read e_w_lin e₁_lin hknow_dir_access ∧
+    Nonempty (CompoundProtocol.gleOrdering.Cases e_w_lin e₂_lin)
 
 end Herd
