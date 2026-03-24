@@ -196,7 +196,19 @@ theorem step_finishesBefore
                   hdown_lt_cdir) hcdir_lt_cle) hcle_lt_e2
               | evictBetween _ => sorry -- evictBetween: CLE ordering, needs e_w→cache chain
           | wNoPermsAfter _ _ _ => sorry -- nc write case
-          | wCleAfter _ => sorry -- CLE after case
+          | wCleAfter hr_cle_after =>
+            -- wCleAfter: e_w uses orderAfterDir. e_w.oEnd < CLE(e_w).oStart.
+            -- rCleOrDownAtWAfterWCle gives CLE(e_w) OB CLE(e_r) (sameCluster) or encapDir (diffCluster).
+            cases hr_cle_after with
+            | sameCluster _ hcle_ob =>
+              -- CLE(e_w) OB CLE(e_r). For encapDir on e_w: e_w.oEnd < CLE(e_w).oStart.
+              -- Chain: e_w.oEnd < CLE(e_w).oEnd < CLE(e_r).oEnd < e_r.oEnd
+              -- But e_w's dirAccessOfRequest is orderAfterDir here.
+              -- From orderAfterDir: e_w.oEnd < CLE(e_w).oStart (implicit from the case)
+              -- hcle_ob : CLE(e_w) OB CLE(e_r)
+              -- Need e_w.oEnd < CLE(e_w).oStart to start the chain
+              sorry -- needs: e_w.oEnd < CLE(e_w).oStart from orderAfterDir on e_w
+            | diffCluster _ _ => sorry -- diffCluster: encapDir but no temporal chain from e_w
     | co h =>
       unfold Event.finishesBefore
       cases h.ordering with
