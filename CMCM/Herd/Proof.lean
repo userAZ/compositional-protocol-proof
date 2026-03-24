@@ -157,11 +157,19 @@ theorem step_finishesBefore
               -- hencapPD : encapProxyAndDirAndCDown e_w hr_c_and_g_lin
               -- hencapPD.existsRDownAtW : ∃ e_r_down, ... ∧ e_w OB e_r_down
               -- hencapPD.encapDir.existsRClusterDirDown : ∃ e_r_cdir_down, ... ∧ encapDirRelation
-              -- Have: e_w OB e_r_down (existsRDownAtW)
-              --       e_r_cdir_down inside CLE(e_r) (encapDirRelation)
-              -- Missing: e_r_cdir_down encaps e_r_down (NOT in current structure)
-              -- This is a known TODO in Rf.lean:335 (clusterDirDownFromProxy)
-              -- With this connection: e₁.oEnd < e_r_down.oEnd < e_r_cdir_down.oEnd < CLE.oEnd < e₂.oEnd
+              -- Chain: e_w OB e_r_down (existsRDownAtW)
+              --        e_r_cdir_down encaps e_r_down (cdirEncapsDown)
+              --        e_r_cdir_down.oEnd < CLE.oEnd (encapDirRelation)
+              --        CLE.oEnd ≤ e_r.oEnd (dirAccessOfRequest)
+              have ⟨_, _, _, _, hw_ob_rdown⟩ := hencapPD.existsRDownAtW
+              have hcdir_encaps := hencapPD.cdirEncapsDown
+              -- e_w.oEnd < e_r_down.oStart (OB)
+              -- e_r_down.oEnd < e_r_cdir_down.oEnd (encapsulation)
+              -- e_r_cdir_down.oEnd < CLE.oEnd (encapDirRelation)
+              have hdown_lt_cdir : hencapPD.existsRDownAtW.choose.oEnd n <
+                  hencapPD.encapDir.existsRClusterDirDown.choose.oEnd n :=
+                hcdir_encaps.2
+              -- Need: CLE.oEnd ≤ e₂.oEnd from reader's dirAccessOfRequest
               sorry
             | notImmPred _ => sorry
           | wNoPermsAfter _ _ _ => sorry

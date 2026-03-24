@@ -53,7 +53,8 @@ lemma evictOrReadBtn_diff_cache_choose_case
         e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down
       · -- Cache-level downgrade exists → use immPred directly (skips noEvict/noWrite)
         have hencapPDC : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin :=
-          { encapDir := hencapPD, existsRDownAtW := hcdown }
+          { encapDir := hencapPD, existsRDownAtW := hcdown,
+            cdirEncapsDown := sorry /- from requestDowngradePrevOwner.dirEncapDowngrade -/ }
         exact .wHasPermsAfter hw_leaves_SW (.immPred h_imm hencapPDC)
       · -- No cache-level downgrade → fall back to wCleAfter
         exact .wCleAfter hr_cle_after
