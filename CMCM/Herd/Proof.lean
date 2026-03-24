@@ -317,9 +317,49 @@ theorem step_advances
           exact Nat.lt_trans hw_ob_r_gle_cases.hw_r_cle_ob
             (Event.oWellFormed n h.r_lin.hreq's_dir_access.choose)
         | diffCluster _ _ _ hdiff_cache_case =>
-          -- Different cluster: derive from diffCache.case sub-structures
-          -- All paths carry wObRDown or evictBetween.wObRDown via rCleOrDownAtWAfterWCle
-          sorry -- TODO: extract downgrade chain (same pattern as co_step_advances)
+          -- Different cluster: all diffCache.case sub-cases eventually reach
+          -- rCleOrDownAtWAfterWCle.diffCluster which carries wObRDown,
+          -- or evictBetween which carries wObRDown.
+          -- Chain: CLE_w OB e_r_cdir_down + encapDirRelation → CLE_w.oEnd < CLE_r.oEnd
+          -- Helper: given encapDir + wObRDown → derive CLE₁.oEnd < CLE₂.oEnd
+          have chain_from_ob :
+              ∀ (hdown : Behaviour.clusterDown.encapDir compound b init e₁ h.r_lin)
+                (hwOB : h.w_lin.hreq's_dir_access.choose.OrderedBefore n
+                  hdown.existsRClusterDirDown.choose),
+              h.w_lin.hreq's_dir_access.choose.oEnd <
+                h.r_lin.hreq's_dir_access.choose.oEnd := by
+            intro hdown hwOB
+            have hcdir_encap_rel := hdown.existsRClusterDirDown.choose_spec.2.2.2
+            have hcdir_lt : hdown.existsRClusterDirDown.choose.oEnd <
+                h.r_lin.hreq's_dir_access.choose.oEnd := by
+              cases hcdir_encap_rel with
+              | cleEncap henc => simp [Event.Encapsulates] at henc; exact henc.2
+              | gcacheEncap _ hlt => exact hlt
+            exact Nat.lt_trans (Nat.lt_trans hwOB
+              (Event.oWellFormed n hdown.existsRClusterDirDown.choose)) hcdir_lt
+          -- Dispatch all diffCache.case sub-cases
+          cases hdiff_cache_case with
+          | wHasPermsAfter _ coherentCase =>
+            cases coherentCase with
+            | immPred rCle hPDC =>
+              cases rCle with
+              | sameCluster _ hob_cle =>
+                exact Nat.lt_trans hob_cle (Event.oWellFormed n h.r_lin.hreq's_dir_access.choose)
+              | diffCluster _ _ hwOB => exact chain_from_ob hPDC.encapDir hwOB
+            | notImmPred hasPermsCase =>
+              cases hasPermsCase with
+              | noEvictBetween w => exact chain_from_ob w.gdownEncapProxyAndDirAndCDown.encapDir sorry
+              | evictBetween evict => exact chain_from_ob evict.encapProxyAndDir evict.evictBetween.wObRDown
+          | wNoPermsAfter _ _ rCle =>
+            cases rCle with
+            | sameCluster _ hob_cle =>
+              exact Nat.lt_trans hob_cle (Event.oWellFormed n h.r_lin.hreq's_dir_access.choose)
+            | diffCluster _ hdown hwOB => exact chain_from_ob hdown hwOB
+          | wCleAfter rCle =>
+            cases rCle with
+            | sameCluster _ hob_cle =>
+              exact Nat.lt_trans hob_cle (Event.oWellFormed n h.r_lin.hreq's_dir_access.choose)
+            | diffCluster _ hdown hwOB => exact chain_from_ob hdown hwOB
     | co h =>
       -- CO: honest derivation via co_step_advances (already sorry-free)
       exact co_step_advances h h₁_lin h₂_lin
