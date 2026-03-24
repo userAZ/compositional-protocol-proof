@@ -84,6 +84,22 @@ The hierarchy ordering (GLE/CLE/cache) is a CONSEQUENCE of communication events,
   2. co(e_w, e₂): downgrade from e₂ to e_w at level L₂ (how e₂ overwrites e_w)
   The `noBetween` condition from RF ensures the composition is valid.
 
+### Design principle: descriptive definitions (like RF's inductives)
+
+**Definitions should be descriptive (carry mechanism), not just prescriptive (carry consequence).**
+
+RF's `readsFrom.cases` is the gold standard: it carries the SPECIFIC communication events (e_r_cdir_down, noBetween, temporal chain), not just "GLE₁ OB GLE₂." The ordering is a CONSEQUENCE visible in the structure.
+
+**`hierarchicallyOrdered` must follow this pattern.** Each constructor carries BOTH:
+1. **Communication evidence**: the specific protocol events (downgrades at common levels, PPOi compound linearization events)
+2. **Ordering consequence**: the eventLt-style ranking decrease (GLE OB, CLE OB, or cache OB)
+
+These aren't separate — the ordering IS derived from the communication. Having both makes the definition self-documenting for reviewers.
+
+**The PartialOrder** is built from the communication events themselves (the concrete downgrades), with properties (irrefl, trans) proven via the eventLt ranking embedded in each constructor.
+
+**Apply everywhere**: CO should carry specific downgrade communication (not just abstract `co.cases`). FR should carry rf⁻¹;co decomposition with specific events. PPOi should carry CompoundLinearizationOrder evidence.
+
 ### Reviewer concerns / vacuity checks
 
 **Always verify proofs are not vacuous.** A proof that exploits single-address model quirks (e.g., all dir events share address → different addresses impossible) does NOT convince reviewers that the right thing was proven. Specifically:
