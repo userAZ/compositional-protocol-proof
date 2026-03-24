@@ -200,8 +200,26 @@ theorem step_advances
     -- COM: same-address communication edge. CLE ordering from structure.
     cases hcom with
     | rfe h =>
-      -- rfe: GLE₁ OB GLE₂ → CLE₁ strictly before CLE₂ (primary advances)
-      sorry
+      -- rfe: GLE₁ OB GLE₂ → CLE₁.oEnd < CLE₂.oEnd (primary advances)
+      left
+      have hw₁ : h.w_lin = h₁_lin := Subsingleton.elim _ _
+      have hw₂ : h.r_lin = h₂_lin := Subsingleton.elim _ _
+      rw [← hw₁, ← hw₂]
+      cases h.readsFrom with
+      | wEqRGle _ hwr_same_cluster _ =>
+        -- Same GLE implies same cluster → contradicts diffProtocol
+        exact absurd hwr_same_cluster h.diffProtocol
+      | wObRGle _ hw_ob_r_gle_cases =>
+        -- GLE₁ OB GLE₂ with sub-cases
+        cases hw_ob_r_gle_cases with
+        | sameCluster hSameCluster _ =>
+          -- Same cluster contradicts rfe's diffProtocol
+          exact absurd hSameCluster h.diffProtocol
+        | diffCluster _ _ _ hdiff_cache_case =>
+          -- Different cluster: CLE ordering from communication chain
+          -- The diffCache.case sub-cases carry rCleOrDownAtWAfterWCle
+          -- or encapProxyAndDirAndCDown, giving CLE₁.oEnd < CLE₂.oEnd.
+          sorry
     | co h =>
       -- co: case split on co.cases
       have hw₁ : h.w₁_lin = h₁_lin := Subsingleton.elim _ _
