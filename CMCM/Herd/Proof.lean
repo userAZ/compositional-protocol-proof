@@ -180,7 +180,11 @@ theorem step_ordered
                   (Nat.lt_trans hw_ob (Event.oWellFormed n _)) hdown_cdir) hcdir_cle) hcle_e2
               | evictBetween _ => sorry -- evictBetween: CLE ordering
           | wNoPermsAfter _ _ _ => sorry -- nc write: CLE ordering
-          | wCleAfter _ => sorry -- CLE after: orderAfterDir on writer
+          | wCleAfter hr_cle =>
+            -- wCleAfter: e_w's CLE is after e_w. e_w uses orderAfterDir.
+            -- e_w.oEnd < CLE(e_w).oStart (from orderAfterDir).
+            -- rCleOrDownAtWAfterWCle gives CLE ordering or encapDir.
+            sorry -- needs: e_w.oEnd < CLE(e_w).oStart + CLE chain to e_r
     | co h =>
       cases h.ordering with
       | sameGle _ cle_cases =>
