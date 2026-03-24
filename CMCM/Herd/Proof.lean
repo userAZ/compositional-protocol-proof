@@ -590,7 +590,11 @@ theorem step_advances
             cases hordered.ordered with
             | inl hob => exact Nat.lt_trans hob de₂.oWellFormed
             | inr hob =>
-              -- CLE₂ OB CLE₁ with fr → protocol impossibility
+              -- CLE₂ OB CLE₁ for fr. The rf⁻¹;co⁺ decomposition says:
+              -- rf(e_w, e₁) gives CLE_w ≤ CLE₁, co⁺(e_w, e₂) gives CLE_w ≤ CLE₂.
+              -- With CLE₂ < CLE₁: e₂ is an intervening write between CLE_w and CLE₁,
+              -- violating the rf noBetween condition.
+              -- Requires: extracting noBetween from readsFrom.cases + showing e₂ violates it.
               sorry
         | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
       | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
