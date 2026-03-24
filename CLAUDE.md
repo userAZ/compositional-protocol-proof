@@ -258,16 +258,15 @@ The rf/co⁺ witness documents the protocol-level justification.
 - `RfSameGleWImmPredRCleHelpers.lean:79` — `cdirEncapsDown` (from requestDowngradePrevOwner.dirEncapDowngrade)
 - `RfSameGleSameClusterEvictOrReadBetweenHelpers.lean:56` — same
 
-**KEY ANALYSIS (2026-03-24): Why e.oEnd doesn't work as a per-step measure**
-- PPOi: e₁ OB e₂ → e₁.oEnd < e₂.oEnd ✓
-- co diff-cache: slow grant can make e₁.oEnd > e₂.oEnd ✗ (verified by scenario analysis)
-- rfe with orderAfterDir reader: e_r.oEnd < CLE(e_r).oEnd, chain gives e_w.oEnd < CLE(e_r).oEnd but NOT e_w.oEnd < e_r.oEnd ✗
-- Correct measure: CLE(e).oEnd, with dir_ordered giving total order on CLEs (same address).
-  A cycle forces all CLEs equal (non-decreasing cycle), then all steps give OB → contradiction.
-  BUT: requires proving CLE₁.oEnd ≤ CLE₂.oEnd for PPOi (the existing 9-case sorry).
-- Alternative (from Anqi): per-cluster high-water-mark tracking max(e.oEnd, CLE.oEnd).
-  Each new event at a cluster unit increases the max. Cycle returns → contradiction.
-  Challenge: formalizing per-unit tracking in TransGen.
+**KEY ANALYSIS (2026-03-24): Two-measure approach for acyclicity**
+- NO single measure works: e.oEnd fails for co diff-cache (slow grant), CLE.oEnd fails for PPOi (old predecessor CLE)
+- CORRECT approach (from Anqi): track BOTH cache event oEnd AND directory event (CLE) oEnd simultaneously
+- Formalized as lexicographic pair `(e.oEnd, CLE.oEnd)` with e.oEnd PRIMARY:
+  - PPOi: primary advances (e₁ OB e₂ → e₁.oEnd < e₂.oEnd). PPOi case PROVEN.
+  - COM same-cache: primary advances (e₁ OB e₂ from sameGle.sameCle)
+  - COM cross-cache: if primary doesn't advance (slow grant), secondary advances (CLE₁ OB CLE₂ from communication structure)
+- Cycle gives `(e.oEnd, CLE.oEnd) <lex (e.oEnd, CLE.oEnd)` → contradiction on Nat×Nat
+- Remaining sorry: COM case of `step_advances` — need to show primary or secondary advances
 
 **PROVEN:**
 - `ppoi_acyclic` (pure PPOi acyclicity from OB transitivity)
