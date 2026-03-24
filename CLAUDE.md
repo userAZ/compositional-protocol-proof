@@ -250,12 +250,15 @@ The "no intermediate write" argument from rf's `noBetween` is needed to exclude 
 Rather than implementing this complex composition proof, FR carries `co.cases e₁_lin e₂_lin` directly.
 The rf/co⁺ witness documents the protocol-level justification.
 
-**REMAINING SORRY's (4 declarations, 2 in Proof.lean + 2 in RfCases/):**
-- `Proof.lean:178` (`step_cle_lex`) — per-step CLE-lexicographic ordering:
-  - PPOi case: need CLE₁.oEnd ≤ CLE₂.oEnd for same-addr PPOi (9-case dirAccessOfRequest)
-  - com case: need CLE₁.oEnd ≤ CLE₂.oEnd from communication structure
-- `Proof.lean:205` (`cmcm_acyclic`) — main theorem, depends on step_cle_lex
-- `RfSameGleWImmPredRCleHelpers.lean:79` — `cdirEncapsDown` (from requestDowngradePrevOwner.dirEncapDowngrade)
+**REMAINING SORRY's (2 declarations in Proof.lean + 2 in RfCases/):**
+- `Proof.lean:step_advances` — 6 sorry sites in per-step CLE ordering:
+  - PPOi orderAfterDir e₁ ×2: nc.weak successor = PPO successor (protocol uniqueness)
+  - PPOi orderBeforeDir e₂: predecessor CLE ordering (protocol permissions)
+  - rfe diffCluster: CLE₂ OB CLE₁ → False (same dir_ordered + encapDir pattern)
+  - co diffCluster de_cdir OB de₁: downgrade before CLE₁ (protocol)
+  - fr diffCLE: CLE₂ OB CLE₁ → False (same pattern)
+- `Proof.lean:cmcm_acyclic` — 1 sorry: hknow (every event has linearization)
+- `RfSameGleWImmPredRCleHelpers.lean:79` — `cdirEncapsDown`
 - `RfSameGleSameClusterEvictOrReadBetweenHelpers.lean:56` — same
 
 **KEY ANALYSIS (2026-03-24): Two-measure approach for acyclicity**
