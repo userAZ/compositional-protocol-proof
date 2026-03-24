@@ -168,7 +168,33 @@ theorem step_finishesBefore
               exact Nat.lt_trans (Nat.lt_trans (Nat.lt_trans
                 (Nat.lt_trans hw_ob (Event.oWellFormed n _))
                 hdown_lt_cdir) hcdir_lt_cle) hcle_lt_e2
-            | notImmPred _ => sorry -- needs encapProxyAndDirAndCDown for non-immPred
+            | notImmPred hcase =>
+              cases hcase with
+              | noEvictBetween w_no_evict =>
+                -- noEvictBetween carries gdownEncapProxyAndDirAndCDown (full chain!)
+                have hpdc := w_no_evict.gdownEncapProxyAndDirAndCDown
+                have hw_ob := hpdc.existsRDownAtW.choose_spec.2.2.2
+                have hdown_lt_cdir := hpdc.cdirEncapsDown.2
+                have hencap_rel := hpdc.encapDir.existsRClusterDirDown.choose_spec.2.2.2
+                have hcdir_lt_cle : hpdc.encapDir.existsRClusterDirDown.choose.oEnd n <
+                    h.r_lin.hreq's_dir_access.choose.oEnd n := by
+                  cases hencap_rel with
+                  | cleEncap henc => exact henc.2
+                  | gcacheEncap _ hlt => exact hlt
+                have hcle_lt_e2 : h.r_lin.hreq's_dir_access.choose.oEnd n < e₂.oEnd n := by
+                  have hdir := h.r_lin.hreq's_dir_access.choose_spec.2
+                  cases hdir with
+                  | encapDir _ hencap => exact hencap.reqEncapDir.2
+                  | orderBeforeDir _ hexists_pred hpred_dir _ _ _ _ _ =>
+                    have hcle_lt_pred := hpred_dir.reqEncapDir.2
+                    have hpred_ob_e2 : hexists_pred.choose.OrderedBefore n e₂ :=
+                      hexists_pred.choose_spec.2.isImmPred.bPred.isPred
+                    exact Nat.lt_trans (Nat.lt_trans hcle_lt_pred hpred_ob_e2) (Event.oWellFormed n e₂)
+                  | orderAfterDir _ _ _ _ => sorry -- nc.weak
+                exact Nat.lt_trans (Nat.lt_trans (Nat.lt_trans
+                  (Nat.lt_trans hw_ob (Event.oWellFormed n _))
+                  hdown_lt_cdir) hcdir_lt_cle) hcle_lt_e2
+              | evictBetween _ => sorry -- evictBetween: CLE ordering, needs e_w→cache chain
           | wNoPermsAfter _ _ _ => sorry -- nc write case
           | wCleAfter _ => sorry -- CLE after case
     | co h =>
