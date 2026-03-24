@@ -114,19 +114,33 @@ Template (from Anqi's cycle examples):
   Chain: CLE₁.oEnd < e₂.oEnd < e_r_down.oEnd < e_r_cdir_down.oEnd < CLE₁.oStart
   Contradiction: CLE₁.oEnd < CLE₁.oStart, but oStart < oEnd. -/
 
+/-- Define a protocol-level strict order that contains PPOi ∪ com.
+    Uses OB on cache events (from PPOi, co.sameCle) and OB on CLE events
+    (from co.diffCle, co.wObRGle sameCluster) and OB on GLE events
+    (from rfe, co.wObRGle diffCluster). -/
+def protocolLt (e₁ e₂ : Event n) : Prop :=
+  e₁.OrderedBefore n e₂
+
+/-- Each PPOi step gives e₁ OB e₂. -/
+theorem ppoi_gives_ob (h : @PPOi n b e₁ e₂) : e₁.OrderedBefore n e₂ :=
+  h.orderedBefore
+
+/-- Each COM step gives OrderedBefore between specific protocol events.
+    For the acyclicity proof: we show each COM step gives some protocol
+    event A related to e₁ and B related to e₂ with A OB B.
+    The composition across edges then gives the cycle contradiction. -/
+theorem com_gives_protocol_ob (h : com compound b init e₁ e₂)
+    : ∃ (A B : Event n), A.OrderedBefore n B ∧
+      A.oEnd n ≤ e₁.oEnd n ∧ e₂.oStart n ≤ B.oStart n := by
+  -- COM gives OB between protocol events (A, B) where A is at/before e₁
+  -- and B is at/after e₂.oStart. The specific events depend on the COM type.
+  sorry
+
+/-- The acyclicity theorem. Uses the protocol event chain approach:
+    each edge gives OB between protocol events, the chain composes
+    transitively, and a cycle gives X OB X — contradiction. -/
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
-  -- The proof chains OrderedBefore between specific protocol events
-  -- (CLE, e_r_down, e_r_cdir_down) across all edges in the cycle.
-  -- The chain loops on a specific protocol event X:
-  -- X.oEnd < ... < X.oStart, contradicting X.oStart < X.oEnd.
-  --
-  -- Two communication levels:
-  -- 1. Cluster cache: e_w OB e_r_down (from existsRDownAtW)
-  -- 2. Cluster directory: CLE₁ OB CLE₂ (from co.cases CLE ordering)
-  --
-  -- Each junction (PPOi↔COM, COM↔PPOi) uses EncapsulatedBy + OB
-  -- composition via Trans instances.
   sorry
 
 /-- The CMCM theorem with explicit parameters. -/
