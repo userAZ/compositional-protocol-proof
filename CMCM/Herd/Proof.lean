@@ -161,16 +161,38 @@ theorem step_finishesBefore
               --        e_r_cdir_down encaps e_r_down (cdirEncapsDown)
               --        e_r_cdir_down.oEnd < CLE.oEnd (encapDirRelation)
               --        CLE.oEnd ≤ e_r.oEnd (dirAccessOfRequest)
-              have ⟨_, _, _, _, hw_ob_rdown⟩ := hencapPD.existsRDownAtW
-              have hcdir_encaps := hencapPD.cdirEncapsDown
-              -- e_w.oEnd < e_r_down.oStart (OB)
-              -- e_r_down.oEnd < e_r_cdir_down.oEnd (encapsulation)
-              -- e_r_cdir_down.oEnd < CLE.oEnd (encapDirRelation)
-              have hdown_lt_cdir : hencapPD.existsRDownAtW.choose.oEnd n <
-                  hencapPD.encapDir.existsRClusterDirDown.choose.oEnd n :=
-                hcdir_encaps.2
-              -- Need: CLE.oEnd ≤ e₂.oEnd from reader's dirAccessOfRequest
-              sorry
+              -- Step 1: e_w.oEnd < e_r_down.oStart (from OB)
+              have hw_ob := hencapPD.existsRDownAtW.choose_spec.2.2.2
+              -- Step 2: e_r_down.oEnd < e_r_cdir_down.oEnd (from cdirEncapsDown)
+              have hdown_lt_cdir := hencapPD.cdirEncapsDown.2
+              -- Step 3: e_r_cdir_down.oEnd < CLE.oEnd (from encapDirRelation)
+              have hencap_rel := hencapPD.encapDir.existsRClusterDirDown.choose_spec.2.2.2
+              have hcdir_lt_cle : hencapPD.encapDir.existsRClusterDirDown.choose.oEnd n <
+                  h.r_lin.hreq's_dir_access.choose.oEnd n := by
+                cases hencap_rel with
+                | cleEncap henc => exact henc.2
+                | gcacheEncap _ hlt => exact hlt
+              -- Step 4: CLE.oEnd < e₂.oEnd (from reader's dirAccessOfRequest)
+              -- For encapDir: e₂ encapsulates CLE → CLE.oEnd < e₂.oEnd
+              -- For orderBeforeDir: CLE.oEnd < pred.oEnd < e₂.oStart < e₂.oEnd
+              -- For orderAfterDir: sorry (nc.weak, not a cycle problem)
+              have hcle_lt_e2 : h.r_lin.hreq's_dir_access.choose.oEnd n < e₂.oEnd n := by
+                have hdir := h.r_lin.hreq's_dir_access.choose_spec.2
+                cases hdir with
+                | encapDir _ hencap => exact hencap.reqEncapDir.2
+                | orderBeforeDir _ hexists_pred hpred_dir _ _ _ _ _ =>
+                  -- CLE inside pred (pred encapsulates CLE)
+                  have hcle_lt_pred := hpred_dir.reqEncapDir.2
+                  -- pred OB e₂ (pred.OrderedBefore = pred.oEnd < e₂.oStart)
+                  have hpred_ob_e2 : hexists_pred.choose.OrderedBefore n e₂ :=
+                    hexists_pred.choose_spec.2.isImmPred.bPred.isPred
+                  -- Chain: CLE.oEnd < pred.oEnd < e₂.oStart < e₂.oEnd
+                  exact Nat.lt_trans (Nat.lt_trans hcle_lt_pred hpred_ob_e2) (Event.oWellFormed n e₂)
+                | orderAfterDir _ _ _ _ => sorry -- nc.weak, not a cycle problem
+              -- Compose: e₁.oEnd < e_r_down.oStart ≤ e_r_down.oEnd < e_r_cdir_down.oEnd < CLE.oEnd < e₂.oEnd
+              exact Nat.lt_trans (Nat.lt_trans (Nat.lt_trans
+                (Nat.lt_trans hw_ob (Event.oWellFormed n _))
+                hdown_lt_cdir) hcdir_lt_cle) hcle_lt_e2
             | notImmPred _ => sorry
           | wNoPermsAfter _ _ _ => sorry
           | wCleAfter _ => sorry
