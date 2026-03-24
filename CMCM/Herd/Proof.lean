@@ -127,12 +127,17 @@ theorem step_ob_or_inside
     -- In either case: Or.inl (OB) or Or.inr (oEnd comparison).
     sorry
 
--- The acyclicity proof uses two complementary arguments:
--- 1. For edges with OB on cache events (PPOi, COM-with-downgrade):
---    the max-oEnd event can't have such an outgoing edge.
--- 2. For edges with CLE ordering only: the CLE chain loops monotonically.
--- Together: any cycle must contain edges from both categories or only one,
--- and both cases lead to contradiction.
+-- The acyclicity proof chains OB on SPECIFIC PROTOCOL EVENTS
+-- (CLE, e_r_down, e_r_cdir_down) — NOT on cache event oEnd.
+-- Each edge gives OB between protocol events. The chain loops on a
+-- specific protocol event X: X.oEnd < ... < X.oEnd. Contradiction.
+--
+-- Template from Anqi's cycle examples:
+-- PPOi: CLE₁ OB e₂ (lin events ordered)
+-- Rfe: e₂ OB e_r_down (write before downgrade), e_r_cdir_down encaps e_r_down
+-- Fr: e_r_cdir_down OB CLE₁ (downgrade before source's CLE)
+-- Chain: CLE₁.oEnd < e₂.oEnd < e_r_down.oEnd < e_r_cdir_down.oEnd < CLE₁.oStart
+-- Contradiction: CLE₁.oEnd < CLE₁.oStart, but oStart < oEnd (well-formedness).
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
   sorry
