@@ -276,15 +276,19 @@ theorem step_to_ordering
           -- Same CLE, same cache: e_w OB e_r. Both inside same CLE.
           sorry -- encapObEncap with e₁, e₂ inside shared CLE
         | wObRCle hwr_gle_or_cle =>
-          -- CLE_w OB CLE_r: same cluster, CLE ordering
-          -- CLE_w inside e₁ (or before), CLE_r inside e₂ (or before)
-          -- Use: CLE_w OB CLE_r with CLE_w EncapsulatedBy e₁ and CLE_r EncapsulatedBy e₂
-          sorry -- TODO: extract EncapsulatedBy from dirAccessOfRequest
+          -- CLE_w OB CLE_r directly (same cluster, cluster dir serialization)
+          exact .ob (by
+            rw [← show h.w_lin = lin e₁ from Subsingleton.elim _ _,
+                ← show h.r_lin = lin e₂ from Subsingleton.elim _ _]
+            exact hwr_gle_or_cle.hw_r_cle_ob)
       | wObRGle _ hw_ob_r_gle_cases =>
         cases hw_ob_r_gle_cases with
         | sameCluster _ hw_ob_cases =>
-          -- Same cluster, GLE ordering: CLE_w OB CLE_r
-          sorry -- same as wObRCle case
+          -- Same cluster, CLE_w OB CLE_r from GleOrCle.cases
+          exact .ob (by
+            rw [← show h.w_lin = lin e₁ from Subsingleton.elim _ _,
+                ← show h.r_lin = lin e₂ from Subsingleton.elim _ _]
+            exact hw_ob_cases.hw_r_cle_ob)
         | diffCluster _ _ _ hdiff_cache_case =>
           -- Different cluster: downgrade chain
           -- Extract e_r_down, e_r_cdir_down from diffCache.case
@@ -298,8 +302,28 @@ theorem step_to_ordering
         -- Same cache: e₁ OB e₂. Both inside same CLE.
         sorry -- encapObEncap with e₁, e₂ inside shared CLE
       | sameClusDiffCache _ cle_ord =>
-        -- Same cluster, diff cache: CLE ordering
-        sorry -- TODO: extract CLE₁ EncapsulatedBy e₁, CLE₂ EncapsulatedBy e₂
+        -- Same cluster, diff cache: CLE ordering from cleOrdering.Cases
+        have hw₁ : h.w₁_lin = lin e₁ := Subsingleton.elim _ _
+        have hw₂ : h.w₂_lin = lin e₂ := Subsingleton.elim _ _
+        cases cle_ord with
+        | wImmPredRCle w =>
+          cases w with
+          | sameCluster _ hob =>
+            -- CLE₁ OB CLE₂ directly
+            exact .ob (by rw [← hw₁, ← hw₂]; exact hob)
+          | diffCluster _ hdown hwObRDown =>
+            -- CLE₁ OB e_r_cdir_down, e_r_cdir_down EncapBy CLE₂
+            -- = obEncap
+            have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
+            have hencap_rel := hcdir_spec.2.2.2
+            exact .obEncap hdown.existsRClusterDirDown.choose
+              (by rw [← hw₁]; exact hwObRDown)
+              (by rw [← hw₂]; cases hencap_rel with
+                  | cleEncap henc => exact henc
+                  | gcacheEncap henc _ => sorry) -- gcacheEncap gives GCR encaps, not CLE encaps
+        | evictOrReadBetweenWAndRCleSameCluster evict =>
+          -- CLE₁ OB CLE₂ from wObR
+          exact .ob (by rw [← hw₁, ← hw₂]; exact evict.wObR)
       | diffClus _ diff_cluster_cases =>
         -- Different cluster: downgrade chain
         sorry -- TODO: extract protocol events
