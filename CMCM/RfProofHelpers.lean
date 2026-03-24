@@ -3124,10 +3124,45 @@ lemma diffCache_coherent_encapProxyAndDirAndCDown
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache)
   : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin := by
-  -- Get the encapDir (directory event + encapDirRelation)
-  have hencapDir := diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster
-  -- From the same chain, derive the forwarded cache downgrade at e_w's cache.
-  -- The cluster directory event (from encapDir) processes the proxy request and
-  -- forwards a downgrade to the previous owner (e_w). By fwdCoherentRequestToOwner
-  -- at the cluster level, e_r_cdir_down.Encapsulates n e_r_down.
+  -- Trace the same chain as diffCache_coherent_encapProxyAndDir, but ALSO extract
+  -- the forwarded cache downgrade from fwdCoherentRequestToOwner at the cluster level.
+  have hgdown := diffCache_coherent_globalDowngrade hr_c_and_g_lin
+  obtain ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b, hdowngrade⟩ := hgdown
+  have hg2c := cmp.shimAxioms.globalToCluster b init (e_w.getProtocol cmp) e_r_gdown he_r_gdown_in_b
+  have hp_eq := Event.getProtocol_pi cmp e_w
+  -- Extract BOTH directory event AND the proxy event from the shim
+  have hdir_encap := globalToCluster_extract_dir_with_encap hg2c e_w hp_eq
+  obtain ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, he_gdown_encap_dir⟩ := hdir_encap
+  -- Build encapDir (same as diffCache_coherent_encapProxyAndDir)
+  let e_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
+      (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)
+  have h_gcache_encap_dir : e_gcache.Encapsulates n e_dir :=
+    Trans.trans (Trans.trans hdowngrade.downgradePrevOwner.reqEncapDir
+      hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dir
+  have h_dir_end_before_cle : e_dir.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd := by
+    have h_dir_lt_gcache : e_dir.oEnd < e_gcache.oEnd := h_gcache_encap_dir.2
+    let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
+    let hcdir_is_dir := hr_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+    have h_gcache_lt_cle : e_gcache.oEnd < e_r_cle.oEnd := by
+      show (Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init e_r_cle hcdir_is_dir).oEnd < e_r_cle.oEnd
+      unfold Behaviour.Shim.ClusterToGlobal.cDir'sGReq
+      match h : cmp.shimAxioms.clusterToGlobal b init e_r_cle hcdir_is_dir with
+      | .encapGlobalCache _ hgreq_spec =>
+        exact hgreq_spec.choose_spec.right.encapGlobalCache.2
+      | .noGlobalCache hhas_perms _ =>
+        unfold Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent
+        have hnonempty := Behaviour.hasPermsInGlobalCache_implies_nonempty_immFinishBefore
+            b init _ hhas_perms
+        rw [dif_pos hnonempty]
+        exact hnonempty.some.prop.2.finishBefore.finBefore.endBefore
+    exact Nat.lt_trans h_dir_lt_gcache h_gcache_lt_cle
+  have hencapDir : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin :=
+    { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
+      Behaviour.clusterDown.encapDirRelation.gcacheEncap
+        h_gcache_encap_dir h_dir_end_before_cle⟩ }
+  -- Now derive the forwarded cache downgrade from the cluster-level chain.
+  -- The cluster directory event e_dir processes the proxy request. By the
+  -- cluster-level protocol axiom (coherentWriteDowngrades or coherentReadDowngrades),
+  -- e_dir encapsulates a forwarded downgrade to e_w's cache.
+  -- This gives existsRDownAtW AND cdirEncapsDown from the same chain.
   sorry
