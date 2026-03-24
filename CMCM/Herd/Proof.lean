@@ -287,6 +287,58 @@ theorem StepOrdering.acyclic : Relation.Acyclic (@StepOrdering n) := by
   intro e hcycle
   exact StepOrdering.irrefl (StepOrdering.of_transGen hcycle)
 
+/-- Map each PPOi ∪ com step to a StepOrdering.
+    PPOi: direct OB (e₁ OB e₂).
+    rfe/co/fr: extract protocol events from communication evidence. -/
+theorem step_to_ordering
+    (h : (@PPOi n b ∪ com compound b init) e₁ e₂)
+    : @StepOrdering n e₁ e₂ := by
+  cases h with
+  | inl hppoi =>
+    -- PPOi: e₁ OB e₂ directly
+    exact .ob hppoi.orderedBefore
+  | inr hcom =>
+    cases hcom with
+    | rfe h =>
+      -- rfe: extract protocol events from readsFrom.cases
+      cases h.readsFrom with
+      | wEqRGle _ hwr_same_cluster hw_eq_r_gle_cases =>
+        cases hw_eq_r_gle_cases with
+        | wEqRCle _ _ hwr_com =>
+          -- Same CLE, same cache: e_w OB e_r directly
+          exact .ob hwr_com.wObR
+        | wObRCle hwr_gle_or_cle =>
+          -- CLE_w OB CLE_r: same cluster, CLE ordering
+          -- CLE_w inside e₁ (or before), CLE_r inside e₂ (or before)
+          -- Use: CLE_w OB CLE_r with CLE_w EncapsulatedBy e₁ and CLE_r EncapsulatedBy e₂
+          sorry -- TODO: extract EncapsulatedBy from dirAccessOfRequest
+      | wObRGle _ hw_ob_r_gle_cases =>
+        cases hw_ob_r_gle_cases with
+        | sameCluster _ hw_ob_cases =>
+          -- Same cluster, GLE ordering: CLE_w OB CLE_r
+          sorry -- same as wObRCle case
+        | diffCluster _ _ _ hdiff_cache_case =>
+          -- Different cluster: downgrade chain
+          -- Extract e_r_down, e_r_cdir_down from diffCache.case
+          -- Chain: e₁ OB e_r_down, e_r_cdir_down Encaps e_r_down,
+          --        e_r_cdir_down EncapsulatedBy CLE₂ EncapsulatedBy e₂
+          sorry -- TODO: extract protocol events from diffCache.case
+    | co h =>
+      -- co: extract from co.ordering
+      cases h.comm with
+      | sameCache _ cache_ob =>
+        -- Same cache: direct OB
+        exact .ob cache_ob
+      | sameClusDiffCache _ cle_ord =>
+        -- Same cluster, diff cache: CLE ordering
+        sorry -- TODO: extract CLE₁ EncapsulatedBy e₁, CLE₂ EncapsulatedBy e₂
+      | diffClus _ diff_cluster_cases =>
+        -- Different cluster: downgrade chain
+        sorry -- TODO: extract protocol events
+    | fr h =>
+      -- fr: rf⁻¹;co⁺ composition
+      sorry
+
 /-- CO step advances CLE lex pair.
     Factored out from `step_advances` to allow use in the fr case
     (which chains co⁺ steps without circularity). -/
