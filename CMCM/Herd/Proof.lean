@@ -115,19 +115,28 @@ Template (from Anqi's cycle examples):
   Contradiction: CLE₁.oEnd < CLE₁.oStart, but oStart < oEnd. -/
 
 /-! ## Acyclicity via protocol event OB chain -/
-/-- The acyclicity proof uses OB on protocol events (not cache events).
-    Each COM edge gives OB between protocol events at cluster cache level
-    (e_w OB e_r_down) or cluster directory level (CLE₁ OB CLE₂).
-    The bridge: e_r_cdir_down encapsulates e_r_down (cdirEncapsDown).
 
-    The custom transitive composition at PPOi↔COM junctions uses
-    EncapsulatedBy + OB → OB (Trans instances) and the encapsulation bridge
-    to switch between cluster cache and directory levels.
+/-- Helper: for a TransGen path where EVERY step gives e₁ OB e₂ (on cache events),
+    the path gives e₁ OB eₖ (by OB transitivity). -/
+theorem transgen_ob_of_step_ob
+    {R : Event n → Event n → Prop}
+    (hpath : Relation.TransGen R e₁ e₂)
+    (hstep_ob : ∀ a b, R a b → a.OrderedBefore n b)
+    : e₁.OrderedBefore n e₂ := by
+  induction hpath with
+  | single h => exact hstep_ob _ _ h
+  | tail _ h ih => exact Trans.trans ih (hstep_ob _ _ h)
 
-    A cycle creates a loop: X OB ... OB X for some protocol event X,
-    contradicting X.oStart < X.oEnd (well-formedness). -/
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
+  intro e hcycle
+  -- Three-case proof:
+  -- 1. If cycle contains PPOi: PPOi gives e OB e_next. Remaining path
+  --    gives (via protocol event chain) A inside e_next with A OB e.
+  --    Composition: e OB e_next, A inside e_next, A OB e → A.oStart > e.oStart > A.oEnd
+  --    contradicting A.oStart < A.oEnd (well-formedness).
+  -- 2. If all-COM with co.sameCle: OB transitivity on cache events → e OB e → ⊥.
+  -- 3. If all-COM without sameCle: CLE/GLE OB chain loops → CLE OB CLE → ⊥.
   sorry
 
 /-- The CMCM theorem with explicit parameters. -/
