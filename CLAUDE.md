@@ -138,25 +138,26 @@ The "no intermediate write" argument from rf's `noBetween` is needed to exclude 
 Rather than implementing this complex composition proof, FR carries `co.cases e₁_lin e₂_lin` directly.
 The rf/co⁺ witness documents the protocol-level justification.
 
-**REMAINING SORRY's (4 declarations, Proof.lean):**
-1. `fr_eventLt` (line 165): FR composition — compose rf(e_w, e₁) + co⁺(e_w, e₂) → eventLt(e₁, e₂). Needs noBetween argument.
-2. `ppoi_eventLt_same_addr` (line 221): 9 dirAccessOfRequest sub-cases for GLE₂ OB GLE₁ contradiction.
-3. `ppoi_eventLt_diff_addr` (line 236): Use CompoundMCM's `enforce_compound_consistency` to get CompoundLinearizationOrder, then map to eventLt. NOT vacuous.
-4. `eventPartialOrder` (line 304): Construct PartialOrder from eventLt. Straightforward (standard strict-order-to-partial-order construction).
+**REMAINING SORRY's (5 declarations, Proof.lean):**
+1. `eventPartialOrder` (line 50): The GMO — PartialOrder on events from protocol axioms. Its existence is a protocol-level fact (temporal ordering + cache_ordered + dir_ordered + compound lin). CANNOT be constructed from PPOi ∪ com itself (circular with CMCM.suffices_inclusion). Sorry = "the GMO exists."
+2. `ppoi_lt` (line 61): PPOi ⊆ PartialOrder.lt — THE key bridge from CompoundMCM to the Herd CMCM. Uses enforce_compound_consistency for diff-addr, protocol reasoning for same-addr.
+3. `rfe_lt` (line 71): rfe ⊆ PartialOrder.lt — from readsFrom.cases communication evidence.
+4. `co_lt` (line 79): co ⊆ PartialOrder.lt — from co.cases communication evidence.
+5. `fr_lt` (line 87): fr ⊆ PartialOrder.lt — rf⁻¹;co composition through e_w.
 
 **TODO (in priority order):**
-- [ ] Verify CO definition is correct: `co.cases` mirrors `readsFrom.cases` with sameGle/wObRGle. Check `co_cases_eventLt` proof works (diffCluster case closed by `same_gle_implies_same_protocol`).
-- [ ] Verify FR definition is correct: carries `comm` existential with rf⁻¹;co decomposition. No `ordering` field.
-- [ ] Prove `ppoi_eventLt_diff_addr` using CompoundMCM (non-vacuous, bridges CompoundLinearizationOrder → eventLt)
-- [ ] Prove `ppoi_eventLt_same_addr` GLE₂ OB GLE₁ contradiction (9 dirAccessOfRequest cases)
-- [ ] Prove `fr_eventLt` composition (rf + co through e_w, using noBetween)
-- [ ] Construct `eventPartialOrder` from eventLt (standard construction)
-- [ ] Vacuity check: verify `ppoi_eventLt_diff_addr` is NOT vacuous (different addresses can exist)
-- [ ] Vacuity check: verify all edge proofs use communication evidence, not shortcuts
-- [ ] Consider: should `hierarchicallyOrdered` constructors carry ordering evidence (eventLt proofs) alongside communication evidence?
+- [ ] `eventPartialOrder`: Construct/axiomatize the GMO (PartialOrder on Event n). Cannot be built from PPOi ∪ com (circular). Must come from protocol axioms (temporal ordering, cache_ordered, dir_ordered, compound lin).
+- [ ] `ppoi_lt`: PPOi ⊆ PartialOrder.lt. Use CompoundMCM's `enforce_compound_consistency` for diff-addr (non-vacuous!), protocol reasoning for same-addr.
+- [ ] `rfe_lt`: rfe ⊆ PartialOrder.lt. From readsFrom.cases (wObRGle → GLE ordering → in GMO).
+- [ ] `co_lt`: co ⊆ PartialOrder.lt. From co.cases (communication at GLE/CLE/cache → in GMO).
+- [ ] `fr_lt`: fr ⊆ PartialOrder.lt. rf⁻¹;co composition through e_w (noBetween ensures validity).
+- [ ] Verify CO/FR definitions match RF's descriptive style (co.cases mirrors readsFrom.cases, fr carries rf⁻¹;co).
+- [ ] Vacuity checks: all proofs use communication evidence, not single-address-model shortcuts.
 
 **DEAD ENDS (don't repeat):**
 0. **eventLt (GLE/CLE/cache lex order) as universal ranking.** GLEs can be from the past (previousGlobalCacheGotPerms). For different-address PPOi, GLE₂ OB GLE₁ is possible even when CLE₁ OB CLE₂. The PPO linearization order (compound lin events from CompoundMCM) determines ordering, NOT GLE temporal order. The PartialOrder should be PPOi + COM directly, not mediated through eventLt.
+0b. **Event.OrderedBefore as PartialOrder.** Event.OrderedBefore is TEMPORAL ordering (e₁.oEnd < e₂.oStart). It's a proven strict partial order (irrefl, asymm, trans). But com edges (especially rfe) connect events at different clusters that might be temporally concurrent. The PartialOrder we need is COHERENCE ordering (GMO), not temporal ordering. Event.OrderedBefore ≠ GMO.
+0c. **Constructing PartialOrder from PPOi ∪ com is circular.** `CMCM.suffices_inclusion` proves acyclicity FROM a PartialOrder. Building the PartialOrder from PPOi ∪ com's transitive closure requires acyclicity for antisymmetry — circular. The GMO must be axiomatized or constructed independently from protocol axioms.
 1. Temporal chaining of GLE/CLE for PPOi is a rabbit hole. The `previousGlobalCacheGotPerms` case decouples GLEs from CLE ordering for different addresses. Don't re-derive this.
 2. Trying to show CLE₂ OB CLE₁ → False WITHOUT case-splitting on `dirAccessOfRequest`. The `orderAfterDir` case means CLE₁ can be temporally after e₂. Must case-split on dirAccessOfRequest and use the nc.weak CLE-sharing insight (see below).
 3. Don't ask the user about protocol semantics derivable from reading `dirAccessOfRequest` and `linearizationEventOfRequest` definitions. Trace through the cases yourself.
