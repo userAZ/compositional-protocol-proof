@@ -170,23 +170,29 @@ theorem chain_lb_lt_end_trans
     : lb < e₃.oEnd n :=
   Nat.lt_trans (chain_lb_lt_end h₁₂) (chain_lb_lt_end h₂₃)
 
-/-- Each step gives a ProtocolChain from the step's start oEnd. -/
-theorem step_to_chain
-    (hstep : (@PPOi n b ∪ com compound b init) e₁ e₂)
-    : @ProtocolChain n compound b init (Event.oEnd n e₁) e₁ e₂ := by
-  cases hstep with
-  | inl hppoi => exact .ppoi_step hppoi (Nat.le_refl _)
-  | inr hcom =>
-    -- Extract protocol event evidence from com edge
-    sorry -- needs: case-split on com, extract OB on protocol events
+/-- Each PPOi step gives e₁.oEnd < e₂.oEnd (from OB + well-formedness). -/
+theorem ppoi_oEnd_lt (hppoi : @PPOi n b e₁ e₂) : e₁.oEnd n < e₂.oEnd n :=
+  Nat.lt_trans hppoi.orderedBefore (Event.oWellFormed n e₂)
 
-/-- TransGen path gives lb < e₂.oEnd via ProtocolChain steps. -/
+/-- Each PPOi step gives e₁.oEnd < e₂.oStart (from OB). -/
+theorem ppoi_oEnd_lt_oStart (hppoi : @PPOi n b e₁ e₂) : e₁.oEnd n < e₂.oStart n :=
+  hppoi.orderedBefore
+
+-- For encapDir: e.oStart < CLE.oStart (protocol property from reqEncapDir)
+
+/-- TransGen path gives e₁.oEnd < e₂.oEnd by consuming 1 or 2 steps.
+    For PPOi: single step gives oEnd increase.
+    For COM with OB: single step gives oEnd increase.
+    For COM with CLE ordering: 2-step (PPOi then COM) bridges via
+    e₁.oEnd < e₂.oStart < CLE₂.oStart ≤ CLE₂.oEnd < CLE₃.oEnd < e₃.oEnd. -/
 theorem transgen_lb_lt
     (hpath : Relation.TransGen (@PPOi n b ∪ com compound b init) e₁ e₂)
     : e₁.oEnd n < e₂.oEnd n := by
-  induction hpath with
-  | single hstep => exact chain_lb_lt_end (step_to_chain hstep)
-  | tail _ hstep ih => exact Nat.lt_trans ih (chain_lb_lt_end (step_to_chain hstep))
+  -- Use head induction: decompose into first step + remaining path.
+  -- For PPOi first: single step gives oEnd increase, compose with ih.
+  -- For COM first with direct OB: single step gives oEnd increase.
+  -- For COM first with CLE ordering: need 2-step with the NEXT step.
+  sorry
 
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
