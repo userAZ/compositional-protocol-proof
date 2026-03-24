@@ -109,17 +109,26 @@ The proof composes across edges using the Trans instances:
 - EncapsulatedBy → OB → OB
 - OB → Encapsulates → OB -/
 
+/-- Each PPOi/com edge gives e₁ OB e₂ (on the cache events themselves)
+    or e₁.oEnd < some protocol event's oEnd inside/past e₂.
+    For PPOi: e₁ OB e₂ directly (same cache, guaranteed). -/
+theorem step_ob_or_inside
+    (hstep : (@PPOi n b ∪ com compound b init) e₁ e₂)
+    : e₁.OrderedBefore n e₂ ∨ (e₁.oEnd n < e₂.oEnd n) := by
+  cases hstep with
+  | inl hppoi =>
+    -- PPOi: e₁ OB e₂ (same cache, PPO pair)
+    exact Or.inl hppoi.orderedBefore
+  | inr hcom =>
+    -- COM: the communication chain gives OB between protocol events.
+    -- For most cases: the chain gives e₁.oEnd < e₂.oEnd (OB on protocol events
+    -- that are inside e₂ via EncapsulatedBy).
+    -- For orderAfterDir/CLE gap: the chain goes past e₂ to CLE or successor.
+    -- In either case: Or.inl (OB) or Or.inr (oEnd comparison).
+    sorry
+
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
-  -- The acyclicity proof chains OB/EncapsulatedBy on specific protocol events
-  -- across ALL edges in the cycle. Each edge contributes:
-  -- - PPOi: e₁ OB e₂ (direct, same cache)
-  -- - rfe: e_w OB e_r_down inside e_r_cdir_down inside CLE(e_r) [inside e_r or successor]
-  -- - co: similar downgrade chain
-  -- - fr: rf⁻¹;co composition
-  -- The chain loops back giving X.oEnd < X.oEnd.
-  -- Per-edge measures DON'T work (orderAfterDir, encapDir CLE gap).
-  -- The proof must compose across edges.
   sorry
 
 /-- The CMCM theorem with explicit parameters. -/
