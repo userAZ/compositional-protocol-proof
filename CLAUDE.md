@@ -268,17 +268,48 @@ cmcm_acyclic (ppoi_acyclic for pure PPOi, extract_hknow + cmcm_acyclic_of_hknow 
 eventPartialOrder (from cmcm_acyclic)
 ```
 
-**NEXT: Redesign to honest proof (TODO):**
+**NEXT: Redesign to honest proof (in progress on branch `pldi26-honest-proof`):**
 1. [x] Tag cle_advance approach as fallback (`v-cle-advance-sorry-free`)
-2. [ ] Redesign `rfe`: should include same-cluster different-cache (not just diffProtocol!)
-3. [ ] Redesign `step_advances` as inductive matching COM structure:
-   - Use specific protocol events (e_r_down, e_r_cdir_down, CLE) not abstract cle_advance
-   - PPOi: derive CLE ordering from dir_ordered + dirAccessOfRequest 9-case analysis
-   - rfe: derive from GLE OB + downgrade chain (wObRDown + encapDirRelation)
-   - co: already honest (co_step_advances uses communication chains)
-   - fr: derive from rf noBetween + co chain composition
-4. [ ] Reprove everything with honest derivations
-5. [ ] cdirEncapsDown (2 sorry's in RfCases/) — separate task
+2. [ ] Redesign `rfe`: `diffProtocol` → `diffCache` (struct ≠). Same-cluster diff-cache is rfe.
+3. [ ] Redesign `co.ordering` as DESCRIPTIVE inductive (like RF):
+   - `sameCache`: direct cache ordering (e₁ OB e₂)
+   - `sameClusDiffCache`: CLE₁ OB CLE₂ from cluster directory serialization
+   - `diffClus`: downgrade chain (wObRDown + encapDirRelation, like rfe diffCluster)
+4. [ ] Write `rfe_step_advances`: derive from readsFrom.cases communication chain
+   - wEqRGle.wEqRCle: absurd (sameCache contradicts diffCache)
+   - wEqRGle.wObRCle: CLE₁ OB CLE₂ from GleOrCle.cases
+   - wObRGle: chain through diffCluster sub-cases (same as co_step_advances)
+5. [ ] Write `ppoi_step_advances`: derive from dir_ordered + dirAccessOfRequest
+   - Same-addr: temporal chain from e₁ OB e₂ + dirAccessOfRequest cases
+   - Diff-addr: CompoundLinearizationOrder from enforce_compound_consistency
+6. [ ] Write `fr_step_advances`: DERIVE from rf + co composition + NoInterveningWrites
+   - co_chain gives CLE_w ≤ CLE₂
+   - rf gives CLE_w ≤ CLE₁
+   - NoInterveningWrites + dir_ordered: CLE₂ < CLE₁ → e₂ is intervening write → contradiction
+7. [ ] Remove ALL cle_advance fields from PPOi, rfe, fr
+8. [ ] cdirEncapsDown (2 sorry's in RfCases/) — separate task
+
+**DESIGN PHILOSOPHY (2026-03-24): Communication evidence, not conclusions**
+Each edge type must carry DESCRIPTIVE evidence of the communication mechanism:
+- WHAT downgrades happened, WHAT directory events were involved
+- The ordering is DERIVED from this evidence in the proof
+- A reviewer should see the derivation, not "trust me, CLE advances"
+CO must be a descriptive inductive (like RF), not an abstract GLE/CLE mirror.
+FR must derive from rf⁻¹;co⁺ + NoInterveningWrites, not carry the conclusion.
+
+**CRITICAL INSIGHT (2026-03-24): CLE lex pair was wrong abstraction**
+The CLE lexicographic pair `(CLE.oEnd, e.oEnd)` exploited `dir_ordered` across clusters
+(model over-strength, NOT a real protocol property). Cross-cluster CLEs have NO inherent
+ordering — the ordering comes from the DOWNGRADE CHAIN (e_r_down, e_r_cdir_down) that
+connects them. The honest proof should:
+1. Define a `StepOrdering` inductive with PPO (direct OB) and COM (downgrade chain) cases
+2. Each COM case carries the specific protocol events (e_r_down, e_r_cdir_down) and their
+   OB/Encapsulates relationships
+3. The acyclicity proof composes these chains via Trans instances
+4. A cycle produces e.oEnd < ... < e.oEnd through the chain → contradiction
+
+`dir_ordered` is ONLY valid for directory events at the SAME cluster. Cross-cluster ordering
+comes from the communication mechanism (downgrades), not from `dir_ordered`.
 
 **Key tools for honest proof:**
 - `wObRDown` field: CLE₁ OB e_r_cdir_down (added to rCleOrDownAtWAfterWCle.diffCluster)
