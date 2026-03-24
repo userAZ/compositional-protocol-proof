@@ -109,17 +109,24 @@ The proof composes across edges using the Trans instances:
 - EncapsulatedBy → OB → OB
 - OB → Encapsulates → OB -/
 
--- The acyclicity proof chains OB on SPECIFIC PROTOCOL EVENTS
--- (CLE, e_r_down, e_r_cdir_down) — NOT on cache event oEnd.
--- Each edge gives OB between protocol events. The chain loops on a
--- specific protocol event X: X.oEnd < ... < X.oEnd. Contradiction.
---
--- Template from Anqi's cycle examples:
--- PPOi: CLE₁ OB e₂ (lin events ordered)
--- Rfe: e₂ OB e_r_down (write before downgrade), e_r_cdir_down encaps e_r_down
--- Fr: e_r_cdir_down OB CLE₁ (downgrade before source's CLE)
--- Chain: CLE₁.oEnd < e₂.oEnd < e_r_down.oEnd < e_r_cdir_down.oEnd < CLE₁.oStart
--- Contradiction: CLE₁.oEnd < CLE₁.oStart, but oStart < oEnd (well-formedness).
+/-! ## Custom protocol event chain for acyclicity
+
+The standard TransGen + per-edge measures don't work (oEnd dead end).
+We define a custom inductive that tracks OB on specific protocol events
+at two communication levels: cluster cache and cluster directory.
+
+Each constructor represents a junction between edges (PPOi↔COM) at a
+specific communication level, carrying the protocol events and their
+OB/EncapsulatedBy relationships. The chain has strictly increasing oEnd
+on the protocol events it tracks. A cycle loops: X.oEnd < X.oEnd. -/
+
+-- TODO: Define ProtocolChain inductive with:
+-- 1. Constructors for each PPOi↔COM junction at cache and directory levels
+-- 2. Each constructor carries specific protocol events with OB evidence
+-- 3. Trans case for composing chains
+-- 4. Show: TransGen (PPOi ∪ com) e e → ProtocolChain e e
+-- 5. Show: ProtocolChain e e → False (from the oEnd chain looping)
+
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
   sorry
