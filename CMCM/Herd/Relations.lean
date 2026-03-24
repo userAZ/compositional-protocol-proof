@@ -37,7 +37,7 @@ inductive hierarchicallyOrdered
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     (e₁ e₂ : Event n) : Prop where
   /-- PPOi: local cache ordering (e₁ OB e₂ on same cache, PPO pair) -/
-  | ppoi (h : @PPOi n b e₁ e₂)
+  | ppoi (h : @PPOi n compound b init e₁ e₂)
   /-- COM: communication ordering (rfe/co/fr with downgrade/communication evidence) -/
   | com (h : com cmp b init e₁ e₂)
 

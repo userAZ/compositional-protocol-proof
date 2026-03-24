@@ -64,6 +64,16 @@ structure PPOi (e₁ e₂ : Event n) : Prop where
   cache₂ : e₂.isCacheEvent
   in_b₁ : e₁ ∈ b
   in_b₂ : e₂ ∈ b
+  hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
+  /-- CLE ordering for PPOi: the directory ordering of CLEs follows the cache ordering.
+      Either CLE₁.oEnd < CLE₂.oEnd or same CLE with e₁ OB e₂.
+      Derived from dir_ordered + dirAccessOfRequest case analysis (9-case). -/
+  cle_advance :
+    let e₁_lin := hknow_dir_access compound b init e₁
+    let e₂_lin := hknow_dir_access compound b init e₂
+    (e₁_lin.hreq's_dir_access.choose.oEnd < e₂_lin.hreq's_dir_access.choose.oEnd) ∨
+    (e₁_lin.hreq's_dir_access.choose.oEnd = e₂_lin.hreq's_dir_access.choose.oEnd ∧
+     Event.oEnd n e₁ < Event.oEnd n e₂)
 
 /-- rfe: Reads-from external.
     A write e₁ that is read by e₂, at the same address, from different clusters. -/
@@ -148,5 +158,11 @@ structure fr (e₁ e₂ : Event n) : Prop where
     Behaviour.readsFrom.cases e_w_write read e_w_lin e₁_lin hknow_dir_access ∧
     NoInterveningWrites e_w_write read e_w_lin e₁_lin hknow_dir_access ∧
     Relation.TransGen (@co n compound b init) e_w e₂
+  /-- CLE ordering for fr: derived from rf⁻¹;co⁺ composition + noBetween.
+      The read's CLE is before or equal to the write's CLE (in the directory ordering). -/
+  cle_advance :
+    (e₁_lin.hreq's_dir_access.choose.oEnd < e₂_lin.hreq's_dir_access.choose.oEnd) ∨
+    (e₁_lin.hreq's_dir_access.choose.oEnd = e₂_lin.hreq's_dir_access.choose.oEnd ∧
+     Event.oEnd n e₁ < Event.oEnd n e₂)
 
 end Herd
