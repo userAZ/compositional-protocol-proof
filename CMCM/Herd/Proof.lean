@@ -114,25 +114,20 @@ Template (from Anqi's cycle examples):
   Chain: CLE₁.oEnd < e₂.oEnd < e_r_down.oEnd < e_r_cdir_down.oEnd < CLE₁.oStart
   Contradiction: CLE₁.oEnd < CLE₁.oStart, but oStart < oEnd. -/
 
-/-- Each step gives OB between PROTOCOL EVENTS (not cache events).
-    PPOi: e₁ OB e₂ (direct, same cache).
-    COM: e_w OB e_r_down at cluster cache level, or CLE₁ OB CLE₂ at cluster dir level.
+/-! ## Acyclicity via protocol event OB chain -/
+/-- The acyclicity proof uses OB on protocol events (not cache events).
+    Each COM edge gives OB between protocol events at cluster cache level
+    (e_w OB e_r_down) or cluster directory level (CLE₁ OB CLE₂).
     The bridge: e_r_cdir_down encapsulates e_r_down (cdirEncapsDown).
-    These compose across edges via EncapsulatedBy + OB → OB (Trans instances). -/
 
-/-- The acyclicity theorem. Each step gives OB between protocol events.
-    The chain composes via OB transitivity and the EncapsulatedBy bridge
-    (e_r_cdir_down encaps e_r_down) connecting cluster cache and directory levels.
-    A cycle gives X OB X for some protocol event X — contradiction. -/
+    The custom transitive composition at PPOi↔COM junctions uses
+    EncapsulatedBy + OB → OB (Trans instances) and the encapsulation bridge
+    to switch between cluster cache and directory levels.
+
+    A cycle creates a loop: X OB ... OB X for some protocol event X,
+    contradicting X.oStart < X.oEnd (well-formedness). -/
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
-  -- NOTE: per-edge OB on cache events FAILS (reader can start before writer finishes).
-  -- The proof must use OB on PROTOCOL EVENTS and compose through encapsulation.
-  -- The custom transitive relation carries:
-  -- 1. OB at cluster cache level (e_w OB e_r_down)
-  -- 2. OB at cluster directory level (CLE₁ OB CLE₂)
-  -- 3. Encapsulation bridge (e_r_cdir_down encaps e_r_down from cdirEncapsDown)
-  -- The composition at PPOi↔COM junctions uses EncapsulatedBy + OB → OB.
   sorry
 
 /-- The CMCM theorem with explicit parameters. -/
