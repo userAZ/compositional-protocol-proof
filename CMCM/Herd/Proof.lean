@@ -247,7 +247,9 @@ theorem step_advances
             | sameCluster _ hob =>
               exact Nat.lt_trans hob (Event.oWellFormed n h.w₂_lin.hreq's_dir_access.choose)
             | diffCluster hdiff hdown =>
-              sorry -- diffCluster + sameCluster: need downgrade chain → CLE ordering
+              -- Vacuous: sameCluster (e_w.protocol = e_r.protocol) contradicts
+              -- diffCluster (e_w.protocol ≠ e_r.protocol)
+              exact absurd same_cluster hdiff
           | evictOrReadBetweenWAndRCleSameCluster evict =>
             exact Nat.lt_trans evict.wObR (Event.oWellFormed n h.w₂_lin.hreq's_dir_access.choose)
         | diffCluster diff_cluster diff_cluster_cases =>
