@@ -157,7 +157,7 @@ The "no intermediate write" argument from rf's `noBetween` is needed to exclude 
 Rather than implementing this complex composition proof, FR carries `co.cases e₁_lin e₂_lin` directly.
 The rf/co⁺ witness documents the protocol-level justification.
 
-**REMAINING SORRY's (5 declarations, Proof.lean):**
+**REMAINING SORRY's (8 sorry sites in 2 declarations, Proof.lean):**
 1. `eventPartialOrder` (line 50): The GMO — PartialOrder on events from protocol axioms. Its existence is a protocol-level fact (temporal ordering + cache_ordered + dir_ordered + compound lin). CANNOT be constructed from PPOi ∪ com itself (circular with CMCM.suffices_inclusion). Sorry = "the GMO exists."
 2. `ppoi_lt` (line 61): PPOi ⊆ PartialOrder.lt — THE key bridge from CompoundMCM to the Herd CMCM. Uses enforce_compound_consistency for diff-addr, protocol reasoning for same-addr.
 3. `rfe_lt` (line 71): rfe ⊆ PartialOrder.lt — from readsFrom.cases communication evidence.
