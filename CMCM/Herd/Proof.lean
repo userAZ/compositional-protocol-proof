@@ -11,17 +11,30 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)`.
 ## Architecture
 
 `hierarchicallyOrdered` (in Relations.lean) = PPOi ∪ com, carrying communication evidence.
-This IS the relation whose acyclicity we prove — and whose transitive closure gives the PartialOrder.
+This IS the relation whose acyclicity we prove — and whose transitive closure gives
+the PartialOrder (GMO).
 
-## Proof flow
+## Proof structure
 
-1. Prove `Relation.Acyclic hierarchicallyOrdered` directly from communication evidence
-2. Derive: `Relation.Acyclic (PPOi ∪ com)` (since hierarchicallyOrdered = PPOi ∪ com)
-3. Construct PartialOrder from the acyclic relation (consequence, not prerequisite)
+The acyclicity proof decomposes into sub-lemmas for each edge type.
+Each sub-lemma shows the edge's communication evidence implies a strict ordering
+that prevents cycles.
 
-The acyclicity proof shows: any cycle through PPOi + com edges leads to a contradiction,
-because the communication evidence (PPOi linearization, RF downgrades, CO overwrites,
-FR composition) imposes ordering constraints that can't be simultaneously satisfied in a cycle.
+### Sub-lemmas (each edge type → ordering constraint)
+
+- `ppoi_irrefl`: PPOi(e, e) is impossible (e OB e contradicts irreflexivity)
+- `rfe_irrefl`: rfe(e, e) is impossible (diffProtocol for same event)
+- `co_irrefl`: co(e, e) is impossible (from co.cases ordering)
+- `fr_irrefl`: fr(e, e) is impossible (read ≠ write for same event)
+
+- `ppoi_ordered`: PPOi(e₁, e₂) → CompoundLinearizationOrder
+- `rfe_ordered`: rfe(e₁, e₂) → ordering from readsFrom.cases
+- `co_ordered`: co(e₁, e₂) → ordering from co.cases
+- `fr_ordered`: fr(e₁, e₂) → ordering from rf⁻¹;co composition
+
+### Main theorem
+
+`cmcm_acyclic`: compose sub-lemmas to show any cycle leads to contradiction.
 -/
 
 variable {n : Nat}
@@ -30,24 +43,92 @@ namespace Herd
 
 variable {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
 
-/-! ## Direct acyclicity proof
+/-! ## Irreflexivity sub-lemmas
 
-Every cycle through PPOi ∪ com edges leads to a contradiction.
-The communication evidence in each edge constrains the ordering of events.
-A cycle would require these constraints to form a loop — which is impossible
-because the protocol's coherence mechanisms are acyclic. -/
+Each edge type is irreflexive — no event can be related to itself. -/
+
+/-- PPOi is irreflexive: e OB e is impossible. -/
+theorem ppoi_irrefl (h : @PPOi n b e e) : False :=
+  Event.contradiction_of_reflexive_ordered_before n h.orderedBefore
+
+/-- rfe is irreflexive: diffProtocol for same event is impossible. -/
+theorem rfe_irrefl (h : @Herd.rfe n compound b init e e) : False := by
+  exact absurd rfl h.diffProtocol
+
+/-- co is irreflexive: co.cases ordering on same event is impossible. -/
+theorem co_irrefl (h : @Herd.co n compound b init e e) : False := by
+  cases h.ordering with
+  | sameGle _ cle_cases =>
+    cases cle_cases with
+    | sameCle _ hob => exact Event.contradiction_of_reflexive_ordered_before n hob
+    | diffCle cle_ord =>
+      cases cle_ord with
+      | wImmPredRCle w =>
+        cases w with
+        | sameCluster _ hob =>
+          exact Event.contradiction_of_reflexive_ordered_before n hob
+        | diffCluster hdiff _ =>
+          have : h.w₁_lin = h.w₂_lin := Subsingleton.elim _ _
+          exact hdiff (by rw [← same_gle_implies_same_protocol h.w₁_lin h.w₂_lin
+            (by cases h.ordering with | sameGle h _ => exact h | wObRGle h _ => rfl)])
+      | evictOrReadBetweenWAndRCleSameCluster evict =>
+        exact Event.contradiction_of_reflexive_ordered_before n evict.wObR
+  | wObRGle hob _ =>
+    exact Event.contradiction_of_reflexive_ordered_before n hob
+
+/-- fr is irreflexive: e₁.isRead ∧ e₁.isWrite is impossible (for same event). -/
+theorem fr_irrefl (h : @Herd.fr n compound b init e e) : False := by
+  sorry -- read ∧ write for same event — depends on Event structure
+
+/-- com is irreflexive. -/
+theorem com_irrefl (h : com compound b init e e) : False := by
+  cases h with
+  | rfe h => exact rfe_irrefl h
+  | co h => exact co_irrefl h
+  | fr h => exact fr_irrefl h
+
+/-- hierarchicallyOrdered is irreflexive. -/
+theorem hierarchicallyOrdered_irrefl
+    (h : @hierarchicallyOrdered n compound b init e e) : False := by
+  cases h with
+  | ppoi h => exact ppoi_irrefl h
+  | com h => exact com_irrefl h
+
+/-! ## Ordering sub-lemmas
+
+Each edge type establishes an ordering constraint from its communication evidence.
+These constraints compose to show cycles are impossible. -/
+
+/-- PPOi → compound linearization ordering (for different-address pairs).
+    Uses CompoundMCM's `enforce_compound_consistency`. -/
+theorem ppoi_compound_lin_order
+    (hppoi : @PPOi n b e₁ e₂)
+    (hdiff_addr : e₁.addr ≠ e₂.addr)
+    : compound.CompoundLinearizationOrder n b init e₁ e₂ :=
+  CompoundProtocol.enforce_compound_consistency n compound
+    hppoi.sameProtocol hppoi.notDown₁ hppoi.notDown₂
+    hppoi.cache₁ hppoi.cache₂ hppoi.in_b₁ hppoi.in_b₂
+    hppoi.sameCid' hdiff_addr hppoi.orderedBefore
+
+/-- rfe → GLE ordering from readsFrom.cases.
+    wObRGle gives GLE(e_w) OB GLE(e_r); wEqRGle is absurd for rfe (same cluster). -/
+theorem rfe_gle_ordered
+    (h : @Herd.rfe n compound b init e₁ e₂)
+    : h.w_lin.hreq's_global_lin.choose.OrderedBefore n
+      h.r_lin.hreq's_global_lin.choose := by
+  cases h.readsFrom with
+  | wEqRGle _ hwr_same_cluster _ =>
+    exact absurd hwr_same_cluster h.diffProtocol
+  | wObRGle hw_r_gle_ob _ =>
+    exact hw_r_gle_ob
+
+/-! ## Main theorem -/
 
 /-- The CMCM theorem: `acyclic(PPOi ∪ rfe ∪ fr ∪ co)`.
 
-    Proved directly from the communication evidence carried in each edge.
-    A cycle through PPOi + com would require the protocol's coherence ordering
-    to form a loop, which contradicts the protocol axioms.
-
-    Each edge type contributes ordering constraints:
-    - **PPOi**: CompoundLinearizationOrder (compound lin events ordered)
-    - **rfe**: readsFrom.cases (cross-cluster downgrade chain → GLE ordering)
-    - **co**: co.cases (overwrite communication → GLE/CLE/cache ordering)
-    - **fr**: rf⁻¹;co (composition through intermediate write) -/
+    Proved by showing any cycle through PPOi + com edges leads to a contradiction.
+    Each edge's communication evidence imposes ordering constraints that
+    prevent the cycle from closing. -/
 theorem cmcm_acyclic
     (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
@@ -64,7 +145,7 @@ theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSyste
 Once acyclicity is established, the PartialOrder follows:
 - lt = TransGen (PPOi ∪ com)
 - le = (· = ·) ∨ TransGen (PPOi ∪ com)
-- Antisymmetry from acyclicity (TransGen r e e → False)
+- Antisymmetry from acyclicity
 - Transitivity from TransGen
 - Reflexivity from = -/
 
