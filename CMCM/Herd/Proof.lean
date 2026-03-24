@@ -207,9 +207,71 @@ theorem step_finishesBefore
         | diffCle _ =>
           -- Different CLE: same structural gap as rfe (need CLE→cache event chain)
           sorry
-      | wObRGle _ _ =>
-        -- GLE ordering: same gap (GLE ordering doesn't directly give cache event ordering)
-        sorry
+      | wObRGle _ cle_cases =>
+        -- GLE ordering with CLE sub-cases. DiffCluster carries encapProxyAndDirAndCDown.
+        cases cle_cases with
+        | sameCluster _ same_cluster_cases =>
+          -- Same cluster, different GLE: CLE ordering from SameCluster.cleOb
+          cases same_cluster_cases with
+          | wImmPredRCle w_imm_pred =>
+            cases w_imm_pred with
+            | sameCluster _ hcle_ob =>
+              -- CLE₁ OB CLE₂. Need CLE→cache event chain.
+              sorry
+            | diffCluster _ hencap =>
+              -- diffCluster carries encapDir. Need encapProxyAndDirAndCDown.
+              sorry
+          | evictOrReadBetweenWAndRCleSameCluster evict =>
+            sorry
+        | diffCluster _ diff_cluster_cases =>
+          -- DiffCluster: ReadDowngradeAtWrite carries encapProxyAndDirAndCDown!
+          cases diff_cluster_cases with
+          | wCleImmPredDown w_pred =>
+            -- w_pred.rDown : encapProxyAndDirAndCDown
+            have hw_ob_rdown := w_pred.rDown.existsRDownAtW.choose_spec.2.2.2
+            have hcdir_encaps := w_pred.rDown.cdirEncapsDown
+            have hencap_rel := w_pred.rDown.encapDir.existsRClusterDirDown.choose_spec.2.2.2
+            have hcdir_lt_cle : w_pred.rDown.encapDir.existsRClusterDirDown.choose.oEnd n <
+                h.w₂_lin.hreq's_dir_access.choose.oEnd n := by
+              cases hencap_rel with
+              | cleEncap henc => exact henc.2
+              | gcacheEncap _ hlt => exact hlt
+            have hcle_lt_e2 : h.w₂_lin.hreq's_dir_access.choose.oEnd n < e₂.oEnd n := by
+              have hdir := h.w₂_lin.hreq's_dir_access.choose_spec.2
+              cases hdir with
+              | encapDir _ hencap => exact hencap.reqEncapDir.2
+              | orderBeforeDir _ hexists_pred hpred_dir _ _ _ _ _ =>
+                have hcle_lt_pred := hpred_dir.reqEncapDir.2
+                have hpred_ob_e2 : hexists_pred.choose.OrderedBefore n e₂ :=
+                  hexists_pred.choose_spec.2.isImmPred.bPred.isPred
+                exact Nat.lt_trans (Nat.lt_trans hcle_lt_pred hpred_ob_e2) (Event.oWellFormed n e₂)
+              | orderAfterDir _ _ _ _ => sorry -- nc.weak, not cycle problem
+            exact Nat.lt_trans (Nat.lt_trans (Nat.lt_trans
+              (Nat.lt_trans hw_ob_rdown (Event.oWellFormed n _))
+              hcdir_encaps.2) hcdir_lt_cle) hcle_lt_e2
+          | evictOrReadBetweenWAndRDown w_evict =>
+            -- w_evict.rDown : encapProxyAndDirAndCDown (same structure)
+            have hw_ob_rdown := w_evict.rDown.existsRDownAtW.choose_spec.2.2.2
+            have hcdir_encaps := w_evict.rDown.cdirEncapsDown
+            have hencap_rel := w_evict.rDown.encapDir.existsRClusterDirDown.choose_spec.2.2.2
+            have hcdir_lt_cle : w_evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd n <
+                h.w₂_lin.hreq's_dir_access.choose.oEnd n := by
+              cases hencap_rel with
+              | cleEncap henc => exact henc.2
+              | gcacheEncap _ hlt => exact hlt
+            have hcle_lt_e2 : h.w₂_lin.hreq's_dir_access.choose.oEnd n < e₂.oEnd n := by
+              have hdir := h.w₂_lin.hreq's_dir_access.choose_spec.2
+              cases hdir with
+              | encapDir _ hencap => exact hencap.reqEncapDir.2
+              | orderBeforeDir _ hexists_pred hpred_dir _ _ _ _ _ =>
+                have hcle_lt_pred := hpred_dir.reqEncapDir.2
+                have hpred_ob_e2 : hexists_pred.choose.OrderedBefore n e₂ :=
+                  hexists_pred.choose_spec.2.isImmPred.bPred.isPred
+                exact Nat.lt_trans (Nat.lt_trans hcle_lt_pred hpred_ob_e2) (Event.oWellFormed n e₂)
+              | orderAfterDir _ _ _ _ => sorry -- nc.weak, not cycle problem
+            exact Nat.lt_trans (Nat.lt_trans (Nat.lt_trans
+              (Nat.lt_trans hw_ob_rdown (Event.oWellFormed n _))
+              hcdir_encaps.2) hcdir_lt_cle) hcle_lt_e2
     | fr h =>
       -- fr: rf⁻¹;co composition
       sorry -- need: compose rf + co finishesBefore
