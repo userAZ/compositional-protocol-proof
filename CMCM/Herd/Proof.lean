@@ -120,27 +120,78 @@ specific communication level, carrying the protocol events and their
 OB/EncapsulatedBy relationships. The chain has strictly increasing oEnd
 on the protocol events it tracks. A cycle loops: X.oEnd < X.oEnd. -/
 
-/-- A chain of OB on protocol events across PPOi/COM edges.
-    Lower bound `lb` tracks the minimum oEnd in the chain.
-    Each step must advance past `lb`. A cycle gives `lb < lb`. -/
-def ProtocolOBChain (lb : Nat) (e₁ e₂ : Event n) : Prop :=
-  Relation.TransGen (@PPOi n b ∪ com compound b init) e₁ e₂ ∧ lb ≤ e₁.oEnd n
+/-- Custom transitive closure tracking OB on protocol events at two levels.
+    Each constructor is a 2-step composition (PPOi→COM or COM→PPOi)
+    with the specific protocol events at the applicable communication level.
 
-/-- The chain strictly advances oEnd: lb < e₂.oEnd.
-    This uses the OB chain on protocol events at each step. -/
-theorem chain_advances_oEnd
-    (hchain : @ProtocolOBChain n compound b init lb e₁ e₂)
+    The `lb` parameter tracks a lower bound on oEnd values in the chain.
+    Each constructor proves lb < final.oEnd. A cycle gives lb < lb. -/
+inductive ProtocolChain (lb : Nat) : Event n → Event n → Prop where
+  /-- PPOi step: e₁ OB e₂ (same cache). lb ≤ e₁.oEnd, e₁.oEnd < e₂.oEnd. -/
+  | ppoi_step (hppoi : @PPOi n b e₁ e₂) (hlb : lb ≤ e₁.oEnd n)
+    : ProtocolChain lb e₁ e₂
+  /-- COM step with OB on cache events (e.g. co.sameCle): e₁ OB e₂ directly. -/
+  | com_cache_ob (hcom : com compound b init e₁ e₂) (hob : e₁.OrderedBefore n e₂)
+    (hlb : lb ≤ e₁.oEnd n) : ProtocolChain lb e₁ e₂
+  /-- COM step with OB on protocol events: e₁ OB e_r_down inside e₂.
+      The chain through e_r_down/e_r_cdir_down gives e₁.oEnd < e₂.oEnd. -/
+  | com_downgrade (hcom : com compound b init e₁ e₂)
+    (e_down : Event n) (hob : e₁.OrderedBefore n e_down)
+    (hdown_in_e₂ : e_down.oEnd n < e₂.oEnd n)
+    (hlb : lb ≤ e₁.oEnd n) : ProtocolChain lb e₁ e₂
+  /-- COM step with CLE ordering: CLE₁ OB CLE₂.
+      If CLE₁ EncapsulatedBy e₁ or e₁ OB CLE₁: chain through CLEs. -/
+  | com_cle_order (hcom : com compound b init e₁ e₂)
+    (cle₁ cle₂ : Event n) (hcle_ob : cle₁.OrderedBefore n cle₂)
+    (hcle₂_in_e₂ : cle₂.oEnd n < e₂.oEnd n)
+    (hlb_cle : lb ≤ cle₁.oEnd n) : ProtocolChain lb e₁ e₂
+  -- Note: trans is NOT a constructor (Lean kernel restriction on nested occurrence).
+  -- Transitivity is proven as a separate theorem.
+
+/-- Every ProtocolChain gives lb < e₂.oEnd. -/
+theorem chain_lb_lt_end (hchain : @ProtocolChain n compound b init lb e₁ e₂)
     : lb < e₂.oEnd n := by
-  -- The chain on protocol events (CLE, e_r_down, e_r_cdir_down)
-  -- at cluster cache and directory levels gives strict oEnd increase.
-  sorry
+  induction hchain with
+  | ppoi_step hppoi hlb =>
+    exact Nat.lt_of_le_of_lt hlb (Nat.lt_trans hppoi.orderedBefore (Event.oWellFormed n e₂))
+  | com_cache_ob _ hob hlb =>
+    exact Nat.lt_of_le_of_lt hlb (Nat.lt_trans hob (Event.oWellFormed n e₂))
+  | com_downgrade _ _ hob hdown_in hlb =>
+    exact Nat.lt_of_le_of_lt hlb (Nat.lt_trans (Nat.lt_trans hob (Event.oWellFormed n _)) hdown_in)
+  | com_cle_order _ _ _ hcle_ob hcle₂_in hlb_cle =>
+    exact Nat.lt_of_le_of_lt hlb_cle (Nat.lt_trans (Nat.lt_trans hcle_ob (Event.oWellFormed n _)) hcle₂_in)
+  -- (no trans constructor — transitivity is external)
+
+/-- Chain composition: if lb < mid.oEnd and mid.oEnd < end.oEnd,
+    then lb < end.oEnd. Used in place of trans constructor. -/
+theorem chain_lb_lt_end_trans
+    (h₁₂ : @ProtocolChain n compound b init lb e₁ e₂)
+    (h₂₃ : @ProtocolChain n compound b init (Event.oEnd n e₂) e₂ e₃)
+    : lb < e₃.oEnd n :=
+  Nat.lt_trans (chain_lb_lt_end h₁₂) (chain_lb_lt_end h₂₃)
+
+/-- Each step gives a ProtocolChain from the step's start oEnd. -/
+theorem step_to_chain
+    (hstep : (@PPOi n b ∪ com compound b init) e₁ e₂)
+    : @ProtocolChain n compound b init (Event.oEnd n e₁) e₁ e₂ := by
+  cases hstep with
+  | inl hppoi => exact .ppoi_step hppoi (Nat.le_refl _)
+  | inr hcom =>
+    -- Extract protocol event evidence from com edge
+    sorry -- needs: case-split on com, extract OB on protocol events
+
+/-- TransGen path gives lb < e₂.oEnd via ProtocolChain steps. -/
+theorem transgen_lb_lt
+    (hpath : Relation.TransGen (@PPOi n b ∪ com compound b init) e₁ e₂)
+    : e₁.oEnd n < e₂.oEnd n := by
+  induction hpath with
+  | single hstep => exact chain_lb_lt_end (step_to_chain hstep)
+  | tail _ hstep ih => exact Nat.lt_trans ih (chain_lb_lt_end (step_to_chain hstep))
 
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
   intro e hcycle
-  have hchain : @ProtocolOBChain n compound b init (e.oEnd n) e e :=
-    ⟨hcycle, Nat.le_refl _⟩
-  exact Nat.lt_irrefl _ (chain_advances_oEnd hchain)
+  exact Nat.lt_irrefl _ (transgen_lb_lt hcycle)
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
