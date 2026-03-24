@@ -439,7 +439,64 @@ theorem step_advances
               | diffCluster _ _ hwOB => exact chain_from_ob hPDC.encapDir hwOB
             | notImmPred hasPermsCase =>
               cases hasPermsCase with
-              | noEvictBetween w => exact chain_from_ob w.gdownEncapProxyAndDirAndCDown.encapDir sorry
+              | noEvictBetween w =>
+                -- noEvictBetween: use dir_ordered on CLE₁ and e_r_cdir_down
+                -- to derive wObRDown. Two sub-cases from dir_ordered:
+                -- CLE₁ OB de_cdir → gives wObRDown → chain_from_ob
+                -- de_cdir OB CLE₁ → chain through cache-level evidence
+                have hPDC := w.gdownEncapProxyAndDirAndCDown
+                have hcdir_is_dir' := hPDC.encapDir.existsRClusterDirDown.choose_spec.2.1
+                have hcle₁_is_dir := h.w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+                match hcd' : hPDC.encapDir.existsRClusterDirDown.choose, hcdir_is_dir' with
+                | .directoryEvent de_cdir', _ =>
+                  match hcw₁ : h.w_lin.hreq's_dir_access.choose, hcle₁_is_dir with
+                  | .directoryEvent de_w₁, _ =>
+                    simp only [Event.oEnd, hcw₁]
+                    cases (b.orderedAtEntry.dir_ordered de_w₁ de_cdir').ordered with
+                    | inl hob_cdir =>
+                      have hwOB' : h.w_lin.hreq's_dir_access.choose.OrderedBefore n
+                          hPDC.encapDir.existsRClusterDirDown.choose := by
+                        simp only [Event.OrderedBefore, Event.oEnd, Event.oStart, hcw₁, hcd']
+                        exact hob_cdir
+                      have := chain_from_ob hPDC.encapDir hwOB'
+                      simp only [Event.oEnd, hcw₁] at this; exact this
+                    | inr hob_cdir =>
+                      -- de_cdir' OB de_w₁: chain through cache-level evidence
+                      exfalso
+                      have he₁_ob_rdown := hPDC.existsRDownAtW.choose_spec.2.2.2
+                      have hrdown_lt_cdir : hPDC.existsRDownAtW.choose.oEnd <
+                          de_cdir'.oEnd := by
+                        have hcdirEncaps := hPDC.cdirEncapsDown
+                        simp [Event.Encapsulates, Event.oEnd, hcd'] at hcdirEncaps
+                        exact hcdirEncaps.2
+                      have hda₁ := h.w_lin.hreq's_dir_access.choose_spec.2
+                      rw [hcw₁] at hda₁
+                      cases hda₁ with
+                      | encapDir _ hencap_e₁ =>
+                        have : de_w₁.oEnd < de_w₁.oEnd :=
+                          calc de_w₁.oEnd < e₁.oEnd := hencap_e₁.reqEncapDir.right
+                            _ < hPDC.existsRDownAtW.choose.oStart := he₁_ob_rdown
+                            _ ≤ hPDC.existsRDownAtW.choose.oEnd := Nat.le_of_lt (Event.oWellFormed n _)
+                            _ < de_cdir'.oEnd := hrdown_lt_cdir
+                            _ < de_w₁.oStart := hob_cdir
+                            _ ≤ de_w₁.oEnd := Nat.le_of_lt de_w₁.oWellFormed
+                        exact Nat.lt_irrefl _ this
+                      | orderBeforeDir _ hexists_pred hpred _ _ _ _ _ =>
+                        have : de_w₁.oEnd < de_w₁.oEnd :=
+                          calc de_w₁.oEnd < hexists_pred.choose.oEnd := hpred.reqEncapDir.right
+                            _ < e₁.oStart := hexists_pred.choose_spec.2.isImmPred.bPred.isPred
+                            _ < e₁.oEnd := Event.oWellFormed n e₁
+                            _ < hPDC.existsRDownAtW.choose.oStart := he₁_ob_rdown
+                            _ ≤ hPDC.existsRDownAtW.choose.oEnd := Nat.le_of_lt (Event.oWellFormed n _)
+                            _ < de_cdir'.oEnd := hrdown_lt_cdir
+                            _ < de_w₁.oStart := hob_cdir
+                            _ ≤ de_w₁.oEnd := Nat.le_of_lt de_w₁.oWellFormed
+                        exact Nat.lt_irrefl _ this
+                      | orderAfterDir _ _ _ _ =>
+                        -- e₁ orderAfterDir with wHasPermsAfter: nc.weak CLE sharing
+                        sorry
+                  | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
               | evictBetween evict => exact chain_from_ob evict.encapProxyAndDir evict.evictBetween.wObRDown
           | wNoPermsAfter _ _ rCle =>
             cases rCle with
