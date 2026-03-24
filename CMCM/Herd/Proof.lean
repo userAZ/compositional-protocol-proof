@@ -168,50 +168,63 @@ theorem ppoi_acyclic : Relation.Acyclic (@PPOi n b) := by
 --   For orderAfterDir (nc.weak): CLE(e) = CLE(PPO successor), and the
 --   successor encapsulates CLE → p inside successor → p OB successor's successor.
 
-/-- Every edge in PPOi ∪ com gives a CLE-lexicographic ordering:
-    either the CLE strictly advances, or CLEs are equal and e₁ OB e₂.
-    Requires linearization witnesses (from `hknow_dir_access` or com edges).
+/-- Every edge in PPOi ∪ com strictly advances the lexicographic pair
+    (e.oEnd, CLE(e).oEnd), tracking BOTH cache event AND directory event
+    end times simultaneously.
 
-    This is the key per-step lemma for the acyclicity proof.
-    A cycle forces all CLEs equal (non-decreasing in a cycle → constant),
-    then all steps give OB on cache events → chain gives e OB e → contradiction. -/
-theorem step_cle_lex
+    Primary: e.oEnd (cache event end time) — always advances for PPOi (from OB).
+    Secondary: CLE.oEnd (directory event end time) — advances for COM when
+    the cache oEnd doesn't (e.g., co diff-cache slow grant).
+
+    This captures the key insight: cache events and directory events at each
+    cluster are both totally ordered (cache_ordered, dir_ordered), so tracking
+    both gives a strictly increasing measure along ANY path. -/
+theorem step_advances
     (h : (@PPOi n b ∪ com compound b init) e₁ e₂)
     (h₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
     (h₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
-    : (h₁_lin.hreq's_dir_access.choose.oEnd < h₂_lin.hreq's_dir_access.choose.oEnd) ∨
-      (h₁_lin.hreq's_dir_access.choose = h₂_lin.hreq's_dir_access.choose ∧
-       e₁.OrderedBefore n e₂) := by
+    : (Event.oEnd n e₁ < Event.oEnd n e₂) ∨
+      (Event.oEnd n e₁ = Event.oEnd n e₂ ∧
+       h₁_lin.hreq's_dir_access.choose.oEnd < h₂_lin.hreq's_dir_access.choose.oEnd) := by
   cases h with
   | inl hppoi =>
-    -- PPOi: e₁ OB e₂ on same cache, same address.
-    -- CLE₁ and CLE₂ are at same cluster directory, same address.
-    -- dir_ordered gives CLE₁ OB CLE₂ or CLE₁ = CLE₂ or CLE₂ OB CLE₁.
-    -- Case CLE₁ = CLE₂: Right with OB from PPOi.orderedBefore.
-    -- Case CLE₁ OB CLE₂: Left (strict CLE advance).
-    -- Case CLE₂ OB CLE₁: contradiction (requires 9-case dirAccessOfRequest analysis).
-    sorry
+    -- PPOi: e₁ OB e₂ → e₁.oEnd < e₂.oStart < e₂.oEnd (primary advances)
+    exact Or.inl (Nat.lt_trans hppoi.orderedBefore (Event.oWellFormed n e₂))
   | inr hcom =>
-    -- COM: same-address communication edge.
-    -- rfe: GLE₁ OB GLE₂ → CLE₁ OB CLE₂ (same-addr dir_ordered excludes CLE₂ OB CLE₁).
-    -- co.sameGle.sameCle: same CLE + e₁ OB e₂ → Right.
-    -- co.sameGle.diffCle: CLE₁ OB CLE₂ from cleOrdering.Cases → Left.
-    -- co.wObRGle: GLE₁ OB GLE₂ → CLE₁ OB CLE₂ → Left.
-    -- fr: composed from rf⁻¹ ; co⁺ → CLE ordering from intermediate writes.
+    -- COM: either e₁.oEnd < e₂.oEnd (primary advances), or
+    -- e₁.oEnd = e₂.oEnd and CLE₁.oEnd < CLE₂.oEnd (secondary advances).
+    --
+    -- For most COM edges: communication chain gives e₁.oEnd < e₂.oEnd:
+    --   rfe: e_w OB e_r_down inside e_r_cdir_down inside CLE₂ inside e₂
+    --   co.sameGle.sameCle: e₁ OB e₂ (direct cache ordering)
+    --
+    -- For COM edges where e₁.oEnd ≥ e₂.oEnd (co diff-cache slow grant):
+    --   CLE₁ OB CLE₂ from communication structure → secondary advances.
+    --   (CLE₁ strictly before CLE₂ from dir_ordered + communication evidence)
     sorry
 
-/-- From `step_cle_lex` applied to a cycle: all CLEs must be equal,
-    then all steps give OB on cache events. -/
+/-- Acyclicity of PPOi ∪ com.
+
+    The proof tracks TWO measures per cluster unit:
+    - Cache event oEnd (advances on PPOi and same-cache COM)
+    - Directory event (CLE) oEnd (advances on cross-cache COM)
+
+    The lexicographic pair (e.oEnd, CLE.oEnd) is strictly increasing along
+    any path (from step_advances). A cycle gives (e.oEnd, CLE.oEnd) <
+    (e.oEnd, CLE.oEnd) → contradiction with Nat.lt_irrefl. -/
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
-  -- Proof strategy:
-  -- 1. If the cycle is pure PPOi: ppoi_acyclic gives contradiction.
-  -- 2. If the cycle has a com edge: extract linearization witnesses.
-  --    Apply step_cle_lex to each step:
-  --    a. CLE.oEnd is non-decreasing along the cycle (from step_cle_lex).
-  --    b. Non-decreasing in a cycle → constant → all CLEs equal.
-  --    c. All CLEs equal → every step gives e₁ OB e₂ (from step_cle_lex Right).
-  --    d. Chain of OB → e OB e → contradiction (Event.contradiction_of_reflexive_ordered_before).
+  intro e hcycle
+  -- The proof uses the lexicographic pair (e.oEnd, CLE.oEnd) from step_advances.
+  -- A pure PPOi cycle is handled by ppoi_acyclic (OB transitivity).
+  -- A mixed cycle needs linearization witnesses (from COM edges).
+  --
+  -- For the mixed case: step_advances gives strict lex increase per step.
+  -- TransGen chain gives (e.oEnd, CLE.oEnd) < (e.oEnd, CLE.oEnd) on Nat×Nat.
+  -- Contradiction with well-foundedness of <lex on Nat×Nat.
+  --
+  -- TODO: Factor out pure-PPOi case, extract hknow_dir_access from COM edge,
+  -- chain step_advances through TransGen with lex ordering.
   sorry
 
 /-- The CMCM theorem with explicit parameters. -/
