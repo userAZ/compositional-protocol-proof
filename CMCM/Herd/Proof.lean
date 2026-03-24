@@ -140,7 +140,11 @@ theorem step_finishesBefore
     cases hcom with
     | rfe h =>
       -- rfe: e_w OB e_r_down, e_r_down.oEnd < e_r.oEnd (encapsulation chain)
-      sorry -- need: extract downgrade chain from readsFrom.cases
+      -- rfe: e_w OB e_r_down (existsRDownAtW), e_r_cdir_down encaps e_r_down,
+      -- e_r_cdir_down inside CLE(e_r)/GCR(e_r), CLE/GCR inside e_r (from dirAccessOfRequest)
+      -- Chain: e_w.oEnd < e_r_down.oEnd < e_r_cdir_down.oEnd < CLE.oEnd < e_r.oEnd
+      -- GAP: orderAfterDir case — CLE is from successor, CLE.oEnd > e_r.oEnd
+      sorry
     | co h =>
       -- co: downgrade structure gives e₁.oEnd < e₂.oEnd
       sorry -- need: extract from co.cases
