@@ -156,6 +156,7 @@ The rf/co⁺ witness documents the protocol-level justification.
 - [ ] Consider: should `hierarchicallyOrdered` constructors carry ordering evidence (eventLt proofs) alongside communication evidence?
 
 **DEAD ENDS (don't repeat):**
+0. **eventLt (GLE/CLE/cache lex order) as universal ranking.** GLEs can be from the past (previousGlobalCacheGotPerms). For different-address PPOi, GLE₂ OB GLE₁ is possible even when CLE₁ OB CLE₂. The PPO linearization order (compound lin events from CompoundMCM) determines ordering, NOT GLE temporal order. The PartialOrder should be PPOi + COM directly, not mediated through eventLt.
 1. Temporal chaining of GLE/CLE for PPOi is a rabbit hole. The `previousGlobalCacheGotPerms` case decouples GLEs from CLE ordering for different addresses. Don't re-derive this.
 2. Trying to show CLE₂ OB CLE₁ → False WITHOUT case-splitting on `dirAccessOfRequest`. The `orderAfterDir` case means CLE₁ can be temporally after e₂. Must case-split on dirAccessOfRequest and use the nc.weak CLE-sharing insight (see below).
 3. Don't ask the user about protocol semantics derivable from reading `dirAccessOfRequest` and `linearizationEventOfRequest` definitions. Trace through the cases yourself.
@@ -309,6 +310,8 @@ Trans instances: `EncapsulatedBy → OB → OB`, `OB → Encapsulates → OB`, `
 - **`/reflect`** every ~20-30 min: am I correct? efficient? going in circles?
 - **`/philosophy`** before major proof decisions, when stuck, when something feels architecturally wrong
 - **Consult philosophy PROACTIVELY** — before proving, implementing, planning, or thinking about anything significant. Ask: "Is the abstraction right? Does this match the protocol mechanism? Will a reviewer find this convincing? Am I being vacuous?" Don't wait until stuck — think deeply FIRST.
+- **Consult TODOs and philosophy AS you implement** — after each proof step, check: am I still on track? Does this match the TODO? Is the abstraction still right? This work is tricky — repeatedly verify direction.
+- **Don't just close sorry's — verify the replacement does what the TODO describes.** A sorry replaced with wrong semantics is worse than a sorry. (Learned from ParaMC CLAUDE.md.)
 - **Always save key insights to CLAUDE.md** (not just memory files) — this file is loaded every session
 - **Re-read CLAUDE.md before investigating questions** — the accumulated knowledge answers most protocol questions. Trace through definitions yourself using what's recorded here.
 - **Track all TODOs in CLAUDE.md** — sessions crash! Progress must survive.
