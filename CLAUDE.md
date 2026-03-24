@@ -84,6 +84,25 @@ The hierarchy ordering (GLE/CLE/cache) is a CONSEQUENCE of communication events,
   2. co(e_w, e₂): downgrade from e₂ to e_w at level L₂ (how e₂ overwrites e_w)
   The `noBetween` condition from RF ensures the composition is valid.
 
+### How the acyclicity proof works (no ranking needed!)
+
+**The cycle contradiction chains SPECIFIC OB relationships between protocol events:**
+
+Example cycle: e1 PPOi e2, e2 Rfe e3, e3 Fr e1 (all same address).
+- PPOi: CLE1 OB e2 (e1 lins at CLE, e2 lins at cache)
+- Rfe: e2 OB e_r_down, e_r_cdir_down encaps e_r_down (write before downgrade)
+- Fr: e_r_cdir_down OB CLE1 (the cluster dir downgrade is before e1's CLE — FR MUST carry this!)
+
+Chain: CLE1 OB e2 OB e_r_down (inside e_r_cdir_down) OB CLE1 → CLE1 OB CLE1. Contradiction!
+
+**Each edge provides:**
+- **PPOi**: lin(e1) OB lin(e2) — linearization events at whatever level they land
+- **Rfe**: e_w OB e_r_down, e_r_cdir_down encaps e_r_down, e_r_cdir_down inside CLE(e_r)/GCR(e_r)
+- **CO**: similar downgrade structure (e_w1 OB downgrade inside e_w2)
+- **FR**: carries e_r_cdir_down and its OB with target CLE — NOT just e_r_down!
+
+**The proof composes these using Trans instances** (EncapsulatedBy → OB → OB, etc.) to build a temporal chain that loops back, contradicting OB irreflexivity.
+
 ### Design principle: descriptive definitions (like RF's inductives)
 
 **Definitions should be descriptive (carry mechanism), not just prescriptive (carry consequence).**
@@ -162,6 +181,7 @@ The rf/co⁺ witness documents the protocol-level justification.
 - [ ] Lazy case in CompoundLinearizationOrder: `lazyCompoundLinearizationOrder` gives `finishesBefore` not `OrderedBefore`. Need: either show lazy case doesn't arise for PPOi, or show finishesBefore → OB for compound lin events.
 
 **DEAD ENDS (don't repeat):**
+00. **ANY single ranking function (eventLt, compoundLinEvent.oEnd, e.oEnd) for acyclicity.** The proof is NOT about a ranking that decreases. It's about chaining SPECIFIC OB relationships between protocol events across edges. Each edge gives OB between specific events (CLE, cache events, directory downgrades). A cycle chains these into X OB X. No ranking function needed. STOP looking for rankings.
 0. **eventLt (GLE/CLE/cache lex order) as universal ranking.** GLEs can be from the past (previousGlobalCacheGotPerms). For different-address PPOi, GLE₂ OB GLE₁ is possible even when CLE₁ OB CLE₂. The PPO linearization order (compound lin events from CompoundMCM) determines ordering, NOT GLE temporal order. The PartialOrder should be PPOi + COM directly, not mediated through eventLt.
 0b. **Event.OrderedBefore as PartialOrder.** Event.OrderedBefore is TEMPORAL ordering (e₁.oEnd < e₂.oStart). It's a proven strict partial order (irrefl, asymm, trans). But com edges (especially rfe) connect events at different clusters that might be temporally concurrent. The PartialOrder we need is COHERENCE ordering (GMO), not temporal ordering. Event.OrderedBefore ≠ GMO.
 0c. **Constructing PartialOrder from PPOi ∪ com is circular.** `CMCM.suffices_inclusion` proves acyclicity FROM a PartialOrder. Building the PartialOrder from PPOi ∪ com's transitive closure requires acyclicity for antisymmetry — circular. The GMO must be axiomatized or constructed independently from protocol axioms.
@@ -169,7 +189,7 @@ The rf/co⁺ witness documents the protocol-level justification.
 2. Trying to show CLE₂ OB CLE₁ → False WITHOUT case-splitting on `dirAccessOfRequest`. The `orderAfterDir` case means CLE₁ can be temporally after e₂. Must case-split on dirAccessOfRequest and use the nc.weak CLE-sharing insight (see below).
 3. Don't ask the user about protocol semantics derivable from reading `dirAccessOfRequest` and `linearizationEventOfRequest` definitions. Trace through the cases yourself.
 4. **Don't wrap `gleOrdering.Cases` (Type) with `Nonempty`** — define Prop-valued inductives mirroring RF instead.
-5. **FR composition proof (rf⁻¹ + co⁺ → hierarchy) is genuinely hard.** rf(e_w, e₁) + co⁺(e_w, e₂) gives e_w < e₁ and e_w < e₂, but NOT e₁ < e₂ without the "no intermediate write" argument. FR carries `co.cases` directly instead.
+5. **FR composition proof via ranking is genuinely hard** — but the proof should use SPECIFIC protocol events (e_r_cdir_down, CLE), not a ranking. FR should carry e_r_cdir_down and its OB with the target's CLE. rf(e_w, e₁) + co⁺(e_w, e₂) gives e_w < e₁ and e_w < e₂, but NOT e₁ < e₂ without the "no intermediate write" argument. FR carries `co.cases` directly instead.
 
 **CONFIRMED (2026-03-23): The per-edge `hierarchicallyOrdered` approach IS correct for same-addr PPOi.**
 
