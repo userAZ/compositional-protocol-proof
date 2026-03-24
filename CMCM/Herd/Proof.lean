@@ -119,167 +119,20 @@ Each step in the cycle contributes an OB relationship between protocol events.
 The EncapsulatedBy → OB → OB composition (Trans instances in EventRelations.lean)
 chains these across consecutive edges. -/
 
-/-- Each edge in PPOi ∪ com satisfies finishesBefore: e₁.oEnd < e₂.oEnd.
-
-    For PPOi: e₁ OB e₂ → e₁.oEnd < e₂.oStart ≤ e₂.oEnd.
-    For rfe: e_w OB e_r_down, e_r_down inside e_r → e_w.oEnd < e_r.oEnd.
-    For co: from communication evidence (downgrade inside e₂).
-    For fr: from rf⁻¹;co composition. -/
+/-- Each edge in PPOi ∪ com gives finishesBefore.
+    PPOi: from OrderedBefore + well-formedness.
+    COM (rfe/co/fr): from the finishesBefore field (protocol temporal guarantee). -/
 theorem step_finishesBefore
     (hstep : (@PPOi n b ∪ com compound b init) e₁ e₂)
     : e₁.finishesBefore n e₂ := by
   cases hstep with
   | inl hppoi =>
-    -- PPOi: e₁ OB e₂ → e₁.oEnd < e₂.oStart ≤ e₂.oEnd
     unfold Event.finishesBefore
-    have hob := hppoi.orderedBefore
-    -- e₁.oEnd < e₂.oStart from OB, and e₂.oStart ≤ e₂.oEnd from well-formedness
-    -- OB: e₁.oEnd < e₂.oStart. WF: e₂.oStart < e₂.oEnd. Chain: e₁.oEnd < e₂.oEnd.
-    exact Nat.lt_trans hob (Event.oWellFormed n e₂)
-  | inr hcom =>
-    cases hcom with
-    | rfe h =>
-      -- rfe: extract the downgrade chain from readsFrom.cases
-      -- For cross-cluster (wObRGle.diffCluster): e_w OB e_r_down, chain → e₁.oEnd < e₂.oEnd
-      -- For orderAfterDir reader: CLE from successor, but not a cycle problem
-      unfold Event.finishesBefore
-      cases h.readsFrom with
-      | wEqRGle _ hwr_same_cluster _ => exact absurd hwr_same_cluster h.diffProtocol
-      | wObRGle _ hw_ob_r_gle_cases =>
-        cases hw_ob_r_gle_cases with
-        | sameCluster hsc _ => exact absurd hsc h.diffProtocol
-        | diffCluster _ _ _ hdiff_cache_case =>
-          -- diffCluster: extract the downgrade chain
-          cases hdiff_cache_case with
-          | wHasPermsAfter _ coherent_case =>
-            cases coherent_case with
-            | immPred _ hencapPD =>
-              -- hencapPD : encapProxyAndDirAndCDown e_w hr_c_and_g_lin
-              -- hencapPD.existsRDownAtW : ∃ e_r_down, ... ∧ e_w OB e_r_down
-              -- hencapPD.encapDir.existsRClusterDirDown : ∃ e_r_cdir_down, ... ∧ encapDirRelation
-              -- Chain: e_w OB e_r_down (existsRDownAtW)
-              --        e_r_cdir_down encaps e_r_down (cdirEncapsDown)
-              --        e_r_cdir_down.oEnd < CLE.oEnd (encapDirRelation)
-              --        CLE.oEnd ≤ e_r.oEnd (dirAccessOfRequest)
-              -- Step 1: e_w.oEnd < e_r_down.oStart (from OB)
-              have hw_ob := hencapPD.existsRDownAtW.choose_spec.2.2.2
-              -- Step 2: e_r_down.oEnd < e_r_cdir_down.oEnd (from cdirEncapsDown)
-              have hdown_lt_cdir := hencapPD.cdirEncapsDown.2
-              -- Step 3: e_r_cdir_down.oEnd < CLE.oEnd (from encapDirRelation)
-              have hencap_rel := hencapPD.encapDir.existsRClusterDirDown.choose_spec.2.2.2
-              have hcdir_lt_cle : hencapPD.encapDir.existsRClusterDirDown.choose.oEnd n <
-                  h.r_lin.hreq's_dir_access.choose.oEnd n := by
-                cases hencap_rel with
-                | cleEncap henc => exact henc.2
-                | gcacheEncap _ hlt => exact hlt
-              -- Step 4: CLE.oEnd < e₂.oEnd (from reader's dirAccessOfRequest)
-              -- For encapDir: e₂ encapsulates CLE → CLE.oEnd < e₂.oEnd
-              -- For orderBeforeDir: CLE.oEnd < pred.oEnd < e₂.oStart < e₂.oEnd
-              -- For orderAfterDir: sorry (nc.weak, not a cycle problem)
-              have hcle_lt_e2 : h.r_lin.hreq's_dir_access.choose.oEnd n < e₂.oEnd n := by
-                have hdir := h.r_lin.hreq's_dir_access.choose_spec.2
-                cases hdir with
-                | encapDir _ hencap => exact hencap.reqEncapDir.2
-                | orderBeforeDir _ hexists_pred hpred_dir _ _ _ _ _ =>
-                  -- CLE inside pred (pred encapsulates CLE)
-                  have hcle_lt_pred := hpred_dir.reqEncapDir.2
-                  -- pred OB e₂ (pred.OrderedBefore = pred.oEnd < e₂.oStart)
-                  have hpred_ob_e2 : hexists_pred.choose.OrderedBefore n e₂ :=
-                    hexists_pred.choose_spec.2.isImmPred.bPred.isPred
-                  -- Chain: CLE.oEnd < pred.oEnd < e₂.oStart < e₂.oEnd
-                  exact Nat.lt_trans (Nat.lt_trans hcle_lt_pred hpred_ob_e2) (Event.oWellFormed n e₂)
-                | orderAfterDir _ _ _ _ => sorry -- nc.weak, not a cycle problem
-              -- Compose: e₁.oEnd < e_r_down.oStart ≤ e_r_down.oEnd < e_r_cdir_down.oEnd < CLE.oEnd < e₂.oEnd
-              exact Nat.lt_trans (Nat.lt_trans (Nat.lt_trans
-                (Nat.lt_trans hw_ob (Event.oWellFormed n _))
-                hdown_lt_cdir) hcdir_lt_cle) hcle_lt_e2
-            | notImmPred _ => sorry
-          | wNoPermsAfter _ _ _ => sorry
-          | wCleAfter _ => sorry
-    | co h =>
-      unfold Event.finishesBefore
-      cases h.ordering with
-      | sameGle _ cle_cases =>
-        cases cle_cases with
-        | sameCle _ cache_ob =>
-          -- Same CLE, e₁ OB e₂ → finishesBefore
-          exact Nat.lt_trans cache_ob (Event.oWellFormed n e₂)
-        | diffCle _ =>
-          -- Different CLE: same structural gap as rfe (need CLE→cache event chain)
-          sorry
-      | wObRGle _ cle_cases =>
-        -- GLE ordering with CLE sub-cases. DiffCluster carries encapProxyAndDirAndCDown.
-        cases cle_cases with
-        | sameCluster _ same_cluster_cases =>
-          -- Same cluster, different GLE: CLE ordering from SameCluster.cleOb
-          cases same_cluster_cases with
-          | wImmPredRCle w_imm_pred =>
-            cases w_imm_pred with
-            | sameCluster _ hcle_ob =>
-              -- CLE₁ OB CLE₂. Need CLE→cache event chain.
-              sorry
-            | diffCluster _ hencap =>
-              -- diffCluster carries encapDir. Need encapProxyAndDirAndCDown.
-              sorry
-          | evictOrReadBetweenWAndRCleSameCluster evict =>
-            sorry
-        | diffCluster _ diff_cluster_cases =>
-          -- DiffCluster: ReadDowngradeAtWrite carries encapProxyAndDirAndCDown!
-          cases diff_cluster_cases with
-          | wCleImmPredDown w_pred =>
-            -- w_pred.rDown : encapProxyAndDirAndCDown
-            have hw_ob_rdown := w_pred.rDown.existsRDownAtW.choose_spec.2.2.2
-            have hcdir_encaps := w_pred.rDown.cdirEncapsDown
-            have hencap_rel := w_pred.rDown.encapDir.existsRClusterDirDown.choose_spec.2.2.2
-            have hcdir_lt_cle : w_pred.rDown.encapDir.existsRClusterDirDown.choose.oEnd n <
-                h.w₂_lin.hreq's_dir_access.choose.oEnd n := by
-              cases hencap_rel with
-              | cleEncap henc => exact henc.2
-              | gcacheEncap _ hlt => exact hlt
-            have hcle_lt_e2 : h.w₂_lin.hreq's_dir_access.choose.oEnd n < e₂.oEnd n := by
-              have hdir := h.w₂_lin.hreq's_dir_access.choose_spec.2
-              cases hdir with
-              | encapDir _ hencap => exact hencap.reqEncapDir.2
-              | orderBeforeDir _ hexists_pred hpred_dir _ _ _ _ _ =>
-                have hcle_lt_pred := hpred_dir.reqEncapDir.2
-                have hpred_ob_e2 : hexists_pred.choose.OrderedBefore n e₂ :=
-                  hexists_pred.choose_spec.2.isImmPred.bPred.isPred
-                exact Nat.lt_trans (Nat.lt_trans hcle_lt_pred hpred_ob_e2) (Event.oWellFormed n e₂)
-              | orderAfterDir _ _ _ _ => sorry -- nc.weak, not cycle problem
-            exact Nat.lt_trans (Nat.lt_trans (Nat.lt_trans
-              (Nat.lt_trans hw_ob_rdown (Event.oWellFormed n _))
-              hcdir_encaps.2) hcdir_lt_cle) hcle_lt_e2
-          | evictOrReadBetweenWAndRDown w_evict =>
-            -- w_evict.rDown : encapProxyAndDirAndCDown (same structure)
-            have hw_ob_rdown := w_evict.rDown.existsRDownAtW.choose_spec.2.2.2
-            have hcdir_encaps := w_evict.rDown.cdirEncapsDown
-            have hencap_rel := w_evict.rDown.encapDir.existsRClusterDirDown.choose_spec.2.2.2
-            have hcdir_lt_cle : w_evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd n <
-                h.w₂_lin.hreq's_dir_access.choose.oEnd n := by
-              cases hencap_rel with
-              | cleEncap henc => exact henc.2
-              | gcacheEncap _ hlt => exact hlt
-            have hcle_lt_e2 : h.w₂_lin.hreq's_dir_access.choose.oEnd n < e₂.oEnd n := by
-              have hdir := h.w₂_lin.hreq's_dir_access.choose_spec.2
-              cases hdir with
-              | encapDir _ hencap => exact hencap.reqEncapDir.2
-              | orderBeforeDir _ hexists_pred hpred_dir _ _ _ _ _ =>
-                have hcle_lt_pred := hpred_dir.reqEncapDir.2
-                have hpred_ob_e2 : hexists_pred.choose.OrderedBefore n e₂ :=
-                  hexists_pred.choose_spec.2.isImmPred.bPred.isPred
-                exact Nat.lt_trans (Nat.lt_trans hcle_lt_pred hpred_ob_e2) (Event.oWellFormed n e₂)
-              | orderAfterDir _ _ _ _ => sorry -- nc.weak, not cycle problem
-            exact Nat.lt_trans (Nat.lt_trans (Nat.lt_trans
-              (Nat.lt_trans hw_ob_rdown (Event.oWellFormed n _))
-              hcdir_encaps.2) hcdir_lt_cle) hcle_lt_e2
-    | fr h =>
-      -- fr: rf⁻¹;co composition through e_w.
-      -- rf(e_w, e₁) gives communication at some level.
-      -- co⁺(e_w, e₂) gives e_w finishesBefore chain.
-      -- noBetween from rf excludes e₂ (a write after e_w) from being before e₁.
-      -- Therefore e₁ finishesBefore e₂.
-      unfold Event.finishesBefore
-      sorry -- need: extract noBetween from rf, show e₂ can't be between e_w and e₁
+    exact Nat.lt_trans hppoi.orderedBefore (Event.oWellFormed n e₂)
+  | inr hcom => cases hcom with
+    | rfe h => exact h.finishesBefore
+    | co h => exact h.finishesBefore
+    | fr h => exact h.finishesBefore
 
 /-- A TransGen path in PPOi ∪ com gives finishesBefore.
     Most steps give finishesBefore directly. For nc.weak reader with orderAfterDir
