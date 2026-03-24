@@ -188,10 +188,10 @@ theorem ppoi_oEnd_lt_oStart (hppoi : @PPOi n b e₁ e₂) : e₁.oEnd n < e₂.o
 theorem transgen_lb_lt
     (hpath : Relation.TransGen (@PPOi n b ∪ com compound b init) e₁ e₂)
     : e₁.oEnd n < e₂.oEnd n := by
-  -- Use head induction: decompose into first step + remaining path.
-  -- For PPOi first: single step gives oEnd increase, compose with ih.
-  -- For COM first with direct OB: single step gives oEnd increase.
-  -- For COM first with CLE ordering: need 2-step with the NEXT step.
+  -- Each PPOi step gives e₁.oEnd < e₂.oEnd (OB + well-formedness).
+  -- COM steps with downgrade evidence also give this.
+  -- COM steps with CLE ordering need 2-step composition with adjacent PPOi.
+  -- For the formal proof: use the protocol event chain.
   sorry
 
 theorem cmcm_acyclic
