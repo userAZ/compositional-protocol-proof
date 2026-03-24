@@ -468,6 +468,8 @@ inductive WriteRead.wObRCle.diffCache.rCleOrDownAtWAfterWCle
 | diffCluster
   (diffProtocol : e_w.protocol ≠ e_r.protocol)
   (existsRClusterDownAtW : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin)
+  (wObRDown : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n
+    existsRClusterDownAtW.existsRClusterDirDown.choose)
 
 /-- When the write is coherent and at a different cache from the read,
     either the CLE of e_w immediately precedes the CLE of e_r (so the
