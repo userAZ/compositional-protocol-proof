@@ -130,16 +130,6 @@ theorem rfe_gle_ordered
   | wObRGle hw_r_gle_ob _ =>
     exact hw_r_gle_ob
 
-/-! ## Compound linearization event extraction
-
-The compound linearization event for a request is where it "meets" the protocol
-hierarchy. This is the ranking witness for the acyclicity proof. -/
-
-/-- Extract the compound linearization event for a request event. -/
-noncomputable def compoundLinEvent (e : Event n) : Event n :=
-  (compound.compoundLinearizationEvent compound.shimAxioms b init e
-    (compound.linearizationOfEvent b init e)).linearizationEvent
-
 /-! ## Each edge type advances compound linearization events
 
 These are the key composition lemmas. Each shows the edge's communication
@@ -180,37 +170,51 @@ theorem fr_advances_compoundLin
 
 /-! ## Main theorem
 
-The acyclicity proof:
-1. Each edge advances compound linearization events
-2. OB on events is irreflexive and transitive
-3. A cycle would require OB to form a loop → contradiction -/
+The acyclicity proof extracts the compound lin ordering (hlin) from each
+`hierarchicallyOrdered` constructor, composes via OB transitivity, and
+contradicts OB irreflexivity. Trivial given the enriched constructors. -/
 
-/-- Every step in PPOi ∪ com advances the compound linearization event. -/
-private theorem step_advances_compoundLin
+/-- Extract compound lin ordering from hierarchicallyOrdered. -/
+theorem hierarchicallyOrdered_compoundLin
+    (h : @hierarchicallyOrdered n compound b init e₁ e₂)
+    : (@compoundLinEvent n compound b init e₁).OrderedBefore n
+      (@compoundLinEvent n compound b init e₂) := by
+  cases h with
+  | ppoi _ hlin => exact hlin
+  | com _ hlin => exact hlin
+
+/-- Every step in PPOi ∪ com gives hierarchicallyOrdered
+    (once we prove each edge advances compound lin events). -/
+private theorem step_hierarchicallyOrdered
     (hstep : (@PPOi n b ∪ com compound b init) e₁ e₂)
-    : (@compoundLinEvent n compound b init e₁).OrderedBefore n (@compoundLinEvent n compound b init e₂) := by
+    : @hierarchicallyOrdered n compound b init e₁ e₂ := by
   cases hstep with
-  | inl hppoi => exact ppoi_advances_compoundLin hppoi
+  | inl hppoi => exact .ppoi hppoi (ppoi_advances_compoundLin hppoi)
   | inr hcom => cases hcom with
-    | rfe h => exact rfe_advances_compoundLin h
-    | co h => exact co_advances_compoundLin h
-    | fr h => exact fr_advances_compoundLin h
+    | rfe h => exact .com (.rfe h) (rfe_advances_compoundLin h)
+    | co h => exact .com (.co h) (co_advances_compoundLin h)
+    | fr h => exact .com (.fr h) (fr_advances_compoundLin h)
 
 /-- The CMCM theorem: `acyclic(PPOi ∪ rfe ∪ fr ∪ co)`.
 
-    Every edge advances compound linearization events. Since OB is irreflexive
-    and transitive, a cycle through TransGen would give e_lin OB e_lin — contradiction. -/
+    Each edge gives hierarchicallyOrdered (carrying compound lin ordering).
+    A cycle would compose these orderings into compoundLinEvent(e) OB compoundLinEvent(e),
+    contradicting OB irreflexivity. -/
 theorem cmcm_acyclic
     (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
   intro e hcycle
   suffices h : ∀ e', Relation.TransGen (@PPOi n b ∪ com compound b init) e e' →
-      (@compoundLinEvent n compound b init e).OrderedBefore n (@compoundLinEvent n compound b init e') from
+      (@compoundLinEvent n compound b init e).OrderedBefore n
+      (@compoundLinEvent n compound b init e') from
     Event.contradiction_of_reflexive_ordered_before n (h e hcycle)
   intro e' hpath
   induction hpath with
-  | single hstep => exact step_advances_compoundLin hstep
-  | tail _ hstep ih => exact Trans.trans ih (step_advances_compoundLin hstep)
+  | single hstep =>
+    exact hierarchicallyOrdered_compoundLin (step_hierarchicallyOrdered hstep)
+  | tail _ hstep ih =>
+    exact Trans.trans ih
+      (hierarchicallyOrdered_compoundLin (step_hierarchicallyOrdered hstep))
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)

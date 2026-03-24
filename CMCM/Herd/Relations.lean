@@ -24,38 +24,34 @@ inductive com (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystem
   | fr : @Herd.fr n cmp b init e₁ e₂ → com cmp b init e₁ e₂
   | co : @Herd.co n cmp b init e₁ e₂ → com cmp b init e₁ e₂
 
-/-- The hierarchical ordering: PPOi ∪ com, carrying communication evidence.
+/-- The hierarchical ordering: PPOi ∪ com, carrying BOTH communication evidence
+    AND the compound linearization ordering consequence.
 
     Like RF's `readsFrom.cases`, each constructor is descriptive — it shows
-    WHAT communication happened. The ordering IS the communication.
+    WHAT communication happened AND WHAT ordering it establishes.
 
     - `ppoi`: local cache/thread ordering — CompoundMCM proves compound
       linearization events are ordered
     - `com`: communication ordering — rfe/co/fr each carry their specific
       downgrade/communication structure at a common level
 
-    The PartialOrder is the transitive closure of this relation.
-    Acyclicity is proven directly from the communication evidence. -/
+    Each constructor also carries `hlin`: compoundLinEvent e₁ OB compoundLinEvent e₂.
+    This makes the acyclicity proof trivial (compose hlin via OB transitivity,
+    contradict OB irreflexivity).
+
+    The real proof work is in constructing `hierarchicallyOrdered` instances —
+    showing each edge type advances compound linearization events. -/
 inductive hierarchicallyOrdered
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     (e₁ e₂ : Event n) : Prop where
-  /-- PPOi: local cache ordering via CompoundMCM (compound linearization events ordered) -/
-  | ppoi (h : @PPOi n b e₁ e₂)
-  /-- COM: communication ordering (rfe/co/fr, each with communication evidence) -/
-  | com (h : com cmp b init e₁ e₂)
-
-/-- hierarchicallyOrdered = PPOi ∪ com -/
-theorem hierarchicallyOrdered_iff_ppoi_union_com
-    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
-    {e₁ e₂ : Event n}
-    : @hierarchicallyOrdered n cmp b init e₁ e₂ ↔ (@PPOi n b ∪ com cmp b init) e₁ e₂ := by
-  constructor
-  · intro h; cases h with
-    | ppoi h => exact Or.inl h
-    | com h => exact Or.inr h
-  · intro h; cases h with
-    | inl h => exact .ppoi h
-    | inr h => exact .com h
+  /-- PPOi: local cache ordering + compound lin events ordered -/
+  | ppoi (comm : @PPOi n b e₁ e₂)
+         (hlin : (@Herd.compoundLinEvent n cmp b init e₁).OrderedBefore n
+                 (@Herd.compoundLinEvent n cmp b init e₂))
+  /-- COM: communication ordering + compound lin events ordered -/
+  | com (comm : com cmp b init e₁ e₂)
+        (hlin : (@Herd.compoundLinEvent n cmp b init e₁).OrderedBefore n
+                (@Herd.compoundLinEvent n cmp b init e₂))
 
 /-! ## Generic acyclicity definitions -/
 
