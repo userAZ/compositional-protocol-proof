@@ -315,6 +315,10 @@ From step 4: e_r_cdir_down.oEnd < CLE(e_r).oEnd (both encapDirRelation cases)
 
 So: compoundLin(e_w).oEnd < e_r_down.oStart, and e_r_down is inside e_r_cdir_down, which is inside CLE(e_r) or GCR(e_r). The chain from here to compoundLin(e_r) depends on whether compoundLin(e_r) = CLE(e_r) (previousGotPerms) or is inside CLE/GCR (getPerms).
 
+**PROBLEM**: For `previousGlobalCacheGotPerms` + `cleEncap`: compoundLin(e_r) = CLE(e_r). CLE encapsulates e_r_cdir_down, so CLE STARTS BEFORE e_r_cdir_down. The chain gives compoundLin(e_w) < e_r_down, but CLE.oStart < e_r_cdir_down.oStart < e_r_down.oStart. So CLE.oStart could be before compoundLin(e_w).oEnd — the inequality doesn't give compoundLin(e_w) OB CLE(e_r).
+
+**QUESTION**: Is `previousGlobalCacheGotPerms` + `cleEncap` even reachable for rfe? For rfe, e_w and e_r are in different clusters. `cleEncap` says CLE(e_r) encapsulates e_r_cdir_down. But CLE(e_r) is at e_r's cluster, and e_r_cdir_down is at e_w's cluster (different protocol). Can a CLE at one cluster encapsulate a dir event at another cluster? This might be impossible — need to check.
+
 **GAP (remaining)**: The exact chain from e_r_cdir_down to compoundLin(e_r) depends on:
 - Whether e_r_cdir_down is the SAME as or related to compoundLin(e_r)
 - How `encapDirRelation`'s CLE/GCR encapsulation connects to `clusterDirectoryLinearizationEvent`'s sub-cases (previousGlobalCacheGotPerms vs getGlobalCachePerms)
