@@ -129,10 +129,15 @@ theorem step_ob_or_inside
 
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
-  -- Maximum-oEnd argument: in any cycle, the event with maximum oEnd
-  -- cannot have an outgoing edge (PPOi gives OB to larger oEnd target;
-  -- COM gives OB to protocol event inside target with larger oEnd).
-  -- Both contradict maximality.
+  -- Two-case argument:
+  -- Case 1: cycle contains PPOi or COM-with-downgrade edge.
+  --   Max-oEnd argument: event with maximum oEnd can't have outgoing
+  --   PPOi (OB to larger target) or COM-with-downgrade (OB to protocol
+  --   event inside target). Both contradict maximality.
+  -- Case 2: cycle contains only CO-CLE-ordering edges.
+  --   CLE chain argument: CLEs form a monotone chain CLE₁.oEnd < ... < CLEₖ.oEnd.
+  --   The cycle loops: CLEₖ OB CLE₁ gives CLEₖ.oEnd < CLE₁.oEnd.
+  --   Combined with chain: CLE₁.oEnd < CLEₖ.oEnd < CLE₁.oEnd. Contradiction.
   sorry
 
 /-- The CMCM theorem with explicit parameters. -/
