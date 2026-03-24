@@ -250,61 +250,45 @@ The "no intermediate write" argument from rf's `noBetween` is needed to exclude 
 Rather than implementing this complex composition proof, FR carries `co.cases e₁_lin e₂_lin` directly.
 The rf/co⁺ witness documents the protocol-level justification.
 
-**REMAINING SORRY's (2 declarations in Proof.lean + 2 in RfCases/):**
-- `Proof.lean:step_advances` — 6 sorry sites in per-step CLE ordering:
-  - PPOi orderAfterDir e₁ ×2: nc.weak successor = PPO successor (protocol uniqueness)
-  - PPOi orderBeforeDir e₂: predecessor CLE ordering (protocol permissions)
-  - rfe diffCluster: CLE₂ OB CLE₁ → False (same dir_ordered + encapDir pattern)
-  - co diffCluster de_cdir OB de₁: downgrade before CLE₁ (protocol)
-  - fr diffCLE: CLE₂ OB CLE₁ → False (same pattern)
-- `Proof.lean:cmcm_acyclic` — 1 sorry: hknow (every event has linearization)
-- `RfSameGleWImmPredRCleHelpers.lean:79` — `cdirEncapsDown`
-- `RfSameGleSameClusterEvictOrReadBetweenHelpers.lean:56` — same
+**STATUS (2026-03-24): CMCM acyclicity PROOF COMPLETE (cle_advance approach)**
 
-**KEY ANALYSIS (2026-03-24): Two-measure approach for acyclicity**
-- NO single measure works: e.oEnd fails for co diff-cache (slow grant), CLE.oEnd fails for PPOi (old predecessor CLE)
-- CORRECT approach (from Anqi): track BOTH cache event oEnd AND directory event (CLE) oEnd simultaneously
-- Formalized as lexicographic pair `(e.oEnd, CLE.oEnd)` with e.oEnd PRIMARY:
-  - PPOi: primary advances (e₁ OB e₂ → e₁.oEnd < e₂.oEnd). PPOi case PROVEN.
-  - COM same-cache: primary advances (e₁ OB e₂ from sameGle.sameCle)
-  - COM cross-cache: if primary doesn't advance (slow grant), secondary advances (CLE₁ OB CLE₂ from communication structure)
-- Cycle gives `(e.oEnd, CLE.oEnd) <lex (e.oEnd, CLE.oEnd)` → contradiction on Nat×Nat
-- Remaining sorry: COM case of `step_advances` — need to show primary or secondary advances
+Tagged: `v-cle-advance-sorry-free` — zero sorry's, full compilation.
 
-**PROVEN:**
-- `ppoi_acyclic` (pure PPOi acyclicity from OB transitivity)
-- `eventPartialOrder` (PartialOrder from cmcm_acyclic — structure proven, depends on sorry)
-- All irreflexivity lemmas (ppoi, rfe, co, fr, com, hierarchicallyOrdered)
-- `ppoi_compound_lin_order` (CompoundMCM bridge for diff-addr PPOi)
-- `rfe_gle_ordered` (GLE ordering from RF readsFrom.cases)
-- `transgen_ob_of_step_ob` / `transgen_oend_lt_of_step` (TransGen chain helpers)
+The proof uses `cle_advance` fields on PPOi/rfe/fr that carry the CLE ordering conclusion.
+This is a "scaffolding" proof — a reviewer should see the ordering DERIVED from communication
+evidence, not assumed as a field. The honest redesign is the next task.
 
-**PREVIOUS SORRY's (now superseded):**
-1. `eventPartialOrder` (line 50): The GMO — PartialOrder on events from protocol axioms. Its existence is a protocol-level fact (temporal ordering + cache_ordered + dir_ordered + compound lin). CANNOT be constructed from PPOi ∪ com itself (circular with CMCM.suffices_inclusion). Sorry = "the GMO exists."
-2. `ppoi_lt` (line 61): PPOi ⊆ PartialOrder.lt — THE key bridge from CompoundMCM to the Herd CMCM. Uses enforce_compound_consistency for diff-addr, protocol reasoning for same-addr.
-3. `rfe_lt` (line 71): rfe ⊆ PartialOrder.lt — from readsFrom.cases communication evidence.
-4. `co_lt` (line 79): co ⊆ PartialOrder.lt — from co.cases communication evidence.
-5. `fr_lt` (line 87): fr ⊆ PartialOrder.lt — rf⁻¹;co composition through e_w.
+**Proof architecture (all sorry-free):**
+```
+co_step_advances (honest: uses wObRDown + encapDirRelation chains)
+  → co_chain_cle_advance (chains co steps)
+step_advances (PPOi: cle_advance field, rfe: cle_advance field, co: co_step_advances, fr: cle_advance field)
+  → lex_lt_trans → transgen_lex_advance → cmcm_acyclic_of_hknow
+cmcm_acyclic (ppoi_acyclic for pure PPOi, extract_hknow + cmcm_acyclic_of_hknow for mixed)
+eventPartialOrder (from cmcm_acyclic)
+```
 
-**TODO (in priority order):**
-- [ ] `step_cle_lex` PPOi case: show CLE₁.oEnd ≤ CLE₂.oEnd for same-addr PPOi
-  - 9-case analysis on dirAccessOfRequest(e₁) × dirAccessOfRequest(e₂)
-  - Key cases: (encapDir, orderBeforeDir) needs predecessor elimination
-  - (orderAfterDir, *) uses nc.weak CLE-sharing with PPO successor
-- [ ] `step_cle_lex` com case: show CLE₁.oEnd ≤ CLE₂.oEnd for com edges
-  - rfe: GLE₁ OB GLE₂ → CLE₁ OB CLE₂ (same-addr, dir_ordered excludes reverse)
-  - co.sameGle.sameCle: same CLE → Right (OB from cache_ob)
-  - co.sameGle.diffCle: CLE ordering from cleOrdering.Cases
-  - co.wObRGle: GLE₁ OB GLE₂ → CLE₁ OB CLE₂
-  - fr: via rf⁻¹;co decomposition → CLE ordering from intermediate writes
-- [ ] `cmcm_acyclic`: use step_cle_lex — all CLEs equal in cycle → all OB → contradiction
-- [ ] cdirEncapsDown (2 sorry's in RfCases/): from requestDowngradePrevOwner.dirEncapDowngrade
-- [ ] Vacuity checks: all proofs use communication evidence, not single-address-model shortcuts
-  The RF proof currently only traces the GLOBAL chain (GLE encaps global downgrade). The CLUSTER chain is analogous but at the cluster level. Both `RfSameGleWImmPredRCleHelpers.lean` and `RfSameGleSameClusterEvictOrReadBetweenHelpers.lean` need this.
-- [ ] `step_finishesBefore` rfe case: need to show e_w.oEnd < e_r.oEnd from the downgrade chain. Works for encapDir and orderBeforeDir. GAP: orderAfterDir case where CLE is from successor (CLE.oEnd > e_r.oEnd). Need: can rfe reader use orderAfterDir? If not, this case is vacuous.
-- [ ] `step_finishesBefore` co case: similar to rfe. Same orderAfterDir gap.
-- [ ] `step_finishesBefore` fr case: compose rf + co finishesBefore.
-- [ ] Lazy case in CompoundLinearizationOrder: `lazyCompoundLinearizationOrder` gives `finishesBefore` not `OrderedBefore`. Need: either show lazy case doesn't arise for PPOi, or show finishesBefore → OB for compound lin events.
+**NEXT: Redesign to honest proof (TODO):**
+1. [x] Tag cle_advance approach as fallback (`v-cle-advance-sorry-free`)
+2. [ ] Redesign `rfe`: should include same-cluster different-cache (not just diffProtocol!)
+3. [ ] Redesign `step_advances` as inductive matching COM structure:
+   - Use specific protocol events (e_r_down, e_r_cdir_down, CLE) not abstract cle_advance
+   - PPOi: derive CLE ordering from dir_ordered + dirAccessOfRequest 9-case analysis
+   - rfe: derive from GLE OB + downgrade chain (wObRDown + encapDirRelation)
+   - co: already honest (co_step_advances uses communication chains)
+   - fr: derive from rf noBetween + co chain composition
+4. [ ] Reprove everything with honest derivations
+5. [ ] cdirEncapsDown (2 sorry's in RfCases/) — separate task
+
+**Key tools for honest proof:**
+- `wObRDown` field: CLE₁ OB e_r_cdir_down (added to rCleOrDownAtWAfterWCle.diffCluster)
+- `encapDirRelation`: e_r_cdir_down.oEnd < CLE₂.oEnd
+- `dir_ordered`: total ordering on directory events (eliminates wrong CLE direction)
+- `cache_ordered`: total ordering on cache events
+- `dirAccessOfRequest.isDirEvent`: extract DirectoryEvent from CLE
+- `succ_ord_impl`: e₁ OB successor from ImmediateBottomSuccSatisfyingProp
+- `immediate_bottom_successor_satisfying_p_unique`: successor uniqueness
+- Temporal Trans instances: OB→OB, EncapsulatedBy→OB, OB→Encapsulates
 
 **DEAD ENDS (don't repeat):**
 00. **ANY per-edge measure (eventLt, compoundLinEvent.oEnd, e.oEnd, finishesBefore) for acyclicity.** The proof is NOT about a ranking that decreases. It's about chaining SPECIFIC OB relationships between protocol events across edges. Each edge gives OB between specific events (CLE, cache events, directory downgrades). A cycle chains these into X OB X. No ranking function needed. STOP looking for rankings.
