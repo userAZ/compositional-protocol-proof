@@ -92,6 +92,22 @@ The hierarchy ordering (GLE/CLE/cache) is a CONSEQUENCE of communication events,
   2. co(e_w, e₂): downgrade from e₂ to e_w at level L₂ (how e₂ overwrites e_w)
   The `noBetween` condition from RF ensures the composition is valid.
 
+### THE APPROACH: OB between protocol events in COM relations
+
+**The COM relations (rfe, co, fr) order specific protocol events via OrderedBefore.**
+- rfe: e_w OB e_r_down (write before downgrade at common level)
+- co: e_w₁ OB e_w₂_down (first write before overwrite downgrade)
+- fr: composition via rf⁻¹;co through intermediate write
+
+**The acyclicity proof chains these OB's across edges in a cycle.**
+Each edge gives OB between specific protocol events (e_w, e_r_down, e_r_cdir_down, CLE).
+EncapsulatedBy connects the output of one edge to the input of the next.
+A cycle forms a loop: X.oEnd < ... < X.oEnd — contradiction.
+
+**Per-edge measures (e.oEnd, finishesBefore) DO NOT WORK for all cases.**
+The chain goes through PROTOCOL events, not cache events.
+The proof MUST compose across edges.
+
 ### How the acyclicity proof works (no ranking needed!)
 
 **The cycle contradiction chains SPECIFIC OB relationships between protocol events:**
@@ -423,6 +439,7 @@ So: compoundLin(e_w).oEnd < e_r_down.oStart, and e_r_down is inside e_r_cdir_dow
 - **Don't just close sorry's — verify the replacement does what the TODO describes.** A sorry replaced with wrong semantics is worse than a sorry. (Learned from ParaMC CLAUDE.md.)
 - **Work iteratively**: plan → check TODOs/philosophy/CLAUDE.md → implement a step → ask "is this correct? am I on track?" → repeat. This applies to BOTH planning and implementing. Don't go far without checking direction.
 - **CHECK: does the implementation match what the user instructed?** Before committing, verify: am I using the approach the user described (OB on communication events), not a shortcut I invented (finishesBefore on cache events)? Does the proof use the specific protocol events (e_r_down, e_r_cdir_down, CLE) as the user showed in their cycle examples? If not, STOP and restructure.
+- **USE OB (OrderedBefore) for COM relations in the proof, NOT finishesBefore.** The COM relations order specific protocol events via OB. The proof chains these OB's. DO NOT substitute finishesBefore (e.oEnd comparison) — it's wrong for orderAfterDir and CLE gap cases. ALWAYS use the OB between the actual communication events.
 - **Record gaps and TODOs IMMEDIATELY — never let them silently slip past.** If something is incomplete, partially working, or a known limitation, add it to CLAUDE.md TODO right away. A gap you recorded is manageable; a gap you forgot is a blind spot. (From ParaMC CLAUDE.md.)
 - **Ask "am I missing something?" after each step.** Are there cases not covered? Edge cases not handled? Properties not checked? If yes, record them as gaps immediately. (From ParaMC CLAUDE.md.)
 - **Always give full context when asking the user a question.** Specify: which events, which edge type, which dirAccessOfRequest case, what the temporal chain looks like, and what specifically is unclear. Don't make the user ask "give me more context."
