@@ -157,7 +157,27 @@ The "no intermediate write" argument from rf's `noBetween` is needed to exclude 
 Rather than implementing this complex composition proof, FR carries `co.cases e₁_lin e₂_lin` directly.
 The rf/co⁺ witness documents the protocol-level justification.
 
-**REMAINING SORRY's (8 sorry sites in 2 declarations, Proof.lean):**
+**REMAINING SORRY's (3 declarations total across project):**
+- `RfSameGleWImmPredRCleHelpers.lean:54` — `cdirEncapsDown` (from requestDowngradePrevOwner.dirEncapDowngrade)
+- `RfSameGleSameClusterEvictOrReadBetweenHelpers.lean:32` — same
+- `Proof.lean:128` (`step_finishesBefore`) — 8 sorry sites:
+  - rfe immPred orderAfterDir ×2 (nc.weak, not cycle problems)
+  - rfe notImmPred, wNoPermsAfter, wCleAfter (need cache downgrade evidence)
+  - co diffCle, wObRGle (need CLE/GLE → cache event bridge)
+  - fr (rf⁻¹;co composition)
+
+**PROVEN:**
+- `cmcm_acyclic`, `cmcm` (main theorems)
+- `eventPartialOrder` (PartialOrder from acyclicity)
+- `transgen_finishesBefore` (TransGen path → finishesBefore)
+- `step_finishesBefore` PPOi case (OB → finishesBefore)
+- `step_finishesBefore` rfe immPred + encapDir/orderBeforeDir (full temporal chain)
+- `step_finishesBefore` co sameCle (OB → finishesBefore)
+- All irreflexivity lemmas
+- `ppoi_compound_lin_order` (CompoundMCM bridge)
+- `rfe_gle_ordered` (GLE ordering from RF)
+
+**PREVIOUS SORRY's (now superseded):**
 1. `eventPartialOrder` (line 50): The GMO — PartialOrder on events from protocol axioms. Its existence is a protocol-level fact (temporal ordering + cache_ordered + dir_ordered + compound lin). CANNOT be constructed from PPOi ∪ com itself (circular with CMCM.suffices_inclusion). Sorry = "the GMO exists."
 2. `ppoi_lt` (line 61): PPOi ⊆ PartialOrder.lt — THE key bridge from CompoundMCM to the Herd CMCM. Uses enforce_compound_consistency for diff-addr, protocol reasoning for same-addr.
 3. `rfe_lt` (line 71): rfe ⊆ PartialOrder.lt — from readsFrom.cases communication evidence.
