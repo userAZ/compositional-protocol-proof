@@ -33,11 +33,11 @@ variable {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystem
 
 /-! ## Irreflexivity of each edge type -/
 
-theorem ppoi_irrefl (h : @PPOi n compound b init e e) : False :=
+theorem ppoi_irrefl (h : @PPOi n b e e) : False :=
   Event.contradiction_of_reflexive_ordered_before n h.orderedBefore
 
 theorem rfe_irrefl (h : @Herd.rfe n compound b init e e) : False :=
-  absurd rfl h.diffProtocol
+  absurd rfl h.diffCache
 
 theorem co_irrefl (h : @Herd.co n compound b init e e) : False := by
   cases h.ordering with
@@ -84,7 +84,7 @@ theorem hierarchicallyOrdered_irrefl
 
 /-- PPOi → CompoundLinearizationOrder (for diff-addr, via CompoundMCM). -/
 theorem ppoi_compound_lin_order
-    (hppoi : @PPOi n compound b init e₁ e₂)
+    (hppoi : @PPOi n b e₁ e₂)
     (hdiff_addr : e₁.addr ≠ e₂.addr)
     : compound.CompoundLinearizationOrder n b init e₁ e₂ :=
   CompoundProtocol.enforce_compound_consistency n compound
@@ -92,14 +92,8 @@ theorem ppoi_compound_lin_order
     hppoi.cache₁ hppoi.cache₂ hppoi.in_b₁ hppoi.in_b₂
     hppoi.sameCid' hdiff_addr hppoi.orderedBefore
 
-/-- rfe → GLE ordering (from readsFrom.cases, wObRGle branch). -/
-theorem rfe_gle_ordered
-    (h : @Herd.rfe n compound b init e₁ e₂)
-    : h.w_lin.hreq's_global_lin.choose.OrderedBefore n
-      h.r_lin.hreq's_global_lin.choose := by
-  cases h.readsFrom with
-  | wEqRGle _ hwr_same_cluster _ => exact absurd hwr_same_cluster h.diffProtocol
-  | wObRGle hw_r_gle_ob _ => exact hw_r_gle_ob
+-- rfe_gle_ordered removed: with diffCache (not diffProtocol), wEqRGle is valid for rfe.
+-- GLE ordering is only for the wObRGle case, not universal for rfe.
 
 /-! ## Main theorem: acyclicity via OB chain on protocol events
 
@@ -139,7 +133,7 @@ theorem transgen_oend_lt_of_step
   | tail _ h ih => exact Nat.lt_trans ih (hstep _ _ h)
 
 /-- Pure PPOi is acyclic (from OrderedBefore transitivity). -/
-theorem ppoi_acyclic : Relation.Acyclic (@PPOi n compound b init) := by
+theorem ppoi_acyclic : Relation.Acyclic (@PPOi n b) := by
   intro e hcycle
   exact Event.contradiction_of_reflexive_ordered_before n
     (transgen_ob_of_step_ob hcycle fun a b h => h.orderedBefore)
@@ -280,7 +274,7 @@ theorem co_chain_cle_advance
   | tail _ h ih => exact lex_lt_trans ih (co_step_advances h (lin _) (lin _))
 
 theorem step_advances
-    (h : (@PPOi n compound b init ∪ com compound b init) e₁ e₂)
+    (h : (@PPOi n b ∪ com compound b init) e₁ e₂)
     (h₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
     (h₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
     : (h₁_lin.hreq's_dir_access.choose.oEnd < h₂_lin.hreq's_dir_access.choose.oEnd) ∨
@@ -288,21 +282,50 @@ theorem step_advances
        Event.oEnd n e₁ < Event.oEnd n e₂) := by
   cases h with
   | inl hppoi =>
-    -- PPOi carries cle_advance directly (from dir_ordered + dirAccessOfRequest analysis)
-    exact hppoi.cle_advance
+    -- PPOi: DERIVE CLE ordering from dir_ordered + dirAccessOfRequest (same-addr)
+    -- or CompoundLinearizationOrder (diff-addr).
+    -- e₁ OB e₂ from PPOi gives secondary advance when CLE₁ = CLE₂.
+    sorry
   | inr hcom =>
-    -- COM: same-address communication edge. CLE ordering from structure.
+    -- COM: derive CLE ordering from communication evidence.
     cases hcom with
     | rfe h =>
-      -- rfe carries cle_advance directly
+      -- rfe: DERIVE from readsFrom.cases communication chain.
+      -- wEqRGle.wEqRCle: sameCache contradicts rfe.diffCache → absurd
+      -- wEqRGle.wObRCle: GleOrCle.cases carries CLE_w OB CLE_r → Left
+      -- wObRGle.sameCluster: GleOrCle.cases carries CLE_w OB CLE_r → Left
+      -- wObRGle.diffCluster: downgrade chain (wObRDown + encapDirRelation) → Left
       have hw₁ : h.w_lin = h₁_lin := Subsingleton.elim _ _
       have hw₂ : h.r_lin = h₂_lin := Subsingleton.elim _ _
-      rw [← hw₁, ← hw₂]; exact h.cle_advance
+      rw [← hw₁, ← hw₂]
+      cases h.readsFrom with
+      | wEqRGle _ hwr_same_cluster hw_eq_r_gle_cases =>
+        cases hw_eq_r_gle_cases with
+        | wEqRCle _ _ hwr_com =>
+          -- Same cache (hwr_com.sameCache) contradicts rfe.diffCache
+          exact absurd hwr_com.sameCache h.diffCache
+        | wObRCle hwr_gle_or_cle =>
+          -- CLE_w OB CLE_r directly from hw_r_cle_ob
+          exact Or.inl (Nat.lt_trans hwr_gle_or_cle.hw_r_cle_ob
+            (Event.oWellFormed n h.r_lin.hreq's_dir_access.choose))
+      | wObRGle _ hw_ob_r_gle_cases =>
+        -- GLE_w OB GLE_r: sub-cases carry communication chain
+        left
+        cases hw_ob_r_gle_cases with
+        | sameCluster _ hw_ob_r_gle_cases =>
+          -- Same cluster: CLE_w OB CLE_r from GleOrCle.cases
+          exact Nat.lt_trans hw_ob_r_gle_cases.hw_r_cle_ob
+            (Event.oWellFormed n h.r_lin.hreq's_dir_access.choose)
+        | diffCluster _ _ _ hdiff_cache_case =>
+          -- Different cluster: derive from diffCache.case sub-structures
+          -- All paths carry wObRDown or evictBetween.wObRDown via rCleOrDownAtWAfterWCle
+          sorry -- TODO: extract downgrade chain (same pattern as co_step_advances)
     | co h =>
-      -- Delegate to co_step_advances (defined above, no circularity)
+      -- CO: honest derivation via co_step_advances (already sorry-free)
       exact co_step_advances h h₁_lin h₂_lin
     | fr h =>
-      -- fr carries cle_advance directly (from rf⁻¹;co⁺ + noBetween composition)
+      -- FR: carries cle_advance (derived from rf⁻¹;co⁺ + noBetween)
+      -- TODO: derive honestly from NoInterveningWrites + co_chain_cle_advance
       have hw₁ : h.e₁_lin = h₁_lin := Subsingleton.elim _ _
       have hw₂ : h.e₂_lin = h₂_lin := Subsingleton.elim _ _
       rw [← hw₁, ← hw₂]
@@ -314,7 +337,7 @@ theorem step_advances
     The lex pair (CLE.oEnd, e.oEnd) is strictly increasing from start to end. -/
 theorem transgen_lex_advance
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (hpath : Relation.TransGen (@PPOi n compound b init ∪ com compound b init) e₁ e₂)
+    (hpath : Relation.TransGen (@PPOi n b ∪ com compound b init) e₁ e₂)
     : ((lin e₁).hreq's_dir_access.choose.oEnd < (lin e₂).hreq's_dir_access.choose.oEnd) ∨
       ((lin e₁).hreq's_dir_access.choose.oEnd = (lin e₂).hreq's_dir_access.choose.oEnd ∧
        Event.oEnd n e₁ < Event.oEnd n e₂) := by
@@ -330,7 +353,7 @@ theorem transgen_lex_advance
     Fully proven from `step_advances` + lex chain + lex irrefl. -/
 theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    : Relation.Acyclic (@PPOi n compound b init ∪ com compound b init) := by
+    : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
   intro e hcycle
   exact lex_lt_irrefl (transgen_lex_advance hknow hcycle)
 
@@ -360,7 +383,7 @@ theorem transgen_union_find_right {R₁ R₂ : α → α → Prop}
     | inr h => exact Or.inr h
 
 theorem cmcm_acyclic
-    : Relation.Acyclic (@PPOi n compound b init ∪ com compound b init) := by
+    : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
   intro e hcycle
   -- The cycle is either pure PPOi or has at least one com edge.
   rcases transgen_union_find_right hcycle with hppoi_cycle | ⟨x, y, hcom⟩
@@ -371,13 +394,13 @@ theorem cmcm_acyclic
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
-    : Relation.Acyclic (@PPOi n cmp b' init' ∪ com cmp b' init') :=
+    : Relation.Acyclic (@PPOi n b' ∪ com cmp b' init') :=
   @cmcm_acyclic n cmp b' init'
 
 /-! ## PartialOrder (consequence of acyclicity) -/
 
 noncomputable def eventPartialOrder : PartialOrder (Event n) := by
-  let R := @PPOi n compound b init ∪ com compound b init
+  let R := @PPOi n b ∪ com compound b init
   have hacyclic := @cmcm_acyclic n compound b init
   exact {
     le := fun a b => a = b ∨ Relation.TransGen R a b

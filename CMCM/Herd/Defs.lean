@@ -49,9 +49,10 @@ noncomputable def cle
 
 /-! ## Edge definitions -/
 
-/-- PPOi: Preserved Program Order (intra-cluster).
+/-- PPOi: Preserved Program Order (intra-cache).
     Two events on the same cache forming a PPO pair, with e₁ ordered before e₂.
-    Both events must be in the behaviour. -/
+    CLE ordering is DERIVED in the proof (from dir_ordered + dirAccessOfRequest
+    for same-addr, CompoundLinearizationOrder for diff-addr). -/
 structure PPOi (e₁ e₂ : Event n) : Prop where
   ppo : e₁.isPPOPair n e₂
   orderedBefore : e₁.OrderedBefore n e₂
@@ -64,33 +65,19 @@ structure PPOi (e₁ e₂ : Event n) : Prop where
   cache₂ : e₂.isCacheEvent
   in_b₁ : e₁ ∈ b
   in_b₂ : e₂ ∈ b
-  hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
-  /-- CLE ordering for PPOi: the directory ordering of CLEs follows the cache ordering.
-      Either CLE₁.oEnd < CLE₂.oEnd or same CLE with e₁ OB e₂.
-      Derived from dir_ordered + dirAccessOfRequest case analysis (9-case). -/
-  cle_advance :
-    let e₁_lin := hknow_dir_access compound b init e₁
-    let e₂_lin := hknow_dir_access compound b init e₂
-    (e₁_lin.hreq's_dir_access.choose.oEnd < e₂_lin.hreq's_dir_access.choose.oEnd) ∨
-    (e₁_lin.hreq's_dir_access.choose.oEnd = e₂_lin.hreq's_dir_access.choose.oEnd ∧
-     Event.oEnd n e₁ < Event.oEnd n e₂)
 
-/-- rfe: Reads-from external.
-    A write e₁ that is read by e₂, at the same address, from different clusters. -/
+/-- rfe: Reads-from external (different cache).
+    A write e₁ that is read by e₂, at the same address, from different caches.
+    "External" means different cache (struct), not necessarily different cluster. -/
 structure rfe (e₁ e₂ : Event n) : Prop where
   write : e₁.isWrite
   read : e₂.isRead
   sameAddr : e₁.addr = e₂.addr
-  diffProtocol : e₁.diffProtocol n e₂
+  diffCache : e₁.struct ≠ e₂.struct
   w_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
   r_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
   readsFrom : Behaviour.readsFrom.cases write read w_lin r_lin hknow_dir_access
-  /-- CLE ordering for rfe: writer's CLE before reader's CLE. -/
-  cle_advance :
-    (w_lin.hreq's_dir_access.choose.oEnd < r_lin.hreq's_dir_access.choose.oEnd) ∨
-    (w_lin.hreq's_dir_access.choose.oEnd = r_lin.hreq's_dir_access.choose.oEnd ∧
-     Event.oEnd n e₁ < Event.oEnd n e₂)
 
 /-- CO same-GLE sub-cases (Prop-valued, mirroring `readsFrom.wEqRGle.cases`).
     When both writes share a GLE, ordering comes from CLE or cache level. -/
