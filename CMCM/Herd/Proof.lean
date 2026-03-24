@@ -273,8 +273,13 @@ theorem step_finishesBefore
               (Nat.lt_trans hw_ob_rdown (Event.oWellFormed n _))
               hcdir_encaps.2) hcdir_lt_cle) hcle_lt_e2
     | fr h =>
-      -- fr: rf⁻¹;co composition
-      sorry -- need: compose rf + co finishesBefore
+      -- fr: rf⁻¹;co composition through e_w.
+      -- rf(e_w, e₁) gives communication at some level.
+      -- co⁺(e_w, e₂) gives e_w finishesBefore chain.
+      -- noBetween from rf excludes e₂ (a write after e_w) from being before e₁.
+      -- Therefore e₁ finishesBefore e₂.
+      unfold Event.finishesBefore
+      sorry -- need: extract noBetween from rf, show e₂ can't be between e_w and e₁
 
 /-- A TransGen path in PPOi ∪ com gives finishesBefore.
     Most steps give finishesBefore directly. For nc.weak reader with orderAfterDir
