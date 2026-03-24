@@ -169,39 +169,121 @@ theorem ppoi_acyclic : Relation.Acyclic (@PPOi n b) := by
 --   successor encapsulates CLE → p inside successor → p OB successor's successor.
 
 /-- Every edge in PPOi ∪ com strictly advances the lexicographic pair
-    (e.oEnd, CLE(e).oEnd), tracking BOTH cache event AND directory event
+    (CLE(e).oEnd, e.oEnd), tracking BOTH directory event AND cache event
     end times simultaneously.
 
-    Primary: e.oEnd (cache event end time) — always advances for PPOi (from OB).
-    Secondary: CLE.oEnd (directory event end time) — advances for COM when
-    the cache oEnd doesn't (e.g., co diff-cache slow grant).
+    Primary: CLE.oEnd (directory event end time) — advances for COM edges
+    and most PPOi edges (directory events are totally ordered by dir_ordered).
+    Secondary: e.oEnd (cache event end time) — advances when CLEs are equal
+    (from PPOi OB or co.sameGle.sameCle OB).
 
-    This captures the key insight: cache events and directory events at each
-    cluster are both totally ordered (cache_ordered, dir_ordered), so tracking
-    both gives a strictly increasing measure along ANY path. -/
+    Each cluster's cache and directory events are totally ordered
+    (cache_ordered, dir_ordered). The lex pair (CLE.oEnd, e.oEnd) is
+    strictly increasing along any path → cycle gives contradiction. -/
 theorem step_advances
     (h : (@PPOi n b ∪ com compound b init) e₁ e₂)
     (h₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
     (h₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
-    : (Event.oEnd n e₁ < Event.oEnd n e₂) ∨
-      (Event.oEnd n e₁ = Event.oEnd n e₂ ∧
-       h₁_lin.hreq's_dir_access.choose.oEnd < h₂_lin.hreq's_dir_access.choose.oEnd) := by
+    : (h₁_lin.hreq's_dir_access.choose.oEnd < h₂_lin.hreq's_dir_access.choose.oEnd) ∨
+      (h₁_lin.hreq's_dir_access.choose = h₂_lin.hreq's_dir_access.choose ∧
+       Event.oEnd n e₁ < Event.oEnd n e₂) := by
   cases h with
   | inl hppoi =>
-    -- PPOi: e₁ OB e₂ → e₁.oEnd < e₂.oStart < e₂.oEnd (primary advances)
-    exact Or.inl (Nat.lt_trans hppoi.orderedBefore (Event.oWellFormed n e₂))
-  | inr hcom =>
-    -- COM: either e₁.oEnd < e₂.oEnd (primary advances), or
-    -- e₁.oEnd = e₂.oEnd and CLE₁.oEnd < CLE₂.oEnd (secondary advances).
-    --
-    -- For most COM edges: communication chain gives e₁.oEnd < e₂.oEnd:
-    --   rfe: e_w OB e_r_down inside e_r_cdir_down inside CLE₂ inside e₂
-    --   co.sameGle.sameCle: e₁ OB e₂ (direct cache ordering)
-    --
-    -- For COM edges where e₁.oEnd ≥ e₂.oEnd (co diff-cache slow grant):
-    --   CLE₁ OB CLE₂ from communication structure → secondary advances.
-    --   (CLE₁ strictly before CLE₂ from dir_ordered + communication evidence)
+    -- PPOi: e₁ OB e₂ on same cache, same address.
+    -- CLE₁ and CLE₂ are directory events at the same cluster, same address.
+    -- dir_ordered gives CLE₁ OB CLE₂ or CLE₂ OB CLE₁.
+    -- Case CLE₁ OB CLE₂: Left (primary advances).
+    -- Case CLE₁ = CLE₂: Right (secondary from OB + well-formedness).
+    -- Case CLE₂ OB CLE₁: impossible (9-case dirAccessOfRequest + e₁ OB e₂).
     sorry
+  | inr hcom =>
+    -- COM: same-address communication edge. CLE ordering from structure.
+    cases hcom with
+    | rfe h =>
+      -- rfe: GLE₁ OB GLE₂ → CLE₁ strictly before CLE₂ (primary advances)
+      sorry
+    | co h =>
+      -- co: case split on co.cases
+      have hw₁ : h.w₁_lin = h₁_lin := Subsingleton.elim _ _
+      have hw₂ : h.w₂_lin = h₂_lin := Subsingleton.elim _ _
+      cases h.ordering with
+      | sameGle gle_eq cle_cases =>
+        cases cle_cases with
+        | sameCle cle_eq cache_ob =>
+          -- Same CLE + e₁ OB e₂ → secondary advances
+          right
+          constructor
+          · -- CLE₁ = CLE₂
+            rw [← hw₁, ← hw₂]; exact cle_eq
+          · -- e₁.oEnd < e₂.oEnd from OB
+            exact Nat.lt_trans cache_ob (Event.oWellFormed n e₂)
+        | diffCle cle_ord =>
+          -- Different CLEs → CLE ordering → primary advances
+          left
+          cases cle_ord with
+          | wImmPredRCle w =>
+            cases w with
+            | sameCluster _ hob =>
+              -- CLE₁ OB CLE₂ directly
+              rw [← hw₁, ← hw₂]
+              exact Nat.lt_trans hob (Event.oWellFormed n h.w₂_lin.hreq's_dir_access.choose)
+            | diffCluster hdiff hdown =>
+              -- Downgrade chain: e_r_cdir_down inside CLE₂ → CLE₁ before CLE₂
+              sorry
+          | evictOrReadBetweenWAndRCleSameCluster evict =>
+            -- wObR: CLE₁ OB CLE₂
+            rw [← hw₁, ← hw₂]
+            exact Nat.lt_trans evict.wObR (Event.oWellFormed n h.w₂_lin.hreq's_dir_access.choose)
+      | wObRGle gle_ob cle_cases =>
+        -- GLE₁ OB GLE₂ with CLE sub-cases
+        left
+        rw [← hw₁, ← hw₂]
+        cases cle_cases with
+        | sameCluster same_cluster same_cluster_cases =>
+          -- Same cluster: reuse sameGle.diffCle logic
+          cases same_cluster_cases with
+          | wImmPredRCle w =>
+            cases w with
+            | sameCluster _ hob =>
+              exact Nat.lt_trans hob (Event.oWellFormed n h.w₂_lin.hreq's_dir_access.choose)
+            | diffCluster hdiff hdown =>
+              sorry -- diffCluster + sameCluster: need downgrade chain → CLE ordering
+          | evictOrReadBetweenWAndRCleSameCluster evict =>
+            exact Nat.lt_trans evict.wObR (Event.oWellFormed n h.w₂_lin.hreq's_dir_access.choose)
+        | diffCluster diff_cluster diff_cluster_cases =>
+          -- Different cluster: both sub-cases carry wObRDown + encapDirRelation
+          cases diff_cluster_cases with
+          | wCleImmPredDown w =>
+            -- wObRDown: CLE₁ OB e_r_cdir_down → CLE₁.oEnd < e_r_cdir_down.oStart
+            -- encapDirRelation: e_r_cdir_down.oEnd < CLE₂.oEnd
+            have hob := w.wObRDown  -- CLE₁ OB e_r_cdir_down
+            have hcdir_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
+            have hencap_rel := hcdir_spec.2.2.2
+            have hcdir_lt : w.rDown.encapDir.existsRClusterDirDown.choose.oEnd
+                < h.w₂_lin.hreq's_dir_access.choose.oEnd := by
+              cases hencap_rel with
+              | cleEncap henc =>
+                simp [Event.Encapsulates] at henc
+                exact henc.2
+              | gcacheEncap _ hlt => exact hlt
+            exact Nat.lt_trans (Nat.lt_trans hob
+              (Event.oWellFormed n w.rDown.encapDir.existsRClusterDirDown.choose)) hcdir_lt
+          | evictOrReadBetweenWAndRDown evict =>
+            have hob := evict.wObRDown
+            have hcdir_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
+            have hencap_rel := hcdir_spec.2.2.2
+            have hcdir_lt : evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd
+                < h.w₂_lin.hreq's_dir_access.choose.oEnd := by
+              cases hencap_rel with
+              | cleEncap henc =>
+                simp [Event.Encapsulates] at henc
+                exact henc.2
+              | gcacheEncap _ hlt => exact hlt
+            exact Nat.lt_trans (Nat.lt_trans hob
+              (Event.oWellFormed n evict.rDown.encapDir.existsRClusterDirDown.choose)) hcdir_lt
+    | fr h =>
+      -- fr: rf⁻¹ ; co⁺ decomposition → CLE ordering
+      sorry
 
 /-- Acyclicity of PPOi ∪ com.
 
