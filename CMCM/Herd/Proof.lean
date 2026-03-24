@@ -121,7 +121,7 @@ chains these across consecutive edges. -/
 
 /-- Each edge in PPOi ∪ com gives finishesBefore.
     PPOi: from OrderedBefore + well-formedness.
-    COM (rfe/co/fr): from the finishesBefore field (protocol temporal guarantee). -/
+    COM: derived from the communication events (e_w OB e_r_down chain). -/
 theorem step_finishesBefore
     (hstep : (@PPOi n b ∪ com compound b init) e₁ e₂)
     : e₁.finishesBefore n e₂ := by
@@ -130,9 +130,20 @@ theorem step_finishesBefore
     unfold Event.finishesBefore
     exact Nat.lt_trans hppoi.orderedBefore (Event.oWellFormed n e₂)
   | inr hcom => cases hcom with
-    | rfe h => exact h.finishesBefore
-    | co h => exact h.finishesBefore
-    | fr h => exact h.finishesBefore
+    | rfe h =>
+      -- rfe: derive from communication chain
+      -- e_w OB e_r_down (from encapProxyAndDirAndCDown.existsRDownAtW)
+      -- e_r_down inside e_r_cdir_down (from cdirEncapsDown)
+      -- e_r_cdir_down inside CLE(e_r) (from encapDirRelation)
+      -- CLE(e_r) inside e_r (from dirAccessOfRequest encapDir/orderBeforeDir)
+      -- Chain: e_w.oEnd < e_r_down.oEnd < e_r_cdir_down.oEnd < CLE.oEnd < e_r.oEnd
+      sorry
+    | co h =>
+      -- co: similar communication chain
+      sorry
+    | fr h =>
+      -- fr: rf⁻¹;co composition
+      sorry
 
 /-- A TransGen path in PPOi ∪ com gives finishesBefore.
     Most steps give finishesBefore directly. For nc.weak reader with orderAfterDir

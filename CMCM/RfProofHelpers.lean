@@ -3110,7 +3110,9 @@ lemma diffCache_coherent_encapProxyAndDir
     Behaviour.clusterDown.encapDirRelation.gcacheEncap
       h_gcache_encap_dir h_dir_end_before_cle⟩ }
 
--- Note: diffCache_coherent_encapProxyAndDirAndCDown was removed.
--- The cdirEncapsDown field was removed from encapProxyAndDirAndCDown.
--- The finishesBefore field on rfe/co/fr handles acyclicity without
--- needing the cluster-level encapsulation chain.
+-- Note: diffCache_coherent_encapProxyAndDirAndCDown was attempted but requires
+-- the cluster-level fwdCoherentRequestToOwner chain. The construction sites
+-- use by_cases + sorry for cdirEncapsDown. The proof of cdirEncapsDown needs:
+-- GlobalToCluster shim → proxy event → coherentWriteDowngrades at cluster level
+-- → fwdCoherentRequestToOwner → downgradeAtPrevOwner → requestDowngradePrevOwner
+-- → dirEncapDowngrade at the cluster level.
