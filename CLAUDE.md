@@ -175,7 +175,10 @@ The rf/co⁺ witness documents the protocol-level justification.
   - Similar to rfe: specific downgrade from e₂ to e₁ at common level. co.cases mirrors readsFrom.cases.
 - [ ] `fr_advances_compoundLin`: fr → compoundLinEvent e₁ OB compoundLinEvent e₂.
   - rf⁻¹;co composition through e_w. rf gives e_w meeting e₁ at common level (e_r_down). co gives e_w meeting e₂ at common level. noBetween ensures composition.
-- [ ] `eventPartialOrder`: PartialOrder from cmcm_acyclic (mechanical, consequence).
+- [ ] `eventPartialOrder`: PartialOrder from cmcm_acyclic (uses same edge-by-edge transitivity).
+- [ ] Remove `compoundLinEvent` — wrong abstraction, proof uses specific protocol events instead.
+- [ ] Restructure rfe/co/fr definitions to specify WHICH e_r_down/e_r_cdir_down events are ordered with WHICH other events (CLE, cache, etc.) — descriptive like RF.
+- [ ] Restructure `hierarchicallyOrdered` to carry specific ordered protocol events (not compoundLinEvent OB).
 - [ ] Verify CO/FR definitions match RF's descriptive style (co.cases mirrors readsFrom.cases, fr carries rf⁻¹;co).
 - [ ] Vacuity checks: all proofs use communication evidence, not single-address-model shortcuts.
 - [ ] Lazy case in CompoundLinearizationOrder: `lazyCompoundLinearizationOrder` gives `finishesBefore` not `OrderedBefore`. Need: either show lazy case doesn't arise for PPOi, or show finishesBefore → OB for compound lin events.
