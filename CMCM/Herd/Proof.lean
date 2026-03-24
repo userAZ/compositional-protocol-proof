@@ -253,11 +253,18 @@ theorem StepOrdering.acyclic : Relation.Acyclic (@StepOrdering n) := by
     rfe/co/fr: extract protocol events from communication evidence. -/
 theorem step_to_ordering
     (h : (@PPOi n b ∪ com compound b init) e₁ e₂)
-    : @StepOrdering n e₁ e₂ := by
+    (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    : @StepOrdering n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose := by
   cases h with
   | inl hppoi =>
-    -- PPOi: e₁ OB e₂ directly
-    exact .ob hppoi.orderedBefore
+    -- PPOi: e₁ OB e₂. Connect CLEs through cache events.
+    -- CLE₁ relates to e₁ via dirAccessOfRequest.
+    -- CLE₂ relates to e₂ via dirAccessOfRequest.
+    -- Cases depend on dirAccessOfRequest for each event.
+    -- For encapDir: CLE EncapBy e → encapObEncap(e₁, e₂) with e₁, e₂ inside CLEs
+    -- For orderBeforeDir: CLE OB e → chain CLE₁ OB e₁ OB e₂ → CLE₁ OB CLE₂
+    -- For orderAfterDir: e OB CLE → cache events serve as intermediaries
+    sorry
   | inr hcom =>
     cases hcom with
     | rfe h =>
@@ -266,8 +273,8 @@ theorem step_to_ordering
       | wEqRGle _ hwr_same_cluster hw_eq_r_gle_cases =>
         cases hw_eq_r_gle_cases with
         | wEqRCle _ _ hwr_com =>
-          -- Same CLE, same cache: e_w OB e_r directly
-          exact .ob hwr_com.wObR
+          -- Same CLE, same cache: e_w OB e_r. Both inside same CLE.
+          sorry -- encapObEncap with e₁, e₂ inside shared CLE
         | wObRCle hwr_gle_or_cle =>
           -- CLE_w OB CLE_r: same cluster, CLE ordering
           -- CLE_w inside e₁ (or before), CLE_r inside e₂ (or before)
@@ -288,8 +295,8 @@ theorem step_to_ordering
       -- co: extract from co.ordering
       cases h.comm with
       | sameCache _ cache_ob =>
-        -- Same cache: direct OB
-        exact .ob cache_ob
+        -- Same cache: e₁ OB e₂. Both inside same CLE.
+        sorry -- encapObEncap with e₁, e₂ inside shared CLE
       | sameClusDiffCache _ cle_ord =>
         -- Same cluster, diff cache: CLE ordering
         sorry -- TODO: extract CLE₁ EncapsulatedBy e₁, CLE₂ EncapsulatedBy e₂
@@ -698,7 +705,17 @@ theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
   intro e hcycle
-  exact lex_lt_irrefl (transgen_lex_advance hknow hcycle)
+  -- Map each step to StepOrdering between linearization points
+  -- Then compose via StepOrdering.trans to get StepOrdering lin(e) lin(e)
+  -- Then StepOrdering.irrefl gives False
+  -- Chain step_to_ordering through the cycle, compose via StepOrdering.trans
+  suffices ∀ a c, Relation.TransGen (PPOi ∪ com compound b init) a c →
+      StepOrdering (hknow a).hreq's_dir_access.choose (hknow c).hreq's_dir_access.choose by
+    exact StepOrdering.irrefl (this e e hcycle)
+  intro a c hpath
+  induction hpath with
+  | single h => exact step_to_ordering h hknow
+  | tail _ h ih => exact StepOrdering.trans ih (step_to_ordering h hknow)
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
