@@ -146,13 +146,20 @@ The rf/co⁺ witness documents the protocol-level justification.
 5. `fr_lt` (line 87): fr ⊆ PartialOrder.lt — rf⁻¹;co composition through e_w.
 
 **TODO (in priority order):**
-- [ ] `eventPartialOrder`: Construct/axiomatize the GMO (PartialOrder on Event n). Cannot be built from PPOi ∪ com (circular). Must come from protocol axioms (temporal ordering, cache_ordered, dir_ordered, compound lin).
-- [ ] `ppoi_lt`: PPOi ⊆ PartialOrder.lt. Use CompoundMCM's `enforce_compound_consistency` for diff-addr (non-vacuous!), protocol reasoning for same-addr.
-- [ ] `rfe_lt`: rfe ⊆ PartialOrder.lt. From readsFrom.cases (wObRGle → GLE ordering → in GMO).
-- [ ] `co_lt`: co ⊆ PartialOrder.lt. From co.cases (communication at GLE/CLE/cache → in GMO).
-- [ ] `fr_lt`: fr ⊆ PartialOrder.lt. rf⁻¹;co composition through e_w (noBetween ensures validity).
+- [ ] `ppoi_advances_compoundLin`: PPOi → compoundLinEvent e₁ OB compoundLinEvent e₂.
+  - Diff-addr: `ppoi_compound_lin_order` gives CompoundLinearizationOrder. Handle lazy case (finishesBefore → OB?).
+  - Same-addr: cache events encapsulate compound lin events (proven in CompoundPPOs.lean:644-786 for ncRelease/acquire/coherent). e₁ OB e₂ + encap → compoundLin₁ OB compoundLin₂.
+- [ ] `rfe_advances_compoundLin`: rfe → compoundLinEvent e₁ OB compoundLinEvent e₂.
+  - KEY: the specific communication events e_w and e_r_down (downgrade from e_r to e_w at common level) ARE what establishes the ordering. e_w OB e_r_down (from `encapProxyAndDirAndCDown.existsRDownAtW`), and e_r_down is inside e_r's CLE/GCR (from `encapDirRelation`). Must trace through these specific events, not just extract abstract GLE ordering.
+  - Bridge: e_w's compound lin event relates to e_w. e_r_down inside e_r's CLE relates to e_r's compound lin event. Composition gives the ordering.
+- [ ] `co_advances_compoundLin`: co → compoundLinEvent e₁ OB compoundLinEvent e₂.
+  - Similar to rfe: specific downgrade from e₂ to e₁ at common level. co.cases mirrors readsFrom.cases.
+- [ ] `fr_advances_compoundLin`: fr → compoundLinEvent e₁ OB compoundLinEvent e₂.
+  - rf⁻¹;co composition through e_w. rf gives e_w meeting e₁ at common level (e_r_down). co gives e_w meeting e₂ at common level. noBetween ensures composition.
+- [ ] `eventPartialOrder`: PartialOrder from cmcm_acyclic (mechanical, consequence).
 - [ ] Verify CO/FR definitions match RF's descriptive style (co.cases mirrors readsFrom.cases, fr carries rf⁻¹;co).
 - [ ] Vacuity checks: all proofs use communication evidence, not single-address-model shortcuts.
+- [ ] Lazy case in CompoundLinearizationOrder: `lazyCompoundLinearizationOrder` gives `finishesBefore` not `OrderedBefore`. Need: either show lazy case doesn't arise for PPOi, or show finishesBefore → OB for compound lin events.
 
 **DEAD ENDS (don't repeat):**
 0. **eventLt (GLE/CLE/cache lex order) as universal ranking.** GLEs can be from the past (previousGlobalCacheGotPerms). For different-address PPOi, GLE₂ OB GLE₁ is possible even when CLE₁ OB CLE₂. The PPO linearization order (compound lin events from CompoundMCM) determines ordering, NOT GLE temporal order. The PartialOrder should be PPOi + COM directly, not mediated through eventLt.
@@ -314,6 +321,8 @@ Trans instances: `EncapsulatedBy → OB → OB`, `OB → Encapsulates → OB`, `
 - **Consult TODOs and philosophy AS you implement** — after each proof step, check: am I still on track? Does this match the TODO? Is the abstraction still right? This work is tricky — repeatedly verify direction.
 - **Don't just close sorry's — verify the replacement does what the TODO describes.** A sorry replaced with wrong semantics is worse than a sorry. (Learned from ParaMC CLAUDE.md.)
 - **Work iteratively**: plan → check TODOs/philosophy/CLAUDE.md → implement a step → ask "is this correct? am I on track?" → repeat. This applies to BOTH planning and implementing. Don't go far without checking direction.
+- **Record gaps and TODOs IMMEDIATELY — never let them silently slip past.** If something is incomplete, partially working, or a known limitation, add it to CLAUDE.md TODO right away. A gap you recorded is manageable; a gap you forgot is a blind spot. (From ParaMC CLAUDE.md.)
+- **Ask "am I missing something?" after each step.** Are there cases not covered? Edge cases not handled? Properties not checked? If yes, record them as gaps immediately. (From ParaMC CLAUDE.md.)
 - **Always save key insights to CLAUDE.md** (not just memory files) — this file is loaded every session
 - **Re-read CLAUDE.md before investigating questions** — the accumulated knowledge answers most protocol questions. Trace through definitions yourself using what's recorded here.
 - **Track all TODOs in CLAUDE.md** — sessions crash! Progress must survive.
