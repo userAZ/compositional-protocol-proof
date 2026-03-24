@@ -183,6 +183,7 @@ The rf/co⁺ witness documents the protocol-level justification.
 - [ ] Vacuity checks: all proofs use communication evidence, not single-address-model shortcuts.
 - [ ] **RESOLVED**: nc.weak orderAfterDir is NOT a problem for cycles — CLE is inside successor, chain goes through successor. No counterexample exists.
 - [ ] **PREVIOUS CONCERN (resolved)**: `finishesBefore` (e.oEnd) does NOT work as a per-edge measure for nc.weak reader with orderAfterDir. The rfe downgrade chain goes THROUGH the successor (CLE after e_r), so e₁.finishesBefore e₂ fails. But rfe + PPOi COMPOSED gives e₁.finishesBefore e₃ (the successor). Options: (1) compose pairs of edges, (2) use a different measure (CLE.oEnd or successor.oEnd), (3) case-split on dirAccessOfRequest.
+- [ ] **STRUCTURAL GAP in Rf.lean**: `encapProxyAndDirAndCDown` carries e_r_down and e_r_cdir_down as SEPARATE existentials with NO connection. Need: `e_r_cdir_down.Encapsulates n e_r_down` (from requestDowngradePrevOwner.dirEncapDowngrade). This is a known TODO at Rf.lean:335 (clusterDirDownFromProxy). Without this, can't chain e_w OB e_r_down to e_r_cdir_down.oEnd < CLE.oEnd.
 - [ ] `step_finishesBefore` rfe case: need to show e_w.oEnd < e_r.oEnd from the downgrade chain. Works for encapDir and orderBeforeDir. GAP: orderAfterDir case where CLE is from successor (CLE.oEnd > e_r.oEnd). Need: can rfe reader use orderAfterDir? If not, this case is vacuous.
 - [ ] `step_finishesBefore` co case: similar to rfe. Same orderAfterDir gap.
 - [ ] `step_finishesBefore` fr case: compose rf + co finishesBefore.
