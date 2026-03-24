@@ -195,7 +195,18 @@ theorem step_finishesBefore
                   (Nat.lt_trans hw_ob (Event.oWellFormed n _))
                   hdown_lt_cdir) hcdir_lt_cle) hcle_lt_e2
               | evictBetween _ => sorry -- evictBetween: CLE ordering, needs e_w→cache chain
-          | wNoPermsAfter _ _ _ => sorry -- nc write case
+          | wNoPermsAfter _ _ hr_cle_after =>
+            -- nc write: carries rCleOrDownAtWAfterWCle
+            cases hr_cle_after with
+            | sameCluster _ hcle_ob =>
+              -- CLE(e_w) OB CLE(e_r). Need e_w.oEnd < e_r.oEnd from CLE chain.
+              -- For orderAfterDir on e_w: e_w.oEnd < CLE(e_w).oStart → chain works.
+              -- For encapDir on e_w: e_w.oEnd > CLE(e_w).oEnd → gap.
+              -- nc write can have orderAfterDir (nc.weak on Vd).
+              sorry -- CLE ordering → cache event chain (depends on e_w's dirAccessOfRequest)
+            | diffCluster _ _ =>
+              -- encapDir but no existsRDownAtW → can't trace cache downgrade chain
+              sorry
           | wCleAfter hr_cle_after =>
             -- wCleAfter: e_w uses orderAfterDir. e_w.oEnd < CLE(e_w).oStart.
             -- rCleOrDownAtWAfterWCle gives CLE(e_w) OB CLE(e_r) (sameCluster) or encapDir (diffCluster).
@@ -216,10 +227,28 @@ theorem step_finishesBefore
         cases cle_cases with
         | sameCle _ cache_ob =>
           exact Nat.lt_trans cache_ob (Event.oWellFormed n e₂)
-        | diffCle _ => sorry -- CLE ordering, needs same chain
+        | diffCle cle_ord =>
+          cases cle_ord with
+          | wImmPredRCle w_imm_pred =>
+            cases w_imm_pred with
+            | sameCluster _ hcle_ob =>
+              -- CLE₁ OB CLE₂. Same CLE→cache gap.
+              sorry
+            | diffCluster _ _ =>
+              -- diffCluster carries encapDir but no encapProxyAndDirAndCDown
+              sorry
+          | evictOrReadBetweenWAndRCleSameCluster evict =>
+            -- evict.wObR : CLE₁ OB CLE₂. Same CLE→cache gap.
+            sorry
       | wObRGle _ cle_cases =>
         cases cle_cases with
-        | sameCluster _ same_cluster_cases => sorry -- same cluster sub-cases
+        | sameCluster _ same_cluster_cases =>
+          cases same_cluster_cases with
+          | wImmPredRCle w_imm_pred =>
+            cases w_imm_pred with
+            | sameCluster _ hcle_ob => sorry -- CLE₁ OB CLE₂, same gap
+            | diffCluster _ _ => sorry -- encapDir but no encapProxyAndDirAndCDown
+          | evictOrReadBetweenWAndRCleSameCluster evict => sorry -- CLE₁ OB CLE₂
         | diffCluster _ diff_cluster_cases =>
           -- DiffCluster: ReadDowngradeAtWrite carries encapProxyAndDirAndCDown!
           cases diff_cluster_cases with
