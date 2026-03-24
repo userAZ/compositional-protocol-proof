@@ -119,26 +119,48 @@ Each step in the cycle contributes an OB relationship between protocol events.
 The EncapsulatedBy → OB → OB composition (Trans instances in EventRelations.lean)
 chains these across consecutive edges. -/
 
-/-- The CMCM theorem: `acyclic(PPOi ∪ rfe ∪ fr ∪ co)`.
+/-- Each edge in PPOi ∪ com satisfies finishesBefore: e₁.oEnd < e₂.oEnd.
 
-    A cycle through PPOi + com edges produces a temporal chain on specific
-    protocol events (CLE, cache, directory downgrades) that loops back,
-    contradicting OB irreflexivity.
+    For PPOi: e₁ OB e₂ → e₁.oEnd < e₂.oStart ≤ e₂.oEnd.
+    For rfe: e_w OB e_r_down, e_r_down inside e_r → e_w.oEnd < e_r.oEnd.
+    For co: from communication evidence (downgrade inside e₂).
+    For fr: from rf⁻¹;co composition. -/
+theorem step_finishesBefore
+    (hstep : (@PPOi n b ∪ com compound b init) e₁ e₂)
+    : e₁.finishesBefore n e₂ := by
+  cases hstep with
+  | inl hppoi =>
+    -- PPOi: e₁ OB e₂ → e₁.oEnd < e₂.oStart ≤ e₂.oEnd
+    unfold Event.finishesBefore
+    have hob := hppoi.orderedBefore
+    -- e₁.oEnd < e₂.oStart from OB, and e₂.oStart ≤ e₂.oEnd from well-formedness
+    -- OB: e₁.oEnd < e₂.oStart. WF: e₂.oStart < e₂.oEnd. Chain: e₁.oEnd < e₂.oEnd.
+    exact Nat.lt_trans hob (Event.oWellFormed n e₂)
+  | inr hcom =>
+    cases hcom with
+    | rfe h =>
+      -- rfe: e_w OB e_r_down, e_r_down.oEnd < e_r.oEnd (encapsulation chain)
+      sorry -- need: extract downgrade chain from readsFrom.cases
+    | co h =>
+      -- co: downgrade structure gives e₁.oEnd < e₂.oEnd
+      sorry -- need: extract from co.cases
+    | fr h =>
+      -- fr: rf⁻¹;co composition
+      sorry -- need: compose rf + co finishesBefore
 
-    The proof extracts from each edge:
-    - PPOi: e₁ OB e₂ (same cache)
-    - rfe: e_w OB e_r_down, e_r_cdir_down encaps e_r_down
-    - co: downgrade structure ordering
-    - fr: e_r_cdir_down OB CLE(target)
-    and composes via Trans instances. -/
 theorem cmcm_acyclic
     (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
-  -- The proof chains OB/Encapsulation relationships from each edge
-  -- across the cycle. Each edge gives specific protocol events with
-  -- temporal ordering. The composition (via Trans instances) gives
-  -- a chain that loops back: X.oEnd < ... < X.oEnd. Contradiction.
-  sorry
+  intro e hcycle
+  -- Each step gives e₁.finishesBefore e₂ (e₁.oEnd < e₂.oEnd).
+  -- finishesBefore is transitive (< on Nat). A cycle gives e.oEnd < e.oEnd.
+  suffices h : ∀ e', Relation.TransGen (@PPOi n b ∪ com compound b init) e e' →
+      e.finishesBefore n e' by
+    exact Nat.lt_irrefl _ (h e hcycle)
+  intro e' hpath
+  induction hpath with
+  | single hstep => exact step_finishesBefore hstep
+  | tail _ hstep ih => exact Nat.lt_trans ih (step_finishesBefore hstep)
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
