@@ -130,6 +130,11 @@ A cycle forms a loop: X.oEnd < ... < X.oEnd — contradiction.
 **Per-edge measures (e.oEnd, finishesBefore) AND per-edge OB on cache events DO NOT WORK.**
 OB between cache events fails: reader can start before writer finishes (sends request to directory early). Only OB between PROTOCOL EVENTS (e_w OB e_r_down, CLE₁ OB CLE₂) holds.
 The transitive relation must carry the encapsulation evidence (e_r_cdir_down encaps e_r_down) that bridges cluster cache and cluster directory levels.
+
+**CROSS-EDGE COMPOSITION IS REQUIRED**: The proof cannot use per-edge temporal properties. It must compose OB on protocol events ACROSS consecutive edges. The composition at PPOi↔COM junctions uses EncapsulatedBy + OB → OB (Trans instances). The key compositions:
+- PPOi(e₁,e₂) then COM(e₂,e₃): e₁ OB e₂ Encapsulates protocol_events OB ... inside e₃
+- COM(e₁,e₂) then PPOi(e₂,e₃): protocol_events inside e₂, e₂ OB e₃
+The encapsulation bridge (cdirEncapsDown) connects cluster cache and directory levels within each COM edge. The composition uses the fact that protocol events are EncapsulatedBy cache events (or past them for orderAfterDir, in which case the chain goes through the successor).
 The chain goes through PROTOCOL events, not cache events.
 The proof MUST compose across edges.
 
@@ -245,25 +250,32 @@ The "no intermediate write" argument from rf's `noBetween` is needed to exclude 
 Rather than implementing this complex composition proof, FR carries `co.cases e₁_lin e₂_lin` directly.
 The rf/co⁺ witness documents the protocol-level justification.
 
-**REMAINING SORRY's (3 declarations total across project):**
-- `RfSameGleWImmPredRCleHelpers.lean:54` — `cdirEncapsDown` (from requestDowngradePrevOwner.dirEncapDowngrade)
-- `RfSameGleSameClusterEvictOrReadBetweenHelpers.lean:32` — same
-- `Proof.lean:128` (`step_finishesBefore`) — 8 sorry sites:
-  - rfe immPred orderAfterDir ×2 (nc.weak, not cycle problems)
-  - rfe notImmPred, wNoPermsAfter, wCleAfter (need cache downgrade evidence)
-  - co diffCle, wObRGle (need CLE/GLE → cache event bridge)
-  - fr (rf⁻¹;co composition)
+**REMAINING SORRY's (4 declarations, 2 in Proof.lean + 2 in RfCases/):**
+- `Proof.lean:178` (`step_cle_lex`) — per-step CLE-lexicographic ordering:
+  - PPOi case: need CLE₁.oEnd ≤ CLE₂.oEnd for same-addr PPOi (9-case dirAccessOfRequest)
+  - com case: need CLE₁.oEnd ≤ CLE₂.oEnd from communication structure
+- `Proof.lean:205` (`cmcm_acyclic`) — main theorem, depends on step_cle_lex
+- `RfSameGleWImmPredRCleHelpers.lean:79` — `cdirEncapsDown` (from requestDowngradePrevOwner.dirEncapDowngrade)
+- `RfSameGleSameClusterEvictOrReadBetweenHelpers.lean:56` — same
+
+**KEY ANALYSIS (2026-03-24): Why e.oEnd doesn't work as a per-step measure**
+- PPOi: e₁ OB e₂ → e₁.oEnd < e₂.oEnd ✓
+- co diff-cache: slow grant can make e₁.oEnd > e₂.oEnd ✗ (verified by scenario analysis)
+- rfe with orderAfterDir reader: e_r.oEnd < CLE(e_r).oEnd, chain gives e_w.oEnd < CLE(e_r).oEnd but NOT e_w.oEnd < e_r.oEnd ✗
+- Correct measure: CLE(e).oEnd, with dir_ordered giving total order on CLEs (same address).
+  A cycle forces all CLEs equal (non-decreasing cycle), then all steps give OB → contradiction.
+  BUT: requires proving CLE₁.oEnd ≤ CLE₂.oEnd for PPOi (the existing 9-case sorry).
+- Alternative (from Anqi): per-cluster high-water-mark tracking max(e.oEnd, CLE.oEnd).
+  Each new event at a cluster unit increases the max. Cycle returns → contradiction.
+  Challenge: formalizing per-unit tracking in TransGen.
 
 **PROVEN:**
-- `cmcm_acyclic`, `cmcm` (main theorems)
-- `eventPartialOrder` (PartialOrder from acyclicity)
-- `transgen_finishesBefore` (TransGen path → finishesBefore)
-- `step_finishesBefore` PPOi case (OB → finishesBefore)
-- `step_finishesBefore` rfe immPred + encapDir/orderBeforeDir (full temporal chain)
-- `step_finishesBefore` co sameCle (OB → finishesBefore)
-- All irreflexivity lemmas
-- `ppoi_compound_lin_order` (CompoundMCM bridge)
-- `rfe_gle_ordered` (GLE ordering from RF)
+- `ppoi_acyclic` (pure PPOi acyclicity from OB transitivity)
+- `eventPartialOrder` (PartialOrder from cmcm_acyclic — structure proven, depends on sorry)
+- All irreflexivity lemmas (ppoi, rfe, co, fr, com, hierarchicallyOrdered)
+- `ppoi_compound_lin_order` (CompoundMCM bridge for diff-addr PPOi)
+- `rfe_gle_ordered` (GLE ordering from RF readsFrom.cases)
+- `transgen_ob_of_step_ob` / `transgen_oend_lt_of_step` (TransGen chain helpers)
 
 **PREVIOUS SORRY's (now superseded):**
 1. `eventPartialOrder` (line 50): The GMO — PartialOrder on events from protocol axioms. Its existence is a protocol-level fact (temporal ordering + cache_ordered + dir_ordered + compound lin). CANNOT be constructed from PPOi ∪ com itself (circular with CMCM.suffices_inclusion). Sorry = "the GMO exists."
@@ -273,28 +285,19 @@ The rf/co⁺ witness documents the protocol-level justification.
 5. `fr_lt` (line 87): fr ⊆ PartialOrder.lt — rf⁻¹;co composition through e_w.
 
 **TODO (in priority order):**
-- [ ] `ppoi_advances_compoundLin`: PPOi → compoundLinEvent e₁ OB compoundLinEvent e₂.
-  - Diff-addr: `ppoi_compound_lin_order` gives CompoundLinearizationOrder. Handle lazy case (finishesBefore → OB?).
-  - Same-addr: cache events encapsulate compound lin events (proven in CompoundPPOs.lean:644-786 for ncRelease/acquire/coherent). e₁ OB e₂ + encap → compoundLin₁ OB compoundLin₂.
-- [ ] `rfe_advances_compoundLin`: rfe → compoundLinEvent e₁ OB compoundLinEvent e₂.
-  - KEY: the specific communication events e_w and e_r_down (downgrade from e_r to e_w at common level) ARE what establishes the ordering. e_w OB e_r_down (from `encapProxyAndDirAndCDown.existsRDownAtW`), and e_r_down is inside e_r's CLE/GCR (from `encapDirRelation`). Must trace through these specific events, not just extract abstract GLE ordering.
-  - Bridge: e_w's compound lin event relates to e_w. e_r_down inside e_r's CLE relates to e_r's compound lin event. Composition gives the ordering.
-- [ ] `co_advances_compoundLin`: co → compoundLinEvent e₁ OB compoundLinEvent e₂.
-  - Similar to rfe: specific downgrade from e₂ to e₁ at common level. co.cases mirrors readsFrom.cases.
-- [ ] `fr_advances_compoundLin`: fr → compoundLinEvent e₁ OB compoundLinEvent e₂.
-  - rf⁻¹;co composition through e_w. rf gives e_w meeting e₁ at common level (e_r_down). co gives e_w meeting e₂ at common level. noBetween ensures composition.
-- [ ] `eventPartialOrder`: PartialOrder from cmcm_acyclic (uses same edge-by-edge transitivity).
-- [ ] Remove `compoundLinEvent` — wrong abstraction, proof uses specific protocol events instead.
-- [ ] Restructure rfe/co/fr definitions to specify WHICH e_r_down/e_r_cdir_down events are ordered with WHICH other events (CLE, cache, etc.) — descriptive like RF.
-- [ ] Restructure `hierarchicallyOrdered` to carry specific ordered protocol events (not compoundLinEvent OB).
-- [ ] Verify CO/FR definitions match RF's descriptive style (co.cases mirrors readsFrom.cases, fr carries rf⁻¹;co).
-- [ ] Vacuity checks: all proofs use communication evidence, not single-address-model shortcuts.
-- [ ] **RESOLVED**: nc.weak orderAfterDir is NOT a problem for cycles — CLE is inside successor, chain goes through successor. No counterexample exists.
-- [ ] **PREVIOUS CONCERN (resolved)**: `finishesBefore` (e.oEnd) does NOT work as a per-edge measure for nc.weak reader with orderAfterDir. The rfe downgrade chain goes THROUGH the successor (CLE after e_r), so e₁.finishesBefore e₂ fails. But rfe + PPOi COMPOSED gives e₁.finishesBefore e₃ (the successor). Options: (1) compose pairs of edges, (2) use a different measure (CLE.oEnd or successor.oEnd), (3) case-split on dirAccessOfRequest.
-- [ ] **STRUCTURAL GAP in Rf.lean** (2 sorry's at construction sites): `cdirEncapsDown` field added to `encapProxyAndDirAndCDown` but sorry'd. Requires implementing `clusterDirDownFromProxy` (Rf.lean TODO:335):
-  1. From GlobalToCluster shim output: extract proxy event + directory event
-  2. From proxy event + cluster-level axioms: derive `clusterDirDown` (coherentReq or nonCoherentReq)
-  3. From `clusterDirDown.coherentReq` → `fwdCoherentRequestToOwner.fwdPrevOwner` → `downgradeAtPrevOwner.downgradePrevOwner.dirEncapDowngrade` → e_r_cdir_down.Encapsulates n e_r_down
+- [ ] `step_cle_lex` PPOi case: show CLE₁.oEnd ≤ CLE₂.oEnd for same-addr PPOi
+  - 9-case analysis on dirAccessOfRequest(e₁) × dirAccessOfRequest(e₂)
+  - Key cases: (encapDir, orderBeforeDir) needs predecessor elimination
+  - (orderAfterDir, *) uses nc.weak CLE-sharing with PPO successor
+- [ ] `step_cle_lex` com case: show CLE₁.oEnd ≤ CLE₂.oEnd for com edges
+  - rfe: GLE₁ OB GLE₂ → CLE₁ OB CLE₂ (same-addr, dir_ordered excludes reverse)
+  - co.sameGle.sameCle: same CLE → Right (OB from cache_ob)
+  - co.sameGle.diffCle: CLE ordering from cleOrdering.Cases
+  - co.wObRGle: GLE₁ OB GLE₂ → CLE₁ OB CLE₂
+  - fr: via rf⁻¹;co decomposition → CLE ordering from intermediate writes
+- [ ] `cmcm_acyclic`: use step_cle_lex — all CLEs equal in cycle → all OB → contradiction
+- [ ] cdirEncapsDown (2 sorry's in RfCases/): from requestDowngradePrevOwner.dirEncapDowngrade
+- [ ] Vacuity checks: all proofs use communication evidence, not single-address-model shortcuts
   The RF proof currently only traces the GLOBAL chain (GLE encaps global downgrade). The CLUSTER chain is analogous but at the cluster level. Both `RfSameGleWImmPredRCleHelpers.lean` and `RfSameGleSameClusterEvictOrReadBetweenHelpers.lean` need this.
 - [ ] `step_finishesBefore` rfe case: need to show e_w.oEnd < e_r.oEnd from the downgrade chain. Works for encapDir and orderBeforeDir. GAP: orderAfterDir case where CLE is from successor (CLE.oEnd > e_r.oEnd). Need: can rfe reader use orderAfterDir? If not, this case is vacuous.
 - [ ] `step_finishesBefore` co case: similar to rfe. Same orderAfterDir gap.
