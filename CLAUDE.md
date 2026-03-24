@@ -298,6 +298,8 @@ For rfe (wObRGle, diffCluster case — the main one), the communication chain:
 - e_r's compoundLinEvent is at-or-inside e_r's CLE/GCR (from ClusterRequestLinearizationEvent sub-cases)
 - **Chain**: compoundLin(e_w).oEnd ≤ e_w.oEnd < e_r_down.oStart ... relates to ... compoundLin(e_r)
 
+**CRITICAL GAP**: GLE ordering alone is INSUFFICIENT for compoundLin ordering. When e_w has `clusterCacheLin` (compoundLin = e_w, which is AFTER GLE(e_w)) and e_r has `getGlobalCachePerms` (compoundLin = GLE(e_r)), we need e_w.oEnd < GLE(e_r).oStart, but only have GLE(e_w).oEnd < GLE(e_r).oStart. The proof MUST use the e_w OB e_r_down chain, not just GLE ordering.
+
 **GAP**: The exact temporal chain from e_r_down to compoundLin(e_r) depends on:
 - Whether e_r_cdir_down is the SAME as or related to compoundLin(e_r)
 - How `encapDirRelation`'s CLE/GCR encapsulation connects to `clusterDirectoryLinearizationEvent`'s sub-cases (previousGlobalCacheGotPerms vs getGlobalCachePerms)
