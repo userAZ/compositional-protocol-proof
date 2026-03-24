@@ -130,17 +130,80 @@ theorem rfe_gle_ordered
   | wObRGle hw_r_gle_ob _ =>
     exact hw_r_gle_ob
 
-/-! ## Main theorem -/
+/-! ## Compound linearization event extraction
+
+The compound linearization event for a request is where it "meets" the protocol
+hierarchy. This is the ranking witness for the acyclicity proof. -/
+
+/-- Extract the compound linearization event for a request event. -/
+noncomputable def compoundLinEvent (e : Event n) : Event n :=
+  (compound.compoundLinearizationEvent compound.shimAxioms b init e
+    (compound.linearizationOfEvent b init e)).linearizationEvent
+
+/-! ## Each edge type advances compound linearization events
+
+These are the key composition lemmas. Each shows the edge's communication
+evidence implies the compound lin event strictly advances. -/
+
+/-- PPOi → compound lin events ordered.
+    Uses CompoundMCM's enforce_compound_consistency (diff-addr) + protocol (same-addr). -/
+theorem ppoi_advances_compoundLin
+    (hppoi : @PPOi n b e₁ e₂)
+    : (@compoundLinEvent n compound b init e₁).OrderedBefore n (@compoundLinEvent n compound b init e₂) := by
+  sorry
+
+/-- rfe → compound lin events ordered.
+    rfe gives GLE ordering. Bridge: GLE ordering → compound lin event ordering. -/
+theorem rfe_advances_compoundLin
+    (h : @Herd.rfe n compound b init e₁ e₂)
+    : (@compoundLinEvent n compound b init e₁).OrderedBefore n (@compoundLinEvent n compound b init e₂) := by
+  sorry
+
+/-- co → compound lin events ordered. -/
+theorem co_advances_compoundLin
+    (h : @Herd.co n compound b init e₁ e₂)
+    : (@compoundLinEvent n compound b init e₁).OrderedBefore n (@compoundLinEvent n compound b init e₂) := by
+  sorry
+
+/-- fr → compound lin events ordered. -/
+theorem fr_advances_compoundLin
+    (h : @Herd.fr n compound b init e₁ e₂)
+    : (@compoundLinEvent n compound b init e₁).OrderedBefore n (@compoundLinEvent n compound b init e₂) := by
+  sorry
+
+/-! ## Main theorem
+
+The acyclicity proof:
+1. Each edge advances compound linearization events
+2. OB on events is irreflexive and transitive
+3. A cycle would require OB to form a loop → contradiction -/
+
+/-- Every step in PPOi ∪ com advances the compound linearization event. -/
+private theorem step_advances_compoundLin
+    (hstep : (@PPOi n b ∪ com compound b init) e₁ e₂)
+    : (@compoundLinEvent n compound b init e₁).OrderedBefore n (@compoundLinEvent n compound b init e₂) := by
+  cases hstep with
+  | inl hppoi => exact ppoi_advances_compoundLin hppoi
+  | inr hcom => cases hcom with
+    | rfe h => exact rfe_advances_compoundLin h
+    | co h => exact co_advances_compoundLin h
+    | fr h => exact fr_advances_compoundLin h
 
 /-- The CMCM theorem: `acyclic(PPOi ∪ rfe ∪ fr ∪ co)`.
 
-    Proved by showing any cycle through PPOi + com edges leads to a contradiction.
-    Each edge's communication evidence imposes ordering constraints that
-    prevent the cycle from closing. -/
+    Every edge advances compound linearization events. Since OB is irreflexive
+    and transitive, a cycle through TransGen would give e_lin OB e_lin — contradiction. -/
 theorem cmcm_acyclic
     (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
-  sorry
+  intro e hcycle
+  suffices h : ∀ e', Relation.TransGen (@PPOi n b ∪ com compound b init) e e' →
+      (@compoundLinEvent n compound b init e).OrderedBefore n (@compoundLinEvent n compound b init e') from
+    Event.contradiction_of_reflexive_ordered_before n (h e hcycle)
+  intro e' hpath
+  induction hpath with
+  | single hstep => exact step_advances_compoundLin hstep
+  | tail _ hstep ih => exact Trans.trans ih (step_advances_compoundLin hstep)
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
