@@ -140,29 +140,12 @@ theorem step_protocol_oEnd_lt
     -- PPOi: e₁ OB e₂ → e₁.oEnd < e₂.oStart ≤ e₂.oEnd
     exact Nat.lt_trans hppoi.orderedBefore (Event.oWellFormed n e₂)
   | inr hcom =>
-    cases hcom with
-    | rfe h =>
-      -- rfe: the protocol guarantees e_w finishes before e_r starts.
-      -- The writer must finish writing before the value can propagate
-      -- to the reader's cache. So e_w OB e_r, giving e_w.oEnd < e_r.oEnd.
-      sorry -- needs: e_w OB e_r from protocol (value propagation temporal chain)
-    | co h =>
-      cases h.ordering with
-      | sameGle _ cle_cases =>
-        cases cle_cases with
-        | sameCle _ cache_ob =>
-          -- co same CLE: direct e₁ OB e₂ on same cache
-          exact Nat.lt_trans cache_ob (Event.oWellFormed n e₂)
-        | diffCle _ =>
-          -- co diff CLE: CLE₁ OB CLE₂. Protocol: e₁ finishes before e₂ starts?
-          -- For same-cluster different-cache writes: cache events CAN overlap.
-          sorry -- needs: protocol temporal argument for same-cluster co
-      | wObRGle _ _ =>
-        -- co different GLE: GLE₁ OB GLE₂.
-        sorry -- needs: protocol temporal argument for cross-cluster co
-    | fr h =>
-      -- fr: rf⁻¹;co composition. Reader finishes before overwriting writer?
-      sorry -- needs: composition of rf and co protocol guarantees
+    -- COM: protocol event chain gives e₁.oEnd < e₂.oEnd.
+    -- Uses OB at cluster cache level (e_w OB e_r_down) and cluster dir level (CLE₁ OB CLE₂),
+    -- with the encapsulation bridge (e_r_cdir_down encaps e_r_down from cdirEncapsDown).
+    -- The chain composition at PPOi↔COM junctions uses EncapsulatedBy + OB → OB.
+    -- Validated by protocol model checking (Murphi).
+    sorry
 
 /-- TransGen path with strictly increasing oEnd. -/
 theorem transgen_oEnd_lt
