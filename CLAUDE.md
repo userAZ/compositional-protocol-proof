@@ -300,7 +300,22 @@ For rfe (wObRGle, diffCluster case — the main one), the communication chain:
 
 **CRITICAL GAP**: GLE ordering alone is INSUFFICIENT for compoundLin ordering. When e_w has `clusterCacheLin` (compoundLin = e_w, which is AFTER GLE(e_w)) and e_r has `getGlobalCachePerms` (compoundLin = GLE(e_r)), we need e_w.oEnd < GLE(e_r).oStart, but only have GLE(e_w).oEnd < GLE(e_r).oStart. The proof MUST use the e_w OB e_r_down chain, not just GLE ordering.
 
-**GAP**: The exact temporal chain from e_r_down to compoundLin(e_r) depends on:
+**CONFIRMED: e_r_cdir_down encapsulates e_r_down** (from `requestDowngradePrevOwner.dirEncapDowngrade : e_dir.Encapsulates n e_fwd_down` at BehaviourRelationDefs.lean:256). The directory event encapsulates the cache downgrade. So e_r_cdir_down.oStart < e_r_down.oStart and e_r_down.oEnd < e_r_cdir_down.oEnd.
+
+**Complete temporal chain for rfe:**
+1. compoundLin(e_w).oEnd ≤ e_w.oEnd (encapsulation or equality)
+2. e_w.oEnd < e_r_down.oStart (e_w OB e_r_down from existsRDownAtW)
+3. e_r_cdir_down.oStart < e_r_down.oStart (e_r_cdir_down encapsulates e_r_down)
+4. e_r_cdir_down is inside CLE(e_r) or GCR(e_r) (from encapDirRelation)
+5. compoundLin(e_r) relates to CLE(e_r)/GCR(e_r) (from ClusterRequestLinearizationEvent)
+
+From steps 1-2: compoundLin(e_w).oEnd < e_r_down.oStart
+From step 3: e_r_cdir_down starts BEFORE e_r_down (encapsulation)
+From step 4: e_r_cdir_down.oEnd < CLE(e_r).oEnd (both encapDirRelation cases)
+
+So: compoundLin(e_w).oEnd < e_r_down.oStart, and e_r_down is inside e_r_cdir_down, which is inside CLE(e_r) or GCR(e_r). The chain from here to compoundLin(e_r) depends on whether compoundLin(e_r) = CLE(e_r) (previousGotPerms) or is inside CLE/GCR (getPerms).
+
+**GAP (remaining)**: The exact chain from e_r_cdir_down to compoundLin(e_r) depends on:
 - Whether e_r_cdir_down is the SAME as or related to compoundLin(e_r)
 - How `encapDirRelation`'s CLE/GCR encapsulation connects to `clusterDirectoryLinearizationEvent`'s sub-cases (previousGlobalCacheGotPerms vs getGlobalCachePerms)
 - This bridge is the core of `rfe_advances_compoundLin`
@@ -344,6 +359,7 @@ For rfe (wObRGle, diffCluster case — the main one), the communication chain:
 - **Work iteratively**: plan → check TODOs/philosophy/CLAUDE.md → implement a step → ask "is this correct? am I on track?" → repeat. This applies to BOTH planning and implementing. Don't go far without checking direction.
 - **Record gaps and TODOs IMMEDIATELY — never let them silently slip past.** If something is incomplete, partially working, or a known limitation, add it to CLAUDE.md TODO right away. A gap you recorded is manageable; a gap you forgot is a blind spot. (From ParaMC CLAUDE.md.)
 - **Ask "am I missing something?" after each step.** Are there cases not covered? Edge cases not handled? Properties not checked? If yes, record them as gaps immediately. (From ParaMC CLAUDE.md.)
+- **When reading protocol structures, trace ALL fields and their temporal relationships.** Don't just note what fields exist — understand HOW they relate temporally (encapsulation, OrderedBefore, etc.). Missed `dirEncapDowngrade` in `requestDowngradePrevOwner` because I only traced the top-level structure, not the internal fields. Read EVERY field.
 - **Always save key insights to CLAUDE.md** (not just memory files) — this file is loaded every session
 - **Re-read CLAUDE.md before investigating questions** — the accumulated knowledge answers most protocol questions. Trace through definitions yourself using what's recorded here.
 - **Track all TODOs in CLAUDE.md** — sessions crash! Progress must survive.
