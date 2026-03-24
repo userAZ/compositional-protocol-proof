@@ -85,7 +85,6 @@ structure rfe (e₁ e₂ : Event n) : Prop where
     Parameterized by both events, their write evidence, and linearizations (like RF). -/
 inductive co.ordering
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e₁ e₂ : Event n}
-    (hw₁ : e₁.isWrite) (hw₂ : e₂.isWrite)
     (w₁_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
     (w₂_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂)
     : Prop
@@ -122,7 +121,7 @@ structure co (e₁ e₂ : Event n) : Prop where
   w₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
   w₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
-  comm : co.ordering write₁ write₂ w₁_lin w₂_lin
+  comm : co.ordering w₁_lin w₂_lin
 
 /-- fr: From-reads (rf⁻¹ ; co⁺).
     A read e₁ reads from some write e_w, and e₂ is a write reachable from e_w
