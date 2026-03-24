@@ -334,8 +334,66 @@ theorem step_advances
               cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
               | inl hob => exact Nat.lt_trans hob de₂.oWellFormed
               | inr hob =>
-                -- CLE₂ OB CLE₁ with GLE₁ OB GLE₂ → protocol impossibility
-                sorry
+                -- CLE₂ OB CLE₁. Case split on diffCache.case sub-cases.
+                exfalso
+                have hr_eq : h.r_lin = h₂_lin := Subsingleton.elim _ _
+                have hw_eq : h.w_lin = h₁_lin := Subsingleton.elim _ _
+                have hcle₂_rfe : h.r_lin.hreq's_dir_access.choose = .directoryEvent de₂ := by
+                  rw [hr_eq]; exact hc₂
+                have hcle₁_rfe : h.w_lin.hreq's_dir_access.choose = .directoryEvent de₁ := by
+                  rw [hw_eq]; exact hc₁
+                -- Helper: given de₁.oEnd < t and t < de₂.oEnd → contradiction with hob
+                have chain_contradiction :
+                    ∀ (t : Nat), de₁.oEnd < t → t < de₂.oEnd → False := by
+                  intro t h1 h2
+                  have : de₁.oEnd < de₁.oEnd :=
+                    calc de₁.oEnd < t := h1
+                      _ < de₂.oEnd := h2
+                      _ < de₁.oStart := hob
+                      _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
+                  exact Nat.lt_irrefl _ this
+                -- Helper: given encapDir → extract e_r_cdir_down, use dir_ordered
+                have from_encapDir :
+                    ∀ (hdown : Behaviour.clusterDown.encapDir compound b init e₁ h.r_lin),
+                    False := by
+                  intro hdown
+                  have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
+                  have hcdir_is_dir := hcdir_spec.2.1
+                  have hcdir_encap_rel := hcdir_spec.2.2.2
+                  have hcdir_lt : hdown.existsRClusterDirDown.choose.oEnd < de₂.oEnd := by
+                    cases hcdir_encap_rel with
+                    | cleEncap henc => rw [hcle₂_rfe] at henc; simp [Event.Encapsulates] at henc; exact henc.2
+                    | gcacheEncap _ hlt => rw [hcle₂_rfe] at hlt; simp [Event.oEnd] at hlt; exact hlt
+                  match hcd : hdown.existsRClusterDirDown.choose, hcdir_is_dir with
+                  | .directoryEvent de_cdir, _ =>
+                    cases (b.orderedAtEntry.dir_ordered de₁ de_cdir).ordered with
+                    | inl hob_cdir =>
+                      exact chain_contradiction de_cdir.oEnd
+                        (Nat.lt_trans hob_cdir de_cdir.oWellFormed)
+                        (by simp [Event.oEnd, hcd] at hcdir_lt; exact hcdir_lt)
+                    | inr hob_cdir =>
+                      -- de_cdir OB de₁: downgrade before CLE₁ (protocol impossibility)
+                      sorry
+                  | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                -- Dispatch all diffCache.case sub-cases
+                cases hdiff_cache_case with
+                | wHasPermsAfter _ coherentCase =>
+                  cases coherentCase with
+                  | immPred _ hPDC => exact from_encapDir hPDC.encapDir
+                  | notImmPred hasPermsCase =>
+                    cases hasPermsCase with
+                    | noEvictBetween w => exact from_encapDir w.gdownEncapProxyAndDirAndCDown.encapDir
+                    | evictBetween evict =>
+                      -- evictBetween also carries encapProxyAndDir (= encapDir)
+                      exact from_encapDir evict.encapProxyAndDir
+                | wNoPermsAfter _ _ rCle =>
+                  cases rCle with
+                  | sameCluster hSame _ => exact absurd hSame h.diffProtocol
+                  | diffCluster _ hdown => exact from_encapDir hdown
+                | wCleAfter rCle =>
+                  cases rCle with
+                  | sameCluster hSame _ => exact absurd hSame h.diffProtocol
+                  | diffCluster _ hdown => exact from_encapDir hdown
             | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
           | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
     | co h =>
