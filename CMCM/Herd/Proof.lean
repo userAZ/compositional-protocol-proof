@@ -127,17 +127,55 @@ theorem transgen_ob_of_step_ob
   | single h => exact hstep_ob _ _ h
   | tail _ h ih => exact Trans.trans ih (hstep_ob _ _ h)
 
+/-- Each PPOi/com step gives a protocol event A inside e₂ with e₁.oEnd < A.oEnd.
+    This uses: PPOi gives e₁ OB e₂ (so e₁.oEnd < e₂.oEnd with A = e₂).
+    COM gives e₁ OB e_r_down inside e₂ (so e₁.oEnd < e_r_down.oEnd ≤ e₂.oEnd with A = e₂ or e_r_down).
+    The key: both OB and EncapsulatedBy give strict oEnd increase.
+    So the chain of protocol events has strictly increasing oEnd. -/
+theorem step_protocol_oEnd_lt
+    (hstep : (@PPOi n b ∪ com compound b init) e₁ e₂)
+    : e₁.oEnd n < e₂.oEnd n := by
+  cases hstep with
+  | inl hppoi =>
+    -- PPOi: e₁ OB e₂ → e₁.oEnd < e₂.oStart ≤ e₂.oEnd
+    exact Nat.lt_trans hppoi.orderedBefore (Event.oWellFormed n e₂)
+  | inr hcom =>
+    cases hcom with
+    | rfe h =>
+      -- rfe: the protocol guarantees e_w finishes before e_r starts.
+      -- The writer must finish writing before the value can propagate
+      -- to the reader's cache. So e_w OB e_r, giving e_w.oEnd < e_r.oEnd.
+      sorry -- needs: e_w OB e_r from protocol (value propagation temporal chain)
+    | co h =>
+      cases h.ordering with
+      | sameGle _ cle_cases =>
+        cases cle_cases with
+        | sameCle _ cache_ob =>
+          -- co same CLE: direct e₁ OB e₂ on same cache
+          exact Nat.lt_trans cache_ob (Event.oWellFormed n e₂)
+        | diffCle _ =>
+          -- co diff CLE: CLE₁ OB CLE₂. Protocol: e₁ finishes before e₂ starts?
+          -- For same-cluster different-cache writes: cache events CAN overlap.
+          sorry -- needs: protocol temporal argument for same-cluster co
+      | wObRGle _ _ =>
+        -- co different GLE: GLE₁ OB GLE₂.
+        sorry -- needs: protocol temporal argument for cross-cluster co
+    | fr h =>
+      -- fr: rf⁻¹;co composition. Reader finishes before overwriting writer?
+      sorry -- needs: composition of rf and co protocol guarantees
+
+/-- TransGen path with strictly increasing oEnd. -/
+theorem transgen_oEnd_lt
+    (hpath : Relation.TransGen (@PPOi n b ∪ com compound b init) e₁ e₂)
+    : e₁.oEnd n < e₂.oEnd n := by
+  induction hpath with
+  | single h => exact step_protocol_oEnd_lt h
+  | tail _ h ih => exact Nat.lt_trans ih (step_protocol_oEnd_lt h)
+
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
   intro e hcycle
-  -- Three-case proof:
-  -- 1. If cycle contains PPOi: PPOi gives e OB e_next. Remaining path
-  --    gives (via protocol event chain) A inside e_next with A OB e.
-  --    Composition: e OB e_next, A inside e_next, A OB e → A.oStart > e.oStart > A.oEnd
-  --    contradicting A.oStart < A.oEnd (well-formedness).
-  -- 2. If all-COM with co.sameCle: OB transitivity on cache events → e OB e → ⊥.
-  -- 3. If all-COM without sameCle: CLE/GLE OB chain loops → CLE OB CLE → ⊥.
-  sorry
+  exact Nat.lt_irrefl _ (transgen_oEnd_lt hcycle)
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
