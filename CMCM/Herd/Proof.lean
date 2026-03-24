@@ -146,27 +146,23 @@ theorem transgen_finishesBefore
   | tail _ hstep ih => exact Nat.lt_trans ih (step_finishesBefore hstep)
 
 theorem cmcm_acyclic
-    (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
   intro e hcycle
   exact Nat.lt_irrefl _ (transgen_finishesBefore hcycle)
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
-    (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
     : Relation.Acyclic (@PPOi n b' ∪ com cmp b' init') :=
-  @cmcm_acyclic n cmp b' init' hknow
+  @cmcm_acyclic n cmp b' init'
 
 /-! ## PartialOrder (consequence of acyclicity) -/
 
 /-- The PartialOrder on events (GMO): constructed from cmcm_acyclic.
     lt = TransGen (PPOi ∪ com), le = (· = ·) ∨ TransGen (PPOi ∪ com).
     Antisymmetry from acyclicity. Transitivity from TransGen. -/
-noncomputable def eventPartialOrder
-    (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
-    : PartialOrder (Event n) := by
+noncomputable def eventPartialOrder : PartialOrder (Event n) := by
   let R := @PPOi n b ∪ com compound b init
-  have hacyclic := @cmcm_acyclic n compound b init hknow
+  have hacyclic := @cmcm_acyclic n compound b init
   exact {
     le := fun a b => a = b ∨ Relation.TransGen R a b
     lt := fun a b => Relation.TransGen R a b
