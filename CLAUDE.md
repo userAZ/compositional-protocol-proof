@@ -284,6 +284,25 @@ Trans instances: `EncapsulatedBy → OB → OB`, `OB → Encapsulates → OB`, `
 - The `wCoherent.immPred` case carries the full downgrade chain; other cases carry `rCleOrDownAtWAfterWCle`
 - **Conclusion**: existing rfe definitions carry all the structure needed for the cycle contradiction. No extra linking definition required.
 
+### RF communication structure (key for rfe_advances_compoundLin)
+
+For rfe (wObRGle, diffCluster case — the main one), the communication chain:
+1. `e_w OB e_r_down` — write before downgrade at e_w's cache (from `encapProxyAndDirAndCDown.existsRDownAtW`)
+2. `e_r_cdir_down` — cluster directory downgrade at e_w's cluster (from `encapDir.existsRClusterDirDown`)
+3. `encapDirRelation`: e_r_cdir_down inside CLE(e_r) (`cleEncap`) or GCR(e_r) (`gcacheEncap`)
+
+**Connection to compoundLinEvent:**
+- e_w's compoundLinEvent is at-or-inside e_w (cache events encapsulate their compound lin — CompoundPPOs.lean:644-786)
+- e_r_down is AFTER e_w (temporal)
+- e_r_cdir_down is inside e_r's CLE or GCR
+- e_r's compoundLinEvent is at-or-inside e_r's CLE/GCR (from ClusterRequestLinearizationEvent sub-cases)
+- **Chain**: compoundLin(e_w).oEnd ≤ e_w.oEnd < e_r_down.oStart ... relates to ... compoundLin(e_r)
+
+**GAP**: The exact temporal chain from e_r_down to compoundLin(e_r) depends on:
+- Whether e_r_cdir_down is the SAME as or related to compoundLin(e_r)
+- How `encapDirRelation`'s CLE/GCR encapsulation connects to `clusterDirectoryLinearizationEvent`'s sub-cases (previousGlobalCacheGotPerms vs getGlobalCachePerms)
+- This bridge is the core of `rfe_advances_compoundLin`
+
 ### RF theorem patterns for dirAccessOfRequest case analysis
 - **wEqRGle/wObRGle split**: First split on GLE equality, then on CLE within each branch
 - **`orderBeforeDir` handling**: Uses `stateBeforeAndAfterAtLeast` to ensure intermediate events preserve permissions
