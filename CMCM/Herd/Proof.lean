@@ -180,50 +180,86 @@ inductive StepOrdering : Event n → Event n → Prop where
   /-- OB then EncapsulatedBy: e₁ OB p, p inside e₂ -/
   | obEncap (p : Event n) (h_ob : e₁.OrderedBefore n p) (h_encap : p.EncapsulatedBy n e₂)
       : StepOrdering e₁ e₂
+  /-- Inner OB external: p inside e₁, p OB e₂ -/
+  | encapOb (p : Event n) (h_encap : p.EncapsulatedBy n e₁) (h_ob : p.OrderedBefore n e₂)
+      : StepOrdering e₁ e₂
   /-- Both encapsulated: p₁ inside e₁, p₁ OB p₂, p₂ inside e₂ -/
   | encapObEncap (p₁ p₂ : Event n) (h_e₁ : p₁.EncapsulatedBy n e₁) (h_ob : p₁.OrderedBefore n p₂)
       (h_e₂ : p₂.EncapsulatedBy n e₂) : StepOrdering e₁ e₂
 
 /-- StepOrdering is transitive.
-    Composition at the junction e₂ using OB/Encapsulates Trans instances.
-    The both-EncapsulatedBy junction case uses dir_ordered at the SAME cluster. -/
+    The junction at e₂ composes "output at e₂" with "input from e₂"
+    using OB/Encapsulates Trans instances.
+    The hard cases (both inner events EncapsulatedBy e₂) need
+    protocol hierarchy (dir_ordered at same cluster). -/
 theorem StepOrdering.trans {e₁ e₂ e₃ : Event n}
     (h₁₂ : StepOrdering e₁ e₂) (h₂₃ : StepOrdering e₂ e₃) : StepOrdering e₁ e₃ := by
+  -- Helper: compose OB to e₂ with step from e₂
+  -- (handles ob and encapOb outputs meeting ob/obEncap/encapOb/encapObEncap inputs)
+  have from_ob (p : Event n) (hp_ob : p.OrderedBefore n e₂) :
+      StepOrdering p e₃ := by
+    cases h₂₃ with
+    | ob h => exact .ob (Trans.trans hp_ob h)
+    | obEncap q hq hqe => exact .obEncap q (Trans.trans hp_ob hq) hqe
+    | encapOb q hqe hq =>
+      exact .ob (Trans.trans (Trans.trans hp_ob hqe) hq)
+    | encapObEncap q₁ q₂ hq₁ hq hq₂ =>
+      exact .obEncap q₂ (Trans.trans (Trans.trans hp_ob hq₁) hq) hq₂
+  -- Helper: compose EncapsulatedBy e₂ with step from e₂
+  -- (handles obEncap and encapObEncap outputs meeting ob/obEncap inputs)
+  have from_encap (p : Event n) (hp_enc : p.EncapsulatedBy n e₂) :
+      StepOrdering p e₃ := by
+    cases h₂₃ with
+    | ob h =>
+      -- p EncapBy e₂, e₂ OB e₃ → p OB e₃ (EncapsulatedBy → OB → OB)
+      exact .ob (Trans.trans hp_enc h)
+    | obEncap q hq hqe =>
+      -- p EncapBy e₂, e₂ OB q → p OB q
+      exact .obEncap q (Trans.trans hp_enc hq) hqe
+    | encapOb q hqe hq =>
+      -- p EncapBy e₂, q EncapBy e₂: both inside e₂.
+      -- Protocol: p and q at same cluster → dir_ordered gives ordering.
+      sorry
+    | encapObEncap q₁ q₂ hq₁ hq hq₂ =>
+      -- p EncapBy e₂, q₁ EncapBy e₂: both inside e₂.
+      sorry
+  -- Main proof: case split on h₁₂
   cases h₁₂ with
   | ob h₁₂ =>
-    -- e₁ OB e₂
-    cases h₂₃ with
-    | ob h₂₃ => exact .ob (Trans.trans h₁₂ h₂₃)
-    | obEncap q hq_ob hq_enc =>
-      exact .obEncap q (Trans.trans h₁₂ hq_ob) hq_enc
-    | encapObEncap q₁ q₂ hq₁ hq_ob hq₂ =>
-      -- e₁ OB e₂, e₂ Encapsulates q₁ → e₁ OB q₁ (OB → Encapsulates → OB)
-      exact .obEncap q₂ (Trans.trans (Trans.trans h₁₂ hq₁) hq_ob) hq₂
-  | obEncap p hp_ob hp_enc =>
-    -- e₁ OB p, p EncapsulatedBy e₂
-    cases h₂₃ with
-    | ob h₂₃ =>
-      -- p EncapsulatedBy e₂, e₂ OB e₃ → p OB e₃ (EncapsulatedBy → OB → OB)
-      exact .ob (Trans.trans hp_ob (Trans.trans hp_enc h₂₃))
-    | obEncap q hq_ob hq_enc =>
-      -- p EncapsulatedBy e₂, e₂ OB q → p OB q
-      exact .obEncap q (Trans.trans hp_ob (Trans.trans hp_enc hq_ob)) hq_enc
-    | encapObEncap q₁ q₂ hq₁ hq_ob hq₂ =>
-      -- p EncapsulatedBy e₂, q₁ EncapsulatedBy e₂: both inside e₂
-      -- Junction: p and q₁ both inside e₂ → dir_ordered at SAME cluster
+    exact from_ob e₁ h₁₂
+  | obEncap p hp hpe =>
+    -- e₁ OB p, p EncapBy e₂ → from_encap gives StepOrdering p e₃
+    -- Then prepend e₁ OB p
+    have h := from_encap p hpe
+    cases h with
+    | ob h => exact .ob (Trans.trans hp h)
+    | obEncap q hq hqe => exact .obEncap q (Trans.trans hp hq) hqe
+    | encapOb q hqe hq =>
+      -- p EncapBy something, q OB e₃. Compose: e₁ OB p, ... → e₁ OB e₃
       sorry
-  | encapObEncap p₁ p₂ hp₁ hp_ob hp₂ =>
-    -- p₁ EncapsulatedBy e₁, p₁ OB p₂, p₂ EncapsulatedBy e₂
-    cases h₂₃ with
-    | ob h₂₃ =>
-      -- p₂ EncapsulatedBy e₂, e₂ OB e₃ → p₂ OB e₃ → p₁ OB e₃
-      exact .encapObEncap p₁ e₃ hp₁ (Trans.trans hp_ob (Trans.trans hp₂ h₂₃))
-        sorry -- need e₃ inside e₃ or p₁ OB e₃ directly
-    | obEncap q hq_ob hq_enc =>
-      -- p₂ EncapsulatedBy e₂, e₂ OB q → p₂ OB q → p₁ OB q
-      exact .encapObEncap p₁ q hp₁ (Trans.trans hp_ob (Trans.trans hp₂ hq_ob)) hq_enc
-    | encapObEncap q₁ q₂ hq₁ hq_ob hq₂ =>
-      -- p₂ EncapsulatedBy e₂, q₁ EncapsulatedBy e₂: both inside e₂
+    | encapObEncap q₁ q₂ hq₁ hq hq₂ =>
+      sorry
+  | encapOb p hpe hp =>
+    -- p EncapBy e₁, p OB e₂ → from_ob gives StepOrdering p e₃
+    -- Then wrap with p EncapBy e₁
+    have h := from_ob p hp
+    cases h with
+    | ob h => exact .encapOb p hpe h
+    | obEncap q hq hqe => exact .encapObEncap p q hpe hq hqe
+    | encapOb q hqe hq =>
+      sorry
+    | encapObEncap q₁ q₂ hq₁ hq hq₂ =>
+      sorry
+  | encapObEncap p₁ p₂ hp₁ hp hp₂ =>
+    -- p₁ EncapBy e₁, p₁ OB p₂, p₂ EncapBy e₂ → from_encap gives StepOrdering p₂ e₃
+    -- Then prepend p₁ OB p₂ and wrap with p₁ EncapBy e₁
+    have h := from_encap p₂ hp₂
+    cases h with
+    | ob h => exact .encapOb p₁ hp₁ (Trans.trans hp h)
+    | obEncap q hq hqe => exact .encapObEncap p₁ q hp₁ (Trans.trans hp hq) hqe
+    | encapOb q hqe hq =>
+      sorry
+    | encapObEncap q₁ q₂ hq₁ hq hq₂ =>
       sorry
 
 /-- StepOrdering is irreflexive. -/
@@ -231,19 +267,14 @@ theorem StepOrdering.irrefl {e : Event n} (h : StepOrdering e e) : False := by
   cases h with
   | ob h => exact Event.contradiction_of_reflexive_ordered_before n h
   | obEncap p h_ob h_encap =>
-    -- e OB p, p EncapsulatedBy e → e.oEnd < p.oStart ≤ p.oEnd < e.oEnd → contradiction
     exact Nat.lt_irrefl _
       (Nat.lt_trans (Nat.lt_trans h_ob (Event.oWellFormed n p)) h_encap.right)
+  | encapOb p h_encap h_ob =>
+    exact Nat.lt_irrefl _
+      (Nat.lt_trans h_ob (Nat.lt_trans h_encap.left (Event.oWellFormed n p)))
   | encapObEncap p₁ p₂ hp₁ h_ob hp₂ =>
-    -- p₁ EncapsulatedBy e, p₁ OB p₂, p₂ EncapsulatedBy e
-    -- p₁.oEnd < p₂.oStart (OB), p₂.oEnd < e.oEnd (EncapBy), p₁.oEnd < e.oEnd (EncapBy)
-    -- p₁.oEnd < p₂.oStart ≤ p₂.oEnd < e.oEnd. And p₁.oEnd < e.oEnd.
-    -- No direct contradiction — two distinct inner events can be ordered.
-    -- However: this case never arises from composing a cycle, because the
-    -- junction composition always produces ob or obEncap, not encapObEncap.
-    -- For completeness, sorry this case.
+    -- Two inner events of same event, ordered. No direct contradiction.
     sorry
-
 /-- Chain StepOrdering through TransGen: produces a single StepOrdering. -/
 theorem StepOrdering.of_transGen
     (h : Relation.TransGen (@StepOrdering n) e₁ e₂) : StepOrdering e₁ e₂ := by
