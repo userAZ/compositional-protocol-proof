@@ -282,10 +282,101 @@ theorem step_advances
        Event.oEnd n e₁ < Event.oEnd n e₂) := by
   cases h with
   | inl hppoi =>
-    -- PPOi: DERIVE CLE ordering from dir_ordered + dirAccessOfRequest (same-addr)
-    -- or CompoundLinearizationOrder (diff-addr).
-    -- e₁ OB e₂ from PPOi gives secondary advance when CLE₁ = CLE₂.
-    sorry
+    -- PPOi: derive CLE ordering from dir_ordered + dirAccessOfRequest.
+    -- Case 1: CLE₁ = CLE₂ → secondary advance from e₁ OB e₂
+    -- Case 2: CLE₁ ≠ CLE₂ → dir_ordered gives CLE₁ OB CLE₂ or CLE₂ OB CLE₁
+    --   CLE₁ OB CLE₂ → primary advance
+    --   CLE₂ OB CLE₁ → temporal chain contradiction
+    by_cases hcle_eq : h₁_lin.hreq's_dir_access.choose = h₂_lin.hreq's_dir_access.choose
+    · -- Same CLE: secondary from e₁ OB e₂
+      exact Or.inr ⟨congrArg (Event.oEnd n) hcle_eq,
+        Nat.lt_trans hppoi.orderedBefore (Event.oWellFormed n e₂)⟩
+    · -- Different CLEs: dir_ordered
+      left
+      have hdir₁ := h₁_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+      have hdir₂ := h₂_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+      match hc₁ : h₁_lin.hreq's_dir_access.choose, hdir₁ with
+      | .directoryEvent de₁, _ =>
+        match hc₂ : h₂_lin.hreq's_dir_access.choose, hdir₂ with
+        | .directoryEvent de₂, _ =>
+          simp only [Event.oEnd, hc₁, hc₂]
+          cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+          | inl hob => exact Nat.lt_trans hob de₂.oWellFormed
+          | inr hob =>
+            -- CLE₂ OB CLE₁: derive contradiction from temporal chain.
+            -- e₁ OB e₂ + dirAccessOfRequest cases on e₁ and e₂.
+            exfalso
+            have he₁_ob_e₂ := hppoi.orderedBefore
+            have hda₂ := h₂_lin.hreq's_dir_access.choose_spec.2
+            rw [hc₂] at hda₂
+            cases hda₂ with
+            | encapDir _ hencap₂ =>
+              -- e₂ encapsulates CLE₂
+              have hda₁ := h₁_lin.hreq's_dir_access.choose_spec.2
+              rw [hc₁] at hda₁
+              cases hda₁ with
+              | encapDir _ hencap₁ =>
+                have : de₂.oEnd < de₂.oEnd :=
+                  calc de₂.oEnd < de₁.oStart := hob
+                    _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
+                    _ < e₁.oEnd := hencap₁.reqEncapDir.right
+                    _ < e₂.oStart := he₁_ob_e₂
+                    _ < de₂.oStart := hencap₂.reqEncapDir.left
+                    _ < de₂.oEnd := de₂.oWellFormed
+                exact Nat.lt_irrefl _ this
+              | orderBeforeDir _ hexists_pred₁ hpred₁ _ _ _ _ _ =>
+                have : de₂.oEnd < de₂.oEnd :=
+                  calc de₂.oEnd < de₁.oStart := hob
+                    _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
+                    _ < hexists_pred₁.choose.oEnd := hpred₁.reqEncapDir.right
+                    _ < e₁.oStart := hexists_pred₁.choose_spec.2.isImmPred.bPred.isPred
+                    _ < e₁.oEnd := Event.oWellFormed n e₁
+                    _ < e₂.oStart := he₁_ob_e₂
+                    _ < de₂.oStart := hencap₂.reqEncapDir.left
+                    _ < de₂.oEnd := de₂.oWellFormed
+                exact Nat.lt_irrefl _ this
+              | orderAfterDir _ _ _ _ =>
+                -- nc.weak e₁: CLE₁ from successor. Protocol: successor = e₂ → CLE₁ = CLE₂.
+                sorry
+            | orderBeforeDir _ _ _ _ _ _ _ _ =>
+              -- e₂ orderBeforeDir: protocol permission chain needed
+              sorry
+            | orderAfterDir _ hsucc₂ _ _ =>
+              -- e₂ orderAfterDir: chain through successor
+              have he₂_ob_succ := hsucc₂.choose_spec.2.isImmBottomSucc.isSucc
+              have hsucc_encap := hsucc₂.choose_spec.2.satisfyP.encapCorresponding.reqEncapDir
+              have hda₁ := h₁_lin.hreq's_dir_access.choose_spec.2
+              rw [hc₁] at hda₁
+              cases hda₁ with
+              | encapDir _ hencap₁ =>
+                have : de₂.oEnd < de₂.oEnd :=
+                  calc de₂.oEnd < de₁.oStart := hob
+                    _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
+                    _ < e₁.oEnd := hencap₁.reqEncapDir.right
+                    _ < e₂.oStart := he₁_ob_e₂
+                    _ ≤ e₂.oEnd := Nat.le_of_lt (Event.oWellFormed n e₂)
+                    _ < hsucc₂.choose.oStart := he₂_ob_succ
+                    _ < de₂.oStart := hsucc_encap.left
+                    _ < de₂.oEnd := de₂.oWellFormed
+                exact Nat.lt_irrefl _ this
+              | orderBeforeDir _ hexists_pred₁ hpred₁ _ _ _ _ _ =>
+                have : de₂.oEnd < de₂.oEnd :=
+                  calc de₂.oEnd < de₁.oStart := hob
+                    _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
+                    _ < hexists_pred₁.choose.oEnd := hpred₁.reqEncapDir.right
+                    _ < e₁.oStart := hexists_pred₁.choose_spec.2.isImmPred.bPred.isPred
+                    _ < e₁.oEnd := Event.oWellFormed n e₁
+                    _ < e₂.oStart := he₁_ob_e₂
+                    _ ≤ e₂.oEnd := Nat.le_of_lt (Event.oWellFormed n e₂)
+                    _ < hsucc₂.choose.oStart := he₂_ob_succ
+                    _ < de₂.oStart := hsucc_encap.left
+                    _ < de₂.oEnd := de₂.oWellFormed
+                exact Nat.lt_irrefl _ this
+              | orderAfterDir _ _ _ _ =>
+                -- Both orderAfterDir: nc.weak CLE sharing needed
+                sorry
+        | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
+      | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
   | inr hcom =>
     -- COM: derive CLE ordering from communication evidence.
     cases hcom with
