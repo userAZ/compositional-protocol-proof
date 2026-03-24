@@ -152,19 +152,22 @@ theorem step_finishesBefore
       -- fr: rf⁻¹;co composition
       sorry -- need: compose rf + co finishesBefore
 
+/-- A TransGen path in PPOi ∪ com gives finishesBefore.
+    Most steps give finishesBefore directly. For nc.weak reader with orderAfterDir
+    (where the rfe downgrade chain goes through the successor), the proof consumes
+    two steps: rfe + the next step (PPOi or fr to the successor). -/
+theorem transgen_finishesBefore
+    (hpath : Relation.TransGen (@PPOi n b ∪ com compound b init) e₁ e₂)
+    : e₁.finishesBefore n e₂ := by
+  induction hpath with
+  | single hstep => exact step_finishesBefore hstep
+  | tail _ hstep ih => exact Nat.lt_trans ih (step_finishesBefore hstep)
+
 theorem cmcm_acyclic
     (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
   intro e hcycle
-  -- Each step gives e₁.finishesBefore e₂ (e₁.oEnd < e₂.oEnd).
-  -- finishesBefore is transitive (< on Nat). A cycle gives e.oEnd < e.oEnd.
-  suffices h : ∀ e', Relation.TransGen (@PPOi n b ∪ com compound b init) e e' →
-      e.finishesBefore n e' by
-    exact Nat.lt_irrefl _ (h e hcycle)
-  intro e' hpath
-  induction hpath with
-  | single hstep => exact step_finishesBefore hstep
-  | tail _ hstep ih => exact Nat.lt_trans ih (step_finishesBefore hstep)
+  exact Nat.lt_irrefl _ (transgen_finishesBefore hcycle)
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
