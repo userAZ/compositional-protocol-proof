@@ -127,7 +127,9 @@ Each edge gives OB between specific protocol events (e_w, e_r_down, e_r_cdir_dow
 EncapsulatedBy connects the output of one edge to the input of the next.
 A cycle forms a loop: X.oEnd < ... < X.oEnd — contradiction.
 
-**Per-edge measures (e.oEnd, finishesBefore) DO NOT WORK for all cases.**
+**Per-edge measures (e.oEnd, finishesBefore) AND per-edge OB on cache events DO NOT WORK.**
+OB between cache events fails: reader can start before writer finishes (sends request to directory early). Only OB between PROTOCOL EVENTS (e_w OB e_r_down, CLE₁ OB CLE₂) holds.
+The transitive relation must carry the encapsulation evidence (e_r_cdir_down encaps e_r_down) that bridges cluster cache and cluster directory levels.
 The chain goes through PROTOCOL events, not cache events.
 The proof MUST compose across edges.
 
