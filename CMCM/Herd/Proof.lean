@@ -114,48 +114,26 @@ Template (from Anqi's cycle examples):
   Chain: CLE₁.oEnd < e₂.oEnd < e_r_down.oEnd < e_r_cdir_down.oEnd < CLE₁.oStart
   Contradiction: CLE₁.oEnd < CLE₁.oStart, but oStart < oEnd. -/
 
-/-- Each PPOi/com step gives e₁ OB e₂ (writer finishes before reader starts)
-    at the protocol level. For PPOi: direct OB on cache events. For COM:
-    the communication chain gives e₁ OB e₂ via the protocol event chain
-    (e_w OB e_r_down inside e₂, giving e_w.oEnd < e₂.oStart via the
-    temporal chain through protocol events). -/
-theorem step_gives_ob
-    (hstep : (@PPOi n b ∪ com compound b init) e₁ e₂)
-    : e₁.OrderedBefore n e₂ := by
-  cases hstep with
-  | inl hppoi => exact hppoi.orderedBefore
-  | inr hcom =>
-    -- COM: the communication at a common level gives e₁ OB e₂.
-    -- The protocol guarantees: the source event finishes before the
-    -- target event starts, because the value must be propagated first.
-    -- For same-cache (co.sameCle): direct OB from cache ordering.
-    -- For cross-cache/cluster: the downgrade chain establishes temporal ordering.
-    -- For nc.weak orderAfterDir: the value was cached from a PREVIOUS
-    -- interaction that happened before the reader started.
-    cases hcom with
-    | rfe h => sorry -- rfe: e_w finishes before e_r starts (protocol guarantee)
-    | co h =>
-      cases h.ordering with
-      | sameGle _ cle_cases =>
-        cases cle_cases with
-        | sameCle _ cache_ob => exact cache_ob  -- direct OB ✓
-        | diffCle _ => sorry -- CLE ordering: protocol temporal argument
-      | wObRGle _ _ => sorry -- GLE ordering: protocol temporal argument
-    | fr h => sorry -- fr: composition
+/-- Each step gives OB between PROTOCOL EVENTS (not cache events).
+    PPOi: e₁ OB e₂ (direct, same cache).
+    COM: e_w OB e_r_down at cluster cache level, or CLE₁ OB CLE₂ at cluster dir level.
+    The bridge: e_r_cdir_down encapsulates e_r_down (cdirEncapsDown).
+    These compose across edges via EncapsulatedBy + OB → OB (Trans instances). -/
 
-/-- The acyclicity theorem follows from step_gives_ob + OB transitivity.
-    TransGen (PPOi ∪ com) e e gives e OB e via OB transitivity.
-    e OB e contradicts OB irreflexivity. -/
+/-- The acyclicity theorem. Each step gives OB between protocol events.
+    The chain composes via OB transitivity and the EncapsulatedBy bridge
+    (e_r_cdir_down encaps e_r_down) connecting cluster cache and directory levels.
+    A cycle gives X OB X for some protocol event X — contradiction. -/
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
-  intro e hcycle
-  suffices h : ∀ e₂, Relation.TransGen (@PPOi n b ∪ com compound b init) e e₂ →
-      e.OrderedBefore n e₂ by
-    exact Event.contradiction_of_reflexive_ordered_before n (h e hcycle)
-  intro e₂ hpath
-  induction hpath with
-  | single hstep => exact step_gives_ob hstep
-  | tail _ hstep ih => exact Trans.trans ih (step_gives_ob hstep)
+  -- NOTE: per-edge OB on cache events FAILS (reader can start before writer finishes).
+  -- The proof must use OB on PROTOCOL EVENTS and compose through encapsulation.
+  -- The custom transitive relation carries:
+  -- 1. OB at cluster cache level (e_w OB e_r_down)
+  -- 2. OB at cluster directory level (CLE₁ OB CLE₂)
+  -- 3. Encapsulation bridge (e_r_cdir_down encaps e_r_down from cdirEncapsDown)
+  -- The composition at PPOi↔COM junctions uses EncapsulatedBy + OB → OB.
+  sorry
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
