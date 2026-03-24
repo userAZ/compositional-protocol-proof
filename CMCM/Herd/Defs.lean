@@ -46,13 +46,6 @@ noncomputable def cle
     (h : CompoundProtocol.globalLinearizationEventOfRequest compound b init e) : Event n :=
   h.hreq's_dir_access.choose
 
-/-- The compound linearization event for a request: where it "meets" the protocol hierarchy.
-    Extracted from ClusterRequestLinearizationEvent (cache level, CLE level, or GLE level).
-    This is the ranking witness for the acyclicity proof. -/
-noncomputable def compoundLinEvent (e : Event n) : Event n :=
-  (compound.compoundLinearizationEvent compound.shimAxioms b init e
-    (compound.linearizationOfEvent b init e)).linearizationEvent
-
 /-! ## Edge definitions -/
 
 /-- PPOi: Preserved Program Order (intra-cluster).
