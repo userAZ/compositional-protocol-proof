@@ -92,6 +92,27 @@ The hierarchy ordering (GLE/CLE/cache) is a CONSEQUENCE of communication events,
   2. co(e_w, e₂): downgrade from e₂ to e_w at level L₂ (how e₂ overwrites e_w)
   The `noBetween` condition from RF ensures the composition is valid.
 
+### NEEDED: Custom TransGen (ProtocolChain) for acyclicity proof
+
+Standard TransGen + per-edge measures DON'T WORK (oEnd dead end).
+Need custom inductive `ProtocolChain` with DESCRIPTIVE constructors for each
+communication level junction (like RF's verbose inductives).
+
+**Two communication levels**:
+1. **Cluster cache level**: e_w OB e_r_down (from existsRDownAtW)
+2. **Cluster directory level**: CLE₁ OB CLE₂ (from co.cases CLE ordering)
+
+**Constructor cases** (PPOi↔COM junctions at each level):
+- ppoi_to_cache_com: PPOi gives e₁ OB e₂, COM gives e₂ OB e_r_down
+- ppoi_to_dir_com: PPOi gives e₁ OB e₂, COM gives CLE₂ OB CLE_next
+- cache_com_to_ppoi: e_r_down inside e₃ (EncapsulatedBy), PPOi gives e₃ OB e₄
+- dir_com_to_ppoi: CLE inside e₃ (EncapsulatedBy), PPOi gives e₃ OB e₄
+- COM↔COM: similar junctions at each level
+- trans: compose chains
+
+Each gives strict oEnd increase on SPECIFIC protocol events.
+A cycle loops: X.oEnd < ... < X.oEnd. Contradiction.
+
 ### THE APPROACH: OB between protocol events in COM relations
 
 **The COM relations (rfe, co, fr) order specific protocol events via OrderedBefore.**
