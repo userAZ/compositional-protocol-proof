@@ -126,8 +126,107 @@ theorem step_ordered
     -- Each step in the chain: OB gives e₁.oEnd < e₂.oStart ≤ e₂.oEnd,
     -- EncapsulatedBy gives e₁.oEnd < e₂.oEnd (inner ends before outer).
     cases hcom with
-    | rfe h => sorry -- rfe: e_w OB e_r_down chain → e_w.oEnd < e_r.oEnd
-    | co h => sorry -- co: overwrite downgrade chain → e_w₁.oEnd < e_w₂.oEnd
+    | rfe h =>
+      -- rfe: trace protocol event chain.
+      -- wObRGle.diffCluster cases carry encapProxyAndDirAndCDown or similar.
+      -- Chain: e_w OB e_r_down inside e_r_cdir_down inside CLE(e_r) inside e_r.
+      cases h.readsFrom with
+      | wEqRGle _ hsc _ => exact absurd hsc h.diffProtocol
+      | wObRGle _ hw_cases =>
+        cases hw_cases with
+        | sameCluster hsc _ => exact absurd hsc h.diffProtocol
+        | diffCluster _ _ _ hcase =>
+          cases hcase with
+          | wHasPermsAfter _ hcoh =>
+            cases hcoh with
+            | immPred _ hpdc =>
+              -- immPred: full encapProxyAndDirAndCDown chain
+              have hw_ob := hpdc.existsRDownAtW.choose_spec.2.2.2
+              have hdown_cdir := hpdc.cdirEncapsDown.2
+              have hcdir_cle : hpdc.encapDir.existsRClusterDirDown.choose.oEnd n <
+                  h.r_lin.hreq's_dir_access.choose.oEnd n := by
+                cases hpdc.encapDir.existsRClusterDirDown.choose_spec.2.2.2 with
+                | cleEncap henc => exact henc.2
+                | gcacheEncap _ hlt => exact hlt
+              have hcle_e2 : h.r_lin.hreq's_dir_access.choose.oEnd n < e₂.oEnd n := by
+                cases h.r_lin.hreq's_dir_access.choose_spec.2 with
+                | encapDir _ he => exact he.reqEncapDir.2
+                | orderBeforeDir _ hp hd _ _ _ _ _ =>
+                  exact Nat.lt_trans (Nat.lt_trans hd.reqEncapDir.2
+                    hp.choose_spec.2.isImmPred.bPred.isPred) (Event.oWellFormed n e₂)
+                | orderAfterDir _ _ _ _ => sorry -- nc.weak orderAfterDir
+              exact Nat.lt_trans (Nat.lt_trans (Nat.lt_trans
+                (Nat.lt_trans hw_ob (Event.oWellFormed n _)) hdown_cdir) hcdir_cle) hcle_e2
+            | notImmPred hcase =>
+              cases hcase with
+              | noEvictBetween w =>
+                -- noEvictBetween carries gdownEncapProxyAndDirAndCDown (full chain)
+                have hpdc := w.gdownEncapProxyAndDirAndCDown
+                have hw_ob := hpdc.existsRDownAtW.choose_spec.2.2.2
+                have hdown_cdir := hpdc.cdirEncapsDown.2
+                have hcdir_cle : hpdc.encapDir.existsRClusterDirDown.choose.oEnd n <
+                    h.r_lin.hreq's_dir_access.choose.oEnd n := by
+                  cases hpdc.encapDir.existsRClusterDirDown.choose_spec.2.2.2 with
+                  | cleEncap henc => exact henc.2
+                  | gcacheEncap _ hlt => exact hlt
+                have hcle_e2 : h.r_lin.hreq's_dir_access.choose.oEnd n < e₂.oEnd n := by
+                  cases h.r_lin.hreq's_dir_access.choose_spec.2 with
+                  | encapDir _ he => exact he.reqEncapDir.2
+                  | orderBeforeDir _ hp hd _ _ _ _ _ =>
+                    exact Nat.lt_trans (Nat.lt_trans hd.reqEncapDir.2
+                      hp.choose_spec.2.isImmPred.bPred.isPred) (Event.oWellFormed n e₂)
+                  | orderAfterDir _ _ _ _ => sorry -- nc.weak orderAfterDir
+                exact Nat.lt_trans (Nat.lt_trans (Nat.lt_trans
+                  (Nat.lt_trans hw_ob (Event.oWellFormed n _)) hdown_cdir) hcdir_cle) hcle_e2
+              | evictBetween _ => sorry -- evictBetween: CLE ordering
+          | wNoPermsAfter _ _ _ => sorry -- nc write: CLE ordering
+          | wCleAfter _ => sorry -- CLE after: orderAfterDir on writer
+    | co h =>
+      cases h.ordering with
+      | sameGle _ cle_cases =>
+        cases cle_cases with
+        | sameCle _ cache_ob => exact Nat.lt_trans cache_ob (Event.oWellFormed n e₂)
+        | diffCle _ => sorry -- CLE ordering: needs protocol temporal argument
+      | wObRGle _ cle_cases =>
+        cases cle_cases with
+        | sameCluster _ _ => sorry -- sameCluster: CLE ordering
+        | diffCluster _ dcases =>
+          -- diffCluster: ReadDowngradeAtWrite carries encapProxyAndDirAndCDown
+          cases dcases with
+          | wCleImmPredDown wp =>
+            have hw_ob := wp.rDown.existsRDownAtW.choose_spec.2.2.2
+            have hdown_cdir := wp.rDown.cdirEncapsDown.2
+            have hcdir_cle : wp.rDown.encapDir.existsRClusterDirDown.choose.oEnd n <
+                h.w₂_lin.hreq's_dir_access.choose.oEnd n := by
+              cases wp.rDown.encapDir.existsRClusterDirDown.choose_spec.2.2.2 with
+              | cleEncap henc => exact henc.2
+              | gcacheEncap _ hlt => exact hlt
+            have hcle_e2 : h.w₂_lin.hreq's_dir_access.choose.oEnd n < e₂.oEnd n := by
+              cases h.w₂_lin.hreq's_dir_access.choose_spec.2 with
+              | encapDir _ he => exact he.reqEncapDir.2
+              | orderBeforeDir _ hp hd _ _ _ _ _ =>
+                exact Nat.lt_trans (Nat.lt_trans hd.reqEncapDir.2
+                  hp.choose_spec.2.isImmPred.bPred.isPred) (Event.oWellFormed n e₂)
+              | orderAfterDir _ _ _ _ => sorry -- nc.weak orderAfterDir
+            exact Nat.lt_trans (Nat.lt_trans (Nat.lt_trans
+              (Nat.lt_trans hw_ob (Event.oWellFormed n _)) hdown_cdir) hcdir_cle) hcle_e2
+          | evictOrReadBetweenWAndRDown we =>
+            have hw_ob := we.rDown.existsRDownAtW.choose_spec.2.2.2
+            have hdown_cdir := we.rDown.cdirEncapsDown.2
+            have hcdir_cle : we.rDown.encapDir.existsRClusterDirDown.choose.oEnd n <
+                h.w₂_lin.hreq's_dir_access.choose.oEnd n := by
+              cases we.rDown.encapDir.existsRClusterDirDown.choose_spec.2.2.2 with
+              | cleEncap henc => exact henc.2
+              | gcacheEncap _ hlt => exact hlt
+            have hcle_e2 : h.w₂_lin.hreq's_dir_access.choose.oEnd n < e₂.oEnd n := by
+              cases h.w₂_lin.hreq's_dir_access.choose_spec.2 with
+              | encapDir _ he => exact he.reqEncapDir.2
+              | orderBeforeDir _ hp hd _ _ _ _ _ =>
+                exact Nat.lt_trans (Nat.lt_trans hd.reqEncapDir.2
+                  hp.choose_spec.2.isImmPred.bPred.isPred) (Event.oWellFormed n e₂)
+              | orderAfterDir _ _ _ _ => sorry -- nc.weak orderAfterDir
+            exact Nat.lt_trans (Nat.lt_trans (Nat.lt_trans
+              (Nat.lt_trans hw_ob (Event.oWellFormed n _)) hdown_cdir) hcdir_cle) hcle_e2
     | fr h => sorry -- fr: rf⁻¹;co composition → e₁.oEnd < e₂.oEnd
 
 theorem transgen_ordered
