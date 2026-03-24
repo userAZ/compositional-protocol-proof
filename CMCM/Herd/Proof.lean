@@ -139,11 +139,36 @@ theorem step_finishesBefore
   | inr hcom =>
     cases hcom with
     | rfe h =>
-      -- rfe chain: e_w OB e_r_down (existsRDownAtW), e_r_cdir_down encaps e_r_down,
-      -- e_r_cdir_down inside CLE(e_r)/GCR(e_r) (encapDirRelation),
-      -- CLE inside e_r (from dirAccessOfRequest encapDir/orderBeforeDir)
-      -- For orderAfterDir: CLE from successor, chain goes through successor (not a cycle problem)
-      sorry
+      -- rfe: extract the downgrade chain from readsFrom.cases
+      -- For cross-cluster (wObRGle.diffCluster): e_w OB e_r_down, chain → e₁.oEnd < e₂.oEnd
+      -- For orderAfterDir reader: CLE from successor, but not a cycle problem
+      unfold Event.finishesBefore
+      cases h.readsFrom with
+      | wEqRGle _ hwr_same_cluster _ => exact absurd hwr_same_cluster h.diffProtocol
+      | wObRGle _ hw_ob_r_gle_cases =>
+        cases hw_ob_r_gle_cases with
+        | sameCluster hsc _ => exact absurd hsc h.diffProtocol
+        | diffCluster _ _ _ hdiff_cache_case =>
+          -- diffCluster: extract the downgrade chain
+          cases hdiff_cache_case with
+          | wHasPermsAfter _ coherent_case =>
+            cases coherent_case with
+            | immPred _ hencapPD =>
+              -- hencapPD : encapProxyAndDirAndCDown e_w hr_c_and_g_lin
+              -- hencapPD.existsRDownAtW : ∃ e_r_down, ... ∧ e_w OB e_r_down
+              -- hencapPD.encapDir.existsRClusterDirDown : ∃ e_r_cdir_down, ... ∧ encapDirRelation
+              -- Extract e_r_down and its OB with e_w
+              obtain ⟨e_r_down, _, _, _, hw_ob_rdown⟩ := hencapPD.existsRDownAtW
+              -- Extract e_r_cdir_down and encapDirRelation
+              obtain ⟨e_r_cdir_down, _, _, _, hencap_rel⟩ := hencapPD.encapDir.existsRClusterDirDown
+              -- Chain: e₁.oEnd < e_r_down.oStart (from OB)
+              -- e_r_down.oEnd < CLE(e₂).oEnd (from encapDirRelation)
+              -- CLE(e₂).oEnd < e₂.oEnd (from dirAccessOfRequest)
+              -- Need to extract and compose these
+              sorry
+            | notImmPred _ => sorry
+          | wNoPermsAfter _ _ _ => sorry
+          | wCleAfter _ => sorry
     | co h =>
       -- co: downgrade structure gives e₁.oEnd < e₂.oEnd
       sorry -- need: extract from co.cases
