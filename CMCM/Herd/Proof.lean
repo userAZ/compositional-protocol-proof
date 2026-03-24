@@ -215,7 +215,25 @@ theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSyste
 noncomputable def eventPartialOrder
     (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
     : PartialOrder (Event n) := by
-  have _hacyclic := @cmcm_acyclic n compound b init hknow
-  sorry
+  let R := @PPOi n b ∪ com compound b init
+  have hacyclic := @cmcm_acyclic n compound b init hknow
+  exact {
+    le := fun a b => a = b ∨ Relation.TransGen R a b
+    lt := fun a b => Relation.TransGen R a b
+    le_refl := fun a => Or.inl rfl
+    le_trans := fun {a b c} hab hbc => by
+      cases hab with
+      | inl h => rw [h]; exact hbc
+      | inr hab => cases hbc with
+        | inl h => rw [← h]; exact Or.inr hab
+        | inr hbc => exact Or.inr (Trans.trans hab hbc)
+    le_antisymm := fun {a b} hab hba => by
+      cases hab with
+      | inl h => exact h
+      | inr hab => cases hba with
+        | inl h => exact h.symm
+        | inr hba => exact absurd (Trans.trans hab hba) (hacyclic a)
+    lt_iff_le_not_ge := sorry -- Mechanical: lt ↔ le ∧ ¬ge from acyclicity
+  }
 
 end Herd
