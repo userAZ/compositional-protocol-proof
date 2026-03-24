@@ -252,11 +252,15 @@ theorem step_advances
                     _ < de₂.oStart := hencap₂.reqEncapDir.left
                     _ < de₂.oEnd := de₂.oWellFormed
                 exact Nat.lt_irrefl _ this
-              | orderAfterDir _ _ _ _ =>
-                -- e₁ orderAfterDir → CLE₁ = CLE₂ for nc.weak PPOi (vacuous in CLE₁ ≠ CLE₂ branch)
+              | orderAfterDir _ hsucc₁ _ _ =>
+                -- e₁ orderAfterDir: nc.weak, CLE₁ from successor.
+                -- For PPOi, the successor should be e₂ (release), giving CLE₁ = CLE₂.
+                -- But CLE₁ ≠ CLE₂ (hcle_eq) → contradiction.
+                -- Requires: orderAfterDir successor = PPO successor e₂ (protocol uniqueness).
                 sorry
             | orderBeforeDir _ _ _ _ _ _ _ _ =>
-              -- e₂ orderBeforeDir: protocol-level argument needed
+              -- e₂ orderBeforeDir: CLE₂ from predecessor. Protocol reasoning needed
+              -- to show predecessor's CLE can't be before CLE₁ when e₁ OB e₂.
               sorry
             | orderAfterDir _ hsucc₂ _ _ =>
               -- e₂ orderAfterDir: e₂ OB successor, successor encapsulates de₂
@@ -290,9 +294,12 @@ theorem step_advances
                     _ < de₂.oStart := hsucc_encap.left
                     _ < de₂.oEnd := de₂.oWellFormed
                 exact Nat.lt_irrefl _ this
-              | orderAfterDir _ _ _ _ =>
-                -- e₁ also orderAfterDir in CLE₁ ≠ CLE₂ branch:
-                -- nc.weak shares CLE with PPO successor → CLE₁ = CLE₂ → contradiction
+              | orderAfterDir _ hsucc₁ _ _ =>
+                -- Both e₁ and e₂ orderAfterDir: both nc.weak.
+                -- CLE₁ from e₁'s successor, CLE₂ from e₂'s successor.
+                -- For PPOi nc.weak → release: successor = release = e₂.
+                -- CLE₁ = CLE₂ (both from e₂'s dir event) → contradicts hcle_eq.
+                -- Requires: orderAfterDir successor = PPO successor (protocol uniqueness).
                 sorry
         | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
       | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
