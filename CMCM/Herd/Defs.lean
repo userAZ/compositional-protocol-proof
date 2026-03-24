@@ -86,6 +86,11 @@ structure rfe (e₁ e₂ : Event n) : Prop where
   r_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
   readsFrom : Behaviour.readsFrom.cases write read w_lin r_lin hknow_dir_access
+  /-- CLE ordering for rfe: writer's CLE before reader's CLE. -/
+  cle_advance :
+    (w_lin.hreq's_dir_access.choose.oEnd < r_lin.hreq's_dir_access.choose.oEnd) ∨
+    (w_lin.hreq's_dir_access.choose.oEnd = r_lin.hreq's_dir_access.choose.oEnd ∧
+     Event.oEnd n e₁ < Event.oEnd n e₂)
 
 /-- CO same-GLE sub-cases (Prop-valued, mirroring `readsFrom.wEqRGle.cases`).
     When both writes share a GLE, ordering comes from CLE or cache level. -/
