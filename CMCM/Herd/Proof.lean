@@ -127,38 +127,92 @@ theorem transgen_ob_of_step_ob
   | single h => exact hstep_ob _ _ h
   | tail _ h ih => exact Trans.trans ih (hstep_ob _ _ h)
 
-/-- Each PPOi/com step gives a protocol event A inside e₂ with e₁.oEnd < A.oEnd.
-    This uses: PPOi gives e₁ OB e₂ (so e₁.oEnd < e₂.oEnd with A = e₂).
-    COM gives e₁ OB e_r_down inside e₂ (so e₁.oEnd < e_r_down.oEnd ≤ e₂.oEnd with A = e₂ or e_r_down).
-    The key: both OB and EncapsulatedBy give strict oEnd increase.
-    So the chain of protocol events has strictly increasing oEnd. -/
-theorem step_protocol_oEnd_lt
-    (hstep : (@PPOi n b ∪ com compound b init) e₁ e₂)
-    : e₁.oEnd n < e₂.oEnd n := by
-  cases hstep with
+/-- Helper: for a TransGen path where EVERY step gives e₁.oEnd < e₂.oEnd,
+    the path gives e₁.oEnd < eₖ.oEnd. -/
+theorem transgen_oend_lt_of_step
+    {R : Event n → Event n → Prop}
+    (hpath : Relation.TransGen R e₁ e₂)
+    (hstep : ∀ a b, R a b → Event.oEnd n a < Event.oEnd n b)
+    : Event.oEnd n e₁ < Event.oEnd n e₂ := by
+  induction hpath with
+  | single h => exact hstep _ _ h
+  | tail _ h ih => exact Nat.lt_trans ih (hstep _ _ h)
+
+/-- Pure PPOi is acyclic (from OrderedBefore transitivity). -/
+theorem ppoi_acyclic : Relation.Acyclic (@PPOi n b) := by
+  intro e hcycle
+  exact Event.contradiction_of_reflexive_ordered_before n
+    (transgen_ob_of_step_ob hcycle fun a b h => h.orderedBefore)
+
+-- NOTE: per-edge e₁.oEnd < e₂.oEnd does NOT hold for all COM edges
+-- (co diff-cache: slow grant can make e₁.oEnd > e₂.oEnd).
+-- The proof must use cross-edge composition on protocol events.
+--
+-- The correct approach chains OB on PROTOCOL events (CLE, e_r_down,
+-- e_r_cdir_down) across edges. The encapsulation bridge (cdirEncapsDown)
+-- connects cluster cache and directory levels. The chain composes via
+-- Trans instances on OB/EncapsulatedBy.
+--
+-- Per-edge protocol event ordering:
+-- • PPOi: e₁ OB e₂ (direct, cache level)
+-- • rfe: GLE₁ OB GLE₂ + e_w OB e_r_down + e_r_cdir_down encaps e_r_down
+--         + e_r_cdir_down.oEnd < CLE₂.oEnd (encapDirRelation)
+-- • co.sameGle.sameCle: e₁ OB e₂ (cache level)
+-- • co.sameGle.diffCle: CLE₁ OB CLE₂ (from cleOrdering.Cases)
+-- • co.wObRGle: GLE₁ OB GLE₂ → CLE₁ OB CLE₂ (same-addr + dir_ordered)
+-- • fr: rf⁻¹ ; co⁺ decomposition → composed ordering
+--
+-- Cross-edge composition (PPOi↔COM junctions):
+-- At COM→PPOi junction: protocol event p is inside CLE(e) which is
+--   related to e by dirAccessOfRequest (encapDir/orderBeforeDir/orderAfterDir).
+--   For orderAfterDir (nc.weak): CLE(e) = CLE(PPO successor), and the
+--   successor encapsulates CLE → p inside successor → p OB successor's successor.
+
+/-- Every edge in PPOi ∪ com gives a CLE-lexicographic ordering:
+    either the CLE strictly advances, or CLEs are equal and e₁ OB e₂.
+    Requires linearization witnesses (from `hknow_dir_access` or com edges).
+
+    This is the key per-step lemma for the acyclicity proof.
+    A cycle forces all CLEs equal (non-decreasing in a cycle → constant),
+    then all steps give OB on cache events → chain gives e OB e → contradiction. -/
+theorem step_cle_lex
+    (h : (@PPOi n b ∪ com compound b init) e₁ e₂)
+    (h₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
+    (h₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
+    : (h₁_lin.hreq's_dir_access.choose.oEnd < h₂_lin.hreq's_dir_access.choose.oEnd) ∨
+      (h₁_lin.hreq's_dir_access.choose = h₂_lin.hreq's_dir_access.choose ∧
+       e₁.OrderedBefore n e₂) := by
+  cases h with
   | inl hppoi =>
-    -- PPOi: e₁ OB e₂ → e₁.oEnd < e₂.oStart ≤ e₂.oEnd
-    exact Nat.lt_trans hppoi.orderedBefore (Event.oWellFormed n e₂)
+    -- PPOi: e₁ OB e₂ on same cache, same address.
+    -- CLE₁ and CLE₂ are at same cluster directory, same address.
+    -- dir_ordered gives CLE₁ OB CLE₂ or CLE₁ = CLE₂ or CLE₂ OB CLE₁.
+    -- Case CLE₁ = CLE₂: Right with OB from PPOi.orderedBefore.
+    -- Case CLE₁ OB CLE₂: Left (strict CLE advance).
+    -- Case CLE₂ OB CLE₁: contradiction (requires 9-case dirAccessOfRequest analysis).
+    sorry
   | inr hcom =>
-    -- COM: protocol event chain gives e₁.oEnd < e₂.oEnd.
-    -- Uses OB at cluster cache level (e_w OB e_r_down) and cluster dir level (CLE₁ OB CLE₂),
-    -- with the encapsulation bridge (e_r_cdir_down encaps e_r_down from cdirEncapsDown).
-    -- The chain composition at PPOi↔COM junctions uses EncapsulatedBy + OB → OB.
-    -- Validated by protocol model checking (Murphi).
+    -- COM: same-address communication edge.
+    -- rfe: GLE₁ OB GLE₂ → CLE₁ OB CLE₂ (same-addr dir_ordered excludes CLE₂ OB CLE₁).
+    -- co.sameGle.sameCle: same CLE + e₁ OB e₂ → Right.
+    -- co.sameGle.diffCle: CLE₁ OB CLE₂ from cleOrdering.Cases → Left.
+    -- co.wObRGle: GLE₁ OB GLE₂ → CLE₁ OB CLE₂ → Left.
+    -- fr: composed from rf⁻¹ ; co⁺ → CLE ordering from intermediate writes.
     sorry
 
-/-- TransGen path with strictly increasing oEnd. -/
-theorem transgen_oEnd_lt
-    (hpath : Relation.TransGen (@PPOi n b ∪ com compound b init) e₁ e₂)
-    : e₁.oEnd n < e₂.oEnd n := by
-  induction hpath with
-  | single h => exact step_protocol_oEnd_lt h
-  | tail _ h ih => exact Nat.lt_trans ih (step_protocol_oEnd_lt h)
-
+/-- From `step_cle_lex` applied to a cycle: all CLEs must be equal,
+    then all steps give OB on cache events. -/
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
-  intro e hcycle
-  exact Nat.lt_irrefl _ (transgen_oEnd_lt hcycle)
+  -- Proof strategy:
+  -- 1. If the cycle is pure PPOi: ppoi_acyclic gives contradiction.
+  -- 2. If the cycle has a com edge: extract linearization witnesses.
+  --    Apply step_cle_lex to each step:
+  --    a. CLE.oEnd is non-decreasing along the cycle (from step_cle_lex).
+  --    b. Non-decreasing in a cycle → constant → all CLEs equal.
+  --    c. All CLEs equal → every step gives e₁ OB e₂ (from step_cle_lex Right).
+  --    d. Chain of OB → e OB e → contradiction (Event.contradiction_of_reflexive_ordered_before).
+  sorry
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
