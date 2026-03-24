@@ -24,61 +24,38 @@ inductive com (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystem
   | fr : @Herd.fr n cmp b init e₁ e₂ → com cmp b init e₁ e₂
   | co : @Herd.co n cmp b init e₁ e₂ → com cmp b init e₁ e₂
 
-/-- The hierarchical ordering: PPOi ∪ com, with each constructor carrying
-    BOTH the communication evidence (the protocol mechanism) AND the ordering
-    consequence (eventLt ranking decrease).
+/-- The hierarchical ordering: PPOi ∪ com, carrying communication evidence.
 
     Like RF's `readsFrom.cases`, each constructor is descriptive — it shows
-    WHAT communication happened and WHAT ordering it establishes.
+    WHAT communication happened. The ordering IS the communication.
 
-    - `ppoi`: local cache/thread ordering via CompoundMCM + eventLt consequence
-    - `com`: communication ordering (rfe/co/fr) + eventLt consequence
+    - `ppoi`: local cache/thread ordering — CompoundMCM proves compound
+      linearization events are ordered
+    - `com`: communication ordering — rfe/co/fr each carry their specific
+      downgrade/communication structure at a common level
 
-    The PartialOrder is built from these communication events, with
-    irreflexivity and transitivity proven via the eventLt component. -/
+    The PartialOrder is the transitive closure of this relation.
+    Acyclicity is proven directly from the communication evidence. -/
 inductive hierarchicallyOrdered
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     (e₁ e₂ : Event n) : Prop where
-  /-- PPOi: local cache ordering, CompoundMCM gives linearization + ranking decrease -/
-  | ppoi (comm : @PPOi n b e₁ e₂)
-         (h₁ : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
-         (h₂ : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂)
-         (hlt : eventLt h₁ h₂)
-  /-- COM: communication ordering (rfe/co/fr) + ranking decrease -/
-  | com (comm : com cmp b init e₁ e₂)
-        (h₁ : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
-        (h₂ : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂)
-        (hlt : eventLt h₁ h₂)
+  /-- PPOi: local cache ordering via CompoundMCM (compound linearization events ordered) -/
+  | ppoi (h : @PPOi n b e₁ e₂)
+  /-- COM: communication ordering (rfe/co/fr, each with communication evidence) -/
+  | com (h : com cmp b init e₁ e₂)
 
-/-- hierarchicallyOrdered implies eventLt (extract the ranking consequence). -/
-theorem hierarchicallyOrdered_eventLt
+/-- hierarchicallyOrdered = PPOi ∪ com -/
+theorem hierarchicallyOrdered_iff_ppoi_union_com
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     {e₁ e₂ : Event n}
-    (h : @hierarchicallyOrdered n cmp b init e₁ e₂)
-    (h₁ : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
-    (h₂ : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂)
-    : eventLt h₁ h₂ := by
-  cases h with
-  | ppoi _ h₁' h₂' hlt =>
-    have : h₁' = h₁ := Subsingleton.elim _ _; subst this
-    have : h₂' = h₂ := Subsingleton.elim _ _; subst this
-    exact hlt
-  | com _ h₁' h₂' hlt =>
-    have : h₁' = h₁ := Subsingleton.elim _ _; subst this
-    have : h₂' = h₂ := Subsingleton.elim _ _; subst this
-    exact hlt
-
-/-- PPOi ∪ com → hierarchicallyOrdered (given eventLt proofs). -/
-theorem hierarchicallyOrdered_of_ppoi_union_com
-    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
-    {e₁ e₂ : Event n}
-    (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
-    (h : (@PPOi n b ∪ com cmp b init) e₁ e₂)
-    (hlt : eventLt (hknow cmp b init e₁) (hknow cmp b init e₂))
-    : @hierarchicallyOrdered n cmp b init e₁ e₂ := by
-  cases h with
-  | inl h => exact .ppoi h _ _ hlt
-  | inr h => exact .com h _ _ hlt
+    : @hierarchicallyOrdered n cmp b init e₁ e₂ ↔ (@PPOi n b ∪ com cmp b init) e₁ e₂ := by
+  constructor
+  · intro h; cases h with
+    | ppoi h => exact Or.inl h
+    | com h => exact Or.inr h
+  · intro h; cases h with
+    | inl h => exact .ppoi h
+    | inr h => exact .com h
 
 /-! ## Generic acyclicity definitions -/
 

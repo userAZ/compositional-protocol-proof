@@ -46,20 +46,6 @@ noncomputable def cle
     (h : CompoundProtocol.globalLinearizationEventOfRequest compound b init e) : Event n :=
   h.hreq's_dir_access.choose
 
-/-- The (GLE, CLE, cache) 3-level lexicographic strict order.
-    This is the ranking function used to prove acyclicity of the Herd CMCM.
-    Each event maps to a (GLE, CLE, cache) triple via its linearization witness;
-    this order compares at the highest level where they differ.
-
-    GCR is redundant (CLE → GCR → GLE is functionally determined). -/
-def eventLt
-    (h₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
-    (h₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂) : Prop :=
-  (gle h₁).OrderedBefore n (gle h₂) ∨
-  (gle h₁ = gle h₂ ∧
-    ((cle h₁).OrderedBefore n (cle h₂) ∨
-      (cle h₁ = cle h₂ ∧ e₁.OrderedBefore n e₂)))
-
 /-! ## Edge definitions -/
 
 /-- PPOi: Preserved Program Order (intra-cluster).
