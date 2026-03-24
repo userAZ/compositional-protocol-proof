@@ -114,34 +114,31 @@ Template (from Anqi's cycle examples):
   Chain: CLE₁.oEnd < e₂.oEnd < e_r_down.oEnd < e_r_cdir_down.oEnd < CLE₁.oStart
   Contradiction: CLE₁.oEnd < CLE₁.oStart, but oStart < oEnd. -/
 
-/-- Define a protocol-level strict order that contains PPOi ∪ com.
-    Uses OB on cache events (from PPOi, co.sameCle) and OB on CLE events
-    (from co.diffCle, co.wObRGle sameCluster) and OB on GLE events
-    (from rfe, co.wObRGle diffCluster). -/
-def protocolLt (e₁ e₂ : Event n) : Prop :=
-  e₁.OrderedBefore n e₂
+/-- Each PPOi/com step gives e₁ OB e₂ (writer finishes before reader starts)
+    at the protocol level. For PPOi: direct OB on cache events. For COM:
+    the communication chain gives e₁ OB e₂ via the protocol event chain
+    (e_w OB e_r_down inside e₂, giving e_w.oEnd < e₂.oStart via the
+    temporal chain through protocol events). -/
+theorem step_gives_ob
+    (hstep : (@PPOi n b ∪ com compound b init) e₁ e₂)
+    : e₁.OrderedBefore n e₂ := by
+  cases hstep with
+  | inl hppoi => exact hppoi.orderedBefore
+  | inr hcom => sorry -- COM: protocol event chain gives e₁ OB e₂
 
-/-- Each PPOi step gives e₁ OB e₂. -/
-theorem ppoi_gives_ob (h : @PPOi n b e₁ e₂) : e₁.OrderedBefore n e₂ :=
-  h.orderedBefore
-
-/-- Each COM step gives OrderedBefore between specific protocol events.
-    For the acyclicity proof: we show each COM step gives some protocol
-    event A related to e₁ and B related to e₂ with A OB B.
-    The composition across edges then gives the cycle contradiction. -/
-theorem com_gives_protocol_ob (h : com compound b init e₁ e₂)
-    : ∃ (A B : Event n), A.OrderedBefore n B ∧
-      A.oEnd n ≤ e₁.oEnd n ∧ e₂.oStart n ≤ B.oStart n := by
-  -- COM gives OB between protocol events (A, B) where A is at/before e₁
-  -- and B is at/after e₂.oStart. The specific events depend on the COM type.
-  sorry
-
-/-- The acyclicity theorem. Uses the protocol event chain approach:
-    each edge gives OB between protocol events, the chain composes
-    transitively, and a cycle gives X OB X — contradiction. -/
+/-- The acyclicity theorem follows from step_gives_ob + OB transitivity.
+    TransGen (PPOi ∪ com) e e gives e OB e via OB transitivity.
+    e OB e contradicts OB irreflexivity. -/
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
-  sorry
+  intro e hcycle
+  suffices h : ∀ e₂, Relation.TransGen (@PPOi n b ∪ com compound b init) e e₂ →
+      e.OrderedBefore n e₂ by
+    exact Event.contradiction_of_reflexive_ordered_before n (h e hcycle)
+  intro e₂ hpath
+  induction hpath with
+  | single hstep => exact step_gives_ob hstep
+  | tail _ hstep ih => exact Trans.trans ih (step_gives_ob hstep)
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
