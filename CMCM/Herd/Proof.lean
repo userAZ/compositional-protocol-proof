@@ -8,17 +8,21 @@ import CompositionalProtocolProof.CompoundPPOs
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)`.
 
-## Proof strategy: OB chains on protocol events (NOT per-edge)
+## Proof strategy: OB chain on protocol events
 
-Each edge gives OB/EncapsulatedBy relationships between specific protocol events
-(e_w, e_r_down, e_r_cdir_down, CLE). A cycle chains these relationships
-across ALL edges simultaneously. The chain of strict inequalities on oEnd
-values loops back, giving X < X — contradiction.
+Each edge (PPOi or COM) gives OrderedBefore between specific protocol
+events (cache events, e_r_down, e_r_cdir_down, CLE). A cycle chains
+these OB's. The chain loops on a specific protocol event X:
+X.oEnd < ... < X.oStart, contradicting X.oStart < X.oEnd (well-formedness).
 
-IMPORTANT: Per-edge measures (finishesBefore, e.oEnd) do NOT work for all cases.
-The proof MUST compose across edges. The OB chain on protocol events is the
-correct approach — it goes through CLE, cache events, and directory downgrades
-at the appropriate level for each edge.
+Two communication levels:
+1. **Cluster cache**: e_w OB e_r_down (from existsRDownAtW)
+2. **Cluster directory**: CLE₁ OB CLE₂ (from co.cases CLE ordering)
+
+The composition across edges uses Trans instances:
+- OB → OB → OB (transitivity)
+- EncapsulatedBy → OB → OB
+- OB → Encapsulates → OB
 -/
 
 variable {n : Nat}
@@ -97,107 +101,33 @@ theorem rfe_gle_ordered
   | wEqRGle _ hwr_same_cluster _ => exact absurd hwr_same_cluster h.diffProtocol
   | wObRGle hw_r_gle_ob _ => exact hw_r_gle_ob
 
-/-! ## Main theorem: acyclicity
+/-! ## Main theorem: acyclicity via OB chain on protocol events
 
-The acyclicity proof shows: any cycle through PPOi + com edges leads to
-a contradiction, because the protocol's OB/EncapsulatedBy relationships
-between communication events (e_w OB e_r_down, e_r_cdir_down encaps e_r_down,
-CLE₁ OB CLE₂, etc.) form a chain that loops, giving X < X.
+The proof chains OB on SPECIFIC protocol events (CLE, e_r_down, e_r_cdir_down)
+across all edges in the cycle. The chain loops on a specific protocol event X:
+X.oEnd < ... < X.oStart, contradicting well-formedness.
 
-The proof composes across edges using the Trans instances:
-- OB → OB → OB (transitivity)
-- EncapsulatedBy → OB → OB
-- OB → Encapsulates → OB -/
-
-/-! ## Custom protocol event chain for acyclicity
-
-The standard TransGen + per-edge measures don't work (oEnd dead end).
-We define a custom inductive that tracks OB on specific protocol events
-at two communication levels: cluster cache and cluster directory.
-
-Each constructor represents a junction between edges (PPOi↔COM) at a
-specific communication level, carrying the protocol events and their
-OB/EncapsulatedBy relationships. The chain has strictly increasing oEnd
-on the protocol events it tracks. A cycle loops: X.oEnd < X.oEnd. -/
-
-/-- Custom transitive closure tracking OB on protocol events at two levels.
-    Each constructor is a 2-step composition (PPOi→COM or COM→PPOi)
-    with the specific protocol events at the applicable communication level.
-
-    The `lb` parameter tracks a lower bound on oEnd values in the chain.
-    Each constructor proves lb < final.oEnd. A cycle gives lb < lb. -/
-inductive ProtocolChain (lb : Nat) : Event n → Event n → Prop where
-  /-- PPOi step: e₁ OB e₂ (same cache). lb ≤ e₁.oEnd, e₁.oEnd < e₂.oEnd. -/
-  | ppoi_step (hppoi : @PPOi n b e₁ e₂) (hlb : lb ≤ e₁.oEnd n)
-    : ProtocolChain lb e₁ e₂
-  /-- COM step with OB on cache events (e.g. co.sameCle): e₁ OB e₂ directly. -/
-  | com_cache_ob (hcom : com compound b init e₁ e₂) (hob : e₁.OrderedBefore n e₂)
-    (hlb : lb ≤ e₁.oEnd n) : ProtocolChain lb e₁ e₂
-  /-- COM step with OB on protocol events: e₁ OB e_r_down inside e₂.
-      The chain through e_r_down/e_r_cdir_down gives e₁.oEnd < e₂.oEnd. -/
-  | com_downgrade (hcom : com compound b init e₁ e₂)
-    (e_down : Event n) (hob : e₁.OrderedBefore n e_down)
-    (hdown_in_e₂ : e_down.oEnd n < e₂.oEnd n)
-    (hlb : lb ≤ e₁.oEnd n) : ProtocolChain lb e₁ e₂
-  /-- COM step with CLE ordering: CLE₁ OB CLE₂.
-      If CLE₁ EncapsulatedBy e₁ or e₁ OB CLE₁: chain through CLEs. -/
-  | com_cle_order (hcom : com compound b init e₁ e₂)
-    (cle₁ cle₂ : Event n) (hcle_ob : cle₁.OrderedBefore n cle₂)
-    (hcle₂_in_e₂ : cle₂.oEnd n < e₂.oEnd n)
-    (hlb_cle : lb ≤ cle₁.oEnd n) : ProtocolChain lb e₁ e₂
-  -- Note: trans is NOT a constructor (Lean kernel restriction on nested occurrence).
-  -- Transitivity is proven as a separate theorem.
-
-/-- Every ProtocolChain gives lb < e₂.oEnd. -/
-theorem chain_lb_lt_end (hchain : @ProtocolChain n compound b init lb e₁ e₂)
-    : lb < e₂.oEnd n := by
-  induction hchain with
-  | ppoi_step hppoi hlb =>
-    exact Nat.lt_of_le_of_lt hlb (Nat.lt_trans hppoi.orderedBefore (Event.oWellFormed n e₂))
-  | com_cache_ob _ hob hlb =>
-    exact Nat.lt_of_le_of_lt hlb (Nat.lt_trans hob (Event.oWellFormed n e₂))
-  | com_downgrade _ _ hob hdown_in hlb =>
-    exact Nat.lt_of_le_of_lt hlb (Nat.lt_trans (Nat.lt_trans hob (Event.oWellFormed n _)) hdown_in)
-  | com_cle_order _ _ _ hcle_ob hcle₂_in hlb_cle =>
-    exact Nat.lt_of_le_of_lt hlb_cle (Nat.lt_trans (Nat.lt_trans hcle_ob (Event.oWellFormed n _)) hcle₂_in)
-  -- (no trans constructor — transitivity is external)
-
-/-- Chain composition: if lb < mid.oEnd and mid.oEnd < end.oEnd,
-    then lb < end.oEnd. Used in place of trans constructor. -/
-theorem chain_lb_lt_end_trans
-    (h₁₂ : @ProtocolChain n compound b init lb e₁ e₂)
-    (h₂₃ : @ProtocolChain n compound b init (Event.oEnd n e₂) e₂ e₃)
-    : lb < e₃.oEnd n :=
-  Nat.lt_trans (chain_lb_lt_end h₁₂) (chain_lb_lt_end h₂₃)
-
-/-- Each PPOi step gives e₁.oEnd < e₂.oEnd (from OB + well-formedness). -/
-theorem ppoi_oEnd_lt (hppoi : @PPOi n b e₁ e₂) : e₁.oEnd n < e₂.oEnd n :=
-  Nat.lt_trans hppoi.orderedBefore (Event.oWellFormed n e₂)
-
-/-- Each PPOi step gives e₁.oEnd < e₂.oStart (from OB). -/
-theorem ppoi_oEnd_lt_oStart (hppoi : @PPOi n b e₁ e₂) : e₁.oEnd n < e₂.oStart n :=
-  hppoi.orderedBefore
-
--- For encapDir: e.oStart < CLE.oStart (protocol property from reqEncapDir)
-
-/-- TransGen path gives e₁.oEnd < e₂.oEnd by consuming 1 or 2 steps.
-    For PPOi: single step gives oEnd increase.
-    For COM with OB: single step gives oEnd increase.
-    For COM with CLE ordering: 2-step (PPOi then COM) bridges via
-    e₁.oEnd < e₂.oStart < CLE₂.oStart ≤ CLE₂.oEnd < CLE₃.oEnd < e₃.oEnd. -/
-theorem transgen_lb_lt
-    (hpath : Relation.TransGen (@PPOi n b ∪ com compound b init) e₁ e₂)
-    : e₁.oEnd n < e₂.oEnd n := by
-  -- Each PPOi step gives e₁.oEnd < e₂.oEnd (OB + well-formedness).
-  -- COM steps with downgrade evidence also give this.
-  -- COM steps with CLE ordering need 2-step composition with adjacent PPOi.
-  -- For the formal proof: use the protocol event chain.
-  sorry
+Template (from Anqi's cycle examples):
+  PPOi: CLE₁ OB e₂ (lin events ordered)
+  Rfe: e₂ OB e_r_down, e_r_cdir_down encaps e_r_down
+  Fr: e_r_cdir_down OB CLE₁
+  Chain: CLE₁.oEnd < e₂.oEnd < e_r_down.oEnd < e_r_cdir_down.oEnd < CLE₁.oStart
+  Contradiction: CLE₁.oEnd < CLE₁.oStart, but oStart < oEnd. -/
 
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
-  intro e hcycle
-  exact Nat.lt_irrefl _ (transgen_lb_lt hcycle)
+  -- The proof chains OrderedBefore between specific protocol events
+  -- (CLE, e_r_down, e_r_cdir_down) across all edges in the cycle.
+  -- The chain loops on a specific protocol event X:
+  -- X.oEnd < ... < X.oStart, contradicting X.oStart < X.oEnd.
+  --
+  -- Two communication levels:
+  -- 1. Cluster cache: e_w OB e_r_down (from existsRDownAtW)
+  -- 2. Cluster directory: CLE₁ OB CLE₂ (from co.cases CLE ordering)
+  --
+  -- Each junction (PPOi↔COM, COM↔PPOi) uses EncapsulatedBy + OB
+  -- composition via Trans instances.
+  sorry
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
@@ -206,7 +136,6 @@ theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSyste
 
 /-! ## PartialOrder (consequence of acyclicity) -/
 
-/-- The PartialOrder on events (GMO): constructed from cmcm_acyclic. -/
 noncomputable def eventPartialOrder : PartialOrder (Event n) := by
   let R := @PPOi n b ∪ com compound b init
   have hacyclic := @cmcm_acyclic n compound b init
