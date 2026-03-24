@@ -133,7 +133,17 @@ The transitive relation must carry the encapsulation evidence (e_r_cdir_down enc
 The chain goes through PROTOCOL events, not cache events.
 The proof MUST compose across edges.
 
-### DEAD END: oEnd-based arguments for acyclicity
+### DEAD END: ALL per-edge temporal properties for acyclicity
+
+**e₁.oEnd < e₂.oEnd (finishesBefore)**: FAILS for orderAfterDir (CLE past target) and co diff-cache (slow grant on first write makes e₁.oEnd > e₂.oEnd).
+
+**e₁ OB e₂ (OrderedBefore on cache events)**: FAILS for cross-cluster COM (reader starts before writer finishes — sends request to directory early).
+
+**CLE₁ OB CLE₂**: FAILS for same-CLE PPOi (CLE₁ = CLE₂, no ordering).
+
+**NO per-edge temporal property works for ALL edge types.** The proof MUST use the custom cross-edge composition with protocol events (e_r_down, e_r_cdir_down, CLE) and the encapsulation bridge (cdirEncapsDown).
+
+### DEAD END (subsumed): oEnd-based arguments for acyclicity
 
 **oEnd values (cache event oEnd) CANNOT prove acyclicity for orderAfterDir cycles.**
 Concrete counterexample to oEnd monotonicity:
