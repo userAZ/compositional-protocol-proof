@@ -326,6 +326,12 @@ structure Behaviour.clusterDown.encapProxyAndDirAndCDown {cmp : CompoundProtocol
   encapDir : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin
   existsRDownAtW :
     ∃ e_r_down ∈ b, e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down
+  /-- The cluster directory downgrade encapsulates the cache downgrade.
+      This connects the two existential witnesses, completing the temporal chain:
+      e_w OB e_r_down inside e_r_cdir_down inside CLE(e_r).
+      From requestDowngradePrevOwner.dirEncapDowngrade at the cluster level. -/
+  cdirEncapsDown :
+    encapDir.existsRClusterDirDown.choose.Encapsulates n existsRDownAtW.choose
 
 /-- An intervening directory write from a different-cluster cache write.
     The chain goes: e_w_inter (diff cluster) → CLE → global cache (ClusterToGlobal shim)
