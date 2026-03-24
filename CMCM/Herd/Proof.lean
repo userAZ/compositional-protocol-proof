@@ -376,8 +376,41 @@ theorem step_advances
                   cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
                   | inl hob => exact Nat.lt_trans hob de₂.oWellFormed
                   | inr hob =>
-                    -- CLE₂ OB CLE₁ with diffCluster downgrade → protocol impossibility
-                    sorry
+                    -- CLE₂ OB CLE₁. Use dir_ordered on de₁ and e_r_cdir_down to derive False.
+                    exfalso
+                    -- Extract e_r_cdir_down from encapDir
+                    have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
+                    have hcdir_is_dir := hcdir_spec.2.1
+                    have hcdir_encap_rel := hcdir_spec.2.2.2
+                    -- CLE₂ in hdown's terms = .directoryEvent de₂
+                    have hcle₂_eq : h.w₂_lin.hreq's_dir_access.choose = .directoryEvent de₂ := by
+                      rw [hw₂]; exact hc₂
+                    -- Get e_r_cdir_down.oEnd < de₂.oEnd from encapDirRelation
+                    have hcdir_lt_de₂ : hdown.existsRClusterDirDown.choose.oEnd < de₂.oEnd := by
+                      cases hcdir_encap_rel with
+                      | cleEncap henc =>
+                        rw [hcle₂_eq] at henc
+                        simp [Event.Encapsulates] at henc; exact henc.2
+                      | gcacheEncap _ hlt =>
+                        rw [hcle₂_eq] at hlt
+                        simp [Event.oEnd] at hlt; exact hlt
+                    -- Extract DirectoryEvent from e_r_cdir_down
+                    match hcd : hdown.existsRClusterDirDown.choose, hcdir_is_dir with
+                    | .directoryEvent de_cdir, _ =>
+                      cases (b.orderedAtEntry.dir_ordered de₁ de_cdir).ordered with
+                      | inl hob_cdir =>
+                        -- de₁ OB de_cdir → chain: de₁ → de_cdir → de₂ → de₁ → contradiction
+                        have : de₁.oEnd < de₁.oEnd :=
+                          calc de₁.oEnd < de_cdir.oStart := hob_cdir
+                            _ ≤ de_cdir.oEnd := Nat.le_of_lt de_cdir.oWellFormed
+                            _ < de₂.oEnd := by simp [Event.oEnd, hcd] at hcdir_lt_de₂; exact hcdir_lt_de₂
+                            _ < de₁.oStart := hob
+                            _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
+                        exact Nat.lt_irrefl _ this
+                      | inr hob_cdir =>
+                        -- de_cdir OB de₁: downgrade before CLE₁ (protocol impossibility)
+                        sorry
+                    | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
                 | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
               | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
           | evictOrReadBetweenWAndRCleSameCluster evict =>
