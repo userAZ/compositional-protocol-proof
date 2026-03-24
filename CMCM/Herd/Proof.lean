@@ -190,12 +190,30 @@ theorem step_advances
   cases h with
   | inl hppoi =>
     -- PPOi: e₁ OB e₂ on same cache, same address.
-    -- CLE₁ and CLE₂ are directory events at the same cluster, same address.
-    -- dir_ordered gives CLE₁ OB CLE₂ or CLE₂ OB CLE₁.
-    -- Case CLE₁ OB CLE₂: Left (primary advances).
-    -- Case CLE₁ = CLE₂: Right (secondary from OB + well-formedness).
-    -- Case CLE₂ OB CLE₁: impossible (9-case dirAccessOfRequest + e₁ OB e₂).
-    sorry
+    -- Case split: CLE₁ = CLE₂ (secondary advances) or CLE₁ ≠ CLE₂ (use dir_ordered).
+    by_cases hcle_eq : h₁_lin.hreq's_dir_access.choose = h₂_lin.hreq's_dir_access.choose
+    · -- CLE₁ = CLE₂: secondary advances (same CLE.oEnd + e₁ OB e₂)
+      exact Or.inr ⟨congrArg (Event.oEnd n) hcle_eq,
+        Nat.lt_trans hppoi.orderedBefore (Event.oWellFormed n e₂)⟩
+    · -- CLE₁ ≠ CLE₂: dir_ordered gives total ordering on directory events
+      left
+      have hdir₁ := h₁_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+      have hdir₂ := h₂_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+      match hc₁ : h₁_lin.hreq's_dir_access.choose, hdir₁ with
+      | .directoryEvent de₁, _ =>
+        match hc₂ : h₂_lin.hreq's_dir_access.choose, hdir₂ with
+        | .directoryEvent de₂, _ =>
+          simp only [Event.oEnd, hc₁, hc₂]
+          cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+          | inl hob =>
+            -- CLE₁ OB CLE₂ → CLE₁.oEnd < CLE₂.oStart < CLE₂.oEnd
+            exact Nat.lt_trans hob de₂.oWellFormed
+          | inr hob =>
+            -- CLE₂ OB CLE₁ → impossible for PPOi e₁ OB e₂
+            -- (requires protocol-level dirAccessOfRequest 9-case analysis)
+            sorry
+        | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
+      | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
   | inr hcom =>
     -- COM: same-address communication edge. CLE ordering from structure.
     cases hcom with
@@ -216,10 +234,21 @@ theorem step_advances
           -- Same cluster contradicts rfe's diffProtocol
           exact absurd hSameCluster h.diffProtocol
         | diffCluster _ _ _ hdiff_cache_case =>
-          -- Different cluster: CLE ordering from communication chain
-          -- The diffCache.case sub-cases carry rCleOrDownAtWAfterWCle
-          -- or encapProxyAndDirAndCDown, giving CLE₁.oEnd < CLE₂.oEnd.
-          sorry
+          -- Different cluster: CLE₁ ≠ CLE₂. Use dir_ordered.
+          have hdir₁ := h.w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+          have hdir₂ := h.r_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+          match hc₁ : h.w_lin.hreq's_dir_access.choose, hdir₁ with
+          | .directoryEvent de₁, _ =>
+            match hc₂ : h.r_lin.hreq's_dir_access.choose, hdir₂ with
+            | .directoryEvent de₂, _ =>
+              simp only [Event.oEnd, hc₁, hc₂]
+              cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+              | inl hob => exact Nat.lt_trans hob de₂.oWellFormed
+              | inr hob =>
+                -- CLE₂ OB CLE₁ with GLE₁ OB GLE₂ → protocol impossibility
+                sorry
+            | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
+          | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
     | co h =>
       -- co: case split on co.cases
       have hw₁ : h.w₁_lin = h₁_lin := Subsingleton.elim _ _
@@ -246,8 +275,22 @@ theorem step_advances
               rw [← hw₁, ← hw₂]
               exact Nat.lt_trans hob (Event.oWellFormed n h.w₂_lin.hreq's_dir_access.choose)
             | diffCluster hdiff hdown =>
-              -- Downgrade chain: e_r_cdir_down inside CLE₂ → CLE₁ before CLE₂
-              sorry
+              -- CLE₁ ≠ CLE₂ (different clusters). Use dir_ordered.
+              rw [← hw₁, ← hw₂]
+              have hdir₁ := h.w₁_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+              have hdir₂ := h.w₂_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+              match hc₁ : h.w₁_lin.hreq's_dir_access.choose, hdir₁ with
+              | .directoryEvent de₁, _ =>
+                match hc₂ : h.w₂_lin.hreq's_dir_access.choose, hdir₂ with
+                | .directoryEvent de₂, _ =>
+                  simp only [Event.oEnd, hc₁, hc₂]
+                  cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+                  | inl hob => exact Nat.lt_trans hob de₂.oWellFormed
+                  | inr hob =>
+                    -- CLE₂ OB CLE₁ with diffCluster downgrade → protocol impossibility
+                    sorry
+                | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
+              | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
           | evictOrReadBetweenWAndRCleSameCluster evict =>
             -- wObR: CLE₁ OB CLE₂
             rw [← hw₁, ← hw₂]
@@ -302,8 +345,33 @@ theorem step_advances
             exact Nat.lt_trans (Nat.lt_trans hob
               (Event.oWellFormed n evict.rDown.encapDir.existsRClusterDirDown.choose)) hcdir_lt
     | fr h =>
-      -- fr: rf⁻¹ ; co⁺ decomposition → CLE ordering
-      sorry
+      -- fr: same address. CLE ordering from dir_ordered.
+      have hw₁ : h.e₁_lin = h₁_lin := Subsingleton.elim _ _
+      have hw₂ : h.e₂_lin = h₂_lin := Subsingleton.elim _ _
+      have hdir₁ := h.e₁_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+      have hdir₂ := h.e₂_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+      rw [← hw₁, ← hw₂]
+      match hc₁ : h.e₁_lin.hreq's_dir_access.choose, hdir₁ with
+      | .directoryEvent de₁, _ =>
+        match hc₂ : h.e₂_lin.hreq's_dir_access.choose, hdir₂ with
+        | .directoryEvent de₂, _ =>
+          -- dir_ordered gives total ordering on CLEs (same address in model)
+          have hordered := b.orderedAtEntry.dir_ordered de₁ de₂
+          by_cases hde_eq : de₁ = de₂
+          · -- Same CLE: secondary advances
+            right
+            simp only [Event.oEnd, hc₁, hc₂]
+            exact ⟨congrArg DirectoryEvent.oEnd hde_eq, sorry⟩ -- fr e₁.oEnd < e₂.oEnd
+          · -- Different CLEs: dir_ordered gives ordering
+            left
+            simp only [Event.oEnd, hc₁, hc₂]
+            cases hordered.ordered with
+            | inl hob => exact Nat.lt_trans hob de₂.oWellFormed
+            | inr hob =>
+              -- CLE₂ OB CLE₁ with fr → protocol impossibility
+              sorry
+        | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
+      | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
 
 /-! ## Lex ordering on Nat × Nat -/
 
