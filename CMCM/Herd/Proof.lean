@@ -154,140 +154,101 @@ theorem lex_lt_irrefl {a b : Nat} (h : a < a ∨ (a = a ∧ b < b)) : False := b
   · exact Nat.lt_irrefl a h
   · exact Nat.lt_irrefl b h
 
-/-! ## StepOrdering: the Global Memory Order derived from each edge
+/-! ## StepOrdering: ordering between linearization points
 
-Each edge in PPOi ∪ com gives an ordering relationship between protocol events,
-composed via OB + Encapsulates/EncapsulatedBy transitivity.
+Each cache event e has a linearization point `lin(e)` = CLE.
+Each edge derives `StepOrdering lin(e₁) lin(e₂)` using auxiliary
+protocol events (e_r_down, e_r_cdir_down, cache events) from the
+PPOi/COM communication evidence.
 
-Two constructors:
-- `ob`: direct OrderedBefore (e₁ OB e₂). From PPOi or same-cache COM.
-- `obThenEncap`: e₁ OB p, p EncapsulatedBy e₂. From cross-cache COM where
-  the communication chain reaches a protocol event p (e_r_down, e_r_cdir_down, CLE)
-  that is inside e₂ (via the Encapsulates bridge).
+StepOrdering has 4 constructors matching the OB/Encap chain shape.
+Transitivity composes chains. Irreflexivity from OB irreflexivity.
+A cycle gives StepOrdering lin(e) lin(e) → contradiction. -/
 
-Transitivity uses the Trans instances:
-- OB → OB → OB
-- EncapsulatedBy → OB → OB (the key junction rule)
-- EncapsulatedBy → EncapsulatedBy → EncapsulatedBy
-
-A cycle gives StepOrdering e e, which is irreflexive → contradiction. -/
-
-/-- StepOrdering: the ordering relationship derived from each edge.
-    Three cases following the OB/Encapsulates chain through protocol events. -/
+/-- Ordering between linearization points, connected via auxiliary
+    protocol events through OB and Encapsulates/EncapsulatedBy. -/
 inductive StepOrdering : Event n → Event n → Prop where
-  /-- Direct OB: e₁ OB e₂ -/
-  | ob (h : e₁.OrderedBefore n e₂) : StepOrdering e₁ e₂
-  /-- OB then EncapsulatedBy: e₁ OB p, p inside e₂ -/
-  | obEncap (p : Event n) (h_ob : e₁.OrderedBefore n p) (h_encap : p.EncapsulatedBy n e₂)
-      : StepOrdering e₁ e₂
-  /-- Inner OB external: p inside e₁, p OB e₂ -/
-  | encapOb (p : Event n) (h_encap : p.EncapsulatedBy n e₁) (h_ob : p.OrderedBefore n e₂)
-      : StepOrdering e₁ e₂
-  /-- Both encapsulated: p₁ inside e₁, p₁ OB p₂, p₂ inside e₂ -/
-  | encapObEncap (p₁ p₂ : Event n) (h_e₁ : p₁.EncapsulatedBy n e₁) (h_ob : p₁.OrderedBefore n p₂)
-      (h_e₂ : p₂.EncapsulatedBy n e₂) : StepOrdering e₁ e₂
+  /-- Direct OB between linearization points -/
+  | ob (h : l₁.OrderedBefore n l₂) : StepOrdering l₁ l₂
+  /-- OB to intermediate, intermediate inside target lin point -/
+  | obEncap (p : Event n) (h_ob : l₁.OrderedBefore n p) (h_enc : p.EncapsulatedBy n l₂)
+      : StepOrdering l₁ l₂
+  /-- Intermediate inside source lin point, intermediate OB target -/
+  | encapOb (p : Event n) (h_enc : p.EncapsulatedBy n l₁) (h_ob : p.OrderedBefore n l₂)
+      : StepOrdering l₁ l₂
+  /-- Intermediates inside both lin points with OB between them -/
+  | encapObEncap (p₁ p₂ : Event n) (h₁ : p₁.EncapsulatedBy n l₁) (h_ob : p₁.OrderedBefore n p₂)
+      (h₂ : p₂.EncapsulatedBy n l₂) : StepOrdering l₁ l₂
 
-/-- StepOrdering is transitive.
-    The junction at e₂ composes "output at e₂" with "input from e₂"
-    using OB/Encapsulates Trans instances.
-    The hard cases (both inner events EncapsulatedBy e₂) need
-    protocol hierarchy (dir_ordered at same cluster). -/
-theorem StepOrdering.trans {e₁ e₂ e₃ : Event n}
-    (h₁₂ : StepOrdering e₁ e₂) (h₂₃ : StepOrdering e₂ e₃) : StepOrdering e₁ e₃ := by
-  -- Helper: compose OB to e₂ with step from e₂
-  -- (handles ob and encapOb outputs meeting ob/obEncap/encapOb/encapObEncap inputs)
-  have from_ob (p : Event n) (hp_ob : p.OrderedBefore n e₂) :
-      StepOrdering p e₃ := by
-    cases h₂₃ with
-    | ob h => exact .ob (Trans.trans hp_ob h)
-    | obEncap q hq hqe => exact .obEncap q (Trans.trans hp_ob hq) hqe
-    | encapOb q hqe hq =>
-      exact .ob (Trans.trans (Trans.trans hp_ob hqe) hq)
-    | encapObEncap q₁ q₂ hq₁ hq hq₂ =>
-      exact .obEncap q₂ (Trans.trans (Trans.trans hp_ob hq₁) hq) hq₂
-  -- Helper: compose EncapsulatedBy e₂ with step from e₂
-  -- (handles obEncap and encapObEncap outputs meeting ob/obEncap inputs)
-  have from_encap (p : Event n) (hp_enc : p.EncapsulatedBy n e₂) :
-      StepOrdering p e₃ := by
-    cases h₂₃ with
-    | ob h =>
-      -- p EncapBy e₂, e₂ OB e₃ → p OB e₃ (EncapsulatedBy → OB → OB)
-      exact .ob (Trans.trans hp_enc h)
-    | obEncap q hq hqe =>
-      -- p EncapBy e₂, e₂ OB q → p OB q
-      exact .obEncap q (Trans.trans hp_enc hq) hqe
-    | encapOb q hqe hq =>
-      -- p EncapBy e₂, q EncapBy e₂: both inside e₂.
-      -- Protocol: p and q at same cluster → dir_ordered gives ordering.
-      sorry
-    | encapObEncap q₁ q₂ hq₁ hq hq₂ =>
-      -- p EncapBy e₂, q₁ EncapBy e₂: both inside e₂.
-      sorry
-  -- Main proof: case split on h₁₂
+
+/-- StepOrdering is transitive. Case analysis on both steps. -/
+theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
+    (h₁₂ : StepOrdering l₁ l₂) (h₂₃ : StepOrdering l₂ l₃) : StepOrdering l₁ l₃ := by
   cases h₁₂ with
-  | ob h₁₂ =>
-    exact from_ob e₁ h₁₂
-  | obEncap p hp hpe =>
-    -- e₁ OB p, p EncapBy e₂ → from_encap gives StepOrdering p e₃
-    -- Then prepend e₁ OB p
-    have h := from_encap p hpe
-    cases h with
-    | ob h => exact .ob (Trans.trans hp h)
-    | obEncap q hq hqe => exact .obEncap q (Trans.trans hp hq) hqe
-    | encapOb q hqe hq =>
-      -- p EncapBy something, q OB e₃. Compose: e₁ OB p, ... → e₁ OB e₃
+  | ob h₁ =>
+    cases h₂₃ with
+    | ob h₂ => exact .ob (Trans.trans h₁ h₂)
+    | obEncap p hp hpe => exact .obEncap p (Trans.trans h₁ hp) hpe
+    | encapOb p hpe hp => exact .ob (Trans.trans (Trans.trans h₁ hpe) hp)
+    | encapObEncap p₁ p₂ hp₁ hp hp₂ => exact .obEncap p₂ (Trans.trans (Trans.trans h₁ hp₁) hp) hp₂
+  | obEncap q hq hqe =>
+    cases h₂₃ with
+    | ob h₂ => exact .ob (Trans.trans hq (Event.encap_by_order_trans n hqe h₂))
+    | obEncap p hp hpe => exact .obEncap p (Trans.trans hq (Event.encap_by_order_trans n hqe hp)) hpe
+    | encapOb p hpe hp =>
+      -- q EncapBy l₂, p EncapBy l₂: both inside l₂. Junction case.
       sorry
-    | encapObEncap q₁ q₂ hq₁ hq hq₂ =>
+    | encapObEncap p₁ p₂ hp₁ hp hp₂ =>
+      -- q EncapBy l₂, p₁ EncapBy l₂: both inside l₂. Junction case.
       sorry
-  | encapOb p hpe hp =>
-    -- p EncapBy e₁, p OB e₂ → from_ob gives StepOrdering p e₃
-    -- Then wrap with p EncapBy e₁
-    have h := from_ob p hp
-    cases h with
-    | ob h => exact .encapOb p hpe h
-    | obEncap q hq hqe => exact .encapObEncap p q hpe hq hqe
-    | encapOb q hqe hq =>
+  | encapOb q hqe hq =>
+    cases h₂₃ with
+    | ob h₂ => exact .encapOb q hqe (Trans.trans hq h₂)
+    | obEncap p hp hpe => exact .encapObEncap q p hqe (Trans.trans hq hp) hpe
+    | encapOb p hpe hp => exact .encapOb q hqe (Trans.trans (Trans.trans hq hpe) hp)
+    | encapObEncap p₁ p₂ hp₁ hp hp₂ =>
+      exact .encapObEncap q p₂ hqe (Trans.trans (Trans.trans hq hp₁) hp) hp₂
+  | encapObEncap q₁ q₂ hq₁ hq hq₂ =>
+    cases h₂₃ with
+    | ob h₂ => exact .encapOb q₁ hq₁ (Trans.trans hq (Event.encap_by_order_trans n hq₂ h₂))
+    | obEncap p hp hpe =>
+      exact .encapObEncap q₁ p hq₁ (Trans.trans hq (Event.encap_by_order_trans n hq₂ hp)) hpe
+    | encapOb p hpe hp =>
+      -- q₂ EncapBy l₂, p EncapBy l₂: both inside l₂. Junction case.
       sorry
-    | encapObEncap q₁ q₂ hq₁ hq hq₂ =>
-      sorry
-  | encapObEncap p₁ p₂ hp₁ hp hp₂ =>
-    -- p₁ EncapBy e₁, p₁ OB p₂, p₂ EncapBy e₂ → from_encap gives StepOrdering p₂ e₃
-    -- Then prepend p₁ OB p₂ and wrap with p₁ EncapBy e₁
-    have h := from_encap p₂ hp₂
-    cases h with
-    | ob h => exact .encapOb p₁ hp₁ (Trans.trans hp h)
-    | obEncap q hq hqe => exact .encapObEncap p₁ q hp₁ (Trans.trans hp hq) hqe
-    | encapOb q hqe hq =>
-      sorry
-    | encapObEncap q₁ q₂ hq₁ hq hq₂ =>
+    | encapObEncap p₁ p₂ hp₁ hp hp₂ =>
+      -- q₂ EncapBy l₂, p₁ EncapBy l₂: both inside l₂. Junction case.
       sorry
 
 /-- StepOrdering is irreflexive. -/
-theorem StepOrdering.irrefl {e : Event n} (h : StepOrdering e e) : False := by
+theorem StepOrdering.irrefl {l : Event n} (h : StepOrdering l l) : False := by
   cases h with
   | ob h => exact Event.contradiction_of_reflexive_ordered_before n h
-  | obEncap p h_ob h_encap =>
-    exact Nat.lt_irrefl _
-      (Nat.lt_trans (Nat.lt_trans h_ob (Event.oWellFormed n p)) h_encap.right)
-  | encapOb p h_encap h_ob =>
-    exact Nat.lt_irrefl _
-      (Nat.lt_trans h_ob (Nat.lt_trans h_encap.left (Event.oWellFormed n p)))
+  | obEncap p hp hpe =>
+    -- l OB p, p EncapBy l → l.oEnd < p.oStart ≤ p.oEnd < l.oEnd
+    exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hpe.right)
+  | encapOb p hpe hp =>
+    -- p EncapBy l, p OB l → p.oEnd < l.oStart, l.oStart < p.oStart → p.oEnd < p.oStart
+    exact Nat.lt_irrefl _ (Nat.lt_trans hp (Nat.lt_trans hpe.left (Event.oWellFormed n p)))
   | encapObEncap p₁ p₂ hp₁ h_ob hp₂ =>
-    -- Two inner events of same event, ordered. No direct contradiction.
+    -- p₁ inside l, p₁ OB p₂, p₂ inside l. Both inner events of l, ordered.
+    -- p₁.oEnd < p₂.oStart ≤ p₂.oEnd < l.oEnd. p₁.oEnd < l.oEnd. No loop.
+    -- This case shouldn't arise from cycle composition but needs protocol argument.
     sorry
-/-- Chain StepOrdering through TransGen: produces a single StepOrdering. -/
+
+/-- Chain StepOrdering through TransGen. -/
 theorem StepOrdering.of_transGen
-    (h : Relation.TransGen (@StepOrdering n) e₁ e₂) : StepOrdering e₁ e₂ := by
+    (h : Relation.TransGen (@StepOrdering n) l₁ l₂) : StepOrdering l₁ l₂ := by
   induction h with
   | single h => exact h
   | tail _ h ih => exact StepOrdering.trans ih h
 
-/-- StepOrdering is acyclic: no event can reach itself. -/
+/-- StepOrdering is acyclic. -/
 theorem StepOrdering.acyclic : Relation.Acyclic (@StepOrdering n) := by
-  intro e hcycle
+  intro l hcycle
   exact StepOrdering.irrefl (StepOrdering.of_transGen hcycle)
 
-/-- Map each PPOi ∪ com step to a StepOrdering.
+/-- Map each PPOi ∪ com step to a StepOrdering between linearization points.
     PPOi: direct OB (e₁ OB e₂).
     rfe/co/fr: extract protocol events from communication evidence. -/
 theorem step_to_ordering

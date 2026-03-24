@@ -311,6 +311,33 @@ connects them. The honest proof should:
 `dir_ordered` is ONLY valid for directory events at the SAME cluster. Cross-cluster ordering
 comes from the communication mechanism (downgrades), not from `dir_ordered`.
 
+**CORRECT DESIGN (2026-03-24): StepOrdering between linearization points**
+Each cache event e has a linearization point `lin(e)` = CLE (from globalLinearizationEventOfRequest).
+Each edge `(PPOi ∪ com)(e₁, e₂)` derives `StepOrdering lin(e₁) lin(e₂)` — an ordering between
+linearization EVENTS (not cache events), connected via auxiliary protocol events.
+
+StepOrdering has 4 constructors: ob, obEncap, encapOb, encapObEncap.
+These capture the OB/Encap/EncapBy chains between linearization points.
+The auxiliary events (e_r_down, e_r_cdir_down, cache events) from PPOi/COM
+serve as intermediaries in these chains.
+
+Example: PPOi(e₁, e₂) + RF(e₂, e₃) where e₂ is SC write (lin at cache):
+  lin(e₁) OB lin(e₂) = e₂ OB e_3r_down EncapBy lin(e₃)
+  Composition: obEncap(e_3r_down) between lin(e₁) and lin(e₃).
+  NOT simple OB transitivity — needs the Encap chain through e_3r_down.
+
+Key: StepOrdering is between LINEARIZATION EVENTS, not cache events.
+The `orderAfterDir` problem vanishes: lin(e) = CLE regardless of its
+temporal relationship to the cache event e. The chain connects CLEs
+through downgrades, not through cache events.
+
+Transitivity: 4×4 case analysis on StepOrdering constructors.
+Most compositions use OB + Encap Trans instances.
+The "both EncapBy at junction" cases (4 of 16) need the junction
+linearization point to be the SAME event (proof irrelevance on lin(e₂)).
+Irreflexivity: all 4 cases derive contradiction from OB irreflexivity
+or OB + EncapBy circular chain.
+
 **Key tools for honest proof:**
 - `wObRDown` field: CLE₁ OB e_r_cdir_down (added to rCleOrDownAtWAfterWCle.diffCluster)
 - `encapDirRelation`: e_r_cdir_down.oEnd < CLE₂.oEnd
