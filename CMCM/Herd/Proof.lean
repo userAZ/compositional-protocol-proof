@@ -258,18 +258,42 @@ theorem step_advances
             | orderBeforeDir _ _ _ _ _ _ _ _ =>
               -- e₂ orderBeforeDir: protocol-level argument needed
               sorry
-            | orderAfterDir _ _ _ _ =>
-              -- e₂ orderAfterDir: e₂.oEnd < de₂.oStart
-              -- Chain: de₂.oEnd < de₁.oStart, need to bound de₁ vs e₁ vs e₂ vs de₂
+            | orderAfterDir _ hsucc₂ _ _ =>
+              -- e₂ orderAfterDir: e₂ OB successor, successor encapsulates de₂
+              have he₂_ob_succ := hsucc₂.choose_spec.2.isImmBottomSucc.isSucc
+              have hsucc_encap := hsucc₂.choose_spec.2.satisfyP.encapCorresponding.reqEncapDir
+              -- Chain goes through successor: e₂.oEnd < succ.oStart < de₂.oStart < de₂.oEnd
               have hda₁ := h₁_lin.hreq's_dir_access.choose_spec.2
               rw [hc₁] at hda₁
               cases hda₁ with
               | encapDir _ hencap₁ =>
-                sorry -- similar chain as encapDir/encapDir case
-              | orderBeforeDir _ _ _ _ _ _ _ _ =>
-                sorry -- similar chain
+                have : de₂.oEnd < de₂.oEnd :=
+                  calc de₂.oEnd < de₁.oStart := hob
+                    _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
+                    _ < e₁.oEnd := hencap₁.reqEncapDir.right
+                    _ < e₂.oStart := he₁_ob_e₂
+                    _ ≤ e₂.oEnd := Nat.le_of_lt (Event.oWellFormed n e₂)
+                    _ < hsucc₂.choose.oStart := he₂_ob_succ
+                    _ < de₂.oStart := hsucc_encap.left
+                    _ < de₂.oEnd := de₂.oWellFormed
+                exact Nat.lt_irrefl _ this
+              | orderBeforeDir _ hexists_pred₁ hpred₁ _ _ _ _ _ =>
+                have : de₂.oEnd < de₂.oEnd :=
+                  calc de₂.oEnd < de₁.oStart := hob
+                    _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
+                    _ < hexists_pred₁.choose.oEnd := hpred₁.reqEncapDir.right
+                    _ < e₁.oStart := hexists_pred₁.choose_spec.2.isImmPred.bPred.isPred
+                    _ < e₁.oEnd := Event.oWellFormed n e₁
+                    _ < e₂.oStart := he₁_ob_e₂
+                    _ ≤ e₂.oEnd := Nat.le_of_lt (Event.oWellFormed n e₂)
+                    _ < hsucc₂.choose.oStart := he₂_ob_succ
+                    _ < de₂.oStart := hsucc_encap.left
+                    _ < de₂.oEnd := de₂.oWellFormed
+                exact Nat.lt_irrefl _ this
               | orderAfterDir _ _ _ _ =>
-                sorry -- vacuous (CLE₁ = CLE₂ for nc.weak)
+                -- e₁ also orderAfterDir in CLE₁ ≠ CLE₂ branch:
+                -- nc.weak shares CLE with PPO successor → CLE₁ = CLE₂ → contradiction
+                sorry
         | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
       | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
   | inr hcom =>
