@@ -144,6 +144,27 @@ theorem ppoi_acyclic : Relation.Acyclic (@PPOi n b) := by
   exact Event.contradiction_of_reflexive_ordered_before n
     (transgen_ob_of_step_ob hcycle fun a b h => h.orderedBefore)
 
+/-! ## Lex ordering on Nat × Nat -/
+
+/-- Transitivity of strict lexicographic order on Nat pairs. -/
+theorem lex_lt_trans {a₁ b₁ a₂ b₂ a₃ b₃ : Nat}
+    (h₁₂ : a₁ < a₂ ∨ (a₁ = a₂ ∧ b₁ < b₂))
+    (h₂₃ : a₂ < a₃ ∨ (a₂ = a₃ ∧ b₂ < b₃))
+    : a₁ < a₃ ∨ (a₁ = a₃ ∧ b₁ < b₃) := by
+  rcases h₁₂ with h | ⟨heq, hlt⟩
+  · rcases h₂₃ with h' | ⟨heq', -⟩
+    · exact Or.inl (Nat.lt_trans h h')
+    · exact Or.inl (heq' ▸ h)
+  · rcases h₂₃ with h' | ⟨heq', hlt'⟩
+    · exact Or.inl (heq ▸ h')
+    · exact Or.inr ⟨heq.trans heq', Nat.lt_trans hlt hlt'⟩
+
+/-- Irreflexivity of strict lexicographic order on Nat pairs. -/
+theorem lex_lt_irrefl {a b : Nat} (h : a < a ∨ (a = a ∧ b < b)) : False := by
+  rcases h with h | ⟨-, h⟩
+  · exact Nat.lt_irrefl a h
+  · exact Nat.lt_irrefl b h
+
 -- NOTE: per-edge e₁.oEnd < e₂.oEnd does NOT hold for all COM edges
 -- (co diff-cache: slow grant can make e₁.oEnd > e₂.oEnd).
 -- The proof must use cross-edge composition on protocol events.
@@ -168,18 +189,31 @@ theorem ppoi_acyclic : Relation.Acyclic (@PPOi n b) := by
 --   For orderAfterDir (nc.weak): CLE(e) = CLE(PPO successor), and the
 --   successor encapsulates CLE → p inside successor → p OB successor's successor.
 
-/-- Every edge in PPOi ∪ com strictly advances the lexicographic pair
-    (CLE(e).oEnd, e.oEnd), tracking BOTH directory event AND cache event
-    end times simultaneously.
+/-- CO step advances CLE lex pair.
+    Factored out from `step_advances` to allow use in the fr case
+    (which chains co⁺ steps without circularity). -/
+theorem co_step_advances
+    (h : @Herd.co n compound b init e₁ e₂)
+    (h₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
+    (h₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
+    : (h₁_lin.hreq's_dir_access.choose.oEnd < h₂_lin.hreq's_dir_access.choose.oEnd) ∨
+      (h₁_lin.hreq's_dir_access.choose.oEnd = h₂_lin.hreq's_dir_access.choose.oEnd ∧
+       Event.oEnd n e₁ < Event.oEnd n e₂) := by
+  -- Delegates to step_advances (.inr (.co h)) — but to avoid circularity,
+  -- the co proof is inlined here. step_advances delegates back to this.
+  sorry -- TODO: move co proof here from step_advances
 
-    Primary: CLE.oEnd (directory event end time) — advances for COM edges
-    and most PPOi edges (directory events are totally ordered by dir_ordered).
-    Secondary: e.oEnd (cache event end time) — advances when CLEs are equal
-    (from PPOi OB or co.sameGle.sameCle OB).
+/-- Chain co_step_advances through TransGen co. -/
+theorem co_chain_cle_advance
+    (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (hpath : Relation.TransGen (@Herd.co n compound b init) e₁ e₂)
+    : ((lin e₁).hreq's_dir_access.choose.oEnd < (lin e₂).hreq's_dir_access.choose.oEnd) ∨
+      ((lin e₁).hreq's_dir_access.choose.oEnd = (lin e₂).hreq's_dir_access.choose.oEnd ∧
+       Event.oEnd n e₁ < Event.oEnd n e₂) := by
+  induction hpath with
+  | single h => exact co_step_advances h (lin _) (lin _)
+  | tail _ h ih => exact lex_lt_trans ih (co_step_advances h (lin _) (lin _))
 
-    Each cluster's cache and directory events are totally ordered
-    (cache_ordered, dir_ordered). The lex pair (CLE.oEnd, e.oEnd) is
-    strictly increasing along any path → cycle gives contradiction. -/
 theorem step_advances
     (h : (@PPOi n b ∪ com compound b init) e₁ e₂)
     (h₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
@@ -590,35 +624,55 @@ theorem step_advances
             cases hordered.ordered with
             | inl hob => exact Nat.lt_trans hob de₂.oWellFormed
             | inr hob =>
-              -- CLE₂ OB CLE₁ for fr. The rf⁻¹;co⁺ decomposition says:
-              -- rf(e_w, e₁) gives CLE_w ≤ CLE₁, co⁺(e_w, e₂) gives CLE_w ≤ CLE₂.
-              -- With CLE₂ < CLE₁: e₂ is an intervening write between CLE_w and CLE₁,
-              -- violating the rf noBetween condition.
-              -- Requires: extracting noBetween from readsFrom.cases + showing e₂ violates it.
-              sorry
+              -- CLE₂ OB CLE₁. Use co⁺ chain to get CLE_w ≤ CLE₂,
+              -- then dir_ordered on CLE₁ and CLE_w to derive contradiction.
+              exfalso
+              obtain ⟨e_w, _, e_w_lin, _, h_rf, h_co_chain⟩ := h.comm
+              -- Get canonical linearization function
+              have hlin := fun e => h.hknow_dir_access compound b init e
+              -- co⁺ chain gives CLE_w lex≤ CLE₂
+              have hco_lex := co_chain_cle_advance hlin h_co_chain
+              -- Extract CLE_w oEnd bound
+              have hcw_le_c₂ : (hlin e_w).hreq's_dir_access.choose.oEnd ≤
+                  (hlin e₂).hreq's_dir_access.choose.oEnd := by
+                rcases hco_lex with h | ⟨_, h⟩
+                · exact Nat.le_of_lt h
+                · exact Nat.le_of_eq (by omega)
+              -- CLE₂.oEnd < CLE₁.oStart from hob
+              have hc₂_lt_c₁ : de₂.oEnd < de₁.oStart := hob
+              -- Convert: (hlin e₂).CLE = de₂, (hlin e₁).CLE = de₁ (proof irrelevance)
+              have heq₁ : (hlin e₁).hreq's_dir_access.choose = .directoryEvent de₁ := by
+                have : hlin e₁ = h.e₁_lin := Subsingleton.elim _ _
+                rw [this, hw₁]; exact hc₁
+              have heq₂ : (hlin e₂).hreq's_dir_access.choose = .directoryEvent de₂ := by
+                have : hlin e₂ = h.e₂_lin := Subsingleton.elim _ _
+                rw [this, hw₂]; exact hc₂
+              -- CLE_w.oEnd ≤ CLE₂.oEnd < CLE₁.oStart ≤ CLE₁.oEnd
+              -- Extract CLE_w DirectoryEvent
+              have hdir_w := (hlin e_w).hreq's_dir_access.choose_spec.2.isDirEvent
+              match hcw : (hlin e_w).hreq's_dir_access.choose, hdir_w with
+              | .directoryEvent de_w, _ =>
+                -- dir_ordered on de₁ and de_w
+                cases (b.orderedAtEntry.dir_ordered de₁ de_w).ordered with
+                | inl hob_w =>
+                  -- de₁ OB de_w → chain: de₁.oEnd < de_w.oStart ≤ de_w.oEnd ≤ de₂.oEnd
+                  --   < de₁.oStart ≤ de₁.oEnd → contradiction
+                  have : de₁.oEnd < de₁.oEnd :=
+                    calc de₁.oEnd < de_w.oStart := hob_w
+                      _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed
+                      _ ≤ de₂.oEnd := by
+                          simp [Event.oEnd, hcw, heq₂] at hcw_le_c₂; exact hcw_le_c₂
+                      _ < de₁.oStart := hc₂_lt_c₁
+                      _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
+                  exact Nat.lt_irrefl _ this
+                | inr hob_w =>
+                  -- de_w OB de₁ → CLE_w before CLE₁.
+                  -- Combined with CLE_w ≤ CLE₂ < CLE₁: CLE₂ is between CLE_w and CLE₁.
+                  -- The rf noBetween condition should exclude e₂.
+                  sorry
+              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
         | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
       | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
-
-/-! ## Lex ordering on Nat × Nat -/
-
-/-- Transitivity of strict lexicographic order on Nat pairs. -/
-theorem lex_lt_trans {a₁ b₁ a₂ b₂ a₃ b₃ : Nat}
-    (h₁₂ : a₁ < a₂ ∨ (a₁ = a₂ ∧ b₁ < b₂))
-    (h₂₃ : a₂ < a₃ ∨ (a₂ = a₃ ∧ b₂ < b₃))
-    : a₁ < a₃ ∨ (a₁ = a₃ ∧ b₁ < b₃) := by
-  rcases h₁₂ with h | ⟨heq, hlt⟩
-  · rcases h₂₃ with h' | ⟨heq', -⟩
-    · exact Or.inl (Nat.lt_trans h h')
-    · exact Or.inl (heq' ▸ h)
-  · rcases h₂₃ with h' | ⟨heq', hlt'⟩
-    · exact Or.inl (heq ▸ h')
-    · exact Or.inr ⟨heq.trans heq', Nat.lt_trans hlt hlt'⟩
-
-/-- Irreflexivity of strict lexicographic order on Nat pairs. -/
-theorem lex_lt_irrefl {a b : Nat} (h : a < a ∨ (a = a ∧ b < b)) : False := by
-  rcases h with h | ⟨-, h⟩
-  · exact Nat.lt_irrefl a h
-  · exact Nat.lt_irrefl b h
 
 /-! ## Chaining step_advances through TransGen -/
 
