@@ -290,11 +290,48 @@ theorem step_to_ordering
                 ← show h.r_lin = lin e₂ from Subsingleton.elim _ _]
             exact hw_ob_cases.hw_r_cle_ob)
         | diffCluster _ _ _ hdiff_cache_case =>
-          -- Different cluster: downgrade chain
-          -- Extract e_r_down, e_r_cdir_down from diffCache.case
-          -- Chain: e₁ OB e_r_down, e_r_cdir_down Encaps e_r_down,
-          --        e_r_cdir_down EncapsulatedBy CLE₂ EncapsulatedBy e₂
-          sorry -- TODO: extract protocol events from diffCache.case
+          -- Different cluster: extract wObRDown from diffCache.case sub-cases
+          have hw₁ : h.w_lin = lin e₁ := Subsingleton.elim _ _
+          have hw₂ : h.r_lin = lin e₂ := Subsingleton.elim _ _
+          -- Helper: given encapDir + wObRDown → StepOrdering.obEncap
+          have from_encap_wob
+              (hdown : Behaviour.clusterDown.encapDir compound b init e₁ h.r_lin)
+              (hwOB : h.w_lin.hreq's_dir_access.choose.OrderedBefore n
+                hdown.existsRClusterDirDown.choose) :
+              @StepOrdering n (lin e₁).hreq's_dir_access.choose
+                (lin e₂).hreq's_dir_access.choose := by
+            have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
+            have hencap_rel := hcdir_spec.2.2.2
+            exact .obEncap hdown.existsRClusterDirDown.choose
+              (by rw [← hw₁]; exact hwOB)
+              (by rw [← hw₂]; cases hencap_rel with
+                  | cleEncap henc => exact henc
+                  | gcacheEncap henc _ => sorry)
+          -- Dispatch all diffCache.case sub-cases
+          cases hdiff_cache_case with
+          | wHasPermsAfter _ coherentCase =>
+            cases coherentCase with
+            | immPred rCle hPDC =>
+              cases rCle with
+              | sameCluster _ hob_cle =>
+                exact .ob (by rw [← hw₁, ← hw₂]; exact hob_cle)
+              | diffCluster _ _ hwOB => exact from_encap_wob hPDC.encapDir hwOB
+            | notImmPred hasPermsCase =>
+              cases hasPermsCase with
+              | noEvictBetween w =>
+                sorry -- needs dir_ordered chain for wObRDown
+              | evictBetween evict =>
+                exact from_encap_wob evict.encapProxyAndDir evict.evictBetween.wObRDown
+          | wNoPermsAfter _ _ rCle =>
+            cases rCle with
+            | sameCluster _ hob_cle =>
+              exact .ob (by rw [← hw₁, ← hw₂]; exact hob_cle)
+            | diffCluster _ hdown hwOB => exact from_encap_wob hdown hwOB
+          | wCleAfter rCle =>
+            cases rCle with
+            | sameCluster _ hob_cle =>
+              exact .ob (by rw [← hw₁, ← hw₂]; exact hob_cle)
+            | diffCluster _ hdown hwOB => exact from_encap_wob hdown hwOB
     | co h =>
       -- co: extract from co.ordering
       cases h.comm with
@@ -325,8 +362,28 @@ theorem step_to_ordering
           -- CLE₁ OB CLE₂ from wObR
           exact .ob (by rw [← hw₁, ← hw₂]; exact evict.wObR)
       | diffClus _ diff_cluster_cases =>
-        -- Different cluster: downgrade chain
-        sorry -- TODO: extract protocol events
+        -- Different cluster: downgrade chain via wObRDown + encapDirRelation
+        have hw₁ : h.w₁_lin = lin e₁ := Subsingleton.elim _ _
+        have hw₂ : h.w₂_lin = lin e₂ := Subsingleton.elim _ _
+        cases diff_cluster_cases with
+        | wCleImmPredDown w =>
+          -- wObRDown: CLE₁ OB e_r_cdir_down
+          -- encapDirRelation: e_r_cdir_down EncapBy CLE₂
+          have hcdir_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
+          have hencap_rel := hcdir_spec.2.2.2
+          exact .obEncap w.rDown.encapDir.existsRClusterDirDown.choose
+            (by rw [← hw₁]; exact w.wObRDown)
+            (by rw [← hw₂]; cases hencap_rel with
+                | cleEncap henc => exact henc
+                | gcacheEncap henc _ => sorry)
+        | evictOrReadBetweenWAndRDown evict =>
+          have hcdir_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
+          have hencap_rel := hcdir_spec.2.2.2
+          exact .obEncap evict.rDown.encapDir.existsRClusterDirDown.choose
+            (by rw [← hw₁]; exact evict.wObRDown)
+            (by rw [← hw₂]; cases hencap_rel with
+                | cleEncap henc => exact henc
+                | gcacheEncap henc _ => sorry)
     | fr h =>
       -- fr: rf⁻¹;co⁺ composition
       sorry
