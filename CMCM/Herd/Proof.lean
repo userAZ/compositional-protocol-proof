@@ -494,9 +494,56 @@ theorem step_advances
       -- co⁺ chain gives CLE_w lex≤ CLE₂
       have hlin := fun e => h.hknow_dir_access compound b init e
       have hco_lex := co_chain_cle_advance hlin h_co_chain
-      -- Use dir_ordered to determine CLE₁ vs CLE₂ ordering
-      -- (the honest derivation uses NoInterveningWrites to eliminate CLE₂ < CLE₁)
-      sorry
+      -- CLE_w.oEnd ≤ CLE₂.oEnd from co chain
+      have hcw_le_c₂ : (hlin e_w).hreq's_dir_access.choose.oEnd ≤
+          (hlin e₂).hreq's_dir_access.choose.oEnd := by
+        rcases hco_lex with h | ⟨h, _⟩
+        · exact Nat.le_of_lt h
+        · exact Nat.le_of_eq h
+      -- Use dir_ordered on CLE₁ and CLE₂
+      have hdir₁ := h.e₁_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+      have hdir₂ := h.e₂_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+      match hfc₁ : h.e₁_lin.hreq's_dir_access.choose, hdir₁ with
+      | .directoryEvent de₁, _ =>
+        match hfc₂ : h.e₂_lin.hreq's_dir_access.choose, hdir₂ with
+        | .directoryEvent de₂, _ =>
+          by_cases hde_eq : de₁ = de₂
+          · -- Same CLE: dir_ordered on equal events → False → anything
+            exfalso
+            rw [hde_eq] at *
+            cases (b.orderedAtEntry.dir_ordered de₂ de₂).ordered with
+            | inl h => exact Nat.lt_asymm de₂.oWellFormed h
+            | inr h => exact Nat.lt_asymm de₂.oWellFormed h
+          · simp only [Event.oEnd, hfc₁, hfc₂]
+            cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+            | inl hob => exact Or.inl (Nat.lt_trans hob de₂.oWellFormed)
+            | inr hob =>
+              -- CLE₂ OB CLE₁: use dir_ordered on CLE₁ and CLE_w
+              exfalso
+              have hdir_w := (hlin e_w).hreq's_dir_access.choose_spec.2.isDirEvent
+              match hfcw : (hlin e_w).hreq's_dir_access.choose, hdir_w with
+              | .directoryEvent de_w, _ =>
+                cases (b.orderedAtEntry.dir_ordered de₁ de_w).ordered with
+                | inl hob_w =>
+                  -- CLE₁ OB CLE_w: chain CLE₁ → CLE_w → CLE₂ → CLE₁
+                  have hcw_le : de_w.oEnd ≤ de₂.oEnd := by
+                    simp [Event.oEnd, hfcw,
+                      show (hlin e₂) = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at hcw_le_c₂
+                    exact hcw_le_c₂
+                  have : de₁.oEnd < de₁.oEnd :=
+                    calc de₁.oEnd < de_w.oStart := hob_w
+                      _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed
+                      _ ≤ de₂.oEnd := hcw_le
+                      _ < de₁.oStart := hob
+                      _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
+                  exact Nat.lt_irrefl _ this
+                | inr hob_w =>
+                  -- CLE_w OB CLE₁ with CLE₂ OB CLE₁ and CLE_w ≤ CLE₂:
+                  -- NoInterveningWrites should exclude e₂ as intervening write
+                  sorry
+              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
 
 /-! ## Chaining step_advances through TransGen -/
 
