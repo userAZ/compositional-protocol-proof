@@ -3109,3 +3109,25 @@ lemma diffCache_coherent_encapProxyAndDir
   exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
     Behaviour.clusterDown.encapDirRelation.gcacheEncap
       h_gcache_encap_dir h_dir_end_before_cle⟩ }
+
+/-- Extend `diffCache_coherent_encapProxyAndDir` to return the full
+    `encapProxyAndDirAndCDown` structure, including the cache downgrade
+    and the encapsulation proof. All fields are derived from the SAME chain,
+    so the encapsulation (cdirEncapsDown) holds by construction.
+
+    The chain: e_r_cle → e_gcache → e_r_gle → e_r_gdown → e_proxy → e_r_cdir_down → e_r_down.
+    The last step (e_r_cdir_down → e_r_down) uses the cluster-level
+    fwdCoherentRequestToOwner axiom to derive the forwarded cache downgrade. -/
+lemma diffCache_coherent_encapProxyAndDirAndCDown
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
+  (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache)
+  : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin := by
+  -- Get the encapDir (directory event + encapDirRelation)
+  have hencapDir := diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster
+  -- From the same chain, derive the forwarded cache downgrade at e_w's cache.
+  -- The cluster directory event (from encapDir) processes the proxy request and
+  -- forwards a downgrade to the previous owner (e_w). By fwdCoherentRequestToOwner
+  -- at the cluster level, e_r_cdir_down.Encapsulates n e_r_down.
+  sorry

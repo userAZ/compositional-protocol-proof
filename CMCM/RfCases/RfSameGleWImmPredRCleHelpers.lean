@@ -70,22 +70,11 @@ lemma wimmpredrCle_diff_cache_choose_case
     have hencapPD := diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster
     have hw_leaves_SW : b.reqLeavesStateAtLeast n e_w init SW :=
       coherent_write_leaves_at_least_SW hw_is_write hw_coherent hw_not_down hw_cluster.eAtCache
-    by_cases hcdown : ∃ e_r_down ∈ b,
-      e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down
-    · -- Cache-level downgrade exists → construct full encapPDC and use immPred
-      -- The cluster dir event (from encapDir) encapsulates the cache downgrade (from hcdown).
-      -- Protocol chain: clusterDirDown → fwdCoherentRequestToOwner → downgradeAtPrevOwner
-      --   → requestDowngradePrevOwner.dirEncapDowngrade : e_dir.Encapsulates n e_fwd_down
-      -- The hcdown witness (cache downgrade at e_w's cache) is the forwarded downgrade
-      -- triggered by the cluster directory event from encapDir.
-      have hencapPDC : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin :=
-        { encapDir := hencapPD, existsRDownAtW := hcdown,
-          cdirEncapsDown := sorry /- clusterDirDownFromProxy TODO: trace from GlobalToCluster
-            shim output through cluster-level fwdCoherentRequestToOwner to get
-            e_r_cdir_down.Encapsulates n e_r_down -/ }
-      exact .wHasPermsAfter hw_leaves_SW (.immPred hw_imm_pred_r_cle hencapPDC)
-    · -- No cache-level downgrade → fall back to wCleAfter
-      exact .wCleAfter hr_cle_after
+    -- Use the full chain helper: derives encapDir + existsRDownAtW + cdirEncapsDown
+    -- from the same protocol chain (no independent existentials).
+    have hencapPDC := diffCache_coherent_encapProxyAndDirAndCDown
+      hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster
+    exact .wHasPermsAfter hw_leaves_SW (.immPred hw_imm_pred_r_cle hencapPDC)
   · -- Non-coherent write: use rCleAfterWCle for the new constructors
     have hw_nc : e_w.isNonCoherent := isNonCoherent_of_not_isCoherent_write hw_is_write hw_coherent
     -- dirAccessOfRequest determines whether write has missing perms

@@ -51,13 +51,10 @@ lemma evictOrReadBtn_diff_cache_choose_case
       have hencapPD := diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster
       by_cases hcdown : ∃ e_r_down ∈ b,
         e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down
-      · -- Cache-level downgrade exists → use immPred directly (skips noEvict/noWrite)
-        have hencapPDC : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin :=
-          { encapDir := hencapPD, existsRDownAtW := hcdown,
-            cdirEncapsDown := sorry /- clusterDirDownFromProxy TODO: same as WImmPredRCleHelpers -/ }
-        exact .wHasPermsAfter hw_leaves_SW (.immPred h_imm hencapPDC)
-      · -- No cache-level downgrade → fall back to wCleAfter
-        exact .wCleAfter hr_cle_after
+      -- Use the full chain helper (no independent existentials)
+      have hencapPDC := diffCache_coherent_encapProxyAndDirAndCDown
+        hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster
+      exact .wHasPermsAfter hw_leaves_SW (.immPred h_imm hencapPDC)
     · -- notImmPred: fall back to wCleAfter (no need for noEvict/noWrite/wObRDown)
       exact .wCleAfter hr_cle_after
   · -- Non-coherent write: use rCleAfterWCle for the new constructors
