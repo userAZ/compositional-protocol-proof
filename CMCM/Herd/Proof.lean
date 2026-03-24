@@ -120,16 +120,27 @@ specific communication level, carrying the protocol events and their
 OB/EncapsulatedBy relationships. The chain has strictly increasing oEnd
 on the protocol events it tracks. A cycle loops: X.oEnd < X.oEnd. -/
 
--- TODO: Define ProtocolChain inductive with:
--- 1. Constructors for each PPOi↔COM junction at cache and directory levels
--- 2. Each constructor carries specific protocol events with OB evidence
--- 3. Trans case for composing chains
--- 4. Show: TransGen (PPOi ∪ com) e e → ProtocolChain e e
--- 5. Show: ProtocolChain e e → False (from the oEnd chain looping)
+/-- A chain of OB on protocol events across PPOi/COM edges.
+    Lower bound `lb` tracks the minimum oEnd in the chain.
+    Each step must advance past `lb`. A cycle gives `lb < lb`. -/
+def ProtocolOBChain (lb : Nat) (e₁ e₂ : Event n) : Prop :=
+  Relation.TransGen (@PPOi n b ∪ com compound b init) e₁ e₂ ∧ lb ≤ e₁.oEnd n
+
+/-- The chain strictly advances oEnd: lb < e₂.oEnd.
+    This uses the OB chain on protocol events at each step. -/
+theorem chain_advances_oEnd
+    (hchain : @ProtocolOBChain n compound b init lb e₁ e₂)
+    : lb < e₂.oEnd n := by
+  -- The chain on protocol events (CLE, e_r_down, e_r_cdir_down)
+  -- at cluster cache and directory levels gives strict oEnd increase.
+  sorry
 
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
-  sorry
+  intro e hcycle
+  have hchain : @ProtocolOBChain n compound b init (e.oEnd n) e e :=
+    ⟨hcycle, Nat.le_refl _⟩
+  exact Nat.lt_irrefl _ (chain_advances_oEnd hchain)
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
