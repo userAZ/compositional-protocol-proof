@@ -146,10 +146,17 @@ These are the key composition lemmas. Each shows the edge's communication
 evidence implies the compound lin event strictly advances. -/
 
 /-- PPOi → compound lin events ordered.
-    Uses CompoundMCM's enforce_compound_consistency (diff-addr) + protocol (same-addr). -/
+    For diff-addr: CompoundMCM's enforce_compound_consistency gives CompoundLinearizationOrder.
+    For same-addr: cache events encapsulate their compound lin events, so e₁ OB e₂ propagates.
+    The lazy case (finishesBefore, not OB) needs separate handling. -/
 theorem ppoi_advances_compoundLin
     (hppoi : @PPOi n b e₁ e₂)
     : (@compoundLinEvent n compound b init e₁).OrderedBefore n (@compoundLinEvent n compound b init e₂) := by
+  -- CompoundLinearizationOrder gives: isPPOPair → e_lin₁ OB e_lin₂ ∨ lazy
+  -- For diff-addr: ppoi_compound_lin_order provides this directly.
+  -- For same-addr: the same encapsulation argument works (e₁ OB e₂ + encap → e_lin₁ OB e_lin₂).
+  -- Both cases: cache events either ARE or ENCAPSULATE their compound lin events.
+  -- Combined with e₁.OrderedBefore n e₂, this gives compoundLinEvent e₁ OB compoundLinEvent e₂.
   sorry
 
 /-- rfe → compound lin events ordered.
