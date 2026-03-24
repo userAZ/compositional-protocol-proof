@@ -167,8 +167,19 @@ theorem step_finishesBefore
           | wNoPermsAfter _ _ _ => sorry
           | wCleAfter _ => sorry
     | co h =>
-      -- co: downgrade structure gives e₁.oEnd < e₂.oEnd
-      sorry -- need: extract from co.cases
+      unfold Event.finishesBefore
+      cases h.ordering with
+      | sameGle _ cle_cases =>
+        cases cle_cases with
+        | sameCle _ cache_ob =>
+          -- Same CLE, e₁ OB e₂ → finishesBefore
+          exact Nat.lt_trans cache_ob (Event.oWellFormed n e₂)
+        | diffCle _ =>
+          -- Different CLE: same structural gap as rfe (need CLE→cache event chain)
+          sorry
+      | wObRGle _ _ =>
+        -- GLE ordering: same gap (GLE ordering doesn't directly give cache event ordering)
+        sorry
     | fr h =>
       -- fr: rf⁻¹;co composition
       sorry -- need: compose rf + co finishesBefore
