@@ -139,11 +139,10 @@ theorem step_finishesBefore
   | inr hcom =>
     cases hcom with
     | rfe h =>
-      -- rfe: e_w OB e_r_down, e_r_down.oEnd < e_r.oEnd (encapsulation chain)
-      -- rfe: e_w OB e_r_down (existsRDownAtW), e_r_cdir_down encaps e_r_down,
-      -- e_r_cdir_down inside CLE(e_r)/GCR(e_r), CLE/GCR inside e_r (from dirAccessOfRequest)
-      -- Chain: e_w.oEnd < e_r_down.oEnd < e_r_cdir_down.oEnd < CLE.oEnd < e_r.oEnd
-      -- GAP: orderAfterDir case — CLE is from successor, CLE.oEnd > e_r.oEnd
+      -- rfe chain: e_w OB e_r_down (existsRDownAtW), e_r_cdir_down encaps e_r_down,
+      -- e_r_cdir_down inside CLE(e_r)/GCR(e_r) (encapDirRelation),
+      -- CLE inside e_r (from dirAccessOfRequest encapDir/orderBeforeDir)
+      -- For orderAfterDir: CLE from successor, chain goes through successor (not a cycle problem)
       sorry
     | co h =>
       -- co: downgrade structure gives e₁.oEnd < e₂.oEnd
