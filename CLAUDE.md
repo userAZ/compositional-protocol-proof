@@ -48,7 +48,9 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 14. **Verify implementation is correct.** Separate from matching philosophy: proofs can match the design but be vacuous or prove the wrong thing. Check statements, hypotheses, and conclusions against concrete examples.
 
-15. **Check that ideas are sound before implementing.** Before coding, ask: is this approach actually correct? Does it have a subtle bug? Example: `finishesBefore` (e₁.oEnd < e₂.oEnd) seemed correct but fails for orderAfterDir — the nc.weak reader finishes before the writer. Caught by imagination (construct a concrete timeline). ALWAYS imagine concrete scenarios BEFORE implementing to catch bugs in the approach itself.
+15. **Use your experience, reference files, and skills to solve problems independently.** You have: imagination (construct scenarios), philosophy (question foundations), CLAUDE.md (accumulated knowledge), prior code examples (Rf.lean, CompoundPPOs.lean, EventRelations.lean), and the user's cycle examples. Use ALL of these to work through complex proofs without stopping to ask.
+
+16. **Check that ideas are sound before implementing.** Before coding, ask: is this approach actually correct? Does it have a subtle bug? Example: `finishesBefore` (e₁.oEnd < e₂.oEnd) seemed correct but fails for orderAfterDir — the nc.weak reader finishes before the writer. Caught by imagination (construct a concrete timeline). ALWAYS imagine concrete scenarios BEFORE implementing to catch bugs in the approach itself.
 
 ## Current goal: Herd CMCM acyclicity proof
 
