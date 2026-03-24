@@ -3171,13 +3171,23 @@ lemma diffCache_coherent_encapProxyAndDirAndCDown
   -- global level: the global downgrade is a downgrade at the previous owner (e_w).
   -- e_w OB e_r_gdown (global downgrade is after e_w) and e_r_gdown encaps e_dir,
   -- and e_dir encaps the forwarded cache downgrade.
-  have hexistsRDown : ∃ e_r_down ∈ b,
-      e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down := by
-    sorry -- From cluster-level fwdCoherentRequestToOwner: the directory event triggers
-          -- a forwarded downgrade to e_w's cache. Properties: struct = e_w.struct, down,
-          -- e_w OB e_r_down (the downgrade arrives after the write).
-  have hcdirEncaps : hencapDir.existsRClusterDirDown.choose.Encapsulates n hexistsRDown.choose := by
-    sorry -- From cluster-level requestDowngradePrevOwner.dirEncapDowngrade:
-          -- the cluster directory event encapsulates the forwarded cache downgrade.
-          -- Both come from the same fwdCoherentRequestToOwner chain.
-  exact { encapDir := hencapDir, existsRDownAtW := hexistsRDown, cdirEncapsDown := hcdirEncaps }
+  -- Derive the forwarded cache downgrade from the cluster-level protocol.
+  -- The global downgrade chain already gives us hdowngrade : downgradeAtPrevOwner at the global level.
+  -- hdowngrade.downgradePrevOwner has:
+  --   dirEncapDowngrade : GLE.Encapsulates n e_r_gdown (GLOBAL level)
+  --   reqEncapDir : GCR.Encapsulates n GLE
+  -- The global downgrade e_r_gdown encapsulates e_dir (cluster dir event, from he_gdown_encap_dir).
+  -- At the cluster level, the directory event e_dir is triggered by the proxy request.
+  -- The cluster protocol axiom (coherentWriteDowngrades or coherentReadDowngrades)
+  -- gives fwdCoherentRequestToOwner → downgradeAtPrevOwner → requestDowngradePrevOwner
+  -- at the CLUSTER level, giving e_dir.Encapsulates n e_fwd_down.
+  --
+  -- For now: use the global-level e_r_gdown as evidence that a cache downgrade exists.
+  -- The global downgrade is INSIDE e_dir (he_gdown_encap_dir : e_r_gdown.Encapsulates n e_dir,
+  -- wait that's the wrong direction). Actually e_gdown encaps e_dir.
+  -- From the global level: hdowngrade.downgradePrevOwner gives atPrevOwner, fwdFromRequester,
+  -- downAtCache for the global downgrade's forwarded event.
+  -- The forwarded event at the global level is e_r_gdown itself (the global downgrade to the prev owner).
+  -- Through the shim, e_r_gdown translates to cluster events including e_dir.
+  -- The cluster-level forwarded downgrade is INSIDE e_dir.
+  sorry
