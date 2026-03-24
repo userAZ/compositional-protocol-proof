@@ -258,9 +258,18 @@ theorem step_advances
                 -- But CLE₁ ≠ CLE₂ (hcle_eq) → contradiction.
                 -- Requires: orderAfterDir successor = PPO successor e₂ (protocol uniqueness).
                 sorry
-            | orderBeforeDir _ _ _ _ _ _ _ _ =>
-              -- e₂ orderBeforeDir: CLE₂ from predecessor. Protocol reasoning needed
-              -- to show predecessor's CLE can't be before CLE₁ when e₁ OB e₂.
+            | orderBeforeDir _ hexists_pred₂ hpred₂ hinter₂ _ _ _ _ =>
+              -- e₂ orderBeforeDir: CLE₂ (de₂) from predecessor.
+              -- predecessor encapsulates de₂ and is OB e₂.
+              -- Use dir_ordered on de₁ and de₂ — already in `inr hob` branch.
+              -- Need: derive False from hob (de₂ OB de₁) + protocol structure.
+              --
+              -- The predecessor is at the same cache as e₁ (from PPOi).
+              -- All intermediate events between predecessor and e₂ preserve perms.
+              -- e₁ is between predecessor and e₂ (or before predecessor).
+              -- If e₁ is after predecessor (predecessor OB e₁):
+              --   e₁ is an intermediate → stateBeforeAndAfterAtLeast constrains e₁.
+              -- This is deep protocol reasoning about permission preservation.
               sorry
             | orderAfterDir _ hsucc₂ _ _ =>
               -- e₂ orderAfterDir: e₂ OB successor, successor encapsulates de₂
