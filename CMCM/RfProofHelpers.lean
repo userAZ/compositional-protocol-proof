@@ -3172,22 +3172,15 @@ lemma diffCache_coherent_encapProxyAndDirAndCDown
   -- e_w OB e_r_gdown (global downgrade is after e_w) and e_r_gdown encaps e_dir,
   -- and e_dir encaps the forwarded cache downgrade.
   -- Derive the forwarded cache downgrade from the cluster-level protocol.
-  -- The global downgrade chain already gives us hdowngrade : downgradeAtPrevOwner at the global level.
-  -- hdowngrade.downgradePrevOwner has:
-  --   dirEncapDowngrade : GLE.Encapsulates n e_r_gdown (GLOBAL level)
-  --   reqEncapDir : GCR.Encapsulates n GLE
-  -- The global downgrade e_r_gdown encapsulates e_dir (cluster dir event, from he_gdown_encap_dir).
-  -- At the cluster level, the directory event e_dir is triggered by the proxy request.
-  -- The cluster protocol axiom (coherentWriteDowngrades or coherentReadDowngrades)
-  -- gives fwdCoherentRequestToOwner → downgradeAtPrevOwner → requestDowngradePrevOwner
-  -- at the CLUSTER level, giving e_dir.Encapsulates n e_fwd_down.
+  -- Case-split on the GlobalToCluster shim to extract the cluster-level proxy event
+  -- and apply the cluster-level coherentWriteDowngrades axiom.
   --
-  -- For now: use the global-level e_r_gdown as evidence that a cache downgrade exists.
-  -- The global downgrade is INSIDE e_dir (he_gdown_encap_dir : e_r_gdown.Encapsulates n e_dir,
-  -- wait that's the wrong direction). Actually e_gdown encaps e_dir.
-  -- From the global level: hdowngrade.downgradePrevOwner gives atPrevOwner, fwdFromRequester,
-  -- downAtCache for the global downgrade's forwarded event.
-  -- The forwarded event at the global level is e_r_gdown itself (the global downgrade to the prev owner).
-  -- Through the shim, e_r_gdown translates to cluster events including e_dir.
-  -- The cluster-level forwarded downgrade is INSIDE e_dir.
+  -- The chain: GlobalToCluster shim creates proxy event → directory event processes it →
+  -- fwdCoherentRequestToOwner → downgradeAtPrevOwner → requestDowngradePrevOwner
+  -- gives e_dir.Encapsulates n e_fwd_down (cluster-level forwarded downgrade at e_w's cache).
+  --
+  -- TODO: Case-split on hg2c, extract proxy event, apply coherentWriteDowngrades
+  -- for (e_w.getProtocol cmp), derive fwdCoherentRequestToOwner at cluster level,
+  -- extract e_fwd_down with dirEncapDowngrade, atPrevOwner (→ struct = e_w.struct),
+  -- downAtCache, and e_w OB e_fwd_down.
   sorry
