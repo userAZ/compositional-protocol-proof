@@ -76,9 +76,17 @@ theorem co_irrefl (h : @Herd.co n compound b init e e) : False := by
   | wObRGle hob _ =>
     exact Event.contradiction_of_reflexive_ordered_before n hob
 
-/-- fr is irreflexive: e₁.isRead ∧ e₁.isWrite is impossible (for same event). -/
+/-- fr is irreflexive: e.isRead ∧ e.isWrite is impossible (read ↔ rw=.r, write ↔ rw=.w). -/
 theorem fr_irrefl (h : @Herd.fr n compound b init e e) : False := by
-  sorry -- read ∧ write for same event — depends on Event structure
+  have hread := h.read
+  have hwrite := h.write
+  cases e with
+  | cacheEvent ce =>
+    simp only [Event.isRead, Request.isRead] at hread
+    simp only [Event.isWrite, Request.isWrite] at hwrite
+    rw [hwrite] at hread; exact absurd hread (by decide)
+  | directoryEvent de =>
+    simp [Event.isRead] at hread
 
 /-- com is irreflexive. -/
 theorem com_irrefl (h : com compound b init e e) : False := by
