@@ -42,6 +42,14 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 11. **Test carefully.** When a proof compiles, check it actually proves what was intended — verify the statement, hypotheses, and that the proof isn't vacuous.
 
+12. **Verify implementation matches what was asked AND the philosophy.** After implementing ANY proof or definition, stop and check: does the code ACTUALLY do what the user described? Does it match the project philosophy (descriptive definitions carrying mechanism, not just consequence)? A proof that compiles but contradicts the stated approach is WRONG. Tests passing ≠ correct implementation.
+
+13. **Use imagination to sanity-check ideas.** When the user suggests an approach, use `/imagine` to check: does this make sense? Is there a scenario where it breaks? Is there a subtle bug? Construct concrete counterexamples before coding. If an idea has a flaw, catch it BEFORE implementing.
+
+14. **Verify implementation is correct.** Separate from matching philosophy: proofs can match the design but be vacuous or prove the wrong thing. Check statements, hypotheses, and conclusions against concrete examples.
+
+15. **Check that ideas are sound before implementing.** Before coding, ask: is this approach actually correct? Does it have a subtle bug? Example: `finishesBefore` (e₁.oEnd < e₂.oEnd) seemed correct but fails for orderAfterDir — the nc.weak reader finishes before the writer. Caught by imagination (construct a concrete timeline). ALWAYS imagine concrete scenarios BEFORE implementing to catch bugs in the approach itself.
+
 ## Current goal: Herd CMCM acyclicity proof
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
@@ -214,7 +222,7 @@ The rf/co⁺ witness documents the protocol-level justification.
 - [ ] Lazy case in CompoundLinearizationOrder: `lazyCompoundLinearizationOrder` gives `finishesBefore` not `OrderedBefore`. Need: either show lazy case doesn't arise for PPOi, or show finishesBefore → OB for compound lin events.
 
 **DEAD ENDS (don't repeat):**
-00. **ANY single ranking function (eventLt, compoundLinEvent.oEnd, e.oEnd) for acyclicity.** The proof is NOT about a ranking that decreases. It's about chaining SPECIFIC OB relationships between protocol events across edges. Each edge gives OB between specific events (CLE, cache events, directory downgrades). A cycle chains these into X OB X. No ranking function needed. STOP looking for rankings.
+00. **ANY per-edge measure (eventLt, compoundLinEvent.oEnd, e.oEnd, finishesBefore) for acyclicity.** The proof is NOT about a ranking that decreases. It's about chaining SPECIFIC OB relationships between protocol events across edges. Each edge gives OB between specific events (CLE, cache events, directory downgrades). A cycle chains these into X OB X. No ranking function needed. STOP looking for rankings.
 0. **eventLt (GLE/CLE/cache lex order) as universal ranking.** GLEs can be from the past (previousGlobalCacheGotPerms). For different-address PPOi, GLE₂ OB GLE₁ is possible even when CLE₁ OB CLE₂. The PPO linearization order (compound lin events from CompoundMCM) determines ordering, NOT GLE temporal order. The PartialOrder should be PPOi + COM directly, not mediated through eventLt.
 0b. **Event.OrderedBefore as PartialOrder.** Event.OrderedBefore is TEMPORAL ordering (e₁.oEnd < e₂.oStart). It's a proven strict partial order (irrefl, asymm, trans). But com edges (especially rfe) connect events at different clusters that might be temporally concurrent. The PartialOrder we need is COHERENCE ordering (GMO), not temporal ordering. Event.OrderedBefore ≠ GMO.
 0c. **Constructing PartialOrder from PPOi ∪ com is circular.** `CMCM.suffices_inclusion` proves acyclicity FROM a PartialOrder. Building the PartialOrder from PPOi ∪ com's transitive closure requires acyclicity for antisymmetry — circular. The GMO must be axiomatized or constructed independently from protocol axioms.
