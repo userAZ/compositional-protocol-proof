@@ -538,8 +538,15 @@ theorem step_advances
                       _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
                   exact Nat.lt_irrefl _ this
                 | inr hob_w =>
-                  -- CLE_w OB CLE₁ with CLE₂ OB CLE₁ and CLE_w ≤ CLE₂:
-                  -- NoInterveningWrites should exclude e₂ as intervening write
+                  -- CLE_w OB CLE₁ and CLE₂ between CLE_w and CLE₁.
+                  -- Apply NoInterveningWrites to e₂ to get constraints,
+                  -- then show CLE₂ IS between → contradiction.
+                  --
+                  -- We have: de_w OB de₁ (CLE_w before CLE₁)
+                  --          de₂ OB de₁ (hob: CLE₂ before CLE₁)
+                  --          de_w.oEnd ≤ de₂.oEnd (from co chain)
+                  -- Need: e₂ ∈ b, isClusterCache, ¬down to apply h_no_between.
+                  -- Then notBetweenGles/notBetweenCles excludes CLE₂ between CLE_w and CLE₁.
                   sorry
               | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
