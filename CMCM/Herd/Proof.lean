@@ -8,33 +8,26 @@ import CompositionalProtocolProof.CompoundPPOs
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)`.
 
-## Architecture
+## Proof strategy: edge-by-edge OB chains on protocol events
 
-`hierarchicallyOrdered` (in Relations.lean) = PPOi ∪ com, carrying communication evidence.
-This IS the relation whose acyclicity we prove — and whose transitive closure gives
-the PartialOrder (GMO).
+A cycle through PPOi + com edges creates a chain of OB/Encapsulation relationships
+between specific protocol events (CLEs, cache events, directory downgrades).
+This chain loops back, giving X < X on timestamps — contradiction.
 
-## Proof structure
+Example cycle: e₁ PPOi e₂, e₂ Rfe e₃, e₃ Fr e₁ (all same address).
+- PPOi: CLE₁ OB e₂ (e₁ lins at CLE, e₂ lins at cache)
+- Rfe: e₂ OB e_r_down (write before downgrade), e_r_cdir_down encaps e_r_down
+- Fr: e_r_cdir_down OB CLE₁ (cluster dir downgrade before e₁'s CLE)
+Chain: CLE₁.oEnd < e₂.oEnd < e_r_down.oEnd < e_r_cdir_down.oEnd, and
+       e_r_cdir_down.oEnd < CLE₁.oStart ≤ CLE₁.oEnd → CLE₁.oEnd < CLE₁.oEnd. ⊥
 
-The acyclicity proof decomposes into sub-lemmas for each edge type.
-Each sub-lemma shows the edge's communication evidence implies a strict ordering
-that prevents cycles.
+Each edge contributes:
+- **PPOi**: e₁ OB e₂ (same cache), or lin(e₁) OB lin(e₂)
+- **rfe**: e_w OB e_r_down, e_r_cdir_down encaps e_r_down, e_r_cdir_down inside CLE(e_r)
+- **co**: similar downgrade structure (e_w₁ OB downgrade inside e_w₂)
+- **fr**: e_r_cdir_down OB CLE(target) (cluster dir downgrade ordered with target's CLE)
 
-### Sub-lemmas (each edge type → ordering constraint)
-
-- `ppoi_irrefl`: PPOi(e, e) is impossible (e OB e contradicts irreflexivity)
-- `rfe_irrefl`: rfe(e, e) is impossible (diffProtocol for same event)
-- `co_irrefl`: co(e, e) is impossible (from co.cases ordering)
-- `fr_irrefl`: fr(e, e) is impossible (read ≠ write for same event)
-
-- `ppoi_ordered`: PPOi(e₁, e₂) → CompoundLinearizationOrder
-- `rfe_ordered`: rfe(e₁, e₂) → ordering from readsFrom.cases
-- `co_ordered`: co(e₁, e₂) → ordering from co.cases
-- `fr_ordered`: fr(e₁, e₂) → ordering from rf⁻¹;co composition
-
-### Main theorem
-
-`cmcm_acyclic`: compose sub-lemmas to show any cycle leads to contradiction.
+The composition uses Trans instances: EncapsulatedBy → OB → OB, OB → OB → OB.
 -/
 
 variable {n : Nat}
@@ -43,19 +36,14 @@ namespace Herd
 
 variable {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
 
-/-! ## Irreflexivity sub-lemmas
+/-! ## Irreflexivity of each edge type -/
 
-Each edge type is irreflexive — no event can be related to itself. -/
-
-/-- PPOi is irreflexive: e OB e is impossible. -/
 theorem ppoi_irrefl (h : @PPOi n b e e) : False :=
   Event.contradiction_of_reflexive_ordered_before n h.orderedBefore
 
-/-- rfe is irreflexive: diffProtocol for same event is impossible. -/
-theorem rfe_irrefl (h : @Herd.rfe n compound b init e e) : False := by
-  exact absurd rfl h.diffProtocol
+theorem rfe_irrefl (h : @Herd.rfe n compound b init e e) : False :=
+  absurd rfl h.diffProtocol
 
-/-- co is irreflexive: co.cases ordering on same event is impossible. -/
 theorem co_irrefl (h : @Herd.co n compound b init e e) : False := by
   cases h.ordering with
   | sameGle _ cle_cases =>
@@ -65,18 +53,15 @@ theorem co_irrefl (h : @Herd.co n compound b init e e) : False := by
       cases cle_ord with
       | wImmPredRCle w =>
         cases w with
-        | sameCluster _ hob =>
-          exact Event.contradiction_of_reflexive_ordered_before n hob
+        | sameCluster _ hob => exact Event.contradiction_of_reflexive_ordered_before n hob
         | diffCluster hdiff _ =>
           have : h.w₁_lin = h.w₂_lin := Subsingleton.elim _ _
           exact hdiff (by rw [← same_gle_implies_same_protocol h.w₁_lin h.w₂_lin
             (by cases h.ordering with | sameGle h _ => exact h | wObRGle h _ => rfl)])
       | evictOrReadBetweenWAndRCleSameCluster evict =>
         exact Event.contradiction_of_reflexive_ordered_before n evict.wObR
-  | wObRGle hob _ =>
-    exact Event.contradiction_of_reflexive_ordered_before n hob
+  | wObRGle hob _ => exact Event.contradiction_of_reflexive_ordered_before n hob
 
-/-- fr is irreflexive: e.isRead ∧ e.isWrite is impossible (read ↔ rw=.r, write ↔ rw=.w). -/
 theorem fr_irrefl (h : @Herd.fr n compound b init e e) : False := by
   have hread := h.read
   have hwrite := h.write
@@ -88,14 +73,12 @@ theorem fr_irrefl (h : @Herd.fr n compound b init e e) : False := by
   | directoryEvent de =>
     simp [Event.isRead] at hread
 
-/-- com is irreflexive. -/
 theorem com_irrefl (h : com compound b init e e) : False := by
   cases h with
   | rfe h => exact rfe_irrefl h
   | co h => exact co_irrefl h
   | fr h => exact fr_irrefl h
 
-/-- hierarchicallyOrdered is irreflexive. -/
 theorem hierarchicallyOrdered_irrefl
     (h : @hierarchicallyOrdered n compound b init e e) : False := by
   cases h with
@@ -104,11 +87,10 @@ theorem hierarchicallyOrdered_irrefl
 
 /-! ## Ordering sub-lemmas
 
-Each edge type establishes an ordering constraint from its communication evidence.
-These constraints compose to show cycles are impossible. -/
+Each edge type establishes ordering between specific protocol events.
+These are used to compose OB chains across cycle edges. -/
 
-/-- PPOi → compound linearization ordering (for different-address pairs).
-    Uses CompoundMCM's `enforce_compound_consistency`. -/
+/-- PPOi → CompoundLinearizationOrder (for diff-addr, via CompoundMCM). -/
 theorem ppoi_compound_lin_order
     (hppoi : @PPOi n b e₁ e₂)
     (hdiff_addr : e₁.addr ≠ e₂.addr)
@@ -118,103 +100,45 @@ theorem ppoi_compound_lin_order
     hppoi.cache₁ hppoi.cache₂ hppoi.in_b₁ hppoi.in_b₂
     hppoi.sameCid' hdiff_addr hppoi.orderedBefore
 
-/-- rfe → GLE ordering from readsFrom.cases.
-    wObRGle gives GLE(e_w) OB GLE(e_r); wEqRGle is absurd for rfe (same cluster). -/
+/-- rfe → GLE ordering (from readsFrom.cases, wObRGle branch). -/
 theorem rfe_gle_ordered
     (h : @Herd.rfe n compound b init e₁ e₂)
     : h.w_lin.hreq's_global_lin.choose.OrderedBefore n
       h.r_lin.hreq's_global_lin.choose := by
   cases h.readsFrom with
-  | wEqRGle _ hwr_same_cluster _ =>
-    exact absurd hwr_same_cluster h.diffProtocol
-  | wObRGle hw_r_gle_ob _ =>
-    exact hw_r_gle_ob
+  | wEqRGle _ hwr_same_cluster _ => exact absurd hwr_same_cluster h.diffProtocol
+  | wObRGle hw_r_gle_ob _ => exact hw_r_gle_ob
 
-/-! ## Each edge type advances compound linearization events
+/-! ## Main theorem: acyclicity via edge-by-edge OB chains
 
-These are the key composition lemmas. Each shows the edge's communication
-evidence implies the compound lin event strictly advances. -/
+The proof shows: any cycle in PPOi ∪ com creates a chain of OB/Encapsulation
+relationships between specific protocol events that loops back, giving
+X.oEnd < X.oEnd — contradiction.
 
-/-- PPOi → compound lin events ordered.
-    For diff-addr: CompoundMCM's enforce_compound_consistency gives CompoundLinearizationOrder.
-    For same-addr: cache events encapsulate their compound lin events, so e₁ OB e₂ propagates.
-    The lazy case (finishesBefore, not OB) needs separate handling. -/
-theorem ppoi_advances_compoundLin
-    (hppoi : @PPOi n b e₁ e₂)
-    : (@compoundLinEvent n compound b init e₁).OrderedBefore n (@compoundLinEvent n compound b init e₂) := by
-  -- CompoundLinearizationOrder gives: isPPOPair → e_lin₁ OB e_lin₂ ∨ lazy
-  -- For diff-addr: ppoi_compound_lin_order provides this directly.
-  -- For same-addr: the same encapsulation argument works (e₁ OB e₂ + encap → e_lin₁ OB e_lin₂).
-  -- Both cases: cache events either ARE or ENCAPSULATE their compound lin events.
-  -- Combined with e₁.OrderedBefore n e₂, this gives compoundLinEvent e₁ OB compoundLinEvent e₂.
-  sorry
-
-/-- rfe → compound lin events ordered.
-    rfe gives GLE ordering. Bridge: GLE ordering → compound lin event ordering. -/
-theorem rfe_advances_compoundLin
-    (h : @Herd.rfe n compound b init e₁ e₂)
-    : (@compoundLinEvent n compound b init e₁).OrderedBefore n (@compoundLinEvent n compound b init e₂) := by
-  sorry
-
-/-- co → compound lin events ordered. -/
-theorem co_advances_compoundLin
-    (h : @Herd.co n compound b init e₁ e₂)
-    : (@compoundLinEvent n compound b init e₁).OrderedBefore n (@compoundLinEvent n compound b init e₂) := by
-  sorry
-
-/-- fr → compound lin events ordered. -/
-theorem fr_advances_compoundLin
-    (h : @Herd.fr n compound b init e₁ e₂)
-    : (@compoundLinEvent n compound b init e₁).OrderedBefore n (@compoundLinEvent n compound b init e₂) := by
-  sorry
-
-/-! ## Main theorem
-
-The acyclicity proof extracts the compound lin ordering (hlin) from each
-`hierarchicallyOrdered` constructor, composes via OB transitivity, and
-contradicts OB irreflexivity. Trivial given the enriched constructors. -/
-
-/-- Extract compound lin ordering from hierarchicallyOrdered. -/
-theorem hierarchicallyOrdered_compoundLin
-    (h : @hierarchicallyOrdered n compound b init e₁ e₂)
-    : (@compoundLinEvent n compound b init e₁).OrderedBefore n
-      (@compoundLinEvent n compound b init e₂) := by
-  cases h with
-  | ppoi _ hlin => exact hlin
-  | com _ hlin => exact hlin
-
-/-- Every step in PPOi ∪ com gives hierarchicallyOrdered
-    (once we prove each edge advances compound lin events). -/
-private theorem step_hierarchicallyOrdered
-    (hstep : (@PPOi n b ∪ com compound b init) e₁ e₂)
-    : @hierarchicallyOrdered n compound b init e₁ e₂ := by
-  cases hstep with
-  | inl hppoi => exact .ppoi hppoi (ppoi_advances_compoundLin hppoi)
-  | inr hcom => cases hcom with
-    | rfe h => exact .com (.rfe h) (rfe_advances_compoundLin h)
-    | co h => exact .com (.co h) (co_advances_compoundLin h)
-    | fr h => exact .com (.fr h) (fr_advances_compoundLin h)
+Each step in the cycle contributes an OB relationship between protocol events.
+The EncapsulatedBy → OB → OB composition (Trans instances in EventRelations.lean)
+chains these across consecutive edges. -/
 
 /-- The CMCM theorem: `acyclic(PPOi ∪ rfe ∪ fr ∪ co)`.
 
-    Each edge gives hierarchicallyOrdered (carrying compound lin ordering).
-    A cycle would compose these orderings into compoundLinEvent(e) OB compoundLinEvent(e),
-    contradicting OB irreflexivity. -/
+    A cycle through PPOi + com edges produces a temporal chain on specific
+    protocol events (CLE, cache, directory downgrades) that loops back,
+    contradicting OB irreflexivity.
+
+    The proof extracts from each edge:
+    - PPOi: e₁ OB e₂ (same cache)
+    - rfe: e_w OB e_r_down, e_r_cdir_down encaps e_r_down
+    - co: downgrade structure ordering
+    - fr: e_r_cdir_down OB CLE(target)
+    and composes via Trans instances. -/
 theorem cmcm_acyclic
     (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
-  intro e hcycle
-  suffices h : ∀ e', Relation.TransGen (@PPOi n b ∪ com compound b init) e e' →
-      (@compoundLinEvent n compound b init e).OrderedBefore n
-      (@compoundLinEvent n compound b init e') from
-    Event.contradiction_of_reflexive_ordered_before n (h e hcycle)
-  intro e' hpath
-  induction hpath with
-  | single hstep =>
-    exact hierarchicallyOrdered_compoundLin (step_hierarchicallyOrdered hstep)
-  | tail _ hstep ih =>
-    exact Trans.trans ih
-      (hierarchicallyOrdered_compoundLin (step_hierarchicallyOrdered hstep))
+  -- The proof chains OB/Encapsulation relationships from each edge
+  -- across the cycle. Each edge gives specific protocol events with
+  -- temporal ordering. The composition (via Trans instances) gives
+  -- a chain that loops back: X.oEnd < ... < X.oEnd. Contradiction.
+  sorry
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
@@ -222,18 +146,10 @@ theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSyste
     : Relation.Acyclic (@PPOi n b' ∪ com cmp b' init') :=
   @cmcm_acyclic n cmp b' init' hknow
 
-/-! ## PartialOrder (consequence of acyclicity)
-
-Once acyclicity is established, the PartialOrder follows:
-- lt = TransGen (PPOi ∪ com)
-- le = (· = ·) ∨ TransGen (PPOi ∪ com)
-- Antisymmetry from acyclicity
-- Transitivity from TransGen
-- Reflexivity from = -/
+/-! ## PartialOrder (consequence of acyclicity) -/
 
 /-- The PartialOrder on events (GMO): constructed from cmcm_acyclic.
-    le = (· = ·) ∨ TransGen (PPOi ∪ com)
-    lt = TransGen (PPOi ∪ com)
+    lt = TransGen (PPOi ∪ com), le = (· = ·) ∨ TransGen (PPOi ∪ com).
     Antisymmetry from acyclicity. Transitivity from TransGen. -/
 noncomputable def eventPartialOrder
     (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
