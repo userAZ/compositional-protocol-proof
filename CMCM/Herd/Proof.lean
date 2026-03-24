@@ -483,12 +483,20 @@ theorem step_advances
       -- CO: honest derivation via co_step_advances (already sorry-free)
       exact co_step_advances h h₁_lin h₂_lin
     | fr h =>
-      -- FR: carries cle_advance (derived from rf⁻¹;co⁺ + noBetween)
-      -- TODO: derive honestly from NoInterveningWrites + co_chain_cle_advance
+      -- FR: DERIVE from rf⁻¹;co⁺ + NoInterveningWrites composition.
+      -- co⁺ chain gives CLE_w ≤ CLE₂. rf gives CLE_w ≤ CLE₁.
+      -- dir_ordered on CLE₁ and CLE₂: CLE₂ < CLE₁ → e₂ is intervening write → contradiction.
       have hw₁ : h.e₁_lin = h₁_lin := Subsingleton.elim _ _
       have hw₂ : h.e₂_lin = h₂_lin := Subsingleton.elim _ _
       rw [← hw₁, ← hw₂]
-      exact h.cle_advance
+      -- Extract rf + co chain from fr.comm
+      obtain ⟨e_w, _, e_w_lin, _, h_rf, h_no_between, h_co_chain⟩ := h.comm
+      -- co⁺ chain gives CLE_w lex≤ CLE₂
+      have hlin := fun e => h.hknow_dir_access compound b init e
+      have hco_lex := co_chain_cle_advance hlin h_co_chain
+      -- Use dir_ordered to determine CLE₁ vs CLE₂ ordering
+      -- (the honest derivation uses NoInterveningWrites to eliminate CLE₂ < CLE₁)
+      sorry
 
 /-! ## Chaining step_advances through TransGen -/
 

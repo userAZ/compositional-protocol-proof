@@ -143,18 +143,13 @@ structure fr (e₁ e₂ : Event n) : Prop where
   e₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
   /-- rf⁻¹ ; co⁺ decomposition: e₁ reads from e_w at some communication level
-      (full readsFrom.cases structure + NoInterveningWrites), and e₂ overwrites e_w via co⁺. -/
+      (full readsFrom.cases structure + NoInterveningWrites), and e₂ overwrites e_w via co⁺.
+      CLE ordering is DERIVED in the proof from rf + co + NoInterveningWrites composition. -/
   comm : ∃ (e_w : Event n) (e_w_write : e_w.isWrite)
     (e_w_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e_w),
     e_w.addr = e₁.addr ∧
     Behaviour.readsFrom.cases e_w_write read e_w_lin e₁_lin hknow_dir_access ∧
     NoInterveningWrites e_w_write read e_w_lin e₁_lin hknow_dir_access ∧
     Relation.TransGen (@co n compound b init) e_w e₂
-  /-- CLE ordering for fr: derived from rf⁻¹;co⁺ composition + noBetween.
-      The read's CLE is before or equal to the write's CLE (in the directory ordering). -/
-  cle_advance :
-    (e₁_lin.hreq's_dir_access.choose.oEnd < e₂_lin.hreq's_dir_access.choose.oEnd) ∨
-    (e₁_lin.hreq's_dir_access.choose.oEnd = e₂_lin.hreq's_dir_access.choose.oEnd ∧
-     Event.oEnd n e₁ < Event.oEnd n e₂)
 
 end Herd
