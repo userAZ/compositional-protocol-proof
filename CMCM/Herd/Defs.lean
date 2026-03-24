@@ -118,6 +118,7 @@ structure co (e₁ e₂ : Event n) : Prop where
   sameAddr : e₁.addr = e₂.addr
   w₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
   w₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
+  hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
   ordering : co.cases w₁_lin w₂_lin
 
 /-- fr: From-reads (rf⁻¹ ; co⁺).

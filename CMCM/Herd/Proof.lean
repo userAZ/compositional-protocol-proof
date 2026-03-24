@@ -633,23 +633,40 @@ theorem cmcm_acyclic_of_hknow
   intro e hcycle
   exact lex_lt_irrefl (transgen_lex_advance hknow hcycle)
 
-/-- Acyclicity of PPOi ∪ com.
+/-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
+noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
+    : ∀ e : Event n, compound.globalLinearizationEventOfRequest b init e :=
+  fun e => match h with
+  | .rfe h => h.hknow_dir_access compound b init e
+  | .co h => h.hknow_dir_access compound b init e
+  | .fr h => h.hknow_dir_access compound b init e
 
-    The proof tracks TWO measures — cache event oEnd and directory event
-    (CLE) oEnd — as a lexicographic pair. Each edge strictly advances
-    this pair (from `step_advances`). A cycle gives the pair strictly
-    less than itself → contradiction.
+/-- In a TransGen of R₁ ∪ R₂, either all steps are R₁ or some step is R₂. -/
+theorem transgen_union_find_right {R₁ R₂ : α → α → Prop}
+    (h : Relation.TransGen (R₁ ∪ R₂) a c) :
+    Relation.TransGen R₁ a c ∨ (∃ x y, R₂ x y) := by
+  induction h with
+  | single h =>
+    cases h with
+    | inl h => exact Or.inl (.single h)
+    | inr h => exact Or.inr ⟨_, _, h⟩
+  | tail hpath hstep ih =>
+    cases ih with
+    | inl hpath₁ =>
+      cases hstep with
+      | inl h => exact Or.inl (hpath₁.tail h)
+      | inr h => exact Or.inr ⟨_, _, h⟩
+    | inr h => exact Or.inr h
 
-    The proof factors through `cmcm_acyclic_of_hknow`, which assumes
-    every event has a `globalLinearizationEventOfRequest`. This is
-    derivable from `CompoundProtocol` (every event has a linearization
-    and directory access from the protocol structure). -/
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
-  -- Every event has a globalLinearizationEventOfRequest from the
-  -- compound protocol's linearizationOfEvent + shim structure.
-  have hknow : ∀ e : Event n, compound.globalLinearizationEventOfRequest b init e := sorry
-  exact cmcm_acyclic_of_hknow hknow
+  intro e hcycle
+  -- The cycle is either pure PPOi or has at least one com edge.
+  rcases transgen_union_find_right hcycle with hppoi_cycle | ⟨x, y, hcom⟩
+  · -- All PPOi: contradiction from OB transitivity
+    exact ppoi_acyclic e hppoi_cycle
+  · -- Some com edge exists: extract hknow_dir_access
+    exact cmcm_acyclic_of_hknow (com.extract_hknow hcom) e hcycle
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
