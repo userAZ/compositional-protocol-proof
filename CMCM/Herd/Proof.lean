@@ -127,17 +127,14 @@ theorem step_ob_or_inside
     -- In either case: Or.inl (OB) or Or.inr (oEnd comparison).
     sorry
 
+-- The acyclicity proof uses two complementary arguments:
+-- 1. For edges with OB on cache events (PPOi, COM-with-downgrade):
+--    the max-oEnd event can't have such an outgoing edge.
+-- 2. For edges with CLE ordering only: the CLE chain loops monotonically.
+-- Together: any cycle must contain edges from both categories or only one,
+-- and both cases lead to contradiction.
 theorem cmcm_acyclic
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
-  -- Two-case argument:
-  -- Case 1: cycle contains PPOi or COM-with-downgrade edge.
-  --   Max-oEnd argument: event with maximum oEnd can't have outgoing
-  --   PPOi (OB to larger target) or COM-with-downgrade (OB to protocol
-  --   event inside target). Both contradict maximality.
-  -- Case 2: cycle contains only CO-CLE-ordering edges.
-  --   CLE chain argument: CLEs form a monotone chain CLE₁.oEnd < ... < CLEₖ.oEnd.
-  --   The cycle loops: CLEₖ OB CLE₁ gives CLEₖ.oEnd < CLE₁.oEnd.
-  --   Combined with chain: CLE₁.oEnd < CLEₖ.oEnd < CLE₁.oEnd. Contradiction.
   sorry
 
 /-- The CMCM theorem with explicit parameters. -/
