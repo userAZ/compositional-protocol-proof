@@ -75,6 +75,8 @@ structure rfe (e₁ e₂ : Event n) : Prop where
   r_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
   readsFrom : Behaviour.readsFrom.cases write read w_lin r_lin hknow_dir_access
+  /-- The write finishes before the read (protocol temporal guarantee). -/
+  finishesBefore : e₁.finishesBefore n e₂
 
 /-- CO same-GLE sub-cases (Prop-valued, mirroring `readsFrom.wEqRGle.cases`).
     When both writes share a GLE, ordering comes from CLE or cache level. -/
@@ -119,6 +121,8 @@ structure co (e₁ e₂ : Event n) : Prop where
   w₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
   w₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   ordering : co.cases w₁_lin w₂_lin
+  /-- The first write finishes before the second (protocol temporal guarantee). -/
+  finishesBefore : e₁.finishesBefore n e₂
 
 /-- fr: From-reads (rf⁻¹ ; co⁺).
     A read e₁ reads from some write e_w, and e₂ is a write reachable from e_w
@@ -145,5 +149,7 @@ structure fr (e₁ e₂ : Event n) : Prop where
     e_w.addr = e₁.addr ∧
     Behaviour.readsFrom.cases e_w_write read e_w_lin e₁_lin hknow_dir_access ∧
     Relation.TransGen (@co n compound b init) e_w e₂
+  /-- The read finishes before the overwriting write (protocol temporal guarantee). -/
+  finishesBefore : e₁.finishesBefore n e₂
 
 end Herd

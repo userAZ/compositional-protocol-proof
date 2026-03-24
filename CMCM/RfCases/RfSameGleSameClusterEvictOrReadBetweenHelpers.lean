@@ -47,11 +47,8 @@ lemma evictOrReadBtn_diff_cache_choose_case
     have hw_leaves_SW : b.reqLeavesStateAtLeast n e_w init SW :=
       coherent_write_leaves_at_least_SW hw_is_write hw_coherent hw_not_down hw_cluster.eAtCache
     by_cases h_imm : WriteRead.wObRCle.diffCache.rCleOrDownAtWAfterWCle hw_c_and_g_lin hr_c_and_g_lin
-    · -- immPred: e_w_cle is immediate predecessor of e_r_cle (same structure as wImmPredRCle)
-      have hencapPD := diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster
-      by_cases hcdown : ∃ e_r_down ∈ b,
-        e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down
-      -- Use the full chain helper (no independent existentials)
+    · -- immPred: e_w_cle is immediate predecessor of e_r_cle
+      -- Use the full chain helper: derives encapDir + existsRDownAtW + cdirEncapsDown
       have hencapPDC := diffCache_coherent_encapProxyAndDirAndCDown
         hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster
       exact .wHasPermsAfter hw_leaves_SW (.immPred h_imm hencapPDC)
