@@ -108,6 +108,35 @@ A cycle forms a loop: X.oEnd < ... < X.oEnd — contradiction.
 The chain goes through PROTOCOL events, not cache events.
 The proof MUST compose across edges.
 
+### DEAD END: oEnd-based arguments for acyclicity
+
+**oEnd values (cache event oEnd) CANNOT prove acyclicity for orderAfterDir cycles.**
+Concrete counterexample to oEnd monotonicity:
+- Cycle: e₁ →(PPOi)→ e₂ →(rfe)→ e₃ →(co)→ e₄ →(PPOi)→ e₁
+- e₃ has orderAfterDir. oEnd values: B₃ < A₄ < A₁ < A₂ < CLE(e₃).oEnd
+- All oEnd values are consistent — NO contradiction from oEnd alone!
+- The contradiction must come from PROTOCOL PROPERTIES, not temporal oEnd ordering.
+
+This applies to ALL oEnd-based approaches: finishesBefore, per-edge e.oEnd, max(e.oEnd, CLE.oEnd), cross-edge composition.
+
+### Anqi's cycle examples (KEY — use these as the proof template!)
+
+**Example 1**: e₁ PPOi e₂, e₂ Rfe e₃, e₃ Fr e₁ (nc.weak write + nc.rel write + coherent read)
+- CLE₁ = CLE₂ (nc.weak shares CLE with PPO successor)
+- Rfe: CLE₂ OB e_r_cdir_down (downgrade after CLE₂)
+- Fr: e_r_cdir_down OB CLE₁ (downgrade reads from prior write, so before CLE₁)
+- Chain: CLE₁ = CLE₂ OB e_r_cdir_down OB CLE₁. Loop on CLE₁!
+
+**Example 2**: e₁ PPOi e₂, e₂ Rfe e₃, e₃ Fr e₁ (e₁ encaps CLE, e₂ has perms)
+- PPOi: CLE₁ OB e₂ (e₁ lins at CLE, e₂ lins at cache because e₁ got perms)
+- Rfe: e₂ OB e_r_down (write before downgrade at e₂'s cache)
+- e_r_cdir_down encaps e_r_down
+- Fr: e_r_cdir_down OB CLE₁
+- Chain: CLE₁.oEnd < e₂.oEnd < e_r_down.oEnd < e_r_cdir_down.oEnd, and e_r_cdir_down.oEnd < CLE₁.oStart ≤ CLE₁.oEnd
+- So: CLE₁.oEnd < e_r_cdir_down.oEnd < CLE₁.oEnd. Contradiction!
+
+**Key insight**: The chain goes through SPECIFIC protocol events (CLE, e_r_down, e_r_cdir_down), NOT cache event oEnd. The contradiction is on a SPECIFIC protocol event (CLE₁) that loops. The proof traces OB on these protocol events, NOT oEnd on cache events.
+
 ### How the acyclicity proof works (no ranking needed!)
 
 **The cycle contradiction chains SPECIFIC OB relationships between protocol events:**
