@@ -157,14 +157,11 @@ theorem step_finishesBefore
               -- hencapPD : encapProxyAndDirAndCDown e_w hr_c_and_g_lin
               -- hencapPD.existsRDownAtW : ∃ e_r_down, ... ∧ e_w OB e_r_down
               -- hencapPD.encapDir.existsRClusterDirDown : ∃ e_r_cdir_down, ... ∧ encapDirRelation
-              -- Extract e_r_down and its OB with e_w
-              obtain ⟨e_r_down, _, _, _, hw_ob_rdown⟩ := hencapPD.existsRDownAtW
-              -- Extract e_r_cdir_down and encapDirRelation
-              obtain ⟨e_r_cdir_down, _, _, _, hencap_rel⟩ := hencapPD.encapDir.existsRClusterDirDown
-              -- Chain: e₁.oEnd < e_r_down.oStart (from OB)
-              -- e_r_down.oEnd < CLE(e₂).oEnd (from encapDirRelation)
-              -- CLE(e₂).oEnd < e₂.oEnd (from dirAccessOfRequest)
-              -- Need to extract and compose these
+              -- Have: e_w OB e_r_down (existsRDownAtW)
+              --       e_r_cdir_down inside CLE(e_r) (encapDirRelation)
+              -- Missing: e_r_cdir_down encaps e_r_down (NOT in current structure)
+              -- This is a known TODO in Rf.lean:335 (clusterDirDownFromProxy)
+              -- With this connection: e₁.oEnd < e_r_down.oEnd < e_r_cdir_down.oEnd < CLE.oEnd < e₂.oEnd
               sorry
             | notImmPred _ => sorry
           | wNoPermsAfter _ _ _ => sorry
