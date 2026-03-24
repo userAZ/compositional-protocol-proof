@@ -159,7 +159,7 @@ lemma CMCM.rf.wObRGle.diffCluster.evictOrReadBetweenWAndRDown
               simp [Event.isDirReadOrEvict, Event.isDirRead, Request.isRead, h_rw] at h_is_read
     · -- e_w does NOT leave SW state → use wNoPermsAfter or wCleAfter
       have hr_cle_after : WriteRead.wObRCle.diffCache.rCleOrDownAtWAfterWCle hw_c_and_g_lin hr_c_and_g_lin :=
-        .diffCluster hdiff_cluster hw_cle_imm_pred_down.rDown.encapDir
+        .diffCluster hdiff_cluster hw_cle_imm_pred_down.rDown.encapDir hw_cle_imm_pred_down.wObRDown
       have hw_dir_access := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
       cases hw_dir_access with
       | encapDir hreq_missing_perms _ =>
