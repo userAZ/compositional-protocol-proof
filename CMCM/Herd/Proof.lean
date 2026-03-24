@@ -209,9 +209,67 @@ theorem step_advances
             -- CLE₁ OB CLE₂ → CLE₁.oEnd < CLE₂.oStart < CLE₂.oEnd
             exact Nat.lt_trans hob de₂.oWellFormed
           | inr hob =>
-            -- CLE₂ OB CLE₁ → impossible for PPOi e₁ OB e₂
-            -- (requires protocol-level dirAccessOfRequest 9-case analysis)
-            sorry
+            -- CLE₂ OB CLE₁ (de₂.oEnd < de₁.oStart) → derive False
+            -- Key chain: for non-orderAfterDir e₁, de₁.oEnd ≤ e₁.oEnd < e₂.oStart.
+            -- For encapDir/orderAfterDir e₂, e₂.oStart < de₂.oStart or e₂.oEnd < de₂.oStart.
+            -- This gives de₂.oEnd < de₁.oStart ≤ de₁.oEnd < ... < de₂.oEnd → contradiction.
+            exfalso
+            have he₁_ob_e₂ := hppoi.orderedBefore -- e₁.oEnd < e₂.oStart
+            have hda₂ := h₂_lin.hreq's_dir_access.choose_spec.2
+            -- de₂.oEnd < de₁.oStart from hob (DirectoryEvent.OrderedBefore)
+            -- de₁.oStart < de₁.oEnd from well-formedness
+            have hde₂_lt_de₁ : de₂.oEnd < de₁.oEnd :=
+              Nat.lt_trans hob de₁.oWellFormed
+            -- Case split on e₂'s dirAccessOfRequest to bound de₂ vs e₂
+            rw [hc₂] at hda₂
+            cases hda₂ with
+            | encapDir _ hencap₂ =>
+              -- e₂ encapsulates CLE₂: e₂.oStart < de₂.oStart, de₂.oEnd < e₂.oEnd
+              -- Chain: de₂.oEnd < de₁.oStart ≤ de₁.oEnd ≤ e₁.oEnd < e₂.oStart < de₂.oStart < de₂.oEnd
+              have hda₁ := h₁_lin.hreq's_dir_access.choose_spec.2
+              rw [hc₁] at hda₁
+              cases hda₁ with
+              | encapDir _ hencap₁ =>
+                -- de₁ inside e₁: de₁.oEnd < e₁.oEnd
+                have : de₂.oEnd < de₂.oEnd :=
+                  calc de₂.oEnd < de₁.oStart := hob
+                    _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
+                    _ < e₁.oEnd := hencap₁.reqEncapDir.right
+                    _ < e₂.oStart := he₁_ob_e₂
+                    _ < de₂.oStart := hencap₂.reqEncapDir.left
+                    _ < de₂.oEnd := de₂.oWellFormed
+                exact Nat.lt_irrefl _ this
+              | orderBeforeDir _ hexists_pred₁ hpred₁ _ _ _ _ _ =>
+                -- de₁ inside predecessor, predecessor OB e₁
+                -- Chain: de₂ < de₁ < pred < e₁ < e₂ < de₂ → contradiction
+                have : de₂.oEnd < de₂.oEnd :=
+                  calc de₂.oEnd < de₁.oStart := hob
+                    _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
+                    _ < hexists_pred₁.choose.oEnd := hpred₁.reqEncapDir.right
+                    _ < e₁.oStart := hexists_pred₁.choose_spec.2.isImmPred.bPred.isPred
+                    _ < e₁.oEnd := (Event.oWellFormed n e₁)
+                    _ < e₂.oStart := he₁_ob_e₂
+                    _ < de₂.oStart := hencap₂.reqEncapDir.left
+                    _ < de₂.oEnd := de₂.oWellFormed
+                exact Nat.lt_irrefl _ this
+              | orderAfterDir _ _ _ _ =>
+                -- e₁ orderAfterDir → CLE₁ = CLE₂ for nc.weak PPOi (vacuous in CLE₁ ≠ CLE₂ branch)
+                sorry
+            | orderBeforeDir _ _ _ _ _ _ _ _ =>
+              -- e₂ orderBeforeDir: protocol-level argument needed
+              sorry
+            | orderAfterDir _ _ _ _ =>
+              -- e₂ orderAfterDir: e₂.oEnd < de₂.oStart
+              -- Chain: de₂.oEnd < de₁.oStart, need to bound de₁ vs e₁ vs e₂ vs de₂
+              have hda₁ := h₁_lin.hreq's_dir_access.choose_spec.2
+              rw [hc₁] at hda₁
+              cases hda₁ with
+              | encapDir _ hencap₁ =>
+                sorry -- similar chain as encapDir/encapDir case
+              | orderBeforeDir _ _ _ _ _ _ _ _ =>
+                sorry -- similar chain
+              | orderAfterDir _ _ _ _ =>
+                sorry -- vacuous (CLE₁ = CLE₂ for nc.weak)
         | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
       | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
   | inr hcom =>
@@ -358,10 +416,13 @@ theorem step_advances
           -- dir_ordered gives total ordering on CLEs (same address in model)
           have hordered := b.orderedAtEntry.dir_ordered de₁ de₂
           by_cases hde_eq : de₁ = de₂
-          · -- Same CLE: secondary advances
-            right
-            simp only [Event.oEnd, hc₁, hc₂]
-            exact ⟨congrArg DirectoryEvent.oEnd hde_eq, sorry⟩ -- fr e₁.oEnd < e₂.oEnd
+          · -- Same DirectoryEvent: dir_ordered on equal events gives False
+            -- (de.oEnd < de.oStart from Ordered contradicts de.oWellFormed)
+            exfalso
+            rw [hde_eq] at hordered
+            cases hordered.ordered with
+            | inl h => exact Nat.lt_asymm de₂.oWellFormed h
+            | inr h => exact Nat.lt_asymm de₂.oWellFormed h
           · -- Different CLEs: dir_ordered gives ordering
             left
             simp only [Event.oEnd, hc₁, hc₂]
