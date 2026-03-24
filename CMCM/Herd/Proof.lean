@@ -602,7 +602,7 @@ theorem step_advances
               -- CLE₂ OB CLE₁. Use co⁺ chain to get CLE_w ≤ CLE₂,
               -- then dir_ordered on CLE₁ and CLE_w to derive contradiction.
               exfalso
-              obtain ⟨e_w, _, e_w_lin, _, h_rf, h_co_chain⟩ := h.comm
+              obtain ⟨e_w, _, e_w_lin, _, h_rf, h_no_between, h_co_chain⟩ := h.comm
               -- Get canonical linearization function
               have hlin := fun e => h.hknow_dir_access compound b init e
               -- co⁺ chain gives CLE_w lex≤ CLE₂

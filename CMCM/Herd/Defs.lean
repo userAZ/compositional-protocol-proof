@@ -1,4 +1,5 @@
 import CMCM.Rf
+import CMCM.RfProofDefs
 import CompositionalProtocolProof.CompositionalMCM
 
 /-!
@@ -140,11 +141,12 @@ structure fr (e₁ e₂ : Event n) : Prop where
   e₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
   /-- rf⁻¹ ; co⁺ decomposition: e₁ reads from e_w at some communication level
-      (full readsFrom.cases structure), and e₂ overwrites e_w via co⁺. -/
+      (full readsFrom.cases structure + NoInterveningWrites), and e₂ overwrites e_w via co⁺. -/
   comm : ∃ (e_w : Event n) (e_w_write : e_w.isWrite)
     (e_w_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e_w),
     e_w.addr = e₁.addr ∧
     Behaviour.readsFrom.cases e_w_write read e_w_lin e₁_lin hknow_dir_access ∧
+    NoInterveningWrites e_w_write read e_w_lin e₁_lin hknow_dir_access ∧
     Relation.TransGen (@co n compound b init) e_w e₂
 
 end Herd
