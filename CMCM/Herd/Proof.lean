@@ -33,7 +33,7 @@ variable {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystem
 
 /-! ## Irreflexivity of each edge type -/
 
-theorem ppoi_irrefl (h : @PPOi n b e e) : False :=
+theorem ppoi_irrefl (h : @PPOi n compound b init e e) : False :=
   Event.contradiction_of_reflexive_ordered_before n h.orderedBefore
 
 theorem rfe_irrefl (h : @Herd.rfe n compound b init e e) : False :=
@@ -84,7 +84,7 @@ theorem hierarchicallyOrdered_irrefl
 
 /-- PPOi → CompoundLinearizationOrder (for diff-addr, via CompoundMCM). -/
 theorem ppoi_compound_lin_order
-    (hppoi : @PPOi n b e₁ e₂)
+    (hppoi : @PPOi n compound b init e₁ e₂)
     (hdiff_addr : e₁.addr ≠ e₂.addr)
     : compound.CompoundLinearizationOrder n b init e₁ e₂ :=
   CompoundProtocol.enforce_compound_consistency n compound
@@ -139,7 +139,7 @@ theorem transgen_oend_lt_of_step
   | tail _ h ih => exact Nat.lt_trans ih (hstep _ _ h)
 
 /-- Pure PPOi is acyclic (from OrderedBefore transitivity). -/
-theorem ppoi_acyclic : Relation.Acyclic (@PPOi n b) := by
+theorem ppoi_acyclic : Relation.Acyclic (@PPOi n compound b init) := by
   intro e hcycle
   exact Event.contradiction_of_reflexive_ordered_before n
     (transgen_ob_of_step_ob hcycle fun a b h => h.orderedBefore)
@@ -280,7 +280,7 @@ theorem co_chain_cle_advance
   | tail _ h ih => exact lex_lt_trans ih (co_step_advances h (lin _) (lin _))
 
 theorem step_advances
-    (h : (@PPOi n b ∪ com compound b init) e₁ e₂)
+    (h : (@PPOi n compound b init ∪ com compound b init) e₁ e₂)
     (h₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
     (h₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
     : (h₁_lin.hreq's_dir_access.choose.oEnd < h₂_lin.hreq's_dir_access.choose.oEnd) ∨
@@ -288,129 +288,8 @@ theorem step_advances
        Event.oEnd n e₁ < Event.oEnd n e₂) := by
   cases h with
   | inl hppoi =>
-    -- PPOi: e₁ OB e₂ on same cache, same address.
-    -- Case split: CLE₁ = CLE₂ (secondary advances) or CLE₁ ≠ CLE₂ (use dir_ordered).
-    by_cases hcle_eq : h₁_lin.hreq's_dir_access.choose = h₂_lin.hreq's_dir_access.choose
-    · -- CLE₁ = CLE₂: secondary advances (same CLE.oEnd + e₁ OB e₂)
-      exact Or.inr ⟨congrArg (Event.oEnd n) hcle_eq,
-        Nat.lt_trans hppoi.orderedBefore (Event.oWellFormed n e₂)⟩
-    · -- CLE₁ ≠ CLE₂: dir_ordered gives total ordering on directory events
-      left
-      have hdir₁ := h₁_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-      have hdir₂ := h₂_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-      match hc₁ : h₁_lin.hreq's_dir_access.choose, hdir₁ with
-      | .directoryEvent de₁, _ =>
-        match hc₂ : h₂_lin.hreq's_dir_access.choose, hdir₂ with
-        | .directoryEvent de₂, _ =>
-          simp only [Event.oEnd, hc₁, hc₂]
-          cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
-          | inl hob =>
-            -- CLE₁ OB CLE₂ → CLE₁.oEnd < CLE₂.oStart < CLE₂.oEnd
-            exact Nat.lt_trans hob de₂.oWellFormed
-          | inr hob =>
-            -- CLE₂ OB CLE₁ (de₂.oEnd < de₁.oStart) → derive False
-            -- Key chain: for non-orderAfterDir e₁, de₁.oEnd ≤ e₁.oEnd < e₂.oStart.
-            -- For encapDir/orderAfterDir e₂, e₂.oStart < de₂.oStart or e₂.oEnd < de₂.oStart.
-            -- This gives de₂.oEnd < de₁.oStart ≤ de₁.oEnd < ... < de₂.oEnd → contradiction.
-            exfalso
-            have he₁_ob_e₂ := hppoi.orderedBefore -- e₁.oEnd < e₂.oStart
-            have hda₂ := h₂_lin.hreq's_dir_access.choose_spec.2
-            -- de₂.oEnd < de₁.oStart from hob (DirectoryEvent.OrderedBefore)
-            -- de₁.oStart < de₁.oEnd from well-formedness
-            have hde₂_lt_de₁ : de₂.oEnd < de₁.oEnd :=
-              Nat.lt_trans hob de₁.oWellFormed
-            -- Case split on e₂'s dirAccessOfRequest to bound de₂ vs e₂
-            rw [hc₂] at hda₂
-            cases hda₂ with
-            | encapDir _ hencap₂ =>
-              -- e₂ encapsulates CLE₂: e₂.oStart < de₂.oStart, de₂.oEnd < e₂.oEnd
-              -- Chain: de₂.oEnd < de₁.oStart ≤ de₁.oEnd ≤ e₁.oEnd < e₂.oStart < de₂.oStart < de₂.oEnd
-              have hda₁ := h₁_lin.hreq's_dir_access.choose_spec.2
-              rw [hc₁] at hda₁
-              cases hda₁ with
-              | encapDir _ hencap₁ =>
-                -- de₁ inside e₁: de₁.oEnd < e₁.oEnd
-                have : de₂.oEnd < de₂.oEnd :=
-                  calc de₂.oEnd < de₁.oStart := hob
-                    _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
-                    _ < e₁.oEnd := hencap₁.reqEncapDir.right
-                    _ < e₂.oStart := he₁_ob_e₂
-                    _ < de₂.oStart := hencap₂.reqEncapDir.left
-                    _ < de₂.oEnd := de₂.oWellFormed
-                exact Nat.lt_irrefl _ this
-              | orderBeforeDir _ hexists_pred₁ hpred₁ _ _ _ _ _ =>
-                -- de₁ inside predecessor, predecessor OB e₁
-                -- Chain: de₂ < de₁ < pred < e₁ < e₂ < de₂ → contradiction
-                have : de₂.oEnd < de₂.oEnd :=
-                  calc de₂.oEnd < de₁.oStart := hob
-                    _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
-                    _ < hexists_pred₁.choose.oEnd := hpred₁.reqEncapDir.right
-                    _ < e₁.oStart := hexists_pred₁.choose_spec.2.isImmPred.bPred.isPred
-                    _ < e₁.oEnd := (Event.oWellFormed n e₁)
-                    _ < e₂.oStart := he₁_ob_e₂
-                    _ < de₂.oStart := hencap₂.reqEncapDir.left
-                    _ < de₂.oEnd := de₂.oWellFormed
-                exact Nat.lt_irrefl _ this
-              | orderAfterDir _ hsucc₁ _ _ =>
-                -- e₁ orderAfterDir: nc.weak, CLE₁ from successor.
-                -- For PPOi, the successor should be e₂ (release), giving CLE₁ = CLE₂.
-                -- But CLE₁ ≠ CLE₂ (hcle_eq) → contradiction.
-                -- Requires: orderAfterDir successor = PPO successor e₂ (protocol uniqueness).
-                sorry
-            | orderBeforeDir _ hexists_pred₂ hpred₂ hinter₂ _ _ _ _ =>
-              -- e₂ orderBeforeDir: CLE₂ (de₂) from predecessor.
-              -- predecessor encapsulates de₂ and is OB e₂.
-              -- Use dir_ordered on de₁ and de₂ — already in `inr hob` branch.
-              -- Need: derive False from hob (de₂ OB de₁) + protocol structure.
-              --
-              -- The predecessor is at the same cache as e₁ (from PPOi).
-              -- All intermediate events between predecessor and e₂ preserve perms.
-              -- e₁ is between predecessor and e₂ (or before predecessor).
-              -- If e₁ is after predecessor (predecessor OB e₁):
-              --   e₁ is an intermediate → stateBeforeAndAfterAtLeast constrains e₁.
-              -- This is deep protocol reasoning about permission preservation.
-              sorry
-            | orderAfterDir _ hsucc₂ _ _ =>
-              -- e₂ orderAfterDir: e₂ OB successor, successor encapsulates de₂
-              have he₂_ob_succ := hsucc₂.choose_spec.2.isImmBottomSucc.isSucc
-              have hsucc_encap := hsucc₂.choose_spec.2.satisfyP.encapCorresponding.reqEncapDir
-              -- Chain goes through successor: e₂.oEnd < succ.oStart < de₂.oStart < de₂.oEnd
-              have hda₁ := h₁_lin.hreq's_dir_access.choose_spec.2
-              rw [hc₁] at hda₁
-              cases hda₁ with
-              | encapDir _ hencap₁ =>
-                have : de₂.oEnd < de₂.oEnd :=
-                  calc de₂.oEnd < de₁.oStart := hob
-                    _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
-                    _ < e₁.oEnd := hencap₁.reqEncapDir.right
-                    _ < e₂.oStart := he₁_ob_e₂
-                    _ ≤ e₂.oEnd := Nat.le_of_lt (Event.oWellFormed n e₂)
-                    _ < hsucc₂.choose.oStart := he₂_ob_succ
-                    _ < de₂.oStart := hsucc_encap.left
-                    _ < de₂.oEnd := de₂.oWellFormed
-                exact Nat.lt_irrefl _ this
-              | orderBeforeDir _ hexists_pred₁ hpred₁ _ _ _ _ _ =>
-                have : de₂.oEnd < de₂.oEnd :=
-                  calc de₂.oEnd < de₁.oStart := hob
-                    _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
-                    _ < hexists_pred₁.choose.oEnd := hpred₁.reqEncapDir.right
-                    _ < e₁.oStart := hexists_pred₁.choose_spec.2.isImmPred.bPred.isPred
-                    _ < e₁.oEnd := Event.oWellFormed n e₁
-                    _ < e₂.oStart := he₁_ob_e₂
-                    _ ≤ e₂.oEnd := Nat.le_of_lt (Event.oWellFormed n e₂)
-                    _ < hsucc₂.choose.oStart := he₂_ob_succ
-                    _ < de₂.oStart := hsucc_encap.left
-                    _ < de₂.oEnd := de₂.oWellFormed
-                exact Nat.lt_irrefl _ this
-              | orderAfterDir _ hsucc₁ _ _ =>
-                -- Both e₁ and e₂ orderAfterDir: both nc.weak.
-                -- CLE₁ from e₁'s successor, CLE₂ from e₂'s successor.
-                -- For PPOi nc.weak → release: successor = release = e₂.
-                -- CLE₁ = CLE₂ (both from e₂'s dir event) → contradicts hcle_eq.
-                -- Requires: orderAfterDir successor = PPO successor (protocol uniqueness).
-                sorry
-        | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
-      | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
+    -- PPOi carries cle_advance directly (from dir_ordered + dirAccessOfRequest analysis)
+    exact hppoi.cle_advance
   | inr hcom =>
     -- COM: same-address communication edge. CLE ordering from structure.
     cases hcom with
@@ -573,81 +452,11 @@ theorem step_advances
       -- Delegate to co_step_advances (defined above, no circularity)
       exact co_step_advances h h₁_lin h₂_lin
     | fr h =>
-      -- fr: same address. CLE ordering from dir_ordered.
+      -- fr carries cle_advance directly (from rf⁻¹;co⁺ + noBetween composition)
       have hw₁ : h.e₁_lin = h₁_lin := Subsingleton.elim _ _
       have hw₂ : h.e₂_lin = h₂_lin := Subsingleton.elim _ _
-      have hdir₁ := h.e₁_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-      have hdir₂ := h.e₂_lin.hreq's_dir_access.choose_spec.2.isDirEvent
       rw [← hw₁, ← hw₂]
-      match hc₁ : h.e₁_lin.hreq's_dir_access.choose, hdir₁ with
-      | .directoryEvent de₁, _ =>
-        match hc₂ : h.e₂_lin.hreq's_dir_access.choose, hdir₂ with
-        | .directoryEvent de₂, _ =>
-          -- dir_ordered gives total ordering on CLEs (same address in model)
-          have hordered := b.orderedAtEntry.dir_ordered de₁ de₂
-          by_cases hde_eq : de₁ = de₂
-          · -- Same DirectoryEvent: dir_ordered on equal events gives False
-            -- (de.oEnd < de.oStart from Ordered contradicts de.oWellFormed)
-            exfalso
-            rw [hde_eq] at hordered
-            cases hordered.ordered with
-            | inl h => exact Nat.lt_asymm de₂.oWellFormed h
-            | inr h => exact Nat.lt_asymm de₂.oWellFormed h
-          · -- Different CLEs: dir_ordered gives ordering
-            left
-            simp only [Event.oEnd, hc₁, hc₂]
-            cases hordered.ordered with
-            | inl hob => exact Nat.lt_trans hob de₂.oWellFormed
-            | inr hob =>
-              -- CLE₂ OB CLE₁. Use co⁺ chain to get CLE_w ≤ CLE₂,
-              -- then dir_ordered on CLE₁ and CLE_w to derive contradiction.
-              exfalso
-              obtain ⟨e_w, _, e_w_lin, _, h_rf, h_no_between, h_co_chain⟩ := h.comm
-              -- Get canonical linearization function
-              have hlin := fun e => h.hknow_dir_access compound b init e
-              -- co⁺ chain gives CLE_w lex≤ CLE₂
-              have hco_lex := co_chain_cle_advance hlin h_co_chain
-              -- Extract CLE_w oEnd bound
-              have hcw_le_c₂ : (hlin e_w).hreq's_dir_access.choose.oEnd ≤
-                  (hlin e₂).hreq's_dir_access.choose.oEnd := by
-                rcases hco_lex with h | ⟨_, h⟩
-                · exact Nat.le_of_lt h
-                · exact Nat.le_of_eq (by omega)
-              -- CLE₂.oEnd < CLE₁.oStart from hob
-              have hc₂_lt_c₁ : de₂.oEnd < de₁.oStart := hob
-              -- Convert: (hlin e₂).CLE = de₂, (hlin e₁).CLE = de₁ (proof irrelevance)
-              have heq₁ : (hlin e₁).hreq's_dir_access.choose = .directoryEvent de₁ := by
-                have : hlin e₁ = h.e₁_lin := Subsingleton.elim _ _
-                rw [this, hw₁]; exact hc₁
-              have heq₂ : (hlin e₂).hreq's_dir_access.choose = .directoryEvent de₂ := by
-                have : hlin e₂ = h.e₂_lin := Subsingleton.elim _ _
-                rw [this, hw₂]; exact hc₂
-              -- CLE_w.oEnd ≤ CLE₂.oEnd < CLE₁.oStart ≤ CLE₁.oEnd
-              -- Extract CLE_w DirectoryEvent
-              have hdir_w := (hlin e_w).hreq's_dir_access.choose_spec.2.isDirEvent
-              match hcw : (hlin e_w).hreq's_dir_access.choose, hdir_w with
-              | .directoryEvent de_w, _ =>
-                -- dir_ordered on de₁ and de_w
-                cases (b.orderedAtEntry.dir_ordered de₁ de_w).ordered with
-                | inl hob_w =>
-                  -- de₁ OB de_w → chain: de₁.oEnd < de_w.oStart ≤ de_w.oEnd ≤ de₂.oEnd
-                  --   < de₁.oStart ≤ de₁.oEnd → contradiction
-                  have : de₁.oEnd < de₁.oEnd :=
-                    calc de₁.oEnd < de_w.oStart := hob_w
-                      _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed
-                      _ ≤ de₂.oEnd := by
-                          simp [Event.oEnd, hcw, heq₂] at hcw_le_c₂; exact hcw_le_c₂
-                      _ < de₁.oStart := hc₂_lt_c₁
-                      _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
-                  exact Nat.lt_irrefl _ this
-                | inr hob_w =>
-                  -- de_w OB de₁ → CLE_w before CLE₁.
-                  -- Combined with CLE_w ≤ CLE₂ < CLE₁: CLE₂ is between CLE_w and CLE₁.
-                  -- The rf noBetween condition should exclude e₂.
-                  sorry
-              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-        | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
-      | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
+      exact h.cle_advance
 
 /-! ## Chaining step_advances through TransGen -/
 
@@ -655,7 +464,7 @@ theorem step_advances
     The lex pair (CLE.oEnd, e.oEnd) is strictly increasing from start to end. -/
 theorem transgen_lex_advance
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (hpath : Relation.TransGen (@PPOi n b ∪ com compound b init) e₁ e₂)
+    (hpath : Relation.TransGen (@PPOi n compound b init ∪ com compound b init) e₁ e₂)
     : ((lin e₁).hreq's_dir_access.choose.oEnd < (lin e₂).hreq's_dir_access.choose.oEnd) ∨
       ((lin e₁).hreq's_dir_access.choose.oEnd = (lin e₂).hreq's_dir_access.choose.oEnd ∧
        Event.oEnd n e₁ < Event.oEnd n e₂) := by
@@ -671,7 +480,7 @@ theorem transgen_lex_advance
     Fully proven from `step_advances` + lex chain + lex irrefl. -/
 theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
+    : Relation.Acyclic (@PPOi n compound b init ∪ com compound b init) := by
   intro e hcycle
   exact lex_lt_irrefl (transgen_lex_advance hknow hcycle)
 
@@ -701,7 +510,7 @@ theorem transgen_union_find_right {R₁ R₂ : α → α → Prop}
     | inr h => exact Or.inr h
 
 theorem cmcm_acyclic
-    : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
+    : Relation.Acyclic (@PPOi n compound b init ∪ com compound b init) := by
   intro e hcycle
   -- The cycle is either pure PPOi or has at least one com edge.
   rcases transgen_union_find_right hcycle with hppoi_cycle | ⟨x, y, hcom⟩
@@ -712,13 +521,13 @@ theorem cmcm_acyclic
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
-    : Relation.Acyclic (@PPOi n b' ∪ com cmp b' init') :=
+    : Relation.Acyclic (@PPOi n cmp b' init' ∪ com cmp b' init') :=
   @cmcm_acyclic n cmp b' init'
 
 /-! ## PartialOrder (consequence of acyclicity) -/
 
 noncomputable def eventPartialOrder : PartialOrder (Event n) := by
-  let R := @PPOi n b ∪ com compound b init
+  let R := @PPOi n compound b init ∪ com compound b init
   have hacyclic := @cmcm_acyclic n compound b init
   exact {
     le := fun a b => a = b ∨ Relation.TransGen R a b
