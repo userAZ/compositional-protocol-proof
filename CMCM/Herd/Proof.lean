@@ -233,7 +233,15 @@ noncomputable def eventPartialOrder
       | inr hab => cases hba with
         | inl h => exact h.symm
         | inr hba => exact absurd (Trans.trans hab hba) (hacyclic a)
-    lt_iff_le_not_ge := sorry -- Mechanical: lt ↔ le ∧ ¬ge from acyclicity
+    lt_iff_le_not_ge := fun {x y} => Iff.intro
+      (fun h => ⟨Or.inr h, fun hba => by
+        cases hba with
+        | inl heq => exact hacyclic x (heq ▸ h)
+        | inr hba => exact hacyclic x (Trans.trans h hba)⟩)
+      (fun ⟨hab, hnba⟩ => by
+        cases hab with
+        | inl heq => exact absurd (Or.inl rfl) (heq ▸ hnba)
+        | inr h => exact h)
   }
 
 end Herd
