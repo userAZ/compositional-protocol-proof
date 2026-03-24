@@ -124,7 +124,24 @@ theorem step_gives_ob
     : e₁.OrderedBefore n e₂ := by
   cases hstep with
   | inl hppoi => exact hppoi.orderedBefore
-  | inr hcom => sorry -- COM: protocol event chain gives e₁ OB e₂
+  | inr hcom =>
+    -- COM: the communication at a common level gives e₁ OB e₂.
+    -- The protocol guarantees: the source event finishes before the
+    -- target event starts, because the value must be propagated first.
+    -- For same-cache (co.sameCle): direct OB from cache ordering.
+    -- For cross-cache/cluster: the downgrade chain establishes temporal ordering.
+    -- For nc.weak orderAfterDir: the value was cached from a PREVIOUS
+    -- interaction that happened before the reader started.
+    cases hcom with
+    | rfe h => sorry -- rfe: e_w finishes before e_r starts (protocol guarantee)
+    | co h =>
+      cases h.ordering with
+      | sameGle _ cle_cases =>
+        cases cle_cases with
+        | sameCle _ cache_ob => exact cache_ob  -- direct OB ✓
+        | diffCle _ => sorry -- CLE ordering: protocol temporal argument
+      | wObRGle _ _ => sorry -- GLE ordering: protocol temporal argument
+    | fr h => sorry -- fr: composition
 
 /-- The acyclicity theorem follows from step_gives_ob + OB transitivity.
     TransGen (PPOi ∪ com) e e gives e OB e via OB transitivity.
