@@ -79,42 +79,42 @@ structure rfe (e₁ e₂ : Event n) : Prop where
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
   readsFrom : Behaviour.readsFrom.cases write read w_lin r_lin hknow_dir_access
 
-/-- CO same-GLE sub-cases (Prop-valued, mirroring `readsFrom.wEqRGle.cases`).
-    When both writes share a GLE, ordering comes from CLE or cache level. -/
-inductive co.sameGle.cases
+/-- CO communication ordering: describes HOW e_w2 overwrites e_w1.
+    Organized by communication level (like RF's `readsFrom.cases` but for writes).
+    Each constructor describes the specific communication mechanism.
+    Parameterized by both events, their write evidence, and linearizations (like RF). -/
+inductive co.ordering
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e₁ e₂ : Event n}
+    (hw₁ : e₁.isWrite) (hw₂ : e₂.isWrite)
     (w₁_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
     (w₂_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂)
     : Prop
-  /-- Same CLE: ordering at cache level (mirrors RF's `EqGleCle.case.wObR`). -/
-  | sameCle
-    (cle_eq : w₁_lin.hreq's_dir_access.choose = w₂_lin.hreq's_dir_access.choose)
+  /-- Same cache: direct cache ordering. Both writes at the same cache,
+      serialized by the cache. Evidence: e₁ OB e₂ + same CLE. -/
+  | sameCache
+    (same_cle : w₁_lin.hreq's_dir_access.choose = w₂_lin.hreq's_dir_access.choose)
     (cache_ob : e₁.OrderedBefore n e₂)
-  /-- Different CLE: ordering from CLE sub-cases (reuses RF's `SameCluster.cleOb.cleOrdering.Cases`). -/
-  | diffCle
+  /-- Same cluster, different cache: cluster directory serializes the writes.
+      The second write's request triggers a downgrade at the first write's cache.
+      Evidence: CLE ordering from SameCluster.cleOb.cleOrdering.Cases
+      (carries wImmPredRCle or evictOrReadBetween with downgrade chain). -/
+  | sameClusDiffCache
+    (same_protocol : e₁.sameProtocol n e₂)
     (cle_ordering : CompoundProtocol.SameCluster.cleOb.cleOrdering.Cases w₁_lin w₂_lin)
-
-/-- CO communication pattern cases (Prop-valued, mirroring `readsFrom.cases`).
-    Two writes to the same address, with w₂ overwriting w₁ through the protocol
-    hierarchy. Reuses RF's Prop-valued sub-types where possible. -/
-inductive co.cases
-    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e₁ e₂ : Event n}
-    (w₁_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
-    (w₂_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂)
-    : Prop
-  /-- Same GLE with CLE sub-cases (mirrors `readsFrom.cases.wEqRGle`). -/
-  | sameGle
-    (gle_eq : w₁_lin.hreq's_global_lin.choose = w₂_lin.hreq's_global_lin.choose)
-    (cle_cases : co.sameGle.cases w₁_lin w₂_lin)
-  /-- GLE₁ strictly before GLE₂, with CLE sub-cases (mirrors `readsFrom.cases.wObRGle`).
-      Reuses RF's `gleOB.Cluster.SameOrDiff.cleOrdering.Cases` (Prop, no isRead dependency). -/
-  | wObRGle
-    (gle_ob : w₁_lin.hreq's_global_lin.choose.OrderedBefore n w₂_lin.hreq's_global_lin.choose)
-    (cle_cases : CompoundProtocol.gleOB.Cluster.SameOrDiff.cleOrdering.Cases w₁_lin w₂_lin)
+  /-- Different cluster: cross-cluster downgrade chain.
+      The second write's request propagates through global directory to trigger
+      a downgrade at the first write's cluster.
+      Evidence: DifferentCluster.cleOB.cleOrdering.Cases
+      (carries wCleImmPredDown or evictOrReadBetweenWAndRDown with wObRDown + encapDirRelation). -/
+  | diffClus
+    (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (cle_ordering : CompoundProtocol.DifferentCluster.cleOB.cleOrdering.Cases w₁_lin w₂_lin)
 
 /-- co: Coherence order.
-    Two writes to the same address, where w₂ overwrites w₁. Communication pattern
-    captured by `co.cases` (Prop-valued, mirroring `readsFrom.cases` structure). -/
+    Two writes to the same address, where w₂ overwrites w₁.
+    Communication evidence describes HOW the overwrite happens (same cache,
+    same cluster diff cache, or diff cluster), using the same downgrade chain
+    structures as RF. -/
 structure co (e₁ e₂ : Event n) : Prop where
   write₁ : e₁.isWrite
   write₂ : e₂.isWrite
@@ -122,7 +122,7 @@ structure co (e₁ e₂ : Event n) : Prop where
   w₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
   w₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
-  ordering : co.cases w₁_lin w₂_lin
+  comm : co.ordering write₁ write₂ w₁_lin w₂_lin
 
 /-- fr: From-reads (rf⁻¹ ; co⁺).
     A read e₁ reads from some write e_w, and e₂ is a write reachable from e_w

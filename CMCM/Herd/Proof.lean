@@ -40,22 +40,17 @@ theorem rfe_irrefl (h : @Herd.rfe n compound b init e e) : False :=
   absurd rfl h.diffCache
 
 theorem co_irrefl (h : @Herd.co n compound b init e e) : False := by
-  cases h.ordering with
-  | sameGle _ cle_cases =>
-    cases cle_cases with
-    | sameCle _ hob => exact Event.contradiction_of_reflexive_ordered_before n hob
-    | diffCle cle_ord =>
-      cases cle_ord with
-      | wImmPredRCle w =>
-        cases w with
-        | sameCluster _ hob => exact Event.contradiction_of_reflexive_ordered_before n hob
-        | diffCluster hdiff _ =>
-          have : h.w₁_lin = h.w₂_lin := Subsingleton.elim _ _
-          exact hdiff (by rw [← same_gle_implies_same_protocol h.w₁_lin h.w₂_lin
-            (by cases h.ordering with | sameGle h _ => exact h | wObRGle h _ => rfl)])
-      | evictOrReadBetweenWAndRCleSameCluster evict =>
-        exact Event.contradiction_of_reflexive_ordered_before n evict.wObR
-  | wObRGle hob _ => exact Event.contradiction_of_reflexive_ordered_before n hob
+  cases h.comm with
+  | sameCache _ hob => exact Event.contradiction_of_reflexive_ordered_before n hob
+  | sameClusDiffCache _ cle_ord =>
+    cases cle_ord with
+    | wImmPredRCle w =>
+      cases w with
+      | sameCluster _ hob => exact Event.contradiction_of_reflexive_ordered_before n hob
+      | diffCluster hdiff _ _ => exact absurd rfl hdiff
+    | evictOrReadBetweenWAndRCleSameCluster evict =>
+      exact Event.contradiction_of_reflexive_ordered_before n evict.wObR
+  | diffClus hdiff _ => exact absurd rfl hdiff
 
 theorem fr_irrefl (h : @Herd.fr n compound b init e e) : False := by
   have hread := h.read
@@ -193,74 +188,50 @@ theorem co_step_advances
     : (h₁_lin.hreq's_dir_access.choose.oEnd < h₂_lin.hreq's_dir_access.choose.oEnd) ∨
       (h₁_lin.hreq's_dir_access.choose.oEnd = h₂_lin.hreq's_dir_access.choose.oEnd ∧
        Event.oEnd n e₁ < Event.oEnd n e₂) := by
-  -- co: case split on co.cases
+  -- co: case split on co.ordering (communication level)
   have hw₁ : h.w₁_lin = h₁_lin := Subsingleton.elim _ _
   have hw₂ : h.w₂_lin = h₂_lin := Subsingleton.elim _ _
-  cases h.ordering with
-  | sameGle gle_eq cle_cases =>
-    cases cle_cases with
-    | sameCle cle_eq cache_ob =>
-      right; constructor
-      · rw [← hw₁, ← hw₂]; exact congrArg (Event.oEnd n) cle_eq
-      · exact Nat.lt_trans cache_ob (Event.oWellFormed n e₂)
-    | diffCle cle_ord =>
-      left; cases cle_ord with
-      | wImmPredRCle w =>
-        cases w with
-        | sameCluster _ hob =>
-          rw [← hw₁, ← hw₂]
-          exact Nat.lt_trans hob (Event.oWellFormed n h.w₂_lin.hreq's_dir_access.choose)
-        | diffCluster hdiff hdown hwObRDown =>
-          rw [← hw₁, ← hw₂]
-          have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
-          have hcdir_encap_rel := hcdir_spec.2.2.2
-          have hcdir_lt : hdown.existsRClusterDirDown.choose.oEnd <
-              h.w₂_lin.hreq's_dir_access.choose.oEnd := by
-            cases hcdir_encap_rel with
-            | cleEncap henc => simp [Event.Encapsulates] at henc; exact henc.2
-            | gcacheEncap _ hlt => exact hlt
-          exact Nat.lt_trans (Nat.lt_trans hwObRDown
-            (Event.oWellFormed n hdown.existsRClusterDirDown.choose)) hcdir_lt
-      | evictOrReadBetweenWAndRCleSameCluster evict =>
-        rw [← hw₁, ← hw₂]
-        exact Nat.lt_trans evict.wObR (Event.oWellFormed n h.w₂_lin.hreq's_dir_access.choose)
-  | wObRGle gle_ob cle_cases =>
+  -- Helper: wObRDown + encapDirRelation → CLE₁.oEnd < CLE₂.oEnd
+  have chain_wObRDown :
+      ∀ (hdown : Behaviour.clusterDown.encapDir compound b init e₁ h.w₂_lin)
+        (hwOB : h.w₁_lin.hreq's_dir_access.choose.OrderedBefore n
+          hdown.existsRClusterDirDown.choose),
+      h.w₁_lin.hreq's_dir_access.choose.oEnd < h.w₂_lin.hreq's_dir_access.choose.oEnd := by
+    intro hdown hwOB
+    have hcdir_encap_rel := hdown.existsRClusterDirDown.choose_spec.2.2.2
+    have hcdir_lt : hdown.existsRClusterDirDown.choose.oEnd <
+        h.w₂_lin.hreq's_dir_access.choose.oEnd := by
+      cases hcdir_encap_rel with
+      | cleEncap henc => simp [Event.Encapsulates] at henc; exact henc.2
+      | gcacheEncap _ hlt => exact hlt
+    exact Nat.lt_trans (Nat.lt_trans hwOB
+      (Event.oWellFormed n hdown.existsRClusterDirDown.choose)) hcdir_lt
+  cases h.comm with
+  | sameCache cle_eq cache_ob =>
+    -- Same cache: secondary advance from e₁ OB e₂
+    right; constructor
+    · rw [← hw₁, ← hw₂]; exact congrArg (Event.oEnd n) cle_eq
+    · exact Nat.lt_trans cache_ob (Event.oWellFormed n e₂)
+  | sameClusDiffCache _ cle_ord =>
+    -- Same cluster, diff cache: CLE ordering from cluster dir serialization
     left; rw [← hw₁, ← hw₂]
-    cases cle_cases with
-    | sameCluster same_cluster same_cluster_cases =>
-      cases same_cluster_cases with
-      | wImmPredRCle w =>
-        cases w with
-        | sameCluster _ hob =>
-          exact Nat.lt_trans hob (Event.oWellFormed n h.w₂_lin.hreq's_dir_access.choose)
-        | diffCluster hdiff hdown =>
-          exact absurd same_cluster hdiff
-      | evictOrReadBetweenWAndRCleSameCluster evict =>
-        exact Nat.lt_trans evict.wObR (Event.oWellFormed n h.w₂_lin.hreq's_dir_access.choose)
-    | diffCluster diff_cluster diff_cluster_cases =>
-      cases diff_cluster_cases with
-      | wCleImmPredDown w =>
-        have hob := w.wObRDown
-        have hcdir_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
-        have hencap_rel := hcdir_spec.2.2.2
-        have hcdir_lt : w.rDown.encapDir.existsRClusterDirDown.choose.oEnd
-            < h.w₂_lin.hreq's_dir_access.choose.oEnd := by
-          cases hencap_rel with
-          | cleEncap henc => simp [Event.Encapsulates] at henc; exact henc.2
-          | gcacheEncap _ hlt => exact hlt
-        exact Nat.lt_trans (Nat.lt_trans hob
-          (Event.oWellFormed n w.rDown.encapDir.existsRClusterDirDown.choose)) hcdir_lt
-      | evictOrReadBetweenWAndRDown evict =>
-        have hob := evict.wObRDown
-        have hcdir_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
-        have hencap_rel := hcdir_spec.2.2.2
-        have hcdir_lt : evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd
-            < h.w₂_lin.hreq's_dir_access.choose.oEnd := by
-          cases hencap_rel with
-          | cleEncap henc => simp [Event.Encapsulates] at henc; exact henc.2
-          | gcacheEncap _ hlt => exact hlt
-        exact Nat.lt_trans (Nat.lt_trans hob
-          (Event.oWellFormed n evict.rDown.encapDir.existsRClusterDirDown.choose)) hcdir_lt
+    cases cle_ord with
+    | wImmPredRCle w =>
+      cases w with
+      | sameCluster _ hob =>
+        exact Nat.lt_trans hob (Event.oWellFormed n h.w₂_lin.hreq's_dir_access.choose)
+      | diffCluster hdiff hdown hwObRDown =>
+        exact chain_wObRDown hdown hwObRDown
+    | evictOrReadBetweenWAndRCleSameCluster evict =>
+      exact Nat.lt_trans evict.wObR (Event.oWellFormed n h.w₂_lin.hreq's_dir_access.choose)
+  | diffClus _ diff_cluster_cases =>
+    -- Different cluster: cross-cluster downgrade chain
+    left; rw [← hw₁, ← hw₂]
+    cases diff_cluster_cases with
+    | wCleImmPredDown w =>
+      exact chain_wObRDown w.rDown.encapDir w.wObRDown
+    | evictOrReadBetweenWAndRDown evict =>
+      exact chain_wObRDown evict.rDown.encapDir evict.wObRDown
 
 /-- Chain co_step_advances through TransGen co. -/
 theorem co_chain_cle_advance
