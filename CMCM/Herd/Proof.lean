@@ -106,18 +106,29 @@ Each edge gives OrderedBefore between specific protocol events.
 Both OB and EncapsulatedBy give strict oEnd increase.
 A cycle creates a chain of strict inequalities on oEnd that loops. -/
 
-/-- Each edge in PPOi ∪ com gives OB between specific protocol events,
-    which implies e₁.oEnd < some protocol event's oEnd related to e₂.
-    For PPOi: e₁ OB e₂ directly (same cache).
-    For COM: the communication chain (e_w OB e_r_down, encapsulation, etc.)
-    gives strict oEnd increase to a protocol event inside/related-to e₂. -/
+/-- For PPOi: e₁ OB e₂ directly gives e₁.oEnd < e₂.oEnd.
+    For COM: the communication chain (e_w OB e_r_down, EncapsulatedBy chain
+    to CLE, CLE inside e₂) gives e₁.oEnd < e₂.oEnd.
+    Both OB and EncapsulatedBy give strict oEnd increase:
+    - OB: e₁.oEnd < e₂.oStart < e₂.oEnd
+    - EncapsulatedBy: e₁.oEnd < e₂.oEnd (inner ends before outer) -/
 theorem step_ordered
     (hstep : (@PPOi n b ∪ com compound b init) e₁ e₂)
     : e₁.oEnd n < e₂.oEnd n := by
-  -- Both PPOi (e₁ OB e₂) and COM communication chains give
-  -- a sequence of OB/EncapsulatedBy steps with strictly increasing oEnd.
-  -- The chain ends at or inside e₂, giving e₁.oEnd < e₂.oEnd.
-  sorry
+  cases hstep with
+  | inl hppoi =>
+    -- PPOi: e₁ OB e₂ (same cache)
+    -- e₁.oEnd < e₂.oStart (OB) < e₂.oEnd (well-formedness)
+    exact Nat.lt_trans hppoi.orderedBefore (Event.oWellFormed n e₂)
+  | inr hcom =>
+    -- COM: the OB/EncapsulatedBy chain on protocol events gives
+    -- e₁.oEnd < ... < e₂.oEnd via the communication at a common level.
+    -- Each step in the chain: OB gives e₁.oEnd < e₂.oStart ≤ e₂.oEnd,
+    -- EncapsulatedBy gives e₁.oEnd < e₂.oEnd (inner ends before outer).
+    cases hcom with
+    | rfe h => sorry -- rfe: e_w OB e_r_down chain → e_w.oEnd < e_r.oEnd
+    | co h => sorry -- co: overwrite downgrade chain → e_w₁.oEnd < e_w₂.oEnd
+    | fr h => sorry -- fr: rf⁻¹;co composition → e₁.oEnd < e₂.oEnd
 
 theorem transgen_ordered
     (hpath : Relation.TransGen (@PPOi n b ∪ com compound b init) e₁ e₂)
