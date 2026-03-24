@@ -181,6 +181,9 @@ The rf/co⁺ witness documents the protocol-level justification.
 - [ ] Restructure `hierarchicallyOrdered` to carry specific ordered protocol events (not compoundLinEvent OB).
 - [ ] Verify CO/FR definitions match RF's descriptive style (co.cases mirrors readsFrom.cases, fr carries rf⁻¹;co).
 - [ ] Vacuity checks: all proofs use communication evidence, not single-address-model shortcuts.
+- [ ] `step_finishesBefore` rfe case: need to show e_w.oEnd < e_r.oEnd from the downgrade chain. Works for encapDir and orderBeforeDir. GAP: orderAfterDir case where CLE is from successor (CLE.oEnd > e_r.oEnd). Need: can rfe reader use orderAfterDir? If not, this case is vacuous.
+- [ ] `step_finishesBefore` co case: similar to rfe. Same orderAfterDir gap.
+- [ ] `step_finishesBefore` fr case: compose rf + co finishesBefore.
 - [ ] Lazy case in CompoundLinearizationOrder: `lazyCompoundLinearizationOrder` gives `finishesBefore` not `OrderedBefore`. Need: either show lazy case doesn't arise for PPOi, or show finishesBefore → OB for compound lin events.
 
 **DEAD ENDS (don't repeat):**
