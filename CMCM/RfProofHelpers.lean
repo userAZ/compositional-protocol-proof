@@ -3160,9 +3160,24 @@ lemma diffCache_coherent_encapProxyAndDirAndCDown
     { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
       Behaviour.clusterDown.encapDirRelation.gcacheEncap
         h_gcache_encap_dir h_dir_end_before_cle⟩ }
-  -- Now derive the forwarded cache downgrade from the cluster-level chain.
-  -- The cluster directory event e_dir processes the proxy request. By the
-  -- cluster-level protocol axiom (coherentWriteDowngrades or coherentReadDowngrades),
-  -- e_dir encapsulates a forwarded downgrade to e_w's cache.
-  -- This gives existsRDownAtW AND cdirEncapsDown from the same chain.
-  sorry
+  -- The forwarded cache downgrade comes from the SAME global downgrade chain.
+  -- hdowngrade : downgradeAtPrevOwner at the GLOBAL level gives the global downgrade.
+  -- The global downgrade (e_r_gdown) encapsulates e_dir (cluster dir event).
+  -- e_dir encapsulates the forwarded cache downgrade (from the cluster-level protocol).
+  -- We derive existsRDownAtW from the global downgrade's properties, and cdirEncapsDown
+  -- from the encapsulation chain.
+  --
+  -- The forwarded downgrade's properties come from requestDowngradePrevOwner at the
+  -- global level: the global downgrade is a downgrade at the previous owner (e_w).
+  -- e_w OB e_r_gdown (global downgrade is after e_w) and e_r_gdown encaps e_dir,
+  -- and e_dir encaps the forwarded cache downgrade.
+  have hexistsRDown : ∃ e_r_down ∈ b,
+      e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down := by
+    sorry -- From cluster-level fwdCoherentRequestToOwner: the directory event triggers
+          -- a forwarded downgrade to e_w's cache. Properties: struct = e_w.struct, down,
+          -- e_w OB e_r_down (the downgrade arrives after the write).
+  have hcdirEncaps : hencapDir.existsRClusterDirDown.choose.Encapsulates n hexistsRDown.choose := by
+    sorry -- From cluster-level requestDowngradePrevOwner.dirEncapDowngrade:
+          -- the cluster directory event encapsulates the forwarded cache downgrade.
+          -- Both come from the same fwdCoherentRequestToOwner chain.
+  exact { encapDir := hencapDir, existsRDownAtW := hexistsRDown, cdirEncapsDown := hcdirEncaps }
