@@ -105,7 +105,20 @@ derivable. The co⁺ chain composes on top of the first rf;co step.
 This is NOT a "nice-to-have" — it's LOAD-BEARING. The 3 remaining sorry's exist because
 the bare existential doesn't carry the cluster-specific communication evidence.
 
-**FR `cdir OB CLE_w` sorry's (939, 1036, 1040) — FUNDAMENTAL BLOCKER:**
+**FR `cdir OB CLE_w` sorry's — SOLVED via co step's wObRDown:**
+The co step's `diffClus` case carries `wObRDown : CLE_w OB e_r_cdir_down` — CLE_w is BEFORE
+the cluster directory downgrade. This is the SAME event as `cdir` from cdirEncapsDown_exists
+(via Subsingleton). So instead of `dir_ordered CLE_w cdir` (which gives both directions),
+use `wObRDown` from the FIRST co step DIRECTLY to get `CLE_w OB cdir`.
+
+For `sameClusDiffCache` co: the `cleOrdering.Cases` also carries temporal bounds.
+For `sameCache` co: CLE_w = CLE₂, so the downgrade is at a different event level.
+
+The fix: extract the FIRST co step from `h_co_chain : TransGen co e_w e₂`,
+get its `co.ordering`, case-split on sameCache/sameClusDiffCache/diffClus,
+and use the temporal evidence directly.
+
+**FR `cdir OB CLE_w` sorry's (939, 1036, 1040) — OLD ANALYSIS (superseded):**
 The `CLE_w OB cdir` case is proven via temporal loop (de_w < de_cdir < de_evict < de_w → False).
 The `cdir OB CLE_w` case is the "real" direction but the contradiction is still needed:
 CLE₂ OB CLE₁ (at e₁/e₂'s cluster) + FR means e₁ reads e_w not e₂ → contradiction.
