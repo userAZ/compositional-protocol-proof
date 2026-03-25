@@ -140,7 +140,7 @@ Each edge derives `StepOrdering lin(e₁) lin(e₂)` using auxiliary
 protocol events (e_r_down, e_r_cdir_down, cache events) from the
 PPOi/COM communication evidence.
 
-StepOrdering has 4 constructors matching the OB/Encap chain shape.
+StepOrdering has 3 constructors: ob, obEndLt, sameLin.
 Transitivity composes chains. Irreflexivity from OB irreflexivity.
 A cycle gives StepOrdering lin(e) lin(e) → contradiction. -/
 
