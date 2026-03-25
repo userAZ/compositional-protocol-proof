@@ -138,6 +138,9 @@ structure fr (e₁ e₂ : Event n) : Prop where
   read : e₁.isRead
   write : e₂.isWrite
   sameAddr : e₁.addr = e₂.addr
+  in_b₁ : e₁ ∈ b
+  cache₁ : e₁.isClusterCache
+  notDown₁ : ¬ e₁.down
   in_b₂ : e₂ ∈ b
   cache₂ : e₂.isClusterCache
   notDown₂ : ¬ e₂.down

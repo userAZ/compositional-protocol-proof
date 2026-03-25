@@ -556,96 +556,55 @@ theorem step_to_ordering
     | co h => exact co_step_to_ordering h lin
     | fr h =>
       -- fr: rf⁻¹;co⁺ composition.
-      -- Strategy: dir_ordered on CLE₁ and CLE₂ gives CLE₁ OB CLE₂ or CLE₂ OB CLE₁.
-      -- CLE₁ OB CLE₂ → .ob. CLE₂ OB CLE₁ → exfalso via NoInterveningWrites.
-      have hw₁ : h.e₁_lin = lin e₁ := Subsingleton.elim _ _
-      have hw₂ : h.e₂_lin = lin e₂ := Subsingleton.elim _ _
-      have hdir₁ := h.e₁_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-      have hdir₂ := h.e₂_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-      match hfc₁ : h.e₁_lin.hreq's_dir_access.choose, hdir₁ with
-      | .directoryEvent de₁, _ =>
-        match hfc₂ : h.e₂_lin.hreq's_dir_access.choose, hdir₂ with
-        | .directoryEvent de₂, _ =>
-          cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
-          | inl hob =>
-            -- CLE₁ OB CLE₂: de₁.oEnd < de₂.oStart → .ob
-            exact .ob hob
-          | inr hob =>
-            -- CLE₂ OB CLE₁: derive contradiction via NoInterveningWrites.
-            exfalso
-            obtain ⟨e_w, e_w_write, e_w_lin, _, h_rf, h_no_between, h_co_chain⟩ := h.comm
-            have hlin := fun e => h.hknow_dir_access compound b init e
-            have h_constraints := h_no_between e₂ h.in_b₂
-              h.cache₂ h.write h.notDown₂ (hlin e₂)
-            -- Construct CLE-level OrderedBetween (CLE₂ between CLE_w and CLE₁)
-            -- by matching CLE_w and using dir_ordered(CLE_w, CLE₂)
-            have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-            match hfcw : e_w_lin.hreq's_dir_access.choose, hdir_w with
-            | .directoryEvent de_w, _ =>
-              cases (b.orderedAtEntry.dir_ordered de_w de₂).ordered with
-              | inl hob_w₂ =>
-                -- CLE_w OB CLE₂ OB CLE₁: apply notBetweenCles
-                have h_isDirWrite : (hlin e₂).hreq's_dir_access.choose.isDirWrite := by
-                  have : hlin e₂ = h.e₂_lin := Subsingleton.elim _ _
-                  rw [this]; exact write_event_cle_isDirWrite h.write h.cache₂ h.notDown₂ h.e₂_lin h.in_b₂
-                have h_ob_between :
-                    (hlin e₂).hreq's_dir_access.choose.OrderedBetween n
-                    e_w_lin.hreq's_dir_access.choose h.e₁_lin.hreq's_dir_access.choose := by
-                  exact ⟨by simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
-                              show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _,
-                              hfc₂, hfcw]; exact hob_w₂,
-                         by simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
-                              show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _,
-                              hfc₂, hfc₁]; exact hob⟩
-                have h_nbc := h_constraints.notBetweenCles
-                unfold SameClusterCLE.NotBetweenCLEs at h_nbc
-                -- by_cases on same protocol
-                by_cases h_prot₁ :
-                    (hlin e₂).hreq's_dir_access.choose.protocol =
-                    e_w_lin.hreq's_dir_access.choose.protocol
-                · by_cases h_prot₂ :
-                      (hlin e₂).hreq's_dir_access.choose.protocol =
-                      h.e₁_lin.hreq's_dir_access.choose.protocol
-                  · exact h_nbc ⟨h_prot₁, h_prot₂, h_isDirWrite⟩ h_ob_between
-                  · -- diff protocol CLE₂ vs CLE₁: needs diffClusterNotBetweenCles
-                    sorry
-                · -- diff protocol CLE₂ vs CLE_w: needs diffClusterNotBetweenCles
-                  sorry
-              | inr hob_₂w =>
-                -- CLE₂ OB CLE_w: de₂.oEnd < de_w.oStart.
-                -- StepOrdering implies oEnd advance: CLE_w.oEnd ≤ CLE₂.oEnd.
-                -- Contradiction: de_w.oEnd ≤ de₂.oEnd < de_w.oStart ≤ de_w.oEnd.
-                -- Chain co steps to get StepOrdering CLE_w CLE₂:
-                -- Each co step gives StepOrdering. Chain through TransGen.
-                -- (Uses co_to_step_ordering helper to avoid recursion in step_to_ordering)
-                -- co chain gives StepOrdering CLE_w CLE₂ (via co_chain_step_ordering)
-                have hco_so := co_chain_step_ordering hlin h_co_chain
-                rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hco_so
-                -- Extract oEnd advance: StepOrdering → CLE_w.oEnd ≤ CLE₂.oEnd
-                have hcw_le : de_w.oEnd ≤ de₂.oEnd := by
-                  cases hco_so with
-                  | ob h_ob =>
-                    simp only [Event.oEnd, hfcw] at h_ob
-                    exact Nat.le_of_lt (Nat.lt_trans h_ob (by simp [Event.oEnd, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂]; exact de₂.oWellFormed))
-                  | obEndLt p hp hlt =>
-                    simp only [Event.oEnd, hfcw] at hp
-                    simp only [Event.oEnd, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at hlt ⊢
-                    exact Nat.le_of_lt (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hlt)
-                  | sameLin _ _ heq _ _ _ =>
-                    simp only [Event.oEnd, hfcw, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at heq ⊢
-                    exact Nat.le_of_eq (congrArg DirectoryEvent.oEnd (Event.directoryEvent.inj heq))
-                  | eq heq =>
-                    simp only [Event.oEnd, hfcw, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at heq ⊢
-                    exact Nat.le_of_eq (congrArg DirectoryEvent.oEnd (Event.directoryEvent.inj heq))
-                -- Contradiction: de_w.oEnd ≤ de₂.oEnd < de_w.oStart ≤ de_w.oEnd
-                have : de_w.oEnd < de_w.oEnd :=
-                  calc de_w.oEnd ≤ de₂.oEnd := hcw_le
-                    _ < de_w.oStart := hob_₂w
-                    _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed
-                exact Nat.lt_irrefl _ this
-            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+      -- Key insight: e₂'s write triggers a downgrade at e₁'s cluster (e₁ has a copy
+      -- from reading e_w). This cdir_down is at e₁'s cluster directory — SAME
+      -- directory as CLE₁ → dir_ordered is valid.
+      -- CLE₁ OB cdir_down (read CLE before overwrite's downgrade).
+      -- cdir_down.oEnd < CLE₂.oEnd (from encapDirRelation).
+      -- → .obEndLt cdir_down (...) (...).
+      --
+      -- Construct: e₂'s write triggers downgrade at e₁'s cluster.
+      -- diffCache_coherent_encapProxyAndDir(e₁, lin e₂) gives encapDir at e₁'s cluster.
+      have hdown := diffCache_coherent_encapProxyAndDir
+        (lin e₁) (lin e₂) h.in_b₁ h.cache₁
+      -- hdown : Behaviour.clusterDown.encapDir compound b init e₁ (lin e₂)
+      -- This has existsRClusterDirDown: cdir_down at e₁'s cluster with encapDirRelation.
+      have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
+      have hcdir_isdir := hcdir_spec.2.1
+      have hcdir_prot := hcdir_spec.2.2.1
+      have hencap_rel := hcdir_spec.2.2.2
+      -- cdir_down.oEnd < CLE₂.oEnd (from encapDirRelation: cleEncap or gcacheEncap)
+      have hcdir_lt_cle₂ : hdown.existsRClusterDirDown.choose.oEnd <
+          (lin e₂).hreq's_dir_access.choose.oEnd := by
+        cases hencap_rel with
+        | cleEncap henc => exact henc.right
+        | gcacheEncap _ hlt => exact hlt
+      -- CLE₁ and cdir_down are at e₁'s cluster directory (SAME directory).
+      -- Use dir_ordered (VALID — same cluster, same address).
+      have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+      match hfc_cdir : hdown.existsRClusterDirDown.choose, hcdir_isdir with
       | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+      | .directoryEvent de_cdir, _ =>
+        match hfc_cle₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+        | .directoryEvent de_cle₁, _ =>
+          cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
+          | inl hob =>
+            -- CLE₁ OB cdir_down → .obEndLt
+            -- hob : DirectoryEvent.OrderedBefore = Event.OrderedBefore for matched events
+            have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
+            exact .obEndLt hdown.existsRClusterDirDown.choose
+              (show (Event.directoryEvent de_cle₁).OrderedBefore n
+                  hdown.existsRClusterDirDown.choose from by
+                rw [hfc_cdir]; exact hob)
+              (by rw [hw₂']; exact hcdir_lt_cle₂)
+          | inr hob =>
+            -- cdir_down OB CLE₁: contradiction.
+            -- The downgrade from e₂ is AFTER e₁'s read (coherence order).
+            -- If cdir_down OB CLE₁: downgrade before the read's CLE → e₁ should
+            -- have seen the new value, contradicting RF(e_w, e₁).
+            -- This is the NoInterveningWrites argument.
+            sorry
 
 -- Old lex pair approach (co_step_advances, co_chain_cle_advance, step_advances,
 -- transgen_lex_advance) removed. Using StepOrdering instead.
