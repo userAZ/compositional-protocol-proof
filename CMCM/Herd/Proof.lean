@@ -741,16 +741,18 @@ theorem step_to_ordering
                     (.directoryEvent de_cdir) from hob)
                 (by rw [hw₂']; exact hcdir_lt_cle₂)
             | inr hob =>
-              -- cdir_down OB CLE₁. Use cache downgrade for temporal chain contradiction.
+              -- cdir OB CLE₁: e₂'s downgrade at e₁'s cluster is before e₁'s CLE.
+              -- Use NoInterveningWrites: e_cdir is an intervening directory write
+              -- between CLE_w and CLE₁, contradicting notBetweenCles or
+              -- diffClusterNotBetweenCles_sameCache.
               exfalso
-              -- hcdir_encap_down : e_cdir.Encapsulates n e_cache_down
-              -- e_cache_down at e₁'s cache, need e₁ OB e_cache_down
-              -- Temporal chain: e_cache_down.oEnd < de_cdir.oEnd (from encap, via hfc_cdir)
-              --   de_cdir.oEnd < de_cle₁.oStart (from hob)
-              --   de_cle₁ inside CLE₁ inside e₁ (from encapDir)
-              -- Need: e₁.oEnd < e_cache_down.oStart (e₁ before cache downgrade)
-              -- → e_cache_down.oEnd < de_cle₁.oStart ≤ e₁.oEnd < e_cache_down.oStart → contradiction
-              sorry -- needs e₁ OB e_cache_down from protocol evidence
+              obtain ⟨e_w, e_w_write, e_w_lin, _, h_rf, h_no_between, h_co_chain⟩ := h.comm
+              have hlin := fun e => h.hknow_dir_access compound b init e
+              have h_constraints := h_no_between e₂ h.in_b₂
+                h.cache₂ h.write h.notDown₂ (hlin e₂)
+              -- e_cdir is at e₁'s protocol (from cdirEncapsDown_exists)
+              -- e_w could be at e₁'s cluster or a different cluster
+              sorry -- needs NoInterveningWrites application with e_cdir between CLE_w and CLE₁
 -- Old lex pair approach (co_step_advances, co_chain_cle_advance, step_advances,
 -- transgen_lex_advance) removed. Using StepOrdering instead.
 -- Placeholder to mark where old code was:
