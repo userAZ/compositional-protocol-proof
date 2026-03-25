@@ -56,22 +56,18 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-24)
-- **Main proof architecture**: `cmcm_acyclic` → `cmcm_acyclic_of_hknow` → lex pair (CLE.oEnd, e.oEnd)
-  - `step_advances`: per-edge lex advance (CLE.oEnd strictly increases or stays equal with e.oEnd increase)
-  - `transgen_lex_advance`: chains `step_advances` through TransGen via `lex_lt_trans`
-  - `cmcm_acyclic_of_hknow`: applies `lex_lt_irrefl` to the chained lex advance
-  - `cmcm_acyclic`: extracts `hknow_dir_access` from any com edge, then calls `cmcm_acyclic_of_hknow`
-- **Edge definitions**: DONE (Defs.lean: PPOi, rfe with diffCache, co with descriptive ordering, fr with rf⁻¹;co⁺)
-- **Irreflexivity**: DONE for all edges (ppoi_irrefl, rfe_irrefl, co_irrefl, fr_irrefl)
-- **step_advances proven cases**:
-  - PPOi: CLE₁ = CLE₂ → secondary advance ✓; CLE₁ OB CLE₂ → primary advance ✓
-  - PPOi: CLE₂ OB CLE₁ → exfalso: 6/9 dirAccessOfRequest sub-cases done
-  - rfe: all cases except noEvictBetween × orderAfterDir
-  - co: ALL cases (co_step_advances is sorry-free!)
-  - fr: CLE₁ OB CLE₂ ✓; CLE₂ OB CLE₁ with CLE₁ OB CLE_w ✓; CLE₂ OB CLE₁ with CLE_w OB CLE₁, CLE₂ OB CLE_w ✓
-- **StepOrdering** (alternative approach, non-critical): in file but no longer on main proof path
-- **5 critical sorry's** in `step_advances` — see "Remaining sorry's" below
+### Status (updated 2026-03-24, late session)
+- **Main proof architecture**: `cmcm_acyclic` → `cmcm_acyclic_of_hknow` → StepOrdering
+  - `step_to_ordering`: maps each PPOi ∪ com edge to `StepOrdering CLE₁ CLE₂`
+  - `StepOrdering.trans`: composes edges (FULLY PROVEN, 0 sorry's)
+  - `StepOrdering.irrefl`: cycle gives contradiction (FULLY PROVEN, 0 sorry's)
+  - Old lex pair approach (`step_advances`, `co_step_advances`) DELETED — failed for PPOi orderAfterDir
+- **StepOrdering**: 3 constructors: `ob` (CLE₁ OB CLE₂), `obEncap` (CLE₁ OB p, p EncapsulatedBy CLE₂), `sameLin` (CLE₁ = CLE₂ with encapsulating events ordered)
+- **Edge definitions**: DONE (Defs.lean)
+- **Irreflexivity**: DONE for all edge types
+- **write_event_cle_isDirWrite**: FULLY PROVEN (all 3 dirAccessOfRequest cases, in RfProofHelpers.lean)
+- **reqToDir_preserves_write_of_coherent/on_vd_ncrel**: moved to RfProofDefs.lean
+- **14 sorry's remain** in `step_to_ordering` — see categories below
 
 ### Key insight: `hierarchicallyOrdered` IS `CompoundLinearizationOrder` (same concept)
 
@@ -87,7 +83,30 @@ The "GMO bridge" is NOT a separate thing — it's recognizing they're the same. 
 
 The GLE/CLE/cache lex ordering falls out as a CONSEQUENCE of this communication evidence, used for irrefl/trans.
 
-### Remaining sorry's (all in `step_to_ordering` at Proof.lean, updated 2026-03-24)
+### Remaining sorry's (all in `step_to_ordering`, updated 2026-03-24 late)
+
+**Category 1: gcacheEncap → EncapsulatedBy CLE (5 sorry's)**
+- `encapDirRelation.gcacheEncap` gives GCR encaps cdir_down. Need CLE encaps cdir_down.
+- **Resolution**: CLE encaps GCR (from `encapGlobalCache` shim, via `clusterDirEncapCorrespondingGlobalCache.encapGlobalCache`). Then `Event.encap_encap_trans` gives CLE encaps cdir_down.
+- The `noGlobalCache` shim case should NOT produce `gcacheEncap` — it produces `cleEncap` (CLE directly handles cluster-level downgrade when it already has global perms).
+- **Approach**: case-split on `cmp.shimAxioms.clusterToGlobal` to extract `encapGlobalCache`, then transitivity.
+
+**Category 2: PPOi → StepOrdering (1 sorry)**
+- Need to map PPOi(e₁, e₂) to StepOrdering CLE₁ CLE₂.
+- For encapDir × encapDir: `.ob` (CLE₁ inside e₁ OB e₂ inside CLE₂ → CLE₁ OB CLE₂).
+- For same CLE (nc.weak sharing): `.sameLin`.
+- For orderAfterDir: CLE₁ = CLE₂ must be PROVEN (nc.weak CLE sharing insight).
+
+**Category 3: co sameCache non-encapDir (4 sorry's)**
+- Same CLE → need `.sameLin` with CLE inside two ordered events.
+- For orderBeforeDir: CLE inside predecessor. For orderAfterDir: CLE inside successor.
+- Key issue: finding two events that BOTH encapsulate the shared CLE and are ordered.
+
+**Category 4: rfe noEvictBetween orderAfterDir (1 sorry)**
+- nc.weak e₁ with wHasPermsAfter → contradiction (nc.weak can't leave ≥ SW state).
+
+**Category 5: fr cross-cluster (3 sorry's)**
+- `notBetweenCles` needs sameProtocol. For cross-cluster: need `diffClusterNotBetweenCles_sameCache`.
 
 **Sorry #1 (line ~538): PPOi, e₂ encapDir, e₁ orderAfterDir, CLE₂ OB CLE₁**
 - nc.weak e₁ with CLE₁ from successor. Successor succ₁ encaps CLE₁ (de₁).
@@ -180,6 +199,14 @@ The transitive relation must carry the encapsulation evidence (e_r_cdir_down enc
 The encapsulation bridge (cdirEncapsDown) connects cluster cache and directory levels within each COM edge. The composition uses the fact that protocol events are EncapsulatedBy cache events (or past them for orderAfterDir, in which case the chain goes through the successor).
 The chain goes through PROTOCOL events, not cache events.
 The proof MUST compose across edges.
+
+### DEAD END: lex pair (CLE.oEnd, e.oEnd) for acyclicity
+The `step_advances` approach with `(CLE.oEnd, e.oEnd)` as a lex pair FAILS for PPOi + orderAfterDir. For nc.weak events, the CLE comes from a SUCCESSOR (after e₂), so CLE₂ OB CLE₁ is the natural ordering — the lex pair goes BACKWARDS. Deleted in commit `b9e58ec`.
+
+### DEAD END: obEndLt (weakening obEncap to oEnd < oEnd)
+Weakened `obEncap`'s `EncapsulatedBy` to just `p.oEnd < l₂.oEnd` to handle `gcacheEncap`. This was WRONG — `gcacheEncap` should give full `EncapsulatedBy` via shim transitivity (CLE encaps GCR encaps cdir_down → CLE encaps cdir_down). The weakening was unnecessary and lost structural information. Reverted in commit `f272fa8`.
+
+**Key insight**: In the `gcacheEncap` case, the GCR is from `encapGlobalCache` shim (CLE encapsulates GCR to get global permissions). The `noGlobalCache` case produces `cleEncap` instead (CLE directly handles the downgrade since it already has global perms). So `gcacheEncap` ALWAYS has CLE encaps GCR available.
 
 ### DEAD END: ALL per-edge temporal properties for acyclicity
 
