@@ -140,7 +140,7 @@ Each edge derives `StepOrdering lin(e₁) lin(e₂)` using auxiliary
 protocol events (e_r_down, e_r_cdir_down, cache events) from the
 PPOi/COM communication evidence.
 
-StepOrdering has 3 constructors: ob, obEncap, sameLin.
+StepOrdering has 3 constructors: ob, obEndLt, sameLin.
 Transitivity composes chains. Irreflexivity from OB irreflexivity.
 A cycle gives StepOrdering lin(e) lin(e) → contradiction. -/
 
@@ -149,8 +149,11 @@ A cycle gives StepOrdering lin(e) lin(e) → contradiction. -/
 inductive StepOrdering : Event n → Event n → Prop where
   /-- Direct OB between linearization points -/
   | ob (h : l₁.OrderedBefore n l₂) : StepOrdering l₁ l₂
-  /-- OB to intermediate, intermediate inside target lin point -/
-  | obEncap (p : Event n) (h_ob : l₁.OrderedBefore n p) (h_enc : p.EncapsulatedBy n l₂)
+  /-- OB to intermediate, intermediate finishes before target lin point.
+      Uses oEnd < (not full EncapsulatedBy) because in the `noGlobalCache` shim case,
+      the GCR is a previous event that encapsulates cdir_down but is NOT encapsulated
+      by CLE — only cdir_down.oEnd < CLE.oEnd holds. -/
+  | obEndLt (p : Event n) (h_ob : l₁.OrderedBefore n p) (h_lt : Event.oEnd n p < Event.oEnd n l₂)
       : StepOrdering l₁ l₂
   /-- Same linearization point: cache events advance but CLE stays. -/
   | sameLin (e₁' e₂' : Event n) (h_eq : l₁ = l₂)
@@ -165,13 +168,15 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
   | ob h₁ =>
     cases h₂₃ with
     | ob h₂ => exact .ob (Trans.trans h₁ h₂)
-    | obEncap p hp hlt => exact .obEncap p (Trans.trans h₁ hp) hlt
+    | obEndLt p hp hlt => exact .obEndLt p (Trans.trans h₁ hp) hlt
     | sameLin _ _ heq _ _ _ => subst heq; exact .ob h₁
-  | obEncap q hq hqe =>
+  | obEndLt q hq hqlt =>
     cases h₂₃ with
-    | ob h₂ => exact .ob (Trans.trans hq (Event.encap_by_order_trans n hqe h₂))
-    | obEncap p hp hpe => exact .obEncap p (Trans.trans hq (Event.encap_by_order_trans n hqe hp)) hpe
-    | sameLin _ _ heq _ _ _ => subst heq; exact .obEncap q hq hqe
+    | ob h₂ =>
+      exact .ob (Trans.trans hq (show q.OrderedBefore n l₃ from Nat.lt_trans hqlt h₂))
+    | obEndLt p hp hlt =>
+      exact .obEndLt p (Trans.trans hq (show q.OrderedBefore n p from Nat.lt_trans hqlt hp)) hlt
+    | sameLin _ _ heq _ _ _ => subst heq; exact .obEndLt q hq hqlt
   | sameLin e₁' e₂' heq he₁ hob he₂ =>
     subst heq; exact h₂₃
 
@@ -179,9 +184,9 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
 theorem StepOrdering.irrefl {l : Event n} (h : StepOrdering l l) : False := by
   cases h with
   | ob h => exact Event.contradiction_of_reflexive_ordered_before n h
-  | obEncap p hp hpe =>
-    -- l OB p, p EncapBy l → l.oEnd < p.oStart ≤ p.oEnd < l.oEnd
-    exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hpe.right)
+  | obEndLt p hp hlt =>
+    -- l OB p: l.oEnd < p.oStart. p.oEnd < l.oEnd.
+    exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hlt)
   | sameLin e₁' e₂' heq he₁ hob he₂ =>
     have : l.oEnd < l.oEnd :=
       calc l.oEnd
@@ -248,7 +253,7 @@ theorem step_to_ordering
           -- Different cluster: extract wObRDown from diffCache.case sub-cases
           have hw₁ : h.w_lin = lin e₁ := Subsingleton.elim _ _
           have hw₂ : h.r_lin = lin e₂ := Subsingleton.elim _ _
-          -- Helper: given encapDir + wObRDown → StepOrdering.obEncap
+          -- Helper: given encapDir + wObRDown → StepOrdering.obEndLt
           have from_encap_wob
               (hdown : Behaviour.clusterDown.encapDir compound b init e₁ h.r_lin)
               (hwOB : h.w_lin.hreq's_dir_access.choose.OrderedBefore n
@@ -257,15 +262,11 @@ theorem step_to_ordering
                 (lin e₂).hreq's_dir_access.choose := by
             have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
             have hencap_rel := hcdir_spec.2.2.2
-            exact .obEncap hdown.existsRClusterDirDown.choose
+            exact .obEndLt hdown.existsRClusterDirDown.choose
               (by rw [← hw₁]; exact hwOB)
               (by rw [← hw₂]; cases hencap_rel with
-                  | cleEncap henc => exact henc
-                  | gcacheEncap hgcr_enc _ =>
-                    -- GCR encaps cdir_down. Derive CLE encaps cdir_down via shim.
-                    -- Case-split on ClusterToGlobal shim to get CLE encaps GCR.
-                    -- gcacheEncap → EncapsulatedBy CLE via shim transitivity
-                    sorry)
+                  | cleEncap henc => exact henc.right
+                  | gcacheEncap _ hlt => exact hlt)
           -- Dispatch all diffCache.case sub-cases
           cases hdiff_cache_case with
           | wHasPermsAfter _ coherentCase =>
@@ -296,11 +297,11 @@ theorem step_to_ordering
                     | inl hob_dir =>
                       -- CLE_w OB cdir_down (as DirectoryEvent.OrderedBefore = Nat inequality)
                       -- Construct obEncap directly on the matched terms
-                      exact .obEncap (.directoryEvent de_cdir)
+                      exact .obEndLt (.directoryEvent de_cdir)
                         (show (Event.directoryEvent de_cle).OrderedBefore n (.directoryEvent de_cdir) from hob_dir)
                         (by rw [← hw₂, ← h_cdir_ev]; cases hencap_rel with
-                            | cleEncap henc => exact henc
-                            | gcacheEncap hgcr_enc _ => sorry)
+                            | cleEncap henc => exact henc.right
+                            | gcacheEncap _ hlt => exact hlt)
                     | inr hob_dir =>
                       -- cdir_down OB CLE_w: temporal contradiction
                       -- e_w OB e_r_down, cdir encapsulates e_r_down, cdir OB CLE_w, CLE_w inside e_w
@@ -395,15 +396,11 @@ theorem step_to_ordering
             -- = obEncap
             have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
             have hencap_rel := hcdir_spec.2.2.2
-            exact .obEncap hdown.existsRClusterDirDown.choose
+            exact .obEndLt hdown.existsRClusterDirDown.choose
               (by rw [← hw₁]; exact hwObRDown)
               (by rw [← hw₂]; cases hencap_rel with
-                  | cleEncap henc => exact henc
-                  | gcacheEncap hgcr_enc _ =>
-                    -- GCR encaps cdir_down. Derive CLE encaps cdir_down via shim.
-                    -- Case-split on ClusterToGlobal shim to get CLE encaps GCR.
-                    -- gcacheEncap → EncapsulatedBy CLE via shim transitivity
-                    sorry)
+                  | cleEncap henc => exact henc.right
+                  | gcacheEncap _ hlt => exact hlt)
         | evictOrReadBetweenWAndRCleSameCluster evict =>
           exact .ob (by rw [← hw₁, ← hw₂]; exact evict.wObR)
       | diffClus _ diff_cluster_cases =>
@@ -413,19 +410,19 @@ theorem step_to_ordering
         | wCleImmPredDown w =>
           have hcdir_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
           have hencap_rel := hcdir_spec.2.2.2
-          exact .obEncap w.rDown.encapDir.existsRClusterDirDown.choose
+          exact .obEndLt w.rDown.encapDir.existsRClusterDirDown.choose
             (by rw [← hw₁]; exact w.wObRDown)
             (by rw [← hw₂]; cases hencap_rel with
-                | cleEncap henc => exact henc
-                | gcacheEncap hgcr_enc _ => sorry)
+                | cleEncap henc => exact henc.right
+                | gcacheEncap _ hlt => exact hlt)
         | evictOrReadBetweenWAndRDown evict =>
           have hcdir_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
           have hencap_rel := hcdir_spec.2.2.2
-          exact .obEncap evict.rDown.encapDir.existsRClusterDirDown.choose
+          exact .obEndLt evict.rDown.encapDir.existsRClusterDirDown.choose
             (by rw [← hw₁]; exact evict.wObRDown)
             (by rw [← hw₂]; cases hencap_rel with
-                | cleEncap henc => exact henc
-                | gcacheEncap hgcr_enc _ => sorry)
+                | cleEncap henc => exact henc.right
+                | gcacheEncap _ hlt => exact hlt)
     | fr h =>
       -- fr: rf⁻¹;co⁺ composition.
       -- Strategy: dir_ordered on CLE₁ and CLE₂ gives CLE₁ OB CLE₂ or CLE₂ OB CLE₁.
