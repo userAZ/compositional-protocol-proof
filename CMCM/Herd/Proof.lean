@@ -783,7 +783,23 @@ theorem ppoi_step_to_ordering
                                 reqCache := hpred₁_spec.satisfyP.reqCache }
                             -- bottomSameEntry: pred₁ sameEntry e₁ (from ImmPred) + e₁ sameEntry e₂ (from PPOi)
                             have hpred₁_bse : b.bottomSameEntry n hexists_pred₁.choose e₂ :=
-                              { sameEntry := sorry -- pred₁ sameEntry e₂: transitivity of sameEntry
+                              { sameEntry := by
+                                  -- pred₁ sameEntry e₁ (from ImmPred) + e₁ sameEntry e₂ (from PPOi)
+                                  have hse := hpred₁_spec.isImmPred.bPred.sameEntry
+                                  -- e₁ sameEntry e₂: sameStruct from sameCid', sameAddr from h_same_addr
+                                  have he₁_se_e₂ : Event.sameEntry n (Event.cacheEvent ce₁) e₂ := by
+                                    match he₂_ce : e₂, hppoi.cache₂ with
+                                    | .cacheEvent ce₂, _ =>
+                                      exact ⟨show Struct.cache ce₁.cid = Struct.cache ce₂.cid from
+                                               congrArg Struct.cache hppoi.sameCid',
+                                             h_same_addr⟩
+                                    | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+                                  -- event_same_entry_trans: (e₃→e₁) → (e₃→e₂) → (e₁→e₂)
+                                  -- Use e₃ = e₁: need (e₁→pred₁) and (e₁→e₂).
+                                  -- (e₁→pred₁) from hse.symm:
+                                  have hse_symm : (Event.cacheEvent ce₁).sameEntry n hexists_pred₁.choose :=
+                                    ⟨hse.sameStruct.symm, hse.sameAddr.symm⟩
+                                  exact Event.event_same_entry_trans n hse_symm he₁_se_e₂
                                 isBottom := hpred₁_spec.isBottomPred }
                             exact hpred₂_spec.isImmPred.noIntermediateSatisfyingP
                               hexists_pred₁.choose
