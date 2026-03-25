@@ -346,8 +346,66 @@ theorem step_to_ordering
                 | cleEncap henc => exact henc.right
                 | gcacheEncap _ hlt => exact hlt)
     | fr h =>
-      -- fr: rf⁻¹;co⁺ composition
-      sorry
+      -- fr: rf⁻¹;co⁺ composition.
+      -- Strategy: dir_ordered on CLE₁ and CLE₂ gives CLE₁ OB CLE₂ or CLE₂ OB CLE₁.
+      -- CLE₁ OB CLE₂ → .ob. CLE₂ OB CLE₁ → exfalso via NoInterveningWrites.
+      have hw₁ : h.e₁_lin = lin e₁ := Subsingleton.elim _ _
+      have hw₂ : h.e₂_lin = lin e₂ := Subsingleton.elim _ _
+      have hdir₁ := h.e₁_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+      have hdir₂ := h.e₂_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+      match hfc₁ : h.e₁_lin.hreq's_dir_access.choose, hdir₁ with
+      | .directoryEvent de₁, _ =>
+        match hfc₂ : h.e₂_lin.hreq's_dir_access.choose, hdir₂ with
+        | .directoryEvent de₂, _ =>
+          cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+          | inl hob =>
+            -- CLE₁ OB CLE₂: de₁.oEnd < de₂.oStart → .ob
+            exact .ob hob
+          | inr hob =>
+            -- CLE₂ OB CLE₁: derive contradiction via NoInterveningWrites.
+            exfalso
+            obtain ⟨e_w, e_w_write, e_w_lin, _, h_rf, h_no_between, h_co_chain⟩ := h.comm
+            -- Apply NoInterveningWrites to e₂
+            have hlin := fun e => h.hknow_dir_access compound b init e
+            have h_constraints := h_no_between e₂ h.in_b₂
+              h.cache₂ h.write h.notDown₂ (hlin e₂)
+            -- notBetweenGles: GLE₂ not between GLE_w and GLE₁ (unconditional)
+            have h_nbg := h_constraints.notBetweenGles
+            -- Get GLE directory events
+            have hgle₂_eq : hlin e₂ = h.e₂_lin := Subsingleton.elim _ _
+            have hglew_eq : e_w_lin = hlin e_w := Subsingleton.elim _ _
+            have hgdir₂ := (hlin e₂).hreq's_global_lin.choose_spec.2.isDirEvent
+            have hgdir_w := e_w_lin.hreq's_global_lin.choose_spec.2.isDirEvent
+            have hgdir₁ := h.e₁_lin.hreq's_global_lin.choose_spec.2.isDirEvent
+            match hgc₂ : (hlin e₂).hreq's_global_lin.choose, hgdir₂ with
+            | .directoryEvent ge₂, _ =>
+              match hgcw : e_w_lin.hreq's_global_lin.choose, hgdir_w with
+              | .directoryEvent ge_w, _ =>
+                match hgc₁ : h.e₁_lin.hreq's_global_lin.choose, hgdir₁ with
+                | .directoryEvent ge₁, _ =>
+                  -- dir_ordered on GLEs to check if GLE₂ is between GLE_w and GLE₁
+                  cases (b.orderedAtEntry.dir_ordered ge_w ge₂).ordered with
+                  | inl hgle_w₂ =>
+                    cases (b.orderedAtEntry.dir_ordered ge₂ ge₁).ordered with
+                    | inl hgle_₂₁ =>
+                      -- GLE₂ between GLE_w and GLE₁ → notBetweenGles gives False
+                      exact h_nbg ⟨by
+                        simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
+                          hgle₂_eq, hgc₂, hglew_eq, hgcw]; exact hgle_w₂, by
+                        simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
+                          hgle₂_eq, hgc₂, hgc₁]; exact hgle_₂₁⟩
+                    | inr hgle_₁₂ =>
+                      -- GLE₁ OB GLE₂: use notBetweenCles (sameProtocol case)
+                      -- or derive temporal contradiction from RF evidence
+                      sorry
+                  | inr hgle_₂w =>
+                    -- GLE₂ OB GLE_w: use RF GLE evidence to derive contradiction
+                    sorry
+                | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
 
 -- Old lex pair approach (co_step_advances, co_chain_cle_advance, step_advances,
 -- transgen_lex_advance) removed. Using StepOrdering instead.
