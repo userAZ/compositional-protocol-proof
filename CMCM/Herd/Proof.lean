@@ -788,10 +788,7 @@ theorem step_to_ordering
                 (by rw [hw₂']; exact hcdir_lt_cle₂)
             | inr hob =>
               -- cdir OB CLE₁: e₂'s downgrade at e₁'s cluster is before e₁'s CLE.
-              -- Use NoInterveningWrites: e_cdir is an intervening directory write
-              -- between CLE_w and CLE₁, contradicting notBetweenCles or
-              -- diffClusterNotBetweenCles_sameCache.
-              exfalso
+              -- Use dir_ordered CLE₁ CLE_w to order them, then co chain for oEnd bound.
               obtain ⟨e_w, e_w_write, e_w_lin, _, h_rf, h_no_between, h_co_chain⟩ := h.comm
               have hlin := fun e => h.hknow_dir_access compound b init e
               have h_constraints := h_no_between e₂ h.in_b₂
@@ -809,10 +806,40 @@ theorem step_to_ordering
                 | .directoryEvent de_w, _ =>
                   cases (b.orderedAtEntry.dir_ordered de_cle₁ de_w).ordered with
                   | inl hob_₁w =>
-                    -- CLE₁ OB CLE_w → .obEndLt CLE_w with co chain bound.
-                    -- co chain: StepOrdering CLE_w CLE₂ → CLE_w.oEnd < CLE₂.oEnd
-                    -- (CLE_w ≠ CLE₂ since different clusters → strict).
-                    sorry -- CLE₁ OB CLE_w: .obEndLt via co chain oEnd bound
+                    -- CLE₁ OB CLE_w → .obEndLt CLE_w with co chain oEnd bound.
+                    -- co chain: StepOrdering CLE_w CLE₂. Cross-cluster → strict oEnd bound.
+                    have hco_so := co_chain_step_ordering hlin h_co_chain
+                    rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hco_so
+                    -- CLE_w ≠ CLE₂ (different clusters): derive protocol contradiction for .sameLin/.eq
+                    have hcle_w_ne_cle₂ : e_w_lin.hreq's_dir_access.choose ≠
+                        (lin e₂).hreq's_dir_access.choose := by
+                      intro heq
+                      have hcw_prot := write_cle_protocol_eq_write_protocol e_w_lin
+                      have hc₂_prot := write_cle_protocol_eq_write_protocol (hlin e₂)
+                      -- heq : CLE_w = CLE₂. Rewrite in hcw_prot to get CLE₂.protocol = e_w.protocol.
+                      rw [heq] at hcw_prot
+                      -- hcw_prot : CLE₂.protocol = e_w.protocol (after subst)
+                      -- hc₂_prot : CLE₂.protocol = e₂.protocol
+                      have : e_w.protocol = e₂.protocol := hcw_prot.symm.trans hc₂_prot
+                      exact h_same_prot (show e₁.sameProtocol n e₂ from h_ew_prot.trans this)
+                    -- Extract CLE_w.oEnd < CLE₂.oEnd from co chain.
+                    -- Bridge hlin/lin via Subsingleton.
+                    have hlin_e₂_eq : hlin e₂ = lin e₂ := Subsingleton.elim _ _
+                    have hcw_lt_cle₂ : Event.oEnd n e_w_lin.hreq's_dir_access.choose <
+                        Event.oEnd n (lin e₂).hreq's_dir_access.choose := by
+                      -- Rewrite hco_so target from hlin to lin
+                      rw [hlin_e₂_eq] at hco_so
+                      cases hco_so with
+                      | ob h_ob =>
+                        exact Nat.lt_trans h_ob (Event.oWellFormed n _)
+                      | obEndLt p hp hlt =>
+                        exact Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hlt
+                      | sameLin _ _ heq _ _ _ => exact absurd heq hcle_w_ne_cle₂
+                      | eq heq => exact absurd heq hcle_w_ne_cle₂
+                    exact .obEndLt e_w_lin.hreq's_dir_access.choose
+                      (show (Event.directoryEvent de_cle₁).OrderedBefore n
+                          e_w_lin.hreq's_dir_access.choose from by rw [hfcw]; exact hob_₁w)
+                      hcw_lt_cle₂
                   | inr hob_w₁ =>
                     -- CLE_w OB CLE₁ + e_cdir OB CLE₁: NIW contradiction.
                     sorry -- CLE_w OB CLE₁: NIW with e_cdir between

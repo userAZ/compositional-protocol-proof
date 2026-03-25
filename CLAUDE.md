@@ -535,6 +535,22 @@ For PPOi(e₁, e₂) where e₂ has `orderAfterDir`:
 - Works for ANY e₁ dirAccessOfRequest case (encapDir, orderBeforeDir, or orderAfterDir)
 - `Event.oWellFormed n e₂` bridges `e₂.oStart` to `e₂.oEnd` in the chain
 
+### dir_ordered validity: MUST guard with same_cluster AND same_addr
+`dir_ordered` is ONLY valid between directory events at the SAME cluster AND SAME address entry.
+- PPOi: `sameProtocol` gives same cluster. `h_same_addr` guard needed for address.
+- FR: `h_same_prot` gives same cluster. `sameAddr` from FR structure gives same addr.
+- rfe: both CLEs at same cluster (from rfe structure). Same addr from rfe.
+- CO: same cluster from CO structure. Same addr from CO.
+- Self-application (de de): always valid — trivially gives False.
+EVERY `dir_ordered` call must be justified by both same_cluster and same_addr.
+
+### Cross-cluster co chain StepOrdering is always strict
+When co⁺(e_w, e₂) gives `StepOrdering CLE_w CLE₂` and CLE_w, CLE₂ are at different clusters:
+- `.sameLin` carries `CLE_w = CLE₂` → impossible (different protocols/clusters)
+- `.eq` carries `CLE_w = CLE₂` → impossible (different protocols/clusters)
+- Only `.ob` and `.obEndLt` remain → both give `CLE_w.oEnd < CLE₂.oEnd` (strict)
+This eliminates the equality cases, simplifying FR cross-cluster proofs.
+
 ### Exists.choose bridge problem and solution
 `Exists.choose` uses `Classical.choice` — does NOT reduce even on concrete `⟨a, h⟩` witnesses.
 `Subsingleton.elim` gives `hdown = hdown'` but `hdown'.choose` still doesn't reduce to `e_dw`.
