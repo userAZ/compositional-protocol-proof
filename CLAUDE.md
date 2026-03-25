@@ -491,7 +491,13 @@ The key insight (from Anqi): same-address PPOi events share a CLE or have CLE or
 - [x] StepOrdering.irrefl `.eq`: handled at cycle level (dead code in irrefl)
 - [ ] **PPOi `CLE₂ OB CLE₁` contradiction**: CompoundMCM bridge for (dirLin,dirLin) cases. Predecessor elimination for (cacheLin,*) cases. User wants CompoundMCM usage for reviewer appeal.
 - [ ] **PPOi pred₂ OB e₁**: predecessor elimination (reqHasNoPermsLeavesStateAtLeast)
-- [ ] **FR: define `fr.ordering` inductive** (ROOT CAUSE of all FR sorry's)
+- [ ] **FR: redesign FrOrdering to be DESCRIPTIVE (not carry StepOrdering)**
+  - Current FrOrdering carries StepOrdering directly → VACUOUS
+  - Redesign: carry descriptive evidence (protocol events, OB relationships)
+  - Write FrTheorem proving FrOrdering from protocol axioms (like RfTheorem)
+  - Derive StepOrdering from FrOrdering in step_to_ordering
+- [ ] **CO: verify co.ordering has a CoTheorem (or write one)**
+- [ ] **FR: old design plan (superseded by above):**
   - `sameCluster`: e₁/e₂ same protocol → CLE₁ and CLE₂ at same directory → `dir_ordered` + `notBetweenCles` gives StepOrdering directly. Carries evidence that CLE_w, CLE₁, CLE₂ are at same cluster, same addr, and CLE₂ not between CLE_w and CLE₁.
   - `sameClusDiffE_w`: e₁/e₂ same cluster, e_w different → carries downgrade evidence at e_w's cluster with `CLE_w OB cdir` from co chain. The first co step (rf;co) gives the initial CLE_w → CLE₂ relationship.
   - `diffCluster`: e₁/e₂ different clusters → carries downgrade at e₁'s cluster (evict + cdir from cdirEncapsDown) with temporal bounds.
