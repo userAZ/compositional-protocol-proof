@@ -62,16 +62,16 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
   - `StepOrdering.trans`: composes edges (FULLY PROVEN, 0 sorry's)
   - `StepOrdering.irrefl`: cycle gives contradiction (FULLY PROVEN, 0 sorry's)
   - Old lex pair approach (`step_advances`, `co_step_advances`) DELETED — failed for PPOi orderAfterDir
-- **StepOrdering**: 3 constructors: `ob` (CLE₁ OB CLE₂), `obEncap` (CLE₁ OB p, p EncapsulatedBy CLE₂), `sameLin` (CLE₁ = CLE₂ with encapsulating events ordered)
+- **StepOrdering**: 4 constructors: `ob`, `obEndLt` (oEnd < instead of EncapsulatedBy for noGlobalCache), `sameLin`, `eq` (same CLE, no encap evidence)
 - **Edge definitions**: DONE (Defs.lean)
-- **Irreflexivity**: DONE for all edge types
+- **Irreflexivity**: DONE for all edge types except `.eq` (needs cycle-level argument)
 - **write_event_cle_isDirWrite**: FULLY PROVEN (all 3 dirAccessOfRequest cases, in RfProofHelpers.lean)
-- **reqToDir_preserves_write_of_coherent/on_vd_ncrel**: moved to RfProofDefs.lean
-- **13 sorry's remain** in `step_to_ordering` — see categories below
 - **CO edge**: FULLY PROVEN (0 sorry's) — factored into `co_step_to_ordering`
 - **rfe edge**: FULLY PROVEN (0 sorry's) — including nc.weak state machine via `stateAfter_eq_succeedingState`
-- **FR edge**: CLE₁ OB CLE₂ direction closed for all 3 cases (same-cache/same-cluster/diff-cluster). CLE₂ OB CLE₁ needs NoInterveningWrites.
-- **Helper lemmas**: `list_stateAfter_append_singleton`, `stateAfter_eq_succeedingState`, `co_step_to_ordering`, `co_chain_step_ordering`
+- **FR edge**: CLE₁ OB CLE₂ direction closed for all 3 by_cases (same-cluster `.ob`, diff-cluster `.obEndLt`). Same-cluster same-e_w CLE₂ OB CLE₁ closed via `notBetweenCles`. Diff-cluster + diff-e_w cases need `cdirEncapsDown`.
+- **cdirEncapsDown**: Partially constructed in `cdirEncapsDown_of_encapDir` (RfProofHelpers). Uses Subsingleton bridge + cluster protocol axiom (`coherentWriteDowngrades`). scWriteDown.cWriteOnSW case structured, needs e_dw=e_dir bridge.
+- **Helper lemmas**: `list_stateAfter_append_singleton`, `stateAfter_eq_succeedingState`, `co_step_to_ordering`, `co_chain_step_ordering`, `cdirEncapsDown_of_encapDir`
+- **9 sorry's in Proof.lean** + **5 sorry's in RfProofHelpers.lean** (cdirEncapsDown helper)
 
 ### Key insight: `hierarchicallyOrdered` IS `CompoundLinearizationOrder` (same concept)
 
