@@ -86,6 +86,12 @@ Then `dir_ordered e_de CLE₁`:
 - `e_de OB CLE₁` → `diffClusterNotBetweenCles_sameCache` with e_de between CLE_w and CLE₁ → contradiction
 - `CLE₁ OB e_de` → `.obEndLt e_de (CLE₁ OB e_de) (e_de.oEnd < CLE₂.oEnd)` → StepOrdering ✓
 
+**Remaining FR approach for sorry 853/855:**
+For `CLE_w OB evict` (needed for OrderedBetween): chain through co → CLE₂ → encap → evict.
+- Co chain `.ob(CLE_w OB CLE₂)` + `encapGlobalCache` shim: `CLE_w.oEnd < CLE₂.oStart < e_gcache.oStart < ... < evict.oStart` ✓
+- Co chain `.obEndLt` or `noGlobalCache` shim: chain breaks. Need sub-case analysis.
+- For `evict OB CLE_w` sub-case: should be impossible (co means e₂ after e_w, downgrade after write), but needs protocol state reasoning.
+
 ### Key insight: `hierarchicallyOrdered` IS `CompoundLinearizationOrder` (same concept)
 
 `CompoundLinearizationOrder` says: PPO events linearize at specific points in the hierarchy (cache, CLE, or GLE level), and their linearization points are ordered. `hierarchicallyOrdered` says: events are ordered at the highest differing level (GLE, CLE, cache). **These are the same concept** — both ask "where does this event meet the protocol hierarchy, and what's the order at that meeting point?"
@@ -563,6 +569,22 @@ When co⁺(e_w, e₂) gives `StepOrdering CLE_w CLE₂` and CLE_w, CLE₂ are at
 - `.eq` carries `CLE_w = CLE₂` → impossible (different protocols/clusters)
 - Only `.ob` and `.obEndLt` remain → both give `CLE_w.oEnd < CLE₂.oEnd` (strict)
 This eliminates the equality cases, simplifying FR cross-cluster proofs.
+
+### Lean match substitution is inconsistent
+After `match hfc : e, hprop with | .directoryEvent de, _ =>`, Lean substitutes `e` with
+`.directoryEvent de` in the GOAL and some hypotheses, but NOT all. Hypotheses that were
+created BEFORE the match keep their original `e` type. Always use explicit `rw [hfc]` or
+`show ... from ...` to bridge between the original and substituted types. Don't assume
+the match propagates everywhere.
+
+### Push sorry's to infrastructure lemmas (cdirEncapsDown_exists pattern)
+When Proof.lean needs protocol evidence from the shim (isDirWrite, down, translatedDir, etc.),
+extend `cdirEncapsDown_exists` to return it rather than constructing it inline in Proof.lean.
+This keeps the main proof clean and concentrates protocol plumbing in one file. The pattern:
+1. Identify what Proof.lean needs
+2. Add the field to `cdirEncapsDown_exists` return type
+3. Prove it inside the lemma (using shim access)
+4. Extract it in Proof.lean with simple destructuring
 
 ### Exists.choose bridge problem and solution
 `Exists.choose` uses `Classical.choice` — does NOT reduce even on concrete `⟨a, h⟩` witnesses.
