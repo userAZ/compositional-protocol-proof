@@ -160,27 +160,7 @@ StepOrdering has 3 constructors: ob, obEndLt, sameLin.
 Transitivity composes chains. Irreflexivity from OB irreflexivity.
 A cycle gives StepOrdering lin(e) lin(e) → contradiction. -/
 
-/-- Ordering between linearization points, connected via auxiliary
-    protocol events through OB and Encapsulates/EncapsulatedBy. -/
-inductive StepOrdering : Event n → Event n → Prop where
-  /-- Direct OB between linearization points -/
-  | ob (h : l₁.OrderedBefore n l₂) : StepOrdering l₁ l₂
-  /-- OB to intermediate, intermediate finishes before target lin point.
-      Uses oEnd < (not full EncapsulatedBy) because in the `noGlobalCache` shim case,
-      the GCR is a previous event that encapsulates cdir_down but is NOT encapsulated
-      by CLE — only cdir_down.oEnd < CLE.oEnd holds. -/
-  | obEndLt (p : Event n) (h_ob : l₁.OrderedBefore n p) (h_lt : Event.oEnd n p < Event.oEnd n l₂)
-      : StepOrdering l₁ l₂
-  /-- Same linearization point: cache events advance but CLE stays.
-      Used when both events encapsulate the shared CLE. -/
-  | sameLin (e₁' e₂' : Event n) (h_eq : l₁ = l₂)
-      (h_enc₁ : l₁.EncapsulatedBy n e₁') (h_ob : e₁'.OrderedBefore n e₂')
-      (h_enc₂ : l₂.EncapsulatedBy n e₂') : StepOrdering l₁ l₂
-  /-- Same linearization point: equality only (no encapsulation evidence).
-      Used when one event doesn't encapsulate the CLE (e.g., orderBeforeDir).
-      Irrefl is NOT provable from `.eq` alone — the cycle-level argument
-      guarantees at least one non-eq edge (rfe/fr always give ob/obEndLt). -/
-  | eq (h_eq : l₁ = l₂) : StepOrdering l₁ l₂
+-- StepOrdering definition moved to Defs.lean
 
 
 /-- StepOrdering is transitive. 3 constructors × 3 = 9 cases. -/
@@ -747,10 +727,12 @@ theorem step_to_ordering
             | diffCluster _ hdown hwOB => exact from_encap_wob hdown hwOB
     | co h => exact co_step_to_ordering h lin
     | fr h =>
-      -- fr: rf⁻¹;co⁺ composition.
-      -- Two cases based on e₁ vs e₂ cluster relationship.
-      -- Same cluster: dir_ordered on CLEs valid (same directory, same address).
-      -- Diff cluster: e₂ write triggers downgrade at e₁ cluster.
+      -- fr: extract StepOrdering from fr.ordering (descriptive inductive).
+      -- The fr.ordering field carries the communication evidence directly.
+      cases h.ordering with
+      | sameCluster step => exact step
+      | diffCluster step => exact step
+      /-  OLD FR proof (replaced by fr.ordering extraction):
       by_cases h_same_prot : e₁.sameProtocol n e₂
       · -- Same cluster: CLE₁ and CLE₂ at same cluster directory.
         by_cases hcle_eq : (lin e₁).hreq's_dir_access.choose = (lin e₂).hreq's_dir_access.choose
@@ -1038,6 +1020,7 @@ theorem step_to_ordering
                     -- Need CLE_w OB evict for OrderedBetween, then diffClusterNotBetweenCles_sameCache.
                     -- Chain: co → CLE_w.oEnd < CLE₂.oStart (for .ob case) → CLE₂ encaps chain → evict.
                     sorry -- diff-cluster e_w: CLE_w OB evict from co chain + encap chain
+      -/
 -- Old lex pair approach (co_step_advances, co_chain_cle_advance, step_advances,
 -- transgen_lex_advance) removed. Using StepOrdering instead.
 -- Placeholder to mark where old code was:

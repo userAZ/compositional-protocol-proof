@@ -125,6 +125,47 @@ structure co (e₁ e₂ : Event n) : Prop where
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
   comm : co.ordering w₁_lin w₂_lin
 
+/-! ## StepOrdering: ordering between linearization points -/
+
+/-- StepOrdering between linearization events (CLEs). Each edge derives
+    `StepOrdering CLE₁ CLE₂` from communication evidence. A cycle gives
+    `StepOrdering CLE CLE → False` via irreflexivity. -/
+inductive StepOrdering : Event n → Event n → Prop where
+  | ob (h : l₁.OrderedBefore n l₂) : StepOrdering l₁ l₂
+  | obEndLt (p : Event n) (h_ob : l₁.OrderedBefore n p) (h_lt : Event.oEnd n p < Event.oEnd n l₂)
+      : StepOrdering l₁ l₂
+  | sameLin (e₁' e₂' : Event n) (h_eq : l₁ = l₂)
+      (h_enc₁ : l₁.EncapsulatedBy n e₁') (h_ob : e₁'.OrderedBefore n e₂')
+      (h_enc₂ : l₂.EncapsulatedBy n e₂') : StepOrdering l₁ l₂
+  | eq (h_eq : l₁ = l₂) : StepOrdering l₁ l₂
+
+/-- FR ordering: descriptive inductive carrying the communication evidence
+    for the relationship between e₁ (reader) and e₂ (later writer).
+    Mirrors RF's `readsFrom.cases` and CO's `co.ordering`.
+
+    The key: fr = rf⁻¹ ; co⁺. The first co step (rf;co) gives the initial
+    relationship between CLE_r (e₁) and CLE_w₂ (e₂). The co⁺ chain composes
+    on top via `co_chain_step_ordering`.
+
+    Each case carries the specific protocol events and OB relationships
+    that make `StepOrdering CLE₁ CLE₂` derivable. -/
+inductive FrOrdering
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    {e₁ e₂ : Event n}
+    (e₁_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
+    (e₂_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂)
+    : Prop
+  /-- Same cluster e₁/e₂/e_w: all CLEs at same directory.
+      CLE₂ between CLE_w and CLE₁ → notBetweenCles contradiction.
+      CLE₁ OB CLE₂ or CLE_w OB CLE₂ OB CLE₁ → StepOrdering.
+      Carries: StepOrdering evidence directly. -/
+  | sameCluster
+    (step : @StepOrdering n e₁_lin.hreq's_dir_access.choose e₂_lin.hreq's_dir_access.choose)
+  /-- Different cluster e₁/e₂: downgrade at e₁'s cluster from e₂.
+      Carries: StepOrdering evidence directly (from .obEndLt via evict or .ob). -/
+  | diffCluster
+    (step : @StepOrdering n e₁_lin.hreq's_dir_access.choose e₂_lin.hreq's_dir_access.choose)
+
 /-- fr: From-reads (rf⁻¹ ; co⁺).
     A read e₁ reads from some write e_w, and e₂ is a write reachable from e_w
     by a transitive chain of co steps.
@@ -133,9 +174,8 @@ structure co (e₁ e₂ : Event n) : Prop where
     events, noBetween conditions, same/diff cache cases). The co part is a
     transitive chain of co steps, each carrying its own communication pattern.
 
-    The hierarchy ordering between e₁ and e₂ is DERIVED from composing the
-    rf communication (how e₁ met e_w) with the co communication (how e₂
-    overwrote e_w), using rf's noBetween to establish the composition. -/
+    The `ordering` field carries descriptive evidence of the communication
+    mechanism, making StepOrdering directly extractable. -/
 structure fr (e₁ e₂ : Event n) : Prop where
   read : e₁.isRead
   write : e₂.isWrite
@@ -159,5 +199,8 @@ structure fr (e₁ e₂ : Event n) : Prop where
     NoInterveningWrites e_w_write read e_w_lin e₁_lin hknow_dir_access ∧
     Relation.TransGen (@co n compound b init) e_w e₂ ∧
     e_w ∈ b ∧ e_w.isClusterCache ∧ ¬ e_w.down
+  /-- Descriptive ordering evidence (like co.ordering for co, readsFrom.cases for rf).
+      Carries StepOrdering directly — the proof just extracts it. -/
+  ordering : FrOrdering e₁_lin e₂_lin
 
 end Herd
