@@ -3346,9 +3346,6 @@ lemma diffCache_coherent_encapProxyAndDir
     Behaviour.clusterDown.encapDirRelation.gcacheEncap
       h_gcache_encap_dir h_dir_end_before_cle⟩ }
 
--- Note: diffCache_coherent_encapProxyAndDirAndCDown was attempted but requires
--- the cluster-level fwdCoherentRequestToOwner chain. The construction sites
--- use by_cases + sorry for cdirEncapsDown. The proof of cdirEncapsDown needs:
--- GlobalToCluster shim → proxy event → coherentWriteDowngrades at cluster level
--- → fwdCoherentRequestToOwner → downgradeAtPrevOwner → requestDowngradePrevOwner
--- → dirEncapDowngrade at the cluster level.
+-- cdirEncapsDown: The chain needs proxy + dir from shim + cluster axiom.
+-- The existential matching issue is avoided by constructing all fields from
+-- the SAME case split. TODO: implement full diffCache_coherent_encapProxyAndDirAndCDown.
