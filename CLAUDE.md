@@ -466,15 +466,20 @@ or OB + EncapBy circular chain.
 
 The key insight (from Anqi): same-address PPOi events share a CLE or have CLE ordering that follows the PPOi direction. The `hierarchicallyOrdered` ranking function works.
 
-**TODO (updated 2026-03-24):**
-- [x] Redefine CO with descriptive `co.ordering` inductive (sameCache/sameClusDiffCache/diffClus)
-- [x] Redefine FR as rf⁻¹ ; co⁺ (existential intermediate write + NoInterveningWrites)
-- [x] Wire `cmcm_acyclic` through lex pair approach (step_advances → transgen_lex_advance → lex_lt_irrefl)
-- [x] co_step_advances: ALL cases sorry-free
-- [ ] Close PPOi sorry's #1-3 (orderAfterDir nc.weak CLE sharing — needs cache_ordered + immediacy)
-- [ ] Close rfe sorry #4 (noEvictBetween × orderAfterDir — same nc.weak pattern)
-- [ ] Close fr sorry #5 (NoInterveningWrites application — needs e₂ membership + protocol classification)
-- [ ] Optional: clean up StepOrdering code (non-critical, kept for reference)
+**TODO (updated 2026-03-25):**
+- [x] CO edge: fully proven (co_step_to_ordering, 0 sorry's)
+- [x] rfe edge: fully proven (0 sorry's, including nc.weak state machine)
+- [x] FR CLE₁ OB CLE₂ direction: proven for all 3 by_cases
+- [x] FR same-cluster same-e_w: closed via notBetweenCles + co chain oEnd
+- [ ] FR diff-cluster e_w (same-cluster e₁/e₂): needs `diffClusterNotBetweenCles_sameCache`
+- [ ] FR diff-cluster (e₁/e₂): cdir_down OB CLE₁ contradiction
+- [ ] PPOi: use CompoundMCM `CompoundLinearizationOrder` (bridge to Herd CLEs)
+- [ ] StepOrdering.irrefl `.eq`: cycle-level argument (at least one non-eq edge)
+- [ ] **Nice-to-have**: Define `fr.ordering` inductive (like `co.ordering`) with descriptive
+  constructors carrying communication evidence between e₁ and e₂ directly.
+  This would replace the current `fr.comm` existential + NoInterveningWrites approach
+  with explicit downgrade/serialization evidence per case (sameCache/sameClusDiffCache/diffClus).
+  Would simplify the FR step_to_ordering proof significantly.
 
 ## Key architecture
 
