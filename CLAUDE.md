@@ -56,7 +56,7 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-24, late session)
+### Status (updated 2026-03-25)
 - **Main proof architecture**: `cmcm_acyclic` → `cmcm_acyclic_of_hknow` → StepOrdering
   - `step_to_ordering`: maps each PPOi ∪ com edge to `StepOrdering CLE₁ CLE₂`
   - `StepOrdering.trans`: composes edges (FULLY PROVEN, 0 sorry's)
@@ -67,7 +67,11 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **Irreflexivity**: DONE for all edge types
 - **write_event_cle_isDirWrite**: FULLY PROVEN (all 3 dirAccessOfRequest cases, in RfProofHelpers.lean)
 - **reqToDir_preserves_write_of_coherent/on_vd_ncrel**: moved to RfProofDefs.lean
-- **14 sorry's remain** in `step_to_ordering` — see categories below
+- **13 sorry's remain** in `step_to_ordering` — see categories below
+- **CO edge**: FULLY PROVEN (0 sorry's) — factored into `co_step_to_ordering`
+- **rfe edge**: FULLY PROVEN (0 sorry's) — including nc.weak state machine via `stateAfter_eq_succeedingState`
+- **FR edge**: CLE₁ OB CLE₂ direction closed for all 3 cases (same-cache/same-cluster/diff-cluster). CLE₂ OB CLE₁ needs NoInterveningWrites.
+- **Helper lemmas**: `list_stateAfter_append_singleton`, `stateAfter_eq_succeedingState`, `co_step_to_ordering`, `co_chain_step_ordering`
 
 ### Key insight: `hierarchicallyOrdered` IS `CompoundLinearizationOrder` (same concept)
 
