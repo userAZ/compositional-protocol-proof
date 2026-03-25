@@ -56,14 +56,13 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-25 session 4)
-- **Main proof architecture**: `cmcm_acyclic` → `cmcm_acyclic_of_hknow` → StepOrdering (0 sorry on main path)
-- **CO edge**: FULLY PROVEN (0 sorry's)
-- **rfe edge**: FULLY PROVEN (0 sorry's)
-- **FR edge**: Same-cluster same-e_w DONE. Diff-cluster CLE₁ OB cdir → `.obEndLt` ✓. Same-cluster diff-e_w CLE₁ OB CLE_w → `.obEndLt` via cross-cluster co chain ✓. Remaining: 4 sorry's for `cdir OB CLE₁`/`CLE_w OB CLE₁`/diff-cluster NIW cases.
-- **PPOi edge**: `dir_ordered` now properly guarded by `by_cases h_same_addr`. CompoundMCM bridge visible (ppoi_compound_lin_order used for diff-addr). CLE₁ OB CLE₂ → `.ob` everywhere ✓. Remaining: `CLE₂ OB CLE₁` sorry's.
-- **cdirEncapsDown_exists**: SW and scReadDown PROVEN. MR + noCoherentRead sorry'd.
-- **12 sorry's in Proof.lean** (1 dead code) + **2 sorry's in RfProofHelpers.lean**
+### Status (updated 2026-03-25 session 5)
+- **CO edge**: FULLY PROVEN
+- **rfe edge**: FULLY PROVEN
+- **FR edge**: `diffClusterNotBetweenCles_sameCache` applied with evict event for diff-cluster same-e_w case. `sameCacheConstraints` fields all closed in Proof.lean (isDirWrite, downIsDown, translatedDir — pushed to RfProofHelpers). CLE₁ OB e_evict → `.obEndLt` ✓. Remaining: 3 Proof.lean sorry's + infrastructure in RfProofHelpers.
+- **PPOi edge**: `dir_ordered` guarded by `by_cases h_same_addr`. CompoundMCM bridge visible. CLE₁ OB CLE₂ → `.ob` everywhere ✓.
+- **cdirEncapsDown_exists**: Extended with evict directory event (down, isDirWrite, protocol, translatedDir, OrderedBefore). SW case mostly proven. MR + noCoherentRead + some evict fields sorry'd.
+- **10 non-dead sorry's in Proof.lean** + **6 sorry's in RfProofHelpers.lean**
 
 ### FR sorry root cause (2026-03-25)
 All 4 remaining FR sorry's (768, 858, 862, 864) need `diffClusterNotBetweenCles_sameCache`.
