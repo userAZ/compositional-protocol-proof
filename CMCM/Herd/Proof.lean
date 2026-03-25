@@ -152,12 +152,6 @@ inductive StepOrdering : Event n → Event n → Prop where
   /-- OB to intermediate, intermediate inside target lin point -/
   | obEncap (p : Event n) (h_ob : l₁.OrderedBefore n p) (h_enc : p.EncapsulatedBy n l₂)
       : StepOrdering l₁ l₂
-  /-- Intermediate inside source lin point, intermediate OB target -/
-  | encapOb (p : Event n) (h_enc : p.EncapsulatedBy n l₁) (h_ob : p.OrderedBefore n l₂)
-      : StepOrdering l₁ l₂
-  /-- Intermediates inside both lin points with OB between them -/
-  | encapObEncap (p₁ p₂ : Event n) (h₁ : p₁.EncapsulatedBy n l₁) (h_ob : p₁.OrderedBefore n p₂)
-      (h₂ : p₂.EncapsulatedBy n l₂) : StepOrdering l₁ l₂
   /-- Same linearization point: cache events advance but CLE stays.
       l₁ = l₂ = CLE, with cache events e₁ OB e₂ that encapsulate CLE.
       The previous/next steps connect to/from this shared CLE. -/
@@ -166,7 +160,7 @@ inductive StepOrdering : Event n → Event n → Prop where
       (h_enc₂ : l₂.EncapsulatedBy n e₂') : StepOrdering l₁ l₂
 
 
-/-- StepOrdering is transitive. Case analysis on both steps. -/
+/-- StepOrdering is transitive. 3 constructors × 3 = 9 cases. -/
 theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
     (h₁₂ : StepOrdering l₁ l₂) (h₂₃ : StepOrdering l₂ l₃) : StepOrdering l₁ l₃ := by
   cases h₁₂ with
@@ -174,43 +168,13 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
     cases h₂₃ with
     | ob h₂ => exact .ob (Trans.trans h₁ h₂)
     | obEncap p hp hpe => exact .obEncap p (Trans.trans h₁ hp) hpe
-    | encapOb p hpe hp => exact .ob (Trans.trans (Trans.trans h₁ hpe) hp)
-    | encapObEncap p₁ p₂ hp₁ hp hp₂ => exact .obEncap p₂ (Trans.trans (Trans.trans h₁ hp₁) hp) hp₂
     | sameLin _ _ heq _ _ _ => subst heq; exact .ob h₁
   | obEncap q hq hqe =>
     cases h₂₃ with
     | ob h₂ => exact .ob (Trans.trans hq (Event.encap_by_order_trans n hqe h₂))
     | obEncap p hp hpe => exact .obEncap p (Trans.trans hq (Event.encap_by_order_trans n hqe hp)) hpe
-    | encapOb p hpe hp =>
-      -- q EncapBy l₂, p EncapBy l₂: both inside l₂. Junction case.
-      sorry
-    | encapObEncap p₁ p₂ hp₁ hp hp₂ =>
-      -- q EncapBy l₂, p₁ EncapBy l₂: both inside l₂. Junction case.
-      sorry
     | sameLin _ _ heq _ _ _ => subst heq; exact .obEncap q hq hqe
-  | encapOb q hqe hq =>
-    cases h₂₃ with
-    | ob h₂ => exact .encapOb q hqe (Trans.trans hq h₂)
-    | obEncap p hp hpe => exact .encapObEncap q p hqe (Trans.trans hq hp) hpe
-    | encapOb p hpe hp => exact .encapOb q hqe (Trans.trans (Trans.trans hq hpe) hp)
-    | encapObEncap p₁ p₂ hp₁ hp hp₂ =>
-      exact .encapObEncap q p₂ hqe (Trans.trans (Trans.trans hq hp₁) hp) hp₂
-    | sameLin _ _ heq _ _ _ => subst heq; exact .encapOb q hqe hq
-  | encapObEncap q₁ q₂ hq₁ hq hq₂ =>
-    cases h₂₃ with
-    | ob h₂ => exact .encapOb q₁ hq₁ (Trans.trans hq (Event.encap_by_order_trans n hq₂ h₂))
-    | obEncap p hp hpe =>
-      exact .encapObEncap q₁ p hq₁ (Trans.trans hq (Event.encap_by_order_trans n hq₂ hp)) hpe
-    | encapOb p hpe hp =>
-      -- q₂ EncapBy l₂, p EncapBy l₂: both inside l₂. Junction case.
-      sorry
-    | encapObEncap p₁ p₂ hp₁ hp hp₂ =>
-      -- q₂ EncapBy l₂, p₁ EncapBy l₂: both inside l₂. Junction case.
-      sorry
-    | sameLin e₁' e₂' heq he₁ hob he₂ =>
-      subst heq; exact .encapObEncap q₁ q₂ hq₁ hq hq₂
   | sameLin e₁' e₂' heq he₁ hob he₂ =>
-    -- l₁ = l₂ → h₂₃ : StepOrdering l₂ l₃ = StepOrdering l₁ l₃
     subst heq; exact h₂₃
 
 /-- StepOrdering is irreflexive. -/
@@ -218,19 +182,15 @@ theorem StepOrdering.irrefl {l : Event n} (h : StepOrdering l l) : False := by
   cases h with
   | ob h => exact Event.contradiction_of_reflexive_ordered_before n h
   | obEncap p hp hpe =>
-    -- l OB p, p EncapBy l → l.oEnd < p.oStart ≤ p.oEnd < l.oEnd
     exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hpe.right)
-  | encapOb p hpe hp =>
-    -- p EncapBy l, p OB l → p.oEnd < l.oStart, l.oStart < p.oStart → p.oEnd < p.oStart
-    exact Nat.lt_irrefl _ (Nat.lt_trans hp (Nat.lt_trans hpe.left (Event.oWellFormed n p)))
-  | encapObEncap p₁ p₂ hp₁ h_ob hp₂ =>
-    -- p₁ inside l, p₁ OB p₂, p₂ inside l. No direct contradiction.
-    sorry
   | sameLin e₁' e₂' heq he₁ hob he₂ =>
-    -- l = l, l inside e₁', e₁' OB e₂', l inside e₂'. No direct contradiction
-    -- (two events both encapsulating the same CLE, ordered).
-    -- Doesn't arise from cycle composition (at least one step advances CLE).
-    sorry
+    have : l.oEnd < l.oEnd :=
+      calc l.oEnd
+        _ < e₁'.oEnd := he₁.right
+        _ < e₂'.oStart := hob
+        _ < l.oStart := he₂.left
+        _ < l.oEnd := Event.oWellFormed n l
+    exact Nat.lt_irrefl _ this
 
 /-- Chain StepOrdering through TransGen. -/
 theorem StepOrdering.of_transGen
