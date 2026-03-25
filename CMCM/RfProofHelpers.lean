@@ -3346,97 +3346,90 @@ lemma diffCache_coherent_encapProxyAndDir
     Behaviour.clusterDown.encapDirRelation.gcacheEncap
       h_gcache_encap_dir h_dir_end_before_cle⟩ }
 
-/-- The cluster directory downgrade encapsulates a cache downgrade at e_w's cache.
-    Constructed from the cluster protocol axiom (coherentWriteDowngrades/coherentReadDowngrades).
-    The proxy + dir come from the GlobalToCluster shim (same as encapProxyAndDir).
-    The cluster axiom gives dirEncapDowngrade : e_dir.Encapsulates n e_down. -/
-lemma cdirEncapsDown_of_encapDir
+/-- Combined lemma: constructs both the cluster directory downgrade event and the
+    cache downgrade it encapsulates, returning the directory event as an explicit
+    existential witness. This avoids Exists.choose issues by never going through
+    the opaque encapDir structure. The directory event comes from the GlobalToCluster
+    shim and the cache downgrade from the cluster protocol axiom. -/
+lemma cdirEncapsDown_exists
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     {e_w e_r : Event n}
     (_hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
     (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
     (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache)
-    (hdown : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin)
-    : ∃ e_cache_down ∈ b,
-        hdown.existsRClusterDirDown.choose.Encapsulates n e_cache_down ∧
-        e_cache_down.down ∧ e_cache_down.isCacheEvent := by
-  -- Re-derive the global downgrade chain to expose the proxy event.
+    : ∃ e_cdir ∈ b, e_cdir.isDirectoryEvent ∧ e_cdir.protocol = e_w.protocol ∧
+        e_cdir.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧
+        (∃ e_cache_down ∈ b,
+            e_cdir.Encapsulates n e_cache_down ∧
+            e_cache_down.down ∧ e_cache_down.isCacheEvent) := by
+  -- Get global downgrade and GlobalToCluster shim
   have hgdown := diffCache_coherent_globalDowngrade hr_c_and_g_lin
   obtain ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b, hdowngrade⟩ := hgdown
   have hg2c := cmp.shimAxioms.globalToCluster b init (e_w.getProtocol cmp) e_r_gdown he_r_gdown_in_b
   have hp_eq := Event.getProtocol_pi cmp e_w
-  -- Construct encapDir' from the same chain (for Subsingleton bridge).
-  have hdir_encap := globalToCluster_extract_dir_with_encap hg2c e_w hp_eq
-  obtain ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, he_gdown_encap_dir⟩ := hdir_encap
-  -- Build encapDir' to bridge with hdown via Subsingleton.
-  let e_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
-      (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)
-  have h_gcache_encap_dir : e_gcache.Encapsulates n e_dir :=
-    Trans.trans (Trans.trans hdowngrade.downgradePrevOwner.reqEncapDir
-      hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dir
-  have h_dir_end_before_cle : e_dir.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd := by
-    have h_dir_lt_gcache : e_dir.oEnd < e_gcache.oEnd := h_gcache_encap_dir.2
-    let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
-    let hcdir_is_dir := hr_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
-    have h_gcache_lt_cle : e_gcache.oEnd < e_r_cle.oEnd := by
-      show (Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init e_r_cle hcdir_is_dir).oEnd < e_r_cle.oEnd
-      unfold Behaviour.Shim.ClusterToGlobal.cDir'sGReq
-      match h : cmp.shimAxioms.clusterToGlobal b init e_r_cle hcdir_is_dir with
-      | .encapGlobalCache _ hgreq_spec => exact hgreq_spec.choose_spec.right.encapGlobalCache.2
-      | .noGlobalCache hhas_perms _ =>
-        unfold Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent
-        have hnonempty := Behaviour.hasPermsInGlobalCache_implies_nonempty_immFinishBefore b init _ hhas_perms
-        rw [dif_pos hnonempty]; exact hnonempty.some.prop.2.finishBefore.finBefore.endBefore
-    exact Nat.lt_trans h_dir_lt_gcache h_gcache_lt_cle
-  have hdown' : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin :=
-    { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
-        Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩ }
-  -- Subsingleton bridge: hdown = hdown' → same choose.
-  -- hdown'.choose = hdown.choose (from Subsingleton). And hdown'.choose reduces to e_dir.
-  have hdir_eq : hdown.existsRClusterDirDown.choose = hdown'.existsRClusterDirDown.choose :=
-    congrArg (fun h => h.existsRClusterDirDown.choose) (Subsingleton.elim hdown hdown')
-  -- Apply cluster protocol axiom.
-  -- The proxy event comes from the same GlobalToCluster shim case split.
-  -- Use (e_w.getProtocol cmp).reqAxioms.coherentWriteDowngrades to get
-  -- fwdPrevOwner → downgradeAtPrevOwner → dirEncapDowngrade.
-  -- The dirEncapDowngrade gives: hdown'.choose.Encapsulates n e_cache_down.
-  -- Via hdir_eq: hdown.choose.Encapsulates n e_cache_down.
-  -- Pattern: CompoundPPOs.lean:1975.
-  -- Need to case-split on hg2c to extract proxy for axiom application.
+  -- Case split on GlobalToCluster shim ONCE — extract both directory event and cluster axiom
   cases hg2c with
   | bothCoherentWriteAndRead hcorrespond hboth downTranslation =>
     cases downTranslation with
     | scWriteDown _ translation =>
       obtain ⟨e_cw, he_cw_in_b, e_dw, e_ce, _, e_de, _, hstruct⟩ := translation.scGDownTranslation
-      -- e_cw = proxy coherent write, e_dw = its directory event.
-      -- Apply cluster axiom to e_cw and e_dw.
+      -- e_dw is the directory event (our e_cdir). No choose involved!
+      have he_dw_in_b := hstruct.cohWriteDir.dirInB
+      have he_dw_isDir := hstruct.cohWriteDir.isDir
+      have hproto := correspondingCluster_protocol_eq hcorrespond
+        hstruct.cohWrite.atCorrClusterProxy.clusterMatch.atCorrCluster
+      have he_dw_proto : e_dw.protocol = e_w.protocol :=
+        hstruct.cohWriteDir.sameProtocol.symm.trans hproto.symm |>.trans hp_eq
+      have he_gdown_encap_dw : e_r_gdown.Encapsulates n e_dw :=
+        Event.encap_encap_trans n (hstruct.cohWrite.globalEncap) (hstruct.cohWriteDir.reqEncapDir)
+      -- Build e_gcache encapsulates e_dw chain
+      let e_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
+          (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)
+      have h_gcache_encap_dw : e_gcache.Encapsulates n e_dw :=
+        Trans.trans (Trans.trans hdowngrade.downgradePrevOwner.reqEncapDir
+          hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dw
+      -- Prove e_dw.oEnd < CLE.oEnd
+      have h_dw_end_before_cle : e_dw.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd := by
+        have h_dw_lt_gcache : e_dw.oEnd < e_gcache.oEnd := h_gcache_encap_dw.2
+        let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
+        let hcdir_is_dir := hr_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+        have h_gcache_lt_cle : e_gcache.oEnd < e_r_cle.oEnd := by
+          show (Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init e_r_cle hcdir_is_dir).oEnd < e_r_cle.oEnd
+          unfold Behaviour.Shim.ClusterToGlobal.cDir'sGReq
+          match h : cmp.shimAxioms.clusterToGlobal b init e_r_cle hcdir_is_dir with
+          | .encapGlobalCache _ hgreq_spec => exact hgreq_spec.choose_spec.right.encapGlobalCache.2
+          | .noGlobalCache hhas_perms _ =>
+            unfold Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent
+            have hnonempty := Behaviour.hasPermsInGlobalCache_implies_nonempty_immFinishBefore b init _ hhas_perms
+            rw [dif_pos hnonempty]; exact hnonempty.some.prop.2.finishBefore.finBefore.endBefore
+        exact Nat.lt_trans h_dw_lt_gcache h_gcache_lt_cle
+      -- Apply cluster axiom to e_cw (proxy) and e_dw (directory)
       have haxiom := (e_w.getProtocol cmp).reqAxioms.coherentWriteDowngrades b init
         e_cw he_cw_in_b e_dw hstruct.cohWriteDir.dirInB
-      -- haxiom : coherentWriteDowngradeOthers. Get downgradeOtherCaches.
       cases haxiom.downgradeOtherCaches with
       | cWriteOnSW hfwd =>
         obtain ⟨e_down, he_down_in_b, e_grant, _, h_dpow⟩ := hfwd.fwdPrevOwner
-        -- h_dpow.downgradePrevOwner.dirEncapDowngrade : e_dw.Encapsulates n e_down
-        -- Bridge: e_dw = e_dir (from globalToCluster_extract_dir_with_encap in this case)
-        -- and hdown.choose = hdown'.choose = e_dir.
-        -- So hdown.choose.Encapsulates n e_down.
+        -- dirEncapDowngrade gives e_dw.Encapsulates n e_down — direct, no choose!
         have hencap := h_dpow.downgradePrevOwner.dirEncapDowngrade
-        -- hencap : e_dw.Encapsulates n e_down
-        -- Need: hdown.existsRClusterDirDown.choose.Encapsulates n e_down
-        -- The e_dir from globalToCluster_extract_dir_with_encap = e_dw (this shim case)
-        -- hdown'.existsRClusterDirDown = ⟨e_dir, ...⟩ where e_dir = e_dw
-        -- hdir_eq : hdown.choose = hdown'.choose
-        -- TODO: show hdown'.choose = e_dw and bridge
-        rw [hdir_eq]
-        -- hdown'.choose = e_dir. e_dw and e_dir both from same shim case.
-        -- They should be equal but connecting requires matching the existential paths.
-        -- For now: the encapsulation evidence is about e_dw, need to bridge to hdown'.choose.
-        exact ⟨e_down, he_down_in_b,
-               sorry /- e_dir.Encapsulates n e_down: bridge e_dw = e_dir from shim case -/,
-               sorry /- e_down.down -/, h_dpow.downgradePrevOwner.downAtCache⟩
-      | cWriteOnMR _ =>
-        sorry -- MR case: downgradeAtSharers instead of fwdPrevOwner
+        -- Extract e_down.down from downgradeCorrespondingToRequest
+        have hdown_is_down : e_down.down := by
+          have hfwd_from := h_dpow.downgradePrevOwner.fwdFromRequester
+          have hcache := h_dpow.downgradePrevOwner.downAtCache
+          -- Both e_cw and e_down must be cache events for downgradeCorrespondingToRequest
+          match he_down_cache : e_down, hcache with
+          | .cacheEvent ce_down, _ =>
+            match he_cw_cache : e_cw, haxiom.isCacheEvent with
+            | .cacheEvent ce_cw, _ =>
+              simp only [Event.downgradeCorrespondingToRequest, he_cw_cache, he_down_cache] at hfwd_from
+              exact hfwd_from.isDown
+            | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+          | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+        exact ⟨e_dw, he_dw_in_b, he_dw_isDir, he_dw_proto, h_dw_end_before_cle,
+          e_down, he_down_in_b, hencap, hdown_is_down, h_dpow.downgradePrevOwner.downAtCache⟩
+      | cWriteOnMR hfwd =>
+        -- MR case: downgradeAtSharers. Same structure but need to find a sharer ≠ e_cw.cid.
+        sorry
     | scReadDown _ _ translation =>
-      sorry -- Read downgrade case
+      sorry -- Read downgrade case: coherentReadDowngrades axiom
   | noCoherentRead hcorrespond _ downTranslation =>
     sorry -- No coherent read case

@@ -659,18 +659,13 @@ theorem step_to_ordering
                   -- which requires cdirEncapsDown (separate sorry in RfProofHelpers).
                   sorry
       · -- Different cluster: e₂ write triggers downgrade at e₁'s cluster.
-        have hdown := diffCache_coherent_encapProxyAndDir
-          (lin e₁) (lin e₂) h.in_b₁ h.cache₁
-        have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
-        have hencap_rel := hcdir_spec.2.2.2
-        have hcdir_lt_cle₂ : hdown.existsRClusterDirDown.choose.oEnd <
-            (lin e₂).hreq's_dir_access.choose.oEnd := by
-          cases hencap_rel with
-          | cleEncap henc => exact henc.right
-          | gcacheEncap _ hlt => exact hlt
+        -- Use cdirEncapsDown_exists which provides both e_cdir and e_cache_down
+        -- as explicit existential witnesses (avoids Exists.choose issues).
+        obtain ⟨e_cdir, he_cdir_in_b, he_cdir_isDir, he_cdir_proto, hcdir_lt_cle₂,
+          e_cache_down, he_cdown_in_b, hcdir_encap_down, hcdown_is_down, hcdown_is_cache⟩ :=
+          cdirEncapsDown_exists (lin e₁) (lin e₂) h.in_b₁ h.cache₁
         have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
-        have hcdir_isdir := hcdir_spec.2.1
-        match hfc_cdir : hdown.existsRClusterDirDown.choose, hcdir_isdir with
+        match hfc_cdir : e_cdir, he_cdir_isDir with
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
         | .directoryEvent de_cdir, _ =>
           match hfc_cle₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
@@ -679,23 +674,20 @@ theorem step_to_ordering
             cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
             | inl hob =>
               have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
-              exact .obEndLt hdown.existsRClusterDirDown.choose
+              exact .obEndLt (.directoryEvent de_cdir)
                 (show (Event.directoryEvent de_cle₁).OrderedBefore n
-                    hdown.existsRClusterDirDown.choose from by
-                  rw [hfc_cdir]; exact hob)
+                    (.directoryEvent de_cdir) from hob)
                 (by rw [hw₂']; exact hcdir_lt_cle₂)
             | inr hob =>
-              -- cdir_down OB CLE₁. Use cdirEncapsDown for temporal chain contradiction.
+              -- cdir_down OB CLE₁. Use cache downgrade for temporal chain contradiction.
               exfalso
-              obtain ⟨e_cache_down, he_down_in_b, hcdir_encap_down, hdown_is_down, hdown_is_cache⟩ :=
-                cdirEncapsDown_of_encapDir (lin e₁) (lin e₂) h.in_b₁ h.cache₁ hdown
-              -- hcdir_encap_down : cdir_down.Encapsulates n e_cache_down
-              -- e_cache_down at e₁'s cache, e₁ OB e_cache_down (from protocol chain)
-              -- Temporal chain: e_cache_down.oEnd < cdir_down.oEnd (from encap)
-              --   cdir_down.oEnd < CLE₁.oStart (from hob, via hfc_cdir/hfc_cle₁)
+              -- hcdir_encap_down : e_cdir.Encapsulates n e_cache_down
+              -- e_cache_down at e₁'s cache, need e₁ OB e_cache_down
+              -- Temporal chain: e_cache_down.oEnd < de_cdir.oEnd (from encap, via hfc_cdir)
+              --   de_cdir.oEnd < de_cle₁.oStart (from hob)
+              --   de_cle₁ inside CLE₁ inside e₁ (from encapDir)
               -- Need: e₁.oEnd < e_cache_down.oStart (e₁ before cache downgrade)
-              -- Then: e_cache_down.oEnd < ... < e₁.oEnd < e_cache_down.oStart
-              -- → e_cache_down.oEnd < e_cache_down.oStart → contradiction.
+              -- → e_cache_down.oEnd < de_cle₁.oStart ≤ e₁.oEnd < e_cache_down.oStart → contradiction
               sorry -- needs e₁ OB e_cache_down from protocol evidence
 -- Old lex pair approach (co_step_advances, co_chain_cle_advance, step_advances,
 -- transgen_lex_advance) removed. Using StepOrdering instead.
