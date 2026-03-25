@@ -848,10 +848,10 @@ theorem step_to_ordering
                 · -- Diff cluster e_w: use cdirEncapsDown_exists at e_w's cluster.
                   -- Get evict at e_w's cluster, use dir_ordered with CLE_w,
                   -- then diffClusterNotBetweenCles_sameCache or .obEndLt.
-                  obtain ⟨e_cdir_w, _, _, _, hcdir_w_lt,
+                  obtain ⟨e_cdir_w, he_cdir_w_in_b, he_cdir_w_isDir, _, hcdir_w_lt,
                     ⟨_, _, _, _, _⟩,
                     ⟨e_evict_w, he_evict_w_in_b, he_evict_w_isDir, he_evict_w_down,
-                     hevict_w_lt, _, he_evict_w_proto, he_evict_w_isDirWrite, he_evict_w_translatedDir⟩⟩ :=
+                     hevict_w_lt, hcdir_w_ob_evict_w, he_evict_w_proto, he_evict_w_isDirWrite, he_evict_w_translatedDir⟩⟩ :=
                     cdirEncapsDown_exists e_w_lin (hlin e₂) hw_in_b hw_cache
                   -- e_evict_w at e_w's cluster. dir_ordered CLE_w e_evict_w (same cluster, same addr).
                   have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
@@ -909,8 +909,34 @@ theorem step_to_ordering
                             translatedDir := by rw [hfc_evict_w]; exact he_evict_w_translatedDir
                           }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCache
                       | inr hob_evict_w =>
-                        -- evict_w OB CLE_w: evict arrived before CLE_w.
-                        sorry -- evict_w OB CLE_w: protocol temporal contradiction
+                        -- evict_w OB CLE_w. Also e_cdir_w OB evict_w (from cdirEncapsDown).
+                        -- Use dir_ordered CLE_w e_cdir_w: if CLE_w OB cdir_w → temporal contradiction.
+                        have he_cdir_w_isdir' := he_cdir_w_isDir
+                        match hfc_cdir_w : e_cdir_w, he_cdir_w_isdir' with
+                        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                        | .directoryEvent de_cdir_w, _ =>
+                          cases (b.orderedAtEntry.dir_ordered de_w de_cdir_w).ordered with
+                          | inl hob_w_cdir_w =>
+                            -- CLE_w OB cdir_w OB evict_w OB CLE_w → temporal loop → contradiction
+                            exfalso
+                            -- Chain: de_w.oEnd < de_cdir_w.oStart ≤ de_cdir_w.oEnd < de_evict_w.oStart
+                            --   ≤ de_evict_w.oEnd < de_w.oStart ≤ de_w.oEnd → de_w.oEnd < de_w.oEnd
+                            have h₁ : de_w.oEnd < de_cdir_w.oStart := hob_w_cdir_w
+                            have h₂ : Event.oEnd n (Event.directoryEvent de_cdir_w) <
+                                Event.oStart n (Event.directoryEvent de_evict_w) := hcdir_w_ob_evict_w
+                            have h₃ : de_evict_w.oEnd < de_w.oStart := hob_evict_w
+                            exact Nat.lt_irrefl de_w.oEnd
+                              (calc de_w.oEnd
+                                _ < de_cdir_w.oStart := h₁
+                                _ ≤ de_cdir_w.oEnd := Nat.le_of_lt de_cdir_w.oWellFormed
+                                _ < de_evict_w.oStart := h₂
+                                _ ≤ de_evict_w.oEnd := Nat.le_of_lt de_evict_w.oWellFormed
+                                _ < de_w.oStart := h₃
+                                _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed)
+                          | inr hob_cdir_w_w =>
+                            -- cdir_w OB CLE_w: consistent. cdir_w < evict_w < CLE_w.
+                            -- Need different argument.
+                            sorry -- cdir_w OB CLE_w + evict_w OB CLE_w: deeper protocol argument
       · -- Different cluster: e₂ write triggers downgrade at e₁'s cluster.
         -- Use cdirEncapsDown_exists which provides both e_cdir and e_cache_down
         -- as explicit existential witnesses (avoids Exists.choose issues).
