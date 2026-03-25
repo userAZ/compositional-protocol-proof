@@ -466,7 +466,33 @@ theorem fr_ordering_holds
                         -- cdir_w OB CLE_w: cdir_w.oEnd < CLE_w.oStart ≤ CLE_w.oEnd < CLE_{w_next}.oStart.
                         -- cdir_w is at e_w's cluster. CLE_{w_next} at e_w_next's cluster.
                         -- These might be at different clusters — can't derive contradiction directly.
-                        sorry -- .ob case: need cdir_w < CLE_w < CLE_{w_next}
+                        -- .ob: first co step at same cluster as e_w.
+                        -- dir_ordered de_cdir_w CLE_{w_next} at same dir.
+                        have hcle_wn_isdir := (hlin e_w_next).hreq's_dir_access.choose_spec.2.isDirEvent
+                        match hfc_wn : (hlin e_w_next).hreq's_dir_access.choose, hcle_wn_isdir with
+                        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                        | .directoryEvent de_wn, _ =>
+                          cases (b.orderedAtEntry.dir_ordered de_cdir_w de_wn).ordered with
+                          | inl hob_cdir_wn =>
+                            -- cdir_w OB CLE_{w_next}: consistent (cdir_w < CLE_w < CLE_{w_next}).
+                            -- This means cdir_w is BEFORE both CLE_w and CLE_{w_next}.
+                            -- Need further argument to derive contradiction.
+                            sorry -- cdir_w < CLE_w < CLE_{w_next}: deeper NIW argument
+                          | inr hob_wn_cdir =>
+                            -- CLE_{w_next} OB cdir_w: temporal loop!
+                            -- CLE_w < CLE_{w_next} (h_ob) and CLE_{w_next} < cdir_w (hob_wn_cdir)
+                            -- and cdir_w < CLE_w (hob_cdir_w_w) → CLE_w < CLE_w.
+                            exact Nat.lt_irrefl de_w.oEnd
+                              (calc de_w.oEnd
+                                _ < de_wn.oStart := by
+                                    show Event.oEnd n (.directoryEvent de_w) <
+                                        Event.oStart n (.directoryEvent de_wn)
+                                    rw [hfcw] at h_ob; rw [hfc_wn] at h_ob; exact h_ob
+                                _ ≤ de_wn.oEnd := Nat.le_of_lt de_wn.oWellFormed
+                                _ < de_cdir_w.oStart := hob_wn_cdir
+                                _ ≤ de_cdir_w.oEnd := Nat.le_of_lt de_cdir_w.oWellFormed
+                                _ < de_w.oStart := hob_cdir_w_w
+                                _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed)
                       | obEndLt p h_cle_w_ob_p h_p_lt =>
                         -- CLE_w OB p, p.oEnd < CLE_{w_next}.oEnd.
                         -- p is the cluster dir downgrade at e_w's cluster (from diffClus co step).
