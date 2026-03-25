@@ -484,11 +484,11 @@ theorem step_to_ordering
                           -- stateBefore.cache = Vd = ⟨some .wr, false⟩, not ⟨some .wr, true⟩ (SW).
                           -- So nc.weak write maps Vd → Vd.
                           -- Same contradiction: SW ≤ Vd false.
-                          -- stateBefore.cache = Vd. nc.weak write (not down) on Vd:
-                          -- SucceedingState = RequestState (not down).
-                          -- RequestState ⟨.w,false,.Weak⟩ Vd = Vd (from | _ => Vd branch).
-                          -- stateAfter.cache = Vd. SW ≤ Vd false.
-                          -- Connection: stateAfter = e.SucceedingState(stateBefore) from List.stateAfter append.
+                          -- stateBefore.cache = Vd. nc.weak write on Vd → stateAfter.cache = Vd.
+                          -- SW ≤ Vd is false → contradiction with hw_leaves_SW.
+                          -- TODO: needs helper connecting b.stateAfter to SucceedingState(stateBefore).
+                          -- For now: use the fact that stateAfter.cache can't be ≥ SW
+                          -- when stateBefore is non-coherent and the request is non-coherent.
                           sorry
               | evictBetween evict =>
                 exact from_encap_wob evict.encapProxyAndDir evict.evictBetween.wObRDown
