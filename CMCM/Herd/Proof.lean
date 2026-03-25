@@ -223,6 +223,23 @@ theorem StepOrdering.acyclic : Relation.Acyclic (@StepOrdering n) := by
   intro l hcycle
   exact StepOrdering.irrefl (StepOrdering.of_transGen hcycle)
 
+/-- Map a single co edge to StepOrdering. Factored out to avoid recursion in step_to_ordering. -/
+theorem co_step_to_ordering
+    (h : @Herd.co n compound b init e₁ e₂)
+    (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    : @StepOrdering n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose := by
+  -- (Body will be identical to the co case of step_to_ordering)
+  sorry
+
+/-- Chain co steps through TransGen into a single StepOrdering. -/
+theorem co_chain_step_ordering
+    (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (hpath : Relation.TransGen (@Herd.co n compound b init) e₁ e₂)
+    : @StepOrdering n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose := by
+  induction hpath with
+  | single h => exact co_step_to_ordering h lin
+  | tail _ h ih => exact StepOrdering.trans ih (co_step_to_ordering h lin)
+
 /-- Map each PPOi ∪ com step to a StepOrdering between linearization points.
     PPOi: direct OB (e₁ OB e₂).
     rfe/co/fr: extract protocol events from communication evidence. -/
@@ -568,13 +585,37 @@ theorem step_to_ordering
                 · -- diff protocol CLE₂ vs CLE_w: needs diffClusterNotBetweenCles
                   sorry
               | inr hob_₂w =>
-                -- CLE₂ OB CLE_w: de₂.oEnd < de_w.oStart
-                -- Combined with CLE₂ OB CLE₁: CLE₂ is before both.
-                -- From co chain: CLE_w.oEnd ≤ CLE₂.oEnd.
-                -- de_w.oEnd ≤ de₂.oEnd (from co_chain_cle_advance... but deleted).
-                -- Actually: de₂.oEnd < de_w.oStart ≤ de_w.oEnd.
-                -- Need de_w.oEnd ≤ de₂.oEnd from co chain to get contradiction.
-                sorry
+                -- CLE₂ OB CLE_w: de₂.oEnd < de_w.oStart.
+                -- StepOrdering implies oEnd advance: CLE_w.oEnd ≤ CLE₂.oEnd.
+                -- Contradiction: de_w.oEnd ≤ de₂.oEnd < de_w.oStart ≤ de_w.oEnd.
+                -- Chain co steps to get StepOrdering CLE_w CLE₂:
+                -- Each co step gives StepOrdering. Chain through TransGen.
+                -- (Uses co_to_step_ordering helper to avoid recursion in step_to_ordering)
+                -- co chain gives StepOrdering CLE_w CLE₂ (via co_chain_step_ordering)
+                have hco_so := co_chain_step_ordering hlin h_co_chain
+                rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hco_so
+                -- Extract oEnd advance: StepOrdering → CLE_w.oEnd ≤ CLE₂.oEnd
+                have hcw_le : de_w.oEnd ≤ de₂.oEnd := by
+                  cases hco_so with
+                  | ob h_ob =>
+                    simp only [Event.oEnd, hfcw] at h_ob
+                    exact Nat.le_of_lt (Nat.lt_trans h_ob (by simp [Event.oEnd, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂]; exact de₂.oWellFormed))
+                  | obEndLt p hp hlt =>
+                    simp only [Event.oEnd, hfcw] at hp
+                    simp only [Event.oEnd, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at hlt ⊢
+                    exact Nat.le_of_lt (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hlt)
+                  | sameLin _ _ heq _ _ _ =>
+                    simp only [Event.oEnd, hfcw, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at heq ⊢
+                    exact Nat.le_of_eq (congrArg DirectoryEvent.oEnd (Event.directoryEvent.inj heq))
+                  | eq heq =>
+                    simp only [Event.oEnd, hfcw, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at heq ⊢
+                    exact Nat.le_of_eq (congrArg DirectoryEvent.oEnd (Event.directoryEvent.inj heq))
+                -- Contradiction: de_w.oEnd ≤ de₂.oEnd < de_w.oStart ≤ de_w.oEnd
+                have : de_w.oEnd < de_w.oEnd :=
+                  calc de_w.oEnd ≤ de₂.oEnd := hcw_le
+                    _ < de_w.oStart := hob_₂w
+                    _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed
+                exact Nat.lt_irrefl _ this
             | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
       | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
