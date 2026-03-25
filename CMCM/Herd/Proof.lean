@@ -238,8 +238,8 @@ theorem step_to_ordering
       | wEqRGle _ hwr_same_cluster hw_eq_r_gle_cases =>
         cases hw_eq_r_gle_cases with
         | wEqRCle _ _ hwr_com =>
-          -- Same CLE, same cache: e_w OB e_r. Both inside same CLE.
-          sorry -- encapObEncap with e₁, e₂ inside shared CLE
+          -- Vacuous: wEqRCle requires sameCache, rfe requires diffCache
+          exact absurd hwr_com.sameCache h.diffCache
         | wObRCle hwr_gle_or_cle =>
           -- CLE_w OB CLE_r directly (same cluster, cluster dir serialization)
           exact .ob (by
@@ -284,7 +284,9 @@ theorem step_to_ordering
             | notImmPred hasPermsCase =>
               cases hasPermsCase with
               | noEvictBetween w =>
-                sorry -- needs dir_ordered chain for wObRDown
+                -- noEvictBetween: same downgrade chain as evictBetween but
+                -- needs dir_ordered to get CLE_w OB cdir_down (not carried as field)
+                sorry
               | evictBetween evict =>
                 exact from_encap_wob evict.encapProxyAndDir evict.evictBetween.wObRDown
           | wNoPermsAfter _ _ rCle =>
@@ -300,9 +302,17 @@ theorem step_to_ordering
     | co h =>
       -- co: extract from co.ordering
       cases h.comm with
-      | sameCache _ cache_ob =>
-        -- Same cache: e₁ OB e₂. Both inside same CLE.
-        sorry -- encapObEncap with e₁, e₂ inside shared CLE
+      | sameCache same_cle cache_ob =>
+        -- Same CLE (same_cle), e₁ OB e₂ (cache_ob). Produce .sameLin.
+        have hw₁ : h.w₁_lin = lin e₁ := Subsingleton.elim _ _
+        have hw₂ : h.w₂_lin = lin e₂ := Subsingleton.elim _ _
+        have hcle_eq : (lin e₁).hreq's_dir_access.choose = (lin e₂).hreq's_dir_access.choose := by
+          rw [← hw₁, ← hw₂]; exact same_cle
+        -- Need: CLE inside e₁ (EncapsulatedBy) and CLE inside e₂
+        -- From dirAccessOfRequest encapDir: e encapsulates CLE → CLE EncapsulatedBy e
+        -- For orderBeforeDir/orderAfterDir: CLE is not inside the event directly
+        -- Use .sameLin with e₁, e₂ as the encapsulating events
+        sorry
       | sameClusDiffCache _ cle_ord =>
         -- Same cluster, diff cache: CLE ordering from cleOrdering.Cases
         have hw₁ : h.w₁_lin = lin e₁ := Subsingleton.elim _ _
