@@ -228,8 +228,60 @@ theorem co_step_to_ordering
     (h : @Herd.co n compound b init e₁ e₂)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     : @StepOrdering n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose := by
-  -- (Body will be identical to the co case of step_to_ordering)
-  sorry
+  cases h.comm with
+  | sameCache same_cle cache_ob =>
+    have hw₁ : h.w₁_lin = lin e₁ := Subsingleton.elim _ _
+    have hw₂ : h.w₂_lin = lin e₂ := Subsingleton.elim _ _
+    have hcle_eq : (lin e₁).hreq's_dir_access.choose = (lin e₂).hreq's_dir_access.choose := by
+      rw [← hw₁, ← hw₂]; exact same_cle
+    have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2; rw [← hw₁] at hda₁
+    have hda₂ := (lin e₂).hreq's_dir_access.choose_spec.2; rw [← hw₂] at hda₂
+    cases hda₁ with
+    | encapDir _ hencap₁ =>
+      cases hda₂ with
+      | encapDir _ hencap₂ =>
+        exact .sameLin e₁ e₂ hcle_eq
+          (by rw [← hw₁]; exact ⟨hencap₁.reqEncapDir.left, hencap₁.reqEncapDir.right⟩)
+          cache_ob
+          (by rw [← hw₂]; exact ⟨hencap₂.reqEncapDir.left, hencap₂.reqEncapDir.right⟩)
+      | orderBeforeDir _ _ _ _ _ _ _ _ => exact .eq hcle_eq
+      | orderAfterDir _ _ _ _ => exact .eq hcle_eq
+    | orderBeforeDir _ _ _ _ _ _ _ _ => exact .eq hcle_eq
+    | orderAfterDir _ _ _ _ => exact .eq hcle_eq
+  | sameClusDiffCache _ cle_ord =>
+    have hw₁ : h.w₁_lin = lin e₁ := Subsingleton.elim _ _
+    have hw₂ : h.w₂_lin = lin e₂ := Subsingleton.elim _ _
+    cases cle_ord with
+    | wImmPredRCle w =>
+      cases w with
+      | sameCluster _ hob => exact .ob (by rw [← hw₁, ← hw₂]; exact hob)
+      | diffCluster _ hdown hwObRDown =>
+        have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
+        exact .obEndLt hdown.existsRClusterDirDown.choose
+          (by rw [← hw₁]; exact hwObRDown)
+          (by rw [← hw₂]; cases hcdir_spec.2.2.2 with
+              | cleEncap henc => exact henc.right
+              | gcacheEncap _ hlt => exact hlt)
+    | evictOrReadBetweenWAndRCleSameCluster evict =>
+      exact .ob (by rw [← hw₁, ← hw₂]; exact evict.wObR)
+  | diffClus _ diff_cluster_cases =>
+    have hw₁ : h.w₁_lin = lin e₁ := Subsingleton.elim _ _
+    have hw₂ : h.w₂_lin = lin e₂ := Subsingleton.elim _ _
+    cases diff_cluster_cases with
+    | wCleImmPredDown w =>
+      have hcdir_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
+      exact .obEndLt w.rDown.encapDir.existsRClusterDirDown.choose
+        (by rw [← hw₁]; exact w.wObRDown)
+        (by rw [← hw₂]; cases hcdir_spec.2.2.2 with
+            | cleEncap henc => exact henc.right
+            | gcacheEncap _ hlt => exact hlt)
+    | evictOrReadBetweenWAndRDown evict =>
+      have hcdir_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
+      exact .obEndLt evict.rDown.encapDir.existsRClusterDirDown.choose
+        (by rw [← hw₁]; exact evict.wObRDown)
+        (by rw [← hw₂]; cases hcdir_spec.2.2.2 with
+            | cleEncap henc => exact henc.right
+            | gcacheEncap _ hlt => exact hlt)
 
 /-- Chain co steps through TransGen into a single StepOrdering. -/
 theorem co_chain_step_ordering
@@ -450,83 +502,7 @@ theorem step_to_ordering
             | sameCluster _ hob_cle =>
               exact .ob (by rw [← hw₁, ← hw₂]; exact hob_cle)
             | diffCluster _ hdown hwOB => exact from_encap_wob hdown hwOB
-    | co h =>
-      -- co: extract from co.ordering
-      cases h.comm with
-      | sameCache same_cle cache_ob =>
-        -- Same CLE (same_cle), e₁ OB e₂ (cache_ob). Produce .sameLin.
-        have hw₁ : h.w₁_lin = lin e₁ := Subsingleton.elim _ _
-        have hw₂ : h.w₂_lin = lin e₂ := Subsingleton.elim _ _
-        have hcle_eq : (lin e₁).hreq's_dir_access.choose = (lin e₂).hreq's_dir_access.choose := by
-          rw [← hw₁, ← hw₂]; exact same_cle
-        -- CLE inside e₁ and e₂ (from encapDir of dirAccessOfRequest)
-        have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2
-        rw [← hw₁] at hda₁
-        have hda₂ := (lin e₂).hreq's_dir_access.choose_spec.2
-        rw [← hw₂] at hda₂
-        cases hda₁ with
-        | encapDir _ hencap₁ =>
-          cases hda₂ with
-          | encapDir _ hencap₂ =>
-            -- Both encapDir: CLE inside both e₁ and e₂
-            exact .sameLin e₁ e₂ hcle_eq
-              (by rw [← hw₁]; exact ⟨hencap₁.reqEncapDir.left, hencap₁.reqEncapDir.right⟩)
-              cache_ob
-              (by rw [← hw₂]; exact ⟨hencap₂.reqEncapDir.left, hencap₂.reqEncapDir.right⟩)
-          | orderBeforeDir _ _ _ _ _ _ _ _ => exact .eq hcle_eq
-          | orderAfterDir _ _ _ _ => exact .eq hcle_eq
-        | orderBeforeDir _ _ _ _ _ _ _ _ =>
-          cases hda₂ with
-          | encapDir _ _ => exact .eq hcle_eq
-          | orderBeforeDir _ _ _ _ _ _ _ _ => exact .eq hcle_eq
-          | orderAfterDir _ _ _ _ => exact .eq hcle_eq
-        | orderAfterDir _ _ _ _ =>
-          cases hda₂ with
-          | encapDir _ _ => exact .eq hcle_eq
-          | orderBeforeDir _ _ _ _ _ _ _ _ => exact .eq hcle_eq
-          | orderAfterDir _ _ _ _ => exact .eq hcle_eq
-      | sameClusDiffCache _ cle_ord =>
-        -- Same cluster, diff cache: CLE ordering from cleOrdering.Cases
-        have hw₁ : h.w₁_lin = lin e₁ := Subsingleton.elim _ _
-        have hw₂ : h.w₂_lin = lin e₂ := Subsingleton.elim _ _
-        cases cle_ord with
-        | wImmPredRCle w =>
-          cases w with
-          | sameCluster _ hob =>
-            -- CLE₁ OB CLE₂ directly
-            exact .ob (by rw [← hw₁, ← hw₂]; exact hob)
-          | diffCluster _ hdown hwObRDown =>
-            -- CLE₁ OB e_r_cdir_down, e_r_cdir_down EncapBy CLE₂
-            -- = obEncap
-            have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
-            have hencap_rel := hcdir_spec.2.2.2
-            exact .obEndLt hdown.existsRClusterDirDown.choose
-              (by rw [← hw₁]; exact hwObRDown)
-              (by rw [← hw₂]; cases hencap_rel with
-                  | cleEncap henc => exact henc.right
-                  | gcacheEncap _ hlt => exact hlt)
-        | evictOrReadBetweenWAndRCleSameCluster evict =>
-          exact .ob (by rw [← hw₁, ← hw₂]; exact evict.wObR)
-      | diffClus _ diff_cluster_cases =>
-        have hw₁ : h.w₁_lin = lin e₁ := Subsingleton.elim _ _
-        have hw₂ : h.w₂_lin = lin e₂ := Subsingleton.elim _ _
-        cases diff_cluster_cases with
-        | wCleImmPredDown w =>
-          have hcdir_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
-          have hencap_rel := hcdir_spec.2.2.2
-          exact .obEndLt w.rDown.encapDir.existsRClusterDirDown.choose
-            (by rw [← hw₁]; exact w.wObRDown)
-            (by rw [← hw₂]; cases hencap_rel with
-                | cleEncap henc => exact henc.right
-                | gcacheEncap _ hlt => exact hlt)
-        | evictOrReadBetweenWAndRDown evict =>
-          have hcdir_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
-          have hencap_rel := hcdir_spec.2.2.2
-          exact .obEndLt evict.rDown.encapDir.existsRClusterDirDown.choose
-            (by rw [← hw₁]; exact evict.wObRDown)
-            (by rw [← hw₂]; cases hencap_rel with
-                | cleEncap henc => exact henc.right
-                | gcacheEncap _ hlt => exact hlt)
+    | co h => exact co_step_to_ordering h lin
     | fr h =>
       -- fr: rf⁻¹;co⁺ composition.
       -- Strategy: dir_ordered on CLE₁ and CLE₂ gives CLE₁ OB CLE₂ or CLE₂ OB CLE₁.
