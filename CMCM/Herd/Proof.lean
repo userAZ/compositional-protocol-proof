@@ -75,6 +75,22 @@ theorem hierarchicallyOrdered_irrefl
   | ppoi h => exact ppoi_irrefl h
   | com h => exact com_irrefl h
 
+/-- List.stateAfter on append singleton: processing xs then e equals
+    applying e's SucceedingState to the result of processing xs. -/
+theorem list_stateAfter_append_singleton (xs : List (Event n)) (e : Event n) :
+    ∀ init : EntryState n,
+    (xs ++ [e]).stateAfter n init = e.SucceedingState n (xs.stateAfter n init) := by
+  induction xs with
+  | nil => intro init; simp [List.stateAfter]
+  | cons x xs ih => intro init; simp only [List.cons_append, List.stateAfter]; exact ih _
+
+/-- Behaviour.stateAfter = event's SucceedingState applied to stateBefore. -/
+theorem stateAfter_eq_succeedingState
+    {b : Behaviour n} {init : EntryState n} {e : Event n} :
+    b.stateAfter n init e = e.SucceedingState n (b.stateBefore n init e) := by
+  unfold Behaviour.stateAfter Behaviour.stateBefore
+  exact list_stateAfter_append_singleton _ _ _
+
 /-! ## Ordering sub-lemmas -/
 
 /-- PPOi → CompoundLinearizationOrder (for diff-addr, via CompoundMCM). -/
@@ -484,12 +500,40 @@ theorem step_to_ordering
                           -- stateBefore.cache = Vd = ⟨some .wr, false⟩, not ⟨some .wr, true⟩ (SW).
                           -- So nc.weak write maps Vd → Vd.
                           -- Same contradiction: SW ≤ Vd false.
-                          -- stateBefore.cache = Vd. nc.weak write on Vd → stateAfter.cache = Vd.
-                          -- SW ≤ Vd is false → contradiction with hw_leaves_SW.
-                          -- TODO: needs helper connecting b.stateAfter to SucceedingState(stateBefore).
-                          -- For now: use the fact that stateAfter.cache can't be ≥ SW
-                          -- when stateBefore is non-coherent and the request is non-coherent.
-                          sorry
+                          -- stateBefore.cache = Vd → stateAfter.cache = Vd for nc.weak write
+                          -- Step 1: stateAfter = SucceedingState(stateBefore)
+                          unfold Behaviour.reqLeavesStateAtLeast at hw_leaves_SW
+                          rw [stateAfter_eq_succeedingState] at hw_leaves_SW
+                          -- Step 2: SucceedingState for cache event, non-downgrade = RequestState
+                          -- Step 3: RequestState for nc.weak write on Vd = Vd
+                          -- e₁ is cache event (from rfe context)
+                          have hda := h.w_lin.hreq's_dir_access.choose_spec.2
+                          rw [h_cle_ev] at hda
+                          -- e₁ not down (from orderAfterDir.hnot_down)
+                          have hnotdown := hweak_req.notDown
+                          -- nc.weak: req = ⟨.w, false, .Weak⟩ or ⟨.r, false, .Weak⟩
+                          have hncweak := hweak_req.weakReq
+                          -- hw_leaves_SW now has SucceedingState form.
+                          -- Match e₁ to cache event, unfold SucceedingState + RequestState
+                          match he₁ : e₁ with
+                          | .directoryEvent _ =>
+                            have := hweak_req.reqCache; simp [Event.isCacheEvent, he₁] at this
+                          | .cacheEvent ce₁ =>
+                            have hnotdown_bool : ce₁.down = false := by
+                              cases hd : ce₁.down <;> simp_all [Event.down, he₁]
+                            simp only [Event.isNcWeak, Event.isNonCoherent, Event.isWeak, he₁] at hncweak
+                            have hwrite' : ce₁.req.val.rw = .w := by
+                              have := h.write; simpa [Event.isWrite, he₁, Request.isWrite] using this
+                            have hreq_val : ce₁.req.val = ⟨.w, false, .Weak⟩ := by
+                              obtain ⟨hnc, hweak⟩ := hncweak
+                              cases hv : ce₁.req.val with | mk rw c cs => simp_all [Bool.not_eq_true]
+                            have hreq_eq : ce₁.req = ⟨⟨.w, false, .Weak⟩, by simp [Request.IsValid']⟩ :=
+                              Subtype.ext hreq_val
+                            -- stateAfter = SucceedingState(stateBefore) [via stateAfter_eq_succeedingState]
+                            -- For cache event, non-downgrade, nc.weak write on Vd:
+                            -- SucceedingState = RequestState, RequestState ⟨.w,false,.Weak⟩ Vd = Vd
+                            -- Then SW ≤ Vd false. Simp plumbing blocks — needs EntryState.cache reduction.
+                            sorry
               | evictBetween evict =>
                 exact from_encap_wob evict.encapProxyAndDir evict.evictBetween.wObRDown
           | wNoPermsAfter _ _ rCle =>
