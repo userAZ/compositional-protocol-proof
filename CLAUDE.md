@@ -522,7 +522,12 @@ The key insight (from Anqi): same-address PPOi events share a CLE or have CLE or
   - The co⁺ chain: first rf;co step gives fr.ordering. Subsequent co steps compose via co_chain_step_ordering.
   - Add `ordering : fr.ordering` field to `fr` structure.
   - Rewrite step_to_ordering FR case to case-split on fr.ordering.
-- [ ] **cdirEncapsDown_exists MR + noCoherentRead**: protocol-specific shim cases
+- [ ] **cdirEncapsDown_exists sorry's** (6 total):
+  - isDirWrite derivation (3489): needs reqToDirOfRequestEvent + isSCWrite → isWrite
+  - translatedDir components (3496, 3498): downgradeAtPrevOwner wrapper + correspondingDirectoryEvent
+  - cWriteOnMR (3502): needs sharer extraction from MR directory state
+  - scReadDown evict (3553): scReadDown has single dir event (read, not write) — isDirWrite fails
+  - noCoherentRead (3555): VD write-back mechanism, different axiom needed
 
 ## Key architecture
 
