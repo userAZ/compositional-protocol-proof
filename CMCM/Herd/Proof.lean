@@ -499,7 +499,9 @@ theorem fr_ordering_holds
                         -- p from co step's diffClus: directory event at target cluster.
                         -- For same-cluster e_w: p at e_w's cluster = cdir_w's cluster.
                         -- dir_ordered de_cdir_w p → p OB cdir_w gives loop.
-                        sorry -- .obEndLt: dir_ordered de_cdir_w p → temporal loop for p OB cdir_w
+                        -- .obEndLt: cdir_w < CLE_w < p (from cdir_w OB CLE_w OB p).
+                        -- Needs info about p (proxy from co step) to derive contradiction.
+                        sorry -- .obEndLt: proxy p vs cdir_w ordering
                       | sameLin _ _ heq henc₁ hob_cache henc₂ =>
                         -- sameLin gives temporal loop: l.oEnd < e₁'.oEnd < e₂'.oStart < l.oStart
                         -- where l₁ = l₂ = CLE_w (after match subst)
@@ -610,7 +612,52 @@ theorem fr_ordering_holds
                             _ < de_w.oStart := hob_evict_w
                             _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed)
                       | inr hob_cdir_w =>
-                        sorry -- cdir OB CLE_w: deeper protocol argument
+                        -- cdir OB CLE_w: same pattern as sameCluster diff-e_w case.
+                        -- Extract first co step, decompose StepOrdering.
+                        obtain ⟨e_w_next, h_first_co⟩ := Herd.transGen_first_step h_co_chain
+                        have hfirst_so := co_step_to_ordering h_first_co hlin
+                        rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hfirst_so
+                        cases hfirst_so with
+                        | ob h_ob_co =>
+                          -- Same pattern as 480. dir_ordered de_cdir CLE_{w_next}.
+                          have hcle_wn_isdir := (hlin e_w_next).hreq's_dir_access.choose_spec.2.isDirEvent
+                          match hfc_wn : (hlin e_w_next).hreq's_dir_access.choose, hcle_wn_isdir with
+                          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                          | .directoryEvent de_wn, _ =>
+                            cases (b.orderedAtEntry.dir_ordered de_cdir de_wn).ordered with
+                            | inl _ => sorry -- cdir OB CLE_{w_next}: consistent
+                            | inr hob_wn_cdir =>
+                              exact Nat.lt_irrefl de_w.oEnd
+                                (calc de_w.oEnd
+                                  _ < de_wn.oStart := by
+                                      show Event.oEnd n (.directoryEvent de_w) <
+                                          Event.oStart n (.directoryEvent de_wn)
+                                      rw [hfcw] at h_ob_co; rw [hfc_wn] at h_ob_co; exact h_ob_co
+                                  _ ≤ de_wn.oEnd := Nat.le_of_lt de_wn.oWellFormed
+                                  _ < de_cdir.oStart := hob_wn_cdir
+                                  _ ≤ de_cdir.oEnd := Nat.le_of_lt de_cdir.oWellFormed
+                                  _ < de_w.oStart := hob_cdir_w
+                                  _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed)
+                        | obEndLt _ _ _ => sorry -- .obEndLt: proxy vs cdir
+                        | sameLin _ _ heq henc₁ hob_cache henc₂ =>
+                          exact Nat.lt_irrefl _
+                            (calc Event.oEnd n e_w_lin.hreq's_dir_access.choose
+                              _ < _ := henc₁.right
+                              _ < _ := hob_cache
+                              _ < Event.oStart n e_w_lin.hreq's_dir_access.choose := by
+                                  rw [← heq] at henc₂; exact henc₂.left
+                              _ < _ := Event.oWellFormed n _)
+                        | eq heq =>
+                          have hcle_wn_isdir := (hlin e_w_next).hreq's_dir_access.choose_spec.2.isDirEvent
+                          match hfc_wn : (hlin e_w_next).hreq's_dir_access.choose, hcle_wn_isdir with
+                          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                          | .directoryEvent de_wn, _ =>
+                            have hde_eq : de_w = de_wn :=
+                              Event.directoryEvent.inj (by rw [hfcw, hfc_wn] at heq; exact heq)
+                            rw [hde_eq] at hob_cdir_w
+                            cases (b.orderedAtEntry.dir_ordered de_wn de_wn).ordered with
+                            | inl h => exact Nat.lt_irrefl _ (Nat.lt_trans h de_wn.oWellFormed)
+                            | inr h => exact Nat.lt_irrefl _ (Nat.lt_trans h de_wn.oWellFormed)
                 · -- Different cluster e_w/e₁.
                   sorry -- diff-cluster e_w/e₁: cross-cluster NIW
 
