@@ -433,12 +433,10 @@ theorem step_to_ordering
           exact .ob (Nat.lt_trans (Nat.lt_trans (Nat.lt_trans (Nat.lt_trans
             hpred₁_encap.reqEncapDir.right hpred₁_ob_e₁)
             (Event.oWellFormed n e₁)) hppoi.orderedBefore) hencap₂.reqEncapDir.left)
-        | orderBeforeDir _ _ _ _ _ _ _ _ =>
+        | orderBeforeDir _ hexists_pred₂ hpred₂_encap hinter_leaves₂ _ _ _ _ =>
           -- Both orderBeforeDir: CLEs from predecessors.
-          -- For same-address: use dir_ordered (same cluster + same address). ✓
-          -- For diff-address: use CompoundMCM (avoids cross-address dir_ordered).
           by_cases h_same_addr : e₁.addr = e₂.addr
-          · -- Same address: dir_ordered valid (same cluster from PPOi, same addr).
+          · -- Same address: cache_ordered pred₁ pred₂ then dir_ordered CLEs.
             have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
             have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
             match hfc₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
@@ -450,8 +448,49 @@ theorem step_to_ordering
                 cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
                 | inl hob => exact .ob hob
                 | inr hob =>
-                  -- CLE₂ OB CLE₁. Same addr, both orderBeforeDir → predecessor elimination.
-                  sorry -- same-addr predecessor elimination
+                  -- CLE₂ OB CLE₁. Use cache_ordered pred₁ pred₂.
+                  -- pred₁ OB pred₂ → CLE₁ OB CLE₂ → contradiction with CLE₂ OB CLE₁.
+                  -- pred₂ OB pred₁ → pred₁ between pred₂ and e₂ → predecessor elimination.
+                  -- Encap → downgrade contradiction.
+                  have hpred₁_cache := hexists_pred₁.choose_spec.right.satisfyP.reqCache
+                  have hpred₂_cache := hexists_pred₂.choose_spec.right.satisfyP.reqCache
+                  have hpred₂_spec := hexists_pred₂.choose_spec.right
+                  match he₁_ce : e₁, hppoi.cache₁ with
+                  | .cacheEvent ce₁, _ =>
+                    match hpred₁_ce : hexists_pred₁.choose, hpred₁_cache with
+                    | .cacheEvent ce_pred₁, _ =>
+                      match hpred₂_ce : hexists_pred₂.choose, hpred₂_cache with
+                      | .cacheEvent ce_pred₂, _ =>
+                        cases (b.orderedAtEntry.cache_ordered ce_pred₁ ce_pred₂).ordered with
+                        | inl hencap_or_before₁ =>
+                          cases hencap_or_before₁ with
+                          | inl hencap₁_by₂ =>
+                            -- pred₁ encap by pred₂ → pred₁ downgrade → contradicts satisfyP.notDown
+                            exact absurd
+                              (show Event.down n hexists_pred₁.choose from by
+                                rw [hpred₁_ce]
+                                exact b.orderedAtEntry.cache_encap_rule ce_pred₂ ce_pred₁ hencap₁_by₂)
+                              hexists_pred₁.choose_spec.right.satisfyP.notDown
+                          | inr hpred₁_ob_pred₂ =>
+                            -- pred₁ OB pred₂: CLE₁.oEnd < pred₁.oEnd < pred₂.oStart < CLE₂.oStart
+                            -- → CLE₁ OB CLE₂ → contradiction with CLE₂ OB CLE₁ (hob).
+                            exfalso
+                            sorry -- temporal chain: CLE₁ OB CLE₂ from pred₁ OB pred₂ + encapsulation
+                        | inr hencap_or_before₂ =>
+                          cases hencap_or_before₂ with
+                          | inl hencap₂_by₁ =>
+                            -- pred₂ encap by pred₁ → pred₂ downgrade → contradicts satisfyP.notDown
+                            exact absurd
+                              (show Event.down n hexists_pred₂.choose from by
+                                rw [hpred₂_ce]
+                                exact b.orderedAtEntry.cache_encap_rule ce_pred₁ ce_pred₂ hencap₂_by₁)
+                              hpred₂_spec.satisfyP.notDown
+                          | inr hpred₂_ob_pred₁ =>
+                            -- pred₂ OB pred₁: pred₁ between pred₂ and e₂ → predecessor elimination.
+                            sorry -- pred₂ OB pred₁: same pattern as encapDir×orderBeforeDir
+                      | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+                    | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+                  | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
           · -- Different address: CompoundMCM.
             sorry -- diff-addr: CompoundMCM for orderBeforeDir×orderBeforeDir
         | orderAfterDir _ hsucc_encap₂ _ _ =>
