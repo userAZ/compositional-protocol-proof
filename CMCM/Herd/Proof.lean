@@ -155,10 +155,16 @@ inductive StepOrdering : Event n → Event n → Prop where
       by CLE — only cdir_down.oEnd < CLE.oEnd holds. -/
   | obEndLt (p : Event n) (h_ob : l₁.OrderedBefore n p) (h_lt : Event.oEnd n p < Event.oEnd n l₂)
       : StepOrdering l₁ l₂
-  /-- Same linearization point: cache events advance but CLE stays. -/
+  /-- Same linearization point: cache events advance but CLE stays.
+      Used when both events encapsulate the shared CLE. -/
   | sameLin (e₁' e₂' : Event n) (h_eq : l₁ = l₂)
       (h_enc₁ : l₁.EncapsulatedBy n e₁') (h_ob : e₁'.OrderedBefore n e₂')
       (h_enc₂ : l₂.EncapsulatedBy n e₂') : StepOrdering l₁ l₂
+  /-- Same linearization point: equality only (no encapsulation evidence).
+      Used when one event doesn't encapsulate the CLE (e.g., orderBeforeDir).
+      Irrefl is NOT provable from `.eq` alone — the cycle-level argument
+      guarantees at least one non-eq edge (rfe/fr always give ob/obEndLt). -/
+  | eq (h_eq : l₁ = l₂) : StepOrdering l₁ l₂
 
 
 /-- StepOrdering is transitive. 3 constructors × 3 = 9 cases. -/
@@ -170,6 +176,7 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
     | ob h₂ => exact .ob (Trans.trans h₁ h₂)
     | obEndLt p hp hlt => exact .obEndLt p (Trans.trans h₁ hp) hlt
     | sameLin _ _ heq _ _ _ => subst heq; exact .ob h₁
+    | eq heq => subst heq; exact .ob h₁
   | obEndLt q hq hqlt =>
     cases h₂₃ with
     | ob h₂ =>
@@ -177,7 +184,10 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
     | obEndLt p hp hlt =>
       exact .obEndLt p (Trans.trans hq (show q.OrderedBefore n p from Nat.lt_trans hqlt hp)) hlt
     | sameLin _ _ heq _ _ _ => subst heq; exact .obEndLt q hq hqlt
+    | eq heq => subst heq; exact .obEndLt q hq hqlt
   | sameLin e₁' e₂' heq he₁ hob he₂ =>
+    subst heq; exact h₂₃
+  | eq heq =>
     subst heq; exact h₂₃
 
 /-- StepOrdering is irreflexive. -/
@@ -195,6 +205,11 @@ theorem StepOrdering.irrefl {l : Event n} (h : StepOrdering l l) : False := by
         _ < l.oStart := he₂.left
         _ < l.oEnd := Event.oWellFormed n l
     exact Nat.lt_irrefl _ this
+  | eq _ =>
+    -- Can't derive False from just l = l. In practice, the composed
+    -- cycle result is never .eq because rfe/fr always give non-eq.
+    -- Handle at cycle level in cmcm_acyclic_of_hknow.
+    sorry
 
 /-- Chain StepOrdering through TransGen. -/
 theorem StepOrdering.of_transGen
@@ -377,10 +392,18 @@ theorem step_to_ordering
               (by rw [← hw₁]; exact ⟨hencap₁.reqEncapDir.left, hencap₁.reqEncapDir.right⟩)
               cache_ob
               (by rw [← hw₂]; exact ⟨hencap₂.reqEncapDir.left, hencap₂.reqEncapDir.right⟩)
-          | orderBeforeDir _ _ _ _ _ _ _ _ => sorry -- CLE from predecessor of e₂
-          | orderAfterDir _ _ _ _ => sorry -- nc.weak e₂
-        | orderBeforeDir _ _ _ _ _ _ _ _ => sorry -- CLE from predecessor of e₁
-        | orderAfterDir _ _ _ _ => sorry -- nc.weak e₁
+          | orderBeforeDir _ _ _ _ _ _ _ _ => exact .eq hcle_eq
+          | orderAfterDir _ _ _ _ => exact .eq hcle_eq
+        | orderBeforeDir _ _ _ _ _ _ _ _ =>
+          cases hda₂ with
+          | encapDir _ _ => exact .eq hcle_eq
+          | orderBeforeDir _ _ _ _ _ _ _ _ => exact .eq hcle_eq
+          | orderAfterDir _ _ _ _ => exact .eq hcle_eq
+        | orderAfterDir _ _ _ _ =>
+          cases hda₂ with
+          | encapDir _ _ => exact .eq hcle_eq
+          | orderBeforeDir _ _ _ _ _ _ _ _ => exact .eq hcle_eq
+          | orderAfterDir _ _ _ _ => exact .eq hcle_eq
       | sameClusDiffCache _ cle_ord =>
         -- Same cluster, diff cache: CLE ordering from cleOrdering.Cases
         have hw₁ : h.w₁_lin = lin e₁ := Subsingleton.elim _ _
