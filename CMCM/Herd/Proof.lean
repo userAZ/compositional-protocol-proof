@@ -653,7 +653,10 @@ theorem step_to_ordering
                           _ < de_w.oStart := hob_₂w
                           _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed
                       exact Nat.lt_irrefl _ this
-                · -- Diff cluster e_w: use diffClusterNotBetweenCles_sameCache
+                · -- Diff cluster e_w: e₂ triggers downgrade at e_w's cluster.
+                  -- diffClusterNotBetweenCles_sameCache excludes this downgrade
+                  -- between CLE_w and CLE₁. Needs encapProxyAndDirAndCDown(e_w, lin e₂)
+                  -- which requires cdirEncapsDown (separate sorry in RfProofHelpers).
                   sorry
       · -- Different cluster: e₂ write triggers downgrade at e₁'s cluster.
         have hdown := diffCache_coherent_encapProxyAndDir
@@ -682,9 +685,14 @@ theorem step_to_ordering
                   rw [hfc_cdir]; exact hob)
                 (by rw [hw₂']; exact hcdir_lt_cle₂)
             | inr hob =>
-              -- cdir_down OB CLE₁: contradiction.
-              -- Downgrade from e₂ at e₁'s cluster before e₁'s CLE
-              -- → e₁ should see e₂'s value, contradicting RF.
+              -- cdir_down OB CLE₁. Contradiction via temporal chain:
+              -- encapProxyAndDirAndCDown gives: e₁ OB e_r_down (cache downgrade)
+              -- and cdir_down encaps e_r_down. Then:
+              -- e_r_down.oEnd < cdir_down.oEnd < CLE₁.oStart ≤ CLE₁.oEnd
+              --   < e₁.oEnd < e_r_down.oStart ≤ e_r_down.oEnd
+              -- → e_r_down.oEnd < e_r_down.oEnd → contradiction.
+              -- Needs: encapProxyAndDirAndCDown (full version with cdirEncapsDown).
+              -- cdirEncapsDown has a separate sorry in RfProofHelpers.lean:3349.
               sorry
 -- Old lex pair approach (co_step_advances, co_chain_cle_advance, step_advances,
 -- transgen_lex_advance) removed. Using StepOrdering instead.
