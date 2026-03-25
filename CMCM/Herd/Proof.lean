@@ -449,9 +449,10 @@ theorem fr_ordering_holds
                       sorry -- cdir_w OB CLE_w: deeper protocol argument
     · -- Diff cluster: use cdirEncapsDown_exists for proxy.
       -- dir_ordered CLE₁ cdir/evict → CLE₁ OB proxy, proxy.oEnd < CLE₂.oEnd.
-      obtain ⟨e_cdir, _, he_cdir_isDir, _, hcdir_lt_cle₂,
+      obtain ⟨e_cdir, _he_cdir_in_b, he_cdir_isDir, _he_cdir_proto, hcdir_lt_cle₂,
         ⟨_, _, _, _, _⟩,
-        ⟨e_evict, _, he_evict_isDir, _, hevict_lt_cle₂, hcdir_ob_evict, _, _, _, _⟩⟩ :=
+        ⟨e_evict, he_evict_in_b, he_evict_isDir, he_evict_down, hevict_lt_cle₂,
+         hcdir_ob_evict, he_evict_proto, he_evict_isDirWrite, he_evict_translatedDir⟩⟩ :=
         cdirEncapsDown_exists (lin e₁) (lin e₂) h.in_b₁ h.cache₁
       -- Use CLE₁ vs e_cdir ordering. CLE₁ OB cdir → .diffCluster with cdir as proxy.
       have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
@@ -508,18 +509,16 @@ theorem fr_ordering_holds
                           (lin e₁).hreq's_dir_access.choose :=
                         ⟨by rw [hfcw, hfc_evict]; exact hob_w_evict,
                          by rw [hfc_evict, hfc_cle₁]; exact hob_evict_cle₁⟩
-                      -- Need e_evict ∈ b — extract from cdirEncapsDown_exists
-                      -- The obtain unnamed the membership. Use sorry for now.
-                      exact absurd ⟨e_evict, sorry,  -- e_evict ∈ b
+                      exact absurd ⟨e_evict, by rw [hfc_evict]; exact he_evict_in_b,
                         { interDiffProtocol := by
                             intro heq; exact h_same_prot (h_ew_prot.trans heq.symm)
                           downToW := by
                             show e_evict.protocol = e_w.protocol
-                            sorry -- evict protocol = e_w protocol
-                          isDirWrite := sorry -- evict isDirWrite
-                          downIsDown := sorry -- evict down
+                            rw [hfc_evict]; exact he_evict_proto.trans h_ew_prot
+                          isDirWrite := by rw [hfc_evict]; exact he_evict_isDirWrite
+                          downIsDown := by rw [hfc_evict]; exact he_evict_down
                           isDir := by rw [hfc_evict]; simp [Event.isDirectoryEvent]
-                          translatedDir := sorry -- clusterDirFromDiffProtocolRequest
+                          translatedDir := by rw [hfc_evict]; exact he_evict_translatedDir
                         }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCache
                     | inr hob_evict_w =>
                       -- evict OB CLE_w: temporal loop via dir_ordered CLE_w cdir.
