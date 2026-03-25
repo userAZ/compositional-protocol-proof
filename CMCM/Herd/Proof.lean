@@ -288,6 +288,13 @@ theorem co_chain_step_ordering
   | single h => exact co_step_to_ordering h lin
   | tail _ h ih => exact StepOrdering.trans ih (co_step_to_ordering h lin)
 
+/-- Extract the first step from a TransGen chain. -/
+private lemma transGen_first_step {r : α → α → Prop} (h : Relation.TransGen r a c) :
+    ∃ b, r a b := by
+  induction h with
+  | single h => exact ⟨_, h⟩
+  | tail _ _ ih => exact ih
+
 /-- FR ordering theorem: proves FrOrdering from rf + co + NIW evidence.
     Mirrors CMCM.rf_holds for RF and co_step_to_ordering for CO.
     The descriptive evidence in FrOrdering is DERIVED from protocol axioms,
@@ -446,7 +453,31 @@ theorem fr_ordering_holds
                           _ < de_w.oStart := hob_evict_w
                           _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed)
                     | inr hob_cdir_w_w =>
-                      sorry -- cdir_w OB CLE_w: deeper protocol argument
+                      -- cdir_w OB CLE_w: use first co step's wObRDown.
+                      -- Extract first co step from TransGen.
+                      obtain ⟨e_w_next, h_first_co⟩ := Herd.transGen_first_step h_co_chain
+                      -- First co step: co(e_w, e_w_next). Use co_step_to_ordering.
+                      have hfirst_so := co_step_to_ordering h_first_co hlin
+                      rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hfirst_so
+                      -- StepOrdering CLE_w CLE_{w_next}. Cases:
+                      cases hfirst_so with
+                      | ob h_ob =>
+                        -- CLE_w OB CLE_{w_next}: CLE_w.oEnd < CLE_{w_next}.oStart.
+                        -- cdir_w OB CLE_w: cdir_w.oEnd < CLE_w.oStart ≤ CLE_w.oEnd < CLE_{w_next}.oStart.
+                        -- cdir_w is at e_w's cluster. CLE_{w_next} at e_w_next's cluster.
+                        -- These might be at different clusters — can't derive contradiction directly.
+                        sorry -- .ob case: need cdir_w < CLE_w < CLE_{w_next}
+                      | obEndLt p h_cle_w_ob_p h_p_lt =>
+                        -- CLE_w OB p, p.oEnd < CLE_{w_next}.oEnd.
+                        -- p is the cluster dir downgrade at e_w's cluster (from diffClus co step).
+                        -- cdir_w is also at e_w's cluster. Both are directory events.
+                        -- If p = cdir_w: CLE_w OB cdir_w, but hob_cdir_w_w says cdir_w OB CLE_w → contradiction!
+                        -- dir_ordered p cdir_w at same cluster:
+                        sorry -- .obEndLt case: need p vs cdir_w ordering
+                      | sameLin _ _ heq _ _ _ =>
+                        sorry -- .sameLin case
+                      | eq heq =>
+                        sorry -- .eq case
     · -- Diff cluster: use cdirEncapsDown_exists for proxy.
       -- dir_ordered CLE₁ cdir/evict → CLE₁ OB proxy, proxy.oEnd < CLE₂.oEnd.
       obtain ⟨e_cdir, _he_cdir_in_b, he_cdir_isDir, _he_cdir_proto, hcdir_lt_cle₂,
