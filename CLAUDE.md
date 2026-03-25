@@ -56,7 +56,7 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-25 session 6)
+### Status (updated 2026-03-25 session 7 — FINAL)
 - **CO edge**: FULLY PROVEN
 - **rfe edge**: FULLY PROVEN
 - **FR edge**: SORRY-FREE in step_to_ordering via `FrOrdering` inductive. The `fr` structure now carries `ordering : FrOrdering` with `sameCluster`/`diffCluster` cases, each carrying `StepOrdering` directly. The FR case in step_to_ordering is 4 lines. Sorry's pushed to FR construction site (whoever builds `fr` must provide `ordering`).
