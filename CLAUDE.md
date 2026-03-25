@@ -619,6 +619,17 @@ created BEFORE the match keep their original `e` type. Always use explicit `rw [
 `show ... from ...` to bridge between the original and substituted types. Don't assume
 the match propagates everywhere.
 
+### FrOrdering design rationale (verified by imagination)
+FR = rf⁻¹;co. The CO part determines the communication structure.
+- `sameCluster`: e₁/e₂ same protocol → CLEs at same directory → dir_ordered + NIW → CLE₁ OB CLE₂.
+  `sameCLE` is a sub-case (CLE₁ = CLE₂). No need to subdivide into sameCache/diffCache —
+  the derivation handles both uniformly via dir_ordered. Whether sameCache or diffCache is
+  INTERNAL to the proof of `fr_ordering_holds`, not exposed in the inductive.
+- `diffCluster`: e₁/e₂ diff protocol → proxy from cdirEncapsDown_exists at e₁'s cluster.
+  Proxy has CLE₁ OB proxy and proxy.oEnd < CLE₂.oEnd → .obEndLt.
+Concrete scenarios verified: sameCache (all at one cache), sameClusDiffCache (CLEs at same dir),
+diffCluster (CLEs at different dirs), diffCluster with e_w at third cluster.
+
 ### CRITICAL: Definitions must be DESCRIPTIVE, not carry conclusions
 FrOrdering carrying `StepOrdering` directly is VACUOUS — it's the thing we're trying to prove!
 A reviewer would reject this as circular. The definition must carry DESCRIPTIVE evidence
