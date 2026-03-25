@@ -475,7 +475,9 @@ theorem step_to_ordering
                             -- pred₁ OB pred₂: CLE₁.oEnd < pred₁.oEnd < pred₂.oStart < CLE₂.oStart
                             -- → CLE₁ OB CLE₂ → contradiction with CLE₂ OB CLE₁ (hob).
                             exfalso
-                            sorry -- temporal chain: CLE₁ OB CLE₂ from pred₁ OB pred₂ + encapsulation
+                            -- CLE₁.oEnd < pred₁.oEnd < pred₂.oStart < CLE₂.oStart → CLE₁ OB CLE₂
+                            -- → contradiction with CLE₂ OB CLE₁ (hob)
+                            sorry -- temporal chain plumbing: 3 Nat.lt_trans through encap
                         | inr hencap_or_before₂ =>
                           cases hencap_or_before₂ with
                           | inl hencap₂_by₁ =>
