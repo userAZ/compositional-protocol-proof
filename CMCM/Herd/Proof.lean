@@ -537,16 +537,11 @@ theorem fr_ordering_holds
                 · -- Different cluster e_w/e₁.
                   sorry -- diff-cluster e_w/e₁: cross-cluster NIW
 
-set_option maxHeartbeats 400000 in
-/-- Map each PPOi ∪ com step to a StepOrdering between linearization points.
-    PPOi: direct OB (e₁ OB e₂).
-    rfe/co/fr: extract protocol events from communication evidence. -/
-theorem step_to_ordering
-    (h : (@PPOi n b ∪ com compound b init) e₁ e₂)
+/-- PPOi → StepOrdering. Factored out of step_to_ordering for modularity. -/
+theorem ppoi_step_to_ordering
+    (hppoi : @PPOi n b e₁ e₂)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     : @StepOrdering n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose := by
-  cases h with
-  | inl hppoi =>
     -- PPOi: e₁ OB e₂ on same cache. Map to StepOrdering CLE₁ CLE₂.
     have hw₁ : (lin e₁) = lin e₁ := rfl
     have hw₂ : (lin e₂) = lin e₂ := rfl
@@ -814,6 +809,13 @@ theorem step_to_ordering
           | inr hlazy =>
             -- Lazy case: only for nc.weak → c.release with orderAfterDir.
             sorry -- lazy CompoundLinearizationOrder case
+/-- Map each PPOi ∪ com step to a StepOrdering between linearization points. -/
+theorem step_to_ordering
+    (h : (@PPOi n b ∪ com compound b init) e₁ e₂)
+    (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    : @StepOrdering n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose := by
+  cases h with
+  | inl hppoi => exact ppoi_step_to_ordering hppoi lin
   | inr hcom =>
     cases hcom with
     | rfe h =>
