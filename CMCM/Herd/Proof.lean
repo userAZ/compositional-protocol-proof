@@ -840,7 +840,21 @@ theorem ppoi_step_to_ordering
               | inl hob => exact .ob hob
               | inr hob =>
                 -- Same-addr CLE₂ OB CLE₁ with orderAfterDir(e₁).
-                sorry -- same-addr orderAfterDir(e₁): CLE₂ OB CLE₁ contradiction
+                -- e₁ has orderAfterDir: CLE₁ from succ₁. succ₁ at same addr as e₂.
+                -- Use succ₁ encaps CLE₁ + CLE₂ OB CLE₁ for temporal chain.
+                exfalso
+                have hsucc₁_spec := hsucc_encap₁.choose_spec.right
+                have hsucc₁_encap_cle₁ := hsucc₁_spec.satisfyP.encapCorresponding.reqEncapDir
+                -- CLE₁ inside succ₁: succ₁.oStart < CLE₁.oStart, CLE₁.oEnd < succ₁.oEnd
+                -- CLE₂ OB CLE₁: CLE₂.oEnd < CLE₁.oStart
+                -- Chain: CLE₂.oEnd < CLE₁.oStart < succ₁.oEnd (from encap)
+                -- Also: e₁ OB succ₁ (from isSucc): e₁.oEnd < succ₁.oStart
+                -- And: e₁ OB e₂ (from PPOi): e₁.oEnd < e₂.oStart
+                -- So: e₁ < succ₁ and e₁ < e₂ (both after e₁).
+                -- For same-addr: cache_ordered succ₁ e₂ gives their relative ordering.
+                -- succ₁ OB e₂ → succ₁.oEnd < e₂.oStart. Combined with CLE₂ related to e₂:
+                -- for encapDir/orderAfterDir e₂: CLE₂.oStart > e₂.oStart > succ₁.oEnd > CLE₁.oEnd > CLE₂.oEnd → contradiction.
+                sorry -- same-addr orderAfterDir: cache_ordered succ₁ e₂ + hda₂ case split
         · -- Different address: CompoundMCM theorem gives the ordering.
           -- This is the key bridge showing CompoundMCM is useful!
           have hclo := @ppoi_compound_lin_order n compound b init e₁ e₂ hppoi h_same_addr
