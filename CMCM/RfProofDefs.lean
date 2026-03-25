@@ -223,3 +223,40 @@ lemma read_cle_protocol_eq_read_protocol {cmp : CompoundProtocol n} {b : Behavio
       unfold Event.sameProtocol at hsucc_same_protocol
       exact hsucc_same_protocol
     exact h1.symm.trans h2
+
+/-- The CLE of a write event is a directory write.
+    For each `dirAccessOfRequest` case, `dirCorresponds.dirReq` connects
+    the CLE's request to the cache event's request via `reqToDirOfRequestEvent`,
+    which preserves write status for non-I-state, non-downgrade events.
+    Full proofs exist inline in RfProofHelpers.lean (lines ~689, ~898, ~1140). -/
+lemma write_event_cle_isDirWrite {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    {e : Event n}
+    (hw : e.isWrite) (hcluster : e.isClusterCache) (hnot_down : ¬ e.down)
+    (hlin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e) :
+    hlin.hreq's_dir_access.choose.isDirWrite := by
+  have hda := hlin.hreq's_dir_access.choose_spec.2
+  cases hda with
+  | encapDir hreq_missing_perms hencap_dir =>
+    have hcle_is_dir := hencap_dir.isDir
+    match hcle_ev : hlin.hreq's_dir_access.choose with
+    | .cacheEvent _ => simp [Event.isDirectoryEvent, hcle_ev] at hcle_is_dir
+    | .directoryEvent de =>
+      unfold Event.isDirWrite; simp
+      match he_ev : e with
+      | .directoryEvent _ =>
+        have := hcluster.eAtCache; simp [Event.isCacheEvent, he_ev] at this
+      | .cacheEvent ce =>
+        cases hreq_missing_perms with
+        | downgrade hdown _ => exact absurd hdown hnot_down
+        | noPermsForNonNcRelAcqWeakWrite _ _ _ =>
+          -- reqToDirOfRequestEvent preserves write (see RfProofHelpers.lean:732)
+          sorry
+        | ncRelAcqWeakWriteNotOnCoherentState _ _ _ =>
+          -- reqToDirOfRequestEvent preserves write for NcRel/Acq/WeakWrite
+          sorry
+  | orderBeforeDir _ _ _ _ _ _ _ _ =>
+    -- Through predecessor (see RfProofHelpers.lean:898)
+    sorry
+  | orderAfterDir _ _ _ _ =>
+    -- Through successor, per isRelAcqOrVdWB (see RfProofHelpers.lean:1140)
+    sorry

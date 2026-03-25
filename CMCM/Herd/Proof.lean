@@ -814,9 +814,17 @@ theorem step_advances
                     -- If we can provide sameProtocol + isDirWrite, we get contradiction
                     -- isDirWrite: CLE of write event is a dir write (from dirAccessOfRequest)
                     -- sameProtocol: all three CLEs at same directory (same cluster)
+                    -- isDirWrite from factored lemma
+                    have h_isDirWrite :
+                        (h.hknow_dir_access compound b init e₂).hreq's_dir_access.choose.isDirWrite := by
+                      have : h.hknow_dir_access compound b init e₂ = h.e₂_lin := Subsingleton.elim _ _
+                      rw [this]; exact write_event_cle_isDirWrite h.write h.cache₂ h.notDown₂ h.e₂_lin
+                    -- sameProtocol from write/read_cle_protocol helpers
+                    -- CLE₂.protocol = e₂.protocol, CLE_w.protocol = e_w.protocol, CLE₁.protocol = e₁.protocol
+                    -- Need: e₂.protocol = e_w.protocol AND e₂.protocol = e₁.protocol
                     exact h_nbc ⟨sorry /- CLE₂.protocol = CLE_w.protocol -/,
                                   sorry /- CLE₂.protocol = CLE₁.protocol -/,
-                                  sorry /- CLE₂.isDirWrite -/⟩ h_ob_between
+                                  h_isDirWrite⟩ h_ob_between
                   | inr hob_₂w =>
                     -- de₂ OB de_w → de₂.oEnd < de_w.oStart, but de_w.oEnd ≤ de₂.oEnd → contradiction
                     have : de_w.oEnd < de_w.oEnd :=
