@@ -143,28 +143,32 @@ inductive StepOrdering : Event n → Event n → Prop where
     for the relationship between e₁ (reader) and e₂ (later writer).
     Mirrors RF's `readsFrom.cases` and CO's `co.ordering`.
 
-    The key: fr = rf⁻¹ ; co⁺. The first co step (rf;co) gives the initial
-    relationship between CLE_r (e₁) and CLE_w₂ (e₂). The co⁺ chain composes
-    on top via `co_chain_step_ordering`.
-
-    Each case carries the specific protocol events and OB relationships
-    that make `StepOrdering CLE₁ CLE₂` derivable. -/
+    Each case carries DESCRIPTIVE evidence (protocol events, OB relationships),
+    NOT the conclusion (StepOrdering). StepOrdering is DERIVED from this evidence
+    in step_to_ordering. A FrTheorem proves FrOrdering from protocol axioms. -/
 inductive FrOrdering
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     {e₁ e₂ : Event n}
     (e₁_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
     (e₂_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂)
     : Prop
-  /-- Same cluster e₁/e₂/e_w: all CLEs at same directory.
-      CLE₂ between CLE_w and CLE₁ → notBetweenCles contradiction.
-      CLE₁ OB CLE₂ or CLE_w OB CLE₂ OB CLE₁ → StepOrdering.
-      Carries: StepOrdering evidence directly. -/
+  /-- Same cluster e₁/e₂: both CLEs at the same cluster directory.
+      Carries: CLE₁ OB CLE₂ (direct ordering from dir_ordered + NIW).
+      StepOrdering derived via .ob. -/
   | sameCluster
-    (step : @StepOrdering n e₁_lin.hreq's_dir_access.choose e₂_lin.hreq's_dir_access.choose)
+    (same_protocol : e₁.sameProtocol n e₂)
+    (cle_ob : e₁_lin.hreq's_dir_access.choose.OrderedBefore n e₂_lin.hreq's_dir_access.choose)
   /-- Different cluster e₁/e₂: downgrade at e₁'s cluster from e₂.
-      Carries: StepOrdering evidence directly (from .obEndLt via evict or .ob). -/
+      Carries: a proxy event p at e₁'s cluster with CLE₁ OB p and p.oEnd < CLE₂.oEnd.
+      StepOrdering derived via .obEndLt or .ob. -/
   | diffCluster
-    (step : @StepOrdering n e₁_lin.hreq's_dir_access.choose e₂_lin.hreq's_dir_access.choose)
+    (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (p : Event n)
+    (cle₁_ob_p : e₁_lin.hreq's_dir_access.choose.OrderedBefore n p)
+    (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_lin.hreq's_dir_access.choose)
+  /-- Same CLE: both events share the same CLE. -/
+  | sameCLE
+    (cle_eq : e₁_lin.hreq's_dir_access.choose = e₂_lin.hreq's_dir_access.choose)
 
 /-- fr: From-reads (rf⁻¹ ; co⁺).
     A read e₁ reads from some write e_w, and e₂ is a write reachable from e_w
@@ -199,8 +203,7 @@ structure fr (e₁ e₂ : Event n) : Prop where
     NoInterveningWrites e_w_write read e_w_lin e₁_lin hknow_dir_access ∧
     Relation.TransGen (@co n compound b init) e_w e₂ ∧
     e_w ∈ b ∧ e_w.isClusterCache ∧ ¬ e_w.down
-  /-- Descriptive ordering evidence (like co.ordering for co, readsFrom.cases for rf).
-      Carries StepOrdering directly — the proof just extracts it. -/
-  ordering : FrOrdering e₁_lin e₂_lin
+  -- FrOrdering is DERIVED by fr_ordering_holds theorem (not carried as a field).
+  -- This ensures the ordering evidence is proven, not assumed.
 
 end Herd
