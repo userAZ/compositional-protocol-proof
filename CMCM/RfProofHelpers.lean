@@ -659,16 +659,190 @@ lemma write_event_cle_isDirWrite {cmp : CompoundProtocol n} {b : Behaviour n} {i
           exact reqToDir_preserves_write_on_vd_ncrel (.cacheEvent ce) (by simp [Event.req]; exact hrel_val)
   | orderBeforeDir hreq_has_perms hexists_pred hpred_accesses_dir _ _ _
       hpred_produces_state hpred_not_down_field =>
-    -- Through predecessor. Complete inline proof at RfProofHelpers.lean:~898.
-    -- Predecessor is a write (produces_state_with_write_perms_implies_is_write),
-    -- then reqToDir_preserves_write_of_coherent or _on_vd_ncrel.
-    -- ncWeakRead case contradicts hw (e.isWrite).
-    sorry
+    have hcle_is_dir := hpred_accesses_dir.isDir
+    match hcle_ev : hlin.hreq's_dir_access.choose with
+    | .cacheEvent _ => simp [Event.isDirectoryEvent, hcle_ev] at hcle_is_dir
+    | .directoryEvent de =>
+      unfold Event.isDirWrite; simp
+      have hdir_req := hpred_accesses_dir.dirCorresponds.dirReq
+      -- Helper: get de.req = reqToDirOfRequestEvent on predecessor
+      have hde_req : Event.req n (.directoryEvent de) = de.req := rfl
+      have hdir_req' : de.req = b.reqToDirOfRequestEvent n
+          (InitialSystemState.stateAt n init hexists_pred.choose) true hexists_pred.choose := by
+        rw [← hde_req, ← hcle_ev]; exact hdir_req
+      -- Extract predecessor properties
+      have hpred_spec := hexists_pred.choose_spec.2
+      simp [Behaviour.immBottomPredHasNoPermsAndLeavesStateAtLeast,
+            Behaviour.ImmediateBottomPredSatisfyingProp] at hpred_spec
+      have hpred_prop := hpred_spec.satisfyP
+      simp [Event.PropOnEvent, Behaviour.predHasNoPermsAndLeavesStateAtLeastReq] at hpred_prop
+      have hpred_missing := hpred_prop.missingPerms
+      have hpred_cache := hpred_prop.reqCache
+      -- Case split on reqHasPerms
+      cases hreq_has_perms with
+      | hasPerms hcoh hhas_perms =>
+        by_cases hrel : (Event.req n hexists_pred.choose).val = ⟨.w, false, .Rel⟩
+        · rw [hdir_req', Behaviour.reqToDirOfRequestEvent, if_pos ⟨hrel, rfl⟩]
+          exact reqToDir_preserves_write_on_vd_ncrel hexists_pred.choose hrel
+        · rw [hdir_req', Behaviour.reqToDirOfRequestEvent, if_neg (fun ⟨h, _⟩ => hrel h)]
+          have hpred_write := produces_state_with_write_perms_implies_is_write
+            hw hcoh hhas_perms hpred_produces_state hpred_not_down_field hpred_missing hpred_cache
+          have hpred_coh := nc_acq_weak_write_has_coherent_state_implies_pred_is_coherent
+            (by -- stateReqMadeOn has c = true for coherent write with perms
+              unfold Behaviour.stateReqMadeOn
+              have hmrs_c : (Event.req n e).MRS.c = true := by
+                match he' : e with
+                | .cacheEvent ce =>
+                  unfold Event.isCoherent ValidRequest.isCoherent Request.isCoherent at hcoh
+                  cases he_req : ce.req with | mk vr hvr =>
+                    cases vr with | mk rw coh cons =>
+                      simp [he', Event.req, he_req] at hcoh; cases hcoh
+                      simp [Event.req, he', he_req, ValidRequest.MRS, ReadWrite.toPerms, ReadWrite.toRWPerms]
+                      match cons, rw with
+                      | .SC, .w | .SC, .r | .Rel, .w | .Weak, .w => rfl
+                      | .Rel, .r => exfalso; simp [Request.IsValid'] at hvr
+                      | .Acq, _ => exfalso; simp [Request.IsValid'] at hvr
+                      | .Weak, .r => exfalso; simp [Request.IsValid'] at hvr
+                | .directoryEvent _ => exfalso; simp [Event.isCoherent] at hcoh
+              have hle := hhas_perms
+              have hc_le : (Event.req n e).MRS.c ≤ (b.stateBefore n (init.stateAt n e) e).cache.c := by
+                cases hle with
+                | inl hlt => exact hlt.right.left
+                | inr heq => rw [← heq]
+              rw [hmrs_c] at hc_le
+              cases h_c : (b.stateBefore n (init.stateAt n e) e).cache.c
+              · exfalso; rw [h_c] at hc_le; trivial
+              · rfl)
+            hpred_produces_state hpred_not_down_field hpred_missing hpred_cache
+          exact reqToDir_preserves_write_of_coherent hexists_pred.choose _ hpred_write hpred_coh
+      | ncRelAcqWeakWriteHasCoherentPerms hncraw hhascoh =>
+        by_cases hrel : (Event.req n hexists_pred.choose).val = ⟨.w, false, .Rel⟩
+        · rw [hdir_req', Behaviour.reqToDirOfRequestEvent, if_pos ⟨hrel, rfl⟩]
+          exact reqToDir_preserves_write_on_vd_ncrel hexists_pred.choose hrel
+        · rw [hdir_req', Behaviour.reqToDirOfRequestEvent, if_neg (fun ⟨h, _⟩ => hrel h)]
+          have hpred_write := produces_state_with_write_perms_implies_is_write_no_coherence
+            (cmp := cmp) (b := b) (init := init)
+            (e_pred := hexists_pred.choose) (e_req := e)
+            hw hhascoh.hasPerms hhascoh.onCoherentState
+            hpred_produces_state hpred_not_down_field hpred_missing hpred_cache he_in_b
+          have hpred_coh := nc_acq_weak_write_has_coherent_state_implies_pred_is_coherent
+            hhascoh.onCoherentState hpred_produces_state hpred_not_down_field hpred_missing hpred_cache
+          exact reqToDir_preserves_write_of_coherent hexists_pred.choose _ hpred_write hpred_coh
+      | ncWeakReadHasPermsNotVd hncwr _ =>
+        exfalso
+        match he' : e with
+        | .cacheEvent ce =>
+          simp [Event.isNcWeakRead, CacheEvent.isNcWeakRead, he'] at hncwr
+          have hrd : ce.req.val.rw = .r := by rw [show ce.req = _ from hncwr]
+          have hwr : ce.req.val.rw = .w := by simpa [Event.isWrite, he', Request.isWrite] using hw
+          exact absurd (hrd.symm.trans hwr) (by decide)
+        | .directoryEvent _ => simp [Event.isNcWeakRead] at hncwr
   | orderAfterDir hweak_req_on_vd hsucc_encap_dir hsucc_same_protocol _ =>
-    -- Through successor on Vd. 6-way split on isRelAcqOrVdWB.
-    -- Inline proof at RfProofHelpers.lean:~1140 (in NoInterveningWrites context).
-    -- All write successors → reqToDir preserves write. SCRead → contradiction.
-    sorry
+    -- Use the same approach as the inline proof at ~1350
+    let e_inter_cle := hlin.hreq's_dir_access.choose
+    have hcle_is_dir : e_inter_cle.isDirectoryEvent :=
+      hsucc_encap_dir.choose_spec.right.satisfyP.encapCorresponding.isDir
+    show e_inter_cle.isDirWrite
+    unfold Event.isDirWrite
+    match he_cle : e_inter_cle, hcle_is_dir with
+    | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
+    | .directoryEvent de, _ =>
+      simp
+      have hsucc := hsucc_encap_dir.choose_spec.right.satisfyP
+      have hdir_corresponds := hsucc.encapCorresponding.dirCorresponds
+      have hsucc_on_vd := hsucc.stateBeforeAsVd
+      have hisrel_acq_vdwb := hsucc.isRelAcqOrVdWB
+      -- e is nc.weak write
+      have hncwrite_req : (Event.req n e).val = ⟨.w, false, .Weak⟩ := by
+        match he' : e with
+        | .directoryEvent _ => have := hcluster.eAtCache; simp [Event.isCacheEvent, he'] at this
+        | .cacheEvent ce =>
+          have hweak := hweak_req_on_vd.weakReq
+          simp [Event.isNcWeak, Event.isNonCoherent, Event.isWeak, he'] at hweak
+          have hwr : ce.req.val.rw = .w := by simpa [Event.isWrite, he', Request.isWrite] using hw
+          simp [Event.req, he']; cases hv : ce.req.val with | mk rw c cs => simp_all [hweak]
+      -- Get hde_req with concrete .directoryEvent de on LHS
+      have hde_req : Event.req n (.directoryEvent de) =
+          Behaviour.reqToDirOfRequestEvent n b
+            (InitialSystemState.stateAt n init (Exists.choose hsucc_encap_dir)) true
+            (Exists.choose hsucc_encap_dir) := by
+        calc Event.req n (.directoryEvent de)
+          _ = Event.req n e_inter_cle := by rw [← he_cle]
+          _ = _ := hdir_corresponds.dirReq
+      -- Case split on successor type
+      rcases hisrel_acq_vdwb with hacq | hnc_rel | hc_rel | hvdwb | hsc_write | hsc_read
+      · -- Acquire
+        have hreq : Event.req n (Exists.choose hsucc_encap_dir) =
+            ⟨⟨.r, false, .Acq⟩, by simp [Request.IsValid']⟩ := by
+          cases hchoose : Exists.choose hsucc_encap_dir with
+          | directoryEvent _ => simp [hchoose, Event.isAcquire] at hacq
+          | cacheEvent ce => simpa [Event.isAcquire, CacheEvent.isAcquire, ValidRequest.isAcquire, Event.req, hchoose] using hacq
+        -- Event.req n (.directoryEvent de) = de.req definitionally
+        have hgoal : (Event.req n (.directoryEvent de)).val.isWrite := by
+          rw [hde_req]; simp [Behaviour.reqToDirOfRequestEvent, Event.reqToDirOfRequestEvent,
+            hsucc_on_vd, hreq, Request.isWrite, VdEntry, EntryState.cache]
+        simpa [Event.req] using hgoal
+      · -- NcRelease
+        have hreq : Event.req n (Exists.choose hsucc_encap_dir) =
+            ⟨⟨.w, false, .Rel⟩, by simp [Request.IsValid']⟩ := by
+          cases hchoose : Exists.choose hsucc_encap_dir with
+          | directoryEvent _ => simp [hchoose, Event.isNcRelease] at hnc_rel
+          | cacheEvent ce => simpa [Event.isNcRelease, CacheEvent.isNcRelease, ValidRequest.isNcRelease, Event.req, hchoose] using hnc_rel
+        show de.req.val.isWrite
+        rw [show de.req = _ from hde_req]
+        simp [Behaviour.reqToDirOfRequestEvent, Event.reqToDirOfRequestEvent,
+          hsucc_on_vd, hreq, Request.isWrite, Vd, VdEntry, EntryState.cache]
+      · -- CRelease
+        have hreq : Event.req n (Exists.choose hsucc_encap_dir) =
+            ⟨⟨.w, true, .Rel⟩, by simp [Request.IsValid']⟩ := by
+          cases hchoose : Exists.choose hsucc_encap_dir with
+          | directoryEvent _ => simp [hchoose, Event.isCRelease] at hc_rel
+          | cacheEvent ce =>
+            have hval : ce.req.val = ⟨.w, true, .Rel⟩ := by simp only [Event.isCRelease, hchoose] at hc_rel; exact hc_rel
+            ext; simp [Event.req, hchoose, hval]
+        show de.req.val.isWrite
+        rw [show de.req = _ from hde_req]
+        simp [Behaviour.reqToDirOfRequestEvent, Event.reqToDirOfRequestEvent,
+          hsucc_on_vd, hreq, Request.isWrite, Vd, VdEntry, EntryState.cache]
+      · -- VdWriteBack
+        have hreq : Event.req n (Exists.choose hsucc_encap_dir) =
+            ⟨⟨.w, false, .Weak⟩, by simp [Request.IsValid']⟩ := by
+          cases hchoose : Exists.choose hsucc_encap_dir with
+          | directoryEvent _ => simp [hchoose, Event.isVdWriteBack] at hvdwb
+          | cacheEvent ce =>
+            simp only [Event.isVdWriteBack, hchoose] at hvdwb
+            simp [Event.req, hchoose]; exact Subtype.ext hvdwb.isWeakWrite
+        show de.req.val.isWrite
+        rw [show de.req = _ from hde_req]
+        simp [Behaviour.reqToDirOfRequestEvent, Event.reqToDirOfRequestEvent,
+          hsucc_on_vd, hreq, Request.isWrite, Vd, VdEntry, EntryState.cache]
+      · -- SCWrite
+        have hreq : Event.req n (Exists.choose hsucc_encap_dir) =
+            ⟨⟨.w, true, .SC⟩, by simp [Request.IsValid']⟩ := by
+          cases hchoose : Exists.choose hsucc_encap_dir with
+          | directoryEvent de_succ =>
+            simp only [Event.isSCWrite, Event.req, hchoose, ValidRequest.isSCWrite] at hsc_write
+            simp [Event.req, hchoose]; exact hsc_write
+          | cacheEvent ce =>
+            simp only [Event.isSCWrite, ValidRequest.isSCWrite, hchoose, Event.req] at hsc_write
+            simp [Event.req, hchoose]; exact hsc_write
+        show de.req.val.isWrite
+        rw [show de.req = _ from hde_req]
+        simp [Behaviour.reqToDirOfRequestEvent, Event.reqToDirOfRequestEvent,
+          hsucc_on_vd, hreq, Request.isWrite, Vd, VdEntry, EntryState.cache]
+      · -- SCRead: contradiction with nc.weak
+        exfalso
+        have hscread_req : (Event.req n (Exists.choose hsucc_encap_dir)).val = ⟨.r, true, .SC⟩ := by
+          cases hchoose : Exists.choose hsucc_encap_dir with
+          | directoryEvent de_succ =>
+            simp only [Event.isSCRead, Event.req, hchoose, ValidRequest.isSCRead] at hsc_read
+            exact congrArg Subtype.val hsc_read
+          | cacheEvent ce =>
+            simp only [Event.isSCRead, ValidRequest.isSCRead, Event.req, hchoose] at hsc_read
+            exact congrArg Subtype.val hsc_read
+        exact protocol_nc_weak_write_sc_read_contradiction (cmp:=cmp) he_in_b
+          (hsucc_encap_dir.choose_spec.left) hncwrite_req hscread_req
+          hsucc_same_protocol.symm
 
 /-- Helper lemma for Case 2a: Different cache, same protocol/cluster -/
 lemma noInterveningWrites_diffCache_sameProtocol_case
