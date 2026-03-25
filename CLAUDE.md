@@ -86,6 +86,18 @@ Then `dir_ordered e_de CLE₁`:
 - `e_de OB CLE₁` → `diffClusterNotBetweenCles_sameCache` with e_de between CLE_w and CLE₁ → contradiction
 - `CLE₁ OB e_de` → `.obEndLt e_de (CLE₁ OB e_de) (e_de.oEnd < CLE₂.oEnd)` → StepOrdering ✓
 
+**FR `cdir OB CLE_w` sorry's (939, 1036, 1040) — FUNDAMENTAL BLOCKER:**
+The `CLE_w OB cdir` case is proven via temporal loop (de_w < de_cdir < de_evict < de_w → False).
+The `cdir OB CLE_w` case is the "real" direction but the contradiction is still needed:
+CLE₂ OB CLE₁ (at e₁/e₂'s cluster) + FR means e₁ reads e_w not e₂ → contradiction.
+But `notBetweenCles` needs `CLE₂.protocol = CLE_w.protocol` (fails for diff-cluster e_w).
+And `diffClusterNotBetweenCles_sameCache` needs the downgrade BETWEEN CLE_w and CLE₁
+(but in this case the downgrade is BEFORE CLE_w, not between them).
+And `notBetweenGles` needs GLE_w OB GLE₂ which isn't derivable from CLE_w OB CLE₂
+(GLEs can be before their CLEs in the noGlobalCache case).
+**Possible fix**: use GLE-level ordering from the co chain (not CLE-level), or
+add a new NIW constraint that handles the "downgrade before CLE_w" case.
+
 **Remaining FR approach for sorry 853/855:**
 For `CLE_w OB evict` (needed for OrderedBetween): chain through co → CLE₂ → encap → evict.
 - Co chain `.ob(CLE_w OB CLE₂)` + `encapGlobalCache` shim: `CLE_w.oEnd < CLE₂.oStart < e_gcache.oStart < ... < evict.oStart` ✓
