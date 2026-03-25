@@ -537,6 +537,7 @@ theorem fr_ordering_holds
                 · -- Different cluster e_w/e₁.
                   sorry -- diff-cluster e_w/e₁: cross-cluster NIW
 
+set_option maxHeartbeats 400000 in
 /-- Map each PPOi ∪ com step to a StepOrdering between linearization points.
     PPOi: direct OB (e₁ OB e₂).
     rfe/co/fr: extract protocol events from communication evidence. -/
@@ -734,7 +735,35 @@ theorem step_to_ordering
                               hpred₂_spec.satisfyP.notDown
                           | inr hpred₂_ob_pred₁ =>
                             -- pred₂ OB pred₁: pred₁ between pred₂ and e₂ → predecessor elimination.
-                            sorry -- pred₂ OB pred₁: same pattern as encapDir×orderBeforeDir
+                            exfalso
+                            have hpred₁_spec := hexists_pred₁.choose_spec.right
+                            -- pred₁ between pred₂ and e₂
+                            have hpred₁_between : hexists_pred₁.choose.OrderedBetween n
+                                hexists_pred₂.choose e₂ :=
+                              ⟨by rw [hpred₂_ce, hpred₁_ce]; exact hpred₂_ob_pred₁,
+                               Nat.lt_trans hpred₁_spec.isImmPred.bPred.isPred
+                                 (Nat.lt_trans (Event.oWellFormed n _) hppoi.orderedBefore)⟩
+                            -- Get stateAfterAtLeast for e₂'s MRS from hinter_leaves₂
+                            have hpred₁_in_b : hexists_pred₁.choose ∈ b :=
+                              hexists_pred₁.choose_spec.left
+                            have hinter_result := hinter_leaves₂ hexists_pred₁.choose hpred₁_in_b
+                              hpred₁_between
+                            -- pred₁ satisfies the predecessor property
+                            have hpred₁_satisfies : b.predHasNoPermsAndLeavesStateAtLeastReq n init
+                                hexists_pred₁.choose e₂ :=
+                              { missingPerms := hpred₁_spec.satisfyP.missingPerms
+                                notDown := hpred₁_spec.satisfyP.notDown
+                                stateAfterAtLeast := hinter_result.hinter_leaves_state_at_least
+                                reqCache := hpred₁_spec.satisfyP.reqCache }
+                            -- bottomSameEntry: pred₁ sameEntry e₁ (from ImmPred) + e₁ sameEntry e₂ (from PPOi)
+                            have hpred₁_bse : b.bottomSameEntry n hexists_pred₁.choose e₂ :=
+                              { sameEntry := sorry -- pred₁ sameEntry e₂: transitivity of sameEntry
+                                isBottom := hpred₁_spec.isBottomPred }
+                            exact hpred₂_spec.isImmPred.noIntermediateSatisfyingP
+                              hexists_pred₁.choose
+                              hpred₁_in_b
+                              hpred₁_bse
+                              ⟨⟨hpred₁_between.pred, hpred₁_between.succ⟩, hpred₁_satisfies⟩
                       | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
                     | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
                   | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
