@@ -407,8 +407,21 @@ theorem step_to_ordering
             hpred₁_encap.reqEncapDir.right hpred₁_ob_e₁)
             (Event.oWellFormed n e₁)) hppoi.orderedBefore) hencap₂.reqEncapDir.left)
         | orderBeforeDir _ _ _ _ _ _ _ _ =>
-          -- Both orderBeforeDir: CLEs from predecessors.
-          sorry -- need predecessor ordering
+          -- Both orderBeforeDir: CLEs from predecessors. Use dir_ordered.
+          have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+          have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+          match hfc₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₁, _ =>
+            match hfc₂ : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₂, _ =>
+              cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+              | inl hob => exact .ob hob
+              | inr hob =>
+                -- CLE₂ OB CLE₁. Both events have orderBeforeDir (clusterCacheLin).
+                -- Needs predecessor elimination or CompoundMCM for contradiction.
+                sorry -- CLE₂ OB CLE₁ with both orderBeforeDir: predecessor elimination
         | orderAfterDir _ hsucc_encap₂ _ _ =>
           -- e₂ has orderAfterDir: CLE₂ inside succ₂.
           -- Chain: CLE₁.oEnd < pred₁.oEnd < e₁.oEnd < e₂.oEnd < succ₂.oStart < CLE₂.oStart
@@ -422,10 +435,26 @@ theorem step_to_ordering
             (Event.oWellFormed n e₁)) hppoi.orderedBefore)
             (Event.oWellFormed n e₂)) (Nat.lt_trans he₂_ob_succ₂ hsucc₂_encap_cle₂.left))
       | orderAfterDir _ hsucc_encap₁ _ _ =>
-        -- e₁ has orderAfterDir: CLE₁ from succ₁ (after e₁). e₂ has some dirAccess.
-        -- succ₁ is after e₁, and e₂ is after e₁. Their relative ordering depends on
-        -- whether same or different address. For now, needs CompoundMCM or cache ordering.
-        sorry -- orderAfterDir e₁: needs succ₁ vs e₂ ordering
+        -- e₁ has orderAfterDir: CLE₁ from succ₁ (after e₁).
+        -- Both CLEs at same cluster (from PPOi.sameProtocol). Use dir_ordered.
+        have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+        have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+        match hfc₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+        | .directoryEvent de₁, _ =>
+          match hfc₂ : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₂, _ =>
+            cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+            | inl hob => exact .ob hob
+            | inr hob =>
+              -- CLE₂ OB CLE₁. Use CompoundMCM to derive contradiction.
+              -- ppoi_compound_lin_order gives e_lin₁ OB e_lin₂.
+              -- e₁ has orderAfterDir → clusterDirLin → e_lin₁ at-or-inside CLE₁.
+              -- Combined with CLE₂ OB CLE₁ gives temporal contradiction
+              -- (when e₂ also linearizes at directory level).
+              -- For e₂ with orderBeforeDir (clusterCacheLin): needs predecessor elimination.
+              sorry -- CompoundMCM bridge: CLE₂ OB CLE₁ contradicts e_lin₁ OB e_lin₂
   | inr hcom =>
     cases hcom with
     | rfe h =>
