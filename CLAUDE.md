@@ -56,22 +56,20 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-25)
+### Status (updated 2026-03-25 session 2)
 - **Main proof architecture**: `cmcm_acyclic` → `cmcm_acyclic_of_hknow` → StepOrdering
   - `step_to_ordering`: maps each PPOi ∪ com edge to `StepOrdering CLE₁ CLE₂`
   - `StepOrdering.trans`: composes edges (FULLY PROVEN, 0 sorry's)
-  - `StepOrdering.irrefl`: cycle gives contradiction (FULLY PROVEN, 0 sorry's)
-  - Old lex pair approach (`step_advances`, `co_step_advances`) DELETED — failed for PPOi orderAfterDir
-- **StepOrdering**: 4 constructors: `ob`, `obEndLt` (oEnd < instead of EncapsulatedBy for noGlobalCache), `sameLin`, `eq` (same CLE, no encap evidence)
+  - `StepOrdering.irrefl`: sorry only for `.eq` case (needs cycle-level argument)
+- **StepOrdering**: 4 constructors: `ob`, `obEndLt`, `sameLin`, `eq`
 - **Edge definitions**: DONE (Defs.lean)
-- **Irreflexivity**: DONE for all edge types except `.eq` (needs cycle-level argument)
-- **write_event_cle_isDirWrite**: FULLY PROVEN (all 3 dirAccessOfRequest cases, in RfProofHelpers.lean)
-- **CO edge**: FULLY PROVEN (0 sorry's) — factored into `co_step_to_ordering`
-- **rfe edge**: FULLY PROVEN (0 sorry's) — including nc.weak state machine via `stateAfter_eq_succeedingState`
-- **FR edge**: CLE₁ OB CLE₂ direction closed for all 3 by_cases (same-cluster `.ob`, diff-cluster `.obEndLt`). Same-cluster same-e_w CLE₂ OB CLE₁ closed via `notBetweenCles`. Diff-cluster + diff-e_w cases need `cdirEncapsDown`.
-- **cdirEncapsDown**: Partially constructed in `cdirEncapsDown_of_encapDir` (RfProofHelpers). Uses Subsingleton bridge + cluster protocol axiom (`coherentWriteDowngrades`). scWriteDown.cWriteOnSW case structured, needs e_dw=e_dir bridge.
-- **Helper lemmas**: `list_stateAfter_append_singleton`, `stateAfter_eq_succeedingState`, `co_step_to_ordering`, `co_chain_step_ordering`, `cdirEncapsDown_of_encapDir`
-- **9 sorry's in Proof.lean** + **5 sorry's in RfProofHelpers.lean** (cdirEncapsDown helper)
+- **CO edge**: FULLY PROVEN (0 sorry's)
+- **rfe edge**: FULLY PROVEN (0 sorry's)
+- **FR edge**: Partially proven. Same-cluster same-e_w done. Diff-cluster uses `cdirEncapsDown_exists`.
+- **PPOi edge**: encapDir×encapDir ✓, orderBeforeDir×encapDir ✓, *×orderAfterDir(e₂) ✓. Remaining: encapDir×orderBeforeDir, orderBeforeDir×orderBeforeDir, orderAfterDir(e₁)×*.
+- **cdirEncapsDown_exists**: Replaces old `cdirEncapsDown_of_encapDir` (avoids Exists.choose bridge). SW/cWriteOnSW case FULLY PROVEN. MR, scReadDown, noCoherentRead cases sorry'd.
+- **6 sorry's in Proof.lean** + **3 sorry's in RfProofHelpers.lean**
+- **Key pattern discovered**: For orderAfterDir e₂, chain CLE₁ < e₁ < e₂ < succ₂ encaps CLE₂ → CLE₁ OB CLE₂ → `.ob`. Works for ANY e₁ dirAccessOfRequest case.
 
 ### Key insight: `hierarchicallyOrdered` IS `CompoundLinearizationOrder` (same concept)
 
@@ -87,61 +85,29 @@ The "GMO bridge" is NOT a separate thing — it's recognizing they're the same. 
 
 The GLE/CLE/cache lex ordering falls out as a CONSEQUENCE of this communication evidence, used for irrefl/trans.
 
-### Remaining sorry's (all in `step_to_ordering`, updated 2026-03-24 late)
+### Remaining sorry's (updated 2026-03-25 session 2)
 
-**Category 1: gcacheEncap → EncapsulatedBy CLE (5 sorry's)**
-- `encapDirRelation.gcacheEncap` gives GCR encaps cdir_down. Need CLE encaps cdir_down.
-- **Resolution**: CLE encaps GCR (from `encapGlobalCache` shim, via `clusterDirEncapCorrespondingGlobalCache.encapGlobalCache`). Then `Event.encap_encap_trans` gives CLE encaps cdir_down.
-- The `noGlobalCache` shim case should NOT produce `gcacheEncap` — it produces `cleEncap` (CLE directly handles cluster-level downgrade when it already has global perms).
-- **Approach**: case-split on `cmp.shimAxioms.clusterToGlobal` to extract `encapGlobalCache`, then transitivity.
+**Proof.lean (6 sorry's):**
 
-**StepOrdering `.eq` constructor (added 2026-03-24 late)**
-- Same-CLE edges where only one event encapsulates the CLE can't produce `.sameLin` (needs CLE inside TWO ordered events). Example: co sameCache with encapDir × orderBeforeDir — predecessor = e₁ is the only event containing CLE.
-- `.eq` carries just `l₁ = l₂`. Trans: subst. Irrefl: can't derive False from equality alone.
-- **Cycle-level argument for irrefl**: every real cycle has ≥1 rfe/fr edge (from transgen_union_find_right + ppoi_acyclic for pure-PPOi). rfe always gives `.ob`/`.obEndLt` (rfe wEqRCle is vacuous via diffCache). fr with CLE₁=CLE₂ gives dir_ordered on identical events → False. So composed result is never `.eq`.
-- **Implementation**: modify `cmcm_acyclic_of_hknow` to show composed result is non-eq, then apply `StepOrdering.irrefl` only on non-eq cases. OR: add `StepOrdering.irrefl_of_non_eq` that requires witness of a non-eq step in the chain.
+1. **Line 228: StepOrdering.irrefl `.eq`** — cycle-level argument needed. Every real cycle has ≥1 com edge (from ppoi_acyclic + transgen_union_find_right). com edges always give non-`.eq`. Composed result is non-`.eq`. Need to thread this through `cmcm_acyclic_of_hknow`.
 
-**nc.weak + wHasPermsAfter contradiction (rfe noEvictBetween sorry)**
-- `orderAfterDir` requires `ncWeakReqOnVd` → event is nc.weak `(.w, false, .Weak)` → non-coherent.
-- `wHasPermsAfter` requires `reqLeavesStateAtLeast SW` → state after has coherent perms (c=true).
-- nc.weak writes don't produce coherent state → contradiction.
-- Need separate lemma (converse of `coherent_write_leaves_at_least_SW` doesn't suffice — it proves coherent → leaves SW, not ¬coherent → ¬leaves SW). Need protocol state machine reasoning about nc.weak state transitions.
+2. **Line 345: PPOi encapDir×orderBeforeDir** — CLE₁ inside e₁, CLE₂ inside pred₂. Both before e₂. Need `cache_ordered` (same entry only!) to order e₁ vs pred₂. If e₁ OB pred₂ → CLE₁ OB CLE₂ → `.ob`. If pred₂ OB e₁ → predecessor elimination (e₁ between pred₂ and e₂, contradicts immediacy if e₁ satisfies the property). Complex: needs same-addr vs diff-addr split + protocol state reasoning.
 
-**Category 2: PPOi → StepOrdering (1 sorry)**
-- Need to map PPOi(e₁, e₂) to StepOrdering CLE₁ CLE₂.
-- For encapDir × encapDir: `.ob` (CLE₁ inside e₁ OB e₂ inside CLE₂ → CLE₁ OB CLE₂).
-- For same CLE (nc.weak sharing): `.sameLin`.
-- For orderAfterDir: CLE₁ = CLE₂ must be PROVEN (nc.weak CLE sharing insight).
+3. **Line 368: PPOi orderBeforeDir×orderBeforeDir** — Both CLEs from predecessors. Need to order the two predecessors. Same complexity as sorry 2.
 
-**Category 3: co sameCache non-encapDir (4 sorry's)**
-- Same CLE → need `.sameLin` with CLE inside two ordered events.
-- For orderBeforeDir: CLE inside predecessor. For orderAfterDir: CLE inside successor.
-- Key issue: finding two events that BOTH encapsulate the shared CLE and are ordered.
+4. **Line 385: PPOi orderAfterDir(e₁)** — CLE₁ from succ₁ (after e₁). Need succ₁ vs e₂ ordering. For same-addr: succ₁ and e₂ are on same entry, use cache_ordered. For diff-addr: needs CompoundMCM.
 
-**Category 4: rfe noEvictBetween orderAfterDir (1 sorry)**
-- nc.weak e₁ with wHasPermsAfter → contradiction (nc.weak can't leave ≥ SW state).
+5. **Line 679: FR same-cluster diff-e_w** — needs cdirEncapsDown for same-cluster case.
 
-**Category 5: fr cross-cluster (3 sorry's)**
-- `notBetweenCles` needs sameProtocol. For cross-cluster: need `diffClusterNotBetweenCles_sameCache`.
+6. **Line 710: FR diff-cluster** — has cdirEncapsDown_exists but needs `e₁ OB e_cache_down` from protocol evidence. The cache_down is at e₁'s cache (downgrade from e₂'s write). e₁ should be before this downgrade since e₁ reads e_w's (earlier) value. Needs rf communication chain argument.
 
-**Sorry #1 (line ~538): PPOi, e₂ encapDir, e₁ orderAfterDir, CLE₂ OB CLE₁**
-- nc.weak e₁ with CLE₁ from successor. Successor succ₁ encaps CLE₁ (de₁).
-- Need: show succ₁ OB e₂ (then de₁ OB de₂ → contradicts hob) or CLE₁ = CLE₂.
-- Approach: nc.weak CLE sharing — if succ₁ = e₂ or succ₁ OB e₂, de₁ inside succ₁ gives de₁.oEnd < succ₁.oEnd < e₂.oStart < de₂.oStart → de₁ OB de₂ contradiction.
-- Missing: formal proof that succ₁ is before or equals e₂ on same cache (needs cache event total ordering + immediacy argument).
+**RfProofHelpers.lean (3 sorry's, all in `cdirEncapsDown_exists`):**
 
-**Sorry #2 (line ~541): PPOi, e₂ orderBeforeDir, CLE₂ OB CLE₁ (all e₁ sub-cases)**
-- pred₂ encaps CLE₂ (de₂), pred₂ OB e₂.
-- Approach: if e₁ OB pred₂ → de₁.oEnd < e₁.oEnd < pred₂.oStart < de₂.oStart → de₁ OB de₂, contradicts hob.
-  If pred₂ OB e₁ → e₁ between pred₂ and e₂ → predecessor elimination: e₁ satisfies P (reqHasNoPermsLeavesStateAtLeast from stateBeforeAndAfterAtLeast + reqMissingPerms) → contradicts noIntermediateSatisfyingP.
-- Missing: cache event total ordering between e₁ and pred₂, plus verification that encapDir e₁ satisfies P.
+7. **Line 3431: cWriteOnMR** — MR directory state case. Has `downgradeAtSharers` (multiple sharers). Need to find a sharer ≠ e_req.cid and extract their downgrade event. Same `dirEncapDowngrade` structure as SW case.
 
-**Sorry #3 (line ~575): PPOi, both orderAfterDir, CLE₂ OB CLE₁**
-- Both e₁ and e₂ are nc.weak with CLEs from successors. Both successors on same cache.
-- Approach: nc.weak CLE sharing — both should share CLE or have CLE ordering following cache order. If succ₁ encaps de₁ and succ₂ encaps de₂, and succ₁ OB succ₂ (or succ₁ = succ₂), then de₁ OB de₂ or de₁ = de₂.
-- Missing: same as #1 + relating two successors on same cache.
+8. **Line 3433: scReadDown** — Read downgrade translation. Use `coherentReadDowngrades` axiom (only `cReadOnSW` case → same `fwdPrevOwner` structure as write SW).
 
-**Sorry #4 (line ~695): rfe noEvictBetween, e₁ orderAfterDir, de_cdir OB de_w**
+9. **Line 3435: noCoherentRead** — VD write-back case. Different mechanism from coherent request downgrades. May need different cluster axiom.
 - Same structure as #1: nc.weak e₁ with CLE from successor, de_cdir OB CLE₁.
 - Approach: show succ₁'s position relative to the downgrade chain gives temporal contradiction.
 - Missing: formal proof that orderAfterDir successor position excludes de_cdir OB CLE₁.
@@ -466,20 +432,21 @@ or OB + EncapBy circular chain.
 
 The key insight (from Anqi): same-address PPOi events share a CLE or have CLE ordering that follows the PPOi direction. The `hierarchicallyOrdered` ranking function works.
 
-**TODO (updated 2026-03-25):**
-- [x] CO edge: fully proven (co_step_to_ordering, 0 sorry's)
-- [x] rfe edge: fully proven (0 sorry's, including nc.weak state machine)
+**TODO (updated 2026-03-25 session 2):**
+- [x] CO edge: fully proven
+- [x] rfe edge: fully proven
 - [x] FR CLE₁ OB CLE₂ direction: proven for all 3 by_cases
-- [x] FR same-cluster same-e_w: closed via notBetweenCles + co chain oEnd
-- [ ] FR diff-cluster e_w (same-cluster e₁/e₂): needs `diffClusterNotBetweenCles_sameCache`
-- [ ] FR diff-cluster (e₁/e₂): cdir_down OB CLE₁ contradiction
-- [ ] PPOi: use CompoundMCM `CompoundLinearizationOrder` (bridge to Herd CLEs)
-- [ ] StepOrdering.irrefl `.eq`: cycle-level argument (at least one non-eq edge)
-- [ ] **Nice-to-have**: Define `fr.ordering` inductive (like `co.ordering`) with descriptive
-  constructors carrying communication evidence between e₁ and e₂ directly.
-  This would replace the current `fr.comm` existential + NoInterveningWrites approach
-  with explicit downgrade/serialization evidence per case (sameCache/sameClusDiffCache/diffClus).
-  Would simplify the FR step_to_ordering proof significantly.
+- [x] FR same-cluster same-e_w: closed via notBetweenCles
+- [x] cdirEncapsDown_exists SW case: fully proven (avoids Exists.choose)
+- [x] PPOi encapDir×encapDir, orderBeforeDir×encapDir: proven
+- [x] PPOi *×orderAfterDir(e₂): proven via successor temporal chain
+- [ ] PPOi encapDir×orderBeforeDir: needs cache_ordered + predecessor elimination (same-addr) or CompoundMCM (diff-addr)
+- [ ] PPOi orderBeforeDir×orderBeforeDir: needs predecessor ordering
+- [ ] PPOi orderAfterDir(e₁)×*: needs succ₁ vs e₂ ordering
+- [ ] FR same-cluster diff-e_w: needs cdirEncapsDown
+- [ ] FR diff-cluster: needs `e₁ OB e_cache_down` from protocol evidence
+- [ ] StepOrdering.irrefl `.eq`: cycle-level argument
+- [ ] cdirEncapsDown_exists: MR, scReadDown, noCoherentRead shim cases
 
 ## Key architecture
 
@@ -561,6 +528,23 @@ Key implications:
 - e_lin is NOT uniformly "below" CLE — it can be above (clusterCacheLin) or equal to (previousGotPerms) or below (getPerms)
 - GLE.oEnd < CLE.oEnd always holds (proven by 4-case analysis)
 - Cache event encapsulates e_lin (CompoundPPOs.lean:644-786) — so e_lin.oEnd < e.oEnd always
+
+### orderAfterDir temporal chain pattern (PPOi)
+For PPOi(e₁, e₂) where e₂ has `orderAfterDir`:
+- `hsucc_encap.choose_spec.right` gives `ImmediateBottomSuccSatisfyingProp`
+- `.isImmBottomSucc.isSucc` gives `e₂ OB succ₂` (as `Event.oEnd n e₂ < Event.oStart n succ₂`)
+- `.satisfyP.encapCorresponding.reqEncapDir` gives `succ₂.Encapsulates n CLE₂`
+- Chain: CLE₁ < e₁ < e₂ < succ₂ encaps CLE₂ → CLE₁ OB CLE₂ → `.ob`
+- Works for ANY e₁ dirAccessOfRequest case (encapDir, orderBeforeDir, or orderAfterDir)
+- `Event.oWellFormed n e₂` bridges `e₂.oStart` to `e₂.oEnd` in the chain
+
+### Exists.choose bridge problem and solution
+`Exists.choose` uses `Classical.choice` — does NOT reduce even on concrete `⟨a, h⟩` witnesses.
+`Subsingleton.elim` gives `hdown = hdown'` but `hdown'.choose` still doesn't reduce to `e_dw`.
+**Solution**: Don't use `choose` in goals. Return existential witnesses directly from lemmas.
+`cdirEncapsDown_exists` provides `e_cdir` as explicit existential (not `hdown.choose`).
+Pattern: when a lemma needs to state something about a SPECIFIC event from a construction,
+return that event as an existential witness rather than going through `choose`.
 
 ### Encapsulates means strict containment
 `e₁.Encapsulates n e₂ := e₁.oStart < e₂.oStart ∧ e₂.oEnd < e₁.oEnd` — strict on both ends.
