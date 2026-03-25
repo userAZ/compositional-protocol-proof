@@ -798,9 +798,24 @@ theorem step_to_ordering
               have hlin := fun e => h.hknow_dir_access compound b init e
               have h_constraints := h_no_between e₂ h.in_b₂
                 h.cache₂ h.write h.notDown₂ (hlin e₂)
-              -- e_cdir is at e₁'s protocol (from cdirEncapsDown_exists)
-              -- e_w could be at e₁'s cluster or a different cluster
-              sorry -- needs NoInterveningWrites application with e_cdir between CLE_w and CLE₁
+              -- e_cdir is at e₁'s protocol (from cdirEncapsDown_exists).
+              -- Split on e_w's cluster: if same as e₁, use notBetweenCles.
+              -- If different, use diffClusterNotBetweenCles_sameCache.
+              by_cases h_ew_prot : e₁.protocol = e_w.protocol
+              · -- Same cluster e_w and e₁: CLE_w, e_cdir, CLE₁ all at same directory.
+                -- co chain gives CLE_w.oEnd ≤ CLE₂.oEnd (at e₂'s cluster = diff from e₁).
+                -- But e_cdir OB CLE₁ at e₁'s directory.
+                -- Use notBetweenCles: CLE₂ (e₂ at diff cluster) won't help here.
+                -- Actually need: e_cdir is a directory WRITE at e₁'s cluster between CLE_w and CLE₁.
+                -- e_cdir.isDirWrite + e_cdir.protocol = e₁.protocol = e_w.protocol.
+                -- notBetweenCles says CLE₂ not between CLE_w and CLE₁ (but CLE₂ at diff cluster).
+                -- Instead: e_cdir IS a dir write between CLE_w and CLE₁.
+                -- Use diffClusterNotBetweenCles_sameCache on e_cdir.
+                sorry -- same cluster e_w/e₁: NIW with e_cdir at e₁'s directory
+              · -- Different cluster e_w and e₁: e_cdir at e₁'s protocol ≠ e_w's protocol.
+                -- diffClusterNotBetweenCles_sameCache applies if e_cdir at e_w's protocol,
+                -- but e_cdir is at e₁'s protocol. Need different approach.
+                sorry -- diff cluster e_w/e₁: needs cross-cluster NIW argument
 -- Old lex pair approach (co_step_advances, co_chain_cle_advance, step_advances,
 -- transgen_lex_advance) removed. Using StepOrdering instead.
 -- Placeholder to mark where old code was:
