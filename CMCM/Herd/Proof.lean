@@ -818,7 +818,7 @@ theorem step_advances
                     have h_isDirWrite :
                         (h.hknow_dir_access compound b init e₂).hreq's_dir_access.choose.isDirWrite := by
                       have : h.hknow_dir_access compound b init e₂ = h.e₂_lin := Subsingleton.elim _ _
-                      rw [this]; exact write_event_cle_isDirWrite h.write h.cache₂ h.notDown₂ h.e₂_lin
+                      rw [this]; exact write_event_cle_isDirWrite h.write h.cache₂ h.notDown₂ h.e₂_lin h.in_b₂
                     -- by_cases on protocol: same cluster → notBetweenCles, diff → diffCluster
                     by_cases h_prot₁ :
                         (h.hknow_dir_access compound b init e₂).hreq's_dir_access.choose.protocol =
