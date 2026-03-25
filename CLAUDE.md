@@ -87,7 +87,7 @@ The "GMO bridge" is NOT a separate thing — it's recognizing they're the same. 
 
 The GLE/CLE/cache lex ordering falls out as a CONSEQUENCE of this communication evidence, used for irrefl/trans.
 
-### Remaining sorry's (5 critical, all in `step_advances` at Proof.lean)
+### Remaining sorry's (all in `step_to_ordering` at Proof.lean, updated 2026-03-24)
 
 **Sorry #1 (line ~538): PPOi, e₂ encapDir, e₁ orderAfterDir, CLE₂ OB CLE₁**
 - nc.weak e₁ with CLE₁ from successor. Successor succ₁ encaps CLE₁ (de₁).
