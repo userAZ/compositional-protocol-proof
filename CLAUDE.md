@@ -56,18 +56,22 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status
-- **hierarchicallyOrdered**: RESTRUCTURED as inductive with 3 named constructors: `gleOB`, `cleOB`, `cacheOB` — each maps to a communication level. Irrefl/trans/canonicalization DONE.
-- **rfe**: DONE (`rfe_hierarchicallyOrdered` — `wObRGle` → `.gleOB`, `wEqRGle` absurd for rfe)
-- **co**: DONE — `co_hierarchicallyOrdered` via `co_cases_hierarchicallyOrdered`
-- **fr**: RESTRUCTURED — now carries `comm` (rf⁻¹ ; co⁺ via existential, no `ordering` field). `fr_hierarchicallyOrdered` needs composition proof (1 sorry).
-- **PPOi same-addr**: PARTIAL — `ppoi_hierarchicallyOrdered_same_addr` (Proof.lean:229)
-  - CLE₁ = CLE₂ case: DONE (`.cacheOB` from PPOi.orderedBefore)
-  - GLE₁ OB GLE₂ case: DONE (`.gleOB`)
-  - GLE₂ OB GLE₁ case: 1 sorry at line 266 (`cases hdir₁ <;> cases hdir₂ <;> sorry` — 9 dirAccessOfRequest sub-cases)
-- **PPOi diff-addr**: DONE (vacuously — single-address model, all dir events share address)
-- **Main theorem**: DONE (`cmcm_acyclic`) — complete modulo sorry lemmas
-- **cmcm theorem**: DONE — wraps `cmcm_acyclic` directly (removed PartialOrder approach)
+### Status (updated 2026-03-24)
+- **Main proof architecture**: `cmcm_acyclic` → `cmcm_acyclic_of_hknow` → lex pair (CLE.oEnd, e.oEnd)
+  - `step_advances`: per-edge lex advance (CLE.oEnd strictly increases or stays equal with e.oEnd increase)
+  - `transgen_lex_advance`: chains `step_advances` through TransGen via `lex_lt_trans`
+  - `cmcm_acyclic_of_hknow`: applies `lex_lt_irrefl` to the chained lex advance
+  - `cmcm_acyclic`: extracts `hknow_dir_access` from any com edge, then calls `cmcm_acyclic_of_hknow`
+- **Edge definitions**: DONE (Defs.lean: PPOi, rfe with diffCache, co with descriptive ordering, fr with rf⁻¹;co⁺)
+- **Irreflexivity**: DONE for all edges (ppoi_irrefl, rfe_irrefl, co_irrefl, fr_irrefl)
+- **step_advances proven cases**:
+  - PPOi: CLE₁ = CLE₂ → secondary advance ✓; CLE₁ OB CLE₂ → primary advance ✓
+  - PPOi: CLE₂ OB CLE₁ → exfalso: 6/9 dirAccessOfRequest sub-cases done
+  - rfe: all cases except noEvictBetween × orderAfterDir
+  - co: ALL cases (co_step_advances is sorry-free!)
+  - fr: CLE₁ OB CLE₂ ✓; CLE₂ OB CLE₁ with CLE₁ OB CLE_w ✓; CLE₂ OB CLE₁ with CLE_w OB CLE₁, CLE₂ OB CLE_w ✓
+- **StepOrdering** (alternative approach, non-critical): in file but no longer on main proof path
+- **5 critical sorry's** in `step_advances` — see "Remaining sorry's" below
 
 ### Key insight: `hierarchicallyOrdered` IS `CompoundLinearizationOrder` (same concept)
 
@@ -82,6 +86,45 @@ The "GMO bridge" is NOT a separate thing — it's recognizing they're the same. 
 - **FR**: uses rf⁻¹ ; co composition (noBetween ensures validity)
 
 The GLE/CLE/cache lex ordering falls out as a CONSEQUENCE of this communication evidence, used for irrefl/trans.
+
+### Remaining sorry's (5 critical, all in `step_advances` at Proof.lean)
+
+**Sorry #1 (line ~538): PPOi, e₂ encapDir, e₁ orderAfterDir, CLE₂ OB CLE₁**
+- nc.weak e₁ with CLE₁ from successor. Successor succ₁ encaps CLE₁ (de₁).
+- Need: show succ₁ OB e₂ (then de₁ OB de₂ → contradicts hob) or CLE₁ = CLE₂.
+- Approach: nc.weak CLE sharing — if succ₁ = e₂ or succ₁ OB e₂, de₁ inside succ₁ gives de₁.oEnd < succ₁.oEnd < e₂.oStart < de₂.oStart → de₁ OB de₂ contradiction.
+- Missing: formal proof that succ₁ is before or equals e₂ on same cache (needs cache event total ordering + immediacy argument).
+
+**Sorry #2 (line ~541): PPOi, e₂ orderBeforeDir, CLE₂ OB CLE₁ (all e₁ sub-cases)**
+- pred₂ encaps CLE₂ (de₂), pred₂ OB e₂.
+- Approach: if e₁ OB pred₂ → de₁.oEnd < e₁.oEnd < pred₂.oStart < de₂.oStart → de₁ OB de₂, contradicts hob.
+  If pred₂ OB e₁ → e₁ between pred₂ and e₂ → predecessor elimination: e₁ satisfies P (reqHasNoPermsLeavesStateAtLeast from stateBeforeAndAfterAtLeast + reqMissingPerms) → contradicts noIntermediateSatisfyingP.
+- Missing: cache event total ordering between e₁ and pred₂, plus verification that encapDir e₁ satisfies P.
+
+**Sorry #3 (line ~575): PPOi, both orderAfterDir, CLE₂ OB CLE₁**
+- Both e₁ and e₂ are nc.weak with CLEs from successors. Both successors on same cache.
+- Approach: nc.weak CLE sharing — both should share CLE or have CLE ordering following cache order. If succ₁ encaps de₁ and succ₂ encaps de₂, and succ₁ OB succ₂ (or succ₁ = succ₂), then de₁ OB de₂ or de₁ = de₂.
+- Missing: same as #1 + relating two successors on same cache.
+
+**Sorry #4 (line ~695): rfe noEvictBetween, e₁ orderAfterDir, de_cdir OB de_w**
+- Same structure as #1: nc.weak e₁ with CLE from successor, de_cdir OB CLE₁.
+- Approach: show succ₁'s position relative to the downgrade chain gives temporal contradiction.
+- Missing: formal proof that orderAfterDir successor position excludes de_cdir OB CLE₁.
+
+**Sorry #5 (line ~783): fr, de_w OB de₂ OB de₁ with NoInterveningWrites**
+- CLE₂ between CLE_w and CLE₁. Need to apply NoInterveningWrites to e₂.
+- Approach: `h_no_between` gives `NoInterveningWrites.constraints` for e₂ (if e₂ ∈ b, isClusterCache, isWrite, ¬down). Then `notBetweenCles` says CLE₂ NOT between CLE_w and CLE₁ (if same protocol + isDirWrite). Contradicts de_w OB de₂ OB de₁.
+- Missing: (1) extract e₂ ∈ b, isClusterCache, ¬down from fr/co evidence; (2) verify same-protocol condition; (3) verify isDirWrite for CLE₂; (4) handle cross-cluster case with `diffClusterNotBetweenCles`.
+
+**CRITICAL INSIGHT (2026-03-24): For PPOi + orderAfterDir, CLE₁ = CLE₂ must be PROVEN, not assumed.**
+
+The lex pair approach assumes CLE.oEnd monotonically advances along each edge. But for PPOi with e₁ having `orderAfterDir`, CLE₁ comes from a SUCCESSOR of e₁ (after e₂), so CLE₂ OB CLE₁ is the natural ordering. The lex pair goes BACKWARDS — this is NOT a contradiction to derive `False` from.
+
+The fix: prove `CLE₁ = CLE₂` for same-address PPOi with e₁ `orderAfterDir`. This routes through the `by_cases hcle_eq` equality case (secondary advance via e₁ OB e₂). The protocol reason: nc.weak's `dirAccessOfRequest.orderAfterDir` gives CLE₁ from the successor's directory write-back, which for same-address PPOi IS the same directory event as e₂'s `encapDir` CLE₂.
+
+**Proof sketch**: Show `immBottomSuccOnVdEncapCorrDir` successor for nc.weak e₁ produces the SAME `e_dir` as e₂'s `cacheEncapsulatesCorrespondingDirEvent`. For same-address events on same cache, there's one directory entry and one write-back per release sequence.
+
+**Common needs for sorry's #1-4**: `cache_ordered` (Behaviours.lean:21) gives total ordering for cache events, but needs `CacheEvent` extraction from `Event` (pattern match on `.cacheEvent ce`). For `ImmediateBottomPredSatisfyingProp` → predecessor elimination, need `stateBeforeAndAfterAtLeast` fields from `orderBeforeDir`. For sorry's #1 and #3 (orderAfterDir): proving CLE₁ = CLE₂ is the CORRECT approach, not temporal contradiction.
 
 ### Key insight: communication events (downgrades) are the fundamental mechanism
 
@@ -363,13 +406,15 @@ or OB + EncapBy circular chain.
 
 The key insight (from Anqi): same-address PPOi events share a CLE or have CLE ordering that follows the PPOi direction. The `hierarchicallyOrdered` ranking function works.
 
-**TODO:**
-- [x] Redefine CO with `gleOrdering.Cases` (communication pattern structure)
-- [x] Redefine FR as rf⁻¹ ; co (existential intermediate write)
-- [ ] Prove `co_hierarchicallyOrdered`: gleOrdering.Cases → hierarchicallyOrdered
-- [ ] Prove `fr_hierarchicallyOrdered`: rf⁻¹ ; co → hierarchicallyOrdered
-- [ ] Prove sorry #1 (line ~274): CLE₁ OB CLE₂ + GLE₂ OB GLE₁ → False (same-addr PPOi)
-- [ ] Redesign `hierarchicallyOrdered` if gleOrdering.Cases → hierarchy bridge is too hard (may need to match communication structure directly)
+**TODO (updated 2026-03-24):**
+- [x] Redefine CO with descriptive `co.ordering` inductive (sameCache/sameClusDiffCache/diffClus)
+- [x] Redefine FR as rf⁻¹ ; co⁺ (existential intermediate write + NoInterveningWrites)
+- [x] Wire `cmcm_acyclic` through lex pair approach (step_advances → transgen_lex_advance → lex_lt_irrefl)
+- [x] co_step_advances: ALL cases sorry-free
+- [ ] Close PPOi sorry's #1-3 (orderAfterDir nc.weak CLE sharing — needs cache_ordered + immediacy)
+- [ ] Close rfe sorry #4 (noEvictBetween × orderAfterDir — same nc.weak pattern)
+- [ ] Close fr sorry #5 (NoInterveningWrites application — needs e₂ membership + protocol classification)
+- [ ] Optional: clean up StepOrdering code (non-critical, kept for reference)
 
 ## Key architecture
 

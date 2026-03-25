@@ -138,6 +138,9 @@ structure fr (e₁ e₂ : Event n) : Prop where
   read : e₁.isRead
   write : e₂.isWrite
   sameAddr : e₁.addr = e₂.addr
+  in_b₂ : e₂ ∈ b
+  cache₂ : e₂.isClusterCache
+  notDown₂ : ¬ e₂.down
   e₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
   e₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
