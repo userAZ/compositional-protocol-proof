@@ -478,8 +478,8 @@ theorem step_to_ordering
                         simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
                           hgle₂_eq, hgc₂, hgc₁]; exact hgle_₂₁⟩
                     | inr hgle_₁₂ =>
-                      -- GLE₁ OB GLE₂: use notBetweenCles (sameProtocol case)
-                      -- or derive temporal contradiction from RF evidence
+                      -- GLE₁ OB GLE₂: CLE₂ between CLE_w and CLE₁ → notBetweenCles
+                      -- CLE₂ between CLE_w and CLE₁. Need sameProtocol for notBetweenCles.
                       sorry
                   | inr hgle_₂w =>
                     -- GLE₂ OB GLE_w: ge₂.oEnd < ge_w.oStart
@@ -494,7 +494,7 @@ theorem step_to_ordering
                         -- GLE₂ OB GLE₁. With GLE_w = GLE₁ and GLE_w OB GLE₂... wait, we have GLE₂ OB GLE_w.
                         -- So GLE₂ before GLE_w = GLE₁. And GLE₂ OB GLE₁.
                         -- For notBetweenGles: need GLE_w OB GLE₂ (first component). But GLE₂ OB GLE_w.
-                        -- Not between. Use notBetweenCles instead.
+                        -- CLE₂ between CLE_w and CLE₁. Need sameProtocol for notBetweenCles.
                         sorry
                       | inr hgle_₁₂ =>
                         -- GLE₁ OB GLE₂ and GLE₂ OB GLE_w = GLE₁
@@ -516,7 +516,7 @@ theorem step_to_ordering
                       -- GLE_w OB GLE₁ and GLE₂ OB GLE_w
                       -- Chain: ge₂.oEnd < ge_w.oStart ≤ ge_w.oEnd < ge₁.oStart
                       -- GLE₂ OB GLE_w OB GLE₁. GLE₂ is before both.
-                      -- Use notBetweenCles for CLE-level.
+                      -- CLE₂ between CLE_w and CLE₁. Need sameProtocol for notBetweenCles.
                       sorry
                 | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
               | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
