@@ -563,10 +563,30 @@ theorem step_to_ordering
         by_cases hcle_eq : (lin e₁).hreq's_dir_access.choose = (lin e₂).hreq's_dir_access.choose
         · exact .eq hcle_eq
         · -- Different CLEs at same cluster directory → dir_ordered valid.
-          sorry -- same-cache, diff CLE: dir_ordered gives .ob or contradiction
+          have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+          have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+          match hfc₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₁, _ =>
+            match hfc₂ : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₂, _ =>
+              cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+              | inl hob => exact .ob hob
+              | inr hob => sorry -- CLE₂ OB CLE₁ at same cluster: NIW contradiction
       · by_cases h_same_prot : e₁.sameProtocol n e₂
         · -- Same cluster, diff cache: CLEs at same cluster directory. dir_ordered valid.
-          sorry -- same-cluster, diff-cache: dir_ordered gives .ob or contradiction
+          have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+          have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+          match hfc₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₁, _ =>
+            match hfc₂ : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₂, _ =>
+              cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+              | inl hob => exact .ob hob
+              | inr hob => sorry -- CLE₂ OB CLE₁ at same cluster: NIW contradiction
         · -- Different cluster: e₂'s write triggers downgrade at e₁'s cluster.
           -- diffCache_coherent_encapProxyAndDir gives encapDir at e₁'s cluster.
           have hdown := diffCache_coherent_encapProxyAndDir
