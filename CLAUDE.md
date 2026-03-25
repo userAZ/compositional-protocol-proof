@@ -222,6 +222,21 @@ The `step_advances` approach with `(CLE.oEnd, e.oEnd)` as a lex pair FAILS for P
 - The construction ALWAYS uses `gcacheEncap` (line 3346), even for `noGlobalCache`. So `oEnd <` is the general bound.
 - `obEndLt` is sufficient for irrefl (`l.oEnd < p.oStart ≤ p.oEnd < l.oEnd` → contradiction) and trans (chains through `oEnd < oStart`).
 
+### CRITICAL: `dir_ordered` is ONLY valid for same-directory events
+`dir_ordered` in the Lean code is universally quantified over ALL directory events (model over-strength). But it must ONLY be used between events at the SAME directory (same protocol/cluster). Using it between events at different directories gives spurious ordering that doesn't correspond to actual protocol behavior.
+
+**Impact on FR proof**: The FR `step_to_ordering` uses `dir_ordered de₁ de₂` where CLE₁ (cluster A) and CLE₂ (cluster B) may be at different directories. This is INVALID for cross-cluster FR. Same for `dir_ordered de_w de₂`. The FR proof needs to derive CLE ordering from RF+CO communication evidence, NOT from cross-directory `dir_ordered`.
+
+**Valid uses of `dir_ordered`**:
+- rfe noEvictBetween: `dir_ordered de_cle de_cdir` — both at e_w's cluster ✓
+- co sameClusDiffCache: same cluster ✓
+- PPOi same-addr: same cache → same directory ✓
+- Any case where both CLEs are at the same `protocol` ✓
+
+**Invalid uses** (must fix):
+- FR `dir_ordered de₁ de₂` for cross-cluster FR
+- FR `dir_ordered de_w de₂` for cross-cluster FR
+
 ### DEAD END: ALL per-edge temporal properties for acyclicity
 
 **e₁.oEnd < e₂.oEnd (finishesBefore)**: FAILS for orderAfterDir (CLE past target) and co diff-cache (slow grant on first write makes e₁.oEnd > e₂.oEnd).
