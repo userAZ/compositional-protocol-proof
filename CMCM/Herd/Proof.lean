@@ -556,13 +556,14 @@ theorem step_to_ordering
     | co h => exact co_step_to_ordering h lin
     | fr h =>
       -- fr: rf⁻¹;co⁺ composition.
-      -- by_cases on e₁ vs e₂ relationship (same cache / same cluster / diff cluster).
-      -- Each case uses dir_ordered ONLY at the same cluster directory.
-      by_cases h_same_struct : e₁.struct = e₂.struct
-      · -- Same cache: CLEs at same cluster directory. dir_ordered valid.
+      -- Two cases based on e₁ vs e₂ cluster relationship.
+      -- Same cluster: dir_ordered on CLEs valid (same directory, same address).
+      -- Diff cluster: e₂ write triggers downgrade at e₁ cluster.
+      by_cases h_same_prot : e₁.sameProtocol n e₂
+      · -- Same cluster: CLE₁ and CLE₂ at same cluster directory.
         by_cases hcle_eq : (lin e₁).hreq's_dir_access.choose = (lin e₂).hreq's_dir_access.choose
         · exact .eq hcle_eq
-        · -- Different CLEs at same cluster directory → dir_ordered valid.
+        · -- dir_ordered valid (same cluster, same address)
           have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
           have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
           match hfc₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
@@ -574,132 +575,42 @@ theorem step_to_ordering
               cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
               | inl hob => exact .ob hob
               | inr hob =>
-                -- CLE₂ OB CLE₁ at same cluster. Apply NoInterveningWrites.
-                exfalso
-                obtain ⟨e_w, e_w_write, e_w_lin, _, h_rf, h_no_between, h_co_chain⟩ := h.comm
-                have hlin := fun e => h.hknow_dir_access compound b init e
-                have h_constraints := h_no_between e₂ h.in_b₂
-                  h.cache₂ h.write h.notDown₂ (hlin e₂)
-                -- Get CLE_w and use dir_ordered(CLE_w, CLE₂) — VALID: same cluster
-                have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-                match hfcw : e_w_lin.hreq's_dir_access.choose, hdir_w with
-                | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-                | .directoryEvent de_w, _ =>
-                  cases (b.orderedAtEntry.dir_ordered de_w de₂).ordered with
-                  | inl hob_w₂ =>
-                    -- CLE_w OB CLE₂ OB CLE₁: CLE₂ between. Apply notBetweenCles.
-                    have h_isDirWrite : (hlin e₂).hreq's_dir_access.choose.isDirWrite := by
-                      have : hlin e₂ = h.e₂_lin := Subsingleton.elim _ _
-                      rw [this]; exact write_event_cle_isDirWrite h.write h.cache₂ h.notDown₂ h.e₂_lin h.in_b₂
-                    have h_ob_between :
-                        (hlin e₂).hreq's_dir_access.choose.OrderedBetween n
-                        e_w_lin.hreq's_dir_access.choose (lin e₁).hreq's_dir_access.choose := by
-                      exact ⟨by simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
-                                show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _,
-                                hfc₂, hfcw]; exact hob_w₂,
-                             by simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
-                                show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _,
-                                hfc₂, hfc₁]; exact hob⟩
-                    have h_nbc := h_constraints.notBetweenCles
-                    unfold SameClusterCLE.NotBetweenCLEs at h_nbc
-                    -- Same cluster → sameProtocol holds
-                    have hprot₁ : (hlin e₂).hreq's_dir_access.choose.protocol =
-                        e_w_lin.hreq's_dir_access.choose.protocol := by
-                      sorry -- derive from same-cluster evidence
-                    have hprot₂ : (hlin e₂).hreq's_dir_access.choose.protocol =
-                        (lin e₁).hreq's_dir_access.choose.protocol := by
-                      sorry -- derive from same-cluster evidence
-                    exact h_nbc ⟨hprot₁, hprot₂, h_isDirWrite⟩ h_ob_between
-                  | inr hob_₂w =>
-                    -- CLE₂ OB CLE_w: co chain gives CLE_w.oEnd ≤ CLE₂.oEnd → contradiction
-                    have hco_so := co_chain_step_ordering hlin h_co_chain
-                    rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hco_so
-                    sorry -- extract oEnd advance from StepOrdering, same as diff-cluster case
-      · by_cases h_same_prot : e₁.sameProtocol n e₂
-        · -- Same cluster, diff cache: CLEs at same cluster directory. dir_ordered valid.
-          have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
-          have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-          match hfc₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
-          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-          | .directoryEvent de₁, _ =>
-            match hfc₂ : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
-            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-            | .directoryEvent de₂, _ =>
-              cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
-              | inl hob => exact .ob hob
-              | inr hob =>
-                -- CLE₂ OB CLE₁ at same cluster. Apply NoInterveningWrites.
-                exfalso
-                obtain ⟨e_w, e_w_write, e_w_lin, _, h_rf, h_no_between, h_co_chain⟩ := h.comm
-                have hlin := fun e => h.hknow_dir_access compound b init e
-                have h_constraints := h_no_between e₂ h.in_b₂
-                  h.cache₂ h.write h.notDown₂ (hlin e₂)
-                -- Get CLE_w and use dir_ordered(CLE_w, CLE₂) — VALID: same cluster
-                have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-                match hfcw : e_w_lin.hreq's_dir_access.choose, hdir_w with
-                | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-                | .directoryEvent de_w, _ =>
-                  cases (b.orderedAtEntry.dir_ordered de_w de₂).ordered with
-                  | inl hob_w₂ =>
-                    -- CLE_w OB CLE₂ OB CLE₁: CLE₂ between. Apply notBetweenCles.
-                    have h_isDirWrite : (hlin e₂).hreq's_dir_access.choose.isDirWrite := by
-                      have : hlin e₂ = h.e₂_lin := Subsingleton.elim _ _
-                      rw [this]; exact write_event_cle_isDirWrite h.write h.cache₂ h.notDown₂ h.e₂_lin h.in_b₂
-                    have h_ob_between :
-                        (hlin e₂).hreq's_dir_access.choose.OrderedBetween n
-                        e_w_lin.hreq's_dir_access.choose (lin e₁).hreq's_dir_access.choose := by
-                      exact ⟨by simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
-                                show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _,
-                                hfc₂, hfcw]; exact hob_w₂,
-                             by simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
-                                show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _,
-                                hfc₂, hfc₁]; exact hob⟩
-                    have h_nbc := h_constraints.notBetweenCles
-                    unfold SameClusterCLE.NotBetweenCLEs at h_nbc
-                    -- Same cluster → sameProtocol holds
-                    have hprot₁ : (hlin e₂).hreq's_dir_access.choose.protocol =
-                        e_w_lin.hreq's_dir_access.choose.protocol := by
-                      sorry -- derive from same-cluster evidence
-                    have hprot₂ : (hlin e₂).hreq's_dir_access.choose.protocol =
-                        (lin e₁).hreq's_dir_access.choose.protocol := by
-                      sorry -- derive from same-cluster evidence
-                    exact h_nbc ⟨hprot₁, hprot₂, h_isDirWrite⟩ h_ob_between
-                  | inr hob_₂w =>
-                    -- CLE₂ OB CLE_w: co chain gives CLE_w.oEnd ≤ CLE₂.oEnd → contradiction
-                    have hco_so := co_chain_step_ordering hlin h_co_chain
-                    rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hco_so
-                    sorry -- extract oEnd advance from StepOrdering, same as diff-cluster case
-        · -- Different cluster: e₂'s write triggers downgrade at e₁'s cluster.
-          -- diffCache_coherent_encapProxyAndDir gives encapDir at e₁'s cluster.
-          have hdown := diffCache_coherent_encapProxyAndDir
-            (lin e₁) (lin e₂) h.in_b₁ h.cache₁
-          have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
-          have hencap_rel := hcdir_spec.2.2.2
-          have hcdir_lt_cle₂ : hdown.existsRClusterDirDown.choose.oEnd <
-              (lin e₂).hreq's_dir_access.choose.oEnd := by
-            cases hencap_rel with
-            | cleEncap henc => exact henc.right
-            | gcacheEncap _ hlt => exact hlt
-          have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
-          have hcdir_isdir := hcdir_spec.2.1
-          match hfc_cdir : hdown.existsRClusterDirDown.choose, hcdir_isdir with
-          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-          | .directoryEvent de_cdir, _ =>
-            match hfc_cle₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
-            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-            | .directoryEvent de_cle₁, _ =>
-              cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
-              | inl hob =>
-                have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
-                exact .obEndLt hdown.existsRClusterDirDown.choose
-                  (show (Event.directoryEvent de_cle₁).OrderedBefore n
-                      hdown.existsRClusterDirDown.choose from by
-                    rw [hfc_cdir]; exact hob)
-                  (by rw [hw₂']; exact hcdir_lt_cle₂)
-              | inr hob =>
-                -- cdir_down OB CLE₁: NoInterveningWrites contradiction
+                -- CLE₂ OB CLE₁ at same cluster → contradiction.
+                -- e₂'s write is coherence-after e_w. e₁ reads e_w.
+                -- So CLE₁ should be before CLE₂, not after.
+                -- NoInterveningWrites excludes e₂ between e_w and e₁.
                 sorry
-
+      · -- Different cluster: e₂ write triggers downgrade at e₁'s cluster.
+        have hdown := diffCache_coherent_encapProxyAndDir
+          (lin e₁) (lin e₂) h.in_b₁ h.cache₁
+        have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
+        have hencap_rel := hcdir_spec.2.2.2
+        have hcdir_lt_cle₂ : hdown.existsRClusterDirDown.choose.oEnd <
+            (lin e₂).hreq's_dir_access.choose.oEnd := by
+          cases hencap_rel with
+          | cleEncap henc => exact henc.right
+          | gcacheEncap _ hlt => exact hlt
+        have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+        have hcdir_isdir := hcdir_spec.2.1
+        match hfc_cdir : hdown.existsRClusterDirDown.choose, hcdir_isdir with
+        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+        | .directoryEvent de_cdir, _ =>
+          match hfc_cle₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de_cle₁, _ =>
+            cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
+            | inl hob =>
+              have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
+              exact .obEndLt hdown.existsRClusterDirDown.choose
+                (show (Event.directoryEvent de_cle₁).OrderedBefore n
+                    hdown.existsRClusterDirDown.choose from by
+                  rw [hfc_cdir]; exact hob)
+                (by rw [hw₂']; exact hcdir_lt_cle₂)
+            | inr hob =>
+              -- cdir_down OB CLE₁: contradiction.
+              -- Downgrade from e₂ at e₁'s cluster before e₁'s CLE
+              -- → e₁ should see e₂'s value, contradicting RF.
+              sorry
 -- Old lex pair approach (co_step_advances, co_chain_cle_advance, step_advances,
 -- transgen_lex_advance) removed. Using StepOrdering instead.
 -- Placeholder to mark where old code was:
