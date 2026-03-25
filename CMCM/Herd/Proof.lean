@@ -323,7 +323,7 @@ theorem step_to_ordering
                   | gcacheEncap _ hlt => exact hlt)
           -- Dispatch all diffCache.case sub-cases
           cases hdiff_cache_case with
-          | wHasPermsAfter _ coherentCase =>
+          | wHasPermsAfter hw_leaves_SW coherentCase =>
             cases coherentCase with
             | immPred rCle hPDC =>
               cases rCle with
@@ -392,10 +392,26 @@ theorem step_to_ordering
                             _ < de_cle.oStart := hob_dir
                             _ ≤ de_cle.oEnd := Nat.le_of_lt de_cle.oWellFormed
                         exact Nat.lt_irrefl _ this
-                      | orderAfterDir _ _ _ _ =>
-                        -- nc.weak with wHasPermsAfter: contradiction
-                        -- wHasPermsAfter means coherent perms, but orderAfterDir is nc.weak
-                        sorry
+                      | orderAfterDir hweak_req _ _ _ =>
+                        -- nc.weak with wHasPermsAfter: contradiction.
+                        -- wHasPermsAfter = reqLeavesStateAtLeast SW = SW ≤ stateAfter.cache
+                        -- ncWeakReqOnVd gives: stateAfter.cache = Vd (or stateBefore = Vd)
+                        -- SW ≤ Vd is false by decide.
+                        exfalso
+                        -- hw_leaves_SW : SW ≤ stateAfter.cache
+                        -- hweak_req.reqOnOrAfterVd : stateBefore.cache = Vd ∨ stateAfter.cache = Vd
+                        cases hweak_req.reqOnOrAfterVd with
+                        | inr hafter_vd =>
+                          -- stateAfter.cache = Vd. SW ≤ Vd is false.
+                          unfold Behaviour.reqLeavesStateAtLeast at hw_leaves_SW
+                          rw [hafter_vd] at hw_leaves_SW
+                          exact absurd hw_leaves_SW (by
+                            simp [LE.le, State.le, LT.lt, State.lt, SW, Vd, Option.le])
+                        | inl hbefore_vd =>
+                          -- stateBefore.cache = Vd. stateAfter unknown.
+                          -- nc.weak write from Vd: state transitions to non-coherent.
+                          -- Need protocol state machine for this case.
+                          sorry
               | evictBetween evict =>
                 exact from_encap_wob evict.encapProxyAndDir evict.evictBetween.wObRDown
           | wNoPermsAfter _ _ rCle =>
