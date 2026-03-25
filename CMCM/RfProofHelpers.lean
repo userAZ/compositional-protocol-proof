@@ -3506,9 +3506,21 @@ lemma cdirEncapsDown_exists
                have := hstruct.cohEvictDir.isDir; simp [Event.isDirectoryEvent, he_de_ev] at this,
            -- translatedDir: clusterDirFromDiffProtocolRequest from global downgrade chain
            ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b, e_ce, _he_ce_in_b,
-             sorry, -- downgradeAtPrevOwner.clusterReq.gdown.wrapper
+             hdowngrade,
              hstruct.cohEvict.atCorrClusterProxy,
-             sorry  -- correspondingDirectoryEvent e_r_gdown e_de
+             -- correspondingDirectoryEvent: e_r_gdown encaps e_de
+             { clusterMatch :=
+                { sameAddr := by
+                    have h1 := hstruct.cohEvict.atCorrClusterProxy.clusterMatch.sameAddr
+                    have h2 := hstruct.cohEvictDir.dirCorresponds.sameAddr
+                    unfold Event.sameAddr at h1 h2 ⊢; rw [← h2]; exact h1
+                  atCorrCluster := by
+                    have h1 := hstruct.cohEvict.atCorrClusterProxy.clusterMatch.atCorrCluster
+                    sorry -- atCorrCluster: e_de at same cluster as e_ce (from cohEvictDir.sameProtocol)
+                }
+               atDir := hstruct.cohEvictDir.isDir
+               globalEncap := Event.encap_encap_trans n
+                 hstruct.cohEvict.globalEncap hstruct.cohEvictDir.reqEncapDir }
            ⟩⟩⟩⟩
       | cWriteOnMR hfwd =>
         -- MR case: downgradeAtSharers. Same structure but need to find a sharer ≠ e_cw.cid.
