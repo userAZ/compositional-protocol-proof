@@ -3367,7 +3367,8 @@ lemma cdirEncapsDown_exists
         (∃ e_evict ∈ b, e_evict.isDirectoryEvent ∧ e_evict.down ∧
             e_evict.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧
             e_cdir.OrderedBefore n e_evict ∧ e_evict.protocol = e_w.protocol ∧
-            e_evict.isDirWrite) := by
+            e_evict.isDirWrite ∧
+            Event.clusterDirFromDiffProtocolRequest b init e_r e_evict hr_c_and_g_lin) := by
   -- Get global downgrade and GlobalToCluster shim
   have hgdown := diffCache_coherent_globalDowngrade hr_c_and_g_lin
   obtain ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b, hdowngrade⟩ := hgdown
@@ -3489,7 +3490,13 @@ lemma cdirEncapsDown_exists
              | .directoryEvent _, .directoryEvent _ =>
                simp [Event.dirEventOfReqEvent] at hdir_of_req
              | .cacheEvent _, _ =>
-               have := hstruct.cohEvictDir.isDir; simp [Event.isDirectoryEvent, he_de_ev] at this⟩⟩
+               have := hstruct.cohEvictDir.isDir; simp [Event.isDirectoryEvent, he_de_ev] at this,
+           -- translatedDir: clusterDirFromDiffProtocolRequest from global downgrade chain
+           ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b, e_ce, _he_ce_in_b,
+             sorry, -- downgradeAtPrevOwner.clusterReq.gdown.wrapper
+             hstruct.cohEvict.atCorrClusterProxy,
+             sorry  -- correspondingDirectoryEvent e_r_gdown e_de
+           ⟩⟩⟩⟩
       | cWriteOnMR hfwd =>
         -- MR case: downgradeAtSharers. Same structure but need to find a sharer ≠ e_cw.cid.
         sorry
