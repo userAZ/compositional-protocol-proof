@@ -805,22 +805,18 @@ theorem step_advances
                         simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
                           hlin_e₂_eq, hfc₂, hfc₁]
                         exact hob
-                    -- 4. Apply notBetweenCles to get ¬ OrderedBetween, contradicting h_ob_between
-                    -- notBetweenCles : SameClusterCLE.NotBetweenCLEs CLE₂ CLE_w CLE₁
-                    -- = (CLE₂.protocol = CLE_w.protocol ∧ CLE₂.protocol = CLE₁.protocol ∧ CLE₂.isDirWrite)
-                    --   → ¬ CLE₂.OrderedBetween n CLE_w CLE₁
-                    -- Need: sameProtocol conditions + isDirWrite
-                    -- For same-address events: CLEs at same directory → same protocol
-                    -- For write events: CLE is a dir write
+                    -- 4. by_cases on same vs different cluster (protocol)
+                    -- Same cluster: notBetweenCles excludes CLE₂ between CLE_w and CLE₁
+                    -- Different cluster: diffClusterNotBetweenCles excludes via downgrade chain
+                    have h_nbc := h_constraints.notBetweenCles
                     unfold SameClusterCLE.NotBetweenCLEs at h_nbc
-                    apply h_nbc _ h_ob_between
-                    refine ⟨?_, ?_, ?_⟩
-                    · -- CLE₂.protocol = CLE_w.protocol
-                      sorry
-                    · -- CLE₂.protocol = CLE₁.protocol
-                      sorry
-                    · -- CLE₂.isDirWrite
-                      sorry
+                    -- notBetweenCles: (sameProtocol ∧ isDirWrite) → ¬ OrderedBetween
+                    -- If we can provide sameProtocol + isDirWrite, we get contradiction
+                    -- isDirWrite: CLE of write event is a dir write (from dirAccessOfRequest)
+                    -- sameProtocol: all three CLEs at same directory (same cluster)
+                    exact h_nbc ⟨sorry /- CLE₂.protocol = CLE_w.protocol -/,
+                                  sorry /- CLE₂.protocol = CLE₁.protocol -/,
+                                  sorry /- CLE₂.isDirWrite -/⟩ h_ob_between
                   | inr hob_₂w =>
                     -- de₂ OB de_w → de₂.oEnd < de_w.oStart, but de_w.oEnd ≤ de₂.oEnd → contradiction
                     have : de_w.oEnd < de_w.oEnd :=
