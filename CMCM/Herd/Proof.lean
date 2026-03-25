@@ -482,8 +482,42 @@ theorem step_to_ordering
                       -- or derive temporal contradiction from RF evidence
                       sorry
                   | inr hgle_₂w =>
-                    -- GLE₂ OB GLE_w: use RF GLE evidence to derive contradiction
-                    sorry
+                    -- GLE₂ OB GLE_w: ge₂.oEnd < ge_w.oStart
+                    -- RF gives GLE_w ≤ GLE₁. Case-split on RF.
+                    cases h_rf with
+                    | wEqRGle hw_eq_r_gle _ _ =>
+                      -- GLE_w = GLE₁ (same GLE). So GLE₂ OB GLE_w = GLE₁.
+                      -- Then GLE₂ IS between GLE_w and GLE₁? No: GLE₂ is BEFORE GLE_w.
+                      -- But use dir_ordered(ge₂, ge₁):
+                      cases (b.orderedAtEntry.dir_ordered ge₂ ge₁).ordered with
+                      | inl hgle_₂₁ =>
+                        -- GLE₂ OB GLE₁. With GLE_w = GLE₁ and GLE_w OB GLE₂... wait, we have GLE₂ OB GLE_w.
+                        -- So GLE₂ before GLE_w = GLE₁. And GLE₂ OB GLE₁.
+                        -- For notBetweenGles: need GLE_w OB GLE₂ (first component). But GLE₂ OB GLE_w.
+                        -- Not between. Use notBetweenCles instead.
+                        sorry
+                      | inr hgle_₁₂ =>
+                        -- GLE₁ OB GLE₂ and GLE₂ OB GLE_w = GLE₁
+                        -- Chain: ge₁.oEnd < ge₂.oStart ≤ ge₂.oEnd < ge_w.oStart = ge₁.oStart
+                        -- (since GLE_w = GLE₁: ge_w = ge₁ up to Subsingleton)
+                        -- So ge₁.oEnd < ge₁.oStart → contradiction with well-formedness
+                        -- hw_eq_r_gle : e_w_lin.GLE = h.e₁_lin.GLE → ge_w = ge₁
+                        have hge_eq : ge_w = ge₁ := by
+                          have := hw_eq_r_gle; rw [hgcw] at this; rw [hgc₁] at this
+                          exact Event.directoryEvent.inj this
+                        have : ge₁.oEnd < ge₁.oEnd :=
+                          calc ge₁.oEnd < ge₂.oStart := hgle_₁₂
+                            _ ≤ ge₂.oEnd := Nat.le_of_lt ge₂.oWellFormed
+                            _ < ge_w.oStart := hgle_₂w
+                            _ = ge₁.oStart := by rw [hge_eq]
+                            _ ≤ ge₁.oEnd := Nat.le_of_lt ge₁.oWellFormed
+                        exact Nat.lt_irrefl _ this
+                    | wObRGle hw_ob_r_gle _ =>
+                      -- GLE_w OB GLE₁ and GLE₂ OB GLE_w
+                      -- Chain: ge₂.oEnd < ge_w.oStart ≤ ge_w.oEnd < ge₁.oStart
+                      -- GLE₂ OB GLE_w OB GLE₁. GLE₂ is before both.
+                      -- Use notBetweenCles for CLE-level.
+                      sorry
                 | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
               | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
             | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
