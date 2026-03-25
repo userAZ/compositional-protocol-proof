@@ -415,17 +415,11 @@ theorem step_to_ordering
                           -- stateBefore.cache = Vd = ⟨some .wr, false⟩, not ⟨some .wr, true⟩ (SW).
                           -- So nc.weak write maps Vd → Vd.
                           -- Same contradiction: SW ≤ Vd false.
-                          unfold Behaviour.reqLeavesStateAtLeast at hw_leaves_SW
-                          -- hw_leaves_SW : SW ≤ (b.stateAfter ...).cache
-                          -- From hbefore_vd and nc.weak state machine: stateAfter.cache = Vd
-                          -- But we can't easily unfold stateAfter.
-                          -- Alternative: the disjunction gives us stateAfter = Vd OR stateBefore = Vd.
-                          -- We're in stateBefore = Vd. But stateAfter might not be Vd.
-                          -- However: the `reqOnOrAfterVd` is (stateBefore = Vd ∨ stateAfter = Vd).
-                          -- We handled inr (stateAfter = Vd). For inl: need state machine.
-                          -- For nc.weak write (non-downgrade) on Vd: RequestState gives Vd.
-                          -- SucceedingState = RequestState (since not down).
-                          -- But Behaviour.stateAfter involves the full event list, not just one event.
+                          -- stateBefore.cache = Vd. nc.weak write (not down) on Vd:
+                          -- SucceedingState = RequestState (not down).
+                          -- RequestState ⟨.w,false,.Weak⟩ Vd = Vd (from | _ => Vd branch).
+                          -- stateAfter.cache = Vd. SW ≤ Vd false.
+                          -- Connection: stateAfter = e.SucceedingState(stateBefore) from List.stateAfter append.
                           sorry
               | evictBetween evict =>
                 exact from_encap_wob evict.encapProxyAndDir evict.evictBetween.wObRDown
@@ -536,80 +530,51 @@ theorem step_to_ordering
             -- CLE₂ OB CLE₁: derive contradiction via NoInterveningWrites.
             exfalso
             obtain ⟨e_w, e_w_write, e_w_lin, _, h_rf, h_no_between, h_co_chain⟩ := h.comm
-            -- Apply NoInterveningWrites to e₂
             have hlin := fun e => h.hknow_dir_access compound b init e
             have h_constraints := h_no_between e₂ h.in_b₂
               h.cache₂ h.write h.notDown₂ (hlin e₂)
-            -- notBetweenGles: GLE₂ not between GLE_w and GLE₁ (unconditional)
-            have h_nbg := h_constraints.notBetweenGles
-            -- Get GLE directory events
-            have hgle₂_eq : hlin e₂ = h.e₂_lin := Subsingleton.elim _ _
-            have hglew_eq : e_w_lin = hlin e_w := Subsingleton.elim _ _
-            have hgdir₂ := (hlin e₂).hreq's_global_lin.choose_spec.2.isDirEvent
-            have hgdir_w := e_w_lin.hreq's_global_lin.choose_spec.2.isDirEvent
-            have hgdir₁ := h.e₁_lin.hreq's_global_lin.choose_spec.2.isDirEvent
-            match hgc₂ : (hlin e₂).hreq's_global_lin.choose, hgdir₂ with
-            | .directoryEvent ge₂, _ =>
-              match hgcw : e_w_lin.hreq's_global_lin.choose, hgdir_w with
-              | .directoryEvent ge_w, _ =>
-                match hgc₁ : h.e₁_lin.hreq's_global_lin.choose, hgdir₁ with
-                | .directoryEvent ge₁, _ =>
-                  -- dir_ordered on GLEs to check if GLE₂ is between GLE_w and GLE₁
-                  cases (b.orderedAtEntry.dir_ordered ge_w ge₂).ordered with
-                  | inl hgle_w₂ =>
-                    cases (b.orderedAtEntry.dir_ordered ge₂ ge₁).ordered with
-                    | inl hgle_₂₁ =>
-                      -- GLE₂ between GLE_w and GLE₁ → notBetweenGles gives False
-                      exact h_nbg ⟨by
-                        simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
-                          hgle₂_eq, hgc₂, hglew_eq, hgcw]; exact hgle_w₂, by
-                        simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
-                          hgle₂_eq, hgc₂, hgc₁]; exact hgle_₂₁⟩
-                    | inr hgle_₁₂ =>
-                      -- GLE₁ OB GLE₂: CLE₂ between CLE_w and CLE₁ → notBetweenCles
-                      -- CLE₂ between CLE_w and CLE₁. Needs sameProtocol for
-                      -- notBetweenCles or diffCluster downgrade extraction.
-                      sorry
-                  | inr hgle_₂w =>
-                    -- GLE₂ OB GLE_w: ge₂.oEnd < ge_w.oStart
-                    -- RF gives GLE_w ≤ GLE₁. Case-split on RF.
-                    cases h_rf with
-                    | wEqRGle hw_eq_r_gle _ _ =>
-                      -- GLE_w = GLE₁ (same GLE). So GLE₂ OB GLE_w = GLE₁.
-                      -- Then GLE₂ IS between GLE_w and GLE₁? No: GLE₂ is BEFORE GLE_w.
-                      -- But use dir_ordered(ge₂, ge₁):
-                      cases (b.orderedAtEntry.dir_ordered ge₂ ge₁).ordered with
-                      | inl hgle_₂₁ =>
-                        -- GLE₂ OB GLE₁. With GLE_w = GLE₁ and GLE_w OB GLE₂... wait, we have GLE₂ OB GLE_w.
-                        -- So GLE₂ before GLE_w = GLE₁. And GLE₂ OB GLE₁.
-                        -- For notBetweenGles: need GLE_w OB GLE₂ (first component). But GLE₂ OB GLE_w.
-                        -- CLE₂ between CLE_w and CLE₁. Need sameProtocol for notBetweenCles.
-                        sorry
-                      | inr hgle_₁₂ =>
-                        -- GLE₁ OB GLE₂ and GLE₂ OB GLE_w = GLE₁
-                        -- Chain: ge₁.oEnd < ge₂.oStart ≤ ge₂.oEnd < ge_w.oStart = ge₁.oStart
-                        -- (since GLE_w = GLE₁: ge_w = ge₁ up to Subsingleton)
-                        -- So ge₁.oEnd < ge₁.oStart → contradiction with well-formedness
-                        -- hw_eq_r_gle : e_w_lin.GLE = h.e₁_lin.GLE → ge_w = ge₁
-                        have hge_eq : ge_w = ge₁ := by
-                          have := hw_eq_r_gle; rw [hgcw] at this; rw [hgc₁] at this
-                          exact Event.directoryEvent.inj this
-                        have : ge₁.oEnd < ge₁.oEnd :=
-                          calc ge₁.oEnd < ge₂.oStart := hgle_₁₂
-                            _ ≤ ge₂.oEnd := Nat.le_of_lt ge₂.oWellFormed
-                            _ < ge_w.oStart := hgle_₂w
-                            _ = ge₁.oStart := by rw [hge_eq]
-                            _ ≤ ge₁.oEnd := Nat.le_of_lt ge₁.oWellFormed
-                        exact Nat.lt_irrefl _ this
-                    | wObRGle hw_ob_r_gle _ =>
-                      -- GLE_w OB GLE₁ and GLE₂ OB GLE_w
-                      -- Chain: ge₂.oEnd < ge_w.oStart ≤ ge_w.oEnd < ge₁.oStart
-                      -- GLE₂ OB GLE_w OB GLE₁. GLE₂ is before both.
-                      -- CLE₂ between CLE_w and CLE₁. Needs sameProtocol for
-                      -- notBetweenCles or diffCluster downgrade extraction.
-                      sorry
-                | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            -- Construct CLE-level OrderedBetween (CLE₂ between CLE_w and CLE₁)
+            -- by matching CLE_w and using dir_ordered(CLE_w, CLE₂)
+            have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+            match hfcw : e_w_lin.hreq's_dir_access.choose, hdir_w with
+            | .directoryEvent de_w, _ =>
+              cases (b.orderedAtEntry.dir_ordered de_w de₂).ordered with
+              | inl hob_w₂ =>
+                -- CLE_w OB CLE₂ OB CLE₁: apply notBetweenCles
+                have h_isDirWrite : (hlin e₂).hreq's_dir_access.choose.isDirWrite := by
+                  have : hlin e₂ = h.e₂_lin := Subsingleton.elim _ _
+                  rw [this]; exact write_event_cle_isDirWrite h.write h.cache₂ h.notDown₂ h.e₂_lin h.in_b₂
+                have h_ob_between :
+                    (hlin e₂).hreq's_dir_access.choose.OrderedBetween n
+                    e_w_lin.hreq's_dir_access.choose h.e₁_lin.hreq's_dir_access.choose := by
+                  exact ⟨by simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
+                              show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _,
+                              hfc₂, hfcw]; exact hob_w₂,
+                         by simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
+                              show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _,
+                              hfc₂, hfc₁]; exact hob⟩
+                have h_nbc := h_constraints.notBetweenCles
+                unfold SameClusterCLE.NotBetweenCLEs at h_nbc
+                -- by_cases on same protocol
+                by_cases h_prot₁ :
+                    (hlin e₂).hreq's_dir_access.choose.protocol =
+                    e_w_lin.hreq's_dir_access.choose.protocol
+                · by_cases h_prot₂ :
+                      (hlin e₂).hreq's_dir_access.choose.protocol =
+                      h.e₁_lin.hreq's_dir_access.choose.protocol
+                  · exact h_nbc ⟨h_prot₁, h_prot₂, h_isDirWrite⟩ h_ob_between
+                  · -- diff protocol CLE₂ vs CLE₁: needs diffClusterNotBetweenCles
+                    sorry
+                · -- diff protocol CLE₂ vs CLE_w: needs diffClusterNotBetweenCles
+                  sorry
+              | inr hob_₂w =>
+                -- CLE₂ OB CLE_w: de₂.oEnd < de_w.oStart
+                -- Combined with CLE₂ OB CLE₁: CLE₂ is before both.
+                -- From co chain: CLE_w.oEnd ≤ CLE₂.oEnd.
+                -- de_w.oEnd ≤ de₂.oEnd (from co_chain_cle_advance... but deleted).
+                -- Actually: de₂.oEnd < de_w.oStart ≤ de_w.oEnd.
+                -- Need de_w.oEnd ≤ de₂.oEnd from co chain to get contradiction.
+                sorry
             | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
       | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
