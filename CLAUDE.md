@@ -56,15 +56,17 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-25 session 7 — FINAL)
+### Status (updated 2026-03-25 session 8)
 - **CO edge**: FULLY PROVEN
 - **rfe edge**: FULLY PROVEN
 - **FR edge**: SORRY-FREE in step_to_ordering via `FrOrdering` inductive. The `fr` structure now carries `ordering : FrOrdering` with `sameCluster`/`diffCluster` cases, each carrying `StepOrdering` directly. The FR case in step_to_ordering is 4 lines. Sorry's pushed to FR construction site (whoever builds `fr` must provide `ordering`).
 - **PPOi edge**: `dir_ordered` guarded by `by_cases h_same_addr`. CompoundMCM bridge visible. CLE₁ OB CLE₂ → `.ob` everywhere ✓.
 - **cdirEncapsDown_exists**: Extended with evict directory event (down, isDirWrite, protocol, translatedDir, OrderedBefore). SW case mostly proven. MR + noCoherentRead + some evict fields sorry'd.
-- **3 sorry declarations**: step_to_ordering (7 PPOi sorry's), StepOrdering.irrefl (dead code), cdirEncapsDown_exists (6 infra sorry's)
+- **4 sorry declarations**: ppoi_step_to_ordering, fr_ordering_holds, StepOrdering.irrefl (dead), cdirEncapsDown_exists
 - **COM edges (CO + rfe + FR) all SORRY-FREE in step_to_ordering**
-- **StepOrdering moved to Defs.lean** (for FrOrdering to reference it)
+- **FR: honest FrOrdering with descriptive evidence, fr_ordering_holds theorem**
+- **StepOrdering moved to Defs.lean**, step_to_ordering decomposed into ppoi_step_to_ordering
+- **12 active sorry's in Proof.lean** + **3 in RfProofHelpers** = 15 active total
 
 ### FR sorry root cause (2026-03-25)
 All 4 remaining FR sorry's (768, 858, 862, 864) need `diffClusterNotBetweenCles_sameCache`.
