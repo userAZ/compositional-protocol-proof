@@ -496,7 +496,12 @@ The key insight (from Anqi): same-address PPOi events share a CLE or have CLE or
   - Redesign: carry descriptive evidence (protocol events, OB relationships)
   - Write FrTheorem proving FrOrdering from protocol axioms (like RfTheorem)
   - Derive StepOrdering from FrOrdering in step_to_ordering
-- [ ] **CO: verify co.ordering has a CoTheorem (or write one)**
+- [ ] **CO: write CoTheorem proving co.ordering from protocol axioms**
+  - co.ordering IS descriptive (sameCache/sameClusDiffCache/diffClus with protocol evidence)
+  - co_step_to_ordering DERIVES StepOrdering from co.ordering — honest derivation
+  - Missing: CoTheorem showing co.ordering FOLLOWS from protocol axioms (like RfTheorem)
+  - Currently co.ordering is a field on the co structure — assumed, not proven
+  - Lower priority than FR (co.ordering is at least descriptive, not vacuous)
 - [ ] **FR: old design plan (superseded by above):**
   - `sameCluster`: e₁/e₂ same protocol → CLE₁ and CLE₂ at same directory → `dir_ordered` + `notBetweenCles` gives StepOrdering directly. Carries evidence that CLE_w, CLE₁, CLE₂ are at same cluster, same addr, and CLE₂ not between CLE_w and CLE₁.
   - `sameClusDiffE_w`: e₁/e₂ same cluster, e_w different → carries downgrade evidence at e_w's cluster with `CLE_w OB cdir` from co chain. The first co step (rf;co) gives the initial CLE_w → CLE₂ relationship.
