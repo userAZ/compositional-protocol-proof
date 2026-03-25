@@ -232,14 +232,53 @@ theorem step_to_ordering
     : @StepOrdering n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose := by
   cases h with
   | inl hppoi =>
-    -- PPOi: e₁ OB e₂. Connect CLEs through cache events.
-    -- CLE₁ relates to e₁ via dirAccessOfRequest.
-    -- CLE₂ relates to e₂ via dirAccessOfRequest.
-    -- Cases depend on dirAccessOfRequest for each event.
-    -- For encapDir: CLE EncapBy e → encapObEncap(e₁, e₂) with e₁, e₂ inside CLEs
-    -- For orderBeforeDir: CLE OB e → chain CLE₁ OB e₁ OB e₂ → CLE₁ OB CLE₂
-    -- For orderAfterDir: e OB CLE → cache events serve as intermediaries
-    sorry
+    -- PPOi: e₁ OB e₂ on same cache. Map to StepOrdering CLE₁ CLE₂.
+    have hw₁ : (lin e₁) = lin e₁ := rfl
+    have hw₂ : (lin e₂) = lin e₂ := rfl
+    -- by_cases on CLE equality
+    by_cases hcle_eq : (lin e₁).hreq's_dir_access.choose = (lin e₂).hreq's_dir_access.choose
+    · -- Same CLE → .eq
+      exact .eq hcle_eq
+    · -- Different CLEs: case-split on dirAccessOfRequest for both events
+      have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2
+      have hda₂ := (lin e₂).hreq's_dir_access.choose_spec.2
+      cases hda₁ with
+      | encapDir _ hencap₁ =>
+        -- CLE₁ inside e₁: CLE₁.oEnd < e₁.oEnd
+        cases hda₂ with
+        | encapDir _ hencap₂ =>
+          -- Both encapDir: CLE₁.oEnd < e₁.oEnd < e₂.oStart < CLE₂.oStart → .ob
+          exact .ob (Nat.lt_trans (Nat.lt_trans hencap₁.reqEncapDir.right hppoi.orderedBefore) hencap₂.reqEncapDir.left)
+        | orderBeforeDir _ hexists_pred₂ hpred₂_encap _ _ _ _ _ =>
+          -- CLE₂ inside pred₂. pred₂.oEnd < e₂.oStart.
+          -- Chain: CLE₁.oEnd < e₁.oEnd < e₂.oStart. pred₂.oEnd < e₂.oStart.
+          -- CLE₂.oEnd < pred₂.oEnd.
+          -- Need pred₂ vs e₁ ordering for CLE₁ vs CLE₂.
+          -- From temporal chain: CLE₁ inside e₁, CLE₂ inside pred₂.
+          -- pred₁.oEnd < e₁.oStart (pred₁ OB e₁) — wait, we don't have pred₁ here.
+          -- e₁ OB e₂, pred₂ OB e₂. Both before e₂.
+          sorry -- need cache event ordering between e₁ and pred₂
+        | orderAfterDir _ _ _ _ =>
+          -- e₂ is nc.weak with CLE₂ from successor. Different CLE.
+          sorry -- nc.weak CLE sharing → should give CLE₁ = CLE₂ contradiction
+      | orderBeforeDir _ hexists_pred₁ hpred₁_encap _ _ _ _ _ =>
+        -- CLE₁ inside pred₁. pred₁.oEnd < e₁.oStart.
+        cases hda₂ with
+        | encapDir _ hencap₂ =>
+          -- CLE₁ inside pred₁, CLE₂ inside e₂.
+          -- Chain: CLE₁.oEnd < pred₁.oEnd < e₁.oStart < e₁.oEnd < e₂.oStart < CLE₂.oStart → .ob
+          have hpred₁_ob_e₁ := hexists_pred₁.choose_spec.2.isImmPred.bPred.isPred
+          exact .ob (Nat.lt_trans (Nat.lt_trans (Nat.lt_trans (Nat.lt_trans
+            hpred₁_encap.reqEncapDir.right hpred₁_ob_e₁)
+            (Event.oWellFormed n e₁)) hppoi.orderedBefore) hencap₂.reqEncapDir.left)
+        | orderBeforeDir _ _ _ _ _ _ _ _ =>
+          -- Both orderBeforeDir: CLEs from predecessors.
+          sorry -- need predecessor ordering
+        | orderAfterDir _ _ _ _ =>
+          sorry -- nc.weak CLE sharing
+      | orderAfterDir _ _ _ _ =>
+        -- e₁ is nc.weak. CLE₁ from successor. Different CLE → should be impossible.
+        sorry -- nc.weak CLE sharing → CLE₁ = CLE₂ contradiction with hcle_eq
   | inr hcom =>
     cases hcom with
     | rfe h =>
