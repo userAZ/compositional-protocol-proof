@@ -86,6 +86,23 @@ Then `dir_ordered e_de CLE₁`:
 - `e_de OB CLE₁` → `diffClusterNotBetweenCles_sameCache` with e_de between CLE_w and CLE₁ → contradiction
 - `CLE₁ OB e_de` → `.obEndLt e_de (CLE₁ OB e_de) (e_de.oEnd < CLE₂.oEnd)` → StepOrdering ✓
 
+**FR NEEDS DESCRIPTIVE INDUCTIVE (like RF and CO) — ROOT CAUSE OF ALL FR SORRY'S:**
+The current FR definition is a bare existential (∃ e_w, rf ∧ NIW ∧ co⁺) without descriptive
+cases. RF has `readsFrom.cases`, CO has `co.ordering` — both carry specific communication
+evidence. FR carries NOTHING, forcing re-derivation of everything in step_to_ordering.
+
+The fix: define `fr.ordering` inductive with cases:
+- `sameCluster`: e₁/e₂ same cluster → CLEs at same directory → notBetweenCles directly
+- `sameClusDiffE_w`: e₁/e₂ same cluster, e_w diff → carries downgrade at e_w's cluster
+  with temporal bounds (CLE_w OB cdir evidence from co chain)
+- `diffCluster`: e₁/e₂ diff clusters → carries downgrade at e₁'s cluster + evict evidence
+
+Each case carries the protocol events and their OB relationships that make StepOrdering
+derivable. The co⁺ chain composes on top of the first rf;co step.
+
+This is NOT a "nice-to-have" — it's LOAD-BEARING. The 3 remaining sorry's exist because
+the bare existential doesn't carry the cluster-specific communication evidence.
+
 **FR `cdir OB CLE_w` sorry's (939, 1036, 1040) — FUNDAMENTAL BLOCKER:**
 The `CLE_w OB cdir` case is proven via temporal loop (de_w < de_cdir < de_evict < de_w → False).
 The `cdir OB CLE_w` case is the "real" direction but the contradiction is still needed:
@@ -588,6 +605,14 @@ After `match hfc : e, hprop with | .directoryEvent de, _ =>`, Lean substitutes `
 created BEFORE the match keep their original `e` type. Always use explicit `rw [hfc]` or
 `show ... from ...` to bridge between the original and substituted types. Don't assume
 the match propagates everywhere.
+
+### EVERY relation needs descriptive inductives (RF/CO/FR pattern)
+RF has `readsFrom.cases`. CO has `co.ordering`. FR needs `fr.ordering`. PPOi uses CompoundMCM.
+**Each relation must carry its communication evidence as inductive cases**, not bare existentials.
+Without cases, the proof can't case-split on communication structure, and protocol-specific
+evidence (same-cluster vs diff-cluster, temporal bounds) must be re-derived from scratch.
+The DESCRIPTIVE cases carry the mechanism; the ordering is a CONSEQUENCE visible in the structure.
+**If you're fighting to prove StepOrdering from a relation, the relation's definition is wrong.**
 
 ### Push sorry's to infrastructure lemmas (cdirEncapsDown_exists pattern)
 When Proof.lean needs protocol evidence from the shim (isDirWrite, down, translatedDir, etc.),
