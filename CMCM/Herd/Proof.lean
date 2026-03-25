@@ -567,7 +567,8 @@ theorem step_to_ordering
                           hgle₂_eq, hgc₂, hgc₁]; exact hgle_₂₁⟩
                     | inr hgle_₁₂ =>
                       -- GLE₁ OB GLE₂: CLE₂ between CLE_w and CLE₁ → notBetweenCles
-                      -- CLE₂ between CLE_w and CLE₁. Need sameProtocol for notBetweenCles.
+                      -- CLE₂ between CLE_w and CLE₁. Needs sameProtocol for
+                      -- notBetweenCles or diffCluster downgrade extraction.
                       sorry
                   | inr hgle_₂w =>
                     -- GLE₂ OB GLE_w: ge₂.oEnd < ge_w.oStart
@@ -604,7 +605,8 @@ theorem step_to_ordering
                       -- GLE_w OB GLE₁ and GLE₂ OB GLE_w
                       -- Chain: ge₂.oEnd < ge_w.oStart ≤ ge_w.oEnd < ge₁.oStart
                       -- GLE₂ OB GLE_w OB GLE₁. GLE₂ is before both.
-                      -- CLE₂ between CLE_w and CLE₁. Need sameProtocol for notBetweenCles.
+                      -- CLE₂ between CLE_w and CLE₁. Needs sameProtocol for
+                      -- notBetweenCles or diffCluster downgrade extraction.
                       sorry
                 | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
               | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
