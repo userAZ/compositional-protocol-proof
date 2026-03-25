@@ -494,16 +494,36 @@ theorem fr_ordering_holds
                                 _ < de_w.oStart := hob_cdir_w_w
                                 _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed)
                       | obEndLt p h_cle_w_ob_p h_p_lt =>
-                        -- CLE_w OB p, p.oEnd < CLE_{w_next}.oEnd.
-                        -- p is the cluster dir downgrade at e_w's cluster (from diffClus co step).
-                        -- cdir_w is also at e_w's cluster. Both are directory events.
-                        -- If p = cdir_w: CLE_w OB cdir_w, but hob_cdir_w_w says cdir_w OB CLE_w → contradiction!
-                        -- dir_ordered p cdir_w at same cluster:
-                        sorry -- .obEndLt case: need p vs cdir_w ordering
-                      | sameLin _ _ heq _ _ _ =>
-                        sorry -- .sameLin case
+                        -- CLE_w OB p: h_cle_w_ob_p. cdir_w OB CLE_w: hob_cdir_w_w.
+                        -- Combined: cdir_w < CLE_w < p. If p < cdir_w → loop.
+                        -- p from co step's diffClus: directory event at target cluster.
+                        -- For same-cluster e_w: p at e_w's cluster = cdir_w's cluster.
+                        -- dir_ordered de_cdir_w p → p OB cdir_w gives loop.
+                        sorry -- .obEndLt: dir_ordered de_cdir_w p → temporal loop for p OB cdir_w
+                      | sameLin _ _ heq henc₁ hob_cache henc₂ =>
+                        -- sameLin gives temporal loop: l.oEnd < e₁'.oEnd < e₂'.oStart < l.oStart
+                        -- where l₁ = l₂ = CLE_w (after match subst)
+                        exact Nat.lt_irrefl _
+                          (calc Event.oEnd n e_w_lin.hreq's_dir_access.choose
+                            _ < _ := henc₁.right
+                            _ < _ := hob_cache
+                            _ < Event.oStart n e_w_lin.hreq's_dir_access.choose := by
+                                show _ < Event.oStart n e_w_lin.hreq's_dir_access.choose
+                                rw [← heq] at henc₂; exact henc₂.left
+                            _ < _ := Event.oWellFormed n _)
                       | eq heq =>
-                        sorry -- .eq case
+                        -- CLE_w = CLE_{w_next}: dir_ordered de_w de_w → self-OB → False.
+                        have hcle_wn_isdir := (hlin e_w_next).hreq's_dir_access.choose_spec.2.isDirEvent
+                        match hfc_wn : (hlin e_w_next).hreq's_dir_access.choose, hcle_wn_isdir with
+                        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                        | .directoryEvent de_wn, _ =>
+                          have hde_eq : de_w = de_wn :=
+                            Event.directoryEvent.inj (by rw [hfcw, hfc_wn] at heq; exact heq)
+                          rw [hde_eq] at hob_cdir_w_w
+                          -- cdir_w OB de_wn (= CLE_{w_next} = CLE_w). Use dir_ordered.
+                          cases (b.orderedAtEntry.dir_ordered de_wn de_wn).ordered with
+                          | inl h => exact Nat.lt_irrefl _ (Nat.lt_trans h de_wn.oWellFormed)
+                          | inr h => exact Nat.lt_irrefl _ (Nat.lt_trans h de_wn.oWellFormed)
     · -- Diff cluster: use cdirEncapsDown_exists for proxy.
       -- dir_ordered CLE₁ cdir/evict → CLE₁ OB proxy, proxy.oEnd < CLE₂.oEnd.
       obtain ⟨e_cdir, _he_cdir_in_b, he_cdir_isDir, _he_cdir_proto, hcdir_lt_cle₂,
