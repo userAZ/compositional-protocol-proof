@@ -477,7 +477,23 @@ theorem step_to_ordering
                             exfalso
                             -- CLE₁.oEnd < pred₁.oEnd < pred₂.oStart < CLE₂.oStart → CLE₁ OB CLE₂
                             -- → contradiction with CLE₂ OB CLE₁ (hob)
-                            sorry -- temporal chain plumbing: 3 Nat.lt_trans through encap
+                            -- Bridge match types with rw
+                            have h₁ : Event.oEnd n (Event.directoryEvent de₁) <
+                                Event.oEnd n (Event.cacheEvent ce_pred₁) := by
+                              rw [← hfc₁, ← hpred₁_ce]; exact hpred₁_encap.reqEncapDir.right
+                            have h₂ : Event.oEnd n (Event.cacheEvent ce_pred₁) <
+                                Event.oStart n (Event.cacheEvent ce_pred₂) := hpred₁_ob_pred₂
+                            have h₃ : Event.oStart n (Event.cacheEvent ce_pred₂) <
+                                Event.oStart n (Event.directoryEvent de₂) := by
+                              rw [← hfc₂, ← hpred₂_ce]; exact hpred₂_encap.reqEncapDir.left
+                            have h_cle₂_ob_cle₁ : Event.oEnd n (Event.directoryEvent de₂) <
+                                Event.oStart n (Event.directoryEvent de₁) := hob
+                            -- de₁.oEnd < de₂.oStart ≤ de₂.oEnd < de₁.oStart ≤ de₁.oEnd → False
+                            exact Nat.lt_irrefl _
+                              (Nat.lt_trans (Nat.lt_trans (Nat.lt_trans h₁ h₂) h₃)
+                                (Nat.lt_trans (Nat.lt_of_lt_of_le (Event.oWellFormed n _)
+                                  (Nat.le_of_lt h_cle₂_ob_cle₁))
+                                  (Event.oWellFormed n _)))
                         | inr hencap_or_before₂ =>
                           cases hencap_or_before₂ with
                           | inl hencap₂_by₁ =>
