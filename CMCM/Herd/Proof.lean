@@ -368,11 +368,24 @@ theorem step_to_ordering
         have hw₂ : h.w₂_lin = lin e₂ := Subsingleton.elim _ _
         have hcle_eq : (lin e₁).hreq's_dir_access.choose = (lin e₂).hreq's_dir_access.choose := by
           rw [← hw₁, ← hw₂]; exact same_cle
-        -- Need: CLE inside e₁ (EncapsulatedBy) and CLE inside e₂
-        -- From dirAccessOfRequest encapDir: e encapsulates CLE → CLE EncapsulatedBy e
-        -- For orderBeforeDir/orderAfterDir: CLE is not inside the event directly
-        -- Use .sameLin with e₁, e₂ as the encapsulating events
-        sorry
+        -- CLE inside e₁ and e₂ (from encapDir of dirAccessOfRequest)
+        have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2
+        rw [← hw₁] at hda₁
+        have hda₂ := (lin e₂).hreq's_dir_access.choose_spec.2
+        rw [← hw₂] at hda₂
+        cases hda₁ with
+        | encapDir _ hencap₁ =>
+          cases hda₂ with
+          | encapDir _ hencap₂ =>
+            -- Both encapDir: CLE inside both e₁ and e₂
+            exact .sameLin e₁ e₂ hcle_eq
+              (by rw [← hw₁]; exact ⟨hencap₁.reqEncapDir.left, hencap₁.reqEncapDir.right⟩)
+              cache_ob
+              (by rw [← hw₂]; exact ⟨hencap₂.reqEncapDir.left, hencap₂.reqEncapDir.right⟩)
+          | orderBeforeDir _ _ _ _ _ _ _ _ => sorry -- CLE from predecessor of e₂
+          | orderAfterDir _ _ _ _ => sorry -- nc.weak e₂
+        | orderBeforeDir _ _ _ _ _ _ _ _ => sorry -- CLE from predecessor of e₁
+        | orderAfterDir _ _ _ _ => sorry -- nc.weak e₁
       | sameClusDiffCache _ cle_ord =>
         -- Same cluster, diff cache: CLE ordering from cleOrdering.Cases
         have hw₁ : h.w₁_lin = lin e₁ := Subsingleton.elim _ _
