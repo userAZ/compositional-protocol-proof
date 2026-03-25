@@ -844,13 +844,12 @@ theorem step_to_ordering
                           }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCache
                       | inr hob_evict_w =>
                         -- e_evict OB CLE_w: evict before write CLE.
-                        -- co chain: CLE_w before CLE₂ → CLE_w.oEnd < CLE₂.oEnd.
-                        -- e_evict.oEnd < CLE_w.oStart. And CLE_w.oEnd < CLE₂.oEnd.
-                        -- But e_evict.oEnd < CLE₂.oEnd (from hevict_lt_cle₂). Consistent.
-                        -- Need: CLE₁ before something → .obEndLt. But CLE₁ is after evict
-                        -- and after CLE_w. No proxy available for .obEndLt.
-                        -- → exfalso via co chain temporal contradiction.
-                        sorry -- evict OB CLE_w: protocol temporal contradiction
+                        -- Contradiction: co chain + encap chain → CLE_w OB evict,
+                        -- but hob_evict_w says evict OB CLE_w.
+                        -- Use co chain StepOrdering to get CLE_w.oEnd bound, then
+                        -- encap chain CLE₂ > e_gcache > e_gdown > evict to get
+                        -- CLE_w < evict. Combined with evict < CLE_w → oWellFormed contradiction.
+                        sorry -- evict OB CLE_w: needs co chain .ob + encap chain for CLE_w < evict
                   · -- Different cluster e_w/e₁: evict at e₁'s cluster, CLE_w at e_w's cluster.
                     -- Need CLE_w OB evict for OrderedBetween, then diffClusterNotBetweenCles_sameCache.
                     -- Chain: co → CLE_w.oEnd < CLE₂.oStart (for .ob case) → CLE₂ encaps chain → evict.
