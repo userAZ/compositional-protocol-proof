@@ -1,0 +1,3852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+  MathJax = { 
+    tex: {
+		    inlineMath: [['$','$'], ['\\(','\\)']]
+	} }
+</script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<meta name="generator" content="plasTeX" />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Compound Protocol Consistency</title>
+<link rel="prev" href="sect0001.html" title="Overview" />
+<link rel="up" href="index.html" title="Artifact Blueprint for “A Formally Verified Foundation for Compositional Heterogeneous Coherence”" />
+<link rel="stylesheet" href="styles/theme-white.css" />
+<link rel="stylesheet" href="styles/amsthm.css" />
+<link rel="stylesheet" href="styles/showmore.css" />
+<link rel="stylesheet" href="styles/blueprint.css" />
+<link rel="stylesheet" href="styles/pygments.css" />
+<link rel="stylesheet" href="styles/extra_styles.css" />
+</head>
+
+<body>
+<header>
+<svg  id="toc-toggle" class="icon icon-list-numbered "><use xlink:href="symbol-defs.svg#icon-list-numbered"></use></svg>
+<h1 id="doc_title"><a href="index.html">Artifact Blueprint for “A Formally Verified Foundation for Compositional Heterogeneous Coherence”</a></h1>
+</header>
+
+<div class="wrapper">
+<nav class="toc">
+<ul class="sub-toc-0">
+<li class="">
+  <a href="sect0001.html"><span class="toc_ref">1</span> <span class="toc_entry">Overview</span></a>
+  <span class="expand-toc">▶</span>
+  <ul class="sub-toc-1">
+     <li class="">
+  <a href="sect0001.html#a0000000004"><span class="toc_ref">1.1</span> <span class="toc_entry">Checking the Entire Artifact</span></a>
+ </li>
+<li class="">
+  <a href="sect0001.html#sec:readme-lean-mechianization"><span class="toc_ref">1.2</span> <span class="toc_entry">Evaluating the Lean Mechanization</span></a>
+ </li>
+<li class="">
+  <a href="sect0001.html#sec:readme-murphi-case-studies"><span class="toc_ref">1.3</span> <span class="toc_entry">Running the Murphi Case Study Models</span></a>
+  <span class="expand-toc">▶</span>
+  <ul class="sub-toc-2">
+     <li class="">
+  <a href="sect0001.html#a0000000005"><span class="toc_ref">1.3.1</span> <span class="toc_entry">Use Leanblueprint</span></a>
+ </li>
+
+  </ul>
+ </li>
+<li class="">
+  <a href="sect0001.html#a0000000006"><span class="toc_ref">1.4</span> <span class="toc_entry">Overview of Claims from our Paper</span></a>
+ </li>
+
+  </ul>
+ </li>
+<li class=" active current">
+  <a href="ch-proof-overview.html"><span class="toc_ref">2</span> <span class="toc_entry">Compound Protocol Consistency</span></a>
+  <span class="expand-toc">▼</span>
+  <ul class="sub-toc-1 active">
+     <li class="">
+  <a href="ch-proof-overview.html#sec:defs"><span class="toc_ref">2.1</span> <span class="toc_entry">Definitions</span></a>
+ </li>
+<li class="">
+  <a href="ch-proof-overview.html#sec:axioms:well-formedness"><span class="toc_ref">2.2</span> <span class="toc_entry">Well-Formedness Axioms</span></a>
+ </li>
+<li class="">
+  <a href="ch-proof-overview.html#sec:axioms:abstract-state"><span class="toc_ref">2.3</span> <span class="toc_entry">Abstract State Invariants</span></a>
+ </li>
+<li class="">
+  <a href="ch-proof-overview.html#sec:axioms:consistency-labels"><span class="toc_ref">2.4</span> <span class="toc_entry">Consistency Label Axioms</span></a>
+ </li>
+<li class="">
+  <a href="ch-proof-overview.html#sec:axioms:shim"><span class="toc_ref">2.5</span> <span class="toc_entry">Shim Axioms</span></a>
+ </li>
+<li class="">
+  <a href="ch-proof-overview.html#sec:temporal-event-relations"><span class="toc_ref">2.6</span> <span class="toc_entry">Ordered Before and Encapsulates Relations</span></a>
+ </li>
+<li class="">
+  <a href="ch-proof-overview.html#sec:compound-protocol"><span class="toc_ref">2.7</span> <span class="toc_entry">Compound Protocol</span></a>
+ </li>
+<li class="">
+  <a href="ch-proof-overview.html#sec:global-linearization-order"><span class="toc_ref">2.8</span> <span class="toc_entry">Compound (Global) Linearization Order</span></a>
+ </li>
+<li class="">
+  <a href="ch-proof-overview.html#sec:some-auxiliary-defs"><span class="toc_ref">2.9</span> <span class="toc_entry">Auxiliary Definitions Organized in Structures</span></a>
+ </li>
+<li class="">
+  <a href="ch-proof-overview.html#sec:contradiction-of-nonsense-cases"><span class="toc_ref">2.10</span> <span class="toc_entry">Contradiction Lemmas</span></a>
+ </li>
+<li class="">
+  <a href="ch-proof-overview.html#sec:cache-request-linearization-encapsulation"><span class="toc_ref">2.11</span> <span class="toc_entry">Encapsulation Lemmas</span></a>
+ </li>
+<li class="">
+  <a href="ch-proof-overview.html#sec:cache-request-linearization-ordering"><span class="toc_ref">2.12</span> <span class="toc_entry">Linearization Ordering Lemmas</span></a>
+ </li>
+<li class="">
+  <a href="ch-proof-overview.html#sec:cache-request-linearization-of-specific-cases"><span class="toc_ref">2.13</span> <span class="toc_entry">Per-Case Compound Linearization Lemmas</span></a>
+ </li>
+<li class="">
+  <a href="ch-proof-overview.html#sec:main-theorem"><span class="toc_ref">2.14</span> <span class="toc_entry">Main Results</span></a>
+ </li>
+
+  </ul>
+ </li>
+<li ><a href="dep_graph_document.html">Dependency graph</a></li>
+</ul>
+</nav>
+
+<div class="content">
+<div class="content-wrapper">
+
+
+<div class="main-text">
+<h1 id="ch:proof-overview">2 Compound Protocol Consistency</h1>
+
+<p>The main result of this artifact is Theorem 6.1, described in Paper Section 6.5. It states that a class of compound protocols enforce the compound memory consistency model (CMCM). More precisely, the the class of compound protocols consistinc of a global protocl satisfying the Single-Writer Multiple-Reader (SWMR) property connecting with two cluster protocols, each of which is either SWMR or Release-Consistency Coherence (RCC)-Style. In this case, the compound protocol built using the principle of synchronous propagation enforces the preseved program order (PPO) of the individual clusters. </p>
+<p>In Section <a href="ch-proof-overview.html#sec:compound-protocol">2.7</a>, we introduce the Lean mechanization of a Compound Protocol. When referring to our paper’s sections, we will use “Paper Section”. For sections of this document, we will use “Section”. </p>
+<p>We’ll (re-)motivate the definitions and components of the proof in a top-down manner, with a running example. We’ll note which definitions are from the paper, and indicate where those definitions are in the Lean mechanization. First, we (re-)present the idea of what Theorem 6.1 states, and how it’s proven. </p>
+<p>Paper Section 6.4 provides intuition on Theorem 6.1’s proof. It uses the example of an Acquire ordered before a weakly ordered read in an RCC-style protocol as an ordered PPO pair. An Acquire followed by a weakly ordered read is a PPO pair because the Acquire indicates subsequent reads are forced to read from the upper level memory after the Acquire reads from the upper level memory. This means that the acquire linearizes in memory before the subsequent read linearizes in memory. Section <a href="ch-proof-overview.html#sec:defs">2.1</a>, Definition <a href="ch-proof-overview.html#def:request-ppos">6</a>, introduces our PPO mechanization in Lean. We’ll briefly re-introduce the idea of a cache request “linearizing” from Paper Section 5.3’s Paper Definition 5.4 and 5.5. Section <a href="ch-proof-overview.html#sec:defs">2.1</a>, Definitions <a href="ch-proof-overview.html#def:linearizationEventOfRequest">4</a> and <a href="ch-proof-overview.html#def:ClusterRequestLinearizationEvent">5</a>, introduces our linearization events of a cache request event in Lean. Section <a href="ch-proof-overview.html#sec:temporal-event-relations">2.6</a> introduces temporal relations between events (ordered before, and encapsulates). </p>
+<p>The proof proceeds by considering the cases of when does a cache request event \(e_{req}\) linearizes. \(e_{req}\) may linearize prior to, during, or after its request in cache. When \(e_{req}\) linearizes depends on two factors: </p>
+<ol class="enumerate">
+  <li><p>The kind of request it is, based on its Consistency Label. </p>
+</li>
+  <li><p>If \(e_{req}\) is made on cache <i class="itshape">State</i> with coherent Permissions. </p>
+</li>
+</ol>
+<p> Requests (Paper Definition 5.2) are introduced in Section <a href="ch-proof-overview.html#sec:defs">2.1</a>, Definition <a href="ch-proof-overview.html#def:Request">2</a>. State and having Permissions are introduced in Section <a href="ch-proof-overview.html#sec:defs">2.1</a>, Definitions <a href="ch-proof-overview.html#def:State">1</a> and <a href="ch-proof-overview.html#def:reqHasPerms">3</a> respectively. The notion of the state a cache is made on is introduced in Section <a href="ch-proof-overview.html#sec:defs">2.1</a>, Definition <a href="ch-proof-overview.html#def:state-req-made-on">7</a>. The state of a cache before a cache request event depends on the events before it, at its cache’s address, of an execution. Note that we refer to an execution as a “Behaviour”. </p>
+<p>A cache request event \(e_{req}\) may linearize by accessing its cluster’s directory. If the directory has permissions at the Interconnect interface (Global Protocol), then \(e_{req}\) linearizes at its directory access. Otherwise, the Translation Shim between Cluster and Global protocols then translate \(e_{req}\)’s directory request to a Global Protocol access. Then \(e_{req}\) linearizes when it reaches the Global Protocol’s Directory. Section <a href="ch-proof-overview.html#sec:axioms:shim">2.5</a> introduces the Lean mechanization of the Translation Shim. </p>
+<p>We break down the cases of proving the PPO requests linearize in order into linearization-ordering lemmas (introduced in Sections <a href="ch-proof-overview.html#sec:cache-request-linearization-ordering">2.12</a>, and <a href="ch-proof-overview.html#sec:cache-request-linearization-of-specific-cases">2.13</a>). </p>
+<p>The linearization-ordering lemmas are supported by more lemmas about the cases of a cache request \(e_{req}\)’s linearization event, and axioms across Sections <a href="ch-proof-overview.html#sec:axioms:well-formedness">2.2</a>, <a href="ch-proof-overview.html#sec:axioms:abstract-state">2.3</a>, <a href="ch-proof-overview.html#sec:axioms:consistency-labels">2.4</a>, <a href="ch-proof-overview.html#sec:axioms:shim">2.5</a>, <a href="ch-proof-overview.html#sec:some-auxiliary-defs">2.9</a>, <a href="ch-proof-overview.html#sec:contradiction-of-nonsense-cases">2.10</a>, and <a href="ch-proof-overview.html#sec:cache-request-linearization-encapsulation">2.11</a>. </p>
+<p>There are more supporting lemmas that reason about events, execution traces (“Behaviours”) across files BehaviourHelpers.lean, BehaviourRelationProofs.lean, ProofBasicHelperLemmas.lean, and a few in definition files such as EventRelations.lean. </p>
+<h1 id="sec:defs">2.1 Definitions</h1>
+
+<div class="definition_thmwrapper theorem-style-definition" id="def:State">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">1</span>
+    <span class="definition_thmtitle">State (Paper Def 5.1)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:State">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/State" class="lean_decl">State</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>   (Line 90 in States.lean.) A <em>state</em> consists of a tuple of a permissions level \(p\) (none, read, or write) and a coherence flag \(c\) (coherent or non-coherent). The five states are: </p>
+<ul class="itemize">
+  <li><p>\(\mathrm{SW}\) (Shared-Write): write permissions, coherent, </p>
+</li>
+  <li><p>\(\mathrm{MR}\) (Multiple-Read): read permissions, coherent, </p>
+</li>
+  <li><p>\(\mathrm{Vd}\) (Valid-dirty): write permissions, non-coherent, </p>
+</li>
+  <li><p>\(\mathrm{Vc}\) (Valid-clean): read permissions, non-coherent, </p>
+</li>
+  <li><p>\(\mathrm{I}\) (Invalid): no permissions, non-coherent. </p>
+</li>
+</ul>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:Request">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">2</span>
+    <span class="definition_thmtitle">Abstract Request (Paper Def 5.2)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:Request">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Request" class="lean_decl">Request</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>   (Line 19 in Requests.lean.) An <em>abstract request</em> consists of: </p>
+<ul class="itemize">
+  <li><p>A read/write operation, </p>
+</li>
+  <li><p>A coherence flag, </p>
+</li>
+  <li><p>A consistency label (SC, Release, Acquire, or Weak). </p>
+</li>
+</ul>
+<p> See ValidRequest at line 66, defining a Request and restricting disallowed Requests such as a Coherent Acquire or Write Acquire. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:reqHasPerms">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">3</span>
+    <span class="definition_thmtitle">Request’s Required State (Paper Def 5.3)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:reqHasPerms">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:State">Definition 1</a></li>
+          
+          <li><a href="ch-proof-overview.html#def:Request">Definition 2</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.reqHasPerms" class="lean_decl">Behaviour.reqHasPerms</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    (Line 503 in BehaviourRelationDefs.lean.) A request event \(e\) <em>has permissions</em> if the cache state it is made on is at least its Minimum Required State (MRS). Let’s start by defining a simple Required State (RS) of a request ‘r’. Let the read/write operation ‘rw’ and coherence flag ‘c’ of ‘r’ be the State tuple (‘rw’, ‘c’) to define its RS. </p>
+<p>For coherent requests (ex. a SC Write from a SWMR protocol, or Coherent Release Writes from RCC-O) we use the simple RS definition to define the MRS. This is reflected in the first case in the inductive ‘Behaviour.reqHasPerms’. </p>
+<p>For non-coherent acquire/release/weak writes from RCC protocols, the request’s MRS additionally requires the state is coherent. This is reflected in the second case in the inductive ‘Behaviour.reqHasPerms’. </p>
+<p>For non-coherent weak read/write requests uses the simple RS definition and specifies the cache state is Read-Non-Coherent. The state is not Vd. This is reflected in the third case in the inductive ‘Behaviour.reqHasPerms’. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:linearizationEventOfRequest">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">4</span>
+    <span class="definition_thmtitle">Local Linearization Point (Paper Def 5.4)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:linearizationEventOfRequest">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:reqHasPerms">Definition 3</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.linearizationEventOfRequest" class="lean_decl">Behaviour.linearizationEventOfRequest</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    (Line 1083 in BehaviourRelationProofs.lean.) The <em>linearization event</em> of a request event \(e_{\mathrm{req}}\). Either the cluster cache request event linearizes in the cache (on a state with coherent permissions), or at the directory (without coherent permissions). Linearizing at the directory means either linearizing before, during, or after the request (as per inductive ‘Behaviour.dirAccessOfRequest’ on line 569 of BehaviourRelationDefs.lean). More succintly in ‘Behaviour.linearizationEventOfRequest’: </p>
+<ul class="itemize">
+  <li><p>If \(e_{\mathrm{req}}\) is made on a coherent state with sufficient permissions, the linearization event is \(e_{\mathrm{req}}\) itself (<span class="ttfamily">requestLin</span>). </p>
+</li>
+  <li><p>Otherwise, the linearization event is the directory event \(e_{\mathrm{dir}}\) corresponding to \(e_{\mathrm{req}}\) (<span class="ttfamily">dirLin</span>). </p>
+</li>
+</ul>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:ClusterRequestLinearizationEvent">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">5</span>
+    <span class="definition_thmtitle">Global Linearization Point (Paper Def 5.5)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:ClusterRequestLinearizationEvent">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:linearizationEventOfRequest">Definition 4</a></li>
+          
+          <li><a href="ch-proof-overview.html#def:ShimClusterToGlobal">Definition 25</a></li>
+          
+          <li><a href="ch-proof-overview.html#def:CompoundProtocol">Definition 29</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/ClusterRequestLinearizationEvent" class="lean_decl">ClusterRequestLinearizationEvent</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    (Line 139 in CompoundLinearization.lean.) A cluster request’s cluster linearization event classifies where a cluster cache request globally linearizes: </p>
+<ul class="itemize">
+  <li><p><b class="bfseries">At the Cluster Cache</b> (<span class="ttfamily">clusterCacheLin</span>): the request has permissions and linearizes locally; the linearization event is the cache event itself. </p>
+</li>
+  <li><p><b class="bfseries">At the Cluster Directory or Beyond</b> (<span class="ttfamily">clusterDirLin</span>): the request does not have permissions locally and must go through the directory (and possibly the global protocol). The request then either globally linearizes at the directory (with global permissions already) or linearizes at the global directory (needs to access the global directory for permissions). </p>
+</li>
+</ul>
+<p> In the case where the cluster request linearizes at the cluster directory or global protocol is defined by the inductive ‘CompoundProtocol.clusterDirectoryLinearizationEvent’ at line 98 in the same file. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:request-ppos">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">6</span>
+    <span class="definition_thmtitle">Request PPOs</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:request-ppos">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/ValidRequest.isPPOPair" class="lean_decl">ValidRequest.isPPOPair</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>   (Line 3 in RequestPPOs.lean.) A simple proposition between two Requests, stating if the two requests are a PPO pair. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:state-req-made-on">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">7</span>
+    <span class="definition_thmtitle">Cache State a Cache Request Event is Made on</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:state-req-made-on">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.cacheStateMadeOn" class="lean_decl">Behaviour.cacheStateMadeOn</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    (Line 15 in BehaviourRelationDefs.lean.) This definition refers to the state a cache request event arrives at a cache entry on. This def uses other definitions and the cache ordered axiom (Well-Formedness Axiom 1 and 2) to project the events at a cache in a list following the order they’re made. The state before an event \(e_{req}\) is the state after the list of events up to \(e_{req}\). </p>
+<p>There is a similar definition for directory events (events at a directory) on line 17 of BehaviourRelationDefs.lean. </p>
+
+  </div>
+</div>
+<h1 id="sec:axioms:well-formedness">2.2 Well-Formedness Axioms</h1>
+
+<div class="definition_thmwrapper theorem-style-definition" id="def:DirectoryEventAreOrdered">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">8</span>
+    <span class="definition_thmtitle">Ordered Directory Events (Well-Formedness Axiom 1)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:DirectoryEventAreOrdered">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/DirectoryEvent.AreOrdered" class="lean_decl">DirectoryEvent.AreOrdered</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>   (Line 305 in EventRelations.lean.) Events at the same directory address are totally ordered: for any two directory events \(de_1, de_2\) at the same address, either \(de_1\) is ordered before \(de_2\) or vice versa. This is stated by the structure fields in ‘DirectoryEvent.AreOrdered’, ‘sameDirectoryEntry’ and ‘ordered’. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:CacheEventAreOrdered">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">9</span>
+    <span class="definition_thmtitle">Ordered/Encapsulated Cache Events (Well-Formedness Axiom 2)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:CacheEventAreOrdered">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CacheEvent.AreOrdered" class="lean_decl">CacheEvent.AreOrdered</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>   (Line 341 in EventRelations.lean.) For any two cache events \(e_1, e_2\) at the same cache entry, either \(e_1\) is encapsulated by \(e_2\), \(e_2\) is encapsulated by \(e_1\), \(e_1\) is ordered before \(e_2\), or \(e_2\) is ordered before \(e_1\). This is stated by the structure fields in ‘CacheEvent.AreOrdered’, ‘sameCacheEntry’ and ‘ordered’. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:requestDirectoryEvent">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">10</span>
+    <span class="definition_thmtitle">Cache Events Encapsulate Corresponding Directory Event (Well-Formedness Axiom 3)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:requestDirectoryEvent">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:DirectoryEventAreOrdered">Definition 8</a></li>
+          
+          <li><a href="ch-proof-overview.html#def:CacheEventAreOrdered">Definition 9</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.requestDirectoryEvent" class="lean_decl">Behaviour.requestDirectoryEvent</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    (Line 55 in BehaviourRelationDefs.lean.) A cache operation event encapsulates a corresponding directory event, whose request field, address, downgrade flag, and protocol match the cache event. This is reflected in the fields of structure ‘Behaviour.requestDirectoryEvent’. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:axRequestAccessesDirectory">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">11</span>
+    <span class="definition_thmtitle">Cache Events Access Dir If Insufficient Permissions (Well-Formedness Axiom 4)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:axRequestAccessesDirectory">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:reqHasPerms">Definition 3</a></li>
+          
+          <li><a href="ch-proof-overview.html#def:requestDirectoryEvent">Definition 10</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.axRequestAccessesDirectory" class="lean_decl">Behaviour.axRequestAccessesDirectory</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    (Line 209 in BehaviourRelationDefs.lean.) If a cache event does not have sufficient permissions (its state is below the Minimum Required State), it accesses the directory. The inductive ‘Behaviour.requestAccessesDirectory’ describes the cases of different request events encapsulating corresponding directory accesses. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:axiom5_dir_responses_ordered">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">12</span>
+    <span class="definition_thmtitle">Cache Events of Directory Responses Arrive In-Order (Well-Formedness Axiom 5)</span>
+    <div class="thm_header_extras">
+
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:axiom5_dir_responses_ordered">#</a>
+    
+    
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>  This axiom states that cache events of directory responses arrive in-order. It does not have a separate Lean declaration; it is realized by Axiom 1 (<a href="ch-proof-overview.html#def:DirectoryEventAreOrdered">8</a>) combined with the Downgrade Abstract State Invariants — downgrades are encapsulated by a directory event, so they are in order because directory events are ordered. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:encapGrantAfterDirEvent">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">13</span>
+    <span class="definition_thmtitle">Directory Responses to Caches Are Ordered (Well-Formedness Axiom 6)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:encapGrantAfterDirEvent">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:DirectoryEventAreOrdered">Definition 8</a></li>
+          
+          <li><a href="ch-proof-overview.html#def:axiom5_dir_responses_ordered">Definition 12</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Event.encapGrantAfterDirEvent" class="lean_decl">Event.encapGrantAfterDirEvent</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    (Line 532 in EventRelations.lean.) A request event encapsulates a grant event that is ordered after the directory event, and the grant ends the request. This is reflected in the fields of structure ‘Event.encapGrantAfterDirEvent’. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:exists_predecessor_setting_state">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">14</span>
+    <span class="definition_thmtitle">Cache with Perms Has Predecessor That Obtained Perms (Well-Formedness Axiom 7)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:exists_predecessor_setting_state">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:reqHasPerms">Definition 3</a></li>
+          
+          <li><a href="ch-proof-overview.html#def:axRequestAccessesDirectory">Definition 11</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.exists_predecessor_setting_state" class="lean_decl">Behaviour.exists_predecessor_setting_state</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    (Line 494 in BehaviourRelationProofs.lean.) If a request event \(e_{req}\) has permissions, there exists an immediate predecessor that obtained those permissions by accessing the directory. Intermediate events maintain sufficient state for \(e_{req}\). This is reflected by the fields in structure ‘Behaviour.exists_predecessor_setting_state’. This axiom uses Axiom <a href="ch-proof-overview.html#def:axRequestAccessesDirectory">11</a> to state the predecessor accesses the directory for permissions (in field ‘hexists_pred_getting_perms’). Axiom ?? is used to state the directory request matches the preceeding request (field ‘hpred_accesses_dir’). </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:exists_vd_successor_wb_or_get_sw">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">15</span>
+    <span class="definition_thmtitle">Weak Request on Vd Has Successor WB or Get SW (Well-Formedness Axiom 8)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:exists_vd_successor_wb_or_get_sw">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.exists_vd_successor_wb_or_get_sw" class="lean_decl">Behaviour.exists_vd_successor_wb_or_get_sw</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>   (Line 508 in BehaviourRelationProofs.lean.) A weak request on Write-Non-Coherent state ordered before a write-back evict linearizes at the write-back evict. There exists an immediate bottom successor that encapsulates a corresponding directory event. This is reflected by the fields in structure ‘Behaviour.exists_vd_successor_wb_or_get_sw’. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:acquire_invalidation_ob_weak_read">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">16</span>
+    <span class="definition_thmtitle">Acquire Invalidation OB Weak Read Predecessor (Well-Formedness Axiom 9)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:acquire_invalidation_ob_weak_read">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.acquire_invalidation_OrderedBefore_weak_read_predecessor_that_gets_perms" class="lean_decl">CompoundProtocol.acquire_invalidation_OrderedBefore_weak_read_predecessor_that_gets_perms</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>   (Line 8 in Protocol.lean.) A non-coherent weak read ordered after a cache entry invalidation (from an acquire) will linearize after the invalidation: the invalidation event is ordered before the predecessor that gets permissions. This is reflected by the parameters in def ‘CompoundProtocol.acquire_invalidation_OrderedBefore_weak_read_predecessor_that_gets_perms’ </p>
+
+  </div>
+</div>
+<h1 id="sec:axioms:abstract-state">2.3 Abstract State Invariants</h1>
+
+<div class="definition_thmwrapper theorem-style-definition" id="def:vdCacheEntryWBOrGetSWLaterWrapper">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">17</span>
+    <span class="definition_thmtitle">NC Weak Write Linearizes After Cache Event (Abstract State Invariant 1)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:vdCacheEntryWBOrGetSWLaterWrapper">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.vdCacheEntryWBOrGetSWLaterWrapper" class="lean_decl">Behaviour.vdCacheEntryWBOrGetSWLaterWrapper</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>   (Line 233 in BehaviourRelationDefs.lean.) Non-coherent weak write request linearizes after its cache event. Its cache entry in Vd state means there’s an immediate successor that is either a VdWriteBack or a CoherentWrite (which would linearize the weak write). This is reflected in the fields of structure ‘Behaviour.vdCacheEntryWriteBackLater’. Field ‘vdStateAfterEvent’ states the non-coherent weak write results in cache state Vd (Non-Coherent Write). Field ‘wbImmPred’ states the weak write an immediate successor as described above. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:coherentWriteAtDirectoryEncapDowngrades">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">18</span>
+    <span class="definition_thmtitle">Coherent Write Dir Events Result in Downgrades (Abstract State Invariant 2)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:coherentWriteAtDirectoryEncapDowngrades">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:requestDirectoryEvent">Definition 10</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.coherentWriteAtDirectoryEncapDowngrades" class="lean_decl">Behaviour.coherentWriteAtDirectoryEncapDowngrades</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    (Line 294 in BehaviourRelationDefs.lean.) Coherent write directory events result in downgrades. A coherent write request to the directory results in downgrades at other caches. On SW state, it forwards to the owner; on MR state, it forwards to all sharers. This is reflected in inductive ‘Behaviour.coherentWriteAtDirectoryEncapDowngrades’. Case ‘cWriteOnSW’ represents forwarding a coherent write to the owner cache. Case ‘cWriteOnMR’ represents forwarding a coherent write to the sharer caches. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:coherentReadDirDowngradeOthers">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">19</span>
+    <span class="definition_thmtitle">Coherent Read Dir on SW Downgrades Owner (Abstract State Invariant 3)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:coherentReadDirDowngradeOthers">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:requestDirectoryEvent">Definition 10</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.coherentReadDirDowngradeOthers" class="lean_decl">Behaviour.coherentReadDirDowngradeOthers</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    (Line 324 in BehaviourRelationDefs.lean.) Coherent read directory event on Write-Coherent state downgrades the owner. This is reflected in structure ‘Behaviour.coherentReadDowngradeOthers’ at line 316 used by the definition of ‘Behaviour.coherentReadDirDowngradeOthers’ at line 324. Field ‘downgradeOtherCaches’ specifically downgrades the owner on Write-Coherent state, with a coherent-read downgrade. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:nonCoherentRequestDowngradeOthers">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">20</span>
+    <span class="definition_thmtitle">NC Requests on SW Downgrade Owner (Abstract State Invariant 4)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:nonCoherentRequestDowngradeOthers">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:requestDirectoryEvent">Definition 10</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.nonCoherentRequestDowngradeOthers" class="lean_decl">Behaviour.nonCoherentRequestDowngradeOthers</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    (Line 345 in BehaviourRelationDefs.lean.) Non-coherent write/read requests on Write-Coherent state will downgrade the owner. This is reflected in the structure ‘Behaviour.nonCoherentReqOnSWDowngradeOthers’ used by definition ‘Behaviour.nonCoherentRequestDowngradeOthers’. Field ‘fwdPrevOwner’ specifically downgrades the owner on Write-Coherent state. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:SWMR_wrapper">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">21</span>
+    <span class="definition_thmtitle">Protocol Enforces SWMR (Abstract State Invariant 5)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:SWMR_wrapper">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:State">Definition 1</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/SWMR.wrapper" class="lean_decl">SWMR.wrapper</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    (Line 96 in SWMR.lean.) The protocol enforces Single-Writer Multiple-Reader (SWMR): at any point in time, cache states across the protocol instance cannot simultaneously have both SW and MR, and at most one cache can be in SW state. This is reflected in definition ‘SWMR’, where there cannot be both a Write-Coherent (SW) and Read-Coherent (MR) cache simultaneously. The number of Write-Coherent caches must be at most 1. </p>
+
+  </div>
+</div>
+<h1 id="sec:axioms:consistency-labels">2.4 Consistency Label Axioms</h1>
+
+<div class="definition_thmwrapper theorem-style-definition" id="def:acqInvalOtherEntries">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">22</span>
+    <span class="definition_thmtitle">Acquire Invalidates Other Entries (Consistency Label Axiom 1)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:acqInvalOtherEntries">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:requestDirectoryEvent">Definition 10</a></li>
+          
+          <li><a href="ch-proof-overview.html#def:CacheEventAreOrdered">Definition 9</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.acqInvalOtherEntries" class="lean_decl">Behaviour.acqInvalOtherEntries</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    (Line 374 in BehaviourRelationDefs.lean.) Acquire cache operations access the directory, then invalidate Read-Non-Coherent cache entries. The acquire cache operation encapsulates Vc (Read-Non-Coherent) evicts to cache entries at other addresses after accessing the directory. The structure ‘Behaviour.nonCoherentReqOnSWDowngradeOthers’ field broadcastInval invalidates the other cache entries after the acquire’s directory access event. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:relWriteBackOtherEntries">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">23</span>
+    <span class="definition_thmtitle">NC Release Writes Back Other Entries (Consistency Label Axiom 2)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:relWriteBackOtherEntries">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:requestDirectoryEvent">Definition 10</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.relWriteBackOtherEntries" class="lean_decl">Behaviour.relWriteBackOtherEntries</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    (Line 385 in BehaviourRelationDefs.lean.) Non-coherent release cache operations write back Write-Non-Coherent entries, then access the directory. This is achieved by using Vd (Write-Non-Coherent) write-back events encapsulated by the release, ordered before the directory event. The structure ‘Behaviour.relWriteBackOtherEntries’ field broadcastWB writes back the other cache entries before the release’s directory access. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:coherentRelDowngradeWriteBackOthers">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">24</span>
+    <span class="definition_thmtitle">L-RCC Coherent Release Downgrade Write-Back (Consistency Label Axiom 3)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:coherentRelDowngradeWriteBackOthers">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.coherentRelDowngradeWriteBackOthers" class="lean_decl">Behaviour.coherentRelDowngradeWriteBackOthers</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>   (Line 407 in BehaviourRelationDefs.lean.) L-RCC variant with Coherent Release Write and Non-Coherent Weak Write. When receiving a downgrade to a cache line with Coherent-Write state, the downgrade writes back Vd entries at other addresses. This is the L-RCC variant where the protocol interface contains both a coherent release and a non-coherent weak write. This is reflected by the broadcastWBs field in the structure ‘Behaviour.coherentRelDowngradeWriteBackOthers’. The fields ‘cRelInPI’ and ‘ncWeakWriteInPI’ state the protocol’s request interface contains a Coherent Release and Non-Coherent Weak Write respectively, as per L-RCC. </p>
+
+  </div>
+</div>
+<h1 id="sec:axioms:shim">2.5 Shim Axioms</h1>
+
+<div class="definition_thmwrapper theorem-style-definition" id="def:ShimClusterToGlobal">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">25</span>
+    <span class="definition_thmtitle">Cluster to Global Propagation Shim (Shim Axiom 1)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:ShimClusterToGlobal">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:CompoundProtocol">Definition 29</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.Shim.ClusterToGlobal" class="lean_decl">Behaviour.Shim.ClusterToGlobal</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    (Line 128 in BehaviourShim.lean.) Cluster directory events are translated to request events at the corresponding cache in the global protocol. Two cases: </p>
+<ul class="itemize">
+  <li><p><b class="bfseries">encapGlobalCache</b>: the global cache lacks permissions, so the directory event encapsulates a global cache access. </p>
+</li>
+  <li><p><b class="bfseries">noGlobalCache</b>: the global cache already has permissions (so no global directory access), and a prior global cache event with permissions exists. </p>
+</li>
+</ul>
+<p> These are the two cases of the inductive ‘Behaviour.Shim.ClusterToGlobal’. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:ShimGlobalToCluster">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">26</span>
+    <span class="definition_thmtitle">Global to Cluster Propagation Shim (Shim Axiom 2)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:ShimGlobalToCluster">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:CompoundProtocol">Definition 29</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.Shim.GlobalToCluster" class="lean_decl">Behaviour.Shim.GlobalToCluster</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    (Line 903 in BehaviourShim.lean.) Downgrades at a global cache are translated to cluster directory accesses. The translation depends on whether the cluster protocol has both coherent write and read (an SWMR protocol), or only non-coherent reads (a RCC-style protocol). This is reflected in the inductive ‘Behaviour.Shim.GlobalToCluster’. </p>
+
+  </div>
+</div>
+<h1 id="sec:temporal-event-relations">2.6 Ordered Before and Encapsulates Relations</h1>
+
+<div class="definition_thmwrapper theorem-style-definition" id="def:OrderedBefore">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">27</span>
+    <span class="definition_thmtitle">Ordered Before</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:OrderedBefore">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Event.OrderedBefore" class="lean_decl">Event.OrderedBefore</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>   An event \(e_1\) is <em>ordered before</em> \(e_2\) if \(e_1\) completes before \(e_2\) starts: \(e_1.\mathrm{oEnd} {\lt} e_2.\mathrm{oStart}\). This is defined on line 12 in EventRelations.lean as ‘Event.OrderedBefore’. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:Encapsulates">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">28</span>
+    <span class="definition_thmtitle">Encapsulates</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:Encapsulates">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Event.Encapsulates" class="lean_decl">Event.Encapsulates</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>   An event \(e_1\) <em>encapsulates</em> \(e_2\) if \(e_1\) starts before \(e_2\) starts and \(e_2\) ends before \(e_1\) ends: \(e_1.\mathrm{oStart} {\lt} e_2.\mathrm{oStart} \; \wedge \;  e_2.\mathrm{oEnd} {\lt} e_1.\mathrm{oEnd}\). This is defined on line 6 in EventRelations.lean as ‘Event.Encapsulates. </p>
+
+  </div>
+</div>
+<h1 id="sec:compound-protocol">2.7 Compound Protocol</h1>
+
+<div class="definition_thmwrapper theorem-style-definition" id="def:CompoundProtocol">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">29</span>
+    <span class="definition_thmtitle">Compound Protocol</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:CompoundProtocol">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol" class="lean_decl">CompoundProtocol</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>   A <em>compound protocol</em> bundles: </p>
+<ul class="itemize">
+  <li><p>A global protocol and two cluster protocols, </p>
+</li>
+  <li><p>Shim axioms for translating between cluster and global protocols, </p>
+</li>
+  <li><p>A linearization function assigning each request event a linearization event, </p>
+</li>
+  <li><p>A compound linearization event function, </p>
+</li>
+  <li><p>Axioms: the global protocol is SWMR, acquire events on a shared-write cannot linearize at cache, and weak write / non-coherent release pairs cannot both linearize at cache. </p>
+</li>
+</ul>
+
+  </div>
+</div>
+<h1 id="sec:global-linearization-order">2.8 Compound (Global) Linearization Order</h1>
+
+<div class="definition_thmwrapper theorem-style-definition" id="def:lazyCompoundLinearizationOrder">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">30</span>
+    <span class="definition_thmtitle">Lazy Compound Linearization Order</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:lazyCompoundLinearizationOrder">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:CompoundProtocol">Definition 29</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.lazyCompoundLinearizationOrder" class="lean_decl">CompoundProtocol.lazyCompoundLinearizationOrder</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    A <em>lazy compound linearization order</em> between a linearization event \(e_{\mathrm{lin}_1}\) and a second event \(e_2\) holds if: for every immediate bottom predecessor \(e_3\) of \(e_2\)’s directory event at the same address, \(e_{\mathrm{lin}_1}\) finishes before \(e_3\)’s directory event. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:CompoundLinearizationOrder">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">31</span>
+    <span class="definition_thmtitle">Compound Linearization Order</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:CompoundLinearizationOrder">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:lazyCompoundLinearizationOrder">Definition 30</a></li>
+          
+          <li><a href="ch-proof-overview.html#def:ClusterRequestLinearizationEvent">Definition 5</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.CompoundLinearizationOrder" class="lean_decl">CompoundProtocol.CompoundLinearizationOrder</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>    For a PPO pair \((e_1, e_2)\), <em>compound linearization order</em> holds if either their compound linearization events are ordered (\(e_{\mathrm{lin}_1}\) is ordered before \(e_{\mathrm{lin}_2}\)), or the lazy compound linearization order holds between \(e_{\mathrm{lin}_1}\) and \(e_2\). </p>
+
+  </div>
+</div>
+<h1 id="sec:some-auxiliary-defs">2.9 Auxiliary Definitions Organized in Structures</h1>
+
+<div class="definition_thmwrapper theorem-style-definition" id="def:coherentWriteSucceededByDirectoryRequest">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">32</span>
+    <span class="definition_thmtitle">Coherent Write Succeeded by Directory Request</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:coherentWriteSucceededByDirectoryRequest">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Behaviour.coherentWriteSucceededByDirectoryRequest" class="lean_decl">Behaviour.coherentWriteSucceededByDirectoryRequest</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>   Structure capturing the auxiliary data for a coherent write event that is succeeded by a directory request. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:rccOStyleDowngrade">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">33</span>
+    <span class="definition_thmtitle">RCCO-Style Downgrade</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:rccOStyleDowngrade">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Event.rccOStyleDowngrade" class="lean_decl">Event.rccOStyleDowngrade</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>   Structure capturing the chain of events in an RCCO-style downgrade: a directory event, a downgrade event, and a write-back event. </p>
+
+  </div>
+</div>
+<div class="definition_thmwrapper theorem-style-definition" id="def:writeBackAtEvent">
+  <div class="definition_thmheading">
+    <span class="definition_thmcaption">
+    Definition
+    </span>
+    <span class="definition_thmlabel">34</span>
+    <span class="definition_thmtitle">Write-Back at Event</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#def:writeBackAtEvent">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Event.writeBackAtEvent" class="lean_decl">Event.writeBackAtEvent</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="definition_thmcontent">
+  <p>   Structure recording a VdWriteBack at a given event’s entry. </p>
+
+  </div>
+</div>
+<h1 id="sec:contradiction-of-nonsense-cases">2.10 Contradiction Lemmas</h1>
+
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:contradiction_has_perms_and_no_perms">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">35</span>
+    <span class="lemma_thmtitle">Contradiction: Has Perms and No Perms</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:contradiction_has_perms_and_no_perms">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Event.contradiction_of_has_perms_and_no_perms" class="lean_decl">Event.contradiction_of_has_perms_and_no_perms</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>   A coherent event cannot simultaneously have and lack permissions. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:contradiction_nc_release_perms">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">36</span>
+    <span class="lemma_thmtitle">Contradiction: NC Release Has Perms and No Perms</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:contradiction_nc_release_perms">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:contradiction_has_perms_and_no_perms">Lemma 35</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Event.contradiction_of_nc_release_request_has_perms_and_no_perms" class="lean_decl">Event.contradiction_of_nc_release_request_has_perms_and_no_perms</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    A non-coherent release request cannot simultaneously have and lack permissions. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:contradiction_weak_write_perms">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">37</span>
+    <span class="lemma_thmtitle">Contradiction: Weak Write Has Perms and No Perms</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:contradiction_weak_write_perms">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:contradiction_has_perms_and_no_perms">Lemma 35</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Event.contradiction_of_weak_write_request_has_perms_and_no_perms" class="lean_decl">Event.contradiction_of_weak_write_request_has_perms_and_no_perms</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    A weak write request cannot simultaneously have and lack permissions. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:contradiction_acquire_perms">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">38</span>
+    <span class="lemma_thmtitle">Contradiction: Acquire Has Perms and No Perms</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:contradiction_acquire_perms">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:contradiction_has_perms_and_no_perms">Lemma 35</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Event.contradiction_of_acquire_request_has_perms_and_no_perms" class="lean_decl">Event.contradiction_of_acquire_request_has_perms_and_no_perms</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    An acquire request cannot simultaneously have and lack permissions. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:contradiction_coherent_perms">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">39</span>
+    <span class="lemma_thmtitle">Contradiction: Coherent Has Perms and No Perms</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:contradiction_coherent_perms">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:contradiction_has_perms_and_no_perms">Lemma 35</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/Event.contradiction_of_coherent_request_has_perms_and_no_perms" class="lean_decl">Event.contradiction_of_coherent_request_has_perms_and_no_perms</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    A coherent request cannot simultaneously have and lack permissions. </p>
+
+  </div>
+</div>
+<h1 id="sec:cache-request-linearization-encapsulation">2.11 Encapsulation Lemmas</h1>
+
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:dir_lin_encap_global_dir_lin">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">40</span>
+    <span class="lemma_thmtitle">Directory Lin Encapsulates Global Directory Lin</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:dir_lin_encap_global_dir_lin">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:Encapsulates">Definition 28</a></li>
+          
+          <li><a href="ch-proof-overview.html#def:ClusterRequestLinearizationEvent">Definition 5</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.dir_lin_encap_global_dir_lin" class="lean_decl">CompoundProtocol.dir_lin_encap_global_dir_lin</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    If a cluster directory event encapsulates the global directory linearization event, then the encapsulation relation is preserved through the linearization chain. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:e_encap_dir_lin_encap_global_dir_lin">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">41</span>
+    <span class="lemma_thmtitle">Event Encaps Dir Lin Encaps Global Dir Lin</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:e_encap_dir_lin_encap_global_dir_lin">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:dir_lin_encap_global_dir_lin">Lemma 40</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.e_encap_dir_lin_encap_global_dir_lin" class="lean_decl">CompoundProtocol.e_encap_dir_lin_encap_global_dir_lin</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    If a cache event encapsulates a cluster directory event, and the cluster directory event encapsulates the global directory linearization event, then the cache event encapsulates the global directory linearization event. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:request_encapsulates_cmp_lin">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">42</span>
+    <span class="lemma_thmtitle">Request Encapsulates Compound Linearization Event</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:request_encapsulates_cmp_lin">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:e_encap_dir_lin_encap_global_dir_lin">Lemma 41</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.request_encapsulates_compound_linearization_event" class="lean_decl">CompoundProtocol.request_encapsulates_compound_linearization_event</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    A request event encapsulates its compound linearization event (generic version for all request types). </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:nc_release_encapsulates_cmp_lin">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">43</span>
+    <span class="lemma_thmtitle">NC Release Encapsulates Compound Lin Event</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:nc_release_encapsulates_cmp_lin">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:e_encap_dir_lin_encap_global_dir_lin">Lemma 41</a></li>
+          
+          <li><a href="ch-proof-overview.html#lem:contradiction_nc_release_perms">Lemma 36</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.nc_release_request_encapsulates_compound_linearization_event" class="lean_decl">CompoundProtocol.nc_release_request_encapsulates_compound_linearization_event</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    A non-coherent release request encapsulates its compound linearization event. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:acquire_encapsulates_cmp_lin">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">44</span>
+    <span class="lemma_thmtitle">Acquire Encapsulates Compound Lin Event</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:acquire_encapsulates_cmp_lin">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:e_encap_dir_lin_encap_global_dir_lin">Lemma 41</a></li>
+          
+          <li><a href="ch-proof-overview.html#lem:contradiction_acquire_perms">Lemma 38</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.acquire_request_encapsulates_compound_linearization_event" class="lean_decl">CompoundProtocol.acquire_request_encapsulates_compound_linearization_event</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    An acquire request encapsulates its compound linearization event. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:coherent_encapsulates_cmp_lin">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">45</span>
+    <span class="lemma_thmtitle">Coherent Encapsulates Compound Lin Event</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:coherent_encapsulates_cmp_lin">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:e_encap_dir_lin_encap_global_dir_lin">Lemma 41</a></li>
+          
+          <li><a href="ch-proof-overview.html#lem:contradiction_coherent_perms">Lemma 39</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.coherent_request_encapsulates_compound_linearization_event" class="lean_decl">CompoundProtocol.coherent_request_encapsulates_compound_linearization_event</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    A coherent request encapsulates its compound linearization event. </p>
+
+  </div>
+</div>
+<h1 id="sec:cache-request-linearization-ordering">2.12 Linearization Ordering Lemmas</h1>
+
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:ob_linearizes_at_cache">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">46</span>
+    <span class="lemma_thmtitle">Ordered Before and Linearizes at Cache</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:ob_linearizes_at_cache">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:CompoundLinearizationOrder">Definition 31</a></li>
+          
+          <li><a href="ch-proof-overview.html#def:OrderedBefore">Definition 27</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.compound_linearization_order_of_events_ordered_before_and_linearizes_at_cache" class="lean_decl">CompoundProtocol.compound_linearization_order_of_events_ordered_before_and_linearizes_at_cache</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    If both events linearize at cache and \(e_1\) is ordered before \(e_2\), then compound linearization order holds. The linearization events are the events themselves. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:cdir_encap_glin_at_dir">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">47</span>
+    <span class="lemma_thmtitle">Cluster Dir Encap Global Lin at Dir</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:cdir_encap_glin_at_dir">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:dir_lin_encap_global_dir_lin">Lemma 40</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.cdir_encap_glin_of_cdir_linearize_at_dir" class="lean_decl">CompoundProtocol.cdir_encap_glin_of_cdir_linearize_at_dir</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    A cluster directory event encapsulates its compound linearization event when linearizing at directory. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:weak_and_nc_release_at_dir">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">48</span>
+    <span class="lemma_thmtitle">Weak Write/Read and NC Release Linearize at Directory</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:weak_and_nc_release_at_dir">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:cdir_encap_glin_at_dir">Lemma 47</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.weak_write_or_read_and_nc_release_linearize_at_directory" class="lean_decl">CompoundProtocol.weak_write_or_read_and_nc_release_linearize_at_directory</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    If a weak write or read and a non-coherent release both linearize at directory, their linearization events are ordered. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:acquire_and_weak_at_dir">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">49</span>
+    <span class="lemma_thmtitle">Acquire and Weak Request Linearize at Directory</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:acquire_and_weak_at_dir">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:cdir_encap_glin_at_dir">Lemma 47</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.acquire_and_weak_request_linearize_at_directory" class="lean_decl">CompoundProtocol.acquire_and_weak_request_linearize_at_directory</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    If an acquire and a weak request both linearize at directory, their linearization events are ordered. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:weak_write_ob_vd_wb">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">50</span>
+    <span class="lemma_thmtitle">Weak Write Ordered Before VdWriteBack</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:weak_write_ob_vd_wb">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.weak_write_OrderedBefore_vd_write_back'" class="lean_decl">CompoundProtocol.weak_write_OrderedBefore_vd_write_back'</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>   A weak write that is ordered before a VdWriteBack linearizes before the write-back. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:state_before_vd_no_btn">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">51</span>
+    <span class="lemma_thmtitle">State Before Vd of No Between Events</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:state_before_vd_no_btn">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.state_before_Vd_of_no_btn_events_on_vd_produce_vd" class="lean_decl">CompoundProtocol.state_before_Vd_of_no_btn_events_on_vd_produce_vd</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>   If there are no between-events on a Vd entry, the state before the Vd event produces a Vd state. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:lazy_coherent_release_ordering_helper">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">52</span>
+    <span class="lemma_thmtitle">Lazy Coherent Release Ordering (Helper)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:lazy_coherent_release_ordering_helper">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.lazy_coherent_release_ordering'" class="lean_decl">CompoundProtocol.lazy_coherent_release_ordering'</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>   Helper lemma for lazy coherent release ordering. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:lazy_coherent_release_ordering">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">53</span>
+    <span class="lemma_thmtitle">Lazy Coherent Release Ordering</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:lazy_coherent_release_ordering">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:lazy_coherent_release_ordering_helper">Lemma 52</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.lazy_coherent_release_ordering" class="lean_decl">CompoundProtocol.lazy_coherent_release_ordering</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    Establishes the lazy linearization ordering for coherent releases. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:weak_req_dir_crel_cache">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">54</span>
+    <span class="lemma_thmtitle">Weak Request to Dir and Coherent Release at Cache</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:weak_req_dir_crel_cache">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.weak_request_to_directory_and_coherent_release_at_cache" class="lean_decl">CompoundProtocol.weak_request_to_directory_and_coherent_release_at_cache</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>   When a weak request linearizes at directory and a coherent release linearizes at cache, compound linearization order holds. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:contradiction_weak_write_encap_dir">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">55</span>
+    <span class="lemma_thmtitle">Contradiction: Weak Write Encapsulating Directory Event</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:contradiction_weak_write_encap_dir">#</a>
+    
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.contradiction_of_weak_write_encapsulating_corresponding_directory_event" class="lean_decl">CompoundProtocol.contradiction_of_weak_write_encapsulating_corresponding_directory_event</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>   A contradiction arises if a weak write encapsulates its corresponding directory event. </p>
+
+  </div>
+</div>
+<h1 id="sec:cache-request-linearization-of-specific-cases">2.13 Per-Case Compound Linearization Lemmas</h1>
+
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:clo_two_events_encap_lin">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">56</span>
+    <span class="lemma_thmtitle">CLO: Two Events Encapsulating Their Lin Events</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:clo_two_events_encap_lin">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:ob_linearizes_at_cache">Lemma 46</a></li>
+          
+          <li><a href="ch-proof-overview.html#lem:nc_release_encapsulates_cmp_lin">Lemma 43</a></li>
+          
+          <li><a href="ch-proof-overview.html#lem:acquire_encapsulates_cmp_lin">Lemma 44</a></li>
+          
+          <li><a href="ch-proof-overview.html#lem:coherent_encapsulates_cmp_lin">Lemma 45</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.CompoundLinearizationOrder_of_two_events_that_encapsulate_their_cmp_linearization_event" class="lean_decl">CompoundProtocol.CompoundLinearizationOrder_of_two_events_that_encapsulate_their_cmp_linearization_event</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    Handles PPO cases where both events are non-coherent release, acquire, or coherent (e.g. SC\(\times \)SC, Rel\(\times \)Acq, Acq\(\times \)Rel). Shows that each event encapsulates its compound linearization event, so ordered-before is preserved to the linearization events. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:clo_weak_read_nc_release">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">57</span>
+    <span class="lemma_thmtitle">CLO: Weak Read and NC Release</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:clo_weak_read_nc_release">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:ob_linearizes_at_cache">Lemma 46</a></li>
+          
+          <li><a href="ch-proof-overview.html#lem:weak_and_nc_release_at_dir">Lemma 48</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.CompoundLinearizationOrder_of_weak_read_and_non_coherent_release" class="lean_decl">CompoundProtocol.CompoundLinearizationOrder_of_weak_read_and_non_coherent_release</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    Weak read ordered before a non-coherent release satisfies compound linearization order. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:clo_weak_wr_nc_release">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">58</span>
+    <span class="lemma_thmtitle">CLO: Weak Write or Read and NC Release</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:clo_weak_wr_nc_release">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:ob_linearizes_at_cache">Lemma 46</a></li>
+          
+          <li><a href="ch-proof-overview.html#lem:weak_and_nc_release_at_dir">Lemma 48</a></li>
+          
+          <li><a href="ch-proof-overview.html#lem:clo_weak_read_nc_release">Lemma 57</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.CompoundLinearizationOrder_of_weak_write_or_read_and_non_coherent_release" class="lean_decl">CompoundProtocol.CompoundLinearizationOrder_of_weak_write_or_read_and_non_coherent_release</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    Generic lemma: weak write or read before a non-coherent release. Handles all sub-cases (cache\(\times \)cache, dir\(\times \)cache, cache\(\times \)dir, dir\(\times \)dir linearization). </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:clo_weak_req_nc_release">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">59</span>
+    <span class="lemma_thmtitle">CLO: Weak Request and NC Release</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:clo_weak_req_nc_release">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:clo_weak_wr_nc_release">Lemma 58</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_non_coherent_release" class="lean_decl">CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_non_coherent_release</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    Weak non-coherent request ordered before a non-coherent release satisfies compound linearization order. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:clo_acquire_weak">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">60</span>
+    <span class="lemma_thmtitle">CLO: Acquire and Weak Request</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:clo_acquire_weak">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:ob_linearizes_at_cache">Lemma 46</a></li>
+          
+          <li><a href="ch-proof-overview.html#lem:acquire_and_weak_at_dir">Lemma 49</a></li>
+          
+          <li><a href="ch-proof-overview.html#lem:contradiction_weak_write_encap_dir">Lemma 55</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.CompoundLinearizationOrder_of_acquire_and_weak_request" class="lean_decl">CompoundProtocol.CompoundLinearizationOrder_of_acquire_and_weak_request</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    Acquire ordered before a weak non-coherent request satisfies compound linearization order. </p>
+
+  </div>
+</div>
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:clo_weak_req_crel">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">61</span>
+    <span class="lemma_thmtitle">CLO: Weak Request and Coherent Release</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:clo_weak_req_crel">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:ob_linearizes_at_cache">Lemma 46</a></li>
+          
+          <li><a href="ch-proof-overview.html#lem:weak_req_dir_crel_cache">Lemma 54</a></li>
+          
+          <li><a href="ch-proof-overview.html#lem:lazy_coherent_release_ordering">Lemma 53</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_coherent_release" class="lean_decl">CompoundProtocol.CompoundLinearizationOrder_of_weak_request_and_coherent_release</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    Weak non-coherent request ordered before a coherent release satisfies compound linearization order. </p>
+
+  </div>
+</div>
+<h1 id="sec:main-theorem">2.14 Main Results</h1>
+
+<div class="lemma_thmwrapper theorem-style-plain" id="lem:ppo_cluster_events">
+  <div class="lemma_thmheading">
+    <span class="lemma_thmcaption">
+    Lemma
+    </span>
+    <span class="lemma_thmlabel">62</span>
+    <span class="lemma_thmtitle">PPO Cluster Events Satisfy Compound Linearization</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#lem:ppo_cluster_events">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#def:CompoundLinearizationOrder">Definition 31</a></li>
+          
+          <li><a href="ch-proof-overview.html#lem:clo_two_events_encap_lin">Lemma 56</a></li>
+          
+          <li><a href="ch-proof-overview.html#lem:clo_weak_req_nc_release">Lemma 59</a></li>
+          
+          <li><a href="ch-proof-overview.html#lem:clo_weak_req_crel">Lemma 61</a></li>
+          
+          <li><a href="ch-proof-overview.html#lem:clo_acquire_weak">Lemma 60</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder" class="lean_decl">CompoundProtocol.ppo_cluster_events_satisfy_CompoundLinearizationOrder</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="lemma_thmcontent">
+  <p>    For same-cluster PPO cache events satisfying ordered-before, the compound linearization order holds. The proof is by exhaustive case match on the request types of \(e_1\) and \(e_2\), dispatching to the appropriate per-case lemma. </p>
+
+  </div>
+</div>
+<div class="theorem_thmwrapper theorem-style-plain" id="thm:enforce_compound_consistency">
+  <div class="theorem_thmheading">
+    <span class="theorem_thmcaption">
+    Theorem
+    </span>
+    <span class="theorem_thmlabel">63</span>
+    <span class="theorem_thmtitle">Compound Protocol Enforces Consistency (Theorem 6.1)</span>
+    <div class="thm_header_extras">
+
+    
+    ✓
+        </div>
+    <div class="thm_header_hidden_extras">
+
+    <a class="icon proof" href="ch-proof-overview.html#thm:enforce_compound_consistency">#</a>
+    
+    
+    <button class="modal"><svg  class="icon icon-mindmap "><use xlink:href="symbol-defs.svg#icon-mindmap"></use></svg>
+</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Uses</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="ch-proof-overview.html#lem:ppo_cluster_events">Lemma 62</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+    
+    <button class="modal lean">L∃∀N</button>
+        <div class="modal-container">
+      <div class="modal-content">
+        <header>
+          <h1>Lean declarations</h1>
+          <button class="closebtn"><svg  class="icon icon-cross "><use xlink:href="symbol-defs.svg#icon-cross"></use></svg>
+</button>
+        </header>
+        
+        <ul class="uses">
+          
+          <li><a href="https://leanprover-community.github.io/mathlib4_docs/find/#doc/CompoundProtocol.enforce_compound_consistency" class="lean_decl">CompoundProtocol.enforce_compound_consistency</a></li>
+          
+        </ul>
+    
+      </div>
+    </div>
+
+    
+        </div>
+  </div>
+  <div class="theorem_thmcontent">
+  <p>    (Line 8 in CompositionalMCM.lean.) For any PPO pair of non-downgrade cache events \(e_1, e_2\) at the same cache with different addresses in a behaviour \(b\) of a compound protocol: if \(e_1\) is ordered before \(e_2\), then compound linearization order holds between \(e_1\) and \(e_2\). </p>
+
+  </div>
+</div>
+
+</div> <!--main-text -->
+</div> <!-- content-wrapper -->
+</div> <!-- content -->
+</div> <!-- wrapper -->
+
+<nav class="prev_up_next">
+  <svg  id="showmore-minus" class="icon icon-eye-minus showmore"><use xlink:href="symbol-defs.svg#icon-eye-minus"></use></svg>
+
+  <svg  id="showmore-plus" class="icon icon-eye-plus showmore"><use xlink:href="symbol-defs.svg#icon-eye-plus"></use></svg>
+
+  <a href="sect0001.html" title="Overview"><svg  class="icon icon-arrow-left "><use xlink:href="symbol-defs.svg#icon-arrow-left"></use></svg>
+</a>
+  <a href="index.html" title="Artifact Blueprint for “A Formally Verified Foundation for Compositional Heterogeneous Coherence”"><svg  class="icon icon-arrow-up "><use xlink:href="symbol-defs.svg#icon-arrow-up"></use></svg>
+</a>
+</nav>
+
+<script type="text/javascript" src="js/jquery.min.js"></script>
+<script type="text/javascript" src="js/plastex.js"></script>
+<script type="text/javascript" src="js/svgxuse.js"></script>
+<script type="text/javascript" src="js/js.cookie.min.js"></script>
+<script type="text/javascript" src="js/showmore.js"></script>
+</body>
+</html>

@@ -58,9 +58,21 @@ echo "Checking Murphi axioms from the Paper's Case Studies."
     murphi_args=("$@")
   fi
   printf -v murphi_args_esc "%q " "${murphi_args[@]}"
-  if nix-shell python-murphi-script.nix --run "python3 scripts/run_axioms.py --clean --axioms-file axioms-to-run.txt --table-html runs/results.html ${murphi_args_esc}"; then
-    printf "%s  ✓ PASS%s\n" "$GREEN" "$RESET"
+  if [ -x "/opt/venv/bin/python3" ]; then
+    if /opt/venv/bin/python3 scripts/run_axioms.py --clean --axioms-file axioms-to-run.txt --table-html runs/results.html ${murphi_args_esc}; then
+      printf "%s  ✓ PASS%s\n" "$GREEN" "$RESET"
+    else
+      printf "%s  ✗ FAIL%s\n" "$RED" "$RESET"
+    fi
+  elif command -v nix-shell >/dev/null 2>&1; then
+    if nix-shell python-murphi-script.nix --run "python3 scripts/run_axioms.py --clean --axioms-file axioms-to-run.txt --table-html runs/results.html ${murphi_args_esc}"; then
+      printf "%s  ✓ PASS%s\n" "$GREEN" "$RESET"
+    else
+      printf "%s  ✗ FAIL%s\n" "$RED" "$RESET"
+    fi
   else
     printf "%s  ✗ FAIL%s\n" "$RED" "$RESET"
+    printf "No Python environment found. Install deps in /opt/venv or use nix-shell.\n"
+    exit 1
   fi
 )

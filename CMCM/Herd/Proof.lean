@@ -778,9 +778,49 @@ theorem step_advances
                     exact this
                   cases (b.orderedAtEntry.dir_ordered de_w de₂).ordered with
                   | inl hob_w₂ =>
-                    -- de_w OB de₂: CLE₂ is between CLE_w and CLE₁.
+                    -- de_w OB de₂ OB de₁: CLE₂ is between CLE_w and CLE₁.
                     -- Apply NoInterveningWrites to exclude e₂ as intervening write.
-                    sorry
+                    -- 1. Apply h_no_between to e₂
+                    have hlin_e₂_eq : h.hknow_dir_access compound b init e₂ = h.e₂_lin :=
+                      Subsingleton.elim _ _
+                    have hew_eq : e_w_lin = hlin e_w := Subsingleton.elim _ _
+                    have h_constraints := h_no_between e₂ h.in_b₂
+                      h.cache₂ h.write h.notDown₂ (h.hknow_dir_access compound b init e₂)
+                    -- 2. Use notBetweenCles: (sameProtocol ∧ isDirWrite) → ¬ OrderedBetween
+                    have h_nbc := h_constraints.notBetweenCles
+                    -- h_nbc : SameClusterCLE.NotBetweenCLEs
+                    --   (h.hknow... e₂).CLE  e_w_lin.CLE  h.e₁_lin.CLE
+                    -- 3. Construct OrderedBetween
+                    -- CLE_w OB CLE₂ : e_w_lin.CLE.OB (hknow e₂).CLE
+                    -- CLE₂ OB CLE₁ : (hknow e₂).CLE.OB h.e₁_lin.CLE
+                    have h_ob_between :
+                        (h.hknow_dir_access compound b init e₂).hreq's_dir_access.choose.OrderedBetween n
+                        e_w_lin.hreq's_dir_access.choose h.e₁_lin.hreq's_dir_access.choose := by
+                      constructor
+                      · -- CLE_w OB CLE₂
+                        simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
+                          hlin_e₂_eq, hfc₂, hew_eq, hfcw]
+                        exact hob_w₂
+                      · -- CLE₂ OB CLE₁
+                        simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
+                          hlin_e₂_eq, hfc₂, hfc₁]
+                        exact hob
+                    -- 4. Apply notBetweenCles to get ¬ OrderedBetween, contradicting h_ob_between
+                    -- notBetweenCles : SameClusterCLE.NotBetweenCLEs CLE₂ CLE_w CLE₁
+                    -- = (CLE₂.protocol = CLE_w.protocol ∧ CLE₂.protocol = CLE₁.protocol ∧ CLE₂.isDirWrite)
+                    --   → ¬ CLE₂.OrderedBetween n CLE_w CLE₁
+                    -- Need: sameProtocol conditions + isDirWrite
+                    -- For same-address events: CLEs at same directory → same protocol
+                    -- For write events: CLE is a dir write
+                    unfold SameClusterCLE.NotBetweenCLEs at h_nbc
+                    apply h_nbc _ h_ob_between
+                    refine ⟨?_, ?_, ?_⟩
+                    · -- CLE₂.protocol = CLE_w.protocol
+                      sorry
+                    · -- CLE₂.protocol = CLE₁.protocol
+                      sorry
+                    · -- CLE₂.isDirWrite
+                      sorry
                   | inr hob_₂w =>
                     -- de₂ OB de_w → de₂.oEnd < de_w.oStart, but de_w.oEnd ≤ de₂.oEnd → contradiction
                     have : de_w.oEnd < de_w.oEnd :=

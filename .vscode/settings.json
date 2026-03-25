@@ -1,0 +1,9 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "lake": true,
+        "awk": true,
+        "timeout": true,
+        "git checkout": true,
+        "git stash": true
+    }
+}

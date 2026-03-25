@@ -8,6 +8,28 @@ protcols.
 
 ## Artifact Evaluation Instructions
 
+Unzip the .tar.gz into a .tar file.
+```
+gunzip cpp-lean-min.tar.gz
+```
+
+Load in the tar file into docker.
+```
+docker load < cpp-lean-bundled.tar
+```
+
+Run the docker image interactively, with color:
+```
+docker run -it --name cpp-lean-min -e TERM=xterm-256color -p 8000:8000 cpp-lean:min
+```
+
+In the directory "compositional-protocol-proof", please run:
+```
+git init
+```
+This is for leanblueprint to generate the webpage and pdf, if you want to view
+the webpage and/or pdf.
+
 Please check the pdf `Instructions.pdf`. It contains instructions
 on running the artifact evaluation. This README.md mainly has some
 extra insturctions for viewing the `leanblueprint web` website, if

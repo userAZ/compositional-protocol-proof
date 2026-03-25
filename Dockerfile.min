@@ -1,0 +1,91 @@
+FROM ubuntu:24.04 AS cmurphi-builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    bison \
+    flex \
+    ca-certificates \
+    tar \
+    xz-utils \
+  && rm -rf /var/lib/apt/lists/*
+
+ARG CMURPHI_TAR=cmurphi5.5.0.tgz
+WORKDIR /tmp
+COPY ${CMURPHI_TAR} /tmp/cmurphi.tgz
+RUN mkdir -p /tmp/cmurphi \
+  && tar -xzf /tmp/cmurphi.tgz -C /tmp/cmurphi --strip-components=1 \
+  && make -C /tmp/cmurphi/src
+
+
+FROM ubuntu:24.04 AS venv-builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-venv \
+    python3-pip \
+    python3-dev \
+    build-essential \
+    graphviz \
+    libgraphviz-dev \
+    pkg-config \
+    ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m venv /opt/venv \
+  && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
+  && /opt/venv/bin/pip install --no-cache-dir \
+    leanblueprint \
+    plasTeX \
+    pandas \
+    great-tables \
+    rich \
+    py-markdown-table
+
+
+FROM ubuntu:24.04
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    git \
+    g++ \
+    fontconfig \
+    python3 \
+    python3-venv \
+    graphviz \
+    texlive-latex-base \
+    texlive-latex-recommended \
+    texlive-fonts-recommended \
+    texlive-xetex \
+    latexmk \
+    unzip \
+    xz-utils \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN useradd --create-home --shell /bin/bash nixuser
+
+COPY --from=venv-builder /opt/venv /opt/venv
+
+RUN mkdir -p /home/nixuser/cmurphi5.5.0/src /home/nixuser/cmurphi5.5.0/include
+COPY --from=cmurphi-builder /tmp/cmurphi/include/ /home/nixuser/cmurphi5.5.0/include/
+COPY --from=cmurphi-builder /tmp/cmurphi/src/mu /home/nixuser/cmurphi5.5.0/src/mu
+
+COPY lean-toolchain /tmp/lean-toolchain
+RUN su - nixuser -c "curl -L https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y"
+RUN su - nixuser -c "~/.elan/bin/elan toolchain install $(cat /tmp/lean-toolchain) && ~/.elan/bin/elan default $(cat /tmp/lean-toolchain)"
+
+RUN mkdir -p /usr/local/share/fonts/juliamono \
+  && curl -L -o /tmp/JuliaMono-ttf.zip https://github.com/cormullion/juliamono/releases/latest/download/JuliaMono-ttf.zip \
+  && unzip -q /tmp/JuliaMono-ttf.zip -d /usr/local/share/fonts/juliamono \
+  && rm /tmp/JuliaMono-ttf.zip \
+  && fc-cache -f
+
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH=/opt/venv/bin:/home/nixuser/.elan/bin:/home/nixuser/cmurphi5.5.0/src:$PATH
+
+COPY . /home/nixuser/compositional-protocol-proof
+RUN chown -R nixuser:nixuser /home/nixuser /opt/venv
+
+USER nixuser
+WORKDIR /home/nixuser/compositional-protocol-proof
+CMD ["/bin/bash"]

@@ -3,6 +3,8 @@ Request
 Behaviour.reqHasPerms
 Behaviour.linearizationEventOfRequest
 ClusterRequestLinearizationEvent
+ValidRequest.isPPOPair
+Behaviour.cacheStateMadeOn
 DirectoryEvent.AreOrdered
 CacheEvent.AreOrdered
 Behaviour.requestDirectoryEvent

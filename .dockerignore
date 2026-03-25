@@ -1,0 +1,13 @@
+.git
+.lake
+.vscode
+cpp-lean-*.tar
+cpp-lean-*.tar.gz
+cpp-lean-*.tar.zst
+*.tar
+*.tar.gz
+*.tar.zst
+*.tgz
+!cmurphi5.5.0.tgz
+runs
+__pycache__
