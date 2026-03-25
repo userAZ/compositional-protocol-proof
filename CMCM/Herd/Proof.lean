@@ -771,7 +771,7 @@ theorem step_to_ordering
         -- as explicit existential witnesses (avoids Exists.choose issues).
         obtain ⟨e_cdir, he_cdir_in_b, he_cdir_isDir, he_cdir_proto, hcdir_lt_cle₂,
           ⟨e_cache_down, he_cdown_in_b, hcdir_encap_down, hcdown_is_down, hcdown_is_cache⟩,
-          ⟨e_evict, he_evict_in_b, he_evict_isDir, he_evict_down, hevict_lt_cle₂, hcdir_ob_evict⟩⟩ :=
+          ⟨e_evict, he_evict_in_b, he_evict_isDir, he_evict_down, hevict_lt_cle₂, hcdir_ob_evict, he_evict_proto⟩⟩ :=
           cdirEncapsDown_exists (lin e₁) (lin e₂) h.in_b₁ h.cache₁
         have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
         match hfc_cdir : e_cdir, he_cdir_isDir with
@@ -804,9 +804,54 @@ theorem step_to_ordering
                         (.directoryEvent de_evict) from hob_cle₁_evict)
                     (by rw [hw₂']; exact hevict_lt_cle₂)
                 | inr hob_evict_cle₁ =>
-                  -- e_evict OB CLE₁: evict (with down=true) before reader's CLE.
-                  -- This means the downgrade arrived before the read → NIW contradiction.
-                  sorry -- e_evict OB CLE₁: diffClusterNotBetweenCles_sameCache with evict between CLE_w and CLE₁
+                  -- e_evict OB CLE₁: evict (down=true) before reader's CLE → NIW.
+                  exfalso
+                  obtain ⟨e_w, e_w_write, e_w_lin, _, h_rf, h_no_between, h_co_chain⟩ := h.comm
+                  have hlin := fun e => h.hknow_dir_access compound b init e
+                  have h_constraints := h_no_between e₂ h.in_b₂
+                    h.cache₂ h.write h.notDown₂ (hlin e₂)
+                  -- e_evict at e₁'s cluster. Need e_w at same cluster for notBetweenCles.
+                  by_cases h_ew_prot : e₁.protocol = e_w.protocol
+                  · -- Same cluster e_w/e₁: use diffClusterNotBetweenCles_sameCache.
+                    -- e_evict at e₁'s cluster = e_w's cluster, with down=true.
+                    -- Need: e_evict.OrderedBetween CLE_w CLE₁
+                    -- hob_evict_cle₁ gives e_evict OB CLE₁ ✓.
+                    -- Need CLE_w OB e_evict: from dir_ordered (same cluster/addr).
+                    have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+                    match hfcw : e_w_lin.hreq's_dir_access.choose, hdir_w with
+                    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                    | .directoryEvent de_w, _ =>
+                      cases (b.orderedAtEntry.dir_ordered de_w de_evict).ordered with
+                      | inl hob_w_evict =>
+                        -- CLE_w OB e_evict OB CLE₁: evict between CLE_w and CLE₁.
+                        -- Apply diffClusterNotBetweenCles_sameCache.
+                        have h_between : e_evict.OrderedBetween n
+                            e_w_lin.hreq's_dir_access.choose
+                            (lin e₁).hreq's_dir_access.choose :=
+                          ⟨by rw [hfcw, hfc_evict]; exact hob_w_evict,
+                           by rw [hfc_evict, hfc_cle₁]; exact hob_evict_cle₁⟩
+                        exact absurd ⟨e_evict, by rw [hfc_evict]; exact he_evict_in_b,
+                          { interDiffProtocol := by
+                              intro heq; exact h_same_prot (h_ew_prot.trans heq.symm)
+                            downToW := by
+                              show e_evict.protocol = e_w.protocol
+                              rw [hfc_evict]; exact he_evict_proto.trans h_ew_prot
+                            isDirWrite := sorry -- e_evict.isDirWrite from shim structure
+                            downIsDown := by rw [hfc_evict]; exact he_evict_down
+                            isDir := by rw [hfc_evict]; simp [Event.isDirectoryEvent]
+                            translatedDir := sorry -- clusterDirFromDiffProtocolRequest
+                          }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCache
+                      | inr hob_evict_w =>
+                        -- e_evict OB CLE_w: evict before write CLE.
+                        -- co chain: CLE_w before CLE₂ → CLE_w.oEnd < CLE₂.oEnd.
+                        -- e_evict.oEnd < CLE_w.oStart. And CLE_w.oEnd < CLE₂.oEnd.
+                        -- But e_evict.oEnd < CLE₂.oEnd (from hevict_lt_cle₂). Consistent.
+                        -- Need: CLE₁ before something → .obEndLt. But CLE₁ is after evict
+                        -- and after CLE_w. No proxy available for .obEndLt.
+                        -- → exfalso via co chain temporal contradiction.
+                        sorry -- evict OB CLE_w: protocol temporal contradiction
+                  · -- Different cluster e_w/e₁.
+                    sorry -- diff-cluster e_w: diffClusterNotBetweenCles_sameCache
 -- Old lex pair approach (co_step_advances, co_chain_cle_advance, step_advances,
 -- transgen_lex_advance) removed. Using StepOrdering instead.
 -- Placeholder to mark where old code was:
