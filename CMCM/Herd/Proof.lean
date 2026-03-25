@@ -303,10 +303,64 @@ theorem fr_ordering_holds
   by_cases hcle_eq : (lin e₁).hreq's_dir_access.choose = (lin e₂).hreq's_dir_access.choose
   · exact .sameCLE hcle_eq
   · by_cases h_same_prot : e₁.sameProtocol n e₂
-    · -- Same cluster: derive CLE₁ OB CLE₂ from dir_ordered + NIW.
-      sorry -- fr_ordering_holds sameCluster: dir_ordered + notBetweenCles
-    · -- Diff cluster: derive proxy from cdirEncapsDown_exists.
-      sorry -- fr_ordering_holds diffCluster: cdirEncapsDown_exists + dir_ordered
+    · -- Same cluster: dir_ordered CLE₁ CLE₂ (same cluster + same addr from FR).
+      -- CLE₁ OB CLE₂ → .sameCluster. CLE₂ OB CLE₁ → NIW contradiction.
+      have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+      have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+      match hfc₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+      | .directoryEvent de₁, _ =>
+        match hfc₂ : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+        | .directoryEvent de₂, _ =>
+          cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+          | inl hob =>
+            exact .sameCluster h_same_prot (show Event.OrderedBefore n
+              (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose from
+              by rw [hfc₁, hfc₂]; exact hob)
+          | inr hob =>
+            -- CLE₂ OB CLE₁ → contradiction via NIW (same as old FR same-cluster proof).
+            exfalso
+            sorry -- NIW contradiction for CLE₂ OB CLE₁ (same cluster)
+    · -- Diff cluster: use cdirEncapsDown_exists for proxy.
+      -- dir_ordered CLE₁ cdir/evict → CLE₁ OB proxy, proxy.oEnd < CLE₂.oEnd.
+      obtain ⟨e_cdir, _, he_cdir_isDir, _, hcdir_lt_cle₂,
+        ⟨_, _, _, _, _⟩,
+        ⟨e_evict, _, he_evict_isDir, _, hevict_lt_cle₂, _, _, _, _, _⟩⟩ :=
+        cdirEncapsDown_exists (lin e₁) (lin e₂) h.in_b₁ h.cache₁
+      -- Use CLE₁ vs e_cdir ordering. CLE₁ OB cdir → .diffCluster with cdir as proxy.
+      have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+      match hfc_cdir : e_cdir, he_cdir_isDir with
+      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+      | .directoryEvent de_cdir, _ =>
+        match hfc_cle₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+        | .directoryEvent de_cle₁, _ =>
+          cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
+          | inl hob =>
+            -- CLE₁ OB cdir → .diffCluster with cdir as proxy
+            have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
+            exact .diffCluster h_same_prot (.directoryEvent de_cdir)
+              (show (lin e₁).hreq's_dir_access.choose.OrderedBefore n _ from by
+                rw [hfc_cle₁]; exact hob)
+              (by rw [hw₂']; exact hcdir_lt_cle₂)
+          | inr hob =>
+            -- cdir OB CLE₁ → use evict as proxy (same pattern as before)
+            have he_evict_isdir' := he_evict_isDir
+            match hfc_evict : e_evict, he_evict_isdir' with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de_evict, _ =>
+              cases (b.orderedAtEntry.dir_ordered de_cle₁ de_evict).ordered with
+              | inl hob_cle₁_evict =>
+                have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
+                exact .diffCluster h_same_prot (.directoryEvent de_evict)
+                  (show (lin e₁).hreq's_dir_access.choose.OrderedBefore n _ from by
+                    rw [hfc_cle₁]; exact hob_cle₁_evict)
+                  (by rw [hw₂']; exact hevict_lt_cle₂)
+              | inr hob_evict_cle₁ =>
+                -- evict OB CLE₁ → NIW contradiction (same pattern).
+                exfalso
+                sorry -- evict OB CLE₁ NIW contradiction
 
 /-- Map each PPOi ∪ com step to a StepOrdering between linearization points.
     PPOi: direct OB (e₁ OB e₂).
