@@ -203,10 +203,12 @@ The proof MUST compose across edges.
 ### DEAD END: lex pair (CLE.oEnd, e.oEnd) for acyclicity
 The `step_advances` approach with `(CLE.oEnd, e.oEnd)` as a lex pair FAILS for PPOi + orderAfterDir. For nc.weak events, the CLE comes from a SUCCESSOR (after e₂), so CLE₂ OB CLE₁ is the natural ordering — the lex pair goes BACKWARDS. Deleted in commit `b9e58ec`.
 
-### DEAD END: obEndLt (weakening obEncap to oEnd < oEnd)
-Weakened `obEncap`'s `EncapsulatedBy` to just `p.oEnd < l₂.oEnd` to handle `gcacheEncap`. This was WRONG — `gcacheEncap` should give full `EncapsulatedBy` via shim transitivity (CLE encaps GCR encaps cdir_down → CLE encaps cdir_down). The weakening was unnecessary and lost structural information. Reverted in commit `f272fa8`.
-
-**Key insight**: In the `gcacheEncap` case, the GCR is from `encapGlobalCache` shim (CLE encapsulates GCR to get global permissions). The `noGlobalCache` case produces `cleEncap` instead (CLE directly handles the downgrade since it already has global perms). So `gcacheEncap` ALWAYS has CLE encaps GCR available.
+### RESOLVED: obEndLt is CORRECT (not a dead end)
+`obEndLt` uses `p.oEnd < l₂.oEnd` instead of full `EncapsulatedBy`. This IS necessary because of the `noGlobalCache` shim case in `diffCache_coherent_encapProxyAndDir` (RfProofHelpers.lean:3296):
+- `noGlobalCache`: CLE already has global perms from a PREVIOUS GCR. The previous GCR encapsulates cdir_down, but CLE does NOT encapsulate the previous GCR (it's a past event). Only `cdir_down.oEnd < GCR.oEnd < CLE.oEnd` holds.
+- `encapGlobalCache`: CLE encapsulates GCR (new request). Full `EncapsulatedBy` would hold here, but `oEnd <` also works.
+- The construction ALWAYS uses `gcacheEncap` (line 3346), even for `noGlobalCache`. So `oEnd <` is the general bound.
+- `obEndLt` is sufficient for irrefl (`l.oEnd < p.oStart ≤ p.oEnd < l.oEnd` → contradiction) and trans (chains through `oEnd < oStart`).
 
 ### DEAD END: ALL per-edge temporal properties for acyclicity
 
