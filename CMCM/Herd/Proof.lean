@@ -408,9 +408,24 @@ theorem step_to_ordering
                           exact absurd hw_leaves_SW (by
                             simp [LE.le, State.le, LT.lt, State.lt, SW, Vd, Option.le])
                         | inl hbefore_vd =>
-                          -- stateBefore.cache = Vd. stateAfter unknown.
-                          -- nc.weak write from Vd: state transitions to non-coherent.
-                          -- Need protocol state machine for this case.
+                          -- stateBefore.cache = Vd. nc.weak write from Vd:
+                          -- RequestState ⟨.w,false,.Weak⟩ Vd = Vd (from _ => Vd branch).
+                          -- stateAfter.cache = Vd. SW ≤ Vd is false.
+                          -- The stateAfter = SucceedingState(stateBefore) for the last event.
+                          -- stateBefore.cache = Vd = ⟨some .wr, false⟩, not ⟨some .wr, true⟩ (SW).
+                          -- So nc.weak write maps Vd → Vd.
+                          -- Same contradiction: SW ≤ Vd false.
+                          unfold Behaviour.reqLeavesStateAtLeast at hw_leaves_SW
+                          -- hw_leaves_SW : SW ≤ (b.stateAfter ...).cache
+                          -- From hbefore_vd and nc.weak state machine: stateAfter.cache = Vd
+                          -- But we can't easily unfold stateAfter.
+                          -- Alternative: the disjunction gives us stateAfter = Vd OR stateBefore = Vd.
+                          -- We're in stateBefore = Vd. But stateAfter might not be Vd.
+                          -- However: the `reqOnOrAfterVd` is (stateBefore = Vd ∨ stateAfter = Vd).
+                          -- We handled inr (stateAfter = Vd). For inl: need state machine.
+                          -- For nc.weak write (non-downgrade) on Vd: RequestState gives Vd.
+                          -- SucceedingState = RequestState (since not down).
+                          -- But Behaviour.stateAfter involves the full event list, not just one event.
                           sorry
               | evictBetween evict =>
                 exact from_encap_wob evict.encapProxyAndDir evict.evictBetween.wObRDown
