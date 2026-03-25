@@ -819,12 +819,21 @@ theorem step_advances
                         (h.hknow_dir_access compound b init e₂).hreq's_dir_access.choose.isDirWrite := by
                       have : h.hknow_dir_access compound b init e₂ = h.e₂_lin := Subsingleton.elim _ _
                       rw [this]; exact write_event_cle_isDirWrite h.write h.cache₂ h.notDown₂ h.e₂_lin
-                    -- sameProtocol from write/read_cle_protocol helpers
-                    -- CLE₂.protocol = e₂.protocol, CLE_w.protocol = e_w.protocol, CLE₁.protocol = e₁.protocol
-                    -- Need: e₂.protocol = e_w.protocol AND e₂.protocol = e₁.protocol
-                    exact h_nbc ⟨sorry /- CLE₂.protocol = CLE_w.protocol -/,
-                                  sorry /- CLE₂.protocol = CLE₁.protocol -/,
-                                  h_isDirWrite⟩ h_ob_between
+                    -- by_cases on protocol: same cluster → notBetweenCles, diff → diffCluster
+                    by_cases h_prot₁ :
+                        (h.hknow_dir_access compound b init e₂).hreq's_dir_access.choose.protocol =
+                        e_w_lin.hreq's_dir_access.choose.protocol
+                    · by_cases h_prot₂ :
+                          (h.hknow_dir_access compound b init e₂).hreq's_dir_access.choose.protocol =
+                          h.e₁_lin.hreq's_dir_access.choose.protocol
+                      · -- Same protocol for all three → notBetweenCles applies
+                        exact h_nbc ⟨h_prot₁, h_prot₂, h_isDirWrite⟩ h_ob_between
+                      · -- CLE₂ different protocol from CLE₁
+                        -- Use diffClusterNotBetweenCles_sameCache
+                        sorry
+                    · -- CLE₂ different protocol from CLE_w
+                      -- Use diffClusterNotBetweenCles_sameCache
+                      sorry
                   | inr hob_₂w =>
                     -- de₂ OB de_w → de₂.oEnd < de_w.oStart, but de_w.oEnd ≤ de₂.oEnd → contradiction
                     have : de_w.oEnd < de_w.oEnd :=
