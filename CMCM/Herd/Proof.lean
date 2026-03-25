@@ -449,12 +449,31 @@ theorem step_to_ordering
             | inl hob => exact .ob hob
             | inr hob =>
               -- CLE₂ OB CLE₁. Use CompoundMCM to derive contradiction.
-              -- ppoi_compound_lin_order gives e_lin₁ OB e_lin₂.
-              -- e₁ has orderAfterDir → clusterDirLin → e_lin₁ at-or-inside CLE₁.
-              -- Combined with CLE₂ OB CLE₁ gives temporal contradiction
-              -- (when e₂ also linearizes at directory level).
-              -- For e₂ with orderBeforeDir (clusterCacheLin): needs predecessor elimination.
-              sorry -- CompoundMCM bridge: CLE₂ OB CLE₁ contradicts e_lin₁ OB e_lin₂
+              -- For different-address PPOi: CompoundLinearizationOrder gives
+              -- e_lin₁ OB e_lin₂ (compound linearization events ordered).
+              -- Combined with CLE₂ OB CLE₁ and the fact that e_lin is
+              -- at-or-inside CLE gives temporal contradiction.
+              exfalso
+              by_cases h_same_addr : e₁.addr = e₂.addr
+              · -- Same address: needs cache_ordered succ₁ vs e₂
+                sorry -- same-addr orderAfterDir(e₁): CLE₂ OB CLE₁ contradiction
+              · -- Different address: CompoundMCM theorem gives the ordering.
+                -- This is the key bridge showing CompoundMCM is useful!
+                have hclo := @ppoi_compound_lin_order n compound b init e₁ e₂ hppoi h_same_addr
+                -- CompoundLinearizationOrder: isPPOPair → e_lin₁ OB e_lin₂ ∨ lazy
+                unfold CompoundProtocol.CompoundLinearizationOrder at hclo
+                have hob_or_lazy := hclo hppoi.ppo
+                cases hob_or_lazy with
+                | inl helin_ob =>
+                  -- e_lin₁ OB e_lin₂: compound linearization events ordered.
+                  -- e_lin₁ at-or-inside CLE₁ (from clusterDirLin for orderAfterDir).
+                  -- e_lin₂ relates to CLE₂.
+                  -- CLE₂ OB CLE₁ + e_lin at-or-inside CLE → temporal contradiction.
+                  sorry -- temporal chain: e_lin₂.oEnd ≤ CLE₂.oEnd < CLE₁.oStart ≤ e_lin₁.oStart contradicts e_lin₁ OB e_lin₂
+                | inr hlazy =>
+                  -- Lazy case: only for nc.weak → c.release with orderAfterDir.
+                  -- finishesBefore (weaker than OB).
+                  sorry -- lazy CompoundLinearizationOrder case
   | inr hcom =>
     cases hcom with
     | rfe h =>
