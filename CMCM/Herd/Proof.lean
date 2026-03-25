@@ -686,68 +686,13 @@ theorem step_to_ordering
                 (by rw [hw₂']; exact hcdir_lt_cle₂)
             | inr hob =>
               -- cdir_down OB CLE₁ at e₁'s cluster directory.
-              -- Use GLE-level notBetweenGles (GLEs at global dir — VALID).
-              exfalso
-              obtain ⟨e_w, e_w_write, e_w_lin, _, h_rf, h_no_between, h_co_chain⟩ := h.comm
-              have hlin := fun e => h.hknow_dir_access compound b init e
-              have h_constraints := h_no_between e₂ h.in_b₂
-                h.cache₂ h.write h.notDown₂ (hlin e₂)
-              have h_nbg := h_constraints.notBetweenGles
-              -- GLEs: all at global directory (same address). dir_ordered VALID.
-              have hgdir₂ := (hlin e₂).hreq's_global_lin.choose_spec.2.isDirEvent
-              have hgdir_w := e_w_lin.hreq's_global_lin.choose_spec.2.isDirEvent
-              have hgdir₁ := (lin e₁).hreq's_global_lin.choose_spec.2.isDirEvent
-              have hgle₂_eq : hlin e₂ = h.e₂_lin := Subsingleton.elim _ _
-              match hgc₂ : (hlin e₂).hreq's_global_lin.choose, hgdir₂ with
-              | .directoryEvent ge₂, _ =>
-                match hgcw : e_w_lin.hreq's_global_lin.choose, hgdir_w with
-                | .directoryEvent ge_w, _ =>
-                  match hgc₁ : (lin e₁).hreq's_global_lin.choose, hgdir₁ with
-                  | .directoryEvent ge₁, _ =>
-                    -- dir_ordered on GLEs (same global dir, same address — VALID)
-                    cases (b.orderedAtEntry.dir_ordered ge_w ge₂).ordered with
-                    | inl hgle_w₂ =>
-                      cases (b.orderedAtEntry.dir_ordered ge₂ ge₁).ordered with
-                      | inl hgle_₂₁ =>
-                        -- GLE₂ between GLE_w and GLE₁ → notBetweenGles
-                        have h_ob_between : (hlin e₂).hreq's_global_lin.choose.OrderedBetween n
-                            e_w_lin.hreq's_global_lin.choose (lin e₁).hreq's_global_lin.choose := by
-                          constructor
-                          · simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
-                              hgle₂_eq, hgc₂, show e_w_lin = hlin e_w from Subsingleton.elim _ _, hgcw]
-                            exact hgle_w₂
-                          · simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
-                              hgle₂_eq, hgc₂, hgc₁]; exact hgle_₂₁
-                        exact h_nbg h_ob_between
-                      | inr hgle_₁₂ =>
-                        -- GLE₁ OB GLE₂. Not between. Need CLE-level argument.
-                        sorry
-                    | inr hgle_₂w =>
-                      -- GLE₂ OB GLE_w. RF: GLE_w ≤ GLE₁.
-                      cases h_rf with
-                      | wEqRGle hw_eq_r_gle _ _ =>
-                        -- GLE_w = GLE₁. GLE₂ OB GLE_w = GLE₁.
-                        cases (b.orderedAtEntry.dir_ordered ge₂ ge₁).ordered with
-                        | inl hgle_₂₁ =>
-                          -- GLE₂ OB GLE₁. Not between (GLE₂ before both). CLE-level.
-                          sorry
-                        | inr hgle_₁₂ =>
-                          -- GLE₁ OB GLE₂ and GLE₂ OB GLE_w = GLE₁ → temporal loop
-                          have hge_eq : ge_w = ge₁ := by
-                            have := hw_eq_r_gle; rw [hgcw] at this; rw [hgc₁] at this
-                            exact Event.directoryEvent.inj this
-                          exact Nat.lt_irrefl ge₁.oEnd (calc ge₁.oEnd
-                            _ < ge₂.oStart := hgle_₁₂
-                            _ ≤ ge₂.oEnd := Nat.le_of_lt ge₂.oWellFormed
-                            _ < ge_w.oStart := hgle_₂w
-                            _ = ge₁.oStart := by rw [hge_eq]
-                            _ ≤ ge₁.oEnd := Nat.le_of_lt ge₁.oWellFormed)
-                      | wObRGle _ _ =>
-                        -- GLE_w OB GLE₁ and GLE₂ OB GLE_w. GLE₂ before both. CLE-level.
-                        sorry
-                  | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-                | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+              -- Contradiction: the downgrade from e₂ at e₁'s cluster finishes
+              -- before CLE₁ starts. Combined with the temporal chain from
+              -- encapProxyAndDirAndCDown (e₁ OB e_r_down, cdir encaps e_r_down):
+              -- e_r_down.oEnd < cdir.oEnd < CLE₁.oStart < e₁.oEnd < e_r_down.oStart
+              -- → e_r_down.oEnd < e_r_down.oStart → well-formedness contradiction.
+              -- Needs cdirEncapsDown (cluster dir encaps cache downgrade).
+              sorry
 -- Old lex pair approach (co_step_advances, co_chain_cle_advance, step_advances,
 -- transgen_lex_advance) removed. Using StepOrdering instead.
 -- Placeholder to mark where old code was:
