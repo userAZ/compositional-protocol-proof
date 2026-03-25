@@ -334,15 +334,58 @@ theorem step_to_ordering
         | encapDir _ hencap₂ =>
           -- Both encapDir: CLE₁.oEnd < e₁.oEnd < e₂.oStart < CLE₂.oStart → .ob
           exact .ob (Nat.lt_trans (Nat.lt_trans hencap₁.reqEncapDir.right hppoi.orderedBefore) hencap₂.reqEncapDir.left)
-        | orderBeforeDir _ hexists_pred₂ hpred₂_encap _ _ _ _ _ =>
-          -- CLE₂ inside pred₂. pred₂.oEnd < e₂.oStart.
-          -- Chain: CLE₁.oEnd < e₁.oEnd < e₂.oStart. pred₂.oEnd < e₂.oStart.
-          -- CLE₂.oEnd < pred₂.oEnd.
-          -- Need pred₂ vs e₁ ordering for CLE₁ vs CLE₂.
-          -- From temporal chain: CLE₁ inside e₁, CLE₂ inside pred₂.
-          -- pred₁.oEnd < e₁.oStart (pred₁ OB e₁) — wait, we don't have pred₁ here.
-          -- e₁ OB e₂, pred₂ OB e₂. Both before e₂.
-          sorry -- need cache event ordering between e₁ and pred₂
+        | orderBeforeDir _ hexists_pred₂ hpred₂_encap hinter_leaves _ _ _ _ =>
+          -- CLE₁ inside e₁ (encapDir), CLE₂ inside pred₂ (orderBeforeDir).
+          -- pred₂ = hexists_pred₂.choose is the immediate bottom pred of e₂.
+          -- Need to order e₁ vs pred₂.
+          -- For same-address: cache_ordered gives the split.
+          -- For different-address: needs CompoundMCM.
+          have hpred₂_spec := hexists_pred₂.choose_spec.right
+          have hpred₂_ob_e₂ := hpred₂_spec.isImmPred.bPred.isPred
+          -- Extract CacheEvents from e₁ and pred₂
+          match he₁_ce : e₁, hppoi.cache₁ with
+          | .cacheEvent ce₁, _ =>
+            have hpred₂_cache := hpred₂_spec.satisfyP.reqCache
+            match hpred₂_ce : hexists_pred₂.choose, hpred₂_cache with
+            | .cacheEvent ce_pred₂, _ =>
+              -- Both are cache events. Use cache_ordered for ordering.
+              have hord := b.orderedAtEntry.cache_ordered ce₁ ce_pred₂
+              cases hord.ordered with
+              | inl hencap_or_before =>
+                -- e₁ encapsulated by or before pred₂
+                cases hencap_or_before with
+                | inl hencap₁_by_pred₂ =>
+                  -- e₁ encapsulated by pred₂ → e₁ is a downgrade (cache_encap_rule).
+                  -- Contradicts hppoi.notDown₁.
+                  exact absurd
+                    (show Event.down n (Event.cacheEvent ce₁) from
+                      b.orderedAtEntry.cache_encap_rule ce_pred₂ ce₁ hencap₁_by_pred₂)
+                    hppoi.notDown₁
+                | inr he₁_ob_pred₂ =>
+                  -- e₁ OB pred₂: CLE₁.oEnd < e₁.oEnd < pred₂.oStart < CLE₂.oStart → .ob
+                  have hpred₂_encap_cle₂ : hexists_pred₂.choose.Encapsulates n
+                      (lin e₂).hreq's_dir_access.choose := hpred₂_encap.reqEncapDir
+                  exact .ob (Nat.lt_trans (Nat.lt_trans hencap₁.reqEncapDir.right
+                    (by rw [hpred₂_ce]; exact he₁_ob_pred₂))
+                    hpred₂_encap_cle₂.left)
+              | inr hencap_or_before =>
+                -- pred₂ encapsulated by or before e₁
+                cases hencap_or_before with
+                | inl hpred₂_encap_by_e₁ =>
+                  -- pred₂ encapsulated by e₁ → pred₂ is a downgrade (cache_encap_rule).
+                  -- Contradicts hpred₂_spec.satisfyP.notDown.
+                  exact absurd
+                    (show Event.down n hexists_pred₂.choose from by
+                      rw [hpred₂_ce]
+                      exact b.orderedAtEntry.cache_encap_rule ce₁ ce_pred₂ hpred₂_encap_by_e₁)
+                    hpred₂_spec.satisfyP.notDown
+                | inr hpred₂_ob_e₁ =>
+                  -- pred₂ OB e₁: e₁ is between pred₂ and e₂.
+                  -- Predecessor elimination: e₁ satisfies the property,
+                  -- contradicting noIntermediateSatisfyingP.
+                  sorry -- predecessor elimination: needs reqHasNoPermsLeavesStateAtLeast for e₁
+            | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+          | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
         | orderAfterDir _ hsucc_encap₂ _ _ =>
           -- e₂ has orderAfterDir: CLE₂ inside succ₂ (immediate bottom successor of e₂).
           -- Chain: CLE₁.oEnd < e₁.oEnd < e₂.oEnd < succ₂.oStart < CLE₂.oStart → CLE₁ OB CLE₂
