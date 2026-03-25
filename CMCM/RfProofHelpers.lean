@@ -3346,6 +3346,15 @@ lemma diffCache_coherent_encapProxyAndDir
     Behaviour.clusterDown.encapDirRelation.gcacheEncap
       h_gcache_encap_dir h_dir_end_before_cle⟩ }
 
--- cdirEncapsDown: The chain needs proxy + dir from shim + cluster axiom.
--- The existential matching issue is avoided by constructing all fields from
--- the SAME case split. TODO: implement full diffCache_coherent_encapProxyAndDirAndCDown.
+-- cdirEncapsDown: construct from unified case split to avoid existential mismatch.
+-- TODO: Full implementation needs:
+-- 1. GlobalToCluster shim case split (same as encapProxyAndDir)
+-- 2. In each case: extract proxy e_proxy + dir e_dir + their membership/type evidence
+-- 3. Apply cluster axiom: (e_w.getProtocol cmp).reqAxioms.coherentWriteDowngrades
+--    (or coherentReadDowngrades) to e_proxy and e_dir
+-- 4. From axiom: downgradeOtherCaches → cWriteOnSW → fwdCoherentRequestToOwner
+--    → fwdPrevOwner → downgradeAtPrevOwner → downgradePrevOwner
+--    → dirEncapDowngrade : e_dir.Encapsulates n e_down
+-- 5. Construct encapProxyAndDirAndCDown with e_dir and e_down from SAME case split
+-- Pattern: CompoundPPOs.lean:1975 shows cluster axiom application.
+-- This avoids the Exists.choose mismatch between encapDir and existsRDownAtW.
