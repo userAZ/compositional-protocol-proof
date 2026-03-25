@@ -3361,7 +3361,12 @@ lemma cdirEncapsDown_exists
         e_cdir.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧
         (∃ e_cache_down ∈ b,
             e_cdir.Encapsulates n e_cache_down ∧
-            e_cache_down.down ∧ e_cache_down.isCacheEvent) := by
+            e_cache_down.down ∧ e_cache_down.isCacheEvent) ∧
+        -- The evict directory event (down=true, isDirWrite) for diffClusterNotBetweenCles_sameCache.
+        -- e_cdir (write dir) OB e_evict (evict dir), both at same cluster.
+        (∃ e_evict ∈ b, e_evict.isDirectoryEvent ∧ e_evict.down ∧
+            e_evict.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧
+            e_cdir.OrderedBefore n e_evict) := by
   -- Get global downgrade and GlobalToCluster shim
   have hgdown := diffCache_coherent_globalDowngrade hr_c_and_g_lin
   obtain ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b, hdowngrade⟩ := hgdown
@@ -3372,7 +3377,7 @@ lemma cdirEncapsDown_exists
   | bothCoherentWriteAndRead hcorrespond hboth downTranslation =>
     cases downTranslation with
     | scWriteDown _ translation =>
-      obtain ⟨e_cw, he_cw_in_b, e_dw, e_ce, _, e_de, _, hstruct⟩ := translation.scGDownTranslation
+      obtain ⟨e_cw, he_cw_in_b, e_dw, e_ce, _he_ce_in_b, e_de, he_de_in_b, hstruct⟩ := translation.scGDownTranslation
       -- e_dw is the directory event (our e_cdir). No choose involved!
       have he_dw_in_b := hstruct.cohWriteDir.dirInB
       have he_dw_isDir := hstruct.cohWriteDir.isDir
@@ -3424,8 +3429,48 @@ lemma cdirEncapsDown_exists
               exact hfwd_from.isDown
             | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
           | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+        -- Evict directory event: e_de from hstruct.cohEvictDir
+        have he_de_isDir := hstruct.cohEvictDir.isDir
+        have he_de_down : e_de.down := by
+          -- dirOfReq → matchesCacheEvent.sameDown: de.down = ce.down
+          -- cohEvict.downgrade: ce.down = True
+          have hdir_of_req := hstruct.cohEvictDir.dirOfReq
+          have hce_down := hstruct.cohEvict.downgrade
+          match he_de_ev : e_de, he_ce_ev : e_ce with
+          | .directoryEvent de, .cacheEvent ce =>
+            simp [Event.dirEventOfReqEvent, DirectoryEvent.matchesCacheEvent] at hdir_of_req
+            simp [Event.down]; rw [hdir_of_req.2]; simp [Event.down] at hce_down; exact hce_down
+          | .directoryEvent _, .directoryEvent _ =>
+            simp [Event.dirEventOfReqEvent] at hdir_of_req
+          | .cacheEvent _, _ =>
+            have := hstruct.cohEvictDir.isDir; simp [Event.isDirectoryEvent, he_de_ev] at this
+        have he_dw_ob_de : e_dw.OrderedBefore n e_de :=
+          hstruct.cohWriteImmBeforeEvict.isImmPred.bPred.isPred
+        -- e_de.oEnd < CLE₂.oEnd: e_de inside e_gdown (via evict encap chain), e_gdown inside e_gcache
+        have he_de_lt_cle : e_de.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd := by
+          have he_gdown_encap_de : e_r_gdown.Encapsulates n e_de :=
+            Event.encap_encap_trans n (hstruct.cohEvict.globalEncap)
+              (hstruct.cohEvictDir.reqEncapDir)
+          have h_gcache_encap_de : e_gcache.Encapsulates n e_de :=
+            Trans.trans (Trans.trans hdowngrade.downgradePrevOwner.reqEncapDir
+              hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_de
+          -- e_de.oEnd < e_gcache.oEnd < CLE₂.oEnd
+          exact Nat.lt_trans h_gcache_encap_de.2 (by
+            -- e_gcache.oEnd < CLE₂.oEnd (same chain as h_dw_end_before_cle)
+            let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
+            let hcdir_is_dir := hr_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+            show e_gcache.oEnd < e_r_cle.oEnd
+            show (Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init e_r_cle hcdir_is_dir).oEnd < e_r_cle.oEnd
+            unfold Behaviour.Shim.ClusterToGlobal.cDir'sGReq
+            match h : cmp.shimAxioms.clusterToGlobal b init e_r_cle hcdir_is_dir with
+            | .encapGlobalCache _ hgreq_spec => exact hgreq_spec.choose_spec.right.encapGlobalCache.2
+            | .noGlobalCache hhas_perms _ =>
+              unfold Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent
+              have hnonempty := Behaviour.hasPermsInGlobalCache_implies_nonempty_immFinishBefore b init _ hhas_perms
+              rw [dif_pos hnonempty]; exact hnonempty.some.prop.2.finishBefore.finBefore.endBefore)
         exact ⟨e_dw, he_dw_in_b, he_dw_isDir, he_dw_proto, h_dw_end_before_cle,
-          e_down, he_down_in_b, hencap, hdown_is_down, h_dpow.downgradePrevOwner.downAtCache⟩
+          ⟨e_down, he_down_in_b, hencap, hdown_is_down, h_dpow.downgradePrevOwner.downAtCache⟩,
+          ⟨e_de, he_de_in_b, he_de_isDir, he_de_down, he_de_lt_cle, he_dw_ob_de⟩⟩
       | cWriteOnMR hfwd =>
         -- MR case: downgradeAtSharers. Same structure but need to find a sharer ≠ e_cw.cid.
         sorry
@@ -3478,6 +3523,7 @@ lemma cdirEncapsDown_exists
             | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
           | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
         exact ⟨e_dr, he_dr_in_b, he_dr_isDir, he_dr_proto, h_dr_end_before_cle,
-          e_down, he_down_in_b, hencap, hdown_is_down, h_dpow.downgradePrevOwner.downAtCache⟩
+          ⟨e_down, he_down_in_b, hencap, hdown_is_down, h_dpow.downgradePrevOwner.downAtCache⟩,
+          sorry⟩ -- scReadDown: evict directory event (same structure as scWriteDown)
   | noCoherentRead hcorrespond _ downTranslation =>
     sorry -- No coherent read case

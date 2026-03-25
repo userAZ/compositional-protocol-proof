@@ -72,6 +72,13 @@ The current `e_cdir` (from cdirEncapsDown_exists) is the WRITE directory event (
 The EVICT directory event (`e_de` from `encapCorrespondingGetSWAndEvict.cohEvictDir`)
 has `down = true` (from `translateProxyEvent ... True`).
 
+**Philosophical insight**: The shim's `encapCorrespondingGetSWAndEvict` has TWO directory events:
+e_dw (write, down=false) and e_de (evict, down=true). The write REQUESTS access; the evict
+SENDS the downgrade. Only e_de satisfies sameCacheConstraints (needs down=true + isDirWrite).
+When `e_dw OB CLE₁`, either e_de is also before CLE₁ (NIW contradiction) or CLE₁ is between
+e_dw and e_de (reader sees write's value before evict → .obEndLt e_de). So `cdir OB CLE₁` is
+NOT always exfalso — it can produce a VALID StepOrdering in the CLE₁ OB e_de sub-case.
+
 **Fix**: extend `cdirEncapsDown_exists` to also return the evict directory event `e_de`:
 - `hstruct.cohWriteImmBeforeEvict : ImmediateBottomPredecessor e_dw e_de`
 - `e_de.down = true` from `matchesCacheEvent.sameDown` + evict proxy's `down = True`
