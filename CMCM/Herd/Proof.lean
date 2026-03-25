@@ -819,21 +819,114 @@ theorem step_advances
                         (h.hknow_dir_access compound b init e₂).hreq's_dir_access.choose.isDirWrite := by
                       have : h.hknow_dir_access compound b init e₂ = h.e₂_lin := Subsingleton.elim _ _
                       rw [this]; exact write_event_cle_isDirWrite h.write h.cache₂ h.notDown₂ h.e₂_lin h.in_b₂
-                    -- by_cases on protocol: same cluster → notBetweenCles, diff → diffCluster
-                    by_cases h_prot₁ :
-                        (h.hknow_dir_access compound b init e₂).hreq's_dir_access.choose.protocol =
-                        e_w_lin.hreq's_dir_access.choose.protocol
-                    · by_cases h_prot₂ :
-                          (h.hknow_dir_access compound b init e₂).hreq's_dir_access.choose.protocol =
-                          h.e₁_lin.hreq's_dir_access.choose.protocol
-                      · -- Same protocol for all three → notBetweenCles applies
-                        exact h_nbc ⟨h_prot₁, h_prot₂, h_isDirWrite⟩ h_ob_between
-                      · -- CLE₂ different protocol from CLE₁
-                        -- Use diffClusterNotBetweenCles_sameCache
-                        sorry
-                    · -- CLE₂ different protocol from CLE_w
-                      -- Use diffClusterNotBetweenCles_sameCache
-                      sorry
+                    -- Strategy: try notBetweenCles (same protocol) first.
+                    -- If protocols differ, use notBetweenGles (unconditional) + dir_ordered on GLEs.
+                    -- Extract notBetweenGles and GLEs
+                    have h_nbg := h_constraints.notBetweenGles
+                    -- GLEs are directory events
+                    have hgdir₂ := (h.hknow_dir_access compound b init e₂).hreq's_global_lin.choose_spec.2.isDirEvent
+                    have hgdir_w := e_w_lin.hreq's_global_lin.choose_spec.2.isDirEvent
+                    have hgdir₁ := h.e₁_lin.hreq's_global_lin.choose_spec.2.isDirEvent
+                    -- Bridge Subsingleton for GLE₂
+                    have hgle₂_eq : (h.hknow_dir_access compound b init e₂) = h.e₂_lin :=
+                      Subsingleton.elim _ _
+                    have hglew_eq : e_w_lin = hlin e_w := Subsingleton.elim _ _
+                    match hgc₂ : (h.hknow_dir_access compound b init e₂).hreq's_global_lin.choose, hgdir₂ with
+                    | .directoryEvent ge₂, _ =>
+                      match hgcw : e_w_lin.hreq's_global_lin.choose, hgdir_w with
+                      | .directoryEvent ge_w, _ =>
+                        match hgc₁ : h.e₁_lin.hreq's_global_lin.choose, hgdir₁ with
+                        | .directoryEvent ge₁, _ =>
+                          -- dir_ordered on GLE_w and GLE₂
+                          cases (b.orderedAtEntry.dir_ordered ge_w ge₂).ordered with
+                          | inl hgle_w₂ =>
+                            -- GLE_w OB GLE₂
+                            cases (b.orderedAtEntry.dir_ordered ge₂ ge₁).ordered with
+                            | inl hgle_₂₁ =>
+                              -- GLE₂ between GLE_w and GLE₁ → notBetweenGles
+                              exact h_nbg ⟨by
+                                simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
+                                  hgle₂_eq, hgc₂, hglew_eq, hgcw]; exact hgle_w₂, by
+                                simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
+                                  hgle₂_eq, hgc₂, hgc₁]; exact hgle_₂₁⟩
+                            | inr hgle_₁₂ =>
+                              -- GLE₁ OB GLE₂ and GLE_w OB GLE₂: both before GLE₂.
+                              -- From RF: GLE_w ≤ GLE₁. From co: CLE_w.oEnd ≤ CLE₂.oEnd.
+                              -- Chain: GLE_w.oEnd < ge₂.oStart and ge₁.oEnd < ge₂.oStart
+                              -- And CLE₂.oEnd < CLE₁.oStart (hob) and GLE₁.oEnd < CLE₁.oEnd
+                              -- ge₁.oEnd < ge₂.oStart ≤ ge₂.oEnd < CLE₂.oEnd (GLE < CLE always)
+                              -- CLE₂.oEnd < de₁.oStart (hob), and de₁.oStart ≤ de₁.oEnd = CLE₁.oEnd
+                              -- Need: ge₁.oEnd < CLE₁.oStart? Yes from chain:
+                              -- ge₁.oEnd < ge₂.oStart and ge₂.oEnd < CLE₂.oEnd = de₂.oEnd < de₁.oStart
+                              -- So ge₁.oEnd < de₁.oStart
+                              -- But ge₁.oEnd < CLE₁.oEnd = de₁.oEnd: ge₁ finishes before CLE₁
+                              -- From GLE_w OB GLE₂ (hgle_w₂): ge_w.oEnd < ge₂.oStart
+                              -- Also: CLE_w.oEnd ≤ CLE₂.oEnd (hcw_le')
+                              -- ge_w.oEnd < CLE_w.oEnd = de_w.oEnd ≤ de₂.oEnd = CLE₂.oEnd
+                              -- GLE₁.oEnd < CLE₁.oEnd = de₁.oEnd
+                              -- All consistent, no direct temporal contradiction...
+                              -- But: GLE₁.oEnd = ge₁.oEnd < ge₂.oStart ≤ ge₂.oEnd
+                              -- And ge₂.oEnd < de₂.oEnd < de₁.oStart
+                              -- So ge₁.oEnd < de₁.oStart. Combined with ge₁.oEnd < de₁.oEnd.
+                              -- Still no loop.
+                              -- FALLBACK: use notBetweenCles if possible
+                              exact h_nbc ⟨sorry, sorry, h_isDirWrite⟩ h_ob_between
+                          | inr hgle_₂w =>
+                            -- GLE₂ OB GLE_w: ge₂.oEnd < ge_w.oStart
+                            -- From co chain: CLE_w.oEnd ≤ CLE₂.oEnd
+                            -- GLE_w.oEnd < CLE_w.oEnd (always)
+                            -- ge₂.oEnd < ge_w.oStart ≤ ge_w.oEnd < CLE_w.oEnd ≤ CLE₂.oEnd
+                            -- But GLE₂.oEnd < CLE₂.oEnd: ge₂.oEnd < CLE₂.oEnd ✓ (consistent)
+                            -- From RF: GLE_w ≤ GLE₁.
+                            -- Cases on RF:
+                            cases h_rf with
+                            | wEqRGle _ _ _ =>
+                              -- GLE_w = GLE₁ (same GLE)
+                              -- ge₂.oEnd < ge_w.oStart = ge₁.oStart (since GLE_w = GLE₁)
+                              -- But also ge₂.oEnd < ge_w.oStart ≤ ge_w.oEnd = ge₁.oEnd
+                              -- And GLE₁ OB GLE₂? Use dir_ordered(ge₂, ge₁):
+                              cases (b.orderedAtEntry.dir_ordered ge₂ ge₁).ordered with
+                              | inl hgle_₂₁ =>
+                                -- ge₂.oEnd < ge₁.oStart. Combined with GLE₂ OB GLE_w and GLE_w=GLE₁:
+                                -- ge₂.oEnd < ge_w.oStart = ge₁.oStart. Consistent.
+                                -- But also ge₂.oEnd < ge₁.oStart and ge₁.oEnd < ge₂.oStart?
+                                -- NO: we have GLE₂ OB GLE_w = GLE₁, so ge₂.oEnd < ge₁.oStart.
+                                -- And ge₂ OB ge₁: ge₂.oEnd < ge₁.oStart. Consistent.
+                                -- GLE₂ between GLE_w and GLE₁? GLE_w OB GLE₂? No, GLE₂ OB GLE_w.
+                                -- Not between. Hmm.
+                                -- But we can build a temporal contradiction:
+                                -- CLE₂.oEnd < CLE₁.oStart (hob)
+                                -- GLE₂.oEnd < GLE_w.oStart (hgle_₂w)
+                                -- CLE_w.oEnd ≤ CLE₂.oEnd (hcw_le')
+                                -- GLE_w.oEnd < CLE_w.oEnd (GLE < CLE)
+                                -- Chain: ge_w.oEnd < de_w.oEnd ≤ de₂.oEnd. And ge₂.oEnd < ge_w.oStart.
+                                -- ge₂.oEnd < ge_w.oStart ≤ ge_w.oEnd < de_w.oEnd ≤ de₂.oEnd
+                                -- But ge₂.oEnd < de₂.oEnd (GLE < CLE). Consistent.
+                                -- No loop.
+                                exact h_nbc ⟨sorry, sorry, h_isDirWrite⟩ h_ob_between
+                              | inr hgle_₁₂ =>
+                                -- GLE₁ OB GLE₂ and GLE₂ OB GLE_w = GLE₁
+                                -- ge₁.oEnd < ge₂.oStart and ge₂.oEnd < ge₁.oStart
+                                -- Chain: ge₁.oEnd < ge₂.oStart ≤ ge₂.oEnd < ge₁.oStart ≤ ge₁.oEnd
+                                -- Contradiction!
+                                have : ge₁.oEnd < ge₁.oEnd :=
+                                  calc ge₁.oEnd < ge₂.oStart := hgle_₁₂
+                                    _ ≤ ge₂.oEnd := Nat.le_of_lt ge₂.oWellFormed
+                                    _ < ge_w.oStart := hgle_₂w
+                                    _ ≤ ge_w.oEnd := Nat.le_of_lt ge_w.oWellFormed
+                                    _ ≤ ge₁.oEnd := sorry -- GLE_w = GLE₁ → ge_w.oEnd = ge₁.oEnd
+                                exact Nat.lt_irrefl _ this
+                            | wObRGle _ _ =>
+                              -- GLE_w OB GLE₁ and GLE₂ OB GLE_w
+                              -- ge₂.oEnd < ge_w.oStart (hgle_₂w)
+                              -- ge_w.oEnd < ge₁.oStart (from wObRGle → GLE ordering)
+                              -- Chain: ge₂.oEnd < ge_w.oStart ≤ ge_w.oEnd < ge₁.oStart
+                              -- So GLE₂ OB GLE_w OB GLE₁. GLE₂ is before both. No between.
+                              -- Need CLE-level argument. FALLBACK to notBetweenCles.
+                              exact h_nbc ⟨sorry, sorry, h_isDirWrite⟩ h_ob_between
+                        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                   | inr hob_₂w =>
                     -- de₂ OB de_w → de₂.oEnd < de_w.oStart, but de_w.oEnd ≤ de₂.oEnd → contradiction
                     have : de_w.oEnd < de_w.oEnd :=
