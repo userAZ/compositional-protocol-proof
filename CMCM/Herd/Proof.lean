@@ -720,7 +720,31 @@ theorem cmcm_acyclic_of_hknow
   intro e hcycle
   suffices ∀ a c, Relation.TransGen (PPOi ∪ com compound b init) a c →
       StepOrdering (hknow a).hreq's_dir_access.choose (hknow c).hreq's_dir_access.choose by
-    exact StepOrdering.irrefl (this e e hcycle)
+    have hstep := this e e hcycle
+    -- Handle each StepOrdering case. The .eq case uses dir_ordered de de → False
+    -- (CLE is always a directory event; self-ordering contradicts oWellFormed).
+    -- Non-.eq cases use the standard irrefl arguments.
+    cases hstep with
+    | ob h => exact Event.contradiction_of_reflexive_ordered_before n h
+    | obEndLt p hp hlt =>
+      exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hlt)
+    | sameLin e₁' e₂' heq he₁ hob he₂ =>
+      have : Event.oEnd n (hknow e).hreq's_dir_access.choose <
+             Event.oEnd n (hknow e).hreq's_dir_access.choose :=
+        calc _ < e₁'.oEnd := he₁.right
+          _ < e₂'.oStart := hob
+          _ < (hknow e).hreq's_dir_access.choose.oStart := he₂.left
+          _ < (hknow e).hreq's_dir_access.choose.oEnd :=
+            Event.oWellFormed n (hknow e).hreq's_dir_access.choose
+      exact Nat.lt_irrefl _ this
+    | eq _ =>
+      have hisdir := (hknow e).hreq's_dir_access.choose_spec.right.isDirEvent
+      match (hknow e).hreq's_dir_access.choose, hisdir with
+      | .directoryEvent de, _ =>
+        cases (b.orderedAtEntry.dir_ordered de de).ordered with
+        | inl h => exact absurd (Nat.lt_trans h de.oWellFormed) (Nat.lt_irrefl _)
+        | inr h => exact absurd (Nat.lt_trans h de.oWellFormed) (Nat.lt_irrefl _)
+      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
   intro a c hpath
   induction hpath with
   | single h => exact step_to_ordering h hknow
