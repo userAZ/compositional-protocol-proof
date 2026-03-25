@@ -1020,7 +1020,20 @@ theorem step_to_ordering
                         -- Use co chain StepOrdering to get CLE_w.oEnd bound, then
                         -- encap chain CLE₂ > e_gcache > e_gdown > evict to get
                         -- CLE_w < evict. Combined with evict < CLE_w → oWellFormed contradiction.
-                        sorry -- evict OB CLE_w: needs co chain .ob + encap chain for CLE_w < evict
+                        -- Use dir_ordered CLE_w de_cdir (from outer match, same cluster/addr).
+                        -- If CLE_w OB de_cdir → temporal loop: de_w < de_cdir < de_evict < de_w.
+                        cases (b.orderedAtEntry.dir_ordered de_w de_cdir).ordered with
+                        | inl hob_w_cdir =>
+                          exact Nat.lt_irrefl de_w.oEnd
+                            (calc de_w.oEnd
+                              _ < de_cdir.oStart := hob_w_cdir
+                              _ ≤ de_cdir.oEnd := Nat.le_of_lt de_cdir.oWellFormed
+                              _ < de_evict.oStart := hcdir_ob_evict
+                              _ ≤ de_evict.oEnd := Nat.le_of_lt de_evict.oWellFormed
+                              _ < de_w.oStart := hob_evict_w
+                              _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed)
+                        | inr hob_cdir_w =>
+                          sorry -- cdir OB CLE_w: deeper protocol argument
                   · -- Different cluster e_w/e₁: evict at e₁'s cluster, CLE_w at e_w's cluster.
                     -- Need CLE_w OB evict for OrderedBetween, then diffClusterNotBetweenCles_sameCache.
                     -- Chain: co → CLE_w.oEnd < CLE₂.oStart (for .ob case) → CLE₂ encaps chain → evict.
