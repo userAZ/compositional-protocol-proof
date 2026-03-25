@@ -157,6 +157,7 @@ structure fr (e₁ e₂ : Event n) : Prop where
     e_w.addr = e₁.addr ∧
     Behaviour.readsFrom.cases e_w_write read e_w_lin e₁_lin hknow_dir_access ∧
     NoInterveningWrites e_w_write read e_w_lin e₁_lin hknow_dir_access ∧
-    Relation.TransGen (@co n compound b init) e_w e₂
+    Relation.TransGen (@co n compound b init) e_w e₂ ∧
+    e_w ∈ b ∧ e_w.isClusterCache ∧ ¬ e_w.down
 
 end Herd
