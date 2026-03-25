@@ -407,21 +407,26 @@ theorem step_to_ordering
             hpred₁_encap.reqEncapDir.right hpred₁_ob_e₁)
             (Event.oWellFormed n e₁)) hppoi.orderedBefore) hencap₂.reqEncapDir.left)
         | orderBeforeDir _ _ _ _ _ _ _ _ =>
-          -- Both orderBeforeDir: CLEs from predecessors. Use dir_ordered.
-          have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
-          have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-          match hfc₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
-          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-          | .directoryEvent de₁, _ =>
-            match hfc₂ : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+          -- Both orderBeforeDir: CLEs from predecessors.
+          -- For same-address: use dir_ordered (same cluster + same address). ✓
+          -- For diff-address: use CompoundMCM (avoids cross-address dir_ordered).
+          by_cases h_same_addr : e₁.addr = e₂.addr
+          · -- Same address: dir_ordered valid (same cluster from PPOi, same addr).
+            have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+            have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+            match hfc₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
             | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-            | .directoryEvent de₂, _ =>
-              cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
-              | inl hob => exact .ob hob
-              | inr hob =>
-                -- CLE₂ OB CLE₁. Both events have orderBeforeDir (clusterCacheLin).
-                -- Needs predecessor elimination or CompoundMCM for contradiction.
-                sorry -- CLE₂ OB CLE₁ with both orderBeforeDir: predecessor elimination
+            | .directoryEvent de₁, _ =>
+              match hfc₂ : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+              | .directoryEvent de₂, _ =>
+                cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+                | inl hob => exact .ob hob
+                | inr hob =>
+                  -- CLE₂ OB CLE₁. Same addr, both orderBeforeDir → predecessor elimination.
+                  sorry -- same-addr predecessor elimination
+          · -- Different address: CompoundMCM.
+            sorry -- diff-addr: CompoundMCM for orderBeforeDir×orderBeforeDir
         | orderAfterDir _ hsucc_encap₂ _ _ =>
           -- e₂ has orderAfterDir: CLE₂ inside succ₂.
           -- Chain: CLE₁.oEnd < pred₁.oEnd < e₁.oEnd < e₂.oEnd < succ₂.oStart < CLE₂.oStart
@@ -436,44 +441,37 @@ theorem step_to_ordering
             (Event.oWellFormed n e₂)) (Nat.lt_trans he₂_ob_succ₂ hsucc₂_encap_cle₂.left))
       | orderAfterDir _ hsucc_encap₁ _ _ =>
         -- e₁ has orderAfterDir: CLE₁ from succ₁ (after e₁).
-        -- Both CLEs at same cluster (from PPOi.sameProtocol). Use dir_ordered.
-        have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
-        have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-        match hfc₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
-        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-        | .directoryEvent de₁, _ =>
-          match hfc₂ : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+        -- Split on same-addr vs diff-addr to avoid cross-address dir_ordered.
+        by_cases h_same_addr : e₁.addr = e₂.addr
+        · -- Same address: dir_ordered valid (same cluster + same addr).
+          have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+          have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+          match hfc₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-          | .directoryEvent de₂, _ =>
-            cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
-            | inl hob => exact .ob hob
-            | inr hob =>
-              -- CLE₂ OB CLE₁. Use CompoundMCM to derive contradiction.
-              -- For different-address PPOi: CompoundLinearizationOrder gives
-              -- e_lin₁ OB e_lin₂ (compound linearization events ordered).
-              -- Combined with CLE₂ OB CLE₁ and the fact that e_lin is
-              -- at-or-inside CLE gives temporal contradiction.
-              exfalso
-              by_cases h_same_addr : e₁.addr = e₂.addr
-              · -- Same address: needs cache_ordered succ₁ vs e₂
+          | .directoryEvent de₁, _ =>
+            match hfc₂ : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₂, _ =>
+              cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+              | inl hob => exact .ob hob
+              | inr hob =>
+                -- Same-addr CLE₂ OB CLE₁ with orderAfterDir(e₁).
                 sorry -- same-addr orderAfterDir(e₁): CLE₂ OB CLE₁ contradiction
-              · -- Different address: CompoundMCM theorem gives the ordering.
-                -- This is the key bridge showing CompoundMCM is useful!
-                have hclo := @ppoi_compound_lin_order n compound b init e₁ e₂ hppoi h_same_addr
-                -- CompoundLinearizationOrder: isPPOPair → e_lin₁ OB e_lin₂ ∨ lazy
-                unfold CompoundProtocol.CompoundLinearizationOrder at hclo
-                have hob_or_lazy := hclo hppoi.ppo
-                cases hob_or_lazy with
-                | inl helin_ob =>
-                  -- e_lin₁ OB e_lin₂: compound linearization events ordered.
-                  -- e_lin₁ at-or-inside CLE₁ (from clusterDirLin for orderAfterDir).
-                  -- e_lin₂ relates to CLE₂.
-                  -- CLE₂ OB CLE₁ + e_lin at-or-inside CLE → temporal contradiction.
-                  sorry -- temporal chain: e_lin₂.oEnd ≤ CLE₂.oEnd < CLE₁.oStart ≤ e_lin₁.oStart contradicts e_lin₁ OB e_lin₂
-                | inr hlazy =>
-                  -- Lazy case: only for nc.weak → c.release with orderAfterDir.
-                  -- finishesBefore (weaker than OB).
-                  sorry -- lazy CompoundLinearizationOrder case
+        · -- Different address: CompoundMCM theorem gives the ordering.
+          -- This is the key bridge showing CompoundMCM is useful!
+          have hclo := @ppoi_compound_lin_order n compound b init e₁ e₂ hppoi h_same_addr
+          -- CompoundLinearizationOrder: isPPOPair → e_lin₁ OB e_lin₂ ∨ lazy
+          unfold CompoundProtocol.CompoundLinearizationOrder at hclo
+          have hob_or_lazy := hclo hppoi.ppo
+          cases hob_or_lazy with
+          | inl helin_ob =>
+            -- e_lin₁ OB e_lin₂: compound linearization events ordered.
+            -- e_lin₁ at-or-inside CLE₁ (from clusterDirLin for orderAfterDir).
+            -- CLE₂ OB CLE₁ + e_lin at-or-inside CLE → temporal contradiction.
+            sorry -- CompoundMCM temporal chain contradiction
+          | inr hlazy =>
+            -- Lazy case: only for nc.weak → c.release with orderAfterDir.
+            sorry -- lazy CompoundLinearizationOrder case
   | inr hcom =>
     cases hcom with
     | rfe h =>
@@ -803,19 +801,23 @@ theorem step_to_ordering
               -- If different, use diffClusterNotBetweenCles_sameCache.
               by_cases h_ew_prot : e₁.protocol = e_w.protocol
               · -- Same cluster e_w and e₁: CLE_w, e_cdir, CLE₁ all at same directory.
-                -- co chain gives CLE_w.oEnd ≤ CLE₂.oEnd (at e₂'s cluster = diff from e₁).
-                -- But e_cdir OB CLE₁ at e₁'s directory.
-                -- Use notBetweenCles: CLE₂ (e₂ at diff cluster) won't help here.
-                -- Actually need: e_cdir is a directory WRITE at e₁'s cluster between CLE_w and CLE₁.
-                -- e_cdir.isDirWrite + e_cdir.protocol = e₁.protocol = e_w.protocol.
-                -- notBetweenCles says CLE₂ not between CLE_w and CLE₁ (but CLE₂ at diff cluster).
-                -- Instead: e_cdir IS a dir write between CLE_w and CLE₁.
-                -- Use diffClusterNotBetweenCles_sameCache on e_cdir.
-                sorry -- same cluster e_w/e₁: NIW with e_cdir at e₁'s directory
-              · -- Different cluster e_w and e₁: e_cdir at e₁'s protocol ≠ e_w's protocol.
-                -- diffClusterNotBetweenCles_sameCache applies if e_cdir at e_w's protocol,
-                -- but e_cdir is at e₁'s protocol. Need different approach.
-                sorry -- diff cluster e_w/e₁: needs cross-cluster NIW argument
+                -- Use dir_ordered CLE_w CLE₁ (valid: same cluster, same address from FR).
+                -- Then use co chain to get CLE_w.oEnd < CLE₂.oEnd.
+                have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+                match hfcw : e_w_lin.hreq's_dir_access.choose, hdir_w with
+                | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                | .directoryEvent de_w, _ =>
+                  cases (b.orderedAtEntry.dir_ordered de_cle₁ de_w).ordered with
+                  | inl hob_₁w =>
+                    -- CLE₁ OB CLE_w → .obEndLt CLE_w with co chain bound.
+                    -- co chain: StepOrdering CLE_w CLE₂ → CLE_w.oEnd < CLE₂.oEnd
+                    -- (CLE_w ≠ CLE₂ since different clusters → strict).
+                    sorry -- CLE₁ OB CLE_w: .obEndLt via co chain oEnd bound
+                  | inr hob_w₁ =>
+                    -- CLE_w OB CLE₁ + e_cdir OB CLE₁: NIW contradiction.
+                    sorry -- CLE_w OB CLE₁: NIW with e_cdir between
+              · -- Different cluster e_w and e₁.
+                sorry -- diff cluster e_w/e₁: cross-cluster NIW
 -- Old lex pair approach (co_step_advances, co_chain_cle_advance, step_advances,
 -- transgen_lex_advance) removed. Using StepOrdering instead.
 -- Placeholder to mark where old code was:
