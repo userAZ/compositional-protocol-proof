@@ -685,15 +685,18 @@ theorem step_to_ordering
                   rw [hfc_cdir]; exact hob)
                 (by rw [hw₂']; exact hcdir_lt_cle₂)
             | inr hob =>
-              -- cdir_down OB CLE₁. Temporal chain contradiction via cdirEncapsDown.
-              -- The cluster protocol axiom gives: e_dir encaps e_down (cache downgrade).
-              -- Chain: e_down.oEnd < e_dir.oEnd = cdir.oEnd < CLE₁.oStart
-              --        < e₁.oEnd < e_down.oStart (from e₁ OB e_down)
-              -- → e_down.oEnd < e_down.oStart → contradiction.
-              -- Construction uses Subsingleton to bridge encapDir witnesses.
+              -- cdir_down OB CLE₁. Use cdirEncapsDown for temporal chain contradiction.
               exfalso
-              sorry -- cdirEncapsDown: needs cluster protocol axiom application
-              -- (see CLAUDE.md for detailed plan)
+              obtain ⟨e_cache_down, he_down_in_b, hcdir_encap_down, hdown_is_down, hdown_is_cache⟩ :=
+                cdirEncapsDown_of_encapDir (lin e₁) (lin e₂) h.in_b₁ h.cache₁ hdown
+              -- hcdir_encap_down : cdir_down.Encapsulates n e_cache_down
+              -- e_cache_down at e₁'s cache, e₁ OB e_cache_down (from protocol chain)
+              -- Temporal chain: e_cache_down.oEnd < cdir_down.oEnd (from encap)
+              --   cdir_down.oEnd < CLE₁.oStart (from hob, via hfc_cdir/hfc_cle₁)
+              -- Need: e₁.oEnd < e_cache_down.oStart (e₁ before cache downgrade)
+              -- Then: e_cache_down.oEnd < ... < e₁.oEnd < e_cache_down.oStart
+              -- → e_cache_down.oEnd < e_cache_down.oStart → contradiction.
+              sorry -- needs e₁ OB e_cache_down from protocol evidence
 -- Old lex pair approach (co_step_advances, co_chain_cle_advance, step_advances,
 -- transgen_lex_advance) removed. Using StepOrdering instead.
 -- Placeholder to mark where old code was:

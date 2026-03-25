@@ -3346,11 +3346,28 @@ lemma diffCache_coherent_encapProxyAndDir
     Behaviour.clusterDown.encapDirRelation.gcacheEncap
       h_gcache_encap_dir h_dir_end_before_cle⟩ }
 
--- cdirEncapsDown construction plan:
--- 1. Re-derive global downgrade + GlobalToCluster shim (same as encapProxyAndDir)
--- 2. Case-split on shim translation → extract proxy + dir
--- 3. Apply cluster axiom (coherentWriteDowngrades) to proxy + dir
--- 4. Get dirEncapDowngrade : e_dir.Encapsulates n e_down
--- 5. Bridge to hdown.existsRClusterDirDown.choose via Subsingleton.elim
--- Pattern: CompoundPPOs.lean:1975 for cluster axiom application.
--- Protocol selection: (e_w.getProtocol cmp).reqAxioms.coherentWriteDowngrades
+/-- The cluster directory downgrade encapsulates a cache downgrade at e_w's cache.
+    Constructed from the cluster protocol axiom (coherentWriteDowngrades/coherentReadDowngrades).
+    The proxy + dir come from the GlobalToCluster shim (same as encapProxyAndDir).
+    The cluster axiom gives dirEncapDowngrade : e_dir.Encapsulates n e_down. -/
+lemma cdirEncapsDown_of_encapDir
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    {e_w e_r : Event n}
+    (_hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+    (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+    (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache)
+    (hdown : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin)
+    : ∃ e_cache_down ∈ b,
+        hdown.existsRClusterDirDown.choose.Encapsulates n e_cache_down ∧
+        e_cache_down.down ∧ e_cache_down.isCacheEvent := by
+  -- Re-derive the construction to expose the proxy event.
+  have hgdown := diffCache_coherent_globalDowngrade hr_c_and_g_lin
+  obtain ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b, hdowngrade⟩ := hgdown
+  have hg2c := cmp.shimAxioms.globalToCluster b init (e_w.getProtocol cmp) e_r_gdown he_r_gdown_in_b
+  -- Case-split on GlobalToCluster shim to extract proxy + dir at e_w's cluster.
+  -- Then apply cluster protocol axiom for dirEncapDowngrade.
+  -- TODO: Full case split on shim translation types (scWriteDown, scReadDown, etc.)
+  -- For each: extract proxy, dir, apply (e_w.getProtocol cmp).reqAxioms.coherentWriteDowngrades
+  -- (or coherentReadDowngrades), get fwdPrevOwner → downgradeAtPrevOwner → dirEncapDowngrade.
+  -- Bridge via Subsingleton.elim to match hdown.existsRClusterDirDown.choose.
+  sorry
