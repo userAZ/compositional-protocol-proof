@@ -771,7 +771,7 @@ theorem step_to_ordering
         -- as explicit existential witnesses (avoids Exists.choose issues).
         obtain ⟨e_cdir, he_cdir_in_b, he_cdir_isDir, he_cdir_proto, hcdir_lt_cle₂,
           ⟨e_cache_down, he_cdown_in_b, hcdir_encap_down, hcdown_is_down, hcdown_is_cache⟩,
-          ⟨e_evict, he_evict_in_b, he_evict_isDir, he_evict_down, hevict_lt_cle₂, hcdir_ob_evict, he_evict_proto⟩⟩ :=
+          ⟨e_evict, he_evict_in_b, he_evict_isDir, he_evict_down, hevict_lt_cle₂, hcdir_ob_evict, he_evict_proto, he_evict_isDirWrite⟩⟩ :=
           cdirEncapsDown_exists (lin e₁) (lin e₂) h.in_b₁ h.cache₁
         have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
         match hfc_cdir : e_cdir, he_cdir_isDir with
@@ -836,7 +836,7 @@ theorem step_to_ordering
                             downToW := by
                               show e_evict.protocol = e_w.protocol
                               rw [hfc_evict]; exact he_evict_proto.trans h_ew_prot
-                            isDirWrite := sorry -- e_evict.isDirWrite from shim structure
+                            isDirWrite := by rw [hfc_evict]; exact he_evict_isDirWrite
                             downIsDown := by rw [hfc_evict]; exact he_evict_down
                             isDir := by rw [hfc_evict]; simp [Event.isDirectoryEvent]
                             translatedDir := sorry -- clusterDirFromDiffProtocolRequest

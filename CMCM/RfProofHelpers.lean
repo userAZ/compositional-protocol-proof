@@ -3366,7 +3366,8 @@ lemma cdirEncapsDown_exists
         -- e_cdir (write dir) OB e_evict (evict dir), both at same cluster.
         (∃ e_evict ∈ b, e_evict.isDirectoryEvent ∧ e_evict.down ∧
             e_evict.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧
-            e_cdir.OrderedBefore n e_evict ∧ e_evict.protocol = e_w.protocol) := by
+            e_cdir.OrderedBefore n e_evict ∧ e_evict.protocol = e_w.protocol ∧
+            e_evict.isDirWrite) := by
   -- Get global downgrade and GlobalToCluster shim
   have hgdown := diffCache_coherent_globalDowngrade hr_c_and_g_lin
   obtain ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b, hdowngrade⟩ := hgdown
@@ -3473,7 +3474,22 @@ lemma cdirEncapsDown_exists
           ⟨e_de, he_de_in_b, he_de_isDir, he_de_down, he_de_lt_cle, he_dw_ob_de,
            hstruct.cohEvictDir.sameProtocol.symm.trans
              (correspondingCluster_protocol_eq hcorrespond
-               hstruct.cohEvict.atCorrClusterProxy.clusterMatch.atCorrCluster |>.symm.trans hp_eq)⟩⟩
+               hstruct.cohEvict.atCorrClusterProxy.clusterMatch.atCorrCluster |>.symm.trans hp_eq),
+           -- isDirWrite: evict dir has SC write request → isWrite
+           by
+             have hdir_of_req := hstruct.cohEvictDir.dirOfReq
+             have hreq_trans := hstruct.cohEvict.reqTranslation
+             -- hreq_trans : ValidRequest.isSCWrite e_ce.req
+             match he_de_ev : e_de, he_ce_ev : e_ce with
+             | .directoryEvent de, .cacheEvent ce =>
+               simp [Event.isDirWrite]
+               simp [Event.dirEventOfReqEvent, DirectoryEvent.matchesCacheEvent] at hdir_of_req
+               -- hdir_of_req.1 : de.eReq = ce → de.req relates to ce.req
+               sorry -- isDirWrite: req.val.isWrite from matchesCacheEvent + isSCWrite
+             | .directoryEvent _, .directoryEvent _ =>
+               simp [Event.dirEventOfReqEvent] at hdir_of_req
+             | .cacheEvent _, _ =>
+               have := hstruct.cohEvictDir.isDir; simp [Event.isDirectoryEvent, he_de_ev] at this⟩⟩
       | cWriteOnMR hfwd =>
         -- MR case: downgradeAtSharers. Same structure but need to find a sharer ≠ e_cw.cid.
         sorry
