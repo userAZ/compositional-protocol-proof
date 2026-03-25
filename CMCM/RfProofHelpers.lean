@@ -3346,11 +3346,11 @@ lemma diffCache_coherent_encapProxyAndDir
     Behaviour.clusterDown.encapDirRelation.gcacheEncap
       h_gcache_encap_dir h_dir_end_before_cle⟩ }
 
--- cdirEncapsDown: The unified construction needs the cluster axiom
--- (coherentWriteDowngrades / coherentReadDowngrades) applied to the proxy + dir
--- from the GlobalToCluster shim. Pattern: CompoundPPOs.lean:1975.
--- The existential matching is avoided by constructing encapDir, existsRDownAtW,
--- and cdirEncapsDown from the SAME shim case split.
--- Currently blocked on: which specific cluster protocol to use
--- (e_w.getProtocol cmp vs cmp.cluster1 etc.) and whether the proxy event
--- satisfies the coherentWrite/Read requirements for the axiom application.
+-- cdirEncapsDown construction plan:
+-- 1. Re-derive global downgrade + GlobalToCluster shim (same as encapProxyAndDir)
+-- 2. Case-split on shim translation → extract proxy + dir
+-- 3. Apply cluster axiom (coherentWriteDowngrades) to proxy + dir
+-- 4. Get dirEncapDowngrade : e_dir.Encapsulates n e_down
+-- 5. Bridge to hdown.existsRClusterDirDown.choose via Subsingleton.elim
+-- Pattern: CompoundPPOs.lean:1975 for cluster axiom application.
+-- Protocol selection: (e_w.getProtocol cmp).reqAxioms.coherentWriteDowngrades

@@ -685,14 +685,15 @@ theorem step_to_ordering
                   rw [hfc_cdir]; exact hob)
                 (by rw [hw₂']; exact hcdir_lt_cle₂)
             | inr hob =>
-              -- cdir_down OB CLE₁ at e₁'s cluster directory.
-              -- Contradiction: the downgrade from e₂ at e₁'s cluster finishes
-              -- before CLE₁ starts. Combined with the temporal chain from
-              -- encapProxyAndDirAndCDown (e₁ OB e_r_down, cdir encaps e_r_down):
-              -- e_r_down.oEnd < cdir.oEnd < CLE₁.oStart < e₁.oEnd < e_r_down.oStart
-              -- → e_r_down.oEnd < e_r_down.oStart → well-formedness contradiction.
-              -- Needs cdirEncapsDown (cluster dir encaps cache downgrade).
-              sorry
+              -- cdir_down OB CLE₁. Temporal chain contradiction via cdirEncapsDown.
+              -- The cluster protocol axiom gives: e_dir encaps e_down (cache downgrade).
+              -- Chain: e_down.oEnd < e_dir.oEnd = cdir.oEnd < CLE₁.oStart
+              --        < e₁.oEnd < e_down.oStart (from e₁ OB e_down)
+              -- → e_down.oEnd < e_down.oStart → contradiction.
+              -- Construction uses Subsingleton to bridge encapDir witnesses.
+              exfalso
+              sorry -- cdirEncapsDown: needs cluster protocol axiom application
+              -- (see CLAUDE.md for detailed plan)
 -- Old lex pair approach (co_step_advances, co_chain_cle_advance, step_advances,
 -- transgen_lex_advance) removed. Using StepOrdering instead.
 -- Placeholder to mark where old code was:
