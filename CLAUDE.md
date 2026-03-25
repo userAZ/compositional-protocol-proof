@@ -91,6 +91,18 @@ The GLE/CLE/cache lex ordering falls out as a CONSEQUENCE of this communication 
 - The `noGlobalCache` shim case should NOT produce `gcacheEncap` — it produces `cleEncap` (CLE directly handles cluster-level downgrade when it already has global perms).
 - **Approach**: case-split on `cmp.shimAxioms.clusterToGlobal` to extract `encapGlobalCache`, then transitivity.
 
+**StepOrdering `.eq` constructor (added 2026-03-24 late)**
+- Same-CLE edges where only one event encapsulates the CLE can't produce `.sameLin` (needs CLE inside TWO ordered events). Example: co sameCache with encapDir × orderBeforeDir — predecessor = e₁ is the only event containing CLE.
+- `.eq` carries just `l₁ = l₂`. Trans: subst. Irrefl: can't derive False from equality alone.
+- **Cycle-level argument for irrefl**: every real cycle has ≥1 rfe/fr edge (from transgen_union_find_right + ppoi_acyclic for pure-PPOi). rfe always gives `.ob`/`.obEndLt` (rfe wEqRCle is vacuous via diffCache). fr with CLE₁=CLE₂ gives dir_ordered on identical events → False. So composed result is never `.eq`.
+- **Implementation**: modify `cmcm_acyclic_of_hknow` to show composed result is non-eq, then apply `StepOrdering.irrefl` only on non-eq cases. OR: add `StepOrdering.irrefl_of_non_eq` that requires witness of a non-eq step in the chain.
+
+**nc.weak + wHasPermsAfter contradiction (rfe noEvictBetween sorry)**
+- `orderAfterDir` requires `ncWeakReqOnVd` → event is nc.weak `(.w, false, .Weak)` → non-coherent.
+- `wHasPermsAfter` requires `reqLeavesStateAtLeast SW` → state after has coherent perms (c=true).
+- nc.weak writes don't produce coherent state → contradiction.
+- Need separate lemma (converse of `coherent_write_leaves_at_least_SW` doesn't suffice — it proves coherent → leaves SW, not ¬coherent → ¬leaves SW). Need protocol state machine reasoning about nc.weak state transitions.
+
 **Category 2: PPOi → StepOrdering (1 sorry)**
 - Need to map PPOi(e₁, e₂) to StepOrdering CLE₁ CLE₂.
 - For encapDir × encapDir: `.ob` (CLE₁ inside e₁ OB e₂ inside CLE₂ → CLE₁ OB CLE₂).
