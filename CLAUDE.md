@@ -619,6 +619,8 @@ So: compoundLin(e_w).oEnd < e_r_down.oStart, and e_r_down is inside e_r_cdir_dow
 - **`/learn`** after discovering patterns, user corrections, dead ends — IMMEDIATELY when you figure something out or learn something new, not later
 - **`/reflect`** every ~20-30 min: am I correct? efficient? going in circles?
 - **`/philosophy`** before major proof decisions, when stuck, when something feels architecturally wrong
+- **`/imagine`** BEFORE implementing: construct a concrete scenario (name the events, trace the chain, check reachability). 30 seconds of imagination saves hours of wrong-direction coding. Use for: "can this case actually arise?", "what does the temporal chain look like?", "is this case vacuous?"
+- **Use creativity**: when stuck, don't just try harder — try differently. Question whether the definition is right, whether a different intermediate event works, whether a constructor should be weaker/stronger. The `obEndLt` insight came from asking "what does `noGlobalCache` actually give us?" not from trying to force `EncapsulatedBy`.
 - **Consult philosophy PROACTIVELY** — before proving, implementing, planning, or thinking about anything significant. Ask: "Is the abstraction right? Does this match the protocol mechanism? Will a reviewer find this convincing? Am I being vacuous?" Don't wait until stuck — think deeply FIRST.
 - **Consult TODOs and philosophy AS you implement** — after each proof step, check: am I still on track? Does this match the TODO? Is the abstraction still right? This work is tricky — repeatedly verify direction.
 - **Don't just close sorry's — verify the replacement does what the TODO describes.** A sorry replaced with wrong semantics is worse than a sorry. (Learned from ParaMC CLAUDE.md.)
