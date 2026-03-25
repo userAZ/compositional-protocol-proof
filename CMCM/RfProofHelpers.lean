@@ -3486,7 +3486,20 @@ lemma cdirEncapsDown_exists
                simp [Event.isDirWrite]
                simp [Event.dirEventOfReqEvent, DirectoryEvent.matchesCacheEvent] at hdir_of_req
                -- hdir_of_req.1 : de.eReq = ce → de.req relates to ce.req
-               sorry -- isDirWrite: req.val.isWrite from matchesCacheEvent + isSCWrite
+               -- isDirWrite: de.req = reqToDirOfRequestEvent ... ce.
+               -- For isSCWrite: reqToDirOfRequestEvent falls through to default → de.req = ce.req.
+               -- ce.req.isSCWrite → ce.req.val.isWrite.
+               have hdir_req := hstruct.cohEvictDir.dirCorresponds.dirReq
+               simp [Event.req, he_de_ev, he_ce_ev] at hdir_req
+               rw [hdir_req]
+               -- Now goal: (Behaviour.reqToDirOfRequestEvent ...).val.isWrite
+               -- hreq_trans : ValidRequest.isSCWrite ce.req
+               -- For SC write: reqToDirOfRequestEvent returns ce.req unchanged.
+               simp [Behaviour.reqToDirOfRequestEvent, Event.reqToDirOfRequestEvent,
+                     Event.req, he_ce_ev, Event.down, he_ce_ev] at hreq_trans ⊢
+               -- isSCWrite → isWrite: vr = ⟨⟨.w, true, .SC⟩, _⟩ → vr.val.isWrite
+               simp [ValidRequest.isSCWrite] at hreq_trans
+               rw [hreq_trans]; simp [Request.isWrite]
              | .directoryEvent _, .directoryEvent _ =>
                simp [Event.dirEventOfReqEvent] at hdir_of_req
              | .cacheEvent _, _ =>
