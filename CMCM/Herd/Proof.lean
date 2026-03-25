@@ -149,12 +149,12 @@ A cycle gives StepOrdering lin(e) lin(e) → contradiction. -/
 inductive StepOrdering : Event n → Event n → Prop where
   /-- Direct OB between linearization points -/
   | ob (h : l₁.OrderedBefore n l₂) : StepOrdering l₁ l₂
-  /-- OB to intermediate, intermediate inside target lin point -/
-  | obEncap (p : Event n) (h_ob : l₁.OrderedBefore n p) (h_enc : p.EncapsulatedBy n l₂)
+  /-- OB to intermediate, intermediate finishes before target lin point.
+      Weaker than EncapsulatedBy — only requires oEnd < l₂.oEnd, not oStart constraint.
+      Sufficient for irrefl (l.oEnd < p.oStart ≤ p.oEnd < l.oEnd) and trans. -/
+  | obEndLt (p : Event n) (h_ob : l₁.OrderedBefore n p) (h_lt : Event.oEnd n p < Event.oEnd n l₂)
       : StepOrdering l₁ l₂
-  /-- Same linearization point: cache events advance but CLE stays.
-      l₁ = l₂ = CLE, with cache events e₁ OB e₂ that encapsulate CLE.
-      The previous/next steps connect to/from this shared CLE. -/
+  /-- Same linearization point: cache events advance but CLE stays. -/
   | sameLin (e₁' e₂' : Event n) (h_eq : l₁ = l₂)
       (h_enc₁ : l₁.EncapsulatedBy n e₁') (h_ob : e₁'.OrderedBefore n e₂')
       (h_enc₂ : l₂.EncapsulatedBy n e₂') : StepOrdering l₁ l₂
@@ -167,13 +167,20 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
   | ob h₁ =>
     cases h₂₃ with
     | ob h₂ => exact .ob (Trans.trans h₁ h₂)
-    | obEncap p hp hpe => exact .obEncap p (Trans.trans h₁ hp) hpe
+    | obEndLt p hp hlt => exact .obEndLt p (Trans.trans h₁ hp) hlt
     | sameLin _ _ heq _ _ _ => subst heq; exact .ob h₁
-  | obEncap q hq hqe =>
+  | obEndLt q hq hqlt =>
+    -- q.oEnd < l₂.oEnd. Cases on h₂₃:
     cases h₂₃ with
-    | ob h₂ => exact .ob (Trans.trans hq (Event.encap_by_order_trans n hqe h₂))
-    | obEncap p hp hpe => exact .obEncap p (Trans.trans hq (Event.encap_by_order_trans n hqe hp)) hpe
-    | sameLin _ _ heq _ _ _ => subst heq; exact .obEncap q hq hqe
+    | ob h₂ =>
+      -- q.oEnd < l₂.oEnd (hqlt), l₂.oEnd < l₃.oStart (h₂) → q OB l₃
+      have hq_ob_l₃ : q.OrderedBefore n l₃ := Nat.lt_trans hqlt h₂
+      exact .ob (Trans.trans hq hq_ob_l₃)
+    | obEndLt p hp hlt =>
+      -- q.oEnd < l₂.oEnd (hqlt), l₂.oEnd < p.oStart (hp) → q OB p
+      have hq_ob_p : q.OrderedBefore n p := Nat.lt_trans hqlt hp
+      exact .obEndLt p (Trans.trans hq hq_ob_p) hlt
+    | sameLin _ _ heq _ _ _ => subst heq; exact .obEndLt q hq hqlt
   | sameLin e₁' e₂' heq he₁ hob he₂ =>
     subst heq; exact h₂₃
 
@@ -181,8 +188,10 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
 theorem StepOrdering.irrefl {l : Event n} (h : StepOrdering l l) : False := by
   cases h with
   | ob h => exact Event.contradiction_of_reflexive_ordered_before n h
-  | obEncap p hp hpe =>
-    exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hpe.right)
+  | obEndLt p hp hlt =>
+    -- l OB p: l.oEnd < p.oStart. p.oEnd < l.oEnd.
+    -- Chain: l.oEnd < p.oStart ≤ p.oEnd < l.oEnd → contradiction
+    exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hlt)
   | sameLin e₁' e₂' heq he₁ hob he₂ =>
     have : l.oEnd < l.oEnd :=
       calc l.oEnd
@@ -258,11 +267,11 @@ theorem step_to_ordering
                 (lin e₂).hreq's_dir_access.choose := by
             have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
             have hencap_rel := hcdir_spec.2.2.2
-            exact .obEncap hdown.existsRClusterDirDown.choose
+            exact .obEndLt hdown.existsRClusterDirDown.choose
               (by rw [← hw₁]; exact hwOB)
               (by rw [← hw₂]; cases hencap_rel with
-                  | cleEncap henc => exact henc
-                  | gcacheEncap henc _ => sorry)
+                  | cleEncap henc => exact henc.right
+                  | gcacheEncap _ hlt => exact hlt)
           -- Dispatch all diffCache.case sub-cases
           cases hdiff_cache_case with
           | wHasPermsAfter _ coherentCase =>
@@ -309,37 +318,33 @@ theorem step_to_ordering
             -- = obEncap
             have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
             have hencap_rel := hcdir_spec.2.2.2
-            exact .obEncap hdown.existsRClusterDirDown.choose
+            exact .obEndLt hdown.existsRClusterDirDown.choose
               (by rw [← hw₁]; exact hwObRDown)
               (by rw [← hw₂]; cases hencap_rel with
-                  | cleEncap henc => exact henc
-                  | gcacheEncap henc _ => sorry) -- gcacheEncap gives GCR encaps, not CLE encaps
+                  | cleEncap henc => exact henc.right
+                  | gcacheEncap _ hlt => exact hlt)
         | evictOrReadBetweenWAndRCleSameCluster evict =>
-          -- CLE₁ OB CLE₂ from wObR
           exact .ob (by rw [← hw₁, ← hw₂]; exact evict.wObR)
       | diffClus _ diff_cluster_cases =>
-        -- Different cluster: downgrade chain via wObRDown + encapDirRelation
         have hw₁ : h.w₁_lin = lin e₁ := Subsingleton.elim _ _
         have hw₂ : h.w₂_lin = lin e₂ := Subsingleton.elim _ _
         cases diff_cluster_cases with
         | wCleImmPredDown w =>
-          -- wObRDown: CLE₁ OB e_r_cdir_down
-          -- encapDirRelation: e_r_cdir_down EncapBy CLE₂
           have hcdir_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
           have hencap_rel := hcdir_spec.2.2.2
-          exact .obEncap w.rDown.encapDir.existsRClusterDirDown.choose
+          exact .obEndLt w.rDown.encapDir.existsRClusterDirDown.choose
             (by rw [← hw₁]; exact w.wObRDown)
             (by rw [← hw₂]; cases hencap_rel with
-                | cleEncap henc => exact henc
-                | gcacheEncap henc _ => sorry)
+                | cleEncap henc => exact henc.right
+                | gcacheEncap _ hlt => exact hlt)
         | evictOrReadBetweenWAndRDown evict =>
           have hcdir_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
           have hencap_rel := hcdir_spec.2.2.2
-          exact .obEncap evict.rDown.encapDir.existsRClusterDirDown.choose
+          exact .obEndLt evict.rDown.encapDir.existsRClusterDirDown.choose
             (by rw [← hw₁]; exact evict.wObRDown)
             (by rw [← hw₂]; cases hencap_rel with
-                | cleEncap henc => exact henc
-                | gcacheEncap henc _ => sorry)
+                | cleEncap henc => exact henc.right
+                | gcacheEncap _ hlt => exact hlt)
     | fr h =>
       -- fr: rf⁻¹;co⁺ composition
       sorry
