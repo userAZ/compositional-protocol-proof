@@ -575,11 +575,86 @@ theorem step_to_ordering
               cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
               | inl hob => exact .ob hob
               | inr hob =>
-                -- CLE₂ OB CLE₁ at same cluster → contradiction.
-                -- e₂'s write is coherence-after e_w. e₁ reads e_w.
-                -- So CLE₁ should be before CLE₂, not after.
-                -- NoInterveningWrites excludes e₂ between e_w and e₁.
-                sorry
+                -- CLE₂ OB CLE₁ at same cluster → contradiction via NIW.
+                exfalso
+                obtain ⟨e_w, e_w_write, e_w_lin, _, h_rf, h_no_between, h_co_chain⟩ := h.comm
+                have hlin := fun e => h.hknow_dir_access compound b init e
+                have h_constraints := h_no_between e₂ h.in_b₂
+                  h.cache₂ h.write h.notDown₂ (hlin e₂)
+                -- e₁ and e₂ at same cluster → CLE₂.protocol = CLE₁.protocol
+                have hprot_e₂_e₁ : e₂.protocol = e₁.protocol := by
+                  unfold Event.sameProtocol at h_same_prot; exact h_same_prot.symm
+                have hcle₂_prot := write_cle_protocol_eq_write_protocol (hlin e₂)
+                have hcle₁_prot := read_cle_protocol_eq_read_protocol (lin e₁)
+                have hprot₂ : (hlin e₂).hreq's_dir_access.choose.protocol =
+                    (lin e₁).hreq's_dir_access.choose.protocol := by
+                  calc (hlin e₂).hreq's_dir_access.choose.protocol
+                    _ = e₂.protocol := hcle₂_prot
+                    _ = e₁.protocol := hprot_e₂_e₁
+                    _ = (lin e₁).hreq's_dir_access.choose.protocol := hcle₁_prot.symm
+                -- by_cases on e_w's cluster
+                have hcle_w_prot := write_cle_protocol_eq_write_protocol e_w_lin
+                by_cases h_ew_prot : e₂.protocol = e_w.protocol
+                · -- Same cluster e_w: all three CLEs at same directory.
+                  have hprot₁ : (hlin e₂).hreq's_dir_access.choose.protocol =
+                      e_w_lin.hreq's_dir_access.choose.protocol := by
+                    calc (hlin e₂).hreq's_dir_access.choose.protocol
+                      _ = e₂.protocol := hcle₂_prot
+                      _ = e_w.protocol := h_ew_prot
+                      _ = e_w_lin.hreq's_dir_access.choose.protocol := hcle_w_prot.symm
+                  -- notBetweenCles: CLE₂ not between CLE_w and CLE₁
+                  have h_isDirWrite : (hlin e₂).hreq's_dir_access.choose.isDirWrite := by
+                    have : hlin e₂ = h.e₂_lin := Subsingleton.elim _ _
+                    rw [this]; exact write_event_cle_isDirWrite h.write h.cache₂ h.notDown₂ h.e₂_lin h.in_b₂
+                  -- Need OrderedBetween: CLE_w OB CLE₂ OB CLE₁
+                  -- CLE₂ OB CLE₁ from hob. CLE_w OB CLE₂ from dir_ordered (same cluster).
+                  have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+                  match hfcw : e_w_lin.hreq's_dir_access.choose, hdir_w with
+                  | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                  | .directoryEvent de_w, _ =>
+                    cases (b.orderedAtEntry.dir_ordered de_w de₂).ordered with
+                    | inl hob_w₂ =>
+                      have h_ob_between :
+                          (hlin e₂).hreq's_dir_access.choose.OrderedBetween n
+                          e_w_lin.hreq's_dir_access.choose (lin e₁).hreq's_dir_access.choose := by
+                        exact ⟨by simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
+                                  show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _,
+                                  hfc₂, hfcw]; exact hob_w₂,
+                               by simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
+                                  show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _,
+                                  hfc₂, hfc₁]; exact hob⟩
+                      have h_nbc := h_constraints.notBetweenCles
+                      unfold SameClusterCLE.NotBetweenCLEs at h_nbc
+                      exact h_nbc ⟨hprot₁, hprot₂, h_isDirWrite⟩ h_ob_between
+                    | inr hob_₂w =>
+                      -- CLE₂ OB CLE_w: co chain gives CLE_w.oEnd ≤ CLE₂.oEnd → contradiction
+                      have hco_so := co_chain_step_ordering hlin h_co_chain
+                      rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hco_so
+                      -- Extract oEnd: StepOrdering gives CLE_w.oEnd ≤ CLE₂.oEnd
+                      have hcw_le : de_w.oEnd ≤ de₂.oEnd := by
+                        cases hco_so with
+                        | ob h_ob =>
+                          simp only [Event.oEnd, hfcw] at h_ob
+                          exact Nat.le_of_lt (Nat.lt_trans h_ob (by
+                            simp only [Event.oEnd, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂]
+                            exact de₂.oWellFormed))
+                        | obEndLt p hp hlt =>
+                          simp only [Event.oEnd, hfcw] at hp
+                          simp only [Event.oEnd, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at hlt ⊢
+                          exact Nat.le_of_lt (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hlt)
+                        | sameLin _ _ heq _ _ _ =>
+                          simp only [Event.oEnd, hfcw, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at heq ⊢
+                          exact Nat.le_of_eq (congrArg DirectoryEvent.oEnd (Event.directoryEvent.inj heq))
+                        | eq heq =>
+                          simp only [Event.oEnd, hfcw, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at heq ⊢
+                          exact Nat.le_of_eq (congrArg DirectoryEvent.oEnd (Event.directoryEvent.inj heq))
+                      have : de_w.oEnd < de_w.oEnd :=
+                        calc de_w.oEnd ≤ de₂.oEnd := hcw_le
+                          _ < de_w.oStart := hob_₂w
+                          _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed
+                      exact Nat.lt_irrefl _ this
+                · -- Diff cluster e_w: use diffClusterNotBetweenCles_sameCache
+                  sorry
       · -- Different cluster: e₂ write triggers downgrade at e₁'s cluster.
         have hdown := diffCache_coherent_encapProxyAndDir
           (lin e₁) (lin e₂) h.in_b₁ h.cache₁
