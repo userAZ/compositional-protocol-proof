@@ -328,7 +328,7 @@ theorem step_to_ordering
       have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2
       have hda₂ := (lin e₂).hreq's_dir_access.choose_spec.2
       cases hda₁ with
-      | encapDir _ hencap₁ =>
+      | encapDir hreq_missing_perms₁ hencap₁ =>
         -- CLE₁ inside e₁: CLE₁.oEnd < e₁.oEnd
         cases hda₂ with
         | encapDir _ hencap₂ =>
@@ -380,10 +380,37 @@ theorem step_to_ordering
                       exact b.orderedAtEntry.cache_encap_rule ce₁ ce_pred₂ hpred₂_encap_by_e₁)
                     hpred₂_spec.satisfyP.notDown
                 | inr hpred₂_ob_e₁ =>
-                  -- pred₂ OB e₁: e₁ is between pred₂ and e₂.
-                  -- Predecessor elimination: e₁ satisfies the property,
-                  -- contradicting noIntermediateSatisfyingP.
-                  sorry -- predecessor elimination: needs reqHasNoPermsLeavesStateAtLeast for e₁
+                  -- pred₂ OB e₁: predecessor elimination (same addr) or CompoundMCM (diff addr).
+                  by_cases h_same_addr : e₁.addr = e₂.addr
+                  · -- Same addr: predecessor elimination.
+                    exfalso
+                    have he₁_between : (Event.cacheEvent ce₁).OrderedBetween n
+                        hexists_pred₂.choose e₂ :=
+                      ⟨by rw [hpred₂_ce]; exact hpred₂_ob_e₁, hppoi.orderedBefore⟩
+                    have hinter_result := hinter_leaves (Event.cacheEvent ce₁)
+                      hppoi.in_b₁ he₁_between
+                    have he₁_satisfies : b.predHasNoPermsAndLeavesStateAtLeastReq n init
+                        (Event.cacheEvent ce₁) e₂ :=
+                      { missingPerms := hreq_missing_perms₁
+                        notDown := hppoi.notDown₁
+                        stateAfterAtLeast := hinter_result.hinter_leaves_state_at_least
+                        reqCache := hppoi.cache₁ }
+                    have he₁_bse : b.bottomSameEntry n (Event.cacheEvent ce₁) e₂ :=
+                      { sameEntry := by
+                          match he₂_ce : e₂, hppoi.cache₂ with
+                          | .cacheEvent ce₂, _ =>
+                            constructor
+                            · show Struct.cache ce₁.cid = Struct.cache ce₂.cid
+                              exact congrArg Struct.cache hppoi.sameCid'
+                            · show ce₁.addr = ce₂.addr
+                              have := h_same_addr; simp [Event.addr, he₁_ce] at this; exact this
+                          | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+                        isBottom := hppoi.isBottom₁ }
+                    exact hpred₂_spec.isImmPred.noIntermediateSatisfyingP
+                      (Event.cacheEvent ce₁) hppoi.in_b₁ he₁_bse
+                      ⟨⟨he₁_between.pred, he₁_between.succ⟩, he₁_satisfies⟩
+                  · -- Diff addr: CompoundMCM.
+                    sorry -- diff-addr encapDir×orderBeforeDir: use CompoundMCM
             | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
           | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
         | orderAfterDir _ hsucc_encap₂ _ _ =>

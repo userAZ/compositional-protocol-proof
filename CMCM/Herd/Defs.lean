@@ -65,6 +65,8 @@ structure PPOi (e₁ e₂ : Event n) : Prop where
   cache₂ : e₂.isCacheEvent
   in_b₁ : e₁ ∈ b
   in_b₂ : e₂ ∈ b
+  isBottom₁ : b.IsBottomEvent n e₁
+  isBottom₂ : b.IsBottomEvent n e₂
 
 /-- rfe: Reads-from external (different cache).
     A write e₁ that is read by e₂, at the same address, from different caches.
