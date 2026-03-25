@@ -529,11 +529,18 @@ theorem step_to_ordering
                               cases hv : ce₁.req.val with | mk rw c cs => simp_all [Bool.not_eq_true]
                             have hreq_eq : ce₁.req = ⟨⟨.w, false, .Weak⟩, by simp [Request.IsValid']⟩ :=
                               Subtype.ext hreq_val
-                            -- stateAfter = SucceedingState(stateBefore) [via stateAfter_eq_succeedingState]
-                            -- For cache event, non-downgrade, nc.weak write on Vd:
-                            -- SucceedingState = RequestState, RequestState ⟨.w,false,.Weak⟩ Vd = Vd
-                            -- Then SW ≤ Vd false. Simp plumbing blocks — needs EntryState.cache reduction.
-                            sorry
+                            -- Compute stateAfter.cache step by step
+                            have hsucc_cache : (Event.SucceedingState n (.cacheEvent ce₁)
+                                (b.stateBefore n (InitialSystemState.stateAt n init (.cacheEvent ce₁))
+                                  (.cacheEvent ce₁))).cache =
+                                ce₁.req.RequestState (b.stateBefore n (InitialSystemState.stateAt n init (.cacheEvent ce₁))
+                                  (.cacheEvent ce₁)).cache := by
+                              simp [Event.SucceedingState, CacheEvent.SucceedingState, hnotdown_bool, EntryState.cache]
+                            rw [hsucc_cache, hbefore_vd, hreq_eq] at hw_leaves_SW
+                            -- Now hw_leaves_SW : SW ≤ RequestState ⟨.w,false,.Weak⟩ Vd
+                            -- Compute: RequestState gives Vd. Then SW ≤ Vd false.
+                            simp [ValidRequest.RequestState, Vd,
+                              LE.le, State.le, LT.lt, State.lt, SW, Option.le] at hw_leaves_SW
               | evictBetween evict =>
                 exact from_encap_wob evict.encapProxyAndDir evict.evictBetween.wObRDown
           | wNoPermsAfter _ _ rCle =>
