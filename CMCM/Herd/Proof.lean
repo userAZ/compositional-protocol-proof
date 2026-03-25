@@ -284,9 +284,69 @@ theorem step_to_ordering
             | notImmPred hasPermsCase =>
               cases hasPermsCase with
               | noEvictBetween w =>
-                -- noEvictBetween: same downgrade chain as evictBetween but
-                -- needs dir_ordered to get CLE_w OB cdir_down (not carried as field)
-                sorry
+                -- noEvictBetween: use encapDir + dir_ordered for CLE_w OB cdir_down
+                have hPDC := w.gdownEncapProxyAndDirAndCDown
+                have hcdir_spec := hPDC.encapDir.existsRClusterDirDown.choose_spec
+                have hencap_rel := hcdir_spec.2.2.2
+                -- Both CLE_w and cdir_down are directory events
+                have hcdir_isdir := hcdir_spec.2.1
+                have hcle_isdir := h.w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+                -- Extract DirectoryEvent from both, use dir_ordered
+                match h_cdir_ev : hPDC.encapDir.existsRClusterDirDown.choose, hcdir_isdir with
+                | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
+                | .directoryEvent de_cdir, _ =>
+                  match h_cle_ev : h.w_lin.hreq's_dir_access.choose, hcle_isdir with
+                  | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
+                  | .directoryEvent de_cle, _ =>
+                    cases (b.orderedAtEntry.dir_ordered de_cle de_cdir).ordered with
+                    | inl hob_dir =>
+                      -- CLE_w OB cdir_down (as DirectoryEvent.OrderedBefore = Nat inequality)
+                      -- Construct obEndLt directly on the matched terms
+                      exact .obEndLt (.directoryEvent de_cdir)
+                        (show (Event.directoryEvent de_cle).OrderedBefore n (.directoryEvent de_cdir) from hob_dir)
+                        (by rw [← hw₂, ← h_cdir_ev]; cases hencap_rel with
+                            | cleEncap henc => exact henc.right
+                            | gcacheEncap _ hlt => exact hlt)
+                    | inr hob_dir =>
+                      -- cdir_down OB CLE_w: temporal contradiction
+                      -- e_w OB e_r_down, cdir encapsulates e_r_down, cdir OB CLE_w, CLE_w inside e_w
+                      exfalso
+                      have hda := h.w_lin.hreq's_dir_access.choose_spec.2
+                      rw [h_cle_ev] at hda
+                      have hwObRDown := w.noEvictBetween.wObRDown
+                      have hcdirEncap := hPDC.cdirEncapsDown
+                      -- cdir.oEnd < CLE_w.oStart (hob_dir) and e_w.oEnd < e_r_down.oStart (hwObRDown)
+                      -- CLE_w inside e_w (from encapDir): CLE_w.oEnd < e_w.oEnd
+                      -- cdir encaps e_r_down: e_r_down.oEnd < cdir.oEnd
+                      -- Chain: de_cle.oEnd < ... < e_w.oEnd < e_r_down.oStart ≤ e_r_down.oEnd < de_cdir.oEnd < de_cle.oStart
+                      -- Contradiction: de_cle.oEnd < de_cle.oStart
+                      cases hda with
+                      | encapDir _ hencap =>
+                        have : de_cle.oEnd < de_cle.oEnd :=
+                          calc de_cle.oEnd
+                            _ < e₁.oEnd := hencap.reqEncapDir.right
+                            _ < hPDC.existsRDownAtW.choose.oStart := hwObRDown
+                            _ ≤ hPDC.existsRDownAtW.choose.oEnd := Nat.le_of_lt (Event.oWellFormed n _)
+                            _ < de_cdir.oEnd := by simp [Event.Encapsulates, Event.oEnd, h_cdir_ev] at hcdirEncap; exact hcdirEncap.2
+                            _ < de_cle.oStart := hob_dir
+                            _ ≤ de_cle.oEnd := Nat.le_of_lt de_cle.oWellFormed
+                        exact Nat.lt_irrefl _ this
+                      | orderBeforeDir _ hexists_pred hpred _ _ _ _ _ =>
+                        have : de_cle.oEnd < de_cle.oEnd :=
+                          calc de_cle.oEnd
+                            _ < hexists_pred.choose.oEnd := hpred.reqEncapDir.right
+                            _ < e₁.oStart := hexists_pred.choose_spec.2.isImmPred.bPred.isPred
+                            _ < e₁.oEnd := Event.oWellFormed n e₁
+                            _ < hPDC.existsRDownAtW.choose.oStart := hwObRDown
+                            _ ≤ hPDC.existsRDownAtW.choose.oEnd := Nat.le_of_lt (Event.oWellFormed n _)
+                            _ < de_cdir.oEnd := by simp [Event.Encapsulates, Event.oEnd, h_cdir_ev] at hcdirEncap; exact hcdirEncap.2
+                            _ < de_cle.oStart := hob_dir
+                            _ ≤ de_cle.oEnd := Nat.le_of_lt de_cle.oWellFormed
+                        exact Nat.lt_irrefl _ this
+                      | orderAfterDir _ _ _ _ =>
+                        -- nc.weak with wHasPermsAfter: contradiction
+                        -- wHasPermsAfter means coherent perms, but orderAfterDir is nc.weak
+                        sorry
               | evictBetween evict =>
                 exact from_encap_wob evict.encapProxyAndDir evict.evictBetween.wObRDown
           | wNoPermsAfter _ _ rCle =>
