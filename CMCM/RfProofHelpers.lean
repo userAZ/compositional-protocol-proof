@@ -3515,8 +3515,20 @@ lemma cdirEncapsDown_exists
                     have h2 := hstruct.cohEvictDir.dirCorresponds.sameAddr
                     unfold Event.sameAddr at h1 h2 ⊢; rw [← h2]; exact h1
                   atCorrCluster := by
+                    -- e_ce and e_de have same protocol (from cohEvictDir.sameProtocol).
+                    -- correspondingClusterOfGlobalCache checks protocol matches target.
                     have h1 := hstruct.cohEvict.atCorrClusterProxy.clusterMatch.atCorrCluster
-                    sorry -- atCorrCluster: e_de at same cluster as e_ce (from cohEvictDir.sameProtocol)
+                    have hproto_eq := hstruct.cohEvictDir.sameProtocol
+                    -- h1 : correspondingClusterOfGlobalCache e_r_gdown e_ce (Event.protocol n)
+                    -- Unfold: checks (Event.protocol n) e_ce = .cluster1 or .cluster2
+                    -- hproto_eq : e_ce.protocol = e_de.protocol
+                    -- So (Event.protocol n) e_de = (Event.protocol n) e_ce → same condition
+                    -- correspondingClusterOfGlobalCache checks (protocol e).
+                    -- Since protocol e_ce = protocol e_de, the checks are equivalent.
+                    show e_r_gdown.correspondingClusterOfGlobalCache n e_de (Event.protocol n)
+                    have : (Event.protocol n) e_de = (Event.protocol n) e_ce := hproto_eq.symm
+                    unfold Event.correspondingClusterOfGlobalCache at h1 ⊢
+                    rw [this]; exact h1
                 }
                atDir := hstruct.cohEvictDir.isDir
                globalEncap := Event.encap_encap_trans n
