@@ -556,55 +556,47 @@ theorem step_to_ordering
     | co h => exact co_step_to_ordering h lin
     | fr h =>
       -- fr: rf⁻¹;co⁺ composition.
-      -- Key insight: e₂'s write triggers a downgrade at e₁'s cluster (e₁ has a copy
-      -- from reading e_w). This cdir_down is at e₁'s cluster directory — SAME
-      -- directory as CLE₁ → dir_ordered is valid.
-      -- CLE₁ OB cdir_down (read CLE before overwrite's downgrade).
-      -- cdir_down.oEnd < CLE₂.oEnd (from encapDirRelation).
-      -- → .obEndLt cdir_down (...) (...).
-      --
-      -- Construct: e₂'s write triggers downgrade at e₁'s cluster.
-      -- diffCache_coherent_encapProxyAndDir(e₁, lin e₂) gives encapDir at e₁'s cluster.
-      have hdown := diffCache_coherent_encapProxyAndDir
-        (lin e₁) (lin e₂) h.in_b₁ h.cache₁
-      -- hdown : Behaviour.clusterDown.encapDir compound b init e₁ (lin e₂)
-      -- This has existsRClusterDirDown: cdir_down at e₁'s cluster with encapDirRelation.
-      have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
-      have hcdir_isdir := hcdir_spec.2.1
-      have hcdir_prot := hcdir_spec.2.2.1
-      have hencap_rel := hcdir_spec.2.2.2
-      -- cdir_down.oEnd < CLE₂.oEnd (from encapDirRelation: cleEncap or gcacheEncap)
-      have hcdir_lt_cle₂ : hdown.existsRClusterDirDown.choose.oEnd <
-          (lin e₂).hreq's_dir_access.choose.oEnd := by
-        cases hencap_rel with
-        | cleEncap henc => exact henc.right
-        | gcacheEncap _ hlt => exact hlt
-      -- CLE₁ and cdir_down are at e₁'s cluster directory (SAME directory).
-      -- Use dir_ordered (VALID — same cluster, same address).
-      have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
-      match hfc_cdir : hdown.existsRClusterDirDown.choose, hcdir_isdir with
-      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-      | .directoryEvent de_cdir, _ =>
-        match hfc_cle₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
-        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-        | .directoryEvent de_cle₁, _ =>
-          cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
-          | inl hob =>
-            -- CLE₁ OB cdir_down → .obEndLt
-            -- hob : DirectoryEvent.OrderedBefore = Event.OrderedBefore for matched events
-            have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
-            exact .obEndLt hdown.existsRClusterDirDown.choose
-              (show (Event.directoryEvent de_cle₁).OrderedBefore n
-                  hdown.existsRClusterDirDown.choose from by
-                rw [hfc_cdir]; exact hob)
-              (by rw [hw₂']; exact hcdir_lt_cle₂)
-          | inr hob =>
-            -- cdir_down OB CLE₁: contradiction.
-            -- The downgrade from e₂ is AFTER e₁'s read (coherence order).
-            -- If cdir_down OB CLE₁: downgrade before the read's CLE → e₁ should
-            -- have seen the new value, contradicting RF(e_w, e₁).
-            -- This is the NoInterveningWrites argument.
-            sorry
+      -- by_cases on e₁ vs e₂ relationship (same cache / same cluster / diff cluster).
+      -- Each case uses dir_ordered ONLY at the same cluster directory.
+      by_cases h_same_struct : e₁.struct = e₂.struct
+      · -- Same cache: CLEs at same cluster directory. dir_ordered valid.
+        by_cases hcle_eq : (lin e₁).hreq's_dir_access.choose = (lin e₂).hreq's_dir_access.choose
+        · exact .eq hcle_eq
+        · -- Different CLEs at same cluster directory → dir_ordered valid.
+          sorry -- same-cache, diff CLE: dir_ordered gives .ob or contradiction
+      · by_cases h_same_prot : e₁.sameProtocol n e₂
+        · -- Same cluster, diff cache: CLEs at same cluster directory. dir_ordered valid.
+          sorry -- same-cluster, diff-cache: dir_ordered gives .ob or contradiction
+        · -- Different cluster: e₂'s write triggers downgrade at e₁'s cluster.
+          -- diffCache_coherent_encapProxyAndDir gives encapDir at e₁'s cluster.
+          have hdown := diffCache_coherent_encapProxyAndDir
+            (lin e₁) (lin e₂) h.in_b₁ h.cache₁
+          have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
+          have hencap_rel := hcdir_spec.2.2.2
+          have hcdir_lt_cle₂ : hdown.existsRClusterDirDown.choose.oEnd <
+              (lin e₂).hreq's_dir_access.choose.oEnd := by
+            cases hencap_rel with
+            | cleEncap henc => exact henc.right
+            | gcacheEncap _ hlt => exact hlt
+          have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+          have hcdir_isdir := hcdir_spec.2.1
+          match hfc_cdir : hdown.existsRClusterDirDown.choose, hcdir_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de_cdir, _ =>
+            match hfc_cle₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de_cle₁, _ =>
+              cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
+              | inl hob =>
+                have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
+                exact .obEndLt hdown.existsRClusterDirDown.choose
+                  (show (Event.directoryEvent de_cle₁).OrderedBefore n
+                      hdown.existsRClusterDirDown.choose from by
+                    rw [hfc_cdir]; exact hob)
+                  (by rw [hw₂']; exact hcdir_lt_cle₂)
+              | inr hob =>
+                -- cdir_down OB CLE₁: NoInterveningWrites contradiction
+                sorry
 
 -- Old lex pair approach (co_step_advances, co_chain_cle_advance, step_advances,
 -- transgen_lex_advance) removed. Using StepOrdering instead.
