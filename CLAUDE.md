@@ -470,7 +470,7 @@ or OB + EncapBy circular chain.
 2. Trying to show CLE₂ OB CLE₁ → False WITHOUT case-splitting on `dirAccessOfRequest`. The `orderAfterDir` case means CLE₁ can be temporally after e₂. Must case-split on dirAccessOfRequest and use the nc.weak CLE-sharing insight (see below).
 3. Don't ask the user about protocol semantics derivable from reading `dirAccessOfRequest` and `linearizationEventOfRequest` definitions. Trace through the cases yourself.
 4. **Don't wrap `gleOrdering.Cases` (Type) with `Nonempty`** — define Prop-valued inductives mirroring RF instead.
-5. **FR composition proof via ranking is genuinely hard** — but the proof should use SPECIFIC protocol events (e_r_cdir_down, CLE), not a ranking. FR should carry e_r_cdir_down and its OB with the target's CLE. rf(e_w, e₁) + co⁺(e_w, e₂) gives e_w < e₁ and e_w < e₂, but NOT e₁ < e₂ without the "no intermediate write" argument. FR carries `co.cases` directly instead.
+5. **FR needs descriptive inductive `fr.ordering` (like RF and CO)** — bare existential (∃ e_w, rf ∧ NIW ∧ co⁺) doesn't carry cluster-specific communication evidence. All 3 remaining FR sorry's exist because of this. Define `fr.ordering` with sameCluster/sameClusDiffE_w/diffCluster cases carrying the protocol events and OB relationships. The first rf;co step gives the initial relationship; co⁺ chain composes on top.
 
 **CONFIRMED (2026-03-23): The per-edge `hierarchicallyOrdered` approach IS correct for same-addr PPOi.**
 
@@ -489,8 +489,13 @@ The key insight (from Anqi): same-address PPOi events share a CLE or have CLE or
 - [x] StepOrdering.irrefl `.eq`: handled at cycle level (dead code in irrefl)
 - [ ] **PPOi `CLE₂ OB CLE₁` contradiction**: CompoundMCM bridge for (dirLin,dirLin) cases. Predecessor elimination for (cacheLin,*) cases. User wants CompoundMCM usage for reviewer appeal.
 - [ ] **PPOi pred₂ OB e₁**: predecessor elimination (reqHasNoPermsLeavesStateAtLeast)
-- [ ] **FR diff-cluster cdir OB CLE₁**: NIW + possibly by_cases on e_w cluster
-- [ ] **FR same-cluster diff-e_w**: diffClusterNotBetweenCles_sameCache
+- [ ] **FR: define `fr.ordering` inductive** (ROOT CAUSE of all FR sorry's)
+  - `sameCluster`: e₁/e₂ same protocol → CLE₁ and CLE₂ at same directory → `dir_ordered` + `notBetweenCles` gives StepOrdering directly. Carries evidence that CLE_w, CLE₁, CLE₂ are at same cluster, same addr, and CLE₂ not between CLE_w and CLE₁.
+  - `sameClusDiffE_w`: e₁/e₂ same cluster, e_w different → carries downgrade evidence at e_w's cluster with `CLE_w OB cdir` from co chain. The first co step (rf;co) gives the initial CLE_w → CLE₂ relationship.
+  - `diffCluster`: e₁/e₂ different clusters → carries downgrade at e₁'s cluster (evict + cdir from cdirEncapsDown) with temporal bounds.
+  - The co⁺ chain: first rf;co step gives fr.ordering. Subsequent co steps compose via co_chain_step_ordering.
+  - Add `ordering : fr.ordering` field to `fr` structure.
+  - Rewrite step_to_ordering FR case to case-split on fr.ordering.
 - [ ] **cdirEncapsDown_exists MR + noCoherentRead**: protocol-specific shim cases
 
 ## Key architecture
