@@ -3360,14 +3360,83 @@ lemma cdirEncapsDown_of_encapDir
     : ∃ e_cache_down ∈ b,
         hdown.existsRClusterDirDown.choose.Encapsulates n e_cache_down ∧
         e_cache_down.down ∧ e_cache_down.isCacheEvent := by
-  -- Re-derive the construction to expose the proxy event.
+  -- Re-derive the global downgrade chain to expose the proxy event.
   have hgdown := diffCache_coherent_globalDowngrade hr_c_and_g_lin
   obtain ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b, hdowngrade⟩ := hgdown
   have hg2c := cmp.shimAxioms.globalToCluster b init (e_w.getProtocol cmp) e_r_gdown he_r_gdown_in_b
-  -- Case-split on GlobalToCluster shim to extract proxy + dir at e_w's cluster.
-  -- Then apply cluster protocol axiom for dirEncapDowngrade.
-  -- TODO: Full case split on shim translation types (scWriteDown, scReadDown, etc.)
-  -- For each: extract proxy, dir, apply (e_w.getProtocol cmp).reqAxioms.coherentWriteDowngrades
-  -- (or coherentReadDowngrades), get fwdPrevOwner → downgradeAtPrevOwner → dirEncapDowngrade.
-  -- Bridge via Subsingleton.elim to match hdown.existsRClusterDirDown.choose.
-  sorry
+  have hp_eq := Event.getProtocol_pi cmp e_w
+  -- Construct encapDir' from the same chain (for Subsingleton bridge).
+  have hdir_encap := globalToCluster_extract_dir_with_encap hg2c e_w hp_eq
+  obtain ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, he_gdown_encap_dir⟩ := hdir_encap
+  -- Build encapDir' to bridge with hdown via Subsingleton.
+  let e_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
+      (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)
+  have h_gcache_encap_dir : e_gcache.Encapsulates n e_dir :=
+    Trans.trans (Trans.trans hdowngrade.downgradePrevOwner.reqEncapDir
+      hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dir
+  have h_dir_end_before_cle : e_dir.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd := by
+    have h_dir_lt_gcache : e_dir.oEnd < e_gcache.oEnd := h_gcache_encap_dir.2
+    let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
+    let hcdir_is_dir := hr_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+    have h_gcache_lt_cle : e_gcache.oEnd < e_r_cle.oEnd := by
+      show (Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init e_r_cle hcdir_is_dir).oEnd < e_r_cle.oEnd
+      unfold Behaviour.Shim.ClusterToGlobal.cDir'sGReq
+      match h : cmp.shimAxioms.clusterToGlobal b init e_r_cle hcdir_is_dir with
+      | .encapGlobalCache _ hgreq_spec => exact hgreq_spec.choose_spec.right.encapGlobalCache.2
+      | .noGlobalCache hhas_perms _ =>
+        unfold Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent
+        have hnonempty := Behaviour.hasPermsInGlobalCache_implies_nonempty_immFinishBefore b init _ hhas_perms
+        rw [dif_pos hnonempty]; exact hnonempty.some.prop.2.finishBefore.finBefore.endBefore
+    exact Nat.lt_trans h_dir_lt_gcache h_gcache_lt_cle
+  have hdown' : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin :=
+    { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
+        Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩ }
+  -- Subsingleton bridge: hdown = hdown' → same choose.
+  -- hdown'.choose = hdown.choose (from Subsingleton). And hdown'.choose reduces to e_dir.
+  have hdir_eq : hdown.existsRClusterDirDown.choose = hdown'.existsRClusterDirDown.choose :=
+    congrArg (fun h => h.existsRClusterDirDown.choose) (Subsingleton.elim hdown hdown')
+  -- Apply cluster protocol axiom.
+  -- The proxy event comes from the same GlobalToCluster shim case split.
+  -- Use (e_w.getProtocol cmp).reqAxioms.coherentWriteDowngrades to get
+  -- fwdPrevOwner → downgradeAtPrevOwner → dirEncapDowngrade.
+  -- The dirEncapDowngrade gives: hdown'.choose.Encapsulates n e_cache_down.
+  -- Via hdir_eq: hdown.choose.Encapsulates n e_cache_down.
+  -- Pattern: CompoundPPOs.lean:1975.
+  -- Need to case-split on hg2c to extract proxy for axiom application.
+  cases hg2c with
+  | bothCoherentWriteAndRead hcorrespond hboth downTranslation =>
+    cases downTranslation with
+    | scWriteDown _ translation =>
+      obtain ⟨e_cw, he_cw_in_b, e_dw, e_ce, _, e_de, _, hstruct⟩ := translation.scGDownTranslation
+      -- e_cw = proxy coherent write, e_dw = its directory event.
+      -- Apply cluster axiom to e_cw and e_dw.
+      have haxiom := (e_w.getProtocol cmp).reqAxioms.coherentWriteDowngrades b init
+        e_cw he_cw_in_b e_dw hstruct.cohWriteDir.dirInB
+      -- haxiom : coherentWriteDowngradeOthers. Get downgradeOtherCaches.
+      cases haxiom.downgradeOtherCaches with
+      | cWriteOnSW hfwd =>
+        obtain ⟨e_down, he_down_in_b, e_grant, _, h_dpow⟩ := hfwd.fwdPrevOwner
+        -- h_dpow.downgradePrevOwner.dirEncapDowngrade : e_dw.Encapsulates n e_down
+        -- Bridge: e_dw = e_dir (from globalToCluster_extract_dir_with_encap in this case)
+        -- and hdown.choose = hdown'.choose = e_dir.
+        -- So hdown.choose.Encapsulates n e_down.
+        have hencap := h_dpow.downgradePrevOwner.dirEncapDowngrade
+        -- hencap : e_dw.Encapsulates n e_down
+        -- Need: hdown.existsRClusterDirDown.choose.Encapsulates n e_down
+        -- The e_dir from globalToCluster_extract_dir_with_encap = e_dw (this shim case)
+        -- hdown'.existsRClusterDirDown = ⟨e_dir, ...⟩ where e_dir = e_dw
+        -- hdir_eq : hdown.choose = hdown'.choose
+        -- TODO: show hdown'.choose = e_dw and bridge
+        rw [hdir_eq]
+        -- hdown'.choose = e_dir. e_dw and e_dir both from same shim case.
+        -- They should be equal but connecting requires matching the existential paths.
+        -- For now: the encapsulation evidence is about e_dw, need to bridge to hdown'.choose.
+        exact ⟨e_down, he_down_in_b,
+               sorry /- e_dir.Encapsulates n e_down: bridge e_dw = e_dir from shim case -/,
+               sorry /- e_down.down -/, h_dpow.downgradePrevOwner.downAtCache⟩
+      | cWriteOnMR _ =>
+        sorry -- MR case: downgradeAtSharers instead of fwdPrevOwner
+    | scReadDown _ _ translation =>
+      sorry -- Read downgrade case
+  | noCoherentRead hcorrespond _ downTranslation =>
+    sorry -- No coherent read case
