@@ -841,8 +841,25 @@ theorem step_to_ordering
                           e_w_lin.hreq's_dir_access.choose from by rw [hfcw]; exact hob_₁w)
                       hcw_lt_cle₂
                   | inr hob_w₁ =>
-                    -- CLE_w OB CLE₁ + e_cdir OB CLE₁: NIW contradiction.
-                    sorry -- CLE_w OB CLE₁: NIW with e_cdir between
+                    -- CLE_w OB CLE₁. dir_ordered CLE_w e_cdir (same cluster, same addr).
+                    cases (b.orderedAtEntry.dir_ordered de_w de_cdir).ordered with
+                    | inl hob_w_cdir =>
+                      -- CLE_w OB e_cdir OB CLE₁: e_cdir between CLE_w and CLE₁.
+                      -- OrderedBetween: CLE_w OB e_cdir (hob_w_cdir) ∧ e_cdir OB CLE₁ (hob).
+                      have h_between : e_cdir.OrderedBetween n
+                          e_w_lin.hreq's_dir_access.choose
+                          (lin e₁).hreq's_dir_access.choose :=
+                        ⟨by rw [hfcw, hfc_cdir]; exact hob_w_cdir,
+                         by rw [hfc_cdir, hfc_cle₁]; exact hob⟩
+                      -- Apply diffClusterNotBetweenCles_sameCache.
+                      -- Need sameCacheConstraints for e_cdir.
+                      -- Need: ¬ ∃ e_inter_down ∈ b, sameCacheConstraints ∧ OrderedBetween
+                      -- with e_inter_down = e_cdir. Three sorry fields remain in sameCacheConstraints.
+                      sorry -- diffClusterNotBetweenCles_sameCache: isDirWrite, down, translatedDir needed
+                    | inr hob_cdir_w =>
+                      -- e_cdir OB CLE_w: downgrade before write's CLE.
+                      -- co chain should prevent this (downgrade from e₂ is after e_w).
+                      sorry -- e_cdir OB CLE_w: co chain temporal contradiction
               · -- Different cluster e_w and e₁.
                 sorry -- diff cluster e_w/e₁: cross-cluster NIW
 -- Old lex pair approach (co_step_advances, co_chain_cle_advance, step_advances,
