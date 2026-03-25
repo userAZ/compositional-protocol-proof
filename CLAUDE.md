@@ -56,22 +56,29 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-25 session 3)
-- **Main proof architecture**: `cmcm_acyclic` → `cmcm_acyclic_of_hknow` → StepOrdering
-  - `step_to_ordering`: maps each PPOi ∪ com edge to `StepOrdering CLE₁ CLE₂`
-  - `StepOrdering.trans`: composes edges (FULLY PROVEN, 0 sorry's)
-  - `StepOrdering.irrefl .eq`: sorry exists but DEAD CODE — `cmcm_acyclic_of_hknow` handles `.eq` inline via `dir_ordered de de → False`
-- **StepOrdering**: 4 constructors: `ob`, `obEndLt`, `sameLin`, `eq`
+### Status (updated 2026-03-25 session 4)
+- **Main proof architecture**: `cmcm_acyclic` → `cmcm_acyclic_of_hknow` → StepOrdering (0 sorry on main path)
 - **CO edge**: FULLY PROVEN (0 sorry's)
 - **rfe edge**: FULLY PROVEN (0 sorry's)
-- **FR edge**: Same-cluster same-e_w done. Diff-cluster: `CLE₁ OB cdir` → `.obEndLt` ✓, `cdir OB CLE₁` → needs NIW contradiction. Same-cluster diff-e_w → needs cdirEncapsDown.
-- **PPOi edge**: ALL `CLE₁ OB CLE₂` directions handled via `.ob`. Only `CLE₂ OB CLE₁` sorry's remain (need CompoundMCM contradiction or predecessor elimination).
-  - encapDir×encapDir ✓, orderBeforeDir×encapDir ✓, *×orderAfterDir(e₂) ✓
-  - encapDir×orderBeforeDir: 3 of 4 cache_ordered sub-cases proven (encap→downgrade contradiction). pred₂ OB e₁ sub-case needs predecessor elimination.
-  - orderBeforeDir×orderBeforeDir, orderAfterDir(e₁): `CLE₁ OB CLE₂` → `.ob` ✓, `CLE₂ OB CLE₁` → sorry
-- **cdirEncapsDown_exists**: SW and scReadDown cases FULLY PROVEN. MR + noCoherentRead sorry'd.
-- **6 sorry's in Proof.lean** + **2 sorry's in RfProofHelpers.lean**
-- **Next**: CompoundMCM bridge for PPOi `CLE₂ OB CLE₁` cases, FR NIW contradiction
+- **FR edge**: Same-cluster same-e_w DONE. Diff-cluster CLE₁ OB cdir → `.obEndLt` ✓. Same-cluster diff-e_w CLE₁ OB CLE_w → `.obEndLt` via cross-cluster co chain ✓. Remaining: 4 sorry's for `cdir OB CLE₁`/`CLE_w OB CLE₁`/diff-cluster NIW cases.
+- **PPOi edge**: `dir_ordered` now properly guarded by `by_cases h_same_addr`. CompoundMCM bridge visible (ppoi_compound_lin_order used for diff-addr). CLE₁ OB CLE₂ → `.ob` everywhere ✓. Remaining: `CLE₂ OB CLE₁` sorry's.
+- **cdirEncapsDown_exists**: SW and scReadDown PROVEN. MR + noCoherentRead sorry'd.
+- **12 sorry's in Proof.lean** (1 dead code) + **2 sorry's in RfProofHelpers.lean**
+
+### FR sorry root cause (2026-03-25)
+All 4 remaining FR sorry's (768, 858, 862, 864) need `diffClusterNotBetweenCles_sameCache`.
+The key blocker: `sameCacheConstraints` requires `downIsDown : e_inter_down.down = true`.
+The current `e_cdir` (from cdirEncapsDown_exists) is the WRITE directory event (`down = false`).
+The EVICT directory event (`e_de` from `encapCorrespondingGetSWAndEvict.cohEvictDir`)
+has `down = true` (from `translateProxyEvent ... True`).
+
+**Fix**: extend `cdirEncapsDown_exists` to also return the evict directory event `e_de`:
+- `hstruct.cohWriteImmBeforeEvict : ImmediateBottomPredecessor e_dw e_de`
+- `e_de.down = true` from `matchesCacheEvent.sameDown` + evict proxy's `down = True`
+- `e_de.oEnd < CLE₂.oEnd` from encapsulation chain: `e_de < e_gdown < e_gcache < CLE₂`
+Then `dir_ordered e_de CLE₁`:
+- `e_de OB CLE₁` → `diffClusterNotBetweenCles_sameCache` with e_de between CLE_w and CLE₁ → contradiction
+- `CLE₁ OB e_de` → `.obEndLt e_de (CLE₁ OB e_de) (e_de.oEnd < CLE₂.oEnd)` → StepOrdering ✓
 
 ### Key insight: `hierarchicallyOrdered` IS `CompoundLinearizationOrder` (same concept)
 
