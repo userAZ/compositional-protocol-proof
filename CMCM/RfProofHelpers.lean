@@ -21,38 +21,8 @@ lemma dual_encap_ordered_contradiction
       _ < e_cle.oStart := hr_encap.1
   exact Nat.lt_asymm this hcle_wf
 
-/-- Helper: Coherent write preserves write in reqToDirOfRequestEvent. -/
-lemma reqToDir_preserves_write_of_coherent
-  (e_req : Event n) (s : State)
-  (hwrite : e_req.req.val.isWrite)
-  (hcoh : e_req.req.val.coherent = true) :
-  (Event.reqToDirOfRequestEvent n e_req s).val.isWrite := by
-  -- Unfold and reduce by cases on the request itself
-  cases hreq : e_req.req with
-  | mk r hr =>
-    cases r with
-    | mk rw coh cons =>
-      have hrw : rw = .w := by
-        simpa [hreq, Request.isWrite] using hwrite
-      have hcoh' : coh = true := by
-        simpa [hreq] using hcoh
-      cases hrw
-      cases hcoh'
-      simp [Event.reqToDirOfRequestEvent, hreq, Request.isWrite]
-
-/-- Helper: NC release on Vd preserves write in reqToDirOfRequestEvent. -/
-lemma reqToDir_preserves_write_on_vd_ncrel
-  (e_req : Event n)
-  (hrel : e_req.req.val = ⟨.w, false, .Rel⟩) :
-  (Event.reqToDirOfRequestEvent n e_req Vd).val.isWrite := by
-  cases hreq : e_req.req with
-  | mk r hr =>
-    cases r with
-    | mk rw coh cons =>
-      have hrel' : Request.mk rw coh cons = ⟨.w, false, .Rel⟩ := by
-        simpa [hreq] using hrel
-      cases hrel'
-      simp [Event.reqToDirOfRequestEvent, hreq, Vd, Request.isWrite]
+-- reqToDir_preserves_write_of_coherent and reqToDir_preserves_write_on_vd_ncrel
+-- moved to CMCM/RfProofDefs.lean
 
 /-- Axiom: If a request is coherent, its MRS has coherent state (c = true) -/
 lemma coherent_request_has_coherent_mrs (vr : ValidRequest) (hcoh : vr.val.coherent = true) :
