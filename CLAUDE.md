@@ -613,6 +613,19 @@ created BEFORE the match keep their original `e` type. Always use explicit `rw [
 `show ... from ...` to bridge between the original and substituted types. Don't assume
 the match propagates everywhere.
 
+### CRITICAL: Definitions must be DESCRIPTIVE, not carry conclusions
+FrOrdering carrying `StepOrdering` directly is VACUOUS — it's the thing we're trying to prove!
+A reviewer would reject this as circular. The definition must carry DESCRIPTIVE evidence
+(protocol events, temporal relationships, communication chains), and the PROOF must DERIVE
+StepOrdering from this evidence. The derivation IS the proof.
+
+Pattern for honest definitions:
+1. Inductive carries WHAT HAPPENED (which events, their OB/Encap relationships)
+2. Theorem proves the inductive FOLLOWS from protocol axioms (like RfTheorem)
+3. step_to_ordering DERIVES StepOrdering from the inductive's evidence
+
+If the inductive directly carries the conclusion → scaffolding, not proof.
+
 ### EVERY relation needs descriptive inductives (RF/CO/FR pattern)
 RF has `readsFrom.cases`. CO has `co.ordering`. FR needs `fr.ordering`. PPOi uses CompoundMCM.
 **Each relation must carry its communication evidence as inductive cases**, not bare existentials.
