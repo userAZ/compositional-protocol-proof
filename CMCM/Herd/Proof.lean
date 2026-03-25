@@ -179,6 +179,12 @@ inductive StepOrdering : Event n → Event n → Prop where
   /-- Intermediates inside both lin points with OB between them -/
   | encapObEncap (p₁ p₂ : Event n) (h₁ : p₁.EncapsulatedBy n l₁) (h_ob : p₁.OrderedBefore n p₂)
       (h₂ : p₂.EncapsulatedBy n l₂) : StepOrdering l₁ l₂
+  /-- Same linearization point: cache events advance but CLE stays.
+      l₁ = l₂ = CLE, with cache events e₁ OB e₂ that encapsulate CLE.
+      The previous/next steps connect to/from this shared CLE. -/
+  | sameLin (e₁' e₂' : Event n) (h_eq : l₁ = l₂)
+      (h_enc₁ : l₁.EncapsulatedBy n e₁') (h_ob : e₁'.OrderedBefore n e₂')
+      (h_enc₂ : l₂.EncapsulatedBy n e₂') : StepOrdering l₁ l₂
 
 
 /-- StepOrdering is transitive. Case analysis on both steps. -/
@@ -191,6 +197,7 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
     | obEncap p hp hpe => exact .obEncap p (Trans.trans h₁ hp) hpe
     | encapOb p hpe hp => exact .ob (Trans.trans (Trans.trans h₁ hpe) hp)
     | encapObEncap p₁ p₂ hp₁ hp hp₂ => exact .obEncap p₂ (Trans.trans (Trans.trans h₁ hp₁) hp) hp₂
+    | sameLin _ _ heq _ _ _ => subst heq; exact .ob h₁
   | obEncap q hq hqe =>
     cases h₂₃ with
     | ob h₂ => exact .ob (Trans.trans hq (Event.encap_by_order_trans n hqe h₂))
@@ -201,6 +208,7 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
     | encapObEncap p₁ p₂ hp₁ hp hp₂ =>
       -- q EncapBy l₂, p₁ EncapBy l₂: both inside l₂. Junction case.
       sorry
+    | sameLin _ _ heq _ _ _ => subst heq; exact .obEncap q hq hqe
   | encapOb q hqe hq =>
     cases h₂₃ with
     | ob h₂ => exact .encapOb q hqe (Trans.trans hq h₂)
@@ -208,6 +216,7 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
     | encapOb p hpe hp => exact .encapOb q hqe (Trans.trans (Trans.trans hq hpe) hp)
     | encapObEncap p₁ p₂ hp₁ hp hp₂ =>
       exact .encapObEncap q p₂ hqe (Trans.trans (Trans.trans hq hp₁) hp) hp₂
+    | sameLin _ _ heq _ _ _ => subst heq; exact .encapOb q hqe hq
   | encapObEncap q₁ q₂ hq₁ hq hq₂ =>
     cases h₂₃ with
     | ob h₂ => exact .encapOb q₁ hq₁ (Trans.trans hq (Event.encap_by_order_trans n hq₂ h₂))
@@ -219,6 +228,11 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
     | encapObEncap p₁ p₂ hp₁ hp hp₂ =>
       -- q₂ EncapBy l₂, p₁ EncapBy l₂: both inside l₂. Junction case.
       sorry
+    | sameLin e₁' e₂' heq he₁ hob he₂ =>
+      subst heq; exact .encapObEncap q₁ q₂ hq₁ hq hq₂
+  | sameLin e₁' e₂' heq he₁ hob he₂ =>
+    -- l₁ = l₂ → h₂₃ : StepOrdering l₂ l₃ = StepOrdering l₁ l₃
+    subst heq; exact h₂₃
 
 /-- StepOrdering is irreflexive. -/
 theorem StepOrdering.irrefl {l : Event n} (h : StepOrdering l l) : False := by
@@ -231,9 +245,12 @@ theorem StepOrdering.irrefl {l : Event n} (h : StepOrdering l l) : False := by
     -- p EncapBy l, p OB l → p.oEnd < l.oStart, l.oStart < p.oStart → p.oEnd < p.oStart
     exact Nat.lt_irrefl _ (Nat.lt_trans hp (Nat.lt_trans hpe.left (Event.oWellFormed n p)))
   | encapObEncap p₁ p₂ hp₁ h_ob hp₂ =>
-    -- p₁ inside l, p₁ OB p₂, p₂ inside l. Both inner events of l, ordered.
-    -- p₁.oEnd < p₂.oStart ≤ p₂.oEnd < l.oEnd. p₁.oEnd < l.oEnd. No loop.
-    -- This case shouldn't arise from cycle composition but needs protocol argument.
+    -- p₁ inside l, p₁ OB p₂, p₂ inside l. No direct contradiction.
+    sorry
+  | sameLin e₁' e₂' heq he₁ hob he₂ =>
+    -- l = l, l inside e₁', e₁' OB e₂', l inside e₂'. No direct contradiction
+    -- (two events both encapsulating the same CLE, ordered).
+    -- Doesn't arise from cycle composition (at least one step advances CLE).
     sorry
 
 /-- Chain StepOrdering through TransGen. -/
@@ -519,8 +536,11 @@ theorem step_advances
               | orderAfterDir _ _ _ _ =>
                 -- nc.weak e₁: CLE₁ from successor. Protocol: successor = e₂ → CLE₁ = CLE₂.
                 sorry
-            | orderBeforeDir _ _ _ _ _ _ _ _ =>
-              -- e₂ orderBeforeDir: protocol permission chain needed
+            | orderBeforeDir _ hexists_pred₂ hpred₂_encap _ _ _ _ _ =>
+              -- e₂ orderBeforeDir: pred₂ encaps CLE₂, pred₂ OB e₂.
+              -- Need: show e₁ is between pred₂ and e₂ → satisfies P → contradicts immediacy.
+              -- Or: e₁ OB pred₂ → de₁ OB de₂ → contradicts hob.
+              -- Requires cache event total ordering (e₁ vs pred₂).
               sorry
             | orderAfterDir _ hsucc₂ _ _ =>
               -- e₂ orderAfterDir: chain through successor
@@ -748,16 +768,26 @@ theorem step_advances
                       _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
                   exact Nat.lt_irrefl _ this
                 | inr hob_w =>
-                  -- CLE_w OB CLE₁ and CLE₂ between CLE_w and CLE₁.
-                  -- Apply NoInterveningWrites to e₂ to get constraints,
-                  -- then show CLE₂ IS between → contradiction.
-                  --
-                  -- We have: de_w OB de₁ (CLE_w before CLE₁)
-                  --          de₂ OB de₁ (hob: CLE₂ before CLE₁)
-                  --          de_w.oEnd ≤ de₂.oEnd (from co chain)
-                  -- Need: e₂ ∈ b, isClusterCache, ¬down to apply h_no_between.
-                  -- Then notBetweenGles/notBetweenCles excludes CLE₂ between CLE_w and CLE₁.
-                  sorry
+                  -- CLE_w OB CLE₁, CLE₂ OB CLE₁, CLE_w.oEnd ≤ CLE₂.oEnd
+                  -- Use dir_ordered(de_w, de₂) to show contradiction.
+                  have hcw_le' : de_w.oEnd ≤ de₂.oEnd := by
+                    have : (hlin e_w).hreq's_dir_access.choose.oEnd ≤
+                        (hlin e₂).hreq's_dir_access.choose.oEnd := hcw_le_c₂
+                    simp [Event.oEnd, hfcw,
+                      show (hlin e₂) = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at this
+                    exact this
+                  cases (b.orderedAtEntry.dir_ordered de_w de₂).ordered with
+                  | inl hob_w₂ =>
+                    -- de_w OB de₂: CLE₂ is between CLE_w and CLE₁.
+                    -- Apply NoInterveningWrites to exclude e₂ as intervening write.
+                    sorry
+                  | inr hob_₂w =>
+                    -- de₂ OB de_w → de₂.oEnd < de_w.oStart, but de_w.oEnd ≤ de₂.oEnd → contradiction
+                    have : de_w.oEnd < de_w.oEnd :=
+                      calc de_w.oEnd ≤ de₂.oEnd := hcw_le'
+                        _ < de_w.oStart := hob_₂w
+                        _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed
+                    exact Nat.lt_irrefl _ this
               | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
       | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
@@ -786,17 +816,7 @@ theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     : Relation.Acyclic (@PPOi n b ∪ com compound b init) := by
   intro e hcycle
-  -- Map each step to StepOrdering between linearization points
-  -- Then compose via StepOrdering.trans to get StepOrdering lin(e) lin(e)
-  -- Then StepOrdering.irrefl gives False
-  -- Chain step_to_ordering through the cycle, compose via StepOrdering.trans
-  suffices ∀ a c, Relation.TransGen (PPOi ∪ com compound b init) a c →
-      StepOrdering (hknow a).hreq's_dir_access.choose (hknow c).hreq's_dir_access.choose by
-    exact StepOrdering.irrefl (this e e hcycle)
-  intro a c hpath
-  induction hpath with
-  | single h => exact step_to_ordering h hknow
-  | tail _ h ih => exact StepOrdering.trans ih (step_to_ordering h hknow)
+  exact lex_lt_irrefl (transgen_lex_advance hknow hcycle)
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
