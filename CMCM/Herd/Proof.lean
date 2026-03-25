@@ -851,8 +851,10 @@ theorem step_to_ordering
                         -- and after CLE_w. No proxy available for .obEndLt.
                         -- → exfalso via co chain temporal contradiction.
                         sorry -- evict OB CLE_w: protocol temporal contradiction
-                  · -- Different cluster e_w/e₁.
-                    sorry -- diff-cluster e_w: diffClusterNotBetweenCles_sameCache
+                  · -- Different cluster e_w/e₁: evict at e₁'s cluster, CLE_w at e_w's cluster.
+                    -- Need CLE_w OB evict for OrderedBetween, then diffClusterNotBetweenCles_sameCache.
+                    -- Chain: co → CLE_w.oEnd < CLE₂.oStart (for .ob case) → CLE₂ encaps chain → evict.
+                    sorry -- diff-cluster e_w: CLE_w OB evict from co chain + encap chain
 -- Old lex pair approach (co_step_advances, co_chain_cle_advance, step_advances,
 -- transgen_lex_advance) removed. Using StepOrdering instead.
 -- Placeholder to mark where old code was:
