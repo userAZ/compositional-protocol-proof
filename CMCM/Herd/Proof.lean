@@ -510,7 +510,18 @@ theorem fr_ordering_holds
                                   _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed)
                             | inr hob_cdir_rd =>
                               -- cdir_w OB w.rDown.choose: consistent.
-                              sorry -- cdir_w < w.rDown.choose: deeper argument
+                              -- w.rDown.choose between CLE_w and CLE₁ → diffClusterNotBetweenCles_sameCache.
+                              -- X.oEnd < CLE₂.oEnd (from encapDirRelation) and CLE₂ OB CLE₁ → X OB CLE₁.
+                              -- w.rDown.choose.oEnd < CLE₂.oEnd from encapDirRelation
+                              -- Use hevict_w_lt (evict bound) or extract from rDown directly.
+                              -- Actually: we have hob (CLE₂ OB CLE₁) → de₂.oEnd < de₁.oStart.
+                              -- And from encapDirRelation: de_rd.oEnd < CLE₂.oEnd.
+                              -- After match subst: de_rd.oEnd < CLE₂.oEnd. And CLE₂ = de₂.
+                              -- So: de_rd.oEnd < de₂.oEnd < de₁.oStart → de_rd OB CLE₁.
+                              -- w.rDown.choose between CLE_w and CLE₁:
+                              -- CLE_w OB w.rDown.choose (hw_cle_ob_rdown) ∧ w.rDown.choose OB CLE₁.
+                              -- Apply diffClusterNotBetweenCles_sameCache with w.rDown.choose.
+                              sorry -- Apply diffClusterNotBetweenCles_sameCache (needs sameCacheConstraints for de_rd)
                         | evictOrReadBetweenWAndRDown evict_case =>
                           -- Same wObRDown approach as wCleImmPredDown.
                           have hw_ob_rdown := evict_case.wObRDown
