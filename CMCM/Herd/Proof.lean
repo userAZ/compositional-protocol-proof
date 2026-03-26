@@ -512,11 +512,28 @@ theorem fr_ordering_holds
                               -- cdir_w OB w.rDown.choose: consistent.
                               sorry -- cdir_w < w.rDown.choose: deeper argument
                         | evictOrReadBetweenWAndRDown evict_case =>
+                          -- Same wObRDown approach as wCleImmPredDown.
                           have hw_ob_rdown := evict_case.wObRDown
-                          have hdown_eq : evict_case.rDown.encapDir.existsRClusterDirDown.choose =
-                              (cdirEncapsDown_exists e_w_lin (hlin e₂) hw_in_b hw_cache).choose := by
-                            sorry -- Subsingleton bridge between co step's encapDir and cdirEncapsDown's
-                          sorry -- Same bridge as wCleImmPredDown
+                          have hw_cle_ob_rdown : Event.oEnd n (.directoryEvent de_w) <
+                              Event.oStart n evict_case.rDown.encapDir.existsRClusterDirDown.choose := by
+                            rw [hfcw] at hw_ob_rdown; exact hw_ob_rdown
+                          have hrd_spec := evict_case.rDown.encapDir.existsRClusterDirDown.choose_spec
+                          have hrd_isdir := hrd_spec.2.1
+                          match hfc_rd : evict_case.rDown.encapDir.existsRClusterDirDown.choose, hrd_isdir with
+                          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                          | .directoryEvent de_rd, _ =>
+                            cases (b.orderedAtEntry.dir_ordered de_rd de_cdir_w).ordered with
+                            | inl hob_rd_cdir =>
+                              exact Nat.lt_irrefl de_w.oEnd
+                                (calc de_w.oEnd
+                                  _ < de_rd.oStart := by rw [hfc_rd] at hw_cle_ob_rdown; exact hw_cle_ob_rdown
+                                  _ ≤ de_rd.oEnd := Nat.le_of_lt de_rd.oWellFormed
+                                  _ < de_cdir_w.oStart := hob_rd_cdir
+                                  _ ≤ de_cdir_w.oEnd := Nat.le_of_lt de_cdir_w.oWellFormed
+                                  _ < de_w.oStart := hob_cdir_w_w
+                                  _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed)
+                            | inr hob_cdir_rd =>
+                              sorry -- cdir_w < w.rDown.choose: deeper argument
     · -- Diff cluster: use cdirEncapsDown_exists for proxy.
       -- dir_ordered CLE₁ cdir/evict → CLE₁ OB proxy, proxy.oEnd < CLE₂.oEnd.
       obtain ⟨e_cdir, _he_cdir_in_b, he_cdir_isDir, _he_cdir_proto, hcdir_lt_cle₂,
