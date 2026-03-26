@@ -56,32 +56,44 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-25 session 9)
+### Status (updated 2026-03-26 session 10)
 - **CO edge**: FULLY PROVEN (0 sorry's)
 - **rfe edge**: FULLY PROVEN (0 sorry's)
-- **FR edge**: `fr_ordering_holds` has 4 sorry's. `step_to_ordering` FR case is 4 lines (sorry-free via FrOrdering).
-  - `co_chain_cross_cluster_downgrade`: FULLY PROVEN (tail same-cluster case closed via prefix StepOrdering + last step's wObRDown)
-  - Config 2 main path (CLE_w OB evict_w): CLOSED via cdirEncapsDown_exists + diffClusterNotBetweenCles_sameCache
-  - Remaining 4 sorry's are in deep sub-cases (evict_w OB CLE_w temporal, cross-cluster dir_ordered)
+- **FR edge**: Redesigned with proper case structure (sameCache/sameClusDiffCache/diffCluster_{coherent,evict,noncoherent}/sameCLE). Same-cluster cases CLOSED via `interSameProtocolCleOB`. Diff-cluster cases partially closed (CLE₁ OB proxy paths done, evict OB CLE₁ paths have sorry's).
+- **StepOrdering**: New `.encapOb` constructor added (p inside l₁, p OB l₂). Irrefl proven. Most trans cases proven (2 sorry for obEndLt+encapOb composition).
 - **PPOi edge**: 5 sorry's (3 diff-addr CompoundMCM, 1 same-addr orderAfterDir, 1 lazy)
-- **StepOrdering.irrefl `.eq`**: DEAD CODE (cmcm_acyclic_of_hknow handles .eq inline)
-- **4 sorry declarations**: ppoi_step_to_ordering (5), fr_ordering_holds (4), StepOrdering.irrefl (1, dead), cdirEncapsDown_exists (3, in RfProofHelpers)
-- **8 active sorry's in Proof.lean** + **3 in RfProofHelpers** = 11 active total (+ 1 dead)
+- **NIW extension**: `interSameProtocolCleOB` field on `NoInterveningWrites.constraints`
+- **6 sorry declarations** in Proof.lean: StepOrdering.trans (2), co_chain oEnd extraction (3), fr_ordering_holds, ppoi_step_to_ordering
 
-### Remaining sorry categories (2026-03-25 session 9)
+### Remaining sorry categories (2026-03-26 session 10)
 
-**FR sorry's (4 in fr_ordering_holds, lines 596/696/709/730):**
-- Line 596: Config 2 evict_w OB CLE_w — needs deeper temporal with cdir_w from cdirEncapsDown_exists
-- Lines 696/709: cdir OB CLE_{w_next} and obEndLt proxy — uses dir_ordered between potentially CROSS-CLUSTER events (invalid!). Needs restructuring to avoid cross-cluster dir_ordered.
-- Line 730: diff-cluster e_w/e₁ — needs cross-cluster NIW (diffClusterNotBetweenCles_sameCache with co chain evidence)
+**StepOrdering.trans sorry's (2):**
+- `obEndLt + encapOb` and `encapOb + obEndLt`: composition needs careful oEnd chain. May need additional TC-like constructor. These don't arise in practice (co chain produces ob/obEndLt/eq, not encapOb).
 
-**PPOi sorry's (5 in ppoi_step_to_ordering, lines 830/974/1018/1030/1033):**
-- Lines 830/974: diff-addr encapDir×orderBeforeDir and orderBeforeDir×orderBeforeDir — need CompoundMCM bridge (CompoundLinearizationOrder → StepOrdering on CLEs). Hard: compound lin events at different hierarchy levels than CLEs.
-- Line 1018: same-addr orderAfterDir CLE₂ OB CLE₁ — nc.weak CLE sharing insight says CLE₁ = CLE₂ (making this branch vacuous). Need formal proof of CLE sharing.
-- Lines 1030/1033: diff-addr orderAfterDir CompoundMCM + lazy — need CompoundMCM temporal chain and lazy case handling.
+**FR sorry's (in fr_ordering_holds):**
+- sameCache `struct → sameProtocol` lemma (trivial)
+- 3× diffCluster `evict OB CLE₁` sub-cases. **KEY APPROACH**: with `encapOb`, the "e_w same as e₂" sub-case resolves via RF's d_rf (inside CLE₁) + dir_ordered d_rf CLE₂ → `.encapOb`. The "e_w same as e₁" sub-case uses existing cdirEncapsDown_exists approach. Only 2 clusters → no "e_w diff from both" case.
 
-### Key insight: cross-cluster dir_ordered is INVALID (confirmed session 9)
-Lines 696/709 use `dir_ordered de_cdir de_wn` where cdir is at e₁'s cluster and CLE_{w_next} may be at e_w_next's cluster (different if co step is diffClus). This is invalid per the `dir_ordered` guard rule. These sorry's need restructuring to derive ordering from the communication mechanism (co chain evidence), not from cross-cluster dir_ordered.
+**PPOi sorry's (5 in ppoi_step_to_ordering):**
+- Lines 739/883: diff-addr CompoundMCM bridge
+- Line 927: same-addr orderAfterDir (nc.weak CLE sharing)
+- Lines 939/942: diff-addr orderAfterDir CompoundMCM + lazy
+
+### KEY INSIGHT (session 10): FR proof via RF evidence + encapOb
+
+For diff-cluster FR(e₁, e₂) with e_w same cluster as e₂:
+1. RF rf(e_w, e₁) is cross-cluster → gives d_rf at e_w's cluster (= e₂'s cluster)
+2. `encapDirRelation.cleEncap`: CLE₁ encapsulates d_rf (d_rf inside CLE₁)
+3. dir_ordered d_rf CLE₂ at e_w's cluster (both at same cluster) → d_rf OB CLE₂
+4. `StepOrdering.encapOb d_rf`: d_rf inside CLE₁, d_rf OB CLE₂ → StepOrdering CLE₁ CLE₂
+
+This avoids the entire `cdirEncapsDown_exists` approach for this sub-case.
+For "e_w same as e₁": use cdirEncapsDown_exists at e₁'s cluster (existing approach).
+2-cluster constraint eliminates the "e_w diff from both" case.
+
+### 2-cluster model constraint
+Only 2 clusters exist (from `isClusterCache.eCluster : protocol = .cluster1 ∨ .cluster2`).
+For diff-cluster e₁/e₂: e_w MUST be at e₁'s or e₂'s cluster. The "third cluster" case is vacuous.
 
 ### KEY INSIGHT (session 9): FR proof should mirror RF's structure + case-split on e₁ coherence
 
