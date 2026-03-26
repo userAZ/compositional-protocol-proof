@@ -621,8 +621,29 @@ theorem fr_ordering_holds
                                             exact Nat.le_of_lt (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hlt)
                       | sameLin _ _ heq _ _ _ => simp only [Event.oEnd, hfcw, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at heq ⊢
                                                  exact Nat.le_of_eq (congrArg DirectoryEvent.oEnd (Event.directoryEvent.inj heq))
-                      | encapOb _ _ _ => sorry -- co chain shouldn't produce encapOb
-                      | obFinishBefore _ _ _ => sorry -- obFinishBefore case
+                      | encapOb p henc hpob =>
+                        -- p inside CLE_w, p OB CLE₂. Use dir_ordered de_w de₂.
+                        cases (b.orderedAtEntry.dir_ordered de_w de₂).ordered with
+                        | inl hdir => exact Nat.le_of_lt (Nat.lt_trans hdir de₂.oWellFormed)
+                        | inr hdir =>
+                          -- de₂ OB de_w: temporal loop via p inside CLE_w and p OB CLE₂.
+                          exfalso
+                          sorry -- encapOb + de₂ OB de_w: temporal loop (type bridging issue)
+                      | obFinishBefore p hpob hplt =>
+                        -- p OB CLE₂, p.oEnd < CLE_w.oEnd. Same dir_ordered approach.
+                        cases (b.orderedAtEntry.dir_ordered de_w de₂).ordered with
+                        | inl h => exact Nat.le_of_lt (Nat.lt_trans h de₂.oWellFormed)
+                        | inr h =>
+                          -- de₂ OB de_w. Need de_w.oEnd ≤ de₂.oEnd, but de₂.oEnd < de_w.oStart.
+                          -- de_w.oStart ≤ de_w.oEnd (wf). So de₂.oEnd < de_w.oEnd. Contradiction with ≤.
+                          -- Actually: we're trying to prove de_w.oEnd ≤ de₂.oEnd but have de₂.oEnd < de_w.oStart ≤ de_w.oEnd.
+                          -- So de₂.oEnd < de_w.oEnd. Use exfalso + the co chain giving CLE_w before CLE₂.
+                          -- The co chain StepOrdering is obFinishBefore — p OB CLE₂ and p.oEnd < CLE_w.oEnd.
+                          -- With de₂ OB de_w: CLE₂ before CLE_w. But co chain should give CLE_w ≤ CLE₂.
+                          -- For obFinishBefore: p.oEnd < CLE_w.oEnd. This doesn't give CLE_w ≤ CLE₂.
+                          -- de₂ OB de_w with co chain from e_w to e₂: e_w before e₂ but CLE₂ before CLE_w?
+                          -- This seems protocol-impossible. Use e_w OB e₂ somehow.
+                          sorry -- obFinishBefore + de₂ OB de_w: protocol impossible?
                       | eq heq => simp only [Event.oEnd, hfcw, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at heq ⊢
                                   exact Nat.le_of_eq (congrArg DirectoryEvent.oEnd (Event.directoryEvent.inj heq))
                     exact Nat.lt_irrefl _ (calc de_w.oEnd ≤ de₂.oEnd := hcw_le
