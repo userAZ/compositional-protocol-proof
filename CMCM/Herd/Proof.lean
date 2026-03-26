@@ -1065,7 +1065,7 @@ theorem fr_ordering_holds
                                                     (Nat.lt_trans ((Event.directoryEvent.inj heq) ▸ h_clew2_ob) de_clew.oWellFormed)
                                 | inr hcle₂_ob_drf =>
                                   -- Old code path: CLE₂ OB d_rf for first encapDirRelation case.
-                                  sorry -- CLE₂ OB d_rf from first cases (documentation)
+                                  sorry -- CLE₂ OB d_rf: same NIW pattern as gcacheEncap inner case
                           | gcacheEncap hgcr_enc₂ hdrf_lt₂ =>
                             -- Same pattern: dir_ordered d_rf CLE₂. Use hencapDir (in scope).
                             match hfc_drf'' : hencapDir.existsRClusterDirDown.choose, hdrf_isdir with
