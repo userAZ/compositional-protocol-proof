@@ -111,6 +111,35 @@ theorem exists_choose_eq {α : Sort _} {p : α → Prop} (h₁ h₂ : ∃ x, p x
     h₁.choose = h₂.choose :=
   congrArg Exists.choose (Subsingleton.elim h₁ h₂)
 
+/-- The compound linearization event for a clusterDirLin event is at-or-inside the Herd CLE.
+    Specifically, for event e:
+    - `(lin e).hreq's_dir_access.choose` is the Herd CLE
+    - `(compound.compoundLinearizationEvent ...).linearizationEvent` is the compound lin event
+    When both frameworks agree (via dirAccessOfRequest for the same event),
+    the compound lin event satisfies `CLE.oStart ≤ e_lin.oStart` and `e_lin.oEnd ≤ CLE.oEnd`.
+
+    For previousGlobalCacheGotPerms: e_lin = CLE, so both bounds are equalities.
+    For getGlobalCachePerms: e_lin is inside CLE (via GCR encapsulation chain).
+    For clusterCacheLin: e_lin = cache event, only the first bound holds for
+    orderBeforeDir (CLE before cache event). -/
+private noncomputable def compound_lin_start_bound
+    {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    (e : Event n)
+    (lin_e : CompoundProtocol.globalLinearizationEventOfRequest compound b init e) :
+    Event.oStart n lin_e.hreq's_dir_access.choose ≤
+    Event.oStart n (compound.compoundLinearizationEvent compound.shimAxioms b init e
+      (compound.linearizationOfEvent b init e)).linearizationEvent := by
+  sorry
+
+private noncomputable def compound_lin_end_bound
+    {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    (e : Event n)
+    (lin_e : CompoundProtocol.globalLinearizationEventOfRequest compound b init e) :
+    Event.oEnd n (compound.compoundLinearizationEvent compound.shimAxioms b init e
+      (compound.linearizationOfEvent b init e)).linearizationEvent ≤
+    Event.oEnd n lin_e.hreq's_dir_access.choose := by
+  sorry
+
 /-! ## Main theorem: acyclicity via OB chain on protocol events
 
 The proof chains OB on SPECIFIC protocol events (CLE, e_r_down, e_r_cdir_down)
@@ -1619,11 +1648,13 @@ theorem ppoi_step_to_ordering
                     let e_lin₂' := (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
                       (compound.linearizationOfEvent b init e₂)).linearizationEvent
                     have hcle₁_le_elin₁ : Event.oStart n (.directoryEvent de₁') ≤
-                        Event.oStart n e_lin₁' :=
-                      sorry -- Subsingleton bridge: compound CLE = Herd CLE, e_lin at-or-inside CLE
+                        Event.oStart n e_lin₁' := by
+                      have := compound_lin_start_bound e₁ (lin e₁)
+                      rwa [hfc₁'] at this
                     have helin₂_le_cle₂ : Event.oEnd n e_lin₂' ≤
-                        Event.oEnd n (.directoryEvent de₂') :=
-                      sorry -- Subsingleton bridge: compound CLE = Herd CLE, e_lin at-or-inside CLE
+                        Event.oEnd n (.directoryEvent de₂') := by
+                      have := compound_lin_end_bound e₂ (lin e₂)
+                      rwa [hfc₂'] at this
                     have hchain' : Event.oEnd n (.directoryEvent de₂') <
                         Event.oEnd n (.directoryEvent de₂') :=
                       calc Event.oEnd n (.directoryEvent de₂')
@@ -1931,12 +1962,14 @@ theorem ppoi_step_to_ordering
                   -- i.e., Event.oEnd n e_lin₁ < Event.oStart n e_lin₂
                   -- Extract compound lin bound for e₁: de₁.oStart ≤ e_lin₁.oStart
                   have hcle₁_le_elin₁ : Event.oStart n (.directoryEvent de₁) ≤
-                      Event.oStart n e_lin₁ :=
-                    sorry -- Subsingleton bridge: compound CLE = Herd CLE, e_lin at-or-inside CLE
+                      Event.oStart n e_lin₁ := by
+                    have := compound_lin_start_bound e₁ (lin e₁)
+                    rwa [hfc₁] at this
                   -- Extract compound lin bound for e₂: e_lin₂.oEnd ≤ de₂.oEnd
                   have helin₂_le_cle₂ : Event.oEnd n e_lin₂ ≤
-                      Event.oEnd n (.directoryEvent de₂) :=
-                    sorry -- Subsingleton bridge: compound CLE = Herd CLE, e_lin at-or-inside CLE
+                      Event.oEnd n (.directoryEvent de₂) := by
+                    have := compound_lin_end_bound e₂ (lin e₂)
+                    rwa [hfc₂] at this
                   -- Chain: de₂.oEnd < de₂.oEnd
                   have hchain : Event.oEnd n (.directoryEvent de₂) < Event.oEnd n (.directoryEvent de₂) :=
                     calc Event.oEnd n (.directoryEvent de₂)

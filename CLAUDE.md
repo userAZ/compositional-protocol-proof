@@ -234,14 +234,18 @@ The GLE/CLE/cache lex ordering falls out as a CONSEQUENCE of this communication 
 - Chain: CLE₂.oEnd < CLE₁.oStart ≤ e_lin₁.oStart ≤ e_lin₁.oEnd < e_lin₂.oStart, and e_lin₂.oEnd ≤ CLE₂.oEnd → CLE₂.oEnd < CLE₂.oEnd → False.
 **Does NOT work** when one/both are `clusterCacheLin` — need predecessor elimination.
 
-**Implementation status (2026-03-26 session 11):**
-- orderBeforeDir×orderBeforeDir diff-addr (sorry 1608): Temporal chain implemented with 2 Subsingleton bridge sorry's + lazy case sorry. The non-lazy case derives `Nat.lt_irrefl` via `calc`.
-- orderAfterDir diff-addr non-lazy (sorry 1887): Same temporal chain pattern with 2 Subsingleton bridge sorry's.
-- orderAfterDir diff-addr lazy (sorry 1901→1967): Needs `hlazy` instantiation.
-- encapDir×orderBeforeDir diff-addr (sorry 1449): Still a single sorry (same pattern as orderBeforeDir×orderBeforeDir).
+**Implementation status (2026-03-26 session 12):**
+- 4 Subsingleton bridge sorry's consolidated into 2 helper lemmas: `compound_lin_start_bound` and `compound_lin_end_bound` (Proof.lean lines 125-141). The 4 call sites use `rwa [hfc]` to rewrite the match hypothesis. Net reduction: 4 → 2 sorry's.
+- orderBeforeDir×orderBeforeDir diff-addr: Temporal chain implemented. Non-lazy case derives `Nat.lt_irrefl` via `calc` using the helper lemmas.
+- orderAfterDir diff-addr non-lazy: Same temporal chain pattern using the helper lemmas.
+- orderAfterDir diff-addr lazy: Needs `hlazy` instantiation.
+- encapDir×orderBeforeDir diff-addr: Still a single sorry (same pattern as orderBeforeDir×orderBeforeDir).
 
-**Remaining Subsingleton bridge sorry** (4 instances, same pattern):
-Show `CLE.oStart ≤ e_lin.oStart` and `e_lin.oEnd ≤ CLE.oEnd` where CLE is the Herd CLE and e_lin is the compound lin event. Both use `dirAccessOfRequest` for the same event. By Subsingleton on `∃ e_cdir ∈ b, dirAccessOfRequest e e_cdir`, both frameworks produce the same CLE. Then `clusterDirectoryLinearizationEvent.previousGot` gives equality, `getPerms` gives strict encapsulation.
+**Remaining `compound_lin_start_bound` / `compound_lin_end_bound` sorry's (2, in Proof.lean lines 132/141):**
+Show `CLE.oStart ≤ e_lin.oStart` and `e_lin.oEnd ≤ CLE.oEnd` where CLE = `lin_e.hreq's_dir_access.choose` (Herd CLE) and e_lin = compound lin event. Requires bridging two frameworks' CLEs.
+
+**Key blocker: `dirAccessOfRequest` witness uniqueness.**
+Both frameworks produce a CLE via `dirAccessOfRequest` for the same cache event, but through different existential chains. The Herd CLE is `.choose` on `∃ e_cdir ∈ b, dirAccessOfRequest ...` and the compound CLE is extracted through `linearizationOfEvent → dirLin → reqLinearizeAtDir.choose`. By proof irrelevance, both existentials are equal, so their `.choose` is the same. BUT `.choose` (via `Classical.choice`) doesn't reduce to any specific witness, so we cannot show `compound_CLE = Herd_CLE` without proving that `dirAccessOfRequest` determines `e_dir` uniquely for a given `e_req`. This uniqueness is plausible (each cache event generates exactly one corresponding directory event) but not proven in the codebase. Alternatively, for `previousGotPerms` the compound lin event IS the compound CLE, and `dir_event_of_req_event_unique` (RfProofHelpers.lean:1832) proves uniqueness in the reverse direction (directory event → unique request event). Need the forward direction or a Behaviour axiom.
 
 **Key finding: nc.weak + nc.release always has (dir,dir) compound lin.**
 From `weakWriteAndNonCoherentRelCannotLinearizeAtCache` (CompoundProtocol axiom): in a PPO pair involving nc.weak and nc.release, NEITHER can linearize at cache. So `clusterCacheLin` is impossible for both. Only the (dir,dir) case survives.
