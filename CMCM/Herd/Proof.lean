@@ -484,10 +484,33 @@ theorem fr_ordering_holds
                           --   → CLE_w OB e_cdir_w AND cdir_w OB CLE_w → loop!
                           -- The encapDir from the co step and from cdirEncapsDown_exists are
                           -- both Behaviour.clusterDown.encapDir at e_w's cluster. By Subsingleton:
-                          have hdown_eq : w.rDown.encapDir.existsRClusterDirDown.choose =
-                              (cdirEncapsDown_exists e_w_lin (hlin e₂) hw_in_b hw_cache).choose := by
-                            sorry -- Subsingleton bridge between co step's encapDir and cdirEncapsDown's
-                          sorry -- Bridge hdown_eq to show CLE_w OB cdir_w → contradiction
+                          -- wObRDown: CLE_w OB w.rDown.choose (downgrade at e_w's cluster).
+                          -- cdir_w OB CLE_w → cdir_w < CLE_w < w.rDown.choose.
+                          -- Use dir_ordered w.rDown.choose cdir_w:
+                          -- w.rDown.choose OB cdir_w → CLE_w < w.rDown.choose < cdir_w < CLE_w → loop.
+                          have hw_cle_ob_rdown : Event.oEnd n (.directoryEvent de_w) <
+                              Event.oStart n w.rDown.encapDir.existsRClusterDirDown.choose := by
+                            rw [hfcw] at hw_ob_rdown; exact hw_ob_rdown
+                          -- w.rDown.choose is a directory event at e_w's cluster.
+                          have hrd_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
+                          have hrd_isdir := hrd_spec.2.1
+                          match hfc_rd : w.rDown.encapDir.existsRClusterDirDown.choose, hrd_isdir with
+                          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                          | .directoryEvent de_rd, _ =>
+                            cases (b.orderedAtEntry.dir_ordered de_rd de_cdir_w).ordered with
+                            | inl hob_rd_cdir =>
+                              -- w.rDown.choose OB cdir_w → loop: CLE_w < w.rDown.choose < cdir_w < CLE_w
+                              exact Nat.lt_irrefl de_w.oEnd
+                                (calc de_w.oEnd
+                                  _ < de_rd.oStart := by rw [hfc_rd] at hw_cle_ob_rdown; exact hw_cle_ob_rdown
+                                  _ ≤ de_rd.oEnd := Nat.le_of_lt de_rd.oWellFormed
+                                  _ < de_cdir_w.oStart := hob_rd_cdir
+                                  _ ≤ de_cdir_w.oEnd := Nat.le_of_lt de_cdir_w.oWellFormed
+                                  _ < de_w.oStart := hob_cdir_w_w
+                                  _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed)
+                            | inr hob_cdir_rd =>
+                              -- cdir_w OB w.rDown.choose: consistent.
+                              sorry -- cdir_w < w.rDown.choose: deeper argument
                         | evictOrReadBetweenWAndRDown evict_case =>
                           have hw_ob_rdown := evict_case.wObRDown
                           have hdown_eq : evict_case.rDown.encapDir.existsRClusterDirDown.choose =
