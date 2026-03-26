@@ -519,7 +519,7 @@ private lemma co_chain_cross_cluster_downgrade
               (show e_w.protocol = b_mid.protocol from h_mid_prot).symm),
             hrd_spec.2.2.2.2.1,
             isDirWrite_of_rw_eq_write hrd_spec.2.1 hrd_spec.2.2.2.1 h_last.write₂,
-            sorry⟩ -- translatedDir propagated
+            by rw [show lin c_ep = h_last.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.2.2.2.2.1⟩
         | evictOrReadBetweenWAndRDown evict =>
           have hrd_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
           have hrd_lt : evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
@@ -538,7 +538,7 @@ private lemma co_chain_cross_cluster_downgrade
               (show e_w.protocol = b_mid.protocol from h_mid_prot).symm),
             hrd_spec.2.2.2.2.1,
             isDirWrite_of_rw_eq_write hrd_spec.2.1 hrd_spec.2.2.2.1 h_last.write₂,
-            sorry⟩ -- translatedDir propagated
+            by rw [show lin c_ep = h_last.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.2.2.2.2.1⟩
     · -- Prefix diff-cluster: IH gives d with d.oEnd < CLE_mid.oEnd.
       obtain ⟨d, hd_in_b, hob_d, hd_lt, hd_isDir, hd_proto, hd_not_down, hd_isDirWrite, hd_translatedDir⟩ := ih h_mid_prot
       -- Extend to CLE_c via co_step_to_ordering.
@@ -556,6 +556,7 @@ private lemma diffCache_case_extract_encapDir
     {hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)}
     (hw_is_write : e_w.isWrite) (hr_is_read : e_r.isRead)
     (h : WriteRead.wObRCle.diffCache.case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow)
+    (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache)
     : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin := by
   cases h with
   | wHasPermsAfter _ coherent_case =>
@@ -567,11 +568,11 @@ private lemma diffCache_case_extract_encapDir
       | evictBetween w => exact w.encapProxyAndDir
   | wNoPermsAfter _ _ hrCle =>
     cases hrCle with
-    | sameCluster _ hob => exact diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin sorry sorry
+    | sameCluster _ hob => exact diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster
     | diffCluster _ henc _ => exact henc
   | wCleAfter hrCle =>
     cases hrCle with
-    | sameCluster _ hob => exact diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin sorry sorry
+    | sameCluster _ hob => exact diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster
     | diffCluster _ henc _ => exact henc
 
 /-- 2-cluster elimination: if e₁ diff from e₂ and e_w not at e₁'s cluster, then e₂ same as e_w. -/
@@ -849,7 +850,7 @@ theorem fr_ordering_holds
                           -- For obEndLt: need CLE₁ OB d_rf (not available — d_rf inside CLE₁).
                           -- For now: sorry (needs case analysis on diffCache.case sub-cases)
                           -- Extract encapDir from diffCache.case.
-                          have hencapDir := diffCache_case_extract_encapDir e_w_write h.read hdiff_cache_case
+                          have hencapDir := diffCache_case_extract_encapDir e_w_write h.read hdiff_cache_case hw_in_b hw_cache
                           have hdrf_spec := hencapDir.existsRClusterDirDown.choose_spec
                           -- d_rf at e_w's cluster. encapDirRelation gives d_rf inside CLE₁ or oEnd bound.
                           -- For cleEncap: d_rf.EncapsulatedBy CLE₁.
@@ -1891,7 +1892,7 @@ theorem step_to_ordering
       | diffCluster_rfCrossCluster _ p p_inside p_ob => exact .encapOb p p_inside p_ob
       | diffCluster_rfFinishBefore _ p p_ob p_lt => exact .obFinishBefore p p_ob p_lt
       | sameCLE cle_eq => exact .eq cle_eq
-      /-  OLD FR proof (replaced by fr.ordering extraction):
+      /- OLD FR proof removed (was 275 lines of dead code with 3 sorry's).
       by_cases h_same_prot : e₁.sameProtocol n e₂
       · -- Same cluster: CLE₁ and CLE₂ at same cluster directory.
         by_cases hcle_eq : (lin e₁).hreq's_dir_access.choose = (lin e₂).hreq's_dir_access.choose
