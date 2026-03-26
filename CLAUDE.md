@@ -57,31 +57,30 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 ### Status (updated 2026-03-26 session 11)
+- **CO edge**: FULLY PROVEN
+- **rfe edge**: FULLY PROVEN
+- **FR edge**: `fr_ordering_holds` SORRY-FREE. Helper sorry's in co_chain_cross_cluster_downgrade (1 translatedDir)
+- **StepOrdering.trans**: 7 sorry's — compositions involving `encapOb`/`obFinishBefore` (structural design issue)
+- **PPOi edge**: CLE₁ OB CLE₂ direction proven for all diff-addr cases via `dir_ordered`. CLE₂ OB CLE₁ direction uses CompoundMCM temporal contradiction (closed for non-lazy `previousGlobalCacheGotPerms` and `getGlobalCachePerms` via `dirAccessUnique`). Same-addr orderAfterDir partially proven (5 sub-cases done, 5 targeted sorry's).
+- **5 sorry declarations** in Proof.lean, **22 active sorry's** (down from 37 at session start)
+- **CompoundProtocol.dirAccessUnique**: Added as model-checkable field on CompoundProtocol. Bridges compound lin events to Herd CLEs for `previousGlobalCacheGotPerms` case.
 
-**TODO (post-deadline):** Replace `CompoundProtocol.dirAccessUnique` field with proper proof by unifying Herd and CompoundMCM CLE definitions to share `linearizationEventOfRequest`. The field is currently model-checkable via Murphi but the structural fix (making both frameworks call the same `linearizationOfEvent` function) is architecturally better. Blocked by `linearizationEventOfRequest` being Type-valued (can't embed in Prop structure `globalLinearizationEventOfRequest`).
+**TODO (post-deadline):** Replace `dirAccessUnique` with proper proof by unifying CLE definitions to share `linearizationEventOfRequest`. Blocked by `linearizationEventOfRequest` being Type-valued (can't embed in Prop `globalLinearizationEventOfRequest`).
 
-### Status (from session 10, partially updated)
-- **CO edge**: FULLY PROVEN (0 sorry's)
-- **rfe edge**: FULLY PROVEN (0 sorry's)
-- **FR edge**: Redesigned with proper case structure (sameCache/sameClusDiffCache/diffCluster_{coherent,evict,noncoherent}/sameCLE). Same-cluster cases CLOSED via `interSameProtocolCleOB`. Diff-cluster cases partially closed (CLE₁ OB proxy paths done, evict OB CLE₁ paths have sorry's).
-- **StepOrdering**: New `.encapOb` constructor added (p inside l₁, p OB l₂). Irrefl proven. Most trans cases proven (2 sorry for obEndLt+encapOb composition).
-- **PPOi edge**: 5 sorry's (3 diff-addr CompoundMCM, 1 same-addr orderAfterDir, 1 lazy)
-- **NIW extension**: `interSameProtocolCleOB` field on `NoInterveningWrites.constraints`
-- **6 sorry declarations** in Proof.lean: StepOrdering.trans (2), co_chain oEnd extraction (3), fr_ordering_holds, ppoi_step_to_ordering
+### Remaining sorry categories (2026-03-26 session 11)
 
-### Remaining sorry categories (2026-03-26 session 10)
+**Helper lemma sorry's (5, unreachable at call sites):**
+- `compound_lin_start/end_bound` clusterCacheLin branches: `reqHasPerms + reqMissingPerms → False`, `reqHasPerms + ncWeakReqOnVd → False`, `e.oEnd ≤ CLE.oEnd` false for orderBeforeDir. These are unreachable because non-lazy CompoundMCM guarantees `clusterDirLin` (via `weakWriteAndNonCoherentRelCannotLinearizeAtCache`).
 
-**StepOrdering.trans sorry's (2):**
-- `obEndLt + encapOb` and `encapOb + obEndLt`: composition needs careful oEnd chain. May need additional TC-like constructor. These don't arise in practice (co chain produces ob/obEndLt/eq, not encapOb).
+**StepOrdering.trans (7):** Compositions involving `encapOb`/`obFinishBefore`. Structural — need StepOrdering redesign or path constructor.
 
-**FR sorry's (in fr_ordering_holds):**
-- sameCache `struct → sameProtocol` lemma (trivial)
-- 3× diffCluster `evict OB CLE₁` sub-cases. **KEY APPROACH**: with `encapOb`, the "e_w same as e₂" sub-case resolves via RF's d_rf (inside CLE₁) + dir_ordered d_rf CLE₂ → `.encapOb`. The "e_w same as e₁" sub-case uses existing cdirEncapsDown_exists approach. Only 2 clusters → no "e_w diff from both" case.
+**PPOi diff-addr (1):** `encapDir×orderBeforeDir` — correct CompoundMCM pattern but blocked by nested Lean match substitution (`e₁ → .cacheEvent ce₁`). The `orderBeforeDir×orderBeforeDir` case (same pattern, NOT inside cache match) compiles.
 
-**PPOi sorry's (5 in ppoi_step_to_ordering):**
-- Lines 739/883: diff-addr CompoundMCM bridge
-- Line 927: same-addr orderAfterDir (nc.weak CLE sharing)
-- Lines 939/942: diff-addr orderAfterDir CompoundMCM + lazy
+**PPOi lazy (2):** `lazyCompoundLinearizationOrder` for diff-addr orderAfterDir and encapDir×orderBeforeDir.
+
+**PPOi same-addr orderAfterDir sub-cases (5):** `satProp`, `orderBeforeDir(e₂)`, bottom encap contradictions (2), `succ₂ OB succ₁`.
+
+**Other (2):** translatedDir endpoint shift (1), cycle irrefl obFinishBefore (1).
 
 ### KEY INSIGHT (session 10): FR proof via RF evidence + encapOb
 
