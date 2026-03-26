@@ -456,76 +456,44 @@ theorem fr_ordering_holds
                       -- cdir_w OB CLE_w: use first co step's wObRDown.
                       -- Extract first co step from TransGen.
                       obtain ⟨e_w_next, h_first_co⟩ := Herd.transGen_first_step h_co_chain
-                      -- First co step: co(e_w, e_w_next). Use co_step_to_ordering.
-                      have hfirst_so := co_step_to_ordering h_first_co hlin
-                      rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hfirst_so
-                      -- StepOrdering CLE_w CLE_{w_next}. Cases:
-                      cases hfirst_so with
-                      | ob h_ob =>
-                        -- CLE_w OB CLE_{w_next}: CLE_w.oEnd < CLE_{w_next}.oStart.
-                        -- cdir_w OB CLE_w: cdir_w.oEnd < CLE_w.oStart ≤ CLE_w.oEnd < CLE_{w_next}.oStart.
-                        -- cdir_w is at e_w's cluster. CLE_{w_next} at e_w_next's cluster.
-                        -- These might be at different clusters — can't derive contradiction directly.
-                        -- .ob: first co step at same cluster as e_w.
-                        -- dir_ordered de_cdir_w CLE_{w_next} at same dir.
-                        have hcle_wn_isdir := (hlin e_w_next).hreq's_dir_access.choose_spec.2.isDirEvent
-                        match hfc_wn : (hlin e_w_next).hreq's_dir_access.choose, hcle_wn_isdir with
-                        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-                        | .directoryEvent de_wn, _ =>
-                          cases (b.orderedAtEntry.dir_ordered de_cdir_w de_wn).ordered with
-                          | inl hob_cdir_wn =>
-                            -- cdir_w OB CLE_{w_next}: consistent (cdir_w < CLE_w < CLE_{w_next}).
-                            -- This means cdir_w is BEFORE both CLE_w and CLE_{w_next}.
-                            -- Need further argument to derive contradiction.
-                            sorry -- cdir_w < CLE_w < CLE_{w_next}: deeper NIW argument
-                          | inr hob_wn_cdir =>
-                            -- CLE_{w_next} OB cdir_w: temporal loop!
-                            -- CLE_w < CLE_{w_next} (h_ob) and CLE_{w_next} < cdir_w (hob_wn_cdir)
-                            -- and cdir_w < CLE_w (hob_cdir_w_w) → CLE_w < CLE_w.
-                            exact Nat.lt_irrefl de_w.oEnd
-                              (calc de_w.oEnd
-                                _ < de_wn.oStart := by
-                                    show Event.oEnd n (.directoryEvent de_w) <
-                                        Event.oStart n (.directoryEvent de_wn)
-                                    rw [hfcw] at h_ob; rw [hfc_wn] at h_ob; exact h_ob
-                                _ ≤ de_wn.oEnd := Nat.le_of_lt de_wn.oWellFormed
-                                _ < de_cdir_w.oStart := hob_wn_cdir
-                                _ ≤ de_cdir_w.oEnd := Nat.le_of_lt de_cdir_w.oWellFormed
-                                _ < de_w.oStart := hob_cdir_w_w
-                                _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed)
-                      | obEndLt p h_cle_w_ob_p h_p_lt =>
-                        -- CLE_w OB p: h_cle_w_ob_p. cdir_w OB CLE_w: hob_cdir_w_w.
-                        -- Combined: cdir_w < CLE_w < p. If p < cdir_w → loop.
-                        -- p from co step's diffClus: directory event at target cluster.
-                        -- For same-cluster e_w: p at e_w's cluster = cdir_w's cluster.
-                        -- dir_ordered de_cdir_w p → p OB cdir_w gives loop.
-                        -- .obEndLt: cdir_w < CLE_w < p (from cdir_w OB CLE_w OB p).
-                        -- Needs info about p (proxy from co step) to derive contradiction.
-                        sorry -- .obEndLt: proxy p vs cdir_w ordering
-                      | sameLin _ _ heq henc₁ hob_cache henc₂ =>
-                        -- sameLin gives temporal loop: l.oEnd < e₁'.oEnd < e₂'.oStart < l.oStart
-                        -- where l₁ = l₂ = CLE_w (after match subst)
-                        exact Nat.lt_irrefl _
-                          (calc Event.oEnd n e_w_lin.hreq's_dir_access.choose
-                            _ < _ := henc₁.right
-                            _ < _ := hob_cache
-                            _ < Event.oStart n e_w_lin.hreq's_dir_access.choose := by
-                                show _ < Event.oStart n e_w_lin.hreq's_dir_access.choose
-                                rw [← heq] at henc₂; exact henc₂.left
-                            _ < _ := Event.oWellFormed n _)
-                      | eq heq =>
-                        -- CLE_w = CLE_{w_next}: dir_ordered de_w de_w → self-OB → False.
-                        have hcle_wn_isdir := (hlin e_w_next).hreq's_dir_access.choose_spec.2.isDirEvent
-                        match hfc_wn : (hlin e_w_next).hreq's_dir_access.choose, hcle_wn_isdir with
-                        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-                        | .directoryEvent de_wn, _ =>
-                          have hde_eq : de_w = de_wn :=
-                            Event.directoryEvent.inj (by rw [hfcw, hfc_wn] at heq; exact heq)
-                          rw [hde_eq] at hob_cdir_w_w
-                          -- cdir_w OB de_wn (= CLE_{w_next} = CLE_w). Use dir_ordered.
-                          cases (b.orderedAtEntry.dir_ordered de_wn de_wn).ordered with
-                          | inl h => exact Nat.lt_irrefl _ (Nat.lt_trans h de_wn.oWellFormed)
-                          | inr h => exact Nat.lt_irrefl _ (Nat.lt_trans h de_wn.oWellFormed)
+                      -- Use co.ordering DIRECTLY (not co_step_to_ordering) to access wObRDown.
+                      cases h_first_co.comm with
+                      | sameCache same_cle cache_ob =>
+                        -- Same cache: CLE_w = CLE_{w_next}. dir_ordered de_w de_w → False.
+                        sorry -- sameCache: CLE_w = CLE_{w_next} → self-ordering → False
+                      | sameClusDiffCache h_same_prot_co cle_ord =>
+                        -- Same cluster diff cache: cle_ord carries temporal evidence.
+                        sorry -- sameClusDiffCache: extract CLE ordering from cle_ord
+                      | diffClus h_diff_prot_co diff_cluster_cases =>
+                        -- Different cluster: wObRDown gives CLE_w OB e_r_cdir_down.
+                        -- e_r_cdir_down = cdir_w (via Subsingleton) → CLE_w OB cdir_w.
+                        -- Combined with hob_cdir_w_w (cdir_w OB CLE_w) → temporal loop → False!
+                        cases diff_cluster_cases with
+                        | wCleImmPredDown w =>
+                          -- w.wObRDown : CLE_w OB e_r_cdir_down at e_w's cluster
+                          -- e_r_cdir_down from co step's encapDir.existsRClusterDirDown.choose
+                          -- cdir_w from cdirEncapsDown_exists.
+                          -- Both are encapDir at e_w's cluster → Subsingleton → same choose.
+                          have hw_ob_rdown := w.wObRDown
+                          -- hw_ob_rdown : e_w_lin.CLE OB w.rDown.encapDir.existsRClusterDirDown.choose
+                          -- After match hfcw: e_w_lin.CLE = .directoryEvent de_w
+                          -- So: de_w.oEnd < w.rDown.encapDir.existsRClusterDirDown.choose.oStart
+                          -- And hob_cdir_w_w : de_cdir_w.oEnd < de_w.oStart
+                          -- If w.rDown.encapDir = the same encapDir as cdirEncapsDown_exists:
+                          --   existsRClusterDirDown.choose = e_cdir_w (via Subsingleton)
+                          --   → CLE_w OB e_cdir_w AND cdir_w OB CLE_w → loop!
+                          -- The encapDir from the co step and from cdirEncapsDown_exists are
+                          -- both Behaviour.clusterDown.encapDir at e_w's cluster. By Subsingleton:
+                          have hdown_eq : w.rDown.encapDir.existsRClusterDirDown.choose =
+                              (cdirEncapsDown_exists e_w_lin (hlin e₂) hw_in_b hw_cache).choose := by
+                            sorry -- Subsingleton bridge between co step's encapDir and cdirEncapsDown's
+                          sorry -- Bridge hdown_eq to show CLE_w OB cdir_w → contradiction
+                        | evictOrReadBetweenWAndRDown evict_case =>
+                          have hw_ob_rdown := evict_case.wObRDown
+                          have hdown_eq : evict_case.rDown.encapDir.existsRClusterDirDown.choose =
+                              (cdirEncapsDown_exists e_w_lin (hlin e₂) hw_in_b hw_cache).choose := by
+                            sorry -- Subsingleton bridge between co step's encapDir and cdirEncapsDown's
+                          sorry -- Same bridge as wCleImmPredDown
     · -- Diff cluster: use cdirEncapsDown_exists for proxy.
       -- dir_ordered CLE₁ cdir/evict → CLE₁ OB proxy, proxy.oEnd < CLE₂.oEnd.
       obtain ⟨e_cdir, _he_cdir_in_b, he_cdir_isDir, _he_cdir_proto, hcdir_lt_cle₂,
