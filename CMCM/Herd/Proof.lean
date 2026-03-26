@@ -506,6 +506,8 @@ private lemma diffCache_case_extract_encapDir
     Mirrors CMCM.rf_holds for RF and co_step_to_ordering for CO.
     The descriptive evidence in FrOrdering is DERIVED from protocol axioms,
     not assumed. A reviewer can verify the derivation. -/
+-- Helper not feasible due to complex types. CLE₂ OB d_rf NIW sorry's use inline pattern.
+
 theorem fr_ordering_holds
     (h : @Herd.fr n compound b init e₁ e₂)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
@@ -951,7 +953,28 @@ theorem fr_ordering_holds
                                           exfalso
                                           have h_constraints := h_no_between e₂ h.in_b₂
                                             h.cache₂ h.write h.notDown₂ (hlin e₂)
-                                          sorry -- gcacheEncap CLE₂ OB d_rf: replicate NIW pattern
+                                          -- Replicate the encapDir .ob CO NIW pattern.
+                                          have h_ew_e₂ : e₂.sameProtocol n e_w := by
+                                            unfold Event.sameProtocol
+                                            cases hw_cache.eCluster with
+                                            | inl hw1 => cases h.cache₂.eCluster with
+                                              | inl h2c1 => exact h2c1.trans hw1.symm
+                                              | inr h2c2 => cases h.cache₁.eCluster with
+                                                | inl h1c1 => exact absurd (h1c1.trans hw1.symm) h_ew_e₁
+                                                | inr h1c2 => exfalso; exact h_same_prot (h1c2.trans h2c2.symm)
+                                            | inr hw2 => cases h.cache₂.eCluster with
+                                              | inr h2c2 => exact h2c2.trans hw2.symm
+                                              | inl h2c1 => cases h.cache₁.eCluster with
+                                                | inr h1c2 => exact absurd (h1c2.trans hw2.symm) h_ew_e₁
+                                                | inl h1c1 => exfalso; exact h_same_prot (h1c1.trans h2c1.symm)
+                                          have hcle₂_ob_drf_ev :
+                                              (hlin e₂).hreq's_dir_access.choose.OrderedBefore n
+                                              hencapDir'.existsRClusterDirDown.choose := by
+                                            rw [show (hlin e₂) = lin e₂ from Subsingleton.elim _ _,
+                                                hfc_cle₂'', hfc_drf'']; exact hob
+                                          -- Need: CLE_w OB CLE₂ + CLE₂ OB d_rf → OrderedBetween → NIW.
+                                          -- Same pattern as encapDir .ob CO case (lines 807-912).
+                                          sorry -- CLE₂ OB d_rf NIW: replicate .ob CO pattern
                                 | inr hcle₂_ob_drf =>
                                   -- Old code path: CLE₂ OB d_rf for first encapDirRelation case.
                                   sorry -- CLE₂ OB d_rf from first cases (documentation)
