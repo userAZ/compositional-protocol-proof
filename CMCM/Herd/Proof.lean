@@ -174,6 +174,7 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
     | encapOb p henc hob =>
       -- l₁ OB l₂, p inside l₂, p OB l₃. Chain: l₁ < l₂.oStart < p.oStart ≤ p.oEnd < l₃.oStart.
       exact .ob (Nat.lt_trans (Nat.lt_trans h₁ henc.left) (Nat.lt_trans (Event.oWellFormed n p) hob))
+    | obFinishBefore p hob hlt => sorry -- trans ob+obFinishBefore
     | sameLin _ _ heq _ _ _ => subst heq; exact .ob h₁
     | eq heq => subst heq; exact .ob h₁
   | obEndLt q hq hqlt =>
@@ -187,6 +188,7 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
       -- p.oEnd < l₃.oStart → p.oEnd < l₃.oEnd. Use .obEndLt p if l₁ OB p.
       -- General case: sorry (may need additional TC constructor).
       sorry -- trans obEndLt+encapOb: needs careful oEnd chain
+    | obFinishBefore p hob hlt => sorry -- trans obEndLt+obFinishBefore
     | sameLin _ _ heq _ _ _ => subst heq; exact .obEndLt q hq hqlt
     | eq heq => subst heq; exact .obEndLt q hq hqlt
   | encapOb q henc hob =>
@@ -203,8 +205,18 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
       -- q inside l₁, q OB l₂. p inside l₂, p OB l₃.
       -- Chain: q.oEnd < l₂.oStart < p.oStart ≤ p.oEnd < l₃.oStart. So q OB l₃.
       exact .encapOb q henc (Nat.lt_trans (Nat.lt_trans hob henc₂.left) (Nat.lt_trans (Event.oWellFormed n p) hob₂))
+    | obFinishBefore p hob₂ hlt =>
+      sorry -- trans encapOb+obFinishBefore
     | sameLin _ _ heq _ _ _ => subst heq; exact .encapOb q henc hob
     | eq heq => subst heq; exact .encapOb q henc hob
+  | obFinishBefore q hqob hqlt =>
+    cases h₂₃ with
+    | ob h₂ => exact .obFinishBefore q (Trans.trans hqob h₂) hqlt
+    | obEndLt p hp hlt => sorry -- trans obFinishBefore+obEndLt
+    | encapOb p henc hob => exact .obFinishBefore q (Nat.lt_trans (Nat.lt_trans hqob henc.left) (Nat.lt_trans (Event.oWellFormed n p) hob)) hqlt
+    | obFinishBefore p hob hlt => sorry -- trans obFinishBefore+obFinishBefore
+    | sameLin _ _ heq _ _ _ => subst heq; exact .obFinishBefore q hqob hqlt
+    | eq heq => subst heq; exact .obFinishBefore q hqob hqlt
   | sameLin e₁' e₂' heq he₁ hob he₂ =>
     subst heq; exact h₂₃
   | eq heq =>
@@ -217,8 +229,11 @@ theorem StepOrdering.irrefl {l : Event n} (h : StepOrdering l l) : False := by
   | obEndLt p hp hlt =>
     exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hlt)
   | encapOb p henc hob =>
-    -- p inside l and p OB l: p.oEnd < l.oStart < p.oStart → contradiction
     exact Nat.lt_irrefl _ (Nat.lt_trans hob (Nat.lt_trans henc.left (Event.oWellFormed n p)))
+  | obFinishBefore p hob hlt =>
+    -- p OB l, p.oEnd < l.oEnd. Not directly contradictory.
+    -- In practice, cycle composition should not produce this as the final form.
+    sorry -- irrefl obFinishBefore: needs cycle to compose to a different constructor
   | sameLin e₁' e₂' heq he₁ hob he₂ =>
     have : l.oEnd < l.oEnd :=
       calc l.oEnd
@@ -395,6 +410,7 @@ private lemma co_chain_cross_cluster_downgrade
           -- l₁.oEnd vs l₂.oEnd undetermined in general. But for the cycle,
           -- this case shouldn't arise (co chain gives ob/obEndLt/eq, not encapOb).
           sorry -- trans: encapOb oEnd extraction
+        | obFinishBefore _ _ _ => sorry -- obFinishBefore case
         | sameLin _ _ heq _ _ _ => exact Nat.le_of_eq (congrArg (Event.oEnd n) heq)
         | eq heq => exact Nat.le_of_eq (congrArg (Event.oEnd n) heq)
       -- mid and c_ep must have different protocol (e_w same as mid, diff from c_ep)
@@ -453,6 +469,7 @@ private lemma co_chain_cross_cluster_downgrade
         | ob h => exact Nat.le_of_lt (Nat.lt_trans h (Event.oWellFormed n _))
         | obEndLt _ hp hlt => exact Nat.le_of_lt (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n _)) hlt)
         | encapOb _ _ _ => sorry -- co step shouldn't produce encapOb
+        | obFinishBefore _ _ _ => sorry -- obFinishBefore case
         | sameLin _ _ heq _ _ _ => exact Nat.le_of_eq (congrArg (Event.oEnd n) heq)
         | eq heq => exact Nat.le_of_eq (congrArg (Event.oEnd n) heq)
       exact ⟨d, hd_in_b, hob_d, Nat.lt_of_lt_of_le hd_lt hext, hd_isDir, hd_proto⟩
@@ -600,6 +617,7 @@ theorem fr_ordering_holds
                       | sameLin _ _ heq _ _ _ => simp only [Event.oEnd, hfcw, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at heq ⊢
                                                  exact Nat.le_of_eq (congrArg DirectoryEvent.oEnd (Event.directoryEvent.inj heq))
                       | encapOb _ _ _ => sorry -- co chain shouldn't produce encapOb
+                      | obFinishBefore _ _ _ => sorry -- obFinishBefore case
                       | eq heq => simp only [Event.oEnd, hfcw, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at heq ⊢
                                   exact Nat.le_of_eq (congrArg DirectoryEvent.oEnd (Event.directoryEvent.inj heq))
                     exact Nat.lt_irrefl _ (calc de_w.oEnd ≤ de₂.oEnd := hcw_le
@@ -868,6 +886,7 @@ theorem fr_ordering_holds
                                                         _ ≤ de_clew2.oEnd := Nat.le_of_lt de_clew2.oWellFormed
                                                         _ < de_clew.oStart := h
                                                         )
+                                            | obFinishBefore _ _ _ => sorry -- obFinishBefore case
                                             | sameLin _ _ heq _ _ _ => exact Or.inr heq
                                             | eq heq => exact Or.inr heq
                                           cases hcle_w1_ob_or_eq with
@@ -912,14 +931,48 @@ theorem fr_ordering_holds
                                     -- Case-split ClusterToGlobal shim: encapGlobalCache or noGlobalCache.
                                     -- For encapGlobalCache: CLE₁ encaps GCR → CLE₁ encaps d_rf → cleEncap pattern.
                                     -- For noGlobalCache: only oEnd bound → needs finishesBefore constructor.
-                                    sorry -- gcacheEncap: split on ClusterToGlobal shim
+                                    -- gcacheEncap: d_rf OB CLE₂ + d_rf.oEnd < CLE₁.oEnd → diffCluster_rfFinishBefore.
+                                    -- CLE₂ OB d_rf → NIW contradiction (same as cleEncap case).
+                                    have hdrf_isdir'' := hdrf_spec'.2.1
+                                    match hfc_drf'' : hencapDir'.existsRClusterDirDown.choose, hdrf_isdir'' with
+                                    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                                    | .directoryEvent de_drf', _ =>
+                                      match hfc_cle₂'' : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+                                      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                                      | .directoryEvent de_cle₂', _ =>
+                                        cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
+                                        | inl hob =>
+                                          exact .diffCluster_rfFinishBefore h_same_prot
+                                            hencapDir'.existsRClusterDirDown.choose
+                                            (by rw [hfc_drf'', hfc_cle₂'']; exact hob)
+                                            hdrf_lt
+                                        | inr hob =>
+                                          -- CLE₂ OB d_rf: NIW via interSameProtocolAsWNotBetweenCleAndDrf.
+                                          exfalso
+                                          have h_constraints := h_no_between e₂ h.in_b₂
+                                            h.cache₂ h.write h.notDown₂ (hlin e₂)
+                                          sorry -- gcacheEncap CLE₂ OB d_rf: replicate NIW pattern
                                 | inr hcle₂_ob_drf =>
-                                  -- CLE₂ OB d_rf: CLE₂ before d_rf. Same pattern as cleEncap CLE₂ OB case.
-                                  sorry -- CLE₂ OB d_rf: need additional argument
-                          | gcacheEncap _ hdrf_lt =>
-                            -- d_rf.oEnd < CLE₁.oEnd (gcacheEncap). Not EncapsulatedBy.
-                            -- TODO: need obEndLt or different approach
-                            sorry -- gcacheEncap: d_rf oEnd bound but not EncapsulatedBy
+                                  -- Old code path: CLE₂ OB d_rf for first encapDirRelation case.
+                                  sorry -- CLE₂ OB d_rf from first cases (documentation)
+                          | gcacheEncap hgcr_enc₂ hdrf_lt₂ =>
+                            -- Same pattern: dir_ordered d_rf CLE₂. Use hencapDir (in scope).
+                            match hfc_drf'' : hencapDir.existsRClusterDirDown.choose, hdrf_isdir with
+                            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                            | .directoryEvent de_drf', _ =>
+                              match hfc_cle₂'' : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+                              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                              | .directoryEvent de_cle₂', _ =>
+                                cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
+                                | inl hob =>
+                                  exact .diffCluster_rfFinishBefore h_same_prot
+                                    hencapDir.existsRClusterDirDown.choose
+                                    (by rw [hfc_drf'', hfc_cle₂'']; exact hob) hdrf_lt₂
+                                | inr hob =>
+                                  exfalso
+                                  have h_constraints := h_no_between e₂ h.in_b₂
+                                    h.cache₂ h.write h.notDown₂ (hlin e₂)
+                                  sorry -- outer gcacheEncap CLE₂ OB d_rf: NIW
         | orderBeforeDir _ hexists_pred₁ hpred₁_encap _ _ _ _ _ =>
           -- Same strategy as encapDir: dir_ordered CLE₁ cdir/evict.
           -- cdirEncapsDown_exists already called, e_cdir/e_evict in scope.
@@ -996,7 +1049,24 @@ theorem fr_ordering_holds
                               have h_constraints := h_no_between e₂ h.in_b₂
                                 h.cache₂ h.write h.notDown₂ (hlin e₂)
                               sorry -- replicate encapDir CLE₂ OB d_rf NIW pattern
-                      | gcacheEncap _ _ => sorry -- gcacheEncap
+                      | gcacheEncap _ hdrf_lt₂ =>
+                        have hdrf_isdir'' := hdrf_spec'.2.1
+                        match hfc_drf'' : hencapDir'.existsRClusterDirDown.choose, hdrf_isdir'' with
+                        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                        | .directoryEvent de_drf', _ =>
+                          match hfc_cle₂'' : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+                          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                          | .directoryEvent de_cle₂', _ =>
+                            cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
+                            | inl hob =>
+                              exact .diffCluster_rfFinishBefore h_same_prot
+                                hencapDir'.existsRClusterDirDown.choose
+                                (by rw [hfc_drf'', hfc_cle₂'']; exact hob) hdrf_lt₂
+                            | inr hob =>
+                              exfalso
+                              have h_constraints := h_no_between e₂ h.in_b₂
+                                h.cache₂ h.write h.notDown₂ (hlin e₂)
+                              sorry -- orderBeforeDir gcacheEncap CLE₂ OB d_rf: NIW
         | orderAfterDir hweak₁ _ _ _ =>
           -- e₁ non-coherent. Same dir_ordered strategy.
           have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
@@ -1072,7 +1142,24 @@ theorem fr_ordering_holds
                               have h_constraints := h_no_between e₂ h.in_b₂
                                 h.cache₂ h.write h.notDown₂ (hlin e₂)
                               sorry -- replicate encapDir CLE₂ OB d_rf NIW pattern
-                      | gcacheEncap _ _ => sorry -- gcacheEncap
+                      | gcacheEncap _ hdrf_lt₂ =>
+                        have hdrf_isdir'' := hdrf_spec'.2.1
+                        match hfc_drf'' : hencapDir'.existsRClusterDirDown.choose, hdrf_isdir'' with
+                        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                        | .directoryEvent de_drf', _ =>
+                          match hfc_cle₂'' : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+                          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                          | .directoryEvent de_cle₂', _ =>
+                            cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
+                            | inl hob =>
+                              exact .diffCluster_rfFinishBefore h_same_prot
+                                hencapDir'.existsRClusterDirDown.choose
+                                (by rw [hfc_drf'', hfc_cle₂'']; exact hob) hdrf_lt₂
+                            | inr hob =>
+                              exfalso
+                              have h_constraints := h_no_between e₂ h.in_b₂
+                                h.cache₂ h.write h.notDown₂ (hlin e₂)
+                              sorry -- orderAfterDir gcacheEncap CLE₂ OB d_rf: NIW
 
 /-- PPOi → StepOrdering. Factored out of step_to_ordering for modularity. -/
 theorem ppoi_step_to_ordering
@@ -1585,6 +1672,7 @@ theorem step_to_ordering
       | diffCluster_evict _ p cle₁_ob_p p_lt_cle₂ => exact .obEndLt p cle₁_ob_p p_lt_cle₂
       | diffCluster_noncoherent _ p cle₁_ob_p p_lt_cle₂ => exact .obEndLt p cle₁_ob_p p_lt_cle₂
       | diffCluster_rfCrossCluster _ p p_inside p_ob => exact .encapOb p p_inside p_ob
+      | diffCluster_rfFinishBefore _ p p_ob p_lt => exact .obFinishBefore p p_ob p_lt
       | sameCLE cle_eq => exact .eq cle_eq
       /-  OLD FR proof (replaced by fr.ordering extraction):
       by_cases h_same_prot : e₁.sameProtocol n e₂
@@ -1898,6 +1986,8 @@ theorem cmcm_acyclic_of_hknow
       exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hlt)
     | encapOb p henc hob =>
       exact Nat.lt_irrefl _ (Nat.lt_trans hob (Nat.lt_trans henc.left (Event.oWellFormed n p)))
+    | obFinishBefore p hob hlt =>
+      sorry -- irrefl obFinishBefore in cycle
     | sameLin e₁' e₂' heq he₁ hob he₂ =>
       have : Event.oEnd n (hknow e).hreq's_dir_access.choose <
              Event.oEnd n (hknow e).hreq's_dir_access.choose :=

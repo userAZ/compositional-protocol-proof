@@ -138,6 +138,11 @@ inductive StepOrdering : Event n → Event n → Prop where
       Irrefl: p inside l₁ = l₂ and p OB l₂ → p.oEnd < l₂.oStart < p.oStart → False. -/
   | encapOb (p : Event n) (h_enc : p.EncapsulatedBy n l₁) (h_ob : p.OrderedBefore n l₂)
       : StepOrdering l₁ l₂
+  /-- OB-then-finishBefore: p before l₂, p finishes before l₁.
+      For cross-cluster FR with gcacheEncap/noGlobalCache: d_rf OB CLE₂ and d_rf.oEnd < CLE₁.oEnd.
+      Not irreflexive alone — requires composition with other edges in a cycle. -/
+  | obFinishBefore (p : Event n) (h_ob : p.OrderedBefore n l₂) (h_lt : Event.oEnd n p < Event.oEnd n l₁)
+      : StepOrdering l₁ l₂
   | sameLin (e₁' e₂' : Event n) (h_eq : l₁ = l₂)
       (h_enc₁ : l₁.EncapsulatedBy n e₁') (h_ob : e₁'.OrderedBefore n e₂')
       (h_enc₂ : l₂.EncapsulatedBy n e₂') : StepOrdering l₁ l₂
@@ -210,6 +215,14 @@ inductive FrOrdering
     (p : Event n)
     (p_inside_cle₁ : p.EncapsulatedBy n e₁_lin.hreq's_dir_access.choose)
     (p_ob_cle₂ : p.OrderedBefore n e₂_lin.hreq's_dir_access.choose)
+  /-- Different cluster, RF cross-cluster with gcacheEncap/noGlobalCache:
+      proxy p OB CLE₂ and p finishes before CLE₁ (p.oEnd < CLE₁.oEnd).
+      StepOrdering derived via .obFinishBefore. -/
+  | diffCluster_rfFinishBefore
+    (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (p : Event n)
+    (p_ob_cle₂ : p.OrderedBefore n e₂_lin.hreq's_dir_access.choose)
+    (p_lt_cle₁ : Event.oEnd n p < Event.oEnd n e₁_lin.hreq's_dir_access.choose)
   /-- Same CLE: both events share the same CLE. -/
   | sameCLE
     (cle_eq : e₁_lin.hreq's_dir_access.choose = e₂_lin.hreq's_dir_access.choose)
