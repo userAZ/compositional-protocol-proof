@@ -2027,7 +2027,47 @@ theorem ppoi_step_to_ordering
                       | inl hencap_or_before =>
                         cases hencap_or_before with
                         | inl hsucc₁_encapBy_succ₂ =>
-                          sorry -- bottom encap contradiction (succ₂ encaps bottom succ₁)
+                          -- succ₂ encapsulates succ₁, contradicts succ₁ being a bottom event.
+                          have hsucc₂_in_b := hsucc_encap₂.choose_spec.left
+                          have hsucc₁_bottom := hsucc₁_spec.isBottom
+                          have hsucc₂_in_b' : (.cacheEvent ce_succ₂) ∈ b :=
+                            hsucc₂_ce ▸ hsucc₂_in_b
+                          have hse₁ := hsucc₁_spec.isImmBottomSucc.sameEntry
+                          have hse₂ := hsucc₂_spec.isImmBottomSucc.sameEntry
+                          rw [hsucc₁_ce] at hse₁; rw [hsucc₂_ce] at hse₂
+                          have hse_succ : Event.sameEntry n (.cacheEvent ce_succ₂) (.cacheEvent ce_succ₁) := by
+                            constructor
+                            · -- sameStruct
+                              simp [Event.sameStructure]
+                              have h₁ := hse₁.sameStruct
+                              simp [Event.sameStructure] at h₁
+                              have h₂ := hse₂.sameStruct
+                              simp [Event.sameStructure] at h₂
+                              have hstruct_e₂_e₁ : Event.struct n e₂ = Event.struct n e₁ := by
+                                match he₁_m : e₁, hppoi.cache₁, he₂_m : e₂, hppoi.cache₂ with
+                                | .cacheEvent ce₁, _, .cacheEvent ce₂', _ =>
+                                  simp [Event.struct]
+                                  have hcid := hppoi.sameCid'
+                                  simp [Event.cid] at hcid
+                                  exact hcid.symm
+                                | .directoryEvent _, hh, _, _ => simp [Event.isCacheEvent] at hh
+                                | _, _, .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+                              rw [← h₂, hstruct_e₂_e₁, h₁]
+                            · -- sameAddr
+                              simp [Event.sameAddr]
+                              have h₁ := hse₁.sameAddr
+                              simp [Event.sameAddr] at h₁
+                              have h₂ := hse₂.sameAddr
+                              simp [Event.sameAddr] at h₂
+                              rw [← h₂, ← h_same_addr, h₁]
+                          have hsucc₁_bottom' : b.IsBottomEvent n (.cacheEvent ce_succ₁) :=
+                            hsucc₁_ce ▸ hsucc₁_bottom
+                          exact absurd
+                            ({ encap := CacheEvent.encap_then_event_encap n ce_succ₂ ce_succ₁
+                                (show ce_succ₂.Encapsulates n ce_succ₁ from hsucc₁_encapBy_succ₂)
+                               sameEntry := hse_succ } :
+                              Event.EncapAtSameStructure n (.cacheEvent ce_succ₂) (.cacheEvent ce_succ₁))
+                            (hsucc₁_bottom' (.cacheEvent ce_succ₂) hsucc₂_in_b')
                         | inr hsucc₁_ob_succ₂ =>
                           -- succ₁ OB succ₂: temporal chain contradiction
                           have hsucc₁_ob_succ₂' : Event.oEnd n hsucc_encap₁.choose <
@@ -2042,9 +2082,115 @@ theorem ppoi_step_to_ordering
                       | inr hencap_or_before =>
                         cases hencap_or_before with
                         | inl hsucc₂_encapBy_succ₁ =>
-                          sorry -- bottom encap contradiction (succ₁ encaps bottom succ₂)
+                          -- succ₁ encapsulates succ₂, contradicts succ₂ being a bottom event.
+                          have hsucc₁_in_b := hsucc_encap₁.choose_spec.left
+                          have hsucc₂_bottom := hsucc₂_spec.isBottom
+                          have hsucc₁_in_b' : (.cacheEvent ce_succ₁) ∈ b :=
+                            hsucc₁_ce ▸ hsucc₁_in_b
+                          -- sameEntry: succ₁ and succ₂ at same struct+addr
+                          have hse₁ := hsucc₁_spec.isImmBottomSucc.sameEntry -- e₁ sameEntry succ₁
+                          have hse₂ := hsucc₂_spec.isImmBottomSucc.sameEntry -- e₂ sameEntry succ₂
+                          rw [hsucc₁_ce] at hse₁; rw [hsucc₂_ce] at hse₂
+                          -- sameEntry: succ₁ and succ₂ (via e₁ → succ₁ and e₂ → succ₂, sameCid)
+                          have hse_succ : Event.sameEntry n (.cacheEvent ce_succ₁) (.cacheEvent ce_succ₂) := by
+                            constructor
+                            · -- sameStruct
+                              simp [Event.sameStructure]
+                              have h₁ := hse₁.sameStruct
+                              simp [Event.sameStructure] at h₁
+                              have h₂ := hse₂.sameStruct
+                              simp [Event.sameStructure] at h₂
+                              have hstruct_e₁_e₂ : Event.struct n e₁ = Event.struct n e₂ := by
+                                match he₁_m : e₁, hppoi.cache₁, he₂_m : e₂, hppoi.cache₂ with
+                                | .cacheEvent ce₁, _, .cacheEvent ce₂', _ =>
+                                  simp [Event.struct]
+                                  have hcid := hppoi.sameCid'
+                                  simp [Event.cid] at hcid
+                                  exact hcid
+                                | .directoryEvent _, hh, _, _ => simp [Event.isCacheEvent] at hh
+                                | _, _, .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+                              rw [← h₁, hstruct_e₁_e₂, h₂]
+                            · -- sameAddr
+                              simp [Event.sameAddr]
+                              have h₁ := hse₁.sameAddr
+                              simp [Event.sameAddr] at h₁
+                              have h₂ := hse₂.sameAddr
+                              simp [Event.sameAddr] at h₂
+                              rw [← h₁, h_same_addr, h₂]
+                          have hsucc₂_bottom' : b.IsBottomEvent n (.cacheEvent ce_succ₂) :=
+                            hsucc₂_ce ▸ hsucc₂_bottom
+                          exact absurd
+                            ({ encap := CacheEvent.encap_then_event_encap n ce_succ₁ ce_succ₂
+                                (show ce_succ₁.Encapsulates n ce_succ₂ from hsucc₂_encapBy_succ₁)
+                               sameEntry := hse_succ } :
+                              Event.EncapAtSameStructure n (.cacheEvent ce_succ₁) (.cacheEvent ce_succ₂))
+                            (hsucc₂_bottom' (.cacheEvent ce_succ₁) hsucc₁_in_b')
                         | inr hsucc₂_ob_succ₁ =>
-                          sorry -- same-addr orderAfterDir×orderAfterDir: succ₂ OB succ₁
+                          -- succ₂ OB succ₁: predecessor elimination.
+                          -- succ₂ is between e₁ and succ₁ (e₁ OB e₂ OB succ₂ OB succ₁).
+                          -- succ₂ is bottom at same entry as succ₁.
+                          -- noIntermediateSatP gives contradiction if succ₂ satisfies p.
+                          have he₂_ob_succ₂ : Event.oEnd n e₂ < Event.oStart n hsucc_encap₂.choose :=
+                            hsucc₂_spec.isImmBottomSucc.isSucc
+                          have he₁_ob_succ₂ : Event.oEnd n e₁ < Event.oStart n hsucc_encap₂.choose :=
+                            Nat.lt_trans (Nat.lt_trans hppoi.orderedBefore
+                              (Event.oWellFormed n e₂)) he₂_ob_succ₂
+                          have hsucc₂_ob_succ₁' : Event.oEnd n hsucc_encap₂.choose <
+                              Event.oStart n hsucc_encap₁.choose := by
+                            rw [hsucc₁_ce, hsucc₂_ce]; exact hsucc₂_ob_succ₁
+                          -- succ₂ is between e₁ and succ₁
+                          have hsucc₂_between : hsucc_encap₂.choose.OrderedBetween n
+                              e₁ hsucc_encap₁.choose :=
+                            ⟨he₁_ob_succ₂, hsucc₂_ob_succ₁'⟩
+                          -- succ₂ is bottom at same entry as succ₁
+                          have hse := hsucc₁_spec.isImmBottomSucc.sameEntry
+                          have hse₂ := hsucc₂_spec.isImmBottomSucc.sameEntry
+                          rw [hsucc₁_ce] at hse; rw [hsucc₂_ce] at hse₂
+                          have hse_succ₂_succ₁ : b.bottomSameEntry n hsucc_encap₂.choose
+                              hsucc_encap₁.choose := {
+                            sameEntry := {
+                              sameStruct := by
+                                rw [hsucc₂_ce, hsucc₁_ce]
+                                simp [Event.sameStructure]
+                                have h₁ := hse.sameStruct -- e₁ sameStruct succ₁
+                                simp [Event.sameStructure] at h₁
+                                have h₂ := hse₂.sameStruct -- e₂ sameStruct succ₂
+                                simp [Event.sameStructure] at h₂
+                                have hstruct_e₂_e₁ : Event.struct n e₂ = Event.struct n e₁ := by
+                                  match he₁_m : e₁, hppoi.cache₁, he₂_m : e₂, hppoi.cache₂ with
+                                  | .cacheEvent ce₁, _, .cacheEvent ce₂', _ =>
+                                    simp [Event.struct]
+                                    have hcid := hppoi.sameCid'
+                                    simp [Event.cid] at hcid
+                                    exact hcid.symm
+                                  | .directoryEvent _, hh, _, _ => simp [Event.isCacheEvent] at hh
+                                  | _, _, .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+                                rw [← h₂, hstruct_e₂_e₁, h₁]
+                              sameAddr := by
+                                rw [hsucc₂_ce, hsucc₁_ce]
+                                simp [Event.sameAddr]
+                                have h₁ := hse.sameAddr
+                                simp [Event.sameAddr] at h₁
+                                have h₂ := hse₂.sameAddr
+                                simp [Event.sameAddr] at h₂
+                                rw [← h₂, ← h_same_addr, h₁]
+                            }
+                            isBottom := hsucc₂_spec.isBottom
+                          }
+                          have hsucc₂_in_b := hsucc_encap₂.choose_spec.left
+                          exact hsucc₁_spec.isImmBottomSucc.noIntermediateSatP
+                            hsucc_encap₂.choose hsucc₂_in_b
+                            hse_succ₂_succ₁
+                            ⟨hsucc₂_between,
+                             sorry /- satProp: b.succOnVdWithCorrespondingDir n init
+                               hsucc_encap₂.choose ((lin e₁).hreq's_dir_access.choose).
+                               Requires succ₂ to encapsulate CLE₁ (= de₁).
+                               But succ₂ encapsulates de₂ (its own CLE).
+                               Same gap as line 2000: protocol-level argument that
+                               both successors at same entry encapsulate the same dir event,
+                               or that the property p is satisfied with de₁.
+                               May need: de₁ = de₂ (from both succ at same entry) or
+                               a weaker immediate successor property. -/⟩
                     | .directoryEvent _ =>
                       have hdor := hsucc₂_spec.satisfyP.encapCorresponding.dirOfReq
                       rw [hsucc₂_ce] at hdor
