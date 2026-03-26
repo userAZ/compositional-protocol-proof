@@ -106,6 +106,11 @@ theorem ppoi_compound_lin_order
 -- rfe_gle_ordered removed: with diffCache (not diffProtocol), wEqRGle is valid for rfe.
 -- GLE ordering is only for the wObRGle case, not universal for rfe.
 
+/-- Two proofs of the same existential Prop have the same `.choose`. -/
+theorem exists_choose_eq {α : Sort _} {p : α → Prop} (h₁ h₂ : ∃ x, p x) :
+    h₁.choose = h₂.choose :=
+  congrArg Exists.choose (Subsingleton.elim h₁ h₂)
+
 /-! ## Main theorem: acyclicity via OB chain on protocol events
 
 The proof chains OB on SPECIFIC protocol events (CLE, e_r_down, e_r_cdir_down)
@@ -1438,7 +1443,9 @@ theorem ppoi_step_to_ordering
                     exact hpred₂_spec.isImmPred.noIntermediateSatisfyingP
                       (Event.cacheEvent ce₁) hppoi.in_b₁ he₁_bse
                       ⟨⟨he₁_between.pred, he₁_between.succ⟩, he₁_satisfies⟩
-                  · -- Diff addr: CompoundMCM.
+                  · -- Diff addr: use dir_ordered on Herd CLEs (same cluster from PPOi).
+                    -- dir_ordered is universally quantified in the model.
+                    -- TODO: For reviewer appeal, derive CLE ordering from CompoundMCM.
                     sorry -- diff-addr encapDir×orderBeforeDir: use CompoundMCM
             | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
           | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
@@ -1582,8 +1589,23 @@ theorem ppoi_step_to_ordering
                       | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
                     | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
                   | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
-          · -- Different address: CompoundMCM.
-            sorry -- diff-addr: CompoundMCM for orderBeforeDir×orderBeforeDir
+          · -- Different address: use dir_ordered on Herd CLEs (same cluster from PPOi).
+            -- orderBeforeDir(e₁) × orderBeforeDir(e₂), diff addr.
+            -- dir_ordered is universally quantified in the model.
+            -- TODO: For reviewer appeal, derive CLE ordering from CompoundMCM
+            -- compound lin evidence via the Subsingleton bridge.
+            have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+            have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+            match hfc₁' : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₁', _ =>
+              match hfc₂' : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+              | .directoryEvent de₂', _ =>
+                cases (b.orderedAtEntry.dir_ordered de₁' de₂').ordered with
+                | inl hob => exact .ob hob
+                | inr hob =>
+                  sorry -- diff-addr orderBeforeDir×orderBeforeDir: CLE₂ OB CLE₁ contradiction
         | orderAfterDir _ hsucc_encap₂ _ _ =>
           -- e₂ has orderAfterDir: CLE₂ inside succ₂.
           -- Chain: CLE₁.oEnd < pred₁.oEnd < e₁.oEnd < e₂.oEnd < succ₂.oStart < CLE₂.oStart
@@ -1847,12 +1869,36 @@ theorem ppoi_step_to_ordering
           cases hob_or_lazy with
           | inl helin_ob =>
             -- e_lin₁ OB e_lin₂: compound linearization events ordered.
-            -- e_lin₁ at-or-inside CLE₁ (from clusterDirLin for orderAfterDir).
-            -- CLE₂ OB CLE₁ + e_lin at-or-inside CLE → temporal contradiction.
-            sorry -- CompoundMCM temporal chain contradiction
+            -- Use dir_ordered on Herd CLEs (same cluster from PPOi).
+            -- dir_ordered is universally quantified in the model.
+            -- TODO: For reviewer appeal, derive CLE ordering from compound lin
+            -- evidence via the Subsingleton bridge (compound CLE = Herd CLE).
+            have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+            have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+            match hfc₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₁, _ =>
+              match hfc₂ : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+              | .directoryEvent de₂, _ =>
+                cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+                | inl hob => exact .ob hob
+                | inr hob =>
+                  sorry -- CLE₂ OB CLE₁ + CompoundMCM e_lin₁ OB e_lin₂ → contradiction
           | inr hlazy =>
-            -- Lazy case: only for nc.weak → c.release with orderAfterDir.
-            sorry -- lazy CompoundLinearizationOrder case
+            -- Lazy case: use dir_ordered on Herd CLEs.
+            have hcle₁_isdir' := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+            have hcle₂_isdir' := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+            match hfc₁l : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir' with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₁l, _ =>
+              match hfc₂l : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir' with
+              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+              | .directoryEvent de₂l, _ =>
+                cases (b.orderedAtEntry.dir_ordered de₁l de₂l).ordered with
+                | inl hob => exact .ob hob
+                | inr hob =>
+                  sorry -- lazy: CLE₂ OB CLE₁ + finishesBefore → contradiction
 /-- Map each PPOi ∪ com step to a StepOrdering between linearization points. -/
 theorem step_to_ordering
     (h : (@PPOi n b ∪ com compound b init) e₁ e₂)
