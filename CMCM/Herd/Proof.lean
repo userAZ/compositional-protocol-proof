@@ -1729,8 +1729,65 @@ theorem ppoi_step_to_ordering
                             (b.orderedAtEntry.cache_encap_rule ce_succ₁ ce₂ he₂_encapBy_succ₁)
                             hnotdown₂
                         | inr he₂_ob_succ₁ =>
-                          -- e₂ OB succ₁: predecessor elimination needed
-                          sorry -- same-addr orderAfterDir(e₁)×encapDir(e₂): e₂ OB succ₁
+                          -- e₂ OB succ₁: predecessor elimination.
+                          -- e₂ is between e₁ and succ₁ at the same entry, bottom, and
+                          -- we derive contradiction from noIntermediateSatP.
+                          have he₂_ob_succ₁' : Event.oEnd n (.cacheEvent ce₂) <
+                              Event.oStart n hsucc_encap₁.choose := by
+                            rw [hsucc_ce]; exact he₂_ob_succ₁
+                          have he₂_between : (Event.cacheEvent ce₂).OrderedBetween n
+                              e₁ hsucc_encap₁.choose :=
+                            ⟨he₂_ce ▸ hppoi.orderedBefore, he₂_ob_succ₁'⟩
+                          have hse := hsucc₁_spec.isImmBottomSucc.sameEntry
+                          have hse_e₂_succ₁ : b.bottomSameEntry n (Event.cacheEvent ce₂)
+                              hsucc_encap₁.choose := {
+                            sameEntry := {
+                              sameStruct := by
+                                simp [Event.sameStructure]
+                                rw [hsucc_ce]
+                                have h₁ := hse.sameStruct
+                                simp [Event.sameStructure] at h₁
+                                rw [hsucc_ce] at h₁
+                                have hstruct_e₁_e₂ : Event.struct n e₁ =
+                                    Event.struct n (Event.cacheEvent ce₂) := by
+                                  match he₁_m : e₁, hppoi.cache₁ with
+                                  | .cacheEvent ce₁, _ =>
+                                    simp [Event.struct]
+                                    have hcid := hppoi.sameCid'
+                                    simp [Event.cid] at hcid
+                                    exact hcid
+                                  | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+                                rw [← hstruct_e₁_e₂, h₁]
+                              sameAddr := by
+                                simp [Event.sameAddr]
+                                rw [hsucc_ce]
+                                have h₁ := hse.sameAddr
+                                simp [Event.sameAddr] at h₁
+                                rw [hsucc_ce] at h₁
+                                rw [← h_same_addr, h₁]
+                            }
+                            isBottom := he₂_ce ▸ hppoi.isBottom₂
+                          }
+                          -- Apply noIntermediateSatP: e₂ is between e₁ and succ₁,
+                          -- bottom at the same entry.
+                          -- noIntermediateSatP requires satProp (p e₂) =
+                          -- succOnVdWithCorrespondingDir for CLE₁.
+                          -- Needs: e₂ state before = Vd, e₂ is release/acq/SC,
+                          -- and e₂ encapsulates CLE₁.
+                          -- The encapsulation e₂ ⊃ CLE₁ follows if CLE₁ = CLE₂
+                          -- (nc.weak CLE sharing), but here CLE₁ ≠ CLE₂.
+                          -- The remaining obligation is protocol-level: show e₂
+                          -- on Vd state encapsulates the SAME dir event as succ₁.
+                          exact hsucc₁_spec.isImmBottomSucc.noIntermediateSatP
+                            (Event.cacheEvent ce₂) (he₂_ce ▸ hppoi.in_b₂)
+                            hse_e₂_succ₁
+                            ⟨he₂_between,
+                             sorry /- satProp: b.succOnVdWithCorrespondingDir n init
+                               (.cacheEvent ce₂) ((lin e₁).hreq's_dir_access.choose).
+                               Requires e₂.Encapsulates CLE₁, which needs either
+                               CLE₁ = CLE₂ (contradicts hcle_neq) or protocol
+                               state argument that e₂ on Vd always shares CLE
+                               with succ₁. -/⟩
                     | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
                   | .directoryEvent _ =>
                     have hdor := hsucc₁_spec.satisfyP.encapCorresponding.dirOfReq
