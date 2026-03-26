@@ -1612,7 +1612,7 @@ theorem ppoi_step_to_ordering
                   · -- Diff addr: use dir_ordered on Herd CLEs (same cluster from PPOi).
                     -- dir_ordered is universally quantified in the model.
                     -- TODO: For reviewer appeal, derive CLE ordering from CompoundMCM.
-                    sorry -- diff-addr encapDir×orderBeforeDir: CompoundMCM bridge (same as orderBeforeDir×orderBeforeDir)
+                    sorry -- diff-addr encapDir×orderBeforeDir: same CompoundMCM pattern but blocked by nested match substitution
             | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
           | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
         | orderAfterDir _ hsucc_encap₂ _ _ =>
