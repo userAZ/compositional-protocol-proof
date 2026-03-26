@@ -110,6 +110,13 @@ structure NoInterveningWrites.constraints
     ∀ e_inter_down ∈ b,
       (interBtn : DiffClusterCLE.NotBetweenCLEs.constraints e_w_inter e_w e_r e_inter_down hr_c_and_g_lin hinter_c_and_g_lin) →
       ¬ e_inter_down.OrderedBetween n hw_c_and_g_lin.hreq's_dir_access.choose interBtn.rClusterDownToW.existsRClusterDirDown.choose
+  /-- If the intervening write is at the same cluster as the reader, its CLE
+      can't be before the reader's CLE. This rules out the case where e_w_inter
+      and e_r share a cluster directory — the RF read establishes that no
+      overwriting write's CLE precedes the reader's CLE at the same directory. -/
+  interSameProtocolCleOB :
+    e_w_inter.sameProtocol n e_r →
+      ¬ hinter_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose
   /-- Same-cache variant: uses `dirAccessOfRequest` (no `rDiffProtocol`) and
       `e_r_cle` as the right endpoint instead of `rClusterDownToW`'s dir down. -/
   diffClusterNotBetweenCles_sameCache :

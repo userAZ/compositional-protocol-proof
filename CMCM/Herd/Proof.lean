@@ -450,7 +450,18 @@ theorem fr_ordering_holds
               by rw [hfc₁, hfc₂]; exact hob))
           | inr hob =>
             -- CLE₂ OB CLE₁ → contradiction via NIW (same as sameClusDiffCache).
-            sorry -- sameCache CLE₂ OB CLE₁: NIW contradiction
+            exfalso
+            obtain ⟨e_w, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
+            have hlin := fun e => h.hknow_dir_access compound b init e
+            have h_constraints := h_no_between e₂ h.in_b₂ h.cache₂ h.write h.notDown₂ (hlin e₂)
+            -- same cache → same protocol (same struct → same cid → same protocol)
+            have h_same_prot₂₁ : e₂.sameProtocol n e₁ := by
+              unfold Event.sameProtocol
+              sorry -- sameCache → sameProtocol: need struct equality → protocol equality
+            exact h_constraints.interSameProtocolCleOB h_same_prot₂₁
+              (show (hlin e₂).hreq's_dir_access.choose.OrderedBefore n
+                  (lin e₁).hreq's_dir_access.choose from by
+                rw [show (hlin e₂) = lin e₂ from Subsingleton.elim _ _, hfc₂, hfc₁]; exact hob)
     · by_cases h_same_prot : e₁.sameProtocol n e₂
       · -- Same cluster, different cache: dir_ordered + NIW.
         have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
@@ -520,7 +531,14 @@ theorem fr_ordering_holds
                       _ < de_w.oStart := hob_₂w
                       _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed)
               · -- Diff cluster e_w: use cdirEncapsDown_exists + diffClusterNotBetweenCles_sameCache.
-                sorry -- sameClusDiffCache Config 2: diff-cluster e_w NIW
+                -- Use interSameProtocolCleOB: e₂ same cluster as e₁ → ¬ CLE₂ OB CLE₁.
+                have h_same_prot₂₁ : e₂.sameProtocol n e₁ := by
+                  unfold Event.sameProtocol at h_same_prot ⊢; exact h_same_prot.symm
+                exact absurd
+                  (show (hlin e₂).hreq's_dir_access.choose.OrderedBefore n
+                      (lin e₁).hreq's_dir_access.choose from by
+                    rw [show (hlin e₂) = lin e₂ from Subsingleton.elim _ _, hfc₂, hfc₁]; exact hob)
+                  (h_constraints.interSameProtocolCleOB h_same_prot₂₁)
       · -- Different cluster e₁/e₂: need proxy from e₂'s downgrade at e₁'s cluster.
         -- Get e₂'s downgrade evidence at e₁'s cluster first.
         obtain ⟨e_cdir, _, he_cdir_isDir, _, hcdir_lt_cle₂,
