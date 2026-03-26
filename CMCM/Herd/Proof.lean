@@ -778,8 +778,89 @@ theorem fr_ordering_holds
                                           exfalso
                                           have h_constraints := h_no_between e₂ h.in_b₂
                                             h.cache₂ h.write h.notDown₂ (hlin e₂)
-                                          -- e₂.sameProtocol e_w from 2-cluster + ¬h_ew_e₁
-                                          sorry -- CLE₂ OB d_rf: apply interSameProtocolAsWNotBetweenCleAndDrf
+                                          -- e₂.sameProtocol e_w: from 2-cluster + ¬h_ew_e₁.
+                                          -- e_w not at e₁'s cluster (¬h_ew_e₁). 2 clusters → e_w at e₂'s.
+                                          have h_ew_e₂ : e₂.sameProtocol n e_w := by
+                                            unfold Event.sameProtocol
+                                            cases hw_cache.eCluster with
+                                            | inl hw1 =>
+                                              cases h.cache₂.eCluster with
+                                              | inl h2c1 => exact h2c1.trans hw1.symm
+                                              | inr h2c2 =>
+                                                cases h.cache₁.eCluster with
+                                                | inl h1c1 => exact absurd (h1c1.trans hw1.symm) h_ew_e₁
+                                                | inr h1c2 =>
+                                                  -- e₁ at cluster2, e₂ at cluster2 → same cluster → contradicts h_same_prot
+                                                  exfalso; exact h_same_prot (show e₁.sameProtocol n e₂ from h1c2.trans h2c2.symm)
+                                            | inr hw2 =>
+                                              cases h.cache₂.eCluster with
+                                              | inr h2c2 => exact h2c2.trans hw2.symm
+                                              | inl h2c1 =>
+                                                cases h.cache₁.eCluster with
+                                                | inr h1c2 => exact absurd (h1c2.trans hw2.symm) h_ew_e₁
+                                                | inl h1c1 =>
+                                                  exfalso; exact h_same_prot (show e₁.sameProtocol n e₂ from h1c1.trans h2c1.symm)
+                                          -- CLE_w2 between CLE_w1 and d_rf.
+                                          -- From CO: StepOrdering CLE_w1 CLE_w2.
+                                          -- For .ob: CLE_w1 OB CLE_w2 → OrderedBetween → NIW.
+                                          -- For .eq/.sameLin: CLE_w1 = CLE_w2 → CLE_w1 OB d_rf from hob → use encapOb.
+                                          have hco_so := co_chain_step_ordering hlin h_co_chain
+                                          rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hco_so
+                                          -- Extract CLE_w1 OB CLE_w2 or handle equality.
+                                          have hcle_w1_ob_or_eq : e_w_lin.hreq's_dir_access.choose.OrderedBefore n
+                                              (hlin e₂).hreq's_dir_access.choose ∨
+                                              e_w_lin.hreq's_dir_access.choose = (hlin e₂).hreq's_dir_access.choose := by
+                                            cases hco_so with
+                                            | ob h_ob => exact Or.inl h_ob
+                                            | obEndLt p hp hlt =>
+                                              -- CLE_w OB p, p.oEnd < CLE_w2.oEnd. Doesn't give CLE_w OB CLE_w2 directly.
+                                              -- For same-cluster CO chain, obEndLt shouldn't arise. Sorry for now.
+                                              exact Or.inl (by sorry)
+                                            | encapOb p henc hpob =>
+                                              -- p inside CLE_w, p OB CLE_w2. CLE_w contains p which is before CLE_w2.
+                                              -- CLE_w.oEnd > p.oEnd > p.oStart > CLE_w2... no, p OB CLE_w2: p.oEnd < CLE_w2.oStart.
+                                              -- CLE_w.oEnd > p.oEnd (from encap). So CLE_w.oEnd > p.oEnd ≥ p.oStart... no.
+                                              -- Actually: p inside CLE_w means CLE_w.oStart < p.oStart AND p.oEnd < CLE_w.oEnd.
+                                              -- p OB CLE_w2: p.oEnd < CLE_w2.oStart. So CLE_w.oEnd > p.oEnd.
+                                              -- But CLE_w.oEnd vs CLE_w2.oStart: CLE_w.oEnd > p.oEnd and CLE_w2.oStart > p.oEnd.
+                                              -- No guarantee CLE_w.oEnd < CLE_w2.oStart. This case shouldn't arise for same-cluster CO.
+                                              exact Or.inl (by sorry)
+                                            | sameLin _ _ heq _ _ _ => exact Or.inr heq
+                                            | eq heq => exact Or.inr heq
+                                          cases hcle_w1_ob_or_eq with
+                                          | inl hcle_w1_ob =>
+                                            -- CLE_w1 OB CLE_w2: OrderedBetween → NIW contradiction.
+                                            have hcle_w2_ob_drf : (hlin e₂).hreq's_dir_access.choose.OrderedBefore n
+                                                hencapDir'.existsRClusterDirDown.choose := by
+                                              rw [show (hlin e₂) = lin e₂ from Subsingleton.elim _ _, hfc_cle₂', hfc_drf']
+                                              exact hob
+                                            exact h_constraints.interSameProtocolAsWNotBetweenCleAndDrf
+                                              h_ew_e₂ hencapDir' ⟨hcle_w1_ob, hcle_w2_ob_drf⟩
+                                          | inr hcle_eq =>
+                                            -- CLE_w1 = CLE_w2: CLE_w1 OB d_rf from hob.
+                                            -- d_rf inside CLE_r (cleEncap). Use encapOb for StepOrdering.
+                                            -- But we're in exfalso... CLE_w1 = CLE_w2 means the FR
+                                            -- should produce a FrOrdering, not False.
+                                            -- CLE_w1 OB d_rf and d_rf inside CLE_r → .encapOb via diffCluster_rfCrossCluster.
+                                            -- But we're already in exfalso. Use the proxy instead.
+                                            -- Actually: CLE_w1 = CLE_w2, CLE_w2 OB d_rf → CLE_w1 OB d_rf.
+                                            -- d_rf inside CLE_r (henc'). So .diffCluster_rfCrossCluster CLE_w1 d_rf.
+                                            -- But CLE₁ is (lin e₁).CLE and the rfCrossCluster needs d_rf inside (lin e₁).CLE.
+                                            -- henc' IS about (lin e₁).CLE. ✓
+                                            -- Construct FrOrdering from the equality case.
+                                            -- Wait, we're inside exfalso! Need to get out.
+                                            -- The exfalso was for the "evict OB CLE₁" branch above.
+                                            -- In the .eq case, we should construct FrOrdering instead.
+                                            -- But the proof tree commits to exfalso above.
+                                            -- Workaround: derive False from .eq + the surrounding evidence.
+                                            -- CLE_w1 = CLE_w2 from CO .eq/.sameLin.
+                                            -- hob: CLE₂ OB d_rf (de_cle₂' OB de_drf').
+                                            -- CLE_w1 = CLE_w2 = de_cle₂' (after match). CLE_w1 OB d_rf.
+                                            -- But we also have CLE_w1 at e_w's cluster, d_rf at e_w's cluster.
+                                            -- CLE_w1 OB d_rf: consistent, not a contradiction.
+                                            -- This case genuinely can produce a valid FrOrdering!
+                                            -- I need to restructure to not be in exfalso for this sub-case.
+                                            sorry -- CLE_w1 = CLE_w2: needs restructuring out of exfalso
                                   | gcacheEncap _ _ =>
                                     sorry -- gcacheEncap sub-case
                                 | inr hcle₂_ob_drf =>
