@@ -350,7 +350,8 @@ private lemma co_chain_cross_cluster_downgrade
         e_w_lin.hreq's_dir_access.choose.OrderedBefore n d ∧
         d.oEnd < (lin e₂).hreq's_dir_access.choose.oEnd ∧
         d.isDirectoryEvent ∧
-        d.protocol = e_w.protocol := by
+        d.protocol = e_w.protocol ∧
+        ¬ d.down := by
   -- Induction on co chain. The endpoint e₂ gets generalized.
   -- Use h_diff_prot and lin in generalized form.
   induction h_co_chain with
@@ -379,7 +380,7 @@ private lemma co_chain_cross_cluster_downgrade
           hrd_spec.1,
           by rw [show e_w_lin = h_co.w₁_lin from Subsingleton.elim _ _]; exact w.wObRDown,
           by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
-          hrd_spec.2.1, hrd_spec.2.2.1⟩
+          hrd_spec.2.1, hrd_spec.2.2.1, hrd_spec.2.2.2.2.1⟩
       | evictOrReadBetweenWAndRDown evict =>
         have hrd_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
         have hrd_lt : evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
@@ -391,7 +392,7 @@ private lemma co_chain_cross_cluster_downgrade
           hrd_spec.1,
           by rw [show e_w_lin = h_co.w₁_lin from Subsingleton.elim _ _]; exact evict.wObRDown,
           by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
-          hrd_spec.2.1, hrd_spec.2.2.1⟩
+          hrd_spec.2.1, hrd_spec.2.2.1, hrd_spec.2.2.2.2.1⟩
   | tail hpath h_last ih =>
     rename_i b_mid c_ep
     -- IH for prefix. Extend d.oEnd bound via last step's StepOrdering.
@@ -443,7 +444,8 @@ private lemma co_chain_cross_cluster_downgrade
             by rw [show lin c_ep = h_last.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
             hrd_spec.2.1,
             hrd_spec.2.2.1.trans (show b_mid.protocol = e_w.protocol from
-              (show e_w.protocol = b_mid.protocol from h_mid_prot).symm)⟩
+              (show e_w.protocol = b_mid.protocol from h_mid_prot).symm),
+            hrd_spec.2.2.2.2.1⟩
         | evictOrReadBetweenWAndRDown evict =>
           have hrd_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
           have hrd_lt : evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
@@ -459,9 +461,10 @@ private lemma co_chain_cross_cluster_downgrade
             by rw [show lin c_ep = h_last.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
             hrd_spec.2.1,
             hrd_spec.2.2.1.trans (show b_mid.protocol = e_w.protocol from
-              (show e_w.protocol = b_mid.protocol from h_mid_prot).symm)⟩
+              (show e_w.protocol = b_mid.protocol from h_mid_prot).symm),
+            hrd_spec.2.2.2.2.1⟩
     · -- Prefix diff-cluster: IH gives d with d.oEnd < CLE_mid.oEnd.
-      obtain ⟨d, hd_in_b, hob_d, hd_lt, hd_isDir, hd_proto⟩ := ih h_mid_prot
+      obtain ⟨d, hd_in_b, hob_d, hd_lt, hd_isDir, hd_proto, hd_not_down⟩ := ih h_mid_prot
       -- Extend to CLE_c via co_step_to_ordering.
       have hco_step := co_step_to_ordering h_last lin
       have hext : (lin b_mid).hreq's_dir_access.choose.oEnd ≤ (lin c_ep).hreq's_dir_access.choose.oEnd := by
@@ -472,7 +475,7 @@ private lemma co_chain_cross_cluster_downgrade
         | obFinishBefore _ _ _ => sorry -- obFinishBefore case
         | sameLin _ _ heq _ _ _ => exact Nat.le_of_eq (congrArg (Event.oEnd n) heq)
         | eq heq => exact Nat.le_of_eq (congrArg (Event.oEnd n) heq)
-      exact ⟨d, hd_in_b, hob_d, Nat.lt_of_lt_of_le hd_lt hext, hd_isDir, hd_proto⟩
+      exact ⟨d, hd_in_b, hob_d, Nat.lt_of_lt_of_le hd_lt hext, hd_isDir, hd_proto, hd_not_down⟩
 
 /-- Extract cross-cluster encapDir from any diffCache.case sub-case when e_w and e_r
     are at different clusters. Returns encapDir (with existsRClusterDirDown + encapDirRelation). -/
@@ -692,7 +695,7 @@ theorem fr_ordering_holds
                       have h_ew_diff_e₂ : ¬ e_w.sameProtocol n e₂ := by
                         unfold Event.sameProtocol
                         intro h; exact h_same_prot (show e₁.protocol = e₂.protocol from h_ew_e₁.trans h)
-                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto⟩ :=
+                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto, hdco_not_down⟩ :=
                         co_chain_cross_cluster_downgrade h_co_chain h_ew_diff_e₂ e_w_lin hlin
                       -- dir_ordered d_co CLE₁ at e₁'s cluster
                       have hdco_isdir' := hdco_isDir
@@ -1030,7 +1033,7 @@ theorem fr_ordering_holds
                     · have h_ew_diff_e₂ : ¬ e_w.sameProtocol n e₂ := by
                         unfold Event.sameProtocol
                         intro h; exact h_same_prot (show e₁.protocol = e₂.protocol from h_ew_e₁.trans h)
-                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto⟩ :=
+                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto, hdco_not_down⟩ :=
                         co_chain_cross_cluster_downgrade h_co_chain h_ew_diff_e₂ e_w_lin hlin
                       have hdco_isdir' := hdco_isDir
                       match hfc_dco : d_co, hdco_isdir' with
@@ -1123,7 +1126,7 @@ theorem fr_ordering_holds
                     · have h_ew_diff_e₂ : ¬ e_w.sameProtocol n e₂ := by
                         unfold Event.sameProtocol
                         intro h; exact h_same_prot (show e₁.protocol = e₂.protocol from h_ew_e₁.trans h)
-                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto⟩ :=
+                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto, hdco_not_down⟩ :=
                         co_chain_cross_cluster_downgrade h_co_chain h_ew_diff_e₂ e_w_lin hlin
                       have hdco_isdir' := hdco_isDir
                       match hfc_dco : d_co, hdco_isdir' with
