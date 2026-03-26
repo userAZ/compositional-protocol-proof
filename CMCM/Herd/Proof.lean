@@ -505,6 +505,76 @@ private lemma diffCache_case_extract_encapDir
     | sameCluster _ hob => exact diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin sorry sorry
     | diffCluster _ henc _ => exact henc
 
+/-- Given StepOrdering l₁ l₂ and dir_ordered de₁ de₂ where l₁ = .directoryEvent de₁
+    and l₂ = .directoryEvent de₂, derive l₁.OrderedBefore n l₂.
+    The wrong direction of dir_ordered gives a temporal loop with any StepOrdering. -/
+private lemma step_ordering_same_cluster_ob
+    {l₁ l₂ : Event n} {de₁ de₂ : DirectoryEvent n}
+    (hso : @StepOrdering n l₁ l₂)
+    (hfc₁ : l₁ = .directoryEvent de₁) (hfc₂ : l₂ = .directoryEvent de₂)
+    (hdir : DirectoryEvent.AreOrdered n de₁ de₂)
+    : l₁.OrderedBefore n l₂ := by
+  cases hdir.ordered with
+  | inl h => rw [hfc₁, hfc₂]; exact h
+  | inr h =>
+    -- de₂ OB de₁. Any StepOrdering l₁ l₂ + de₂ OB de₁ → temporal loop → False.
+    exfalso
+    cases hso with
+    | ob h_ob =>
+      rw [hfc₁, hfc₂] at h_ob
+      exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans h_ob de₂.oWellFormed) (Nat.lt_trans h de₁.oWellFormed))
+    | obEndLt p hp hlt =>
+      rw [hfc₁] at hp; rw [hfc₂] at hlt
+      exact Nat.lt_irrefl _ (calc de₁.oEnd
+        _ < Event.oStart n p := hp
+        _ < Event.oEnd n p := Event.oWellFormed n p
+        _ < de₂.oEnd := hlt
+        _ < de₁.oStart := h
+        _ < de₁.oEnd := de₁.oWellFormed)
+    | encapOb p henc hpob =>
+      rw [hfc₁] at henc; rw [hfc₂] at hpob
+      exact Nat.lt_irrefl _ (calc de₁.oStart
+        _ < Event.oStart n p := henc.left
+        _ < Event.oEnd n p := Event.oWellFormed n p
+        _ < de₂.oStart := hpob
+        _ < de₂.oEnd := de₂.oWellFormed
+        _ < de₁.oStart := h)
+    | obFinishBefore p hpob hplt =>
+      rw [hfc₁] at hplt; rw [hfc₂] at hpob
+      -- p OB de₂, p.oEnd < de₁.oEnd. de₂ OB de₁.
+      -- p.oEnd < de₂.oStart ≤ de₂.oEnd < de₁.oStart. p.oEnd < de₁.oEnd. Consistent.
+      -- Need: de₂.oEnd < de₁.oStart ≤ de₁.oEnd > p.oEnd. de₂.oStart > p.oEnd.
+      -- No direct loop. But de₂ OB de₁ means de₁ is after de₂.
+      -- co chain means l₁ (de₁) before l₂ (de₂) somehow. But obFinishBefore is weak.
+      sorry -- obFinishBefore + de₂ OB de₁: edge case
+    | sameLin _ _ heq _ _ _ =>
+      rw [hfc₁, hfc₂] at heq
+      exact Nat.lt_irrefl _ (Nat.lt_trans ((Event.directoryEvent.inj heq) ▸ h) de₁.oWellFormed)
+    | eq heq =>
+      rw [hfc₁, hfc₂] at heq
+      exact Nat.lt_irrefl _ (Nat.lt_trans ((Event.directoryEvent.inj heq) ▸ h) de₁.oWellFormed)
+
+/-- 2-cluster elimination: if e₁ diff from e₂ and e_w not at e₁'s cluster, then e₂ same as e_w. -/
+private lemma two_cluster_e₂_same_e_w
+    {e₁ e₂ e_w : Event n}
+    (h_same_prot : ¬ e₁.sameProtocol n e₂)
+    (h_ew_e₁ : ¬ e₁.protocol = e_w.protocol)
+    (hw_cache : e_w.isClusterCache)
+    (h_cache₁ : e₁.isClusterCache) (h_cache₂ : e₂.isClusterCache)
+    : e₂.sameProtocol n e_w := by
+  unfold Event.sameProtocol
+  cases hw_cache.eCluster with
+  | inl hw1 => cases h_cache₂.eCluster with
+    | inl h2c1 => exact h2c1.trans hw1.symm
+    | inr h2c2 => cases h_cache₁.eCluster with
+      | inl h1c1 => exact absurd (h1c1.trans hw1.symm) h_ew_e₁
+      | inr h1c2 => exfalso; exact h_same_prot (h1c2.trans h2c2.symm)
+  | inr hw2 => cases h_cache₂.eCluster with
+    | inr h2c2 => exact h2c2.trans hw2.symm
+    | inl h2c1 => cases h_cache₁.eCluster with
+      | inr h1c2 => exact absurd (h1c2.trans hw2.symm) h_ew_e₁
+      | inl h1c1 => exfalso; exact h_same_prot (h1c1.trans h2c1.symm)
+
 /-- FR ordering theorem: proves FrOrdering from rf + co + NIW evidence.
     Mirrors CMCM.rf_holds for RF and co_step_to_ordering for CO.
     The descriptive evidence in FrOrdering is DERIVED from protocol axioms,
@@ -1065,7 +1135,34 @@ theorem fr_ordering_holds
                                                     (Nat.lt_trans ((Event.directoryEvent.inj heq) ▸ h_clew2_ob) de_clew.oWellFormed)
                                 | inr hcle₂_ob_drf =>
                                   -- Old code path: CLE₂ OB d_rf for first encapDirRelation case.
-                                  sorry -- CLE₂ OB d_rf: same NIW pattern as gcacheEncap inner case
+                                  exfalso
+                                  have h_ew_e₂ := two_cluster_e₂_same_e_w h_same_prot h_ew_e₁ hw_cache h.cache₁ h.cache₂
+                                  have h_constraints := h_no_between e₂ h.in_b₂ h.cache₂ h.write h.notDown₂ (hlin e₂)
+                                  have hco_so := co_chain_step_ordering hlin h_co_chain
+                                  rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hco_so
+                                  -- Extract CLE_w and CLE₂ as DirectoryEvents for dir_ordered.
+                                  have hcle_w_isdir := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+                                  have hcle_w2_isdir := (hlin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+                                  match hfc_w : e_w_lin.hreq's_dir_access.choose, hcle_w_isdir with
+                                  | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                                  | .directoryEvent de_w', _ =>
+                                    match hfc_w2 : (hlin e₂).hreq's_dir_access.choose, hcle_w2_isdir with
+                                    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                                    | .directoryEvent de_w2', _ =>
+                                      have hcle_w_ob := step_ordering_same_cluster_ob hco_so
+                                        hfc_w hfc_w2 (b.orderedAtEntry.dir_ordered de_w' de_w2')
+                                      -- hcle₂_ob_drf needs bridging to use hencapDir (not hencapDir')
+                                      -- Use hencapDir (from diffCache_case_extract_encapDir, in scope).
+                                      -- hcle₂_ob_drf is about hencapDir's d_rf (matched to de_drf via hfc_drf).
+                                      -- Bridge to Event level using the match equations.
+                                      have hcle₂_ob_ev : (hlin e₂).hreq's_dir_access.choose.OrderedBefore n
+                                          hencapDir.existsRClusterDirDown.choose := by
+                                        show Event.oEnd n (hlin e₂).hreq's_dir_access.choose <
+                                            Event.oStart n hencapDir.existsRClusterDirDown.choose
+                                        rw [show (hlin e₂) = lin e₂ from Subsingleton.elim _ _]
+                                        simp only [hfc_cle₂, hfc_drf]; exact hcle₂_ob_drf
+                                      exact h_constraints.interSameProtocolAsWNotBetweenCleAndDrf
+                                        h_ew_e₂ hencapDir ⟨hcle_w_ob, hcle₂_ob_ev⟩
                           | gcacheEncap hgcr_enc₂ hdrf_lt₂ =>
                             -- Same pattern: dir_ordered d_rf CLE₂. Use hencapDir (in scope).
                             match hfc_drf'' : hencapDir.existsRClusterDirDown.choose, hdrf_isdir with
