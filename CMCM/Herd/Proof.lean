@@ -1665,7 +1665,160 @@ theorem ppoi_step_to_ordering
                 -- For same-addr: cache_ordered succ₁ e₂ gives their relative ordering.
                 -- succ₁ OB e₂ → succ₁.oEnd < e₂.oStart. Combined with CLE₂ related to e₂:
                 -- for encapDir/orderAfterDir e₂: CLE₂.oStart > e₂.oStart > succ₁.oEnd > CLE₁.oEnd > CLE₂.oEnd → contradiction.
-                sorry -- same-addr orderAfterDir: cache_ordered succ₁ e₂ + hda₂ case split
+                -- Case split on e₂'s dirAccessOfRequest
+                have he₁_ob_succ₁ : Event.oEnd n e₁ < Event.oStart n hsucc_encap₁.choose :=
+                  hsucc₁_spec.isImmBottomSucc.isSucc
+                -- succ₁ encaps CLE₁ = de₁ (after hfc₁ rewrite)
+                have hsucc₁_encap_de₁ : hsucc_encap₁.choose.Encapsulates n (.directoryEvent de₁) :=
+                  hfc₁ ▸ hsucc₁_encap_cle₁
+                cases hda₂ with
+                | encapDir _ hencap₂ =>
+                  -- e₂ encapsulates de₂: e₂.oStart < de₂.oStart ∧ de₂.oEnd < e₂.oEnd
+                  have hencap₂_de₂ : e₂.Encapsulates n (.directoryEvent de₂) :=
+                    hfc₂ ▸ hencap₂.reqEncapDir
+                  -- Temporal chain: de₂.oEnd < de₁.oStart (hob)
+                  -- de₁.oEnd < succ₁.oEnd (succ₁ encaps de₁)
+                  -- succ₁.oEnd ≤ e₂.oStart (we need succ₁ vs e₂ ordering)
+                  -- e₂.oStart < de₂.oStart (e₂ encaps de₂)
+                  -- → de₂.oStart > de₂.oEnd → contradicts oWellFormed.
+                  -- But we don't know succ₁ vs e₂ ordering yet.
+                  -- Use the encap bound: de₂.oEnd < de₁.oStart, de₁ inside succ₁.
+                  -- So: de₂.oEnd < succ₁.oEnd (via de₁.oEnd < succ₁.oEnd).
+                  -- Chain: de₂.oEnd < de₁.oStart ≤ de₁.oEnd < succ₁.oEnd.
+                  -- And: e₂.oStart < de₂.oStart (encap), de₂.oStart ≤ de₂.oEnd (wf).
+                  -- If succ₁.oEnd < e₂.oStart (succ₁ OB e₂):
+                  --   de₂.oEnd < de₁.oEnd < succ₁.oEnd < e₂.oStart < de₂.oStart
+                  --   → de₂.oEnd < de₂.oStart → False.
+                  -- If e₂.oEnd < succ₁.oStart (e₂ OB succ₁):
+                  --   Need predecessor elimination.
+                  -- Use cache_ordered to get the split.
+                  match hsucc_ce : hsucc_encap₁.choose with
+                  | .cacheEvent ce_succ₁ =>
+                    match he₂_ce : e₂, hppoi.cache₂ with
+                    | .cacheEvent ce₂, _ =>
+                      cases (b.orderedAtEntry.cache_ordered ce_succ₁ ce₂).ordered with
+                      | inl hencap_or_before =>
+                        cases hencap_or_before with
+                        | inl hsucc₁_encapBy_e₂ =>
+                          -- e₂ encapsulates succ₁ → succ₁ is bottom → contradiction
+                          have hbottom := hsucc₁_spec.isBottom
+                          have hse := hsucc₁_spec.isImmBottomSucc.sameEntry
+                          -- Build: (Event.cacheEvent ce₂).EncapAtSameStructure n hsucc_encap₁.choose
+                          have hencap_event : (Event.cacheEvent ce₂).Encapsulates n
+                              hsucc_encap₁.choose := by
+                            rw [hsucc_ce]
+                            exact CacheEvent.encap_then_event_encap n ce₂ ce_succ₁
+                              hsucc₁_encapBy_e₂
+                          -- sameEntry: e₂.sameEntry n succ₁ via e₁
+                          have hse_e₂_succ₁ : (Event.cacheEvent ce₂).sameEntry n
+                              hsucc_encap₁.choose := {
+                            sameStruct := by
+                              simp [Event.sameStructure]
+                              rw [hsucc_ce]
+                              -- Goal: struct (.cacheEvent ce₂) = struct (.cacheEvent ce_succ₁)
+                              have h₁ := hse.sameStruct
+                              simp [Event.sameStructure] at h₁
+                              rw [hsucc_ce] at h₁
+                              -- h₁ : Event.struct n e₁ = Event.struct n (.cacheEvent ce_succ₁)
+                              have hstruct_e₁_e₂ : Event.struct n e₁ =
+                                  Event.struct n (Event.cacheEvent ce₂) := by
+                                match he₁_m : e₁, hppoi.cache₁ with
+                                | .cacheEvent ce₁, _ =>
+                                  simp [Event.struct]
+                                  have hcid := hppoi.sameCid'
+                                  simp [Event.cid] at hcid
+                                  exact hcid
+                                | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+                              rw [← hstruct_e₁_e₂, h₁]
+                            sameAddr := by
+                              simp [Event.sameAddr]
+                              rw [hsucc_ce]
+                              -- Goal: addr (.cacheEvent ce₂) = addr (.cacheEvent ce_succ₁)
+                              have h₁ := hse.sameAddr
+                              simp [Event.sameAddr] at h₁
+                              rw [hsucc_ce] at h₁
+                              -- h₁ : e₁.addr = (.cacheEvent ce_succ₁).addr
+                              rw [← h_same_addr, h₁]
+                          }
+                          exact hbottom (Event.cacheEvent ce₂) (he₂_ce ▸ hppoi.in_b₂)
+                            ⟨hencap_event, hse_e₂_succ₁⟩
+                        | inr hsucc₁_ob_e₂ =>
+                          -- succ₁ OB e₂: temporal chain to contradiction
+                          have hsucc₁_ob_e₂' : Event.oEnd n hsucc_encap₁.choose <
+                              Event.oStart n (.cacheEvent ce₂) := by
+                            rw [hsucc_ce]; exact hsucc₁_ob_e₂
+                          have hencap₂_l : Event.oStart n (.cacheEvent ce₂) <
+                              Event.oStart n (.directoryEvent de₂) :=
+                            he₂_ce ▸ hencap₂_de₂.left
+                          exact Nat.lt_irrefl (Event.oStart n (Event.directoryEvent de₂))
+                            (Nat.lt_trans (Nat.lt_trans (Nat.lt_trans (Nat.lt_trans
+                              (Event.oWellFormed n (.directoryEvent de₂)) hob)
+                              (Nat.lt_trans (Event.oWellFormed n (.directoryEvent de₁))
+                                hsucc₁_encap_de₁.right))
+                              hsucc₁_ob_e₂')
+                              hencap₂_l)
+                      | inr hencap_or_before =>
+                        cases hencap_or_before with
+                        | inl he₂_encapBy_succ₁ =>
+                          -- succ₁ encapsulates e₂ → e₂ is downgrade → contradiction
+                          have hnotdown₂ : ¬ Event.down n (.cacheEvent ce₂) = true :=
+                            he₂_ce ▸ hppoi.notDown₂
+                          exact absurd
+                            (b.orderedAtEntry.cache_encap_rule ce_succ₁ ce₂ he₂_encapBy_succ₁)
+                            hnotdown₂
+                        | inr he₂_ob_succ₁ =>
+                          -- e₂ OB succ₁: predecessor elimination needed
+                          sorry -- same-addr orderAfterDir(e₁)×encapDir(e₂): e₂ OB succ₁
+                    | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+                  | .directoryEvent _ =>
+                    have hdor := hsucc₁_spec.satisfyP.encapCorresponding.dirOfReq
+                    rw [hsucc_ce] at hdor
+                    simp [Event.dirEventOfReqEvent] at hdor
+                | orderBeforeDir _ hexists_pred₂ hpred₂_encap _ _ _ _ _ =>
+                  -- e₂ has orderBeforeDir: CLE₂ inside pred₂.
+                  sorry -- same-addr orderAfterDir(e₁)×orderBeforeDir(e₂): CLE₂ OB CLE₁
+                | orderAfterDir hweak₂ hsucc_encap₂ _ _ =>
+                  -- e₂ also has orderAfterDir → both nc.weak → no valid PPO pair.
+                  -- Use temporal chain via cache_ordered on succ₁ and succ₂.
+                  have hsucc₂_spec := hsucc_encap₂.choose_spec.right
+                  have hsucc₂_encap_de₂ : hsucc_encap₂.choose.Encapsulates n
+                      (.directoryEvent de₂) :=
+                    hfc₂ ▸ hsucc₂_spec.satisfyP.encapCorresponding.reqEncapDir
+                  -- Try succ₁ OB succ₂ temporal chain
+                  match hsucc₁_ce : hsucc_encap₁.choose with
+                  | .cacheEvent ce_succ₁ =>
+                    match hsucc₂_ce : hsucc_encap₂.choose with
+                    | .cacheEvent ce_succ₂ =>
+                      cases (b.orderedAtEntry.cache_ordered ce_succ₁ ce_succ₂).ordered with
+                      | inl hencap_or_before =>
+                        cases hencap_or_before with
+                        | inl hsucc₁_encapBy_succ₂ =>
+                          sorry -- bottom encap contradiction (succ₂ encaps bottom succ₁)
+                        | inr hsucc₁_ob_succ₂ =>
+                          -- succ₁ OB succ₂: temporal chain contradiction
+                          have hsucc₁_ob_succ₂' : Event.oEnd n hsucc_encap₁.choose <
+                              Event.oStart n hsucc_encap₂.choose := by
+                            rw [hsucc₁_ce, hsucc₂_ce]; exact hsucc₁_ob_succ₂
+                          exact Nat.lt_irrefl (Event.oEnd n hsucc_encap₁.choose)
+                            (Nat.lt_trans (Nat.lt_trans (Nat.lt_trans (Nat.lt_trans
+                              (Nat.lt_trans hsucc₁_ob_succ₂' hsucc₂_encap_de₂.left)
+                              (Event.oWellFormed n (.directoryEvent de₂)))
+                              hob) (Event.oWellFormed n (.directoryEvent de₁)))
+                              hsucc₁_encap_de₁.right)
+                      | inr hencap_or_before =>
+                        cases hencap_or_before with
+                        | inl hsucc₂_encapBy_succ₁ =>
+                          sorry -- bottom encap contradiction (succ₁ encaps bottom succ₂)
+                        | inr hsucc₂_ob_succ₁ =>
+                          sorry -- same-addr orderAfterDir×orderAfterDir: succ₂ OB succ₁
+                    | .directoryEvent _ =>
+                      have hdor := hsucc₂_spec.satisfyP.encapCorresponding.dirOfReq
+                      rw [hsucc₂_ce] at hdor
+                      simp [Event.dirEventOfReqEvent] at hdor
+                  | .directoryEvent _ =>
+                    have hdor := hsucc₁_spec.satisfyP.encapCorresponding.dirOfReq
+                    rw [hsucc₁_ce] at hdor
+                    simp [Event.dirEventOfReqEvent] at hdor
         · -- Different address: CompoundMCM theorem gives the ordering.
           -- This is the key bridge showing CompoundMCM is useful!
           have hclo := @ppoi_compound_lin_order n compound b init e₁ e₂ hppoi h_same_addr
