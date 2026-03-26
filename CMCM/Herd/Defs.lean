@@ -141,27 +141,59 @@ inductive StepOrdering : Event n → Event n → Prop where
 
 /-- FR ordering: descriptive inductive carrying the communication evidence
     for the relationship between e₁ (reader) and e₂ (later writer).
-    Mirrors RF's `readsFrom.cases` and CO's `co.ordering`.
+    Mirrors RF's `readsFrom.cases` and CO's `co.ordering`, organized by
+    communication level (same cache / same cluster diff cache / diff cluster).
+
+    For diff cluster: sub-cases by e₁'s coherence state, which determines
+    where e₂'s downgrade lands (cache vs cluster directory).
 
     Each case carries DESCRIPTIVE evidence (protocol events, OB relationships),
     NOT the conclusion (StepOrdering). StepOrdering is DERIVED from this evidence
-    in step_to_ordering. A FrTheorem proves FrOrdering from protocol axioms. -/
+    in step_to_ordering. -/
 inductive FrOrdering
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     {e₁ e₂ : Event n}
     (e₁_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
     (e₂_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂)
     : Prop
-  /-- Same cluster e₁/e₂: both CLEs at the same cluster directory.
-      Carries: CLE₁ OB CLE₂ (direct ordering from dir_ordered + NIW).
+  /-- Same cache e₁/e₂: both at the same cache, serialized by the cache.
+      Same CLE (shared directory access) or CLE₁ OB CLE₂.
+      StepOrdering derived via .eq or .ob. -/
+  | sameCache
+    (same_cache : e₁.struct = e₂.struct)
+    (cle_eq_or_ob : e₁_lin.hreq's_dir_access.choose = e₂_lin.hreq's_dir_access.choose ∨
+        e₁_lin.hreq's_dir_access.choose.OrderedBefore n e₂_lin.hreq's_dir_access.choose)
+  /-- Same cluster, different cache: cluster directory serializes the accesses.
+      CLE₁ OB CLE₂ from dir_ordered + NIW (NoInterveningWrites eliminates wrong direction).
       StepOrdering derived via .ob. -/
-  | sameCluster
+  | sameClusDiffCache
     (same_protocol : e₁.sameProtocol n e₂)
+    (diff_cache : e₁.struct ≠ e₂.struct)
     (cle_ob : e₁_lin.hreq's_dir_access.choose.OrderedBefore n e₂_lin.hreq's_dir_access.choose)
-  /-- Different cluster e₁/e₂: downgrade at e₁'s cluster from e₂.
-      Carries: a proxy event p at e₁'s cluster with CLE₁ OB p and p.oEnd < CLE₂.oEnd.
-      StepOrdering derived via .obEndLt or .ob. -/
-  | diffCluster
+  /-- Different cluster, e₁ coherent: e₁ has coherent perms (from reading e_w),
+      so e₂'s overwrite triggers a downgrade at e₁'s CACHE.
+      The cache downgrade is after e₁ (e₁ OB cache_down), encapsulated by a
+      cluster dir event whose oEnd < CLE₂.oEnd.
+      StepOrdering derived via .obEndLt (CLE₁ OB proxy, proxy.oEnd < CLE₂.oEnd). -/
+  | diffCluster_coherent
+    (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (p : Event n)
+    (cle₁_ob_p : e₁_lin.hreq's_dir_access.choose.OrderedBefore n p)
+    (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_lin.hreq's_dir_access.choose)
+  /-- Different cluster, e₁ coherent with evict: e₁ had coherent perms but
+      evicted before e₂'s downgrade arrived. The downgrade goes to the cluster
+      directory after the evict. Proxy is the evict directory event.
+      StepOrdering derived via .obEndLt. -/
+  | diffCluster_evict
+    (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (p : Event n)
+    (cle₁_ob_p : e₁_lin.hreq's_dir_access.choose.OrderedBefore n p)
+    (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_lin.hreq's_dir_access.choose)
+  /-- Different cluster, e₁ non-coherent: e₁ doesn't have coherent perms,
+      so e₂'s downgrade goes directly to e₁'s CLUSTER DIRECTORY.
+      Proxy is the cluster dir downgrade event.
+      StepOrdering derived via .obEndLt. -/
+  | diffCluster_noncoherent
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
     (cle₁_ob_p : e₁_lin.hreq's_dir_access.choose.OrderedBefore n p)
