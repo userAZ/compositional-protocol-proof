@@ -3343,6 +3343,7 @@ lemma diffCache_coherent_encapProxyAndDir
     exact Nat.lt_trans h_dir_lt_gcache h_gcache_lt_cle
   -- Use gcacheEncap: the canonical ClusterToGlobal gcache event encapsulates the directory downgrade
   exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
+    sorry, -- e_dir.req.val.rw = e_r.req.val.rw: from shim translation
     Behaviour.clusterDown.encapDirRelation.gcacheEncap
       h_gcache_encap_dir h_dir_end_before_cle⟩ }
 

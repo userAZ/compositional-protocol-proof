@@ -60,6 +60,22 @@ structure DiffClusterCLE.NotBetweenCLEs.sameCacheConstraints {cmp}
   translatedDir : Event.clusterDirFromDiffProtocolRequest b init e_inter e_inter_down
     hinter_c_and_g_lin
 
+/-- Same-cache variant for a non-downgrade directory write.
+    Matches the directory event from e_w2's write-back at e_w1's cluster (isDirWrite, ¬down).
+    Used in the FR proof: when e_w2 downgrades e_w1's cluster, the write-back directory
+    event is a dir write with down=false. -/
+structure DiffClusterCLE.NotBetweenCLEs.sameCacheWriteConstraints {cmp}
+    (e_inter e_w e_inter_down : Event n)
+    (hinter_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_inter)
+    : Prop where
+  interDiffProtocol : e_inter.diffProtocol n e_w
+  downToW : e_inter_down.sameProtocol n e_w
+  isDirWrite : e_inter_down.isDirWrite
+  notDown : ¬ e_inter_down.down
+  isDir : e_inter_down.isDirectoryEvent
+  translatedDir : Event.clusterDirFromDiffProtocolRequest b init e_inter e_inter_down
+    hinter_c_and_g_lin
+
 /-
 def DiffClusterCLE.NotBetweenCLEs {cmp} (e_inter e_w e_r e_inter_down e_w_cle e_r_cle : Event n)
   (hinter_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_inter)
@@ -122,6 +138,13 @@ structure NoInterveningWrites.constraints
   diffClusterNotBetweenCles_sameCache :
     ¬ ∃ e_inter_down ∈ b,
       DiffClusterCLE.NotBetweenCLEs.sameCacheConstraints e_w_inter e_w e_inter_down hinter_c_and_g_lin ∧
+      e_inter_down.OrderedBetween n hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose
+  /-- Same-cache variant for non-downgrade directory writes (write-back events).
+      When e_w_inter writes from a different cluster, its write-back directory event
+      (isDirWrite, ¬down) can't be between CLE_w and CLE_r either. -/
+  diffClusterNotBetweenCles_sameCacheWrite :
+    ¬ ∃ e_inter_down ∈ b,
+      DiffClusterCLE.NotBetweenCLEs.sameCacheWriteConstraints e_w_inter e_w e_inter_down hinter_c_and_g_lin ∧
       e_inter_down.OrderedBetween n hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose
 --   sameCacheNoInterWrite:
 --     e_w.sameStructure n e_r →
