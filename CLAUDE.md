@@ -66,7 +66,11 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **COM edges (CO + rfe + FR) all SORRY-FREE in step_to_ordering**
 - **FR: honest FrOrdering with descriptive evidence, fr_ordering_holds theorem**
 - **StepOrdering moved to Defs.lean**, step_to_ordering decomposed into ppoi_step_to_ordering
-- **12 active sorry's in Proof.lean** + **3 in RfProofHelpers** = 15 active total
+- **13 active sorry's in Proof.lean** + **3 in RfProofHelpers** = 16 active total
+- **FR sameCluster diff-e_w restructured**: uses co.ordering DIRECTLY (not co_step_to_ordering)
+  - diffClus case: wObRDown + dir_ordered w.rDown.choose cdir_w → temporal loop for one direction ✓
+  - Remaining: cdir_w OB w.rDown.choose needs diffClusterNotBetweenCles_sameCache (sameCacheConstraints)
+  - sameCache/sameClusDiffCache co cases: sorry (need co.ordering-specific handling)
 
 ### FR sorry root cause (2026-03-25)
 All 4 remaining FR sorry's (768, 858, 862, 864) need `diffClusterNotBetweenCles_sameCache`.
