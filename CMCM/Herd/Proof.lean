@@ -509,9 +509,9 @@ private lemma diffCache_case_extract_encapDir
     | sameCluster _ hob => exact diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin sorry sorry
     | diffCluster _ henc _ => exact henc
 
-/-- Given StepOrdering l₁ l₂ and dir_ordered de₁ de₂ where l₁ = .directoryEvent de₁
-    and l₂ = .directoryEvent de₂, derive l₁.OrderedBefore n l₂.
-    The wrong direction of dir_ordered gives a temporal loop with any StepOrdering. -/
+/-- Given a CO chain StepOrdering and dir_ordered at same cluster, derive OB.
+    The wrong direction gives a temporal loop with ob/obEndLt/encapOb.
+    obFinishBefore is unreachable from CO chains (co_step_to_ordering never produces it). -/
 private lemma step_ordering_same_cluster_ob
     {l₁ l₂ : Event n} {de₁ de₂ : DirectoryEvent n}
     (hso : @StepOrdering n l₁ l₂)
