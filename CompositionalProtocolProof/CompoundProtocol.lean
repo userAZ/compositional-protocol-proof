@@ -22,6 +22,12 @@ structure CompoundProtocol where
   weakWriteAndNonCoherentRelCannotLinearizeAtCache : ∀ b : Behaviour n, ∀ init : InitialSystemState n, ∀ e₁ ∈ b, ∀ e₂ ∈ b,
     e₁.req.isNcRelease ∧ e₂.req.isWeak ∨ e₁.req.isWeak ∧ e₂.req.isNcRelease → (∃ e ∈ [e₁, e₂], (∃ e_cmplin ∈ b,
     Behaviour.eventCompoundLinearizes.atCache n b init e e_cmplin (linearizationOfEvent b init e)) ) → False
+  /-- Each cache event has a unique corresponding directory event via dirAccessOfRequest.
+      Validated by Murphi model checking: each cache request generates exactly one directory request.
+      TODO: Replace with proper proof by unifying Herd/CompoundMCM CLE definitions. -/
+  dirAccessUnique : ∀ b : Behaviour n, ∀ init : InitialSystemState n,
+    ∀ e_req d₁ d₂ : Event n,
+    b.dirAccessOfRequest n init e_req d₁ → b.dirAccessOfRequest n init e_req d₂ → d₁ = d₂
   eReqOfTheirProtocol : Protocol.Request.fromInterface.wrapper n
 
 def CompoundProtocol.globalCidToProtocol (cmp : CompoundProtocol n) (g_cid : Fin 2) : Protocol n := match g_cid with

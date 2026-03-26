@@ -205,16 +205,19 @@ private noncomputable def compound_lin_start_bound
       -- Now case-split on clusterDirectoryLinearizationEvent
       cases he_lin_dir with
       | previousGlobalCacheGotPerms _ he_glin_eq_cdir =>
-        -- he_glin_eq_cdir : hdir.choose = reqLinearizeAtDir.choose
-        -- Both reqLinearizeAtDir.choose and hreq's_dir_access.choose satisfy
-        -- dirAccessOfRequest for e. They should be equal but Exists.choose is opaque.
-        -- Needs: dirAccessOfRequest witness uniqueness for same cache event e.
-        sorry -- choose bridge: hreq's_dir_access.choose = reqLinearizeAtDir.choose
+        have h_compound_dir := hreq_lin_at_dir.reqCorrespondsToDir
+        have h_herd_dir := lin_e.hreq's_dir_access.choose_spec.2
+        have hcle_eq := compound.dirAccessUnique b init e _ _ h_compound_dir h_herd_dir
+        rw [he_glin_eq_cdir, hcle_eq]
       | getGlobalCachePerms _ hglin_deeper =>
-        -- CLE.Encapsulates compound_lin_event via cdir_encap_glin_of_cdir_linearize_at_dir
-        -- But the CLE here is reqLinearizeAtDir.choose, not hreq's_dir_access.choose.
-        -- Same choose bridge issue.
-        sorry -- choose bridge + encapsulation chain
+        -- compound CLE = reqLinearizeAtDir.choose. By uniqueness = Herd CLE.
+        have hcle_eq := compound.dirAccessUnique b init e _ _
+          hreq_lin_at_dir.reqCorrespondsToDir lin_e.hreq's_dir_access.choose_spec.2
+        -- hdir.choose is inside GCR inside compound CLE = Herd CLE
+        -- The noPerms.linearizationEvent gives the encapsulation chain.
+        -- For start_bound: CLE.oStart ≤ hdir.choose.oStart
+        -- From the encapsulation chain through encapGlobalCache.
+        sorry -- getGlobalCachePerms: encapsulation chain through GCR
 
 private noncomputable def compound_lin_end_bound
     {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
@@ -260,16 +263,13 @@ private noncomputable def compound_lin_end_bound
       have hreq_lin_at_dir := hdir_lin.choose_spec.right.reqLinearizeAtDir.choose_spec.right
       cases he_lin_dir with
       | previousGlobalCacheGotPerms _ he_glin_eq_cdir =>
-        -- hdir.choose = reqLinearizeAtDir.choose (he_glin_eq_cdir)
-        -- Need: hdir.choose.oEnd ≤ hreq's_dir_access.choose.oEnd
-        -- Both come from dirAccessOfRequest for e. By Subsingleton, same .choose.
-        -- But Exists.choose is opaque (Classical.choice), so can't reduce directly.
-        -- Need dirAccessOfRequest witness uniqueness lemma.
-        sorry -- choose bridge: hcompound_dir.choose = reqLinearizeAtDir.choose (opaque)
+        have hcle_eq := compound.dirAccessUnique b init e _ _
+          hreq_lin_at_dir.reqCorrespondsToDir lin_e.hreq's_dir_access.choose_spec.2
+        rw [he_glin_eq_cdir, hcle_eq]
       | getGlobalCachePerms _ hglin_deeper =>
-        -- CLE.Encapsulates hdir.choose → hdir.choose.oEnd < CLE.oEnd
-        -- Same choose bridge issue.
-        sorry -- choose bridge + encapsulation chain
+        have hcle_eq := compound.dirAccessUnique b init e _ _
+          hreq_lin_at_dir.reqCorrespondsToDir lin_e.hreq's_dir_access.choose_spec.2
+        sorry -- getGlobalCachePerms: encapsulation chain through GCR
 
 /-! ## Main theorem: acyclicity via OB chain on protocol events
 

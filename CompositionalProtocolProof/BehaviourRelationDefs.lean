@@ -591,7 +591,12 @@ inductive Behaviour.dirAccessOfRequest (b : Behaviour n) (init : InitialSystemSt
   (hnot_down : ¬ e_req.down)
   : Behaviour.dirAccessOfRequest b init e_req e_dir
 
--- Prove rf relation.
+/-- Each cache event has a unique corresponding directory event via dirAccessOfRequest.
+    Follows from the protocol property that each cache request generates exactly one
+    directory request (de.eReq = ce uniquely determines de).
+    TODO: Replace with a proper proof derived from requestDirectoryEvent/matchesCacheEvent
+    uniqueness, or unify Herd and CompoundMCM CLE definitions to share linearizationEventOfRequest. -/
+-- dirAccessOfRequest uniqueness: see CompoundProtocol.dirAccessUnique field
 
 def Behaviour.dirAccessOfRequest.isDirEvent {b : Behaviour n} {init : InitialSystemState n} {e_req e_dir : Event n} (h : b.dirAccessOfRequest n init e_req e_dir) : e_dir.isDirectoryEvent :=
   match h with
