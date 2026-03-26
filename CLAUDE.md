@@ -95,6 +95,20 @@ For "e_w same as e₁": use cdirEncapsDown_exists at e₁'s cluster (existing ap
 Only 2 clusters exist (from `isClusterCache.eCluster : protocol = .cluster1 ∨ .cluster2`).
 For diff-cluster e₁/e₂: e_w MUST be at e₁'s or e₂'s cluster. The "third cluster" case is vacuous.
 
+### CRITICAL LESSON (session 10): Protocol impossibility vs formal axiom gaps
+
+**The pattern that kept blocking FR**: I had `d_co OB CLE_r` (e_w2's downgrade at e_r's cluster before e_r's CLE) and knew it was protocol-impossible (e_r can't read e_w1's value if e_w2 already downgraded it). But I couldn't formally derive False because the NIW constraints didn't cover d_co (a directory READ with down=False, isDirWrite=False — the `sameCacheConstraints` required isDirWrite + down=True which only the EVICT has).
+
+**The key reasoning pattern**: When something is protocol-impossible but formally unprovable:
+1. **Identify WHY it's impossible** — what protocol property is violated?
+2. **Check if existing axioms capture it** — trace through the NIW/constraint definitions
+3. **If not, determine the minimal axiom extension** — what field/constraint is missing?
+4. **Verify the extension is sound** — does the RfTheorem proof provide this evidence?
+
+**The specific fix for FR**: Added `e_r_cdir_down.req.val.rw = e_r.req.val.rw` to `existsRClusterDirDown`. This ties the directory event's request type to the triggering event: for CO (e_r=e_w2, a write), d_co.isDirWrite=True. Combined with a new `sameCacheWriteConstraints` (isDirWrite + ¬down), the NIW covers d_co. The field is provable from the shim's `reqToDirOfRequestEvent` translation.
+
+**Meta-lesson**: Don't try to prove impossibility from temporal bounds alone when the impossibility comes from STATE (directory state after downgrade doesn't have the value). Instead, find/add the axiom that captures the state constraint (NIW constraining which events can be between writer and reader). The axioms ARE the formal representation of protocol state machine properties — if an axiom is missing, ADD it (with user approval), don't try to derive it from temporal chains.
+
 ### KEY INSIGHT (session 9): FR proof should mirror RF's structure + case-split on e₁ coherence
 
 **From Anqi:** FR = rf(e_w, e₁) ; co⁺(e_w, e₂). FrOrdering should use rf's cases directly AND add cases for e₂'s downgrade at e₁'s cluster. The current approach (cdirEncapsDown_exists + dir_ordered) tangles because it doesn't account for e₁'s coherence state.
