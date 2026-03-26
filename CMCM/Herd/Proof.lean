@@ -312,33 +312,47 @@ private lemma co_chain_cross_cluster_downgrade
   -- Induction on co chain. Base: single co step. Step: prefix + last co step.
   -- For TransGen: single or tail. We need the FIRST cross-cluster step,
   -- so induction from the LEFT (using TransGen's structure).
-  induction h_co_chain with
+  cases h_co_chain with
   | single h_co =>
     -- Single co step: co(e_w, e₂). Since protocols differ: must be diffClus.
-    -- Note: after `single`, the endpoint in h_co IS e₂.
     -- diffClus carries wObRDown : CLE_w OB downgrade at e_w's cluster.
     cases h_co.comm with
-    | sameCache _ _ => exact absurd (by unfold Event.sameProtocol; sorry) h_diff_prot
+    | sameCache same_cle _ =>
+      -- sameCache → same CLE → same protocol. But h_diff_prot says diff protocol. Contradiction.
+      exfalso; apply h_diff_prot
+      unfold Event.sameProtocol
+      -- same_cle : CLE_w = CLE₂. CLE_w.protocol = e_w.protocol, CLE₂.protocol = e₂.protocol.
+      have h1 := write_cle_protocol_eq_write_protocol h_co.w₁_lin
+      have h2 := write_cle_protocol_eq_write_protocol h_co.w₂_lin
+      rw [← h1, ← h2, same_cle]
     | sameClusDiffCache h_same_prot _ => exact absurd h_same_prot h_diff_prot
     | diffClus _ diff_cases =>
       cases diff_cases with
       | wCleImmPredDown w =>
+        have hrd_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
+        have hrd_lt : w.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
+            h_co.w₂_lin.hreq's_dir_access.choose.oEnd := by
+          cases hrd_spec.2.2.2 with
+          | cleEncap henc => exact henc.right
+          | gcacheEncap _ hlt => exact hlt
         exact ⟨w.rDown.encapDir.existsRClusterDirDown.choose,
           by rw [show e_w_lin = h_co.w₁_lin from Subsingleton.elim _ _]; exact w.wObRDown,
-          sorry, -- d.oEnd < CLE₂.oEnd: from encapDirRelation + Subsingleton bridge
-          w.rDown.encapDir.existsRClusterDirDown.choose_spec.2.1,
-          w.rDown.encapDir.existsRClusterDirDown.choose_spec.2.2.1⟩
+          by rw [show lin e₂ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
+          hrd_spec.2.1, hrd_spec.2.2.1⟩
       | evictOrReadBetweenWAndRDown evict =>
+        have hrd_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
+        have hrd_lt : evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
+            h_co.w₂_lin.hreq's_dir_access.choose.oEnd := by
+          cases hrd_spec.2.2.2 with
+          | cleEncap henc => exact henc.right
+          | gcacheEncap _ hlt => exact hlt
         exact ⟨evict.rDown.encapDir.existsRClusterDirDown.choose,
           by rw [show e_w_lin = h_co.w₁_lin from Subsingleton.elim _ _]; exact evict.wObRDown,
-          sorry, -- d.oEnd < CLE₂.oEnd: from encapDirRelation + Subsingleton bridge
-          evict.rDown.encapDir.existsRClusterDirDown.choose_spec.2.1,
-          evict.rDown.encapDir.existsRClusterDirDown.choose_spec.2.2.1⟩
-  | tail hpath h_last ih =>
+          by rw [show lin e₂ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
+          hrd_spec.2.1, hrd_spec.2.2.1⟩
+  | tail hpath h_last =>
     -- Prefix: co*(e_w, e_mid). Last: co(e_mid, e₂).
-    -- If e_w same protocol as e_mid: recurse on prefix (but e_mid might be same as e₂).
-    -- If e_w diff protocol from e_mid: the cross-cluster step is in the prefix.
-    sorry -- tail case: recurse or handle
+    sorry -- tail case: recurse or handle directly
 
 /-- FR ordering theorem: proves FrOrdering from rf + co + NIW evidence.
     Mirrors CMCM.rf_holds for RF and co_step_to_ordering for CO.
