@@ -82,6 +82,30 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 ### Key insight: cross-cluster dir_ordered is INVALID (confirmed session 9)
 Lines 696/709 use `dir_ordered de_cdir de_wn` where cdir is at e₁'s cluster and CLE_{w_next} may be at e_w_next's cluster (different if co step is diffClus). This is invalid per the `dir_ordered` guard rule. These sorry's need restructuring to derive ordering from the communication mechanism (co chain evidence), not from cross-cluster dir_ordered.
+
+### KEY INSIGHT (session 9): FR proof should mirror RF's structure + case-split on e₁ coherence
+
+**From Anqi:** FR = rf(e_w, e₁) ; co⁺(e_w, e₂). FrOrdering should use rf's cases directly AND add cases for e₂'s downgrade at e₁'s cluster. The current approach (cdirEncapsDown_exists + dir_ordered) tangles because it doesn't account for e₁'s coherence state.
+
+**The right structure for diff-cluster FR(e₁, e₂):**
+1. Case-split on e₁'s `dirAccessOfRequest` (encapDir / orderBeforeDir / orderAfterDir)
+2. **e₁ coherent (encapDir):** e₁ got perms → e₂ downgrades e₁'s CACHE → `e₁ OB e_w2_down`.
+   The cluster dir downgrade encapsulates e_w2_down. CLE₁ OB cdir (via e₁ OB e_w2_down inside cdir).
+   Proxy: cdir with CLE₁ OB cdir, cdir.oEnd < CLE₂.oEnd.
+3. **e₁ non-coherent / evict:** e₂'s downgrade goes through e₁'s CLUSTER DIRECTORY.
+   The downgrade proxy is at e₁'s cluster dir. Different evidence path.
+4. This mirrors RF's `wHasPermsAfter` / `wNoPermsAfter` split but applied to the e₂→e₁ direction.
+
+**Why this works:** Each case naturally gives CLE₁ OB proxy (no dir_ordered needed across clusters).
+The current sorry's arise because cdirEncapsDown_exists gives evict at e₁'s cluster but dir_ordered
+CLE₁ vs evict can go either way. With e₁'s coherence split, the ordering is determined by the
+communication mechanism, not by an arbitrary dir_ordered case split.
+
+**Implementation plan:**
+- Restructure `fr_ordering_holds`'s diff-cluster branch to case-split on RF evidence first
+- For RF same-cluster (e_w at e₁'s cluster): CO crosses → use co_chain_cross_cluster_downgrade
+- For RF diff-cluster (e_w diff from e₁): use RF's proxy + compose with CO bound
+- In all cases, case-split on e₁'s dirAccessOfRequest for the e₂ downgrade direction
 Then `dir_ordered e_de CLE₁`:
 - `e_de OB CLE₁` → `diffClusterNotBetweenCles_sameCache` with e_de between CLE_w and CLE₁ → contradiction
 - `CLE₁ OB e_de` → `.obEndLt e_de (CLE₁ OB e_de) (e_de.oEnd < CLE₂.oEnd)` → StepOrdering ✓
