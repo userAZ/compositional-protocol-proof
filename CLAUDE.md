@@ -56,40 +56,32 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-25 session 8)
-- **CO edge**: FULLY PROVEN
-- **rfe edge**: FULLY PROVEN
-- **FR edge**: SORRY-FREE in step_to_ordering via `FrOrdering` inductive. The `fr` structure now carries `ordering : FrOrdering` with `sameCluster`/`diffCluster` cases, each carrying `StepOrdering` directly. The FR case in step_to_ordering is 4 lines. Sorry's pushed to FR construction site (whoever builds `fr` must provide `ordering`).
-- **PPOi edge**: `dir_ordered` guarded by `by_cases h_same_addr`. CompoundMCM bridge visible. CLE₁ OB CLE₂ → `.ob` everywhere ✓.
-- **cdirEncapsDown_exists**: Extended with evict directory event (down, isDirWrite, protocol, translatedDir, OrderedBefore). SW case mostly proven. MR + noCoherentRead + some evict fields sorry'd.
-- **4 sorry declarations**: ppoi_step_to_ordering, fr_ordering_holds, StepOrdering.irrefl (dead), cdirEncapsDown_exists
-- **COM edges (CO + rfe + FR) all SORRY-FREE in step_to_ordering**
-- **FR: honest FrOrdering with descriptive evidence, fr_ordering_holds theorem**
-- **StepOrdering moved to Defs.lean**, step_to_ordering decomposed into ppoi_step_to_ordering
-- **13 active sorry's in Proof.lean** + **3 in RfProofHelpers** = 16 active total
-- **FR sameCluster diff-e_w restructured**: uses co.ordering DIRECTLY (not co_step_to_ordering)
-  - diffClus case: wObRDown + dir_ordered w.rDown.choose cdir_w → temporal loop for one direction ✓
-  - Remaining: cdir_w OB w.rDown.choose needs diffClusterNotBetweenCles_sameCache (sameCacheConstraints)
-  - sameCache/sameClusDiffCache co cases: sorry (need co.ordering-specific handling)
+### Status (updated 2026-03-25 session 9)
+- **CO edge**: FULLY PROVEN (0 sorry's)
+- **rfe edge**: FULLY PROVEN (0 sorry's)
+- **FR edge**: `fr_ordering_holds` has 4 sorry's. `step_to_ordering` FR case is 4 lines (sorry-free via FrOrdering).
+  - `co_chain_cross_cluster_downgrade`: FULLY PROVEN (tail same-cluster case closed via prefix StepOrdering + last step's wObRDown)
+  - Config 2 main path (CLE_w OB evict_w): CLOSED via cdirEncapsDown_exists + diffClusterNotBetweenCles_sameCache
+  - Remaining 4 sorry's are in deep sub-cases (evict_w OB CLE_w temporal, cross-cluster dir_ordered)
+- **PPOi edge**: 5 sorry's (3 diff-addr CompoundMCM, 1 same-addr orderAfterDir, 1 lazy)
+- **StepOrdering.irrefl `.eq`**: DEAD CODE (cmcm_acyclic_of_hknow handles .eq inline)
+- **4 sorry declarations**: ppoi_step_to_ordering (5), fr_ordering_holds (4), StepOrdering.irrefl (1, dead), cdirEncapsDown_exists (3, in RfProofHelpers)
+- **8 active sorry's in Proof.lean** + **3 in RfProofHelpers** = 11 active total (+ 1 dead)
 
-### FR sorry root cause (2026-03-25)
-All 4 remaining FR sorry's (768, 858, 862, 864) need `diffClusterNotBetweenCles_sameCache`.
-The key blocker: `sameCacheConstraints` requires `downIsDown : e_inter_down.down = true`.
-The current `e_cdir` (from cdirEncapsDown_exists) is the WRITE directory event (`down = false`).
-The EVICT directory event (`e_de` from `encapCorrespondingGetSWAndEvict.cohEvictDir`)
-has `down = true` (from `translateProxyEvent ... True`).
+### Remaining sorry categories (2026-03-25 session 9)
 
-**Philosophical insight**: The shim's `encapCorrespondingGetSWAndEvict` has TWO directory events:
-e_dw (write, down=false) and e_de (evict, down=true). The write REQUESTS access; the evict
-SENDS the downgrade. Only e_de satisfies sameCacheConstraints (needs down=true + isDirWrite).
-When `e_dw OB CLE₁`, either e_de is also before CLE₁ (NIW contradiction) or CLE₁ is between
-e_dw and e_de (reader sees write's value before evict → .obEndLt e_de). So `cdir OB CLE₁` is
-NOT always exfalso — it can produce a VALID StepOrdering in the CLE₁ OB e_de sub-case.
+**FR sorry's (4 in fr_ordering_holds, lines 596/696/709/730):**
+- Line 596: Config 2 evict_w OB CLE_w — needs deeper temporal with cdir_w from cdirEncapsDown_exists
+- Lines 696/709: cdir OB CLE_{w_next} and obEndLt proxy — uses dir_ordered between potentially CROSS-CLUSTER events (invalid!). Needs restructuring to avoid cross-cluster dir_ordered.
+- Line 730: diff-cluster e_w/e₁ — needs cross-cluster NIW (diffClusterNotBetweenCles_sameCache with co chain evidence)
 
-**Fix**: extend `cdirEncapsDown_exists` to also return the evict directory event `e_de`:
-- `hstruct.cohWriteImmBeforeEvict : ImmediateBottomPredecessor e_dw e_de`
-- `e_de.down = true` from `matchesCacheEvent.sameDown` + evict proxy's `down = True`
-- `e_de.oEnd < CLE₂.oEnd` from encapsulation chain: `e_de < e_gdown < e_gcache < CLE₂`
+**PPOi sorry's (5 in ppoi_step_to_ordering, lines 830/974/1018/1030/1033):**
+- Lines 830/974: diff-addr encapDir×orderBeforeDir and orderBeforeDir×orderBeforeDir — need CompoundMCM bridge (CompoundLinearizationOrder → StepOrdering on CLEs). Hard: compound lin events at different hierarchy levels than CLEs.
+- Line 1018: same-addr orderAfterDir CLE₂ OB CLE₁ — nc.weak CLE sharing insight says CLE₁ = CLE₂ (making this branch vacuous). Need formal proof of CLE sharing.
+- Lines 1030/1033: diff-addr orderAfterDir CompoundMCM + lazy — need CompoundMCM temporal chain and lazy case handling.
+
+### Key insight: cross-cluster dir_ordered is INVALID (confirmed session 9)
+Lines 696/709 use `dir_ordered de_cdir de_wn` where cdir is at e₁'s cluster and CLE_{w_next} may be at e_w_next's cluster (different if co step is diffClus). This is invalid per the `dir_ordered` guard rule. These sorry's need restructuring to derive ordering from the communication mechanism (co chain evidence), not from cross-cluster dir_ordered.
 Then `dir_ordered e_de CLE₁`:
 - `e_de OB CLE₁` → `diffClusterNotBetweenCles_sameCache` with e_de between CLE_w and CLE₁ → contradiction
 - `CLE₁ OB e_de` → `.obEndLt e_de (CLE₁ OB e_de) (e_de.oEnd < CLE₂.oEnd)` → StepOrdering ✓
