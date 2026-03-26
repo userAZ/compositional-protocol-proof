@@ -637,7 +637,11 @@ theorem fr_ordering_holds
                       -- dir_ordered d_rf CLE₂ at e_w's cluster = e₂'s cluster.
                       -- d_rf OB CLE₂ → .encapOb d_rf.
                       -- CLE₂ OB d_rf → contradicts CO ordering.
-                      sorry -- diffCluster encapDir: e_w same as e₂, encapOb
+                      -- RF cross-cluster: e_w at e₂'s cluster, e_r at e₁'s cluster.
+                      -- RF gives d_rf at e_w's cluster with encapDirRelation (d_rf inside CLE_r).
+                      -- dir_ordered d_rf CLE₂ at e_w's cluster → encapOb or proxy.
+                      -- Extract RF evidence and construct StepOrdering.
+                      sorry -- diffCluster encapDir: e_w same as e₂, RF cross-cluster encapOb (TODO: implement)
         | orderBeforeDir _ hexists_pred₁ hpred₁_encap _ _ _ _ _ =>
           -- Same strategy as encapDir: dir_ordered CLE₁ cdir/evict.
           -- cdirEncapsDown_exists already called, e_cdir/e_evict in scope.
