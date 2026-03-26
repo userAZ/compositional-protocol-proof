@@ -122,6 +122,20 @@ theorem exists_choose_eq {α : Sort _} {p : α → Prop} (h₁ h₂ : ∃ x, p x
     For getGlobalCachePerms: e_lin is inside CLE (via GCR encapsulation chain).
     For clusterCacheLin: e_lin = cache event, only the first bound holds for
     orderBeforeDir (CLE before cache event). -/
+-- Helper: extract the directory event from the compound linearization framework.
+-- When linearizationOfEvent is .dirLin, the reqLinearizeAtDir.choose satisfies dirAccessOfRequest.
+-- This is the same type as hreq's_dir_access, so by Subsingleton, choose values are equal.
+private noncomputable def compound_dir_access_of_dirLin
+    {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    {e : Event n}
+    (lin_at_dir : ∃ e_lin ∈ b, b.requestWithoutCoherentPermsLinearizesAtDir n init e e_lin) :
+    ∃ e_cdir ∈ b, b.dirAccessOfRequest n init e e_cdir :=
+  let req_lin_at_dir := lin_at_dir.choose_spec.right.reqLinearizeAtDir
+  let e_dir := req_lin_at_dir.choose
+  let e_dir_in_b := req_lin_at_dir.choose_spec.left
+  let dir_access := req_lin_at_dir.choose_spec.right.reqCorrespondsToDir
+  ⟨e_dir, e_dir_in_b, dir_access⟩
+
 private noncomputable def compound_lin_start_bound
     {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     (e : Event n)
@@ -129,7 +143,78 @@ private noncomputable def compound_lin_start_bound
     Event.oStart n lin_e.hreq's_dir_access.choose ≤
     Event.oStart n (compound.compoundLinearizationEvent compound.shimAxioms b init e
       (compound.linearizationOfEvent b init e)).linearizationEvent := by
-  sorry
+  -- Match on compound linearization type
+  match hclin : compound.compoundLinearizationEvent compound.shimAxioms b init e
+      (compound.linearizationOfEvent b init e) with
+  | .clusterCacheLin hcache =>
+    -- After match, .linearizationEvent reduces to hcache.choose
+    simp only [ClusterRequestLinearizationEvent.linearizationEvent]
+    -- hcache.choose = e (the cache event)
+    have hcache_eq_e := hcache.choose_spec.right.e_creq_is_e_glin
+    rw [hcache_eq_e]
+    -- Goal: CLE.oStart ≤ e.oStart
+    -- Case-split on dirAccessOfRequest to get the temporal relationship
+    have hdir_access := lin_e.hreq's_dir_access.choose_spec.2
+    cases hdir_access with
+    | encapDir hreq_missing _ =>
+      -- clusterCacheLin requires reqHasPerms, encapDir requires reqMissingPerms
+      -- These are contradictory: reqHasPerms gives hasPerms, reqMissingPerms gives noPerms
+      have hreq_has := hcache.choose_spec.right.cReqHasPerms
+      sorry -- reqHasPerms + reqMissingPerms → False
+    | orderBeforeDir _ hexists_pred hpred_dir_access _ _ _ _ _ =>
+      -- CLE is from pred's directory access: pred.Encapsulates CLE
+      -- pred OB e: pred.oEnd < e.oStart
+      -- From encapsulation: CLE.oEnd < pred.oEnd
+      -- Chain: CLE.oStart ≤ CLE.oEnd < pred.oEnd < e.oStart → CLE.oStart ≤ e.oStart
+      have hpred_encap_cle := hpred_dir_access.reqEncapDir
+      -- hpred_encap_cle : hexists_pred.choose.Encapsulates n lin_e.hreq's_dir_access.choose
+      -- hpred_encap_cle.right : CLE.oEnd < pred.oEnd
+      have hpred_ob_e : hexists_pred.choose.OrderedBefore n e :=
+        hexists_pred.choose_spec.right.isImmPred.bPred.isPred
+      -- CLE.oEnd < pred.oEnd < e.oStart → CLE.oEnd < e.oStart
+      -- CLE.oStart ≤ CLE.oEnd (from oWellFormed, actually oStart < oEnd)
+      -- So CLE.oStart < e.oStart → CLE.oStart ≤ e.oStart
+      exact Nat.le_of_lt (Nat.lt_trans
+        (Nat.lt_of_lt_of_le (Event.oWellFormed n lin_e.hreq's_dir_access.choose)
+          (Nat.le_of_lt hpred_encap_cle.right))
+        hpred_ob_e)
+    | orderAfterDir hweak _ _ _ =>
+      -- clusterCacheLin requires reqHasPerms, orderAfterDir requires ncWeakReqOnVd
+      -- nc.weak can have reqHasPerms (e.g., ncWeakReadHasPermsNotVd)
+      -- But clusterCacheLin also requires lin_at_cache (reqLinearizesAtCache),
+      -- which means linearizationOfEvent is .requestLin.
+      -- orderAfterDir uses immBottomSuccOnVdEncapCorrDir, the CLE is from a successor
+      sorry -- reqHasPerms + ncWeakReqOnVd → contradiction via compound axioms
+  | .clusterDirLin hdir =>
+    -- compound lin event = hdir.choose
+    simp only [ClusterRequestLinearizationEvent.linearizationEvent]
+    -- Need: lin_e.hreq's_dir_access.choose.oStart ≤ hdir.choose.oStart
+    -- Use simp + split to decompose OfReqEncapDirAccess (matches on linearizationOfEvent)
+    have he_lin_dir := hdir.choose_spec.right.e_glin_deeper
+    simp [CompoundProtocol.compoundLinearization.OfReqEncapDirAccess] at he_lin_dir
+    split at he_lin_dir
+    · -- requestLin case: OfReqEncapDirAccess is False
+      exfalso; exact he_lin_dir
+    · -- dirLin case: he_lin_dir is now clusterDirectoryLinearizationEvent
+      next hcreq_lin hdir_lin _ =>
+      -- hdir_lin : ∃ e_lin ∈ b, requestWithoutCoherentPermsLinearizesAtDir ...
+      -- he_lin_dir : clusterDirectoryLinearizationEvent ... reqLinearizeAtDir.choose hdir.choose
+      have hreq_lin_at_dir := hdir_lin.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+      -- hreq_lin_at_dir : requestLinearizesAtDirectory ... e reqLinearizeAtDir.choose ...
+      -- hreq_lin_at_dir.reqCorrespondsToDir : dirAccessOfRequest b init e reqLinearizeAtDir.choose
+      -- Now case-split on clusterDirectoryLinearizationEvent
+      cases he_lin_dir with
+      | previousGlobalCacheGotPerms _ he_glin_eq_cdir =>
+        -- he_glin_eq_cdir : hdir.choose = reqLinearizeAtDir.choose
+        -- Both reqLinearizeAtDir.choose and hreq's_dir_access.choose satisfy
+        -- dirAccessOfRequest for e. They should be equal but Exists.choose is opaque.
+        -- Needs: dirAccessOfRequest witness uniqueness for same cache event e.
+        sorry -- choose bridge: hreq's_dir_access.choose = reqLinearizeAtDir.choose
+      | getGlobalCachePerms _ hglin_deeper =>
+        -- CLE.Encapsulates compound_lin_event via cdir_encap_glin_of_cdir_linearize_at_dir
+        -- But the CLE here is reqLinearizeAtDir.choose, not hreq's_dir_access.choose.
+        -- Same choose bridge issue.
+        sorry -- choose bridge + encapsulation chain
 
 private noncomputable def compound_lin_end_bound
     {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
@@ -138,7 +223,53 @@ private noncomputable def compound_lin_end_bound
     Event.oEnd n (compound.compoundLinearizationEvent compound.shimAxioms b init e
       (compound.linearizationOfEvent b init e)).linearizationEvent ≤
     Event.oEnd n lin_e.hreq's_dir_access.choose := by
-  sorry
+  -- Match on compound linearization type
+  match hclin : compound.compoundLinearizationEvent compound.shimAxioms b init e
+      (compound.linearizationOfEvent b init e) with
+  | .clusterCacheLin hcache =>
+    -- compound lin event = e (cache event). CLE from dirAccessOfRequest.
+    -- For orderBeforeDir: CLE.oEnd < pred.oEnd < e.oStart < e.oEnd → e.oEnd > CLE.oEnd.
+    -- This bound DOES NOT HOLD for clusterCacheLin.
+    simp only [ClusterRequestLinearizationEvent.linearizationEvent]
+    have hcache_eq_e := hcache.choose_spec.right.e_creq_is_e_glin
+    rw [hcache_eq_e]
+    -- Goal: e.oEnd ≤ CLE.oEnd — FALSE for orderBeforeDir
+    have hdir_access := lin_e.hreq's_dir_access.choose_spec.2
+    cases hdir_access with
+    | encapDir hreq_missing _ =>
+      have hreq_has := hcache.choose_spec.right.cReqHasPerms
+      sorry -- reqHasPerms + reqMissingPerms → False
+    | orderBeforeDir _ hexists_pred hpred_dir_access _ _ _ _ _ =>
+      -- CLE.oEnd < pred.oEnd < e.oStart < e.oEnd → e.oEnd > CLE.oEnd. FALSE.
+      sorry -- e.oEnd ≤ CLE.oEnd is false; need contradiction from clusterCacheLin + orderBeforeDir context
+    | orderAfterDir hweak _ _ _ =>
+      have hreq_has := hcache.choose_spec.right.cReqHasPerms
+      sorry -- reqHasPerms + ncWeakReqOnVd → contradiction via compound axioms
+  | .clusterDirLin hdir =>
+    -- compound lin event = hdir.choose
+    simp only [ClusterRequestLinearizationEvent.linearizationEvent]
+    -- Need: hdir.choose.oEnd ≤ lin_e.hreq's_dir_access.choose.oEnd
+    -- Use simp + split to decompose OfReqEncapDirAccess
+    have he_lin_dir := hdir.choose_spec.right.e_glin_deeper
+    simp [CompoundProtocol.compoundLinearization.OfReqEncapDirAccess] at he_lin_dir
+    split at he_lin_dir
+    · -- requestLin case: OfReqEncapDirAccess is False
+      exfalso; exact he_lin_dir
+    · -- dirLin case
+      next hcreq_lin hdir_lin _ =>
+      have hreq_lin_at_dir := hdir_lin.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+      cases he_lin_dir with
+      | previousGlobalCacheGotPerms _ he_glin_eq_cdir =>
+        -- hdir.choose = reqLinearizeAtDir.choose (he_glin_eq_cdir)
+        -- Need: hdir.choose.oEnd ≤ hreq's_dir_access.choose.oEnd
+        -- Both come from dirAccessOfRequest for e. By Subsingleton, same .choose.
+        -- But Exists.choose is opaque (Classical.choice), so can't reduce directly.
+        -- Need dirAccessOfRequest witness uniqueness lemma.
+        sorry -- choose bridge: hcompound_dir.choose = reqLinearizeAtDir.choose (opaque)
+      | getGlobalCachePerms _ hglin_deeper =>
+        -- CLE.Encapsulates hdir.choose → hdir.choose.oEnd < CLE.oEnd
+        -- Same choose bridge issue.
+        sorry -- choose bridge + encapsulation chain
 
 /-! ## Main theorem: acyclicity via OB chain on protocol events
 
