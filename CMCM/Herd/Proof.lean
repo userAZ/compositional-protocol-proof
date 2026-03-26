@@ -990,7 +990,12 @@ theorem fr_ordering_holds
                               exact .diffCluster_rfCrossCluster h_same_prot
                                 hencapDir'.existsRClusterDirDown.choose henc'
                                 (by rw [hfc_drf', hfc_cle₂']; exact hob)
-                            | inr hob => sorry -- CLE₂ OB d_rf'
+                            | inr hob =>
+                              -- CLE₂ OB d_rf': same NIW pattern as encapDir.
+                              exfalso
+                              have h_constraints := h_no_between e₂ h.in_b₂
+                                h.cache₂ h.write h.notDown₂ (hlin e₂)
+                              sorry -- replicate encapDir CLE₂ OB d_rf NIW pattern
                       | gcacheEncap _ _ => sorry -- gcacheEncap
         | orderAfterDir hweak₁ _ _ _ =>
           -- e₁ non-coherent. Same dir_ordered strategy.
@@ -1061,7 +1066,12 @@ theorem fr_ordering_holds
                               exact .diffCluster_rfCrossCluster h_same_prot
                                 hencapDir'.existsRClusterDirDown.choose henc'
                                 (by rw [hfc_drf', hfc_cle₂']; exact hob)
-                            | inr hob => sorry -- CLE₂ OB d_rf'
+                            | inr hob =>
+                              -- CLE₂ OB d_rf': same NIW pattern as encapDir.
+                              exfalso
+                              have h_constraints := h_no_between e₂ h.in_b₂
+                                h.cache₂ h.write h.notDown₂ (hlin e₂)
+                              sorry -- replicate encapDir CLE₂ OB d_rf NIW pattern
                       | gcacheEncap _ _ => sorry -- gcacheEncap
 
 /-- PPOi → StepOrdering. Factored out of step_to_ordering for modularity. -/
