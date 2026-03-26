@@ -309,13 +309,11 @@ private lemma co_chain_cross_cluster_downgrade
         d.oEnd < (lin e₂).hreq's_dir_access.choose.oEnd ∧
         d.isDirectoryEvent ∧
         d.protocol = e_w.protocol := by
-  -- Induction on co chain. Base: single co step. Step: prefix + last co step.
-  -- For TransGen: single or tail. We need the FIRST cross-cluster step,
-  -- so induction from the LEFT (using TransGen's structure).
-  cases h_co_chain with
+  -- Induction on co chain. The endpoint e₂ gets generalized.
+  -- Use h_diff_prot and lin in generalized form.
+  induction h_co_chain with
   | single h_co =>
-    -- Single co step: co(e_w, e₂). Since protocols differ: must be diffClus.
-    -- diffClus carries wObRDown : CLE_w OB downgrade at e_w's cluster.
+    -- Single co step: co(e_w, c). Since protocols differ: must be diffClus.
     cases h_co.comm with
     | sameCache same_cle _ =>
       -- sameCache → same CLE → same protocol. But h_diff_prot says diff protocol. Contradiction.
@@ -337,7 +335,7 @@ private lemma co_chain_cross_cluster_downgrade
           | gcacheEncap _ hlt => exact hlt
         exact ⟨w.rDown.encapDir.existsRClusterDirDown.choose,
           by rw [show e_w_lin = h_co.w₁_lin from Subsingleton.elim _ _]; exact w.wObRDown,
-          by rw [show lin e₂ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
+          by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
           hrd_spec.2.1, hrd_spec.2.2.1⟩
       | evictOrReadBetweenWAndRDown evict =>
         have hrd_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
@@ -348,16 +346,79 @@ private lemma co_chain_cross_cluster_downgrade
           | gcacheEncap _ hlt => exact hlt
         exact ⟨evict.rDown.encapDir.existsRClusterDirDown.choose,
           by rw [show e_w_lin = h_co.w₁_lin from Subsingleton.elim _ _]; exact evict.wObRDown,
-          by rw [show lin e₂ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
+          by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
           hrd_spec.2.1, hrd_spec.2.2.1⟩
-  | tail hpath h_last =>
-    -- tail: prefix TransGen co e_w e_mid, last co e_mid e₂.
-    -- d from single case applied to the FULL chain (hpath.tail h_last = h_co_chain).
-    -- But we already destructed h_co_chain. Need recursion.
-    -- Key insight: the d we need is at e_w's cluster. It comes from the FIRST
-    -- cross-cluster step in the chain. The oEnd bound needs extending through
-    -- later co steps. Use co_step_to_ordering for the extension.
-    sorry -- tail: find cross-cluster step in prefix, extend oEnd bound via last step
+  | tail hpath h_last ih =>
+    rename_i b_mid c_ep
+    -- IH for prefix. Extend d.oEnd bound via last step's StepOrdering.
+    by_cases h_mid_prot : e_w.sameProtocol n b_mid
+    · -- Prefix same-cluster: last step h_last must cross clusters.
+      -- Get CLE_w.oEnd ≤ CLE_mid.oEnd from prefix StepOrdering.
+      have hprefix_so := co_chain_step_ordering lin hpath
+      have hcle_w_le_mid : Event.oEnd n e_w_lin.hreq's_dir_access.choose ≤
+          Event.oEnd n (lin b_mid).hreq's_dir_access.choose := by
+        rw [show e_w_lin = lin e_w from Subsingleton.elim _ _]
+        cases hprefix_so with
+        | ob h => exact Nat.le_of_lt (Nat.lt_trans h (Event.oWellFormed n _))
+        | obEndLt _ hp hlt => exact Nat.le_of_lt (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n _)) hlt)
+        | sameLin _ _ heq _ _ _ => exact Nat.le_of_eq (congrArg (Event.oEnd n) heq)
+        | eq heq => exact Nat.le_of_eq (congrArg (Event.oEnd n) heq)
+      -- mid and c_ep must have different protocol (e_w same as mid, diff from c_ep)
+      have h_mid_diff_c : ¬ b_mid.sameProtocol n c_ep := by
+        intro h; exact h_diff_prot (show e_w.sameProtocol n c_ep from
+          (show e_w.protocol = c_ep.protocol from
+            (show e_w.protocol = b_mid.protocol from h_mid_prot).trans h))
+      -- h_last.comm must be diffClus
+      cases h_last.comm with
+      | sameCache same_cle _ =>
+        exfalso; apply h_mid_diff_c; unfold Event.sameProtocol
+        have h1 := write_cle_protocol_eq_write_protocol h_last.w₁_lin
+        have h2 := write_cle_protocol_eq_write_protocol h_last.w₂_lin
+        rw [← h1, ← h2, same_cle]
+      | sameClusDiffCache h_same _ => exact absurd h_same h_mid_diff_c
+      | diffClus _ diff_cases =>
+        cases diff_cases with
+        | wCleImmPredDown w =>
+          have hrd_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
+          have hrd_lt : w.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
+              h_last.w₂_lin.hreq's_dir_access.choose.oEnd := by
+            cases hrd_spec.2.2.2 with
+            | cleEncap henc => exact henc.right
+            | gcacheEncap _ hlt => exact hlt
+          have h_mid_ob_d := w.wObRDown
+          rw [show h_last.w₁_lin = lin b_mid from Subsingleton.elim _ _] at h_mid_ob_d
+          exact ⟨w.rDown.encapDir.existsRClusterDirDown.choose,
+            Nat.lt_of_le_of_lt hcle_w_le_mid h_mid_ob_d,
+            by rw [show lin c_ep = h_last.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
+            hrd_spec.2.1,
+            hrd_spec.2.2.1.trans (show b_mid.protocol = e_w.protocol from
+              (show e_w.protocol = b_mid.protocol from h_mid_prot).symm)⟩
+        | evictOrReadBetweenWAndRDown evict =>
+          have hrd_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
+          have hrd_lt : evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
+              h_last.w₂_lin.hreq's_dir_access.choose.oEnd := by
+            cases hrd_spec.2.2.2 with
+            | cleEncap henc => exact henc.right
+            | gcacheEncap _ hlt => exact hlt
+          have h_mid_ob_d := evict.wObRDown
+          rw [show h_last.w₁_lin = lin b_mid from Subsingleton.elim _ _] at h_mid_ob_d
+          exact ⟨evict.rDown.encapDir.existsRClusterDirDown.choose,
+            Nat.lt_of_le_of_lt hcle_w_le_mid h_mid_ob_d,
+            by rw [show lin c_ep = h_last.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
+            hrd_spec.2.1,
+            hrd_spec.2.2.1.trans (show b_mid.protocol = e_w.protocol from
+              (show e_w.protocol = b_mid.protocol from h_mid_prot).symm)⟩
+    · -- Prefix diff-cluster: IH gives d with d.oEnd < CLE_mid.oEnd.
+      obtain ⟨d, hob_d, hd_lt, hd_isDir, hd_proto⟩ := ih h_mid_prot
+      -- Extend to CLE_c via co_step_to_ordering.
+      have hco_step := co_step_to_ordering h_last lin
+      have hext : (lin b_mid).hreq's_dir_access.choose.oEnd ≤ (lin c_ep).hreq's_dir_access.choose.oEnd := by
+        cases hco_step with
+        | ob h => exact Nat.le_of_lt (Nat.lt_trans h (Event.oWellFormed n _))
+        | obEndLt _ hp hlt => exact Nat.le_of_lt (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n _)) hlt)
+        | sameLin _ _ heq _ _ _ => exact Nat.le_of_eq (congrArg (Event.oEnd n) heq)
+        | eq heq => exact Nat.le_of_eq (congrArg (Event.oEnd n) heq)
+      exact ⟨d, hob_d, Nat.lt_of_lt_of_le hd_lt hext, hd_isDir, hd_proto⟩
 
 /-- FR ordering theorem: proves FrOrdering from rf + co + NIW evidence.
     Mirrors CMCM.rf_holds for RF and co_step_to_ordering for CO.
@@ -456,17 +517,83 @@ theorem fr_ordering_holds
                   exact Nat.lt_irrefl _ (calc de_w.oEnd ≤ de₂.oEnd := hcw_le
                     _ < de_w.oStart := hob_₂w
                     _ ≤ de_w.oEnd := Nat.le_of_lt de_w.oWellFormed)
-            · -- Diff cluster e_w (Config 2): use co_chain_cross_cluster_downgrade.
-              -- The co chain crosses from e_w's cluster → extract downgrade d at e_w's cluster
-              -- with CLE_w OB d and d.oEnd < CLE₂.oEnd.
-              -- d OB CLE₁ from d.oEnd < CLE₂.oEnd < CLE₁.oStart.
-              -- d between CLE_w and CLE₁ → diffClusterNotBetweenCles_sameCache → contradiction.
-              obtain ⟨d, hcle_w_ob_d, hd_lt_cle₂, hd_isDir, hd_proto⟩ :=
-                co_chain_cross_cluster_downgrade h_co_chain
-                  (show ¬ e_w.sameProtocol n e₂ from by
-                    unfold Event.sameProtocol; intro h; exact h_ew_prot h.symm)
-                  e_w_lin hlin
-              sorry -- Config 2: d between CLE_w and CLE₁ → diffClusterNotBetweenCles_sameCache
+            · -- Diff cluster e_w (Config 2): use cdirEncapsDown_exists at e_w's cluster.
+              -- Get evict event at e_w's cluster with all structural fields needed for NIW.
+              obtain ⟨_, _, _, _, _,
+                ⟨_, _, _, _, _⟩,
+                ⟨e_evict_w, he_evict_w_in_b, he_evict_w_isDir, he_evict_w_down, hevict_w_lt,
+                 _, he_evict_w_proto, he_evict_w_isDirWrite, he_evict_w_translatedDir⟩⟩ :=
+                cdirEncapsDown_exists e_w_lin (hlin e₂) hw_in_b hw_cache
+              -- dir_ordered CLE_w e_evict_w (same cluster as e_w, same addr).
+              have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+              have he_evict_w_isdir' := he_evict_w_isDir
+              match hfcw : e_w_lin.hreq's_dir_access.choose, hdir_w with
+              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+              | .directoryEvent de_w, _ =>
+                match hfc_evict_w : e_evict_w, he_evict_w_isdir' with
+                | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                | .directoryEvent de_evict_w, _ =>
+                  cases (b.orderedAtEntry.dir_ordered de_w de_evict_w).ordered with
+                  | inl hob_w_evict =>
+                    -- CLE_w OB evict_w. evict_w.oEnd < CLE₂.oEnd. CLE₂ OB CLE₁.
+                    -- Chain: evict_w.oEnd < CLE₂.oEnd = de₂.oEnd < de₁.oStart = CLE₁.oStart
+                    have hw₂_eq : hlin e₂ = lin e₂ := Subsingleton.elim _ _
+                    have hevict_w_lt' : Event.oEnd n (.directoryEvent de_evict_w) <
+                        Event.oEnd n (.directoryEvent de₂) := by
+                      rw [hw₂_eq] at hevict_w_lt
+                      show _ < Event.oEnd n (.directoryEvent de₂)
+                      rw [← hfc₂]; exact hevict_w_lt
+                    have hevict_w_ob_cle₁ : Event.oEnd n (Event.directoryEvent de_evict_w) <
+                        Event.oStart n (Event.directoryEvent de₁) :=
+                      Nat.lt_trans hevict_w_lt' hob
+                    -- OrderedBetween CLE_w CLE₁ for evict_w
+                    have h_between : e_evict_w.OrderedBetween n
+                        e_w_lin.hreq's_dir_access.choose (lin e₁).hreq's_dir_access.choose :=
+                      ⟨by rw [hfcw, hfc_evict_w]; exact hob_w_evict,
+                       by rw [hfc_evict_w, hfc₁]; exact hevict_w_ob_cle₁⟩
+                    -- Apply diffClusterNotBetweenCles_sameCache
+                    exact absurd ⟨e_evict_w, by rw [hfc_evict_w]; exact he_evict_w_in_b,
+                      { interDiffProtocol := by intro heq; exact h_ew_prot heq
+                        downToW := by
+                          show e_evict_w.protocol = e_w.protocol
+                          rw [hfc_evict_w]; exact he_evict_w_proto
+                        isDirWrite := by rw [hfc_evict_w]; exact he_evict_w_isDirWrite
+                        downIsDown := by rw [hfc_evict_w]; exact he_evict_w_down
+                        isDir := by rw [hfc_evict_w]; simp [Event.isDirectoryEvent]
+                        translatedDir := by rw [hfc_evict_w]; exact he_evict_w_translatedDir
+                      }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCache
+                  | inr hob_evict_w =>
+                    -- evict_w OB CLE_w: temporal contradiction.
+                    -- co chain gives CLE_w.oEnd ≤ CLE₂.oEnd (from StepOrdering).
+                    -- But evict_w OB CLE_w: de_evict_w.oEnd < de_w.oStart.
+                    -- And evict_w.oEnd < CLE₂.oEnd: de_evict_w.oEnd < de₂.oEnd.
+                    -- CLE₂ OB CLE₁: de₂.oEnd < de₁.oStart.
+                    -- Combined: de_evict_w.oEnd < de_w.oStart ≤ de_w.oEnd (wf).
+                    -- Also CLE_w at e_w's cluster → co chain starts from CLE_w.
+                    -- StepOrdering CLE_w CLE₂ gives CLE_w.oEnd ≤ CLE₂.oEnd.
+                    -- But evict_w OB CLE_w → evict_w.oEnd < CLE_w.oStart.
+                    -- evict_w.oEnd < CLE₂.oEnd and CLE₂ OB CLE₁ don't directly help.
+                    -- Use: cdir_w OB evict_w from cdirEncapsDown_exists? No, we discarded that.
+                    -- Actually: evict_w.oEnd < de_w.oStart and evict_w.oEnd < de₂.oEnd.
+                    -- Not directly contradictory. Need co chain evidence.
+                    -- Use co_chain_step_ordering: CLE_w.oEnd ≤ CLE₂.oEnd.
+                    -- evict_w OB CLE_w: de_evict_w.oEnd < de_w.oStart ≤ de_w.oEnd.
+                    -- So de_evict_w before de_w. And evict_w.oEnd < CLE₂.oEnd.
+                    -- We need: de_w.oEnd ≤ de₂.oEnd (from co chain).
+                    -- Then: de_evict_w.oEnd < de_w.oStart ≤ de_w.oEnd ≤ de₂.oEnd < de₁.oStart.
+                    -- So de_evict_w between de_w and de₁. But that doesn't help (diff cluster).
+                    -- Instead: use the evict event DOESN'T need to be between CLE_w and CLE₁.
+                    -- If evict_w OB CLE_w, then CLE_w is later. co chain: CLE_w ≤ CLE₂ < CLE₁.
+                    -- So CLE₁ is the latest. Not a contradiction by temporal means alone.
+                    -- Need the evict's cdir: from cdirEncapsDown_exists, cdir_w OB evict_w.
+                    -- Extract e_cdir_w and use dir_ordered CLE_w cdir_w.
+                    -- If CLE_w OB cdir_w: temporal loop CLE_w < cdir_w < evict_w < CLE_w → False.
+                    -- If cdir_w OB CLE_w: consistent, need deeper argument.
+                    -- For now, use the same cdir_w from cdirEncapsDown_exists.
+                    -- Re-obtain cdir_w by matching the destructured result.
+                    -- Actually, we already discarded e_cdir_w. Let me re-call to get it.
+                    -- For now, mark as sorry — this is a deep sub-case.
+                    sorry -- evict_w OB CLE_w: deeper temporal argument with cdir_w
     · -- Diff cluster: use cdirEncapsDown_exists for proxy.
       -- dir_ordered CLE₁ cdir/evict → CLE₁ OB proxy, proxy.oEnd < CLE₂.oEnd.
       obtain ⟨e_cdir, _he_cdir_in_b, he_cdir_isDir, _he_cdir_proto, hcdir_lt_cle₂,
