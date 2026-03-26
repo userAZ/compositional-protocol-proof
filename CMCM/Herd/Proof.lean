@@ -309,7 +309,36 @@ private lemma co_chain_cross_cluster_downgrade
         d.oEnd < (lin e₂).hreq's_dir_access.choose.oEnd ∧
         d.isDirectoryEvent ∧
         d.protocol = e_w.protocol := by
-  sorry -- Extract from co chain: find first cross-cluster step, use wObRDown + co prefix
+  -- Induction on co chain. Base: single co step. Step: prefix + last co step.
+  -- For TransGen: single or tail. We need the FIRST cross-cluster step,
+  -- so induction from the LEFT (using TransGen's structure).
+  induction h_co_chain with
+  | single h_co =>
+    -- Single co step: co(e_w, e₂). Since protocols differ: must be diffClus.
+    -- Note: after `single`, the endpoint in h_co IS e₂.
+    -- diffClus carries wObRDown : CLE_w OB downgrade at e_w's cluster.
+    cases h_co.comm with
+    | sameCache _ _ => exact absurd (by unfold Event.sameProtocol; sorry) h_diff_prot
+    | sameClusDiffCache h_same_prot _ => exact absurd h_same_prot h_diff_prot
+    | diffClus _ diff_cases =>
+      cases diff_cases with
+      | wCleImmPredDown w =>
+        exact ⟨w.rDown.encapDir.existsRClusterDirDown.choose,
+          by rw [show e_w_lin = h_co.w₁_lin from Subsingleton.elim _ _]; exact w.wObRDown,
+          sorry, -- d.oEnd < CLE₂.oEnd: from encapDirRelation + Subsingleton bridge
+          w.rDown.encapDir.existsRClusterDirDown.choose_spec.2.1,
+          w.rDown.encapDir.existsRClusterDirDown.choose_spec.2.2.1⟩
+      | evictOrReadBetweenWAndRDown evict =>
+        exact ⟨evict.rDown.encapDir.existsRClusterDirDown.choose,
+          by rw [show e_w_lin = h_co.w₁_lin from Subsingleton.elim _ _]; exact evict.wObRDown,
+          sorry, -- d.oEnd < CLE₂.oEnd: from encapDirRelation + Subsingleton bridge
+          evict.rDown.encapDir.existsRClusterDirDown.choose_spec.2.1,
+          evict.rDown.encapDir.existsRClusterDirDown.choose_spec.2.2.1⟩
+  | tail hpath h_last ih =>
+    -- Prefix: co*(e_w, e_mid). Last: co(e_mid, e₂).
+    -- If e_w same protocol as e_mid: recurse on prefix (but e_mid might be same as e₂).
+    -- If e_w diff protocol from e_mid: the cross-cluster step is in the prefix.
+    sorry -- tail case: recurse or handle
 
 /-- FR ordering theorem: proves FrOrdering from rf + co + NIW evidence.
     Mirrors CMCM.rf_holds for RF and co_step_to_ordering for CO.
