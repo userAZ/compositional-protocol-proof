@@ -213,11 +213,12 @@ private noncomputable def compound_lin_start_bound
         -- compound CLE = reqLinearizeAtDir.choose. By uniqueness = Herd CLE.
         have hcle_eq := compound.dirAccessUnique b init e _ _
           hreq_lin_at_dir.reqCorrespondsToDir lin_e.hreq's_dir_access.choose_spec.2
-        -- hdir.choose is inside GCR inside compound CLE = Herd CLE
-        -- The noPerms.linearizationEvent gives the encapsulation chain.
-        -- For start_bound: CLE.oStart ≤ hdir.choose.oStart
-        -- From the encapsulation chain through encapGlobalCache.
-        sorry -- getGlobalCachePerms: encapsulation chain through GCR
+        -- CLE encapsulates compound lin event (via GCR chain)
+        have hcle_encap_glin :=
+          CompoundProtocol.cdir_encap_glin_of_cdir_linearize_at_dir n hreq_lin_at_dir hglin_deeper
+        -- Encapsulates gives strict: CLE.oStart < hdir.choose.oStart
+        rw [← hcle_eq]
+        exact Nat.le_of_lt hcle_encap_glin.left
 
 private noncomputable def compound_lin_end_bound
     {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
@@ -269,7 +270,12 @@ private noncomputable def compound_lin_end_bound
       | getGlobalCachePerms _ hglin_deeper =>
         have hcle_eq := compound.dirAccessUnique b init e _ _
           hreq_lin_at_dir.reqCorrespondsToDir lin_e.hreq's_dir_access.choose_spec.2
-        sorry -- getGlobalCachePerms: encapsulation chain through GCR
+        -- CLE encapsulates compound lin event (via GCR chain)
+        have hcle_encap_glin :=
+          CompoundProtocol.cdir_encap_glin_of_cdir_linearize_at_dir n hreq_lin_at_dir hglin_deeper
+        -- Encapsulates gives strict: hdir.choose.oEnd < CLE.oEnd
+        rw [← hcle_eq]
+        exact Nat.le_of_lt hcle_encap_glin.right
 
 /-! ## Main theorem: acyclicity via OB chain on protocol events
 
