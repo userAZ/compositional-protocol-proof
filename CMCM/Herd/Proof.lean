@@ -751,7 +751,31 @@ theorem fr_ordering_holds
                                   -- henc_drf : CLE_r encaps d_rf. CLE_r from RF's hr_c_and_g_lin.
                                   -- Need: d_rf.EncapsulatedBy (lin e₁).CLE. Bridge via Subsingleton.
                                   -- hencapDir uses RF's reader lin (= lin e₁ by Subsingleton).
-                                  sorry -- ALMOST DONE: encapOb for cleEncap d_rf OB CLE₂ case
+                                  -- Bridge: the RF's reader lin = (lin e₁) by Subsingleton.
+                                  -- Rewrite hencapDir to use (lin e₁) explicitly.
+                                  -- Use diffCache_coherent_encapProxyAndDir directly with (lin e₁) as reader.
+                                  -- This gives encapDir parameterized by (lin e₁), avoiding Subsingleton issues.
+                                  have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache
+                                  have hdrf_spec' := hencapDir'.existsRClusterDirDown.choose_spec
+                                  cases hdrf_spec'.2.2.2.2 with
+                                  | cleEncap henc' =>
+                                    -- d_rf' inside (lin e₁).CLE. dir_ordered d_rf' CLE₂.
+                                    have hdrf_isdir' := hdrf_spec'.2.1
+                                    match hfc_drf' : hencapDir'.existsRClusterDirDown.choose, hdrf_isdir' with
+                                    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                                    | .directoryEvent de_drf', _ =>
+                                      match hfc_cle₂' : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+                                      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                                      | .directoryEvent de_cle₂', _ =>
+                                        cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
+                                        | inl hob =>
+                                          exact .diffCluster_rfCrossCluster h_same_prot
+                                            hencapDir'.existsRClusterDirDown.choose henc'
+                                            (by rw [hfc_drf', hfc_cle₂']; exact hob)
+                                        | inr hob =>
+                                          sorry -- CLE₂ OB d_rf': further analysis
+                                  | gcacheEncap _ _ =>
+                                    sorry -- gcacheEncap sub-case
                                 | inr hcle₂_ob_drf =>
                                   -- CLE₂ OB d_rf: CLE₂ before d_rf which is inside CLE₁.
                                   -- TODO: further analysis needed
