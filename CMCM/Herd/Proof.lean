@@ -1006,9 +1006,63 @@ theorem fr_ordering_holds
                                               hencapDir'.existsRClusterDirDown.choose := by
                                             rw [show (hlin e₂) = lin e₂ from Subsingleton.elim _ _,
                                                 hfc_cle₂'', hfc_drf'']; exact hob
-                                          -- Need: CLE_w OB CLE₂ + CLE₂ OB d_rf → OrderedBetween → NIW.
-                                          -- Same pattern as encapDir .ob CO case (lines 807-912).
-                                          sorry -- CLE₂ OB d_rf NIW: replicate .ob CO pattern
+                                          -- CLE_w OB CLE₂ from CO chain via dir_ordered.
+                                          have hco_so := co_chain_step_ordering hlin h_co_chain
+                                          rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hco_so
+                                          have hcle_w_isdir := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+                                          have hcle_w2_isdir := (hlin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+                                          match hfc_clew : e_w_lin.hreq's_dir_access.choose, hcle_w_isdir with
+                                          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                                          | .directoryEvent de_clew, _ =>
+                                            match hfc_clew2 : (hlin e₂).hreq's_dir_access.choose, hcle_w2_isdir with
+                                            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                                            | .directoryEvent de_clew2, _ =>
+                                              cases (b.orderedAtEntry.dir_ordered de_clew de_clew2).ordered with
+                                              | inl h_clew_ob =>
+                                                have hob_ev : e_w_lin.hreq's_dir_access.choose.OrderedBefore n
+                                                    (hlin e₂).hreq's_dir_access.choose := by
+                                                  rw [hfc_clew, hfc_clew2]; exact h_clew_ob
+                                                exact h_constraints.interSameProtocolAsWNotBetweenCleAndDrf
+                                                  h_ew_e₂ hencapDir' ⟨hob_ev, hcle₂_ob_drf_ev⟩
+                                              | inr h_clew2_ob =>
+                                                -- CLE₂ OB CLE_w: temporal loop.
+                                                -- Use same technique: rw at hyp for StepOrdering cases.
+                                                cases hco_so with
+                                                | ob h_ob =>
+                                                  rw [hfc_clew, hfc_clew2] at h_ob
+                                                  exact Nat.lt_irrefl de_clew.oEnd
+                                                    (calc de_clew.oEnd
+                                                      _ < de_clew2.oStart := h_ob
+                                                      _ < de_clew2.oEnd := de_clew2.oWellFormed
+                                                      _ < de_clew.oStart := h_clew2_ob
+                                                      _ < de_clew.oEnd := de_clew.oWellFormed)
+                                                | obEndLt p hp hlt =>
+                                                  rw [hfc_clew] at hp; rw [hfc_clew2] at hlt
+                                                  exact Nat.lt_irrefl de_clew.oEnd
+                                                    (calc de_clew.oEnd
+                                                      _ < Event.oStart n p := hp
+                                                      _ < Event.oEnd n p := Event.oWellFormed n p
+                                                      _ < de_clew2.oEnd := hlt
+                                                      _ < de_clew.oStart := h_clew2_ob
+                                                      _ < de_clew.oEnd := de_clew.oWellFormed)
+                                                | encapOb p henc hpob =>
+                                                  rw [hfc_clew] at henc; rw [hfc_clew2] at hpob
+                                                  exact Nat.lt_irrefl de_clew.oStart
+                                                    (calc de_clew.oStart
+                                                      _ < Event.oStart n p := henc.left
+                                                      _ < Event.oEnd n p := Event.oWellFormed n p
+                                                      _ < de_clew2.oStart := hpob
+                                                      _ < de_clew2.oEnd := de_clew2.oWellFormed
+                                                      _ < de_clew.oStart := h_clew2_ob)
+                                                | obFinishBefore _ _ _ => sorry -- obFinishBefore edge case
+                                                | sameLin _ _ heq _ _ _ =>
+                                                  rw [hfc_clew, hfc_clew2] at heq
+                                                  exact Nat.lt_irrefl de_clew.oEnd
+                                                    (Nat.lt_trans ((Event.directoryEvent.inj heq) ▸ h_clew2_ob) de_clew.oWellFormed)
+                                                | eq heq =>
+                                                  rw [hfc_clew, hfc_clew2] at heq
+                                                  exact Nat.lt_irrefl de_clew.oEnd
+                                                    (Nat.lt_trans ((Event.directoryEvent.inj heq) ▸ h_clew2_ob) de_clew.oWellFormed)
                                 | inr hcle₂_ob_drf =>
                                   -- Old code path: CLE₂ OB d_rf for first encapDirRelation case.
                                   sorry -- CLE₂ OB d_rf from first cases (documentation)
