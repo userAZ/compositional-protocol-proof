@@ -659,6 +659,22 @@ FR = rf⁻¹;co. The CO part determines the communication structure.
 Concrete scenarios verified: sameCache (all at one cache), sameClusDiffCache (CLEs at same dir),
 diffCluster (CLEs at different dirs), diffCluster with e_w at third cluster.
 
+### FR exhaustive case design (verified by imagination)
+FR = rf(e_w, e₁) + co⁺(e_w, e₂). All three at same address.
+**Config 1: A=B=C** (all same cluster): dir_ordered + notBetweenCles. PROVEN ✓.
+**Config 2: A=B≠C** (e₁/e₂ same, e_w diff): dir_ordered CLE₁ CLE₂. CLE₁ OB CLE₂ → done.
+  CLE₂ OB CLE₁ → need cross-cluster co step's wObRDown → downgrade between CLE_w and CLE₁
+  → diffClusterNotBetweenCles_sameCache → contradiction.
+  Helper needed: extract first cross-cluster co step from TransGen.
+  CRITICAL: do NOT use cdirEncapsDown_exists for Config 2! The co step's encapDir is
+  parameterized on e_w_next (not e₂), so Subsingleton bridge fails between them.
+  Use the co step's wObRDown DIRECTLY instead.
+**Config 3: A≠B** (e₁/e₂ diff): cdirEncapsDown_exists → proxy at cluster A.
+  CLE₁ OB proxy → .diffCluster. proxy OB CLE₁ → same approach as Config 2.
+  Sub-configs 3a/3b/3c based on e_w cluster.
+The FrOrdering inductive (sameCluster/diffCluster/sameCLE) covers all configs.
+The fr_ordering_holds PROOF handles configs 1-3 with the helper.
+
 ### LESSON: Plan inductive cases EXHAUSTIVELY before implementing (FR case study)
 I circled for hours on FR sorry's because I didn't plan the cluster configurations:
 - Same-cluster co step (sameCache/sameClusDiffCache): NO cross-cluster downgrade at e_w's cluster!
