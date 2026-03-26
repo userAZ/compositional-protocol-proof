@@ -317,6 +317,7 @@ structure Behaviour.clusterDown.encapDir (cmp : CompoundProtocol n) (b : Behavio
   existsRClusterDirDown :
     ∃ e_r_cdir_down ∈ b, e_r_cdir_down.isDirectoryEvent ∧ e_r_cdir_down.protocol = e_w.protocol
       ∧ e_r_cdir_down.req.val.rw = e_r.req.val.rw
+      ∧ ¬ e_r_cdir_down.down
       ∧ Behaviour.clusterDown.encapDirRelation hr_c_and_g_lin e_r_cdir_down
 
 structure Behaviour.clusterDown.encapProxyAndDirAndCDown {cmp : CompoundProtocol n}

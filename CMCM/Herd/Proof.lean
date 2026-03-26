@@ -296,7 +296,7 @@ theorem co_step_to_ordering
         have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
         exact .obEndLt hdown.existsRClusterDirDown.choose
           (by rw [← hw₁]; exact hwObRDown)
-          (by rw [← hw₂]; cases hcdir_spec.2.2.2.2 with
+          (by rw [← hw₂]; cases hcdir_spec.2.2.2.2.2 with
               | cleEncap henc => exact henc.right
               | gcacheEncap _ hlt => exact hlt)
     | evictOrReadBetweenWAndRCleSameCluster evict =>
@@ -309,14 +309,14 @@ theorem co_step_to_ordering
       have hcdir_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
       exact .obEndLt w.rDown.encapDir.existsRClusterDirDown.choose
         (by rw [← hw₁]; exact w.wObRDown)
-        (by rw [← hw₂]; cases hcdir_spec.2.2.2.2 with
+        (by rw [← hw₂]; cases hcdir_spec.2.2.2.2.2 with
             | cleEncap henc => exact henc.right
             | gcacheEncap _ hlt => exact hlt)
     | evictOrReadBetweenWAndRDown evict =>
       have hcdir_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
       exact .obEndLt evict.rDown.encapDir.existsRClusterDirDown.choose
         (by rw [← hw₁]; exact evict.wObRDown)
-        (by rw [← hw₂]; cases hcdir_spec.2.2.2.2 with
+        (by rw [← hw₂]; cases hcdir_spec.2.2.2.2.2 with
             | cleEncap henc => exact henc.right
             | gcacheEncap _ hlt => exact hlt)
 
@@ -372,7 +372,7 @@ private lemma co_chain_cross_cluster_downgrade
         have hrd_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
         have hrd_lt : w.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
             h_co.w₂_lin.hreq's_dir_access.choose.oEnd := by
-          cases hrd_spec.2.2.2.2 with
+          cases hrd_spec.2.2.2.2.2 with
           | cleEncap henc => exact henc.right
           | gcacheEncap _ hlt => exact hlt
         exact ⟨w.rDown.encapDir.existsRClusterDirDown.choose,
@@ -384,7 +384,7 @@ private lemma co_chain_cross_cluster_downgrade
         have hrd_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
         have hrd_lt : evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
             h_co.w₂_lin.hreq's_dir_access.choose.oEnd := by
-          cases hrd_spec.2.2.2.2 with
+          cases hrd_spec.2.2.2.2.2 with
           | cleEncap henc => exact henc.right
           | gcacheEncap _ hlt => exact hlt
         exact ⟨evict.rDown.encapDir.existsRClusterDirDown.choose,
@@ -432,7 +432,7 @@ private lemma co_chain_cross_cluster_downgrade
           have hrd_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
           have hrd_lt : w.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
               h_last.w₂_lin.hreq's_dir_access.choose.oEnd := by
-            cases hrd_spec.2.2.2.2 with
+            cases hrd_spec.2.2.2.2.2 with
             | cleEncap henc => exact henc.right
             | gcacheEncap _ hlt => exact hlt
           have h_mid_ob_d := w.wObRDown
@@ -448,7 +448,7 @@ private lemma co_chain_cross_cluster_downgrade
           have hrd_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
           have hrd_lt : evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
               h_last.w₂_lin.hreq's_dir_access.choose.oEnd := by
-            cases hrd_spec.2.2.2.2 with
+            cases hrd_spec.2.2.2.2.2 with
             | cleEncap henc => exact henc.right
             | gcacheEncap _ hlt => exact hlt
           have h_mid_ob_d := evict.wObRDown
@@ -754,7 +754,7 @@ theorem fr_ordering_holds
                           -- Then dir_ordered d_rf CLE₂ at e_w's cluster (= e₂'s cluster).
                           have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
                           have hdrf_isdir := hdrf_spec.2.1
-                          cases hdrf_spec.2.2.2.2 with
+                          cases hdrf_spec.2.2.2.2.2 with
                           | cleEncap henc_drf =>
                             -- d_rf inside CLE₁ (CLE₁ encapsulates d_rf).
                             -- dir_ordered d_rf CLE₂ at e_w's cluster.
@@ -782,7 +782,7 @@ theorem fr_ordering_holds
                                   -- This gives encapDir parameterized by (lin e₁), avoiding Subsingleton issues.
                                   have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache
                                   have hdrf_spec' := hencapDir'.existsRClusterDirDown.choose_spec
-                                  cases hdrf_spec'.2.2.2.2 with
+                                  cases hdrf_spec'.2.2.2.2.2 with
                                   | cleEncap henc' =>
                                     -- d_rf' inside (lin e₁).CLE. dir_ordered d_rf' CLE₂.
                                     have hdrf_isdir' := hdrf_spec'.2.1
@@ -1052,7 +1052,7 @@ theorem fr_ordering_holds
                       have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache
                       have hdrf_spec' := hencapDir'.existsRClusterDirDown.choose_spec
                       have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-                      cases hdrf_spec'.2.2.2.2 with
+                      cases hdrf_spec'.2.2.2.2.2 with
                       | cleEncap henc' =>
                         have hdrf_isdir' := hdrf_spec'.2.1
                         match hfc_drf' : hencapDir'.existsRClusterDirDown.choose, hdrf_isdir' with
@@ -1145,7 +1145,7 @@ theorem fr_ordering_holds
                       have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache
                       have hdrf_spec' := hencapDir'.existsRClusterDirDown.choose_spec
                       have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-                      cases hdrf_spec'.2.2.2.2 with
+                      cases hdrf_spec'.2.2.2.2.2 with
                       | cleEncap henc' =>
                         have hdrf_isdir' := hdrf_spec'.2.1
                         match hfc_drf' : hencapDir'.existsRClusterDirDown.choose, hdrf_isdir' with
@@ -1529,7 +1529,7 @@ theorem step_to_ordering
               @StepOrdering n (lin e₁).hreq's_dir_access.choose
                 (lin e₂).hreq's_dir_access.choose := by
             have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
-            have hencap_rel := hcdir_spec.2.2.2.2
+            have hencap_rel := hcdir_spec.2.2.2.2.2
             exact .obEndLt hdown.existsRClusterDirDown.choose
               (by rw [← hw₁]; exact hwOB)
               (by rw [← hw₂]; cases hencap_rel with
@@ -1550,7 +1550,7 @@ theorem step_to_ordering
                 -- noEvictBetween: use encapDir + dir_ordered for CLE_w OB cdir_down
                 have hPDC := w.gdownEncapProxyAndDirAndCDown
                 have hcdir_spec := hPDC.encapDir.existsRClusterDirDown.choose_spec
-                have hencap_rel := hcdir_spec.2.2.2.2
+                have hencap_rel := hcdir_spec.2.2.2.2.2
                 -- Both CLE_w and cdir_down are directory events
                 have hcdir_isdir := hcdir_spec.2.1
                 have hcle_isdir := h.w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
@@ -1590,7 +1590,7 @@ theorem step_to_ordering
                             _ < e₁.oEnd := hencap.reqEncapDir.right
                             _ < hPDC.existsRDownAtW.choose.oStart := hwObRDown
                             _ ≤ hPDC.existsRDownAtW.choose.oEnd := Nat.le_of_lt (Event.oWellFormed n _)
-                            _ < de_cdir.oEnd := by simp [Event.Encapsulates, Event.oEnd, h_cdir_ev] at hcdirEncap; exact hcdirEncap.2
+                            _ < de_cdir.oEnd := by show _ < Event.oEnd n (Event.directoryEvent de_cdir); rw [← h_cdir_ev]; exact hcdirEncap.right
                             _ < de_cle.oStart := hob_dir
                             _ ≤ de_cle.oEnd := Nat.le_of_lt de_cle.oWellFormed
                         exact Nat.lt_irrefl _ this
@@ -1602,7 +1602,7 @@ theorem step_to_ordering
                             _ < e₁.oEnd := Event.oWellFormed n e₁
                             _ < hPDC.existsRDownAtW.choose.oStart := hwObRDown
                             _ ≤ hPDC.existsRDownAtW.choose.oEnd := Nat.le_of_lt (Event.oWellFormed n _)
-                            _ < de_cdir.oEnd := by simp [Event.Encapsulates, Event.oEnd, h_cdir_ev] at hcdirEncap; exact hcdirEncap.2
+                            _ < de_cdir.oEnd := by show _ < Event.oEnd n (Event.directoryEvent de_cdir); rw [← h_cdir_ev]; exact hcdirEncap.right
                             _ < de_cle.oStart := hob_dir
                             _ ≤ de_cle.oEnd := Nat.le_of_lt de_cle.oWellFormed
                         exact Nat.lt_irrefl _ this
