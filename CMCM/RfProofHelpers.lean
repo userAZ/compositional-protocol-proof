@@ -3345,6 +3345,7 @@ lemma diffCache_coherent_encapProxyAndDir
   exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
     sorry, -- e_dir.req.val.rw = e_r.req.val.rw: from shim translation
     sorry, -- ¬ e_dir.down: from shim sameDown + translateProxyEvent False
+    sorry, -- clusterDirFromDiffProtocolRequest: from shim correspondingDirectoryEvent
     Behaviour.clusterDown.encapDirRelation.gcacheEncap
       h_gcache_encap_dir h_dir_end_before_cle⟩ }
 

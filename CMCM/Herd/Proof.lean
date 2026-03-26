@@ -296,7 +296,7 @@ theorem co_step_to_ordering
         have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
         exact .obEndLt hdown.existsRClusterDirDown.choose
           (by rw [← hw₁]; exact hwObRDown)
-          (by rw [← hw₂]; cases hcdir_spec.2.2.2.2.2 with
+          (by rw [← hw₂]; cases hcdir_spec.2.2.2.2.2.2 with
               | cleEncap henc => exact henc.right
               | gcacheEncap _ hlt => exact hlt)
     | evictOrReadBetweenWAndRCleSameCluster evict =>
@@ -309,14 +309,14 @@ theorem co_step_to_ordering
       have hcdir_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
       exact .obEndLt w.rDown.encapDir.existsRClusterDirDown.choose
         (by rw [← hw₁]; exact w.wObRDown)
-        (by rw [← hw₂]; cases hcdir_spec.2.2.2.2.2 with
+        (by rw [← hw₂]; cases hcdir_spec.2.2.2.2.2.2 with
             | cleEncap henc => exact henc.right
             | gcacheEncap _ hlt => exact hlt)
     | evictOrReadBetweenWAndRDown evict =>
       have hcdir_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
       exact .obEndLt evict.rDown.encapDir.existsRClusterDirDown.choose
         (by rw [← hw₁]; exact evict.wObRDown)
-        (by rw [← hw₂]; cases hcdir_spec.2.2.2.2.2 with
+        (by rw [← hw₂]; cases hcdir_spec.2.2.2.2.2.2 with
             | cleEncap henc => exact henc.right
             | gcacheEncap _ hlt => exact hlt)
 
@@ -352,7 +352,8 @@ private lemma co_chain_cross_cluster_downgrade
         d.isDirectoryEvent ∧
         d.protocol = e_w.protocol ∧
         ¬ d.down ∧
-        d.isDirWrite := by
+        d.isDirWrite ∧
+        Event.clusterDirFromDiffProtocolRequest b init e₂ d (lin e₂) := by
   -- Induction on co chain. The endpoint e₂ gets generalized.
   -- Use h_diff_prot and lin in generalized form.
   induction h_co_chain with
@@ -374,26 +375,28 @@ private lemma co_chain_cross_cluster_downgrade
         have hrd_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
         have hrd_lt : w.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
             h_co.w₂_lin.hreq's_dir_access.choose.oEnd := by
-          cases hrd_spec.2.2.2.2.2 with
+          cases hrd_spec.2.2.2.2.2.2 with
           | cleEncap henc => exact henc.right
           | gcacheEncap _ hlt => exact hlt
         exact ⟨w.rDown.encapDir.existsRClusterDirDown.choose,
           hrd_spec.1,
           by rw [show e_w_lin = h_co.w₁_lin from Subsingleton.elim _ _]; exact w.wObRDown,
           by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
-          hrd_spec.2.1, hrd_spec.2.2.1, hrd_spec.2.2.2.2.1, sorry⟩ -- isDirWrite: need rw → isWrite
+          hrd_spec.2.1, hrd_spec.2.2.1, hrd_spec.2.2.2.2.1, sorry, -- isDirWrite
+          by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.2.2.2.2.1⟩
       | evictOrReadBetweenWAndRDown evict =>
         have hrd_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
         have hrd_lt : evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
             h_co.w₂_lin.hreq's_dir_access.choose.oEnd := by
-          cases hrd_spec.2.2.2.2.2 with
+          cases hrd_spec.2.2.2.2.2.2 with
           | cleEncap henc => exact henc.right
           | gcacheEncap _ hlt => exact hlt
         exact ⟨evict.rDown.encapDir.existsRClusterDirDown.choose,
           hrd_spec.1,
           by rw [show e_w_lin = h_co.w₁_lin from Subsingleton.elim _ _]; exact evict.wObRDown,
           by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
-          hrd_spec.2.1, hrd_spec.2.2.1, hrd_spec.2.2.2.2.1, sorry⟩ -- isDirWrite: need rw → isWrite
+          hrd_spec.2.1, hrd_spec.2.2.1, hrd_spec.2.2.2.2.1, sorry, -- isDirWrite
+          by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.2.2.2.2.1⟩
   | tail hpath h_last ih =>
     rename_i b_mid c_ep
     -- IH for prefix. Extend d.oEnd bound via last step's StepOrdering.
@@ -434,7 +437,7 @@ private lemma co_chain_cross_cluster_downgrade
           have hrd_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
           have hrd_lt : w.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
               h_last.w₂_lin.hreq's_dir_access.choose.oEnd := by
-            cases hrd_spec.2.2.2.2.2 with
+            cases hrd_spec.2.2.2.2.2.2 with
             | cleEncap henc => exact henc.right
             | gcacheEncap _ hlt => exact hlt
           have h_mid_ob_d := w.wObRDown
@@ -446,12 +449,12 @@ private lemma co_chain_cross_cluster_downgrade
             hrd_spec.2.1,
             hrd_spec.2.2.1.trans (show b_mid.protocol = e_w.protocol from
               (show e_w.protocol = b_mid.protocol from h_mid_prot).symm),
-            hrd_spec.2.2.2.2.1, sorry⟩ -- isDirWrite propagated
+            hrd_spec.2.2.2.2.1, sorry, sorry⟩ -- isDirWrite + translatedDir propagated
         | evictOrReadBetweenWAndRDown evict =>
           have hrd_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
           have hrd_lt : evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
               h_last.w₂_lin.hreq's_dir_access.choose.oEnd := by
-            cases hrd_spec.2.2.2.2.2 with
+            cases hrd_spec.2.2.2.2.2.2 with
             | cleEncap henc => exact henc.right
             | gcacheEncap _ hlt => exact hlt
           have h_mid_ob_d := evict.wObRDown
@@ -463,9 +466,9 @@ private lemma co_chain_cross_cluster_downgrade
             hrd_spec.2.1,
             hrd_spec.2.2.1.trans (show b_mid.protocol = e_w.protocol from
               (show e_w.protocol = b_mid.protocol from h_mid_prot).symm),
-            hrd_spec.2.2.2.2.1, sorry⟩ -- isDirWrite propagated
+            hrd_spec.2.2.2.2.1, sorry, sorry⟩ -- isDirWrite + translatedDir propagated
     · -- Prefix diff-cluster: IH gives d with d.oEnd < CLE_mid.oEnd.
-      obtain ⟨d, hd_in_b, hob_d, hd_lt, hd_isDir, hd_proto, hd_not_down, hd_isDirWrite⟩ := ih h_mid_prot
+      obtain ⟨d, hd_in_b, hob_d, hd_lt, hd_isDir, hd_proto, hd_not_down, hd_isDirWrite, hd_translatedDir⟩ := ih h_mid_prot
       -- Extend to CLE_c via co_step_to_ordering.
       have hco_step := co_step_to_ordering h_last lin
       have hext : (lin b_mid).hreq's_dir_access.choose.oEnd ≤ (lin c_ep).hreq's_dir_access.choose.oEnd := by
@@ -476,7 +479,7 @@ private lemma co_chain_cross_cluster_downgrade
         | obFinishBefore _ _ _ => sorry -- obFinishBefore case
         | sameLin _ _ heq _ _ _ => exact Nat.le_of_eq (congrArg (Event.oEnd n) heq)
         | eq heq => exact Nat.le_of_eq (congrArg (Event.oEnd n) heq)
-      exact ⟨d, hd_in_b, hob_d, Nat.lt_of_lt_of_le hd_lt hext, hd_isDir, hd_proto, hd_not_down, hd_isDirWrite⟩
+      exact ⟨d, hd_in_b, hob_d, Nat.lt_of_lt_of_le hd_lt hext, hd_isDir, hd_proto, hd_not_down, hd_isDirWrite, sorry⟩ -- translatedDir endpoint shifted
 
 /-- Extract cross-cluster encapDir from any diffCache.case sub-case when e_w and e_r
     are at different clusters. Returns encapDir (with existsRClusterDirDown + encapDirRelation). -/
@@ -797,7 +800,7 @@ theorem fr_ordering_holds
                       have h_ew_diff_e₂ : ¬ e_w.sameProtocol n e₂ := by
                         unfold Event.sameProtocol
                         intro h; exact h_same_prot (show e₁.protocol = e₂.protocol from h_ew_e₁.trans h)
-                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto, hdco_not_down, hdco_isDirWrite⟩ :=
+                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto, hdco_not_down, hdco_isDirWrite, hdco_translatedDir⟩ :=
                         co_chain_cross_cluster_downgrade h_co_chain h_ew_diff_e₂ e_w_lin hlin
                       -- dir_ordered d_co CLE₁ at e₁'s cluster
                       have hdco_isdir' := hdco_isDir
@@ -831,7 +834,7 @@ theorem fr_ordering_holds
                               isDirWrite := by rw [hfc_dco]; exact hdco_isDirWrite
                               notDown := by rw [hfc_dco]; exact hdco_not_down
                               isDir := by rw [hfc_dco]; exact hdco_isDir
-                              translatedDir := by sorry -- needs clusterDirFromDiffProtocolRequest from shim
+                              translatedDir := by rw [hfc_dco]; exact hdco_translatedDir
                             }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCacheWrite
                         | inr hcle₁_ob_dco =>
                           -- CLE₁ OB d_co: proxy for .diffCluster_coherent
@@ -878,7 +881,7 @@ theorem fr_ordering_holds
                           -- Then dir_ordered d_rf CLE₂ at e_w's cluster (= e₂'s cluster).
                           have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
                           have hdrf_isdir := hdrf_spec.2.1
-                          cases hdrf_spec.2.2.2.2.2 with
+                          cases hdrf_spec.2.2.2.2.2.2 with
                           | cleEncap henc_drf =>
                             -- d_rf inside CLE₁ (CLE₁ encapsulates d_rf).
                             -- dir_ordered d_rf CLE₂ at e_w's cluster.
@@ -906,7 +909,7 @@ theorem fr_ordering_holds
                                   -- This gives encapDir parameterized by (lin e₁), avoiding Subsingleton issues.
                                   have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache
                                   have hdrf_spec' := hencapDir'.existsRClusterDirDown.choose_spec
-                                  cases hdrf_spec'.2.2.2.2.2 with
+                                  cases hdrf_spec'.2.2.2.2.2.2 with
                                   | cleEncap henc' =>
                                     -- d_rf' inside (lin e₁).CLE. dir_ordered d_rf' CLE₂.
                                     have hdrf_isdir' := hdrf_spec'.2.1
@@ -1255,7 +1258,7 @@ theorem fr_ordering_holds
                     · have h_ew_diff_e₂ : ¬ e_w.sameProtocol n e₂ := by
                         unfold Event.sameProtocol
                         intro h; exact h_same_prot (show e₁.protocol = e₂.protocol from h_ew_e₁.trans h)
-                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto, hdco_not_down, hdco_isDirWrite⟩ :=
+                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto, hdco_not_down, hdco_isDirWrite, hdco_translatedDir⟩ :=
                         co_chain_cross_cluster_downgrade h_co_chain h_ew_diff_e₂ e_w_lin hlin
                       have hdco_isdir' := hdco_isDir
                       match hfc_dco : d_co, hdco_isdir' with
@@ -1282,7 +1285,7 @@ theorem fr_ordering_holds
                               isDirWrite := by rw [hfc_dco]; exact hdco_isDirWrite
                               notDown := by rw [hfc_dco]; exact hdco_not_down
                               isDir := by rw [hfc_dco]; exact hdco_isDir
-                              translatedDir := sorry -- clusterDirFromDiffProtocolRequest from shim
+                              translatedDir := by rw [hfc_dco]; exact hdco_translatedDir
                             }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCacheWrite
                         | inr hcle₁_ob_dco =>
                           have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
@@ -1294,7 +1297,7 @@ theorem fr_ordering_holds
                       have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache
                       have hdrf_spec' := hencapDir'.existsRClusterDirDown.choose_spec
                       have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-                      cases hdrf_spec'.2.2.2.2.2 with
+                      cases hdrf_spec'.2.2.2.2.2.2 with
                       | cleEncap henc' =>
                         have hdrf_isdir' := hdrf_spec'.2.1
                         match hfc_drf' : hencapDir'.existsRClusterDirDown.choose, hdrf_isdir' with
@@ -1405,7 +1408,7 @@ theorem fr_ordering_holds
                     · have h_ew_diff_e₂ : ¬ e_w.sameProtocol n e₂ := by
                         unfold Event.sameProtocol
                         intro h; exact h_same_prot (show e₁.protocol = e₂.protocol from h_ew_e₁.trans h)
-                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto, hdco_not_down, hdco_isDirWrite⟩ :=
+                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto, hdco_not_down, hdco_isDirWrite, hdco_translatedDir⟩ :=
                         co_chain_cross_cluster_downgrade h_co_chain h_ew_diff_e₂ e_w_lin hlin
                       have hdco_isdir' := hdco_isDir
                       match hfc_dco : d_co, hdco_isdir' with
@@ -1431,7 +1434,7 @@ theorem fr_ordering_holds
                               isDirWrite := by rw [hfc_dco]; exact hdco_isDirWrite
                               notDown := by rw [hfc_dco]; exact hdco_not_down
                               isDir := by rw [hfc_dco]; exact hdco_isDir
-                              translatedDir := sorry -- clusterDirFromDiffProtocolRequest from shim
+                              translatedDir := by rw [hfc_dco]; exact hdco_translatedDir
                             }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCacheWrite
                         | inr hcle₁_ob_dco =>
                           have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
@@ -1443,7 +1446,7 @@ theorem fr_ordering_holds
                       have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache
                       have hdrf_spec' := hencapDir'.existsRClusterDirDown.choose_spec
                       have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-                      cases hdrf_spec'.2.2.2.2.2 with
+                      cases hdrf_spec'.2.2.2.2.2.2 with
                       | cleEncap henc' =>
                         have hdrf_isdir' := hdrf_spec'.2.1
                         match hfc_drf' : hencapDir'.existsRClusterDirDown.choose, hdrf_isdir' with
@@ -1867,7 +1870,7 @@ theorem step_to_ordering
               @StepOrdering n (lin e₁).hreq's_dir_access.choose
                 (lin e₂).hreq's_dir_access.choose := by
             have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
-            have hencap_rel := hcdir_spec.2.2.2.2.2
+            have hencap_rel := hcdir_spec.2.2.2.2.2.2
             exact .obEndLt hdown.existsRClusterDirDown.choose
               (by rw [← hw₁]; exact hwOB)
               (by rw [← hw₂]; cases hencap_rel with
@@ -1888,7 +1891,7 @@ theorem step_to_ordering
                 -- noEvictBetween: use encapDir + dir_ordered for CLE_w OB cdir_down
                 have hPDC := w.gdownEncapProxyAndDirAndCDown
                 have hcdir_spec := hPDC.encapDir.existsRClusterDirDown.choose_spec
-                have hencap_rel := hcdir_spec.2.2.2.2.2
+                have hencap_rel := hcdir_spec.2.2.2.2.2.2
                 -- Both CLE_w and cdir_down are directory events
                 have hcdir_isdir := hcdir_spec.2.1
                 have hcle_isdir := h.w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
