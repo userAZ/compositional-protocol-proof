@@ -146,6 +146,15 @@ structure NoInterveningWrites.constraints
     ¬ ∃ e_inter_down ∈ b,
       DiffClusterCLE.NotBetweenCLEs.sameCacheWriteConstraints e_w_inter e_w e_inter_down hinter_c_and_g_lin ∧
       e_inter_down.OrderedBetween n hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose
+  /-- Same-cluster intervening write: if e_w_inter is at the same cluster as e_w,
+      its CLE can't be between CLE_w and the RF downgrade at e_w's cluster.
+      This rules out e_w2 writing at e_w1's cluster before e_r's read's downgrade arrives. -/
+  interSameProtocolAsWNotBetweenCleAndDrf :
+    e_w_inter.sameProtocol n e_w →
+      (hencap : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin) →
+        ¬ hinter_c_and_g_lin.hreq's_dir_access.choose.OrderedBetween n
+            hw_c_and_g_lin.hreq's_dir_access.choose
+            hencap.existsRClusterDirDown.choose
 --   sameCacheNoInterWrite:
 --     e_w.sameStructure n e_r →
 --       ∀ e_inter_w ∈ b, e_inter_w.isClusterCache → e_inter_w.isWrite →

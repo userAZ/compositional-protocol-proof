@@ -773,7 +773,13 @@ theorem fr_ordering_holds
                                             hencapDir'.existsRClusterDirDown.choose henc'
                                             (by rw [hfc_drf', hfc_cle₂']; exact hob)
                                         | inr hob =>
-                                          sorry -- CLE₂ OB d_rf': further analysis
+                                          -- CLE₂ OB d_rf': e_w2 is same-cluster intervening write.
+                                          -- Apply interSameProtocolAsWNotBetweenCleAndDrf.
+                                          exfalso
+                                          have h_constraints := h_no_between e₂ h.in_b₂
+                                            h.cache₂ h.write h.notDown₂ (hlin e₂)
+                                          -- e₂.sameProtocol e_w from 2-cluster + ¬h_ew_e₁
+                                          sorry -- CLE₂ OB d_rf: apply interSameProtocolAsWNotBetweenCleAndDrf
                                   | gcacheEncap _ _ =>
                                     sorry -- gcacheEncap sub-case
                                 | inr hcle₂_ob_drf =>
