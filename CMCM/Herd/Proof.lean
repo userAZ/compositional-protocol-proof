@@ -452,6 +452,34 @@ private lemma co_chain_cross_cluster_downgrade
         | eq heq => exact Nat.le_of_eq (congrArg (Event.oEnd n) heq)
       exact ⟨d, hob_d, Nat.lt_of_lt_of_le hd_lt hext, hd_isDir, hd_proto⟩
 
+/-- Extract cross-cluster encapDir from any diffCache.case sub-case when e_w and e_r
+    are at different clusters. Returns encapDir (with existsRClusterDirDown + encapDirRelation). -/
+private lemma diffCache_case_extract_encapDir
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    {e_w e_r : Event n}
+    {hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w}
+    {hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r}
+    {hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)}
+    (hw_is_write : e_w.isWrite) (hr_is_read : e_r.isRead)
+    (h : WriteRead.wObRCle.diffCache.case hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow)
+    : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin := by
+  cases h with
+  | wHasPermsAfter _ coherent_case =>
+    cases coherent_case with
+    | immPred _ hencapPD => exact hencapPD.encapDir
+    | notImmPred hcase =>
+      cases hcase with
+      | noEvictBetween w => exact w.gdownEncapProxyAndDirAndCDown.encapDir
+      | evictBetween w => exact w.encapProxyAndDir
+  | wNoPermsAfter _ _ hrCle =>
+    cases hrCle with
+    | sameCluster _ hob => exact diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin sorry sorry
+    | diffCluster _ henc _ => exact henc
+  | wCleAfter hrCle =>
+    cases hrCle with
+    | sameCluster _ hob => exact diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin sorry sorry
+    | diffCluster _ henc _ => exact henc
+
 /-- FR ordering theorem: proves FrOrdering from rf + co + NIW evidence.
     Mirrors CMCM.rf_holds for RF and co_step_to_ordering for CO.
     The descriptive evidence in FrOrdering is DERIVED from protocol axioms,
@@ -693,7 +721,45 @@ theorem fr_ordering_holds
                           -- For encapOb: need d_rf.EncapsulatedBy CLE₁ (cleEncap case).
                           -- For obEndLt: need CLE₁ OB d_rf (not available — d_rf inside CLE₁).
                           -- For now: sorry (needs case analysis on diffCache.case sub-cases)
-                          sorry -- RF diffCluster: extract d_rf, encapDirRelation → encapOb
+                          -- Extract encapDir from diffCache.case.
+                          have hencapDir := diffCache_case_extract_encapDir e_w_write h.read hdiff_cache_case
+                          have hdrf_spec := hencapDir.existsRClusterDirDown.choose_spec
+                          -- d_rf at e_w's cluster. encapDirRelation gives d_rf inside CLE₁ or oEnd bound.
+                          -- For cleEncap: d_rf.EncapsulatedBy CLE₁.
+                          -- Then dir_ordered d_rf CLE₂ at e_w's cluster (= e₂'s cluster).
+                          have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+                          have hdrf_isdir := hdrf_spec.2.1
+                          cases hdrf_spec.2.2.2.2 with
+                          | cleEncap henc_drf =>
+                            -- d_rf inside CLE₁ (CLE₁ encapsulates d_rf).
+                            -- dir_ordered d_rf CLE₂ at e_w's cluster.
+                            match hfc_drf : hencapDir.existsRClusterDirDown.choose, hdrf_isdir with
+                            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                            | .directoryEvent de_drf, _ =>
+                              match hfc_cle₂ : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+                              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                              | .directoryEvent de_cle₂, _ =>
+                                cases (b.orderedAtEntry.dir_ordered de_drf de_cle₂).ordered with
+                                | inl hdrf_ob_cle₂ =>
+                                  -- d_rf OB CLE₂ → .diffCluster_rfCrossCluster
+                                  have hw₁ : e_w_lin = lin e_w := Subsingleton.elim _ _
+                                  -- henc_drf is about the RF's reader lin. Bridge to (lin e₁).
+                                  -- The RF's reader lin = (lin e₁) by Subsingleton.
+                                  -- hencapDir uses e_w_lin (writer) and lin e₁ (reader) through the RF.
+                                  -- The encapDirRelation.cleEncap gives d_rf inside the reader's CLE.
+                                  -- Since the reader IS e₁, this is (lin e₁).CLE.
+                                  -- henc_drf : CLE_r encaps d_rf. CLE_r from RF's hr_c_and_g_lin.
+                                  -- Need: d_rf.EncapsulatedBy (lin e₁).CLE. Bridge via Subsingleton.
+                                  -- hencapDir uses RF's reader lin (= lin e₁ by Subsingleton).
+                                  sorry -- ALMOST DONE: encapOb for cleEncap d_rf OB CLE₂ case
+                                | inr hcle₂_ob_drf =>
+                                  -- CLE₂ OB d_rf: CLE₂ before d_rf which is inside CLE₁.
+                                  -- TODO: further analysis needed
+                                  sorry -- CLE₂ OB d_rf: need additional argument
+                          | gcacheEncap _ hdrf_lt =>
+                            -- d_rf.oEnd < CLE₁.oEnd (gcacheEncap). Not EncapsulatedBy.
+                            -- TODO: need obEndLt or different approach
+                            sorry -- gcacheEncap: d_rf oEnd bound but not EncapsulatedBy
         | orderBeforeDir _ hexists_pred₁ hpred₁_encap _ _ _ _ _ =>
           -- Same strategy as encapDir: dir_ordered CLE₁ cdir/evict.
           -- cdirEncapsDown_exists already called, e_cdir/e_evict in scope.
