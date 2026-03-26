@@ -659,6 +659,21 @@ FR = rf⁻¹;co. The CO part determines the communication structure.
 Concrete scenarios verified: sameCache (all at one cache), sameClusDiffCache (CLEs at same dir),
 diffCluster (CLEs at different dirs), diffCluster with e_w at third cluster.
 
+### LESSON: Plan inductive cases EXHAUSTIVELY before implementing (FR case study)
+I circled for hours on FR sorry's because I didn't plan the cluster configurations:
+- Same-cluster co step (sameCache/sameClusDiffCache): NO cross-cluster downgrade at e_w's cluster!
+  The first co step's downgrade goes to the OVERWRITER's target, not back to e_w.
+- `cdir_w` from `cdirEncapsDown_exists` comes from e₂'s GLOBAL downgrade chain — which traverses
+  ALL co steps, not just the first. Connecting to the first co step was wrong.
+- The FrOrdering cases must be defined by CLUSTER CONFIGURATION, not by temporal case split:
+  1. All same cluster: dir_ordered + notBetweenCles
+  2. e₁/e₂ same, e_w different: downgrade from co chain at e_w's cluster
+  3. e₁/e₂ different: downgrade from e₂ at e₁'s cluster
+  4. All different: most complex
+- **Always plan inductives EXHAUSTIVELY before implementing.** Define cases on paper, trace
+  scenarios for each, verify each case has the right evidence. Don't start implementing
+  until all cases are clear. This would have saved hours.
+
 ### CRITICAL: Definitions must be DESCRIPTIVE, not carry conclusions
 FrOrdering carrying `StepOrdering` directly is VACUOUS — it's the thing we're trying to prove!
 A reviewer would reject this as circular. The definition must carry DESCRIPTIVE evidence
