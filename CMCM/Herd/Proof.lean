@@ -615,8 +615,29 @@ theorem fr_ordering_holds
                         rw [hfc_cle₁]; exact hob_cle₁_evict)
                       (by rw [hw₂']; exact hevict_lt_cle₂)
                   | inr hob_evict_cle₁ =>
-                    -- evict OB CLE₁: NIW with evict between CLE_w and CLE₁
-                    sorry -- diffCluster encapDir: evict OB CLE₁ NIW
+                    -- evict OB CLE₁: both cdir and evict before CLE₁.
+                    -- Case-split on e_w's cluster (2 clusters only).
+                    -- Extract rf/co evidence from fr.comm.
+                    exfalso
+                    obtain ⟨e_w, e_w_write, e_w_lin, _, h_rf, h_no_between, h_co_chain,
+                      hw_in_b, hw_cache, hw_not_down⟩ := h.comm
+                    have hlin := fun e => h.hknow_dir_access compound b init e
+                    have h_constraints := h_no_between e₂ h.in_b₂
+                      h.cache₂ h.write h.notDown₂ (hlin e₂)
+                    -- e_w at e₁'s cluster or e₂'s cluster (2 clusters)
+                    by_cases h_ew_e₁ : e₁.protocol = e_w.protocol
+                    · -- e_w same cluster as e₁: use CO chain d_co + NIW.
+                      -- CO crosses clusters. d_co at e_w's cluster = e₁'s cluster.
+                      -- CLE_w OB d_co (wObRDown). d_co has rw = e₂.rw = write → isDirWrite.
+                      -- dir_ordered d_co CLE₁: d_co OB CLE₁ → d_co between CLE_w and CLE₁ → NIW.
+                      -- CLE₁ OB d_co → proxy for .diffCluster.
+                      sorry -- diffCluster encapDir: e_w same as e₁, CO NIW
+                    · -- e_w same cluster as e₂ (2-cluster elimination):
+                      -- RF is cross-cluster. RF's encapDirRelation gives d_rf inside CLE₁.
+                      -- dir_ordered d_rf CLE₂ at e_w's cluster = e₂'s cluster.
+                      -- d_rf OB CLE₂ → .encapOb d_rf.
+                      -- CLE₂ OB d_rf → contradicts CO ordering.
+                      sorry -- diffCluster encapDir: e_w same as e₂, encapOb
         | orderBeforeDir _ hexists_pred₁ hpred₁_encap _ _ _ _ _ =>
           -- Same strategy as encapDir: dir_ordered CLE₁ cdir/evict.
           -- cdirEncapsDown_exists already called, e_cdir/e_evict in scope.
@@ -643,7 +664,16 @@ theorem fr_ordering_holds
                     exact .diffCluster_coherent h_same_prot (.directoryEvent de_evict)
                       (by rw [hfc_cle₁₂]; exact hob_evict) (by rw [hw₂']; exact hevict_lt_cle₂)
                   | inr hob_evict =>
-                    sorry -- diffCluster orderBeforeDir: evict OB CLE₁ NIW
+                    -- Same structure as encapDir case: case-split on e_w's cluster.
+                    exfalso
+                    obtain ⟨e_w, e_w_write, e_w_lin, _, h_rf, h_no_between, h_co_chain,
+                      hw_in_b, hw_cache, hw_not_down⟩ := h.comm
+                    have hlin := fun e => h.hknow_dir_access compound b init e
+                    have h_constraints := h_no_between e₂ h.in_b₂
+                      h.cache₂ h.write h.notDown₂ (hlin e₂)
+                    by_cases h_ew_e₁ : e₁.protocol = e_w.protocol
+                    · sorry -- diffCluster orderBeforeDir: e_w same as e₁, CO NIW
+                    · sorry -- diffCluster orderBeforeDir: e_w same as e₂, encapOb
         | orderAfterDir hweak₁ _ _ _ =>
           -- e₁ non-coherent. Same dir_ordered strategy.
           have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
@@ -669,7 +699,16 @@ theorem fr_ordering_holds
                     exact .diffCluster_noncoherent h_same_prot (.directoryEvent de_evict)
                       (by rw [hfc_cle₁₃]; exact hob_evict) (by rw [hw₂']; exact hevict_lt_cle₂)
                   | inr hob_evict =>
-                    sorry -- diffCluster orderAfterDir: evict OB CLE₁ NIW
+                    -- Same structure as encapDir case: case-split on e_w's cluster.
+                    exfalso
+                    obtain ⟨e_w, e_w_write, e_w_lin, _, h_rf, h_no_between, h_co_chain,
+                      hw_in_b, hw_cache, hw_not_down⟩ := h.comm
+                    have hlin := fun e => h.hknow_dir_access compound b init e
+                    have h_constraints := h_no_between e₂ h.in_b₂
+                      h.cache₂ h.write h.notDown₂ (hlin e₂)
+                    by_cases h_ew_e₁ : e₁.protocol = e_w.protocol
+                    · sorry -- diffCluster orderAfterDir: e_w same as e₁, CO NIW
+                    · sorry -- diffCluster orderAfterDir: e_w same as e₂, encapOb
 
 /-- PPOi → StepOrdering. Factored out of step_to_ordering for modularity. -/
 theorem ppoi_step_to_ordering
