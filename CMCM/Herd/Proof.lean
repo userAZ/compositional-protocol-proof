@@ -489,7 +489,16 @@ theorem fr_ordering_holds
             -- same cache → same protocol (same struct → same cid → same protocol)
             have h_same_prot₂₁ : e₂.sameProtocol n e₁ := by
               unfold Event.sameProtocol
-              sorry -- sameCache → sameProtocol: need struct equality → protocol equality
+              -- h_same_cache : e₁.struct = e₂.struct
+              -- For cache events: struct = Struct.cache cid, so same struct → same cid → same protocol.
+              match he₁ : e₁, h.cache₁.eAtCache with
+              | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+              | .cacheEvent ce₁, _ =>
+                match he₂ : e₂, h.cache₂.eAtCache with
+                | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+                | .cacheEvent ce₂, _ =>
+                  simp [Event.struct] at h_same_cache
+                  simp [Event.protocol, h_same_cache]
             exact h_constraints.interSameProtocolCleOB h_same_prot₂₁
               (show (hlin e₂).hreq's_dir_access.choose.OrderedBefore n
                   (lin e₁).hreq's_dir_access.choose from by
@@ -639,12 +648,14 @@ theorem fr_ordering_holds
                       | .directoryEvent de_dco, _ =>
                         cases (b.orderedAtEntry.dir_ordered de_dco de_cle₁).ordered with
                         | inl hdco_ob_cle₁ =>
-                          -- d_co OB CLE₁: d_co between CLE_w and CLE₁.
-                          -- Use diffClusterNotBetweenCles_sameCacheWrite for NIW contradiction.
+                          -- d_co OB CLE₁: d_co between CLE_w and CLE₁ → NIW contradiction.
+                          -- Need sameCacheWriteConstraints for d_co. d_co has isDirWrite (from rw = e₂.rw = .w)
+                          -- and ¬down (from the shim construction). These need existsRClusterDirDown.choose_spec.
+                          -- For now: sorry (needs rw/down extraction from CO step spec).
                           exfalso
                           have h_constraints := h_no_between e₂ h.in_b₂
                             h.cache₂ h.write h.notDown₂ (hlin e₂)
-                          sorry -- d_co between CLE_w and CLE₁: apply sameCacheWrite NIW
+                          sorry -- d_co between CLE_w and CLE₁: need isDirWrite/¬down/translatedDir from CO spec
                         | inr hcle₁_ob_dco =>
                           -- CLE₁ OB d_co: proxy for .diffCluster_coherent
                           have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
@@ -658,7 +669,31 @@ theorem fr_ordering_holds
                       -- dir_ordered d_rf CLE₂ at e_w's cluster = e₂'s cluster:
                       --   d_rf OB CLE₂ → .diffCluster_rfCrossCluster (encapOb pattern)
                       --   CLE₂ OB d_rf → further analysis needed
-                      sorry -- diffCluster encapDir: e_w same as e₂, RF cross-cluster
+                      -- RF cross-cluster: case-split on h_rf to extract diffCluster evidence.
+                      -- e_w diff from e₁ (since e_w same as e₂, e₂ diff from e₁).
+                      -- RF wEqRGle requires same cluster → impossible. Only wObRGle.diffCluster.
+                      cases h_rf with
+                      | wEqRGle _ hwr_same_cluster _ =>
+                        -- wEqRGle requires e_w same cluster as e₁. Contradicts ¬h_ew_e₁.
+                        exact absurd hwr_same_cluster.symm h_ew_e₁
+                      | wObRGle _ hw_ob_cases =>
+                        cases hw_ob_cases with
+                        | sameCluster hsc _ =>
+                          -- sameCluster requires e_w same cluster as e₁.
+                          exact absurd hsc.symm h_ew_e₁
+                        | diffCluster _ _ hr_gdown hdiff_cache_case =>
+                          -- diffCluster: RF gives downgrade evidence at e_w's cluster.
+                          -- Extract d_rf from the diffCache.case sub-cases.
+                          -- All sub-cases carry rCleOrDownAtWAfterWCle which has
+                          -- diffCluster → existsRClusterDownAtW + wObRDown.
+                          -- Extract d_rf from RF diffCluster sub-cases.
+                          -- All sub-cases carry rCleOrDownAtWAfterWCle with diffCluster.
+                          -- diffCluster gives encapDir.existsRClusterDirDown + wObRDown.
+                          -- encapDirRelation gives d_rf inside CLE₁ or d_rf.oEnd < CLE₁.oEnd.
+                          -- For encapOb: need d_rf.EncapsulatedBy CLE₁ (cleEncap case).
+                          -- For obEndLt: need CLE₁ OB d_rf (not available — d_rf inside CLE₁).
+                          -- For now: sorry (needs case analysis on diffCache.case sub-cases)
+                          sorry -- RF diffCluster: extract d_rf, encapDirRelation → encapOb
         | orderBeforeDir _ hexists_pred₁ hpred₁_encap _ _ _ _ _ =>
           -- Same strategy as encapDir: dir_ordered CLE₁ cdir/evict.
           -- cdirEncapsDown_exists already called, e_cdir/e_evict in scope.
