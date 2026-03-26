@@ -1180,7 +1180,27 @@ theorem fr_ordering_holds
                                   exfalso
                                   have h_constraints := h_no_between e₂ h.in_b₂
                                     h.cache₂ h.write h.notDown₂ (hlin e₂)
-                                  sorry -- outer gcacheEncap CLE₂ OB d_rf: NIW
+                                  have h_ew_e₂ := two_cluster_e₂_same_e_w h_same_prot h_ew_e₁ hw_cache h.cache₁ h.cache₂
+                                  have hco_so := co_chain_step_ordering hlin h_co_chain
+                                  rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hco_so
+                                  have hcle_w_isdir_x := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+                                  have hcle_w2_isdir_x := (hlin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+                                  match hfc_wx : e_w_lin.hreq's_dir_access.choose, hcle_w_isdir_x with
+                                  | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                                  | .directoryEvent de_wx, _ =>
+                                    match hfc_w2x : (hlin e₂).hreq's_dir_access.choose, hcle_w2_isdir_x with
+                                    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                                    | .directoryEvent de_w2x, _ =>
+                                      have hcle_w_ob := step_ordering_same_cluster_ob hco_so
+                                        hfc_wx hfc_w2x (b.orderedAtEntry.dir_ordered de_wx de_w2x)
+                                      have hcle₂_ob_ev : (hlin e₂).hreq's_dir_access.choose.OrderedBefore n
+                                          hencapDir.existsRClusterDirDown.choose := by
+                                        show Event.oEnd n (hlin e₂).hreq's_dir_access.choose <
+                                            Event.oStart n hencapDir.existsRClusterDirDown.choose
+                                        rw [show (hlin e₂) = lin e₂ from Subsingleton.elim _ _]
+                                        simp only [hfc_cle₂'', hfc_drf'']; exact hob
+                                      exact h_constraints.interSameProtocolAsWNotBetweenCleAndDrf
+                                        h_ew_e₂ hencapDir ⟨hcle_w_ob, hcle₂_ob_ev⟩
         | orderBeforeDir _ hexists_pred₁ hpred₁_encap _ _ _ _ _ =>
           -- Same strategy as encapDir: dir_ordered CLE₁ cdir/evict.
           -- cdirEncapsDown_exists already called, e_cdir/e_evict in scope.
