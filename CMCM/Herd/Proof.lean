@@ -628,7 +628,17 @@ theorem fr_ordering_holds
                         | inr hdir =>
                           -- de₂ OB de_w: temporal loop via p inside CLE_w and p OB CLE₂.
                           exfalso
-                          sorry -- encapOb + de₂ OB de_w: temporal loop (type bridging issue)
+                          -- henc : p.EncapsulatedBy CLE_w. hpob : p OB CLE₂. hdir : de₂ OB de_w.
+                          -- CLE_w = .directoryEvent de_w (hfcw). CLE₂ = .directoryEvent de₂ (hfc₂).
+                          -- Substitute via ▸ to get DirectoryEvent-level types.
+                          rw [hfcw] at henc; rw [show (hlin e₂) = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at hpob
+                          exact Nat.lt_irrefl de_w.oStart
+                            (calc de_w.oStart
+                              _ < Event.oStart n p := henc.left
+                              _ < Event.oEnd n p := Event.oWellFormed n p
+                              _ < de₂.oStart := hpob
+                              _ < de₂.oEnd := de₂.oWellFormed
+                              _ < de_w.oStart := hdir)
                       | obFinishBefore p hpob hplt =>
                         -- p OB CLE₂, p.oEnd < CLE_w.oEnd. Same dir_ordered approach.
                         cases (b.orderedAtEntry.dir_ordered de_w de₂).ordered with
