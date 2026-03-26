@@ -351,14 +351,13 @@ private lemma co_chain_cross_cluster_downgrade
           by rw [show lin e₂ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
           hrd_spec.2.1, hrd_spec.2.2.1⟩
   | tail hpath h_last =>
-    -- tail: prefix co*(e_w, e_mid) + last co(e_mid, e₂).
-    -- The co_step for h_last gives StepOrdering CLE_mid CLE₂.
-    -- If the prefix already crosses clusters: recursion gives d with d.oEnd < CLE_mid.oEnd.
-    --   Then d.oEnd < CLE_mid.oEnd ≤ CLE₂.oEnd (from last step StepOrdering).
-    -- If the prefix is same-cluster: h_last must cross clusters (since e_w ≠ e₂ cluster).
-    --   Apply single-step logic to h_last.
-    -- For now sorry — need by_cases on prefix protocols.
-    sorry -- tail: recurse or handle last step
+    -- tail: prefix TransGen co e_w e_mid, last co e_mid e₂.
+    -- d from single case applied to the FULL chain (hpath.tail h_last = h_co_chain).
+    -- But we already destructed h_co_chain. Need recursion.
+    -- Key insight: the d we need is at e_w's cluster. It comes from the FIRST
+    -- cross-cluster step in the chain. The oEnd bound needs extending through
+    -- later co steps. Use co_step_to_ordering for the extension.
+    sorry -- tail: find cross-cluster step in prefix, extend oEnd bound via last step
 
 /-- FR ordering theorem: proves FrOrdering from rf + co + NIW evidence.
     Mirrors CMCM.rf_holds for RF and co_step_to_ordering for CO.
