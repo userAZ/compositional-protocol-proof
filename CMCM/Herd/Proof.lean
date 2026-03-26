@@ -898,12 +898,18 @@ theorem fr_ordering_holds
                                             -- CLE_w1 OB d_rf: consistent, not a contradiction.
                                             -- This case genuinely can produce a valid FrOrdering!
                                             -- I need to restructure to not be in exfalso for this sub-case.
-                                            sorry -- CLE_w1 = CLE_w2: needs restructuring out of exfalso
-                                  | gcacheEncap _ _ =>
-                                    sorry -- gcacheEncap sub-case
+                                            -- CLE_w1 = CLE_w2 = CLE₂ (by Subsingleton). CLE_w1 OB d_rf.
+                                            -- d_rf inside CLE₁. So CLE_w1.oEnd < CLE₁.oEnd (finishesBefore).
+                                            -- Needs finishesBefore-based StepOrdering constructor.
+                                            sorry -- CLE_w1 = CLE_w2: needs finishesBefore StepOrdering
+                                  | gcacheEncap hgcr_enc hdrf_lt =>
+                                    -- GCR encaps d_rf, d_rf.oEnd < CLE₁.oEnd.
+                                    -- Case-split ClusterToGlobal shim: encapGlobalCache or noGlobalCache.
+                                    -- For encapGlobalCache: CLE₁ encaps GCR → CLE₁ encaps d_rf → cleEncap pattern.
+                                    -- For noGlobalCache: only oEnd bound → needs finishesBefore constructor.
+                                    sorry -- gcacheEncap: split on ClusterToGlobal shim
                                 | inr hcle₂_ob_drf =>
-                                  -- CLE₂ OB d_rf: CLE₂ before d_rf which is inside CLE₁.
-                                  -- TODO: further analysis needed
+                                  -- CLE₂ OB d_rf: CLE₂ before d_rf. Same pattern as cleEncap CLE₂ OB case.
                                   sorry -- CLE₂ OB d_rf: need additional argument
                           | gcacheEncap _ hdrf_lt =>
                             -- d_rf.oEnd < CLE₁.oEnd (gcacheEncap). Not EncapsulatedBy.
