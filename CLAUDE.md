@@ -56,7 +56,11 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-26 session 10)
+### Status (updated 2026-03-26 session 11)
+
+**TODO (post-deadline):** Replace `CompoundProtocol.dirAccessUnique` field with proper proof by unifying Herd and CompoundMCM CLE definitions to share `linearizationEventOfRequest`. The field is currently model-checkable via Murphi but the structural fix (making both frameworks call the same `linearizationOfEvent` function) is architecturally better. Blocked by `linearizationEventOfRequest` being Type-valued (can't embed in Prop structure `globalLinearizationEventOfRequest`).
+
+### Status (from session 10, partially updated)
 - **CO edge**: FULLY PROVEN (0 sorry's)
 - **rfe edge**: FULLY PROVEN (0 sorry's)
 - **FR edge**: Redesigned with proper case structure (sameCache/sameClusDiffCache/diffCluster_{coherent,evict,noncoherent}/sameCLE). Same-cluster cases CLOSED via `interSameProtocolCleOB`. Diff-cluster cases partially closed (CLE₁ OB proxy paths done, evict OB CLE₁ paths have sorry's).
