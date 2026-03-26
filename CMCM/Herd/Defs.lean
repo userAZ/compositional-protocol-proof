@@ -202,6 +202,14 @@ inductive FrOrdering
     (p : Event n)
     (cle₁_ob_p : e₁_lin.hreq's_dir_access.choose.OrderedBefore n p)
     (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_lin.hreq's_dir_access.choose)
+  /-- Different cluster, RF cross-cluster: e_w at e₂'s cluster, RF gives
+      proxy p at e_w's cluster INSIDE CLE₁ (from encapDirRelation) and OB CLE₂.
+      StepOrdering derived via .encapOb (p inside CLE₁, p OB CLE₂). -/
+  | diffCluster_rfCrossCluster
+    (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (p : Event n)
+    (p_inside_cle₁ : p.EncapsulatedBy n e₁_lin.hreq's_dir_access.choose)
+    (p_ob_cle₂ : p.OrderedBefore n e₂_lin.hreq's_dir_access.choose)
   /-- Same CLE: both events share the same CLE. -/
   | sameCLE
     (cle_eq : e₁_lin.hreq's_dir_access.choose = e₂_lin.hreq's_dir_access.choose)
