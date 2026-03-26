@@ -522,21 +522,103 @@ theorem fr_ordering_holds
               · -- Diff cluster e_w: use cdirEncapsDown_exists + diffClusterNotBetweenCles_sameCache.
                 sorry -- sameClusDiffCache Config 2: diff-cluster e_w NIW
       · -- Different cluster e₁/e₂: need proxy from e₂'s downgrade at e₁'s cluster.
+        -- Get e₂'s downgrade evidence at e₁'s cluster first.
+        obtain ⟨e_cdir, _, he_cdir_isDir, _, hcdir_lt_cle₂,
+          ⟨e_cache_down, he_cdown_in_b, hcdir_encap_down, hcdown_is_down, hcdown_is_cache⟩,
+          ⟨e_evict, he_evict_in_b, he_evict_isDir, he_evict_down, hevict_lt_cle₂,
+           hcdir_ob_evict, he_evict_proto, he_evict_isDirWrite, he_evict_translatedDir⟩⟩ :=
+          cdirEncapsDown_exists (lin e₁) (lin e₂) h.in_b₁ h.cache₁
         -- Case-split on e₁'s dirAccessOfRequest to determine where e₂'s downgrade lands.
         have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2
         cases hda₁ with
         | encapDir hreq_missing₁ hencap₁ =>
-          -- e₁ coherent (encapDir): e₁ got perms from directory.
-          -- e₂'s downgrade hits e₁'s cache → use cache downgrade as proxy.
-          sorry -- diffCluster_coherent: e₁ encapDir
+          -- e₁ coherent (encapDir): CLE₁ inside e₁.
+          -- Use dir_ordered CLE₁ cdir at e₁'s cluster as the primary strategy.
+          -- CLE₁ OB cdir → proxy = cdir. cdir OB CLE₁ → use evict or NIW.
+          have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+          match hfc_cdir : e_cdir, he_cdir_isDir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de_cdir, _ =>
+            match hfc_cle₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de_cle₁, _ =>
+              cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
+              | inl hob_cle₁_cdir =>
+                -- CLE₁ OB cdir → proxy = cdir
+                have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
+                exact .diffCluster_coherent h_same_prot (.directoryEvent de_cdir)
+                  (show (lin e₁).hreq's_dir_access.choose.OrderedBefore n _ from by
+                    rw [hfc_cle₁]; exact hob_cle₁_cdir)
+                  (by rw [hw₂']; exact hcdir_lt_cle₂)
+              | inr hob_cdir_cle₁ =>
+                -- cdir OB CLE₁. Try evict.
+                have he_evict_isdir' := he_evict_isDir
+                match hfc_evict : e_evict, he_evict_isdir' with
+                | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                | .directoryEvent de_evict, _ =>
+                  cases (b.orderedAtEntry.dir_ordered de_cle₁ de_evict).ordered with
+                  | inl hob_cle₁_evict =>
+                    have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
+                    exact .diffCluster_coherent h_same_prot (.directoryEvent de_evict)
+                      (show (lin e₁).hreq's_dir_access.choose.OrderedBefore n _ from by
+                        rw [hfc_cle₁]; exact hob_cle₁_evict)
+                      (by rw [hw₂']; exact hevict_lt_cle₂)
+                  | inr hob_evict_cle₁ =>
+                    -- evict OB CLE₁: NIW with evict between CLE_w and CLE₁
+                    sorry -- diffCluster encapDir: evict OB CLE₁ NIW
         | orderBeforeDir _ hexists_pred₁ hpred₁_encap _ _ _ _ _ =>
-          -- e₁ has perms from predecessor.
-          -- e₂'s downgrade hits e₁'s cache (pred has perms) → proxy from cache ordered.
-          sorry -- diffCluster_coherent: e₁ orderBeforeDir
+          -- Same strategy as encapDir: dir_ordered CLE₁ cdir/evict.
+          -- cdirEncapsDown_exists already called, e_cdir/e_evict in scope.
+          have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+          match hfc_cdir₂ : e_cdir, he_cdir_isDir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de_cdir, _ =>
+            match hfc_cle₁₂ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de_cle₁, _ =>
+              cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
+              | inl hob =>
+                have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
+                exact .diffCluster_coherent h_same_prot (.directoryEvent de_cdir)
+                  (by rw [hfc_cle₁₂]; exact hob) (by rw [hw₂']; exact hcdir_lt_cle₂)
+              | inr hob =>
+                have he_evict_isdir' := he_evict_isDir
+                match hfc_evict₂ : e_evict, he_evict_isdir' with
+                | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                | .directoryEvent de_evict, _ =>
+                  cases (b.orderedAtEntry.dir_ordered de_cle₁ de_evict).ordered with
+                  | inl hob_evict =>
+                    have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
+                    exact .diffCluster_coherent h_same_prot (.directoryEvent de_evict)
+                      (by rw [hfc_cle₁₂]; exact hob_evict) (by rw [hw₂']; exact hevict_lt_cle₂)
+                  | inr hob_evict =>
+                    sorry -- diffCluster orderBeforeDir: evict OB CLE₁ NIW
         | orderAfterDir hweak₁ _ _ _ =>
-          -- e₁ non-coherent (nc.weak). e₂'s downgrade goes to cluster directory.
-          -- Use cdir as proxy with dir_ordered.
-          sorry -- diffCluster_noncoherent: e₁ orderAfterDir
+          -- e₁ non-coherent. Same dir_ordered strategy.
+          have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+          match hfc_cdir₃ : e_cdir, he_cdir_isDir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de_cdir, _ =>
+            match hfc_cle₁₃ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de_cle₁, _ =>
+              cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
+              | inl hob =>
+                have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
+                exact .diffCluster_noncoherent h_same_prot (.directoryEvent de_cdir)
+                  (by rw [hfc_cle₁₃]; exact hob) (by rw [hw₂']; exact hcdir_lt_cle₂)
+              | inr hob =>
+                have he_evict_isdir' := he_evict_isDir
+                match hfc_evict₃ : e_evict, he_evict_isdir' with
+                | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                | .directoryEvent de_evict, _ =>
+                  cases (b.orderedAtEntry.dir_ordered de_cle₁ de_evict).ordered with
+                  | inl hob_evict =>
+                    have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
+                    exact .diffCluster_noncoherent h_same_prot (.directoryEvent de_evict)
+                      (by rw [hfc_cle₁₃]; exact hob_evict) (by rw [hw₂']; exact hevict_lt_cle₂)
+                  | inr hob_evict =>
+                    sorry -- diffCluster orderAfterDir: evict OB CLE₁ NIW
 
 /-- PPOi → StepOrdering. Factored out of step_to_ordering for modularity. -/
 theorem ppoi_step_to_ordering
