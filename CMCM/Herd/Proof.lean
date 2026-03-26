@@ -836,7 +836,26 @@ theorem fr_ordering_holds
                             (show (lin e₁).hreq's_dir_access.choose.OrderedBefore n _ from by
                               rw [hfc_cle₁₂]; exact hcle₁_ob_dco)
                             (by rw [hw₂']; exact hdco_lt_cle₂)
-                    · sorry -- diffCluster orderBeforeDir: e_w same as e₂, RF cross-cluster
+                    · -- e_w same as e₂: RF cross-cluster. Same approach as encapDir.
+                      have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache
+                      have hdrf_spec' := hencapDir'.existsRClusterDirDown.choose_spec
+                      have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+                      cases hdrf_spec'.2.2.2.2 with
+                      | cleEncap henc' =>
+                        have hdrf_isdir' := hdrf_spec'.2.1
+                        match hfc_drf' : hencapDir'.existsRClusterDirDown.choose, hdrf_isdir' with
+                        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                        | .directoryEvent de_drf', _ =>
+                          match hfc_cle₂' : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+                          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                          | .directoryEvent de_cle₂', _ =>
+                            cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
+                            | inl hob =>
+                              exact .diffCluster_rfCrossCluster h_same_prot
+                                hencapDir'.existsRClusterDirDown.choose henc'
+                                (by rw [hfc_drf', hfc_cle₂']; exact hob)
+                            | inr hob => sorry -- CLE₂ OB d_rf'
+                      | gcacheEncap _ _ => sorry -- gcacheEncap
         | orderAfterDir hweak₁ _ _ _ =>
           -- e₁ non-coherent. Same dir_ordered strategy.
           have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
@@ -888,7 +907,26 @@ theorem fr_ordering_holds
                             (show (lin e₁).hreq's_dir_access.choose.OrderedBefore n _ from by
                               rw [hfc_cle₁₃]; exact hcle₁_ob_dco)
                             (by rw [hw₂']; exact hdco_lt_cle₂)
-                    · sorry -- diffCluster orderAfterDir: e_w same as e₂, RF cross-cluster
+                    · -- e_w same as e₂: RF cross-cluster. Same approach as encapDir.
+                      have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache
+                      have hdrf_spec' := hencapDir'.existsRClusterDirDown.choose_spec
+                      have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+                      cases hdrf_spec'.2.2.2.2 with
+                      | cleEncap henc' =>
+                        have hdrf_isdir' := hdrf_spec'.2.1
+                        match hfc_drf' : hencapDir'.existsRClusterDirDown.choose, hdrf_isdir' with
+                        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                        | .directoryEvent de_drf', _ =>
+                          match hfc_cle₂' : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+                          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                          | .directoryEvent de_cle₂', _ =>
+                            cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
+                            | inl hob =>
+                              exact .diffCluster_rfCrossCluster h_same_prot
+                                hencapDir'.existsRClusterDirDown.choose henc'
+                                (by rw [hfc_drf', hfc_cle₂']; exact hob)
+                            | inr hob => sorry -- CLE₂ OB d_rf'
+                      | gcacheEncap _ _ => sorry -- gcacheEncap
 
 /-- PPOi → StepOrdering. Factored out of step_to_ordering for modularity. -/
 theorem ppoi_step_to_ordering
