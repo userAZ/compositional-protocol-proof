@@ -822,7 +822,9 @@ theorem fr_ordering_holds
                             · rw [hfc_dco, hfc_cle₁]; exact hdco_ob_cle₁
                           exact absurd ⟨d_co, by rw [hfc_dco]; exact hdco_in_b,
                             { interDiffProtocol := by
-                                sorry -- diffProtocol
+                                show ¬ e₂.sameProtocol n e_w
+                                unfold Event.sameProtocol at h_ew_diff_e₂ ⊢
+                                exact fun h => h_ew_diff_e₂ h.symm
                                 
                               downToW := by
                                 unfold Event.sameProtocol; rw [hfc_dco]; exact hdco_proto
@@ -1272,7 +1274,10 @@ theorem fr_ordering_holds
                             · rw [hfc_dco]; exact hcle_w_ob_dco
                             · rw [hfc_dco, hfc_cle₁₂]; exact hdco_ob_cle₁
                           exact absurd ⟨d_co, by rw [hfc_dco]; exact hdco_in_b,
-                            { interDiffProtocol := sorry -- e₂.diffProtocol e_w
+                            { interDiffProtocol := by
+                                show ¬ e₂.sameProtocol n e_w
+                                unfold Event.sameProtocol at h_ew_diff_e₂ ⊢
+                                exact fun h => h_ew_diff_e₂ h.symm
                               downToW := by show d_co.sameProtocol n e_w; rw [hfc_dco]; exact hdco_proto
                               isDirWrite := by rw [hfc_dco]; exact hdco_isDirWrite
                               notDown := by rw [hfc_dco]; exact hdco_not_down
@@ -1418,7 +1423,10 @@ theorem fr_ordering_holds
                             · rw [hfc_dco]; exact hcle_w_ob_dco
                             · rw [hfc_dco, hfc_cle₁₃]; exact hdco_ob_cle₁
                           exact absurd ⟨d_co, by rw [hfc_dco]; exact hdco_in_b,
-                            { interDiffProtocol := sorry -- e₂.diffProtocol e_w
+                            { interDiffProtocol := by
+                                show ¬ e₂.sameProtocol n e_w
+                                unfold Event.sameProtocol at h_ew_diff_e₂ ⊢
+                                exact fun h => h_ew_diff_e₂ h.symm
                               downToW := by show d_co.sameProtocol n e_w; rw [hfc_dco]; exact hdco_proto
                               isDirWrite := by rw [hfc_dco]; exact hdco_isDirWrite
                               notDown := by rw [hfc_dco]; exact hdco_not_down
