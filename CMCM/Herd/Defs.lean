@@ -134,6 +134,10 @@ inductive StepOrdering : Event n → Event n → Prop where
   | ob (h : l₁.OrderedBefore n l₂) : StepOrdering l₁ l₂
   | obEndLt (p : Event n) (h_ob : l₁.OrderedBefore n p) (h_lt : Event.oEnd n p < Event.oEnd n l₂)
       : StepOrdering l₁ l₂
+  /-- Encap-then-OB: p inside l₁, p before l₂.
+      Irrefl: p inside l₁ = l₂ and p OB l₂ → p.oEnd < l₂.oStart < p.oStart → False. -/
+  | encapOb (p : Event n) (h_enc : p.EncapsulatedBy n l₁) (h_ob : p.OrderedBefore n l₂)
+      : StepOrdering l₁ l₂
   | sameLin (e₁' e₂' : Event n) (h_eq : l₁ = l₂)
       (h_enc₁ : l₁.EncapsulatedBy n e₁') (h_ob : e₁'.OrderedBefore n e₂')
       (h_enc₂ : l₂.EncapsulatedBy n e₂') : StepOrdering l₁ l₂

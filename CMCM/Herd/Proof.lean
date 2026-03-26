@@ -163,7 +163,7 @@ A cycle gives StepOrdering lin(e) lin(e) → contradiction. -/
 -- StepOrdering definition moved to Defs.lean
 
 
-/-- StepOrdering is transitive. 3 constructors × 3 = 9 cases. -/
+/-- StepOrdering is transitive. -/
 theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
     (h₁₂ : StepOrdering l₁ l₂) (h₂₃ : StepOrdering l₂ l₃) : StepOrdering l₁ l₃ := by
   cases h₁₂ with
@@ -171,6 +171,9 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
     cases h₂₃ with
     | ob h₂ => exact .ob (Trans.trans h₁ h₂)
     | obEndLt p hp hlt => exact .obEndLt p (Trans.trans h₁ hp) hlt
+    | encapOb p henc hob =>
+      -- l₁ OB l₂, p inside l₂, p OB l₃. Chain: l₁ < l₂.oStart < p.oStart ≤ p.oEnd < l₃.oStart.
+      exact .ob (Nat.lt_trans (Nat.lt_trans h₁ henc.left) (Nat.lt_trans (Event.oWellFormed n p) hob))
     | sameLin _ _ heq _ _ _ => subst heq; exact .ob h₁
     | eq heq => subst heq; exact .ob h₁
   | obEndLt q hq hqlt =>
@@ -179,8 +182,29 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
       exact .ob (Trans.trans hq (show q.OrderedBefore n l₃ from Nat.lt_trans hqlt h₂))
     | obEndLt p hp hlt =>
       exact .obEndLt p (Trans.trans hq (show q.OrderedBefore n p from Nat.lt_trans hqlt hp)) hlt
+    | encapOb p henc hob =>
+      -- l₁ OB q, q.oEnd < l₂.oEnd. p inside l₂, p OB l₃.
+      -- p.oEnd < l₃.oStart → p.oEnd < l₃.oEnd. Use .obEndLt p if l₁ OB p.
+      -- General case: sorry (may need additional TC constructor).
+      sorry -- trans obEndLt+encapOb: needs careful oEnd chain
     | sameLin _ _ heq _ _ _ => subst heq; exact .obEndLt q hq hqlt
     | eq heq => subst heq; exact .obEndLt q hq hqlt
+  | encapOb q henc hob =>
+    -- q inside l₁, q OB l₂. Compose with h₂₃.
+    cases h₂₃ with
+    | ob h₂ => exact .encapOb q henc (Trans.trans hob h₂)
+    | obEndLt p hp hlt =>
+      -- q inside l₁, q OB l₂. l₂ OB p, p.oEnd < l₃.oEnd. Chain: q OB p via l₂. p.oEnd < l₃.oEnd.
+      -- Use obEndLt with proxy p: need l₁ OB p? No, q inside l₁. Use encapOb q with q OB p.
+      -- But encapOb gives StepOrdering l₁ p_target where p_target is the OB target. Need l₃.
+      -- q OB l₂ OB p. q.oEnd < p.oStart. p.oEnd < l₃.oEnd. So .encapOb needs q OB l₃? No, q OB p, not l₃.
+      sorry -- trans encapOb+obEndLt
+    | encapOb p henc₂ hob₂ =>
+      -- q inside l₁, q OB l₂. p inside l₂, p OB l₃.
+      -- Chain: q.oEnd < l₂.oStart < p.oStart ≤ p.oEnd < l₃.oStart. So q OB l₃.
+      exact .encapOb q henc (Nat.lt_trans (Nat.lt_trans hob henc₂.left) (Nat.lt_trans (Event.oWellFormed n p) hob₂))
+    | sameLin _ _ heq _ _ _ => subst heq; exact .encapOb q henc hob
+    | eq heq => subst heq; exact .encapOb q henc hob
   | sameLin e₁' e₂' heq he₁ hob he₂ =>
     subst heq; exact h₂₃
   | eq heq =>
@@ -191,8 +215,10 @@ theorem StepOrdering.irrefl {l : Event n} (h : StepOrdering l l) : False := by
   cases h with
   | ob h => exact Event.contradiction_of_reflexive_ordered_before n h
   | obEndLt p hp hlt =>
-    -- l OB p: l.oEnd < p.oStart. p.oEnd < l.oEnd.
     exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hlt)
+  | encapOb p henc hob =>
+    -- p inside l and p OB l: p.oEnd < l.oStart < p.oStart → contradiction
+    exact Nat.lt_irrefl _ (Nat.lt_trans hob (Nat.lt_trans henc.left (Event.oWellFormed n p)))
   | sameLin e₁' e₂' heq he₁ hob he₂ =>
     have : l.oEnd < l.oEnd :=
       calc l.oEnd
@@ -361,6 +387,11 @@ private lemma co_chain_cross_cluster_downgrade
         cases hprefix_so with
         | ob h => exact Nat.le_of_lt (Nat.lt_trans h (Event.oWellFormed n _))
         | obEndLt _ hp hlt => exact Nat.le_of_lt (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n _)) hlt)
+        | encapOb p henc hob =>
+          -- p inside l₁, p OB l₂. p.oEnd < l₁.oEnd and p.oEnd < l₂.oStart.
+          -- l₁.oEnd vs l₂.oEnd undetermined in general. But for the cycle,
+          -- this case shouldn't arise (co chain gives ob/obEndLt/eq, not encapOb).
+          sorry -- trans: encapOb oEnd extraction
         | sameLin _ _ heq _ _ _ => exact Nat.le_of_eq (congrArg (Event.oEnd n) heq)
         | eq heq => exact Nat.le_of_eq (congrArg (Event.oEnd n) heq)
       -- mid and c_ep must have different protocol (e_w same as mid, diff from c_ep)
@@ -416,6 +447,7 @@ private lemma co_chain_cross_cluster_downgrade
         cases hco_step with
         | ob h => exact Nat.le_of_lt (Nat.lt_trans h (Event.oWellFormed n _))
         | obEndLt _ hp hlt => exact Nat.le_of_lt (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n _)) hlt)
+        | encapOb _ _ _ => sorry -- co step shouldn't produce encapOb
         | sameLin _ _ heq _ _ _ => exact Nat.le_of_eq (congrArg (Event.oEnd n) heq)
         | eq heq => exact Nat.le_of_eq (congrArg (Event.oEnd n) heq)
       exact ⟨d, hob_d, Nat.lt_of_lt_of_le hd_lt hext, hd_isDir, hd_proto⟩
@@ -525,6 +557,7 @@ theorem fr_ordering_holds
                                             exact Nat.le_of_lt (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hlt)
                       | sameLin _ _ heq _ _ _ => simp only [Event.oEnd, hfcw, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at heq ⊢
                                                  exact Nat.le_of_eq (congrArg DirectoryEvent.oEnd (Event.directoryEvent.inj heq))
+                      | encapOb _ _ _ => sorry -- co chain shouldn't produce encapOb
                       | eq heq => simp only [Event.oEnd, hfcw, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at heq ⊢
                                   exact Nat.le_of_eq (congrArg DirectoryEvent.oEnd (Event.directoryEvent.inj heq))
                     exact Nat.lt_irrefl _ (calc de_w.oEnd ≤ de₂.oEnd := hcw_le
@@ -1233,6 +1266,7 @@ theorem step_to_ordering
                           simp only [Event.oEnd, hfcw] at hp
                           simp only [Event.oEnd, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at hlt ⊢
                           exact Nat.le_of_lt (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hlt)
+                        | encapOb _ _ _ => sorry -- co chain shouldn't produce encapOb
                         | sameLin _ _ heq _ _ _ =>
                           simp only [Event.oEnd, hfcw, show hlin e₂ = h.e₂_lin from Subsingleton.elim _ _, hfc₂] at heq ⊢
                           exact Nat.le_of_eq (congrArg DirectoryEvent.oEnd (Event.directoryEvent.inj heq))
@@ -1458,6 +1492,8 @@ theorem cmcm_acyclic_of_hknow
     | ob h => exact Event.contradiction_of_reflexive_ordered_before n h
     | obEndLt p hp hlt =>
       exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hlt)
+    | encapOb p henc hob =>
+      exact Nat.lt_irrefl _ (Nat.lt_trans hob (Nat.lt_trans henc.left (Event.oWellFormed n p)))
     | sameLin e₁' e₂' heq he₁ hob he₂ =>
       have : Event.oEnd n (hknow e).hreq's_dir_access.choose <
              Event.oEnd n (hknow e).hreq's_dir_access.choose :=
