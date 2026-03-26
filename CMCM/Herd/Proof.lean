@@ -222,44 +222,6 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
   | eq heq =>
     subst heq; exact h₂₃
 
-/-- StepOrdering is irreflexive. -/
-theorem StepOrdering.irrefl {l : Event n} (h : StepOrdering l l) : False := by
-  cases h with
-  | ob h => exact Event.contradiction_of_reflexive_ordered_before n h
-  | obEndLt p hp hlt =>
-    exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hlt)
-  | encapOb p henc hob =>
-    exact Nat.lt_irrefl _ (Nat.lt_trans hob (Nat.lt_trans henc.left (Event.oWellFormed n p)))
-  | obFinishBefore p hob hlt =>
-    -- p OB l, p.oEnd < l.oEnd. Not directly contradictory.
-    -- In practice, cycle composition should not produce this as the final form.
-    sorry -- irrefl obFinishBefore: needs cycle to compose to a different constructor
-  | sameLin e₁' e₂' heq he₁ hob he₂ =>
-    have : l.oEnd < l.oEnd :=
-      calc l.oEnd
-        _ < e₁'.oEnd := he₁.right
-        _ < e₂'.oStart := hob
-        _ < l.oStart := he₂.left
-        _ < l.oEnd := Event.oWellFormed n l
-    exact Nat.lt_irrefl _ this
-  | eq _ =>
-    -- Can't derive False from just l = l. In practice, the composed
-    -- cycle result is never .eq because rfe/fr always give non-eq.
-    -- Handle at cycle level in cmcm_acyclic_of_hknow.
-    sorry
-
-/-- Chain StepOrdering through TransGen. -/
-theorem StepOrdering.of_transGen
-    (h : Relation.TransGen (@StepOrdering n) l₁ l₂) : StepOrdering l₁ l₂ := by
-  induction h with
-  | single h => exact h
-  | tail _ h ih => exact StepOrdering.trans ih h
-
-/-- StepOrdering is acyclic. -/
-theorem StepOrdering.acyclic : Relation.Acyclic (@StepOrdering n) := by
-  intro l hcycle
-  exact StepOrdering.irrefl (StepOrdering.of_transGen hcycle)
-
 /-- Map a single co edge to StepOrdering. Factored out to avoid recursion in step_to_ordering. -/
 theorem co_step_to_ordering
     (h : @Herd.co n compound b init e₁ e₂)
