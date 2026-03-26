@@ -813,18 +813,56 @@ theorem fr_ordering_holds
                                             cases hco_so with
                                             | ob h_ob => exact Or.inl h_ob
                                             | obEndLt p hp hlt =>
-                                              -- CLE_w OB p, p.oEnd < CLE_w2.oEnd. Doesn't give CLE_w OB CLE_w2 directly.
-                                              -- For same-cluster CO chain, obEndLt shouldn't arise. Sorry for now.
-                                              exact Or.inl (by sorry)
+                                              -- Use dir_ordered CLE_w CLE_w2 at same cluster.
+                                              -- CLE_w2 OB CLE_w → temporal loop: CLE_w.oEnd < p.oStart ≤ p.oEnd < CLE_w2.oEnd < CLE_w.oStart.
+                                              have hew_lin := show e_w_lin = hlin e_w from (Subsingleton.elim _ _).symm
+                                              have hcle_w_isdir := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+                                              have hcle_w2_isdir := (hlin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+                                              match hfc_clew : e_w_lin.hreq's_dir_access.choose, hcle_w_isdir with
+                                              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                                              | .directoryEvent de_clew, _ =>
+                                                match hfc_clew2 : (hlin e₂).hreq's_dir_access.choose, hcle_w2_isdir with
+                                                | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                                                | .directoryEvent de_clew2, _ =>
+                                                  cases (b.orderedAtEntry.dir_ordered de_clew de_clew2).ordered with
+                                                  | inl h => exact Or.inl h
+                                                  | inr h =>
+                                                    exfalso
+                                                    -- hp : CLE_w OB p. hlt : p.oEnd < CLE_w2.oEnd. h : CLE_w2 OB CLE_w.
+                                                    -- Need to bridge types: hp uses ⋯.choose, we need de_clew.
+                                                    simp only [hfc_clew] at hp
+                                                    simp only [hfc_clew2] at hlt
+                                                    exact Nat.lt_irrefl de_clew.oEnd
+                                                      (calc de_clew.oEnd
+                                                        _ < Event.oStart n p := hp
+                                                        _ ≤ Event.oEnd n p := Nat.le_of_lt (Event.oWellFormed n p)
+                                                        _ < de_clew2.oEnd := hlt
+                                                        _ < de_clew.oStart := h
+                                                        _ ≤ de_clew.oEnd := Nat.le_of_lt de_clew.oWellFormed)
                                             | encapOb p henc hpob =>
-                                              -- p inside CLE_w, p OB CLE_w2. CLE_w contains p which is before CLE_w2.
-                                              -- CLE_w.oEnd > p.oEnd > p.oStart > CLE_w2... no, p OB CLE_w2: p.oEnd < CLE_w2.oStart.
-                                              -- CLE_w.oEnd > p.oEnd (from encap). So CLE_w.oEnd > p.oEnd ≥ p.oStart... no.
-                                              -- Actually: p inside CLE_w means CLE_w.oStart < p.oStart AND p.oEnd < CLE_w.oEnd.
-                                              -- p OB CLE_w2: p.oEnd < CLE_w2.oStart. So CLE_w.oEnd > p.oEnd.
-                                              -- But CLE_w.oEnd vs CLE_w2.oStart: CLE_w.oEnd > p.oEnd and CLE_w2.oStart > p.oEnd.
-                                              -- No guarantee CLE_w.oEnd < CLE_w2.oStart. This case shouldn't arise for same-cluster CO.
-                                              exact Or.inl (by sorry)
+                                              -- p inside CLE_w, p OB CLE_w2. dir_ordered CLE_w CLE_w2.
+                                              have hcle_w_isdir := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+                                              have hcle_w2_isdir := (hlin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+                                              match hfc_clew₂ : e_w_lin.hreq's_dir_access.choose, hcle_w_isdir with
+                                              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                                              | .directoryEvent de_clew, _ =>
+                                                match hfc_clew2₂ : (hlin e₂).hreq's_dir_access.choose, hcle_w2_isdir with
+                                                | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                                                | .directoryEvent de_clew2, _ =>
+                                                  cases (b.orderedAtEntry.dir_ordered de_clew de_clew2).ordered with
+                                                  | inl h => exact Or.inl h
+                                                  | inr h =>
+                                                    exfalso
+                                                    simp only [hfc_clew₂] at henc
+                                                    simp only [hfc_clew2₂] at hpob
+                                                    exact Nat.lt_irrefl de_clew.oStart
+                                                      (calc de_clew.oStart
+                                                        _ < Event.oStart n p := henc.left
+                                                        _ ≤ Event.oEnd n p := Nat.le_of_lt (Event.oWellFormed n p)
+                                                        _ < de_clew2.oStart := hpob
+                                                        _ ≤ de_clew2.oEnd := Nat.le_of_lt de_clew2.oWellFormed
+                                                        _ < de_clew.oStart := h
+                                                        )
                                             | sameLin _ _ heq _ _ _ => exact Or.inr heq
                                             | eq heq => exact Or.inr heq
                                           cases hcle_w1_ob_or_eq with
