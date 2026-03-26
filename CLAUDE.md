@@ -234,6 +234,19 @@ The GLE/CLE/cache lex ordering falls out as a CONSEQUENCE of this communication 
 - Chain: CLE₂.oEnd < CLE₁.oStart ≤ e_lin₁.oStart ≤ e_lin₁.oEnd < e_lin₂.oStart, and e_lin₂.oEnd ≤ CLE₂.oEnd → CLE₂.oEnd < CLE₂.oEnd → False.
 **Does NOT work** when one/both are `clusterCacheLin` — need predecessor elimination.
 
+**Implementation status (2026-03-26 session 11):**
+- orderBeforeDir×orderBeforeDir diff-addr (sorry 1608): Temporal chain implemented with 2 Subsingleton bridge sorry's + lazy case sorry. The non-lazy case derives `Nat.lt_irrefl` via `calc`.
+- orderAfterDir diff-addr non-lazy (sorry 1887): Same temporal chain pattern with 2 Subsingleton bridge sorry's.
+- orderAfterDir diff-addr lazy (sorry 1901→1967): Needs `hlazy` instantiation.
+- encapDir×orderBeforeDir diff-addr (sorry 1449): Still a single sorry (same pattern as orderBeforeDir×orderBeforeDir).
+
+**Remaining Subsingleton bridge sorry** (4 instances, same pattern):
+Show `CLE.oStart ≤ e_lin.oStart` and `e_lin.oEnd ≤ CLE.oEnd` where CLE is the Herd CLE and e_lin is the compound lin event. Both use `dirAccessOfRequest` for the same event. By Subsingleton on `∃ e_cdir ∈ b, dirAccessOfRequest e e_cdir`, both frameworks produce the same CLE. Then `clusterDirectoryLinearizationEvent.previousGot` gives equality, `getPerms` gives strict encapsulation.
+
+**Key finding: nc.weak + nc.release always has (dir,dir) compound lin.**
+From `weakWriteAndNonCoherentRelCannotLinearizeAtCache` (CompoundProtocol axiom): in a PPO pair involving nc.weak and nc.release, NEITHER can linearize at cache. So `clusterCacheLin` is impossible for both. Only the (dir,dir) case survives.
+For nc.weak + c.release: the (cache,cache), (cache,dir), (dir,cache) cases are all possible and handled by different lemmas in CompoundPPOs.lean. The lazy case only arises for (dir,dir) with nc.weak + c.release.
+
 ### Key insight: communication events (downgrades) are the fundamental mechanism
 
 The hierarchy ordering (GLE/CLE/cache) is a CONSEQUENCE of communication events, not the mechanism itself. For each relation:

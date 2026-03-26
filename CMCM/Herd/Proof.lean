@@ -1446,7 +1446,7 @@ theorem ppoi_step_to_ordering
                   · -- Diff addr: use dir_ordered on Herd CLEs (same cluster from PPOi).
                     -- dir_ordered is universally quantified in the model.
                     -- TODO: For reviewer appeal, derive CLE ordering from CompoundMCM.
-                    sorry -- diff-addr encapDir×orderBeforeDir: use CompoundMCM
+                    sorry -- diff-addr encapDir×orderBeforeDir: CompoundMCM bridge (same as orderBeforeDir×orderBeforeDir)
             | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
           | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
         | orderAfterDir _ hsucc_encap₂ _ _ =>
@@ -1605,7 +1605,37 @@ theorem ppoi_step_to_ordering
                 cases (b.orderedAtEntry.dir_ordered de₁' de₂').ordered with
                 | inl hob => exact .ob hob
                 | inr hob =>
-                  sorry -- diff-addr orderBeforeDir×orderBeforeDir: CLE₂ OB CLE₁ contradiction
+                  -- diff-addr orderBeforeDir×orderBeforeDir: CLE₂ OB CLE₁ contradiction.
+                  -- Use CompoundMCM to get e_lin₁ OB e_lin₂, then derive temporal contradiction
+                  -- from compound lin events being at-or-inside their Herd CLEs.
+                  exfalso
+                  have hclo' := @ppoi_compound_lin_order n compound b init e₁ e₂ hppoi h_same_addr
+                  unfold CompoundProtocol.CompoundLinearizationOrder at hclo'
+                  have hob_or_lazy' := hclo' hppoi.ppo
+                  cases hob_or_lazy' with
+                  | inl helin_ob' =>
+                    let e_lin₁' := (compound.compoundLinearizationEvent compound.shimAxioms b init e₁
+                      (compound.linearizationOfEvent b init e₁)).linearizationEvent
+                    let e_lin₂' := (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
+                      (compound.linearizationOfEvent b init e₂)).linearizationEvent
+                    have hcle₁_le_elin₁ : Event.oStart n (.directoryEvent de₁') ≤
+                        Event.oStart n e_lin₁' :=
+                      sorry -- Subsingleton bridge: compound CLE = Herd CLE, e_lin at-or-inside CLE
+                    have helin₂_le_cle₂ : Event.oEnd n e_lin₂' ≤
+                        Event.oEnd n (.directoryEvent de₂') :=
+                      sorry -- Subsingleton bridge: compound CLE = Herd CLE, e_lin at-or-inside CLE
+                    have hchain' : Event.oEnd n (.directoryEvent de₂') <
+                        Event.oEnd n (.directoryEvent de₂') :=
+                      calc Event.oEnd n (.directoryEvent de₂')
+                        _ < Event.oStart n (.directoryEvent de₁') := hob
+                        _ ≤ Event.oStart n e_lin₁' := hcle₁_le_elin₁
+                        _ ≤ Event.oEnd n e_lin₁' := Nat.le_of_lt (Event.oWellFormed n e_lin₁')
+                        _ < Event.oStart n e_lin₂' := helin_ob'
+                        _ ≤ Event.oEnd n e_lin₂' := Nat.le_of_lt (Event.oWellFormed n e_lin₂')
+                        _ ≤ Event.oEnd n (.directoryEvent de₂') := helin₂_le_cle₂
+                    exact Nat.lt_irrefl _ hchain'
+                  | inr hlazy' =>
+                    sorry -- lazy case: finishesBefore + CLE₂ OB CLE₁ → contradiction
         | orderAfterDir _ hsucc_encap₂ _ _ =>
           -- e₂ has orderAfterDir: CLE₂ inside succ₂.
           -- Chain: CLE₁.oEnd < pred₁.oEnd < e₁.oEnd < e₂.oEnd < succ₂.oStart < CLE₂.oStart
@@ -1884,7 +1914,39 @@ theorem ppoi_step_to_ordering
                 cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
                 | inl hob => exact .ob hob
                 | inr hob =>
-                  sorry -- CLE₂ OB CLE₁ + CompoundMCM e_lin₁ OB e_lin₂ → contradiction
+                  -- CLE₂ OB CLE₁ + CompoundMCM e_lin₁ OB e_lin₂ → contradiction.
+                  -- The compound lin events are at-or-inside their Herd CLEs (for clusterDirLin).
+                  -- Chain: de₂.oEnd < de₁.oStart ≤ e_lin₁.oStart ≤ e_lin₁.oEnd <
+                  --   e_lin₂.oStart ≤ e_lin₂.oEnd ≤ de₂.oEnd → de₂.oEnd < de₂.oEnd.
+                  -- The temporal bounds (de.oStart ≤ e_lin.oStart, e_lin.oEnd ≤ de.oEnd)
+                  -- follow from the Subsingleton bridge: compound CLE = Herd CLE,
+                  -- and clusterDirectoryLinearizationEvent gives e_lin at-or-inside CLE.
+                  exfalso
+                  -- Abbreviate compound lin events
+                  let e_lin₁ := (compound.compoundLinearizationEvent compound.shimAxioms b init e₁
+                    (compound.linearizationOfEvent b init e₁)).linearizationEvent
+                  let e_lin₂ := (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
+                    (compound.linearizationOfEvent b init e₂)).linearizationEvent
+                  -- helin_ob : e_lin₁.OrderedBefore n e_lin₂
+                  -- i.e., Event.oEnd n e_lin₁ < Event.oStart n e_lin₂
+                  -- Extract compound lin bound for e₁: de₁.oStart ≤ e_lin₁.oStart
+                  have hcle₁_le_elin₁ : Event.oStart n (.directoryEvent de₁) ≤
+                      Event.oStart n e_lin₁ :=
+                    sorry -- Subsingleton bridge: compound CLE = Herd CLE, e_lin at-or-inside CLE
+                  -- Extract compound lin bound for e₂: e_lin₂.oEnd ≤ de₂.oEnd
+                  have helin₂_le_cle₂ : Event.oEnd n e_lin₂ ≤
+                      Event.oEnd n (.directoryEvent de₂) :=
+                    sorry -- Subsingleton bridge: compound CLE = Herd CLE, e_lin at-or-inside CLE
+                  -- Chain: de₂.oEnd < de₂.oEnd
+                  have hchain : Event.oEnd n (.directoryEvent de₂) < Event.oEnd n (.directoryEvent de₂) :=
+                    calc Event.oEnd n (.directoryEvent de₂)
+                      < Event.oStart n (.directoryEvent de₁) := hob
+                    _ ≤ Event.oStart n e_lin₁ := hcle₁_le_elin₁
+                    _ ≤ Event.oEnd n e_lin₁ := Nat.le_of_lt (Event.oWellFormed n e_lin₁)
+                    _ < Event.oStart n e_lin₂ := helin_ob
+                    _ ≤ Event.oEnd n e_lin₂ := Nat.le_of_lt (Event.oWellFormed n e_lin₂)
+                    _ ≤ Event.oEnd n (.directoryEvent de₂) := helin₂_le_cle₂
+                  exact Nat.lt_irrefl _ hchain
           | inr hlazy =>
             -- Lazy case: use dir_ordered on Herd CLEs.
             have hcle₁_isdir' := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
@@ -1898,7 +1960,11 @@ theorem ppoi_step_to_ordering
                 cases (b.orderedAtEntry.dir_ordered de₁l de₂l).ordered with
                 | inl hob => exact .ob hob
                 | inr hob =>
-                  sorry -- lazy: CLE₂ OB CLE₁ + finishesBefore → contradiction
+                  -- lazy: CLE₂ OB CLE₁ + finishesBefore → contradiction.
+                  -- hlazy : ∀ e₃ ∈ b, ... → e_lin₁.finishesBefore n e₃_dir.
+                  -- Need to instantiate with appropriate e₃ and derive temporal
+                  -- contradiction with hob (de₂l OB de₁l).
+                  sorry -- lazy: instantiate hlazy with e₃ = ? to get temporal contradiction
 /-- Map each PPOi ∪ com step to a StepOrdering between linearization points. -/
 theorem step_to_ordering
     (h : (@PPOi n b ∪ com compound b init) e₁ e₂)
