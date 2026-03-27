@@ -2510,7 +2510,7 @@ theorem cmcm_acyclic_of_hknow
   intro a c hpath
   induction hpath with
   | single h => exact Or.inl (step_to_ordering h hknow)
-  | tail _ h ih =>
+  | tail hpath h ih =>
     exact compose_three ih h hknow rfl rfl
       (b.orderedAtEntry.dir_ordered) ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
 
