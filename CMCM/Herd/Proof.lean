@@ -2258,14 +2258,61 @@ theorem cmcm_acyclic_of_hknow
       | inl hppoi => exact ppoi_irrefl hppoi.1
       | inr hcom => exact com_irrefl hcom
     | tail hpath h ih =>
-      -- hpath : TransGen R a b, h : R b c, hac : a = c
-      -- ih : a = b → False
-      -- Goal: False. We have path a → b and edge b → a (since c = a).
       subst hac
-      -- Now h : R b a, hpath : TransGen R a b, ih : a = b → False
-      -- Case-split h (edge b → a) to get specific evidence.
-      -- Case-split on hpath to extract the first edge of the prefix.
-      sorry
+      -- hpath : TransGen R a b, h : R b a, ih : a = b → False
+      -- Unfold hpath to extract edges.
+      cases hpath with
+      | single h₁ =>
+        -- 2-cycle: R a b ∧ R b a. Case-split on both edge types.
+        -- Each gives StepOrdering. Compose to get StepOrdering(cle a, cle a) → contradiction.
+        let cle := fun e => (hknow e).hreq's_dir_access.choose
+        have so₁ := step_to_ordering h₁ hknow  -- StepOrdering (cle a) (cle b)
+        have so₂ := step_to_ordering h hknow   -- StepOrdering (cle b) (cle a)
+        -- Convert so₁ to LinLink/eq/diff_prot
+        have h3₁ := stepOrdering_to_three so₁ (b.orderedAtEntry.dir_ordered)
+          ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
+          ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
+        have h3₂ := stepOrdering_to_three so₂ (b.orderedAtEntry.dir_ordered)
+          ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
+          ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
+        cases h3₁ with
+        | inl hlink₁ =>
+          cases h3₂ with
+          | inl hlink₂ => exact LinLink.irrefl (LinLink.trans hlink₁ hlink₂)
+          | inr hr₂ => cases hr₂ with
+            | inl heq₂ => exact LinLink.irrefl (heq₂ ▸ hlink₁)
+            | inr hdiff₂ =>
+              -- LinLink a→b, diff_prot b→a: LinLink gives a.oStart < b.oStart.
+              -- diff_prot gives b.protocol ≠ a.protocol.
+              -- 2-cycle: a→b same cluster (LinLink from same-cluster edge),
+              -- b→a diff cluster. But diff_prot on b→a means b and a at diff clusters.
+              -- LinLink a→b means a.oStart < b.oStart. But if a and b at diff clusters,
+              -- how did we get LinLink? LinLink.oStart_lt only uses temporal data.
+              -- The diff_prot means the StepOrdering was obFinishBefore (cross-cluster).
+              -- For the 2-cycle: a→b gives LinLink (same cluster OB chain).
+              -- b→a gives diff_prot. But a→b same cluster means a and b at SAME cluster.
+              -- b→a diff_prot means b and a at DIFFERENT cluster. Contradiction!
+              sorry -- 2-cycle: LinLink(same cluster) + diff_prot(diff cluster) should contradict
+        | inr hr₁ => cases hr₁ with
+          | inl heq₁ =>
+            cases h3₂ with
+            | inl hlink₂ => exact LinLink.irrefl (heq₁ ▸ hlink₂)
+            | inr hr₂ => cases hr₂ with
+              | inl heq₂ =>
+                -- cle a = cle b and cle b = cle a → cle a = cle a (trivially).
+                -- Use dir_ordered on the shared CLE for contradiction.
+                exact cle_self_ordering_false (hknow a) b.orderedAtEntry.dir_ordered
+              | inr hdiff₂ => exact hdiff₂ (heq₁ ▸ rfl)
+          | inr hdiff₁ =>
+            cases h3₂ with
+            | inl hlink₂ => sorry -- symmetric to above
+            | inr hr₂ => cases hr₂ with
+              | inl heq₂ => exact hdiff₁ (heq₂ ▸ rfl)
+              | inr hdiff₂ => sorry -- diff_prot both directions: 2-cluster pigeonhole?
+      | tail hpath' h₁ =>
+        -- TransGen R a b', R b' b, R b a.
+        -- Longer cycle. TODO: reduce or use ranking.
+        sorry
   exact this e e hcycle rfl
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
