@@ -2152,7 +2152,11 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
                 -- h₂₃ gives cle(e₂).protocol = cle(e₃).protocol (as Nat-level protocol fields)
                 -- Need: de₁.pInst = l₂.protocol
                 -- Use: write_cle_protocol_eq_write_protocol works at Event.protocol level
-                sorry -- close: chain de₁.pInst = cle(e₃).prot = cle(e₂).prot = l₂.prot
+                exact h₁₃_chain.trans (show Event.protocol n (hknow e₃).hreq's_dir_access.choose =
+                    Event.protocol n l₂ from by
+                  rw [hl₂]; exact (show Event.protocol n (hknow e₃).hreq's_dir_access.choose =
+                    Event.protocol n (hknow e₂).hreq's_dir_access.choose from by
+                    simp only [Event.protocol, write_cle_protocol_eq_write_protocol]; exact h₂₃.symm))
         · exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
@@ -2185,7 +2189,19 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
             | .directoryEvent de₃, _ =>
               cases (hdir de₁ de₃).ordered with
               | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
-              | inr _ => sorry -- l₃ OB l₁: needs p₁ cluster analysis
+              | inr _ =>
+                -- l₃ OB l₁ at same protocol. Need l₂ = l₃ protocol to derive contradiction.
+                -- .ob h₂ comes from same-cluster edge → l₂ = l₃ protocol.
+                -- Then: l₁ = l₃ = l₂ protocol contradicts l₁ ≠ l₂.
+                -- Use by_cases on l₂ vs l₃ protocol:
+                by_cases h₂₃ : l₂.protocol = l₃.protocol
+                · -- VACUOUS: l₂ = l₃ protocol (same-cluster edge) + l₁ ≠ l₂ + l₁ = l₃ → contradiction.
+                  sorry -- Lean mechanics: bridge hfc₁ (l₁ = .directoryEvent de₁) in hdiff₁
+                · -- l₂ ≠ l₃ protocol but h₂ = .ob → .ob comes from dir_ordered at same cluster → contradiction.
+                  -- If l₂ ≠ l₃ protocol, they're at different clusters → no dir_ordered → .ob can't arise.
+                  -- Use stepOrdering_to_three on h₂ itself: same-protocol gives LinLink, diff gives diff_prot.
+                  -- .ob IS LinLink → it was produced at same-protocol. So l₂ ≠ l₃ is impossible.
+                  sorry -- l₂ ≠ l₃ protocol but .ob h₂: should be vacuous
         · exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
