@@ -2088,14 +2088,15 @@ private theorem stepOrdering_to_three {l₁ l₂ : Event n}
     obFinishBefore on h₁ (no l₁→l₂ forward bound): sorry. -/
 private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
     (h₁ : @StepOrdering n l₁ l₂ ∨ l₁ = l₂)
-    (h₂ : @StepOrdering n l₂ l₃)
     (hedge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₂ e₃)
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (hl₂ : l₂ = (hknow e₂).hreq's_dir_access.choose) (hl₃ : l₃ = (hknow e₃).hreq's_dir_access.choose)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent) (h₃_isdir : l₃.isDirectoryEvent)
-    : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ := by
-  -- eq case: substitute and return h₂
+    (h₁_isdir : l₁.isDirectoryEvent)
+    : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ :=
+  sorry -- compose_three: to be replaced by direct edge-type reasoning (or removed entirely)
+
+/- OLD compose_three body removed.
   cases h₁ with
   | inr heq₁ => exact Or.inl (heq₁ ▸ h₂)
   | inl hso₁ =>
@@ -2236,6 +2237,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
     | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂)
     | eq heq₁ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂)
     | _ => sorry -- obEndLt/obFinishBefore/encapObEndLt + encapObEndLt
+-/
 
 /-- Acyclicity given that every event has a linearization.
     Invariant: `StepOrdering (cle a) (cle c) ∨ cle a = cle c`.
@@ -2244,35 +2246,27 @@ theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
   intro e hcycle
-  let cle := fun e => (hknow e).hreq's_dir_access.choose
-  -- Invariant: StepOrdering ∨ eq
-  suffices ∀ a c, Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) a c →
-      @StepOrdering n (cle a) (cle c) ∨ cle a = cle c by
-    have hresult := this e e hcycle
-    cases hresult with
-    | inl hso =>
-      -- StepOrdering CLE CLE → convert to 3-way → contradiction
-      have h3 := stepOrdering_to_three hso (b.orderedAtEntry.dir_ordered)
-        ((hknow e).hreq's_dir_access.choose_spec.right.isDirEvent)
-        ((hknow e).hreq's_dir_access.choose_spec.right.isDirEvent)
-      cases h3 with
-      | inl hlink => exact LinLink.irrefl hlink
-      | inr hr => cases hr with
-        | inl heq => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
-        | inr hdiff => exact absurd rfl hdiff
-    | inr heq => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
-  intro a c hpath
-  induction hpath with
-  | single h => exact Or.inl (step_to_ordering h hknow)
-  | tail _ h ih =>
-    -- Try abstract StepOrdering composition first.
-    -- For sorry cases, use edge-specific evidence from h.
-    let so₂ := step_to_ordering h hknow
-    exact compose_three ih so₂ h hknow rfl rfl
-      (b.orderedAtEntry.dir_ordered)
-      ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
-      ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
-      ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
+  -- Directly show TransGen R e e → False.
+  -- Use suffices with a property that composes and contradicts at endpoint.
+  -- Try: just derive False by case-splitting on the last edge.
+  have : ∀ a c, Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) a c → a = c → False := by
+    intro a c hpath hac
+    induction hpath with
+    | single h =>
+      subst hac
+      cases h with
+      | inl hppoi => exact ppoi_irrefl hppoi.1
+      | inr hcom => exact com_irrefl hcom
+    | tail hpath h ih =>
+      -- hpath : TransGen R a b, h : R b c, hac : a = c
+      -- ih : a = b → False
+      -- Goal: False. We have path a → b and edge b → a (since c = a).
+      subst hac
+      -- Now h : R b a, hpath : TransGen R a b, ih : a = b → False
+      -- Case-split h (edge b → a) to get specific evidence.
+      -- Case-split on hpath to extract the first edge of the prefix.
+      sorry
+  exact this e e hcycle rfl
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
