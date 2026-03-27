@@ -2202,9 +2202,8 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
                   -- .ob IS LinLink → it was produced at same-protocol. So l₂ ≠ l₃ is impossible.
                   -- l₂ ≠ l₃ protocol. by_cases l₁ = l₃ (2-cluster pigeonhole usually gives l₁ = l₃).
                   by_cases hprot₁₃ : l₁.protocol = l₃.protocol
-                  · exfalso; rw [hfc₁, hfc₃] at hprot₁₃; rw [hfc₃] at h₂₃
-                    -- Same protocol l₁ l₃ but l₂ ≠ l₃. Not immediately contradictory.
-                    -- TODO: show .ob from step_to_ordering implies l₂ = l₃ protocol.
+                  · -- VACUOUS: .ob from step_to_ordering → same-cluster → l₂ = l₃ protocol → contradicts h₂₃.
+                    -- Need: e₂.protocol = e₃.protocol from hcom_edge (all .ob com edges are same-cluster).
                     sorry
                   · rw [hfc₁, hfc₃] at hprot₁₃
                     exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot₁₃)
