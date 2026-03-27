@@ -158,7 +158,40 @@ private noncomputable def compound_lin_start_bound
         (Nat.lt_of_lt_of_le (Event.oWellFormed n lin_e.hreq's_dir_access.choose)
           (Nat.le_of_lt hpred_dir_access.reqEncapDir.right))
         hexists_pred.choose_spec.right.isImmPred.bPred.isPred)
-    | encapDir _ _ => sorry -- unreachable: clusterCacheLin (reqHasPerms) ∧ encapDir (reqMissingPerms)
+    | encapDir hreq_missing _ =>
+      -- Unreachable: clusterCacheLin (reqHasPerms) ∧ encapDir (reqMissingPerms) → False
+      exfalso
+      have hreq_has := hcache.choose_spec.right.cReqHasPerms
+      cases hreq_missing with
+      | downgrade hdown _ =>
+        -- e.down: need to show reqHasPerms constructors don't apply to downgrades
+        cases hreq_has with
+        | hasPerms hcoherent _ =>
+          sorry -- isCoherent + e.down → ⊥ (protocol: coherent events are not downgrades)
+        | ncRelAcqWeakWriteHasCoherentPerms hrel _ =>
+          sorry -- isNcRelAcqWeakWrite + e.down → ⊥ (protocol: these events are not downgrades)
+        | ncWeakReadHasPermsNotVd hweak _ =>
+          sorry -- isNcWeakRead + e.down → ⊥ (protocol: weak reads are not downgrades)
+      | noPermsForNonNcRelAcqWeakWrite _ hnotrel hnoPerms =>
+        cases hreq_has with
+        | hasPerms _ hhas =>
+          exact hnoPerms (show Behaviour.eventOnStateHasPerms n b init e from hhas)
+        | ncRelAcqWeakWriteHasCoherentPerms hrel _ =>
+          exact hnotrel hrel
+        | ncWeakReadHasPermsNotVd _ hperms =>
+          exact hnoPerms (show Behaviour.eventOnStateHasPerms n b init e from hperms.hasPerms)
+      | ncRelAcqWeakWriteNotOnCoherentState _ hrelacq hnocoherentperms =>
+        cases hreq_has with
+        | hasPerms hcoherent _ =>
+          -- isCoherent ∧ isNcRelAcq → ⊥
+          sorry -- coherent events can't be acquire/ncRelease (Request.IsValid constraint)
+        | ncRelAcqWeakWriteHasCoherentPerms _ hcoherent_perms =>
+          exact hnocoherentperms ⟨show Behaviour.eventOnCoherentState n b init e from
+            hcoherent_perms.onCoherentState,
+            show Behaviour.eventOnStateHasPerms n b init e from hcoherent_perms.hasPerms⟩
+        | ncWeakReadHasPermsNotVd hweak _ =>
+          -- isNcWeakRead ∧ isNcRelAcq → ⊥ (weak ≠ acquire/release)
+          sorry -- weak reads are not acquire/ncRelease (Consistency enum constraint)
     | orderAfterDir _ _ _ _ => sorry -- unreachable: clusterCacheLin (reqHasPerms) ∧ orderAfterDir (ncWeak)
   | .clusterDirLin hdir =>
     -- compound lin event = hdir.choose
