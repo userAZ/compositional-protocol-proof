@@ -56,14 +56,14 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-27 session 12, checkpoint 5)
+### Status (updated 2026-03-27 session 12, checkpoint 6)
 - **CO edge**: FULLY PROVEN
 - **rfe edge**: FULLY PROVEN
 - **FR edge**: `fr_ordering_holds` SORRY-FREE. 1 translatedDir sorry in helper.
 - **PPOi edge**: Restricted to diff-addr. All non-lazy PROVEN. 1 lazy sorry.
 - **Cycle proof**: Invariant = `StepOrdering ∨ eq`. compose_three composes h₁ (StepOrdering∨eq) with hedge (PPOi∪com edge). At cycle level: stepOrdering_to_three → LinLink/eq/diff_prot → irrefl/dir_ordered/absurd.
 - **StepOrdering**: 8 constructors (ob, obEndLt, encapOb, obFinishBefore, sameLin, proxyPair, eq, encapObEndLt).
-- **compose_three**: Case-splits hedge into PPOi/com. Most h₁×h₂ compositions proven. obFinishBefore h₁ + same-cluster h₂ → VACUOUS via protocol chain (proven for PPOi, co sameCache/sameClusDiffCache). Pattern: derive `l₂=l₃ protocol` before matches → `l₁≠l₃` → `.obFinishBefore`.
+- **compose_three**: Case-splits hedge into PPOi/com. Most compositions proven. Has `h_prefix_edge` (last prefix edge from TransGen) and `h_junction_compat : ¬(e₂.isWrite ∧ e₂.isRead)` for junction check. obFinishBefore h₁ + same-cluster h₂ → VACUOUS. obFinishBefore h₁ + encapOb/proxyPair h₂ (diff-prot direction) → `.obFinishBefore` via p₁ OB chain.
 - **15 active sorry's** in Proof.lean (8 in compose_three, 7 elsewhere). Old compose_three body in block comment.
 - **CompoundProtocol.dirAccessUnique**: Field bridging compound lin ↔ Herd CLEs.
 
@@ -77,12 +77,13 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 ### Remaining sorry categories (15 active)
 
-**compose_three (8 sorry's):**
-- 1× PPOi non-ob (vacuous — PPOi always gives .ob from dir_ordered)
-- 1× protocol extraction from com edge (`e₂.protocol = e₃.protocol`) — co proven, rfe/fr/co-diffClus sorry
-- 1× obFinishBefore h₁ + obEndLt h₂ (cross-cluster composition)
-- 3× obEndLt/obFinishBefore/encapObEndLt h₁ + encapOb/proxyPair/encapObEndLt h₂ (proxy ordering)
-- 1× any h₁ + obFinishBefore h₂ (cross-cluster h₂)
+**compose_three sorry's (7 declarations use sorry):**
+- Infrastructure: `h_prefix_edge` (last prefix edge), `h_junction_compat` (¬(write∧read)), `h_e₂_from_*` (read/write extraction from edges)
+- obFinishBefore h₁ + ob h₂: CLOSED for PPOi (sameProtocol chain). Com: 1 sorry (protocol extraction `e₂.protocol = e₃.protocol`, co sameCache/sameClusDiffCache proven, rfe/fr/co-diffClus sorry via Classical.em pigeonhole).
+- obFinishBefore h₁ + encapOb/proxyPair h₂: diff-prot direction CLOSED (p₁ OB chain). Same-prot l₃ OB l₁: sorry.
+- obEndLt/encapObEndLt h₁ + encapOb/proxyPair h₂: sorry (proxy ordering). Use `h_prefix_edge` + `h_junction_compat` to eliminate incompatible pairs (FR+FR, co+FR, rfe+rfe). Remaining compatible pairs (rfe+FR, etc.): need proxy cluster info from edges.
+- Wildcards: h₁ + obFinishBefore h₂, h₁ + encapObEndLt h₂: sorry.
+- KEY TOOL: `h_junction_compat` eliminates many edge pairs. Case-split `h_prefix_edge × hcom_edge` to check `e₂.isRead ∧ e₂.isWrite → False`.
 
 **KEY PATTERN (session 12): obFinishBefore h₁ + same-cluster h₂ → VACUOUS.**
 h₁ has l₁≠l₂. Same-cluster h₂ has l₂=l₃. Combined: l₁≠l₃. Output: `.obFinishBefore` with diff_prot.
