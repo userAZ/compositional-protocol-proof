@@ -56,33 +56,44 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-26 session 11, final checkpoint)
+### Status (updated 2026-03-26 session 12)
 - **CO edge**: FULLY PROVEN
 - **rfe edge**: FULLY PROVEN
 - **FR edge**: `fr_ordering_holds` SORRY-FREE. 1 translatedDir sorry in helper.
-- **PPOi edge**: Restricted to diff-addr (same-addr subsumed by com in cycles). All diff-addr non-lazy cases PROVEN via `ppoi_diff_addr_step_ordering` (dir_ordered + CompoundMCM temporal contradiction). 1 lazy sorry (TODO: needs PPOi+com pair composition).
-- **StepOrdering.trans**: 7 sorry's — `encapOb`/`obFinishBefore` compositions (structural).
-- **6 sorry declarations** in Proof.lean, **15 active sorry's** (down from 37 at session start)
-- **CompoundProtocol.dirAccessUnique**: Field on CompoundProtocol bridging compound lin ↔ Herd CLEs.
-- **PPOi union changed**: `PPOi ∪ com` → `(PPOi ∧ diff_addr) ∪ com` in theorem statements.
+- **PPOi edge**: Restricted to diff-addr. All non-lazy PROVEN. 1 lazy sorry.
+- **StepOrdering.trans**: DELETED (19 sorry's removed). Replaced by LinLink (TransGen LinStep).
+- **LinLink.irrefl**: FULLY PROVEN (oStart measure).
+- **Cycle proof**: Uses `stepOrdering_to_three` → `compose_three` → cycle contradiction.
+- **13 active sorry's** in Proof.lean (down from 37 at session 10 start, 15 at session 11).
+- **CompoundProtocol.dirAccessUnique**: Field bridging compound lin ↔ Herd CLEs.
 
 **TODO (post-deadline):**
 1. Replace `dirAccessUnique` field with proof by unifying CLE definitions (Type/Prop blocker).
 2. Implement lazy PPOi+com pair composition (see TODO in `ppoi_diff_addr_step_ordering`).
-3. Add `reqHasPerms + reqMissingPerms → False` lemma (closes 5 unreachable helper sorry's).
+3. Prove `reqHasPerms + reqMissingPerms → False` — closes 5 helper sorry's. Key: ALL reqHasPerms cases give `b.hasPerms` (= `eventOnStateHasPerms`). `reqMissingPerms.noPermsForNonNcRelAcqWeakWrite` gives `¬eventOnStateHasPerms` (direct contradiction). `reqMissingPerms.downgrade` needs `¬down` (from PPOi). `reqMissingPerms.ncRelAcqWeakWriteNotOnCoherentState` needs either `coherentState + hasPerms` (from `ncRelAcqWeakWriteHasCoherentPerms`) or request type exclusion (`isCoherent ∧ isNcRelAcq → False`).
+4. Fix `compose_three` sorry's — needs structural change (see analysis below).
 
-### Remaining sorry categories (15 active)
+### Remaining sorry categories (13 active)
 
 **Helper lemma sorry's (5, unreachable at call sites):**
-- `compound_lin_start/end_bound` clusterCacheLin branches. Unreachable because non-lazy CompoundMCM guarantees `clusterDirLin`. Fix: add `clusterDirLin` precondition or prove `reqHasPerms + reqMissingPerms → False`.
+- `compound_lin_start/end_bound` clusterCacheLin branches (lines 161, 162, 220, 223, 226).
+- Fix approach: add `¬e.down` param (from PPOi.notDown), then case-split reqMissingPerms. `downgrade` closed via ¬down. `noPerms` closed via hasPerms/noPerms complementarity. `ncRelAcqWeakWriteNotOnCoherentState`: 2 sub-cases need request type exclusion. Line 223 (orderBeforeDir end bound) genuinely fails — needs restructuring or clusterDirLin precondition.
 
-**StepOrdering.trans (7):** `encapOb`/`obFinishBefore` compositions. Structural design issue — these constructors don't carry enough temporal info to compose. Need path constructor or restructured acyclicity proof.
+**compose_three sorry's (3, lines 2083/2095/2101):**
+- Cross-cluster FR gives `obFinishBefore` → maps to `diff_protocol` in stepOrdering_to_three.
+- `diff_protocol` doesn't compose with `LinLink` or other `diff_protocol`.
+- VACUOUS at cycle level (diff_prot(cle(e), cle(e)) = absurd rfl), but intermediate composition fails.
+- **Root cause**: `obFinishBefore` and `obEndLt diff-protocol` only give oEnd bounds, not oStart bounds. LinLink tracks oStart. Cross-cluster CLEs have no inherent oStart ordering.
+- **Potential fixes**: (a) Track BOTH oStart and oEnd in the invariant; (b) Use min-element argument on the cycle; (c) Handle cross-protocol edges at the cycle level, not in step-by-step composition; (d) Eliminate obFinishBefore by strengthening FR evidence.
 
-**Lazy PPOi (1):** `lazyCompoundLinearizationOrder` gives `finishesBefore` (not `OrderedBefore`). Needs PPOi+com pair composition at cycle level. rfe/co downgrade e₂; fr needs analysis.
+**Lazy PPOi (1, line 1500):** `lazyCompoundLinearizationOrder` gives `finishesBefore`. Needs PPOi+com pair composition.
 
-**translatedDir (1):** `clusterDirFromDiffProtocolRequest` endpoint shift through CO chain.
+**translatedDir (1, line 608):** `clusterDirFromDiffProtocolRequest` endpoint shift through CO chain.
 
-**Cycle irrefl obFinishBefore (1):** Composed cycle may produce `obFinishBefore l l`. Blocked by StepOrdering structural issue.
+**Deep protocol FR sorry's (3, lines 1899/1996/2000):**
+- 1899: `cdir_w OB CLE_w + evict_w OB CLE_w` — temporal loop argument incomplete.
+- 1996: `cdir OB CLE_w` — deeper protocol argument needed.
+- 2000: diff-cluster e_w — CLE_w OB evict from co chain + encap chain.
 
 ### KEY INSIGHT (session 10): FR proof via RF evidence + encapOb
 
@@ -254,11 +265,13 @@ Structure implemented: match on `ClusterRequestLinearizationEvent` (clusterCache
 - `clusterCacheLin + orderBeforeDir` for start_bound: temporal chain `CLE.oStart < CLE.oEnd < pred.oEnd < e.oStart`
 - `clusterDirLin + requestLin`: closed by contradiction (OfReqEncapDirAccess is False)
 
-**Remaining sorry categories:**
+**Remaining sorry categories (updated session 12):**
 
-1. **Choose bridge (4 sorry's, 2 per lemma):** `clusterDirLin` cases need `hreq's_dir_access.choose = reqLinearizeAtDir.choose` but `Exists.choose` (= `Classical.choose`) is opaque. `exists_choose_eq` gives `h₁.choose = h₂.choose` for same-type existentials, but the compound CLE comes from a DIFFERENT existential type (`∃ x ∈ b, requestLinearizesAtDirectory ...`) than the Herd CLE (`∃ x ∈ b, dirAccessOfRequest ...`). Fix: prove `dirAccessOfRequest` forward-uniqueness (given cache event `e`, the directory event is unique) OR restructure `globalLinearizationEventOfRequest` to carry the compound framework's CLE directly.
+1. **Choose bridge: RESOLVED** via `dirAccessUnique` field on CompoundProtocol (session 11).
 
-2. **clusterCacheLin contradictions (3 sorry's per lemma, 6 total):** `clusterCacheLin + encapDir` needs `reqHasPerms + reqMissingPerms → False`; `clusterCacheLin + orderAfterDir` needs contradiction from compound axioms; `clusterCacheLin + orderBeforeDir` for end_bound is genuinely false (e.oEnd > CLE.oEnd) but shouldn't arise at call sites.
+2. **clusterCacheLin contradictions (5 sorry's):** Lines 161, 162, 220, 223, 226. Approach: add `¬down` param + case-split `reqMissingPerms`. `downgrade` → `¬down` contradiction. `noPermsForNonNcRelAcqWeakWrite` → `hasPerms` vs `¬hasPerms` (definitional: `Behaviour.hasPerms = Behaviour.eventOnStateHasPerms`). `ncRelAcqWeakWriteNotOnCoherentState`: `ncRelAcqWeakWriteHasCoherentPerms` sub-case → `⟨coherentState, hasPerms⟩` contradicts `¬(coherentState ∧ hasPerms)`. Other sub-cases need request type exclusion: `isCoherent ∧ isNcRelAcq → False` (Acquire has coherent=false, NcRelease has coherent=false) and `isNcWeakRead ∧ isNcRelAcq → False`. Line 223 (`orderBeforeDir` end bound) genuinely fails — restructure call site.
+
+3. **compose_three (3 sorry's):** Lines 2083, 2095, 2101. `obFinishBefore` maps to `diff_protocol` which doesn't compose with `LinLink`. VACUOUS at cycle endpoints. Root cause: cross-cluster CLEs have no oStart ordering. Need structural redesign of cycle proof (min-element, dual tracking, or cycle-level cross-protocol handling).
 
 **Key technique discovered:** `simp[compoundLinearization.OfReqEncapDirAccess] + split` decomposes the match on the opaque `compound.linearizationOfEvent b init e`. The `split` tactic handles the match case analysis. After the split, the `h_2` case (dirLin) gives access to `hdir_lin` and the `clusterDirectoryLinearizationEvent` evidence. This pattern is from CompoundPPOs.lean lines 638-641.
 
@@ -366,6 +379,23 @@ Concrete counterexample to oEnd monotonicity:
 - The contradiction must come from PROTOCOL PROPERTIES, not temporal oEnd ordering.
 
 This applies to ALL oEnd-based approaches: finishesBefore, per-edge e.oEnd, max(e.oEnd, CLE.oEnd), cross-edge composition.
+
+### LinLink approach (session 11-12): TransGen LinStep replaces StepOrdering.trans
+
+**LinStep** has 2 constructors: `ob` (OrderedBefore) and `encap` (Encapsulates). Both strictly increase `oStart`. **LinLink** = `TransGen LinStep` — gets transitivity for free. **LinLink.irrefl** proven via `oStart_lt` measure.
+
+**stepOrdering_to_three** converts StepOrdering to `LinLink ∨ eq ∨ diff_protocol`:
+- `ob` → LinLink (single step)
+- `encapOb` → LinLink (2 steps: encap + ob)
+- `proxyPair` → LinLink (3 steps: encap + ob + ob)
+- `sameLin`/`eq` → eq
+- `obFinishBefore` → diff_protocol (l₁.protocol ≠ l₂.protocol)
+- `obEndLt` same-protocol → LinLink (via dir_ordered: both are directoryEvents at same cluster)
+- `obEndLt` diff-protocol → diff_protocol
+
+**compose_three GAP**: `diff_protocol` doesn't compose with `LinLink`. At cycle endpoints (l₁ = l₃), `diff_protocol(l, l) = absurd rfl` — trivially contradicted. But intermediate composition can't derive the result. This is because cross-cluster CLEs have no oStart ordering. The 3 sorry's (lines 2083/2095/2101) represent this structural gap.
+
+**Potential fix for compose_three**: Track a RICHER invariant through the induction, e.g., `LinLink l₁ l₂ ∨ l₁ = l₂ ∨ (∃ p, p.OrderedBefore n l₂ ∧ p.oEnd < l₁.oEnd)` where the third case carries the actual obFinishBefore payload (proxy + temporal bounds). This composes: `(∃ p, p OB l₂ ∧ p.oEnd < l₁.oEnd) + LinLink l₂ l₃` gives `(∃ p, p OB l₃ ∧ p.oEnd < l₁.oEnd)` because `LinLink l₂ l₃ → l₂.oStart < l₃.oStart` and `p OB l₂ → p.oEnd < l₂.oStart < l₃.oStart` → `p OB l₃`. At cycle level: `∃ p, p OB l ∧ p.oEnd < l.oEnd` → `p.oEnd < l.oStart` (from OB) and `p.oEnd < l.oEnd`, consistent — need additional argument. Alternatively `p OB l → p.oEnd < l.oStart ≤ l.oEnd` and we're back to needing l not before itself.
 
 ### Anqi's cycle examples (KEY — use these as the proof template!)
 

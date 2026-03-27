@@ -2023,6 +2023,7 @@ private theorem cle_self_ordering_false
 private theorem stepOrdering_to_three {l₁ l₂ : Event n}
     (h : StepOrdering l₁ l₂)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
     : @LinLink n l₁ l₂ ∨ l₁ = l₂ ∨ l₁.protocol ≠ l₂.protocol := by
   cases h with
   | ob h => exact Or.inl (LinLink.single (.ob h))
@@ -2031,7 +2032,23 @@ private theorem stepOrdering_to_three {l₁ l₂ : Event n}
     -- Same protocol: dir_ordered gives p OB l₂ → ob chain → LinLink.
     -- Diff protocol: diff_protocol → cycle contradiction.
     by_cases h_prot : l₁.protocol = l₂.protocol
-    · sorry -- same protocol obEndLt: needs dir_ordered p l₂ (both directory events at same cluster)
+    · match hfc₁ : l₁, h₁_isdir with
+      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+      | .directoryEvent de₁, _ =>
+        match hfc₂ : l₂, h₂_isdir with
+        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+        | .directoryEvent de₂, _ =>
+          cases (hdir de₁ de₂).ordered with
+          | inl h => exact Or.inl (LinLink.single (.ob h))
+          | inr h =>
+            exfalso
+            exact Nat.lt_irrefl de₂.oEnd
+              (calc de₂.oEnd
+                _ < de₁.oStart := h
+                _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
+                _ < Event.oStart n p := h_ob
+                _ ≤ Event.oEnd n p := Nat.le_of_lt (Event.oWellFormed n p)
+                _ < de₂.oEnd := h_lt)
     · exact Or.inr (Or.inr h_prot)
   | encapOb p h_enc h_ob =>
     exact Or.inl (LinLink.trans (LinLink.single (.encap h_enc)) (LinLink.single (.ob h_ob)))
@@ -2101,9 +2118,14 @@ theorem cmcm_acyclic_of_hknow
       | inr hdiff => exact absurd rfl hdiff
   intro a c hpath
   induction hpath with
-  | single h => exact stepOrdering_to_three (step_to_ordering h hknow) (b.orderedAtEntry.dir_ordered)
+  | single h =>
+    exact stepOrdering_to_three (step_to_ordering h hknow) (b.orderedAtEntry.dir_ordered)
+      ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
+      ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
   | tail _ h ih =>
-    exact compose_three ih (stepOrdering_to_three (step_to_ordering h hknow) (b.orderedAtEntry.dir_ordered))
+    exact compose_three ih (stepOrdering_to_three (step_to_ordering h hknow) (b.orderedAtEntry.dir_ordered)
+      ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
+      ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent))
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
