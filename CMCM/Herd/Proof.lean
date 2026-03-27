@@ -2264,8 +2264,19 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
         exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hp_ob henc₂.left)) hob₂)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
-      | _ =>
-        -- obEndLt/obFinishBefore/encapObEndLt h₁ + encapOb h₂: by_cases protocol.
+      | obEndLt p₁ hob₁ hlt₁ =>
+        -- l₁ OB p₁, p₁.oEnd < l₂.oEnd, p₂ inside l₂, p₂ OB l₃
+        -- p₁.oEnd < l₂.oEnd. p₂ inside l₂ → l₂.oStart < p₂.oStart, p₂.oEnd < l₂.oEnd.
+        -- p₁ and p₂: both have oEnd < l₂.oEnd. Their relative order unknown.
+        -- by_cases protocol: same → dir_ordered; diff → .obFinishBefore needs p₁ OB l₃.
+        sorry -- obEndLt h₁ + encapOb h₂: proxy ordering unknown
+      | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
+        -- p₁ OB l₂, p₁.oEnd < l₁.oEnd. p₂ inside l₂, p₂ OB l₃.
+        -- p₁ OB l₂: p₁.oEnd < l₂.oStart < p₂.oStart (from encap) → p₁ OB p₂.
+        -- p₂ OB l₃: p₂.oEnd < l₃.oStart.
+        -- Chain: p₁ OB p₂ OB l₃ → p₁ OB l₃. Output .obFinishBefore p₁ (p₁ OB l₃) hlt₁ (l₁ ≠ l₃?).
+        have hp₁_ob_p₂ : Event.OrderedBefore n p₁ p₂ := Nat.lt_trans hob₁ henc₂.left
+        have hp₁_ob_l₃ : Event.OrderedBefore n p₁ l₃ := Trans.trans hp₁_ob_p₂ hob₂
         by_cases hprot : l₁.protocol = l₃.protocol
         · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
           match hfc₁ : l₁, h₁_isdir with
@@ -2276,32 +2287,12 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
             | .directoryEvent de₃, _ =>
               cases (hdir de₁ de₃).ordered with
               | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
-              | inr _ => sorry -- l₃ OB l₁: genuine hard case
-        · -- l₁ ≠ l₃. by_cases e₂ = e₃ protocol to determine l₂ vs l₃ relationship.
-          by_cases he₂₃ : e₂.protocol = e₃.protocol
-          · -- Same cluster: l₂ = l₃ protocol. dir_ordered(l₂, l₃).
-            have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
-            have h₃_isdir' : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
-            match hfc₂ : l₂, h₂_isdir with
-            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-            | .directoryEvent de₂, _ =>
-              match hfc₃' : l₃, h₃_isdir' with
-              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-              | .directoryEvent de₃, _ =>
-                cases (hdir de₂ de₃).ordered with
-                | inl hob₂₃ =>
-                  -- l₂ OB l₃. For obFinishBefore h₁: p₁ OB l₂ OB l₃ → p₁ OB l₃.
-                  sorry -- need to extract p₁ from the wildcard h₁ and chain
-                | inr hob₃₂ =>
-                  -- l₃ OB l₂. p₂ inside l₂: l₂.oStart < p₂.oStart. p₂ OB l₃: p₂.oEnd < l₃.oStart.
-                  -- Chain: l₃.oEnd < l₂.oStart < p₂.oStart ≤ p₂.oEnd < l₃.oStart ≤ l₃.oEnd → l₃.oEnd < l₃.oEnd.
-                  exfalso; exact Nat.lt_irrefl de₃.oEnd (calc de₃.oEnd
-                    _ < de₂.oStart := hob₃₂
-                    _ < Event.oStart n p₂ := henc₂.left
-                    _ ≤ Event.oEnd n p₂ := Nat.le_of_lt (Event.oWellFormed n p₂)
-                    _ < de₃.oStart := hob₂
-                    _ ≤ de₃.oEnd := Nat.le_of_lt de₃.oWellFormed)
-          · exfalso; exact sorry -- pigeonhole
+              | inr _ => sorry -- l₃ OB l₁: hard case
+        · exact Or.inl (.obFinishBefore p₁ hp₁_ob_l₃ hlt₁ hprot)
+      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
+        -- q₁ inside l₁, q₁ OB p₁, p₁.oEnd < l₂.oEnd. p₂ inside l₂, p₂ OB l₃.
+        -- Same proxy ordering issue as obEndLt.
+        sorry -- encapObEndLt h₁ + encapOb h₂
     | proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂ =>
       cases hso₁ with
       | ob hob₁ =>
@@ -2312,7 +2303,12 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
         exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp_ob hq_enc₂.left) hq_ob₂)) hp_ob₂)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
-      | _ =>
+      | obEndLt p₁ hob₁ hlt₁ => sorry -- obEndLt h₁ + proxyPair h₂: proxy ordering unknown
+      | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
+        -- p₁ OB l₂. q₂ inside l₂ → l₂.oStart < q₂.oStart → p₁ OB q₂.
+        -- q₂ OB p₂ OB l₃ → p₁ OB l₃. Output .obFinishBefore.
+        have hp₁_ob_q₂ : Event.OrderedBefore n p₁ q₂ := Nat.lt_trans hob₁ hq_enc₂.left
+        have hp₁_ob_l₃ : Event.OrderedBefore n p₁ l₃ := Trans.trans hp₁_ob_q₂ (Trans.trans hq_ob₂ hp_ob₂)
         by_cases hprot : l₁.protocol = l₃.protocol
         · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
           match hfc₁ : l₁, h₁_isdir with
@@ -2323,29 +2319,9 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
             | .directoryEvent de₃, _ =>
               cases (hdir de₁ de₃).ordered with
               | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
-              | inr _ => sorry -- l₃ OB l₁: genuine hard case
-        · by_cases he₂₃ : e₂.protocol = e₃.protocol
-          · have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
-            have h₃_isdir' : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
-            match hfc₂ : l₂, h₂_isdir with
-            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-            | .directoryEvent de₂, _ =>
-              match hfc₃' : l₃, h₃_isdir' with
-              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-              | .directoryEvent de₃, _ =>
-                cases (hdir de₂ de₃).ordered with
-                | inl hob₂₃ => sorry -- l₂ OB l₃: extract p₁ from wildcard h₁ and chain p₁ OB l₃
-                | inr hob₃₂ =>
-                  -- l₃ OB l₂. q₂ inside l₂: l₂.oStart < q₂.oStart. Chain → l₃.oEnd < l₃.oEnd.
-                  exfalso; exact Nat.lt_irrefl de₃.oEnd (calc de₃.oEnd
-                    _ < de₂.oStart := hob₃₂
-                    _ < Event.oStart n q₂ := hq_enc₂.left
-                    _ ≤ Event.oEnd n q₂ := Nat.le_of_lt (Event.oWellFormed n q₂)
-                    _ < Event.oStart n p₂ := hq_ob₂
-                    _ ≤ Event.oEnd n p₂ := Nat.le_of_lt (Event.oWellFormed n p₂)
-                    _ < de₃.oStart := hp_ob₂
-                    _ ≤ de₃.oEnd := Nat.le_of_lt de₃.oWellFormed)
-          · exfalso; exact sorry -- pigeonhole
+              | inr _ => sorry -- l₃ OB l₁: hard case
+        · exact Or.inl (.obFinishBefore p₁ hp₁_ob_l₃ hlt₁ hprot)
+      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ => sorry -- encapObEndLt h₁ + proxyPair h₂
     | encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ =>
       cases hso₁ with
       | ob hob₁ =>
