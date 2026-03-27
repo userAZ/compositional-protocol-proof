@@ -2246,50 +2246,28 @@ theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
   intro e hcycle
-  -- Directly show TransGen R e e → False.
-  -- Use suffices with a property that composes and contradicts at endpoint.
-  -- Try: just derive False by case-splitting on the last edge.
-  have : ∀ a c, Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) a c → a = c → False := by
-    intro a c hpath hac
-    induction hpath with
-    | single h =>
-      subst hac
-      cases h with
-      | inl hppoi => exact ppoi_irrefl hppoi.1
-      | inr hcom => exact com_irrefl hcom
-    | tail hpath h ih =>
-      subst hac
-      -- hpath : TransGen R a b, h : R b a, ih : a = b → False
-      -- Unfold hpath to extract edges.
-      cases hpath with
-      | single h₁ =>
-        -- 2-cycle: R a b ∧ R b a. Use both edges' StepOrderings directly.
-        -- Compose to get StepOrdering(cle a, cle a) → contradiction.
-        let cle := fun e => (hknow e).hreq's_dir_access.choose
-        have so₁ := step_to_ordering h₁ hknow  -- StepOrdering (cle a) (cle b)
-        have so₂ := step_to_ordering h hknow   -- StepOrdering (cle b) (cle a)
-        -- Compose: StepOrdering(cle a, cle b) + StepOrdering(cle b, cle a)
-        -- → StepOrdering(cle a, cle a) ∨ eq → contradiction
-        have hcomposed : @StepOrdering n (cle a) (cle a) ∨ cle a = cle a :=
-          compose_three (Or.inl so₁) h hknow rfl rfl
-            (b.orderedAtEntry.dir_ordered) ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
-        -- At cycle: StepOrdering(cle a, cle a) or eq → both contradict
-        cases hcomposed with
-        | inl hso =>
-          have h3 := stepOrdering_to_three hso (b.orderedAtEntry.dir_ordered)
-            ((hknow a).hreq's_dir_access.choose_spec.right.isDirEvent)
-            ((hknow a).hreq's_dir_access.choose_spec.right.isDirEvent)
-          cases h3 with
-          | inl hlink => exact LinLink.irrefl hlink
-          | inr hr => cases hr with
-            | inl heq => exact cle_self_ordering_false (hknow a) b.orderedAtEntry.dir_ordered
-            | inr hdiff => exact absurd rfl hdiff
-        | inr _ => exact cle_self_ordering_false (hknow a) b.orderedAtEntry.dir_ordered
-      | tail hpath' h₁ =>
-        -- TransGen R a b', R b' b, R b a.
-        -- Longer cycle. TODO: reduce or use ranking.
-        sorry
-  exact this e e hcycle rfl
+  let cle := fun e => (hknow e).hreq's_dir_access.choose
+  -- Invariant: StepOrdering ∨ eq. Contradicts at cycle endpoint.
+  suffices ∀ a c, Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) a c →
+      @StepOrdering n (cle a) (cle c) ∨ cle a = cle c by
+    have hresult := this e e hcycle
+    cases hresult with
+    | inl hso =>
+      have h3 := stepOrdering_to_three hso (b.orderedAtEntry.dir_ordered)
+        ((hknow e).hreq's_dir_access.choose_spec.right.isDirEvent)
+        ((hknow e).hreq's_dir_access.choose_spec.right.isDirEvent)
+      cases h3 with
+      | inl hlink => exact LinLink.irrefl hlink
+      | inr hr => cases hr with
+        | inl heq => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+        | inr hdiff => exact absurd rfl hdiff
+    | inr heq => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+  intro a c hpath
+  induction hpath with
+  | single h => exact Or.inl (step_to_ordering h hknow)
+  | tail _ h ih =>
+    exact compose_three ih h hknow rfl rfl
+      (b.orderedAtEntry.dir_ordered) ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
