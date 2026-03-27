@@ -2511,6 +2511,11 @@ theorem cmcm_acyclic_of_hknow
   induction hpath with
   | single h => exact Or.inl (step_to_ordering h hknow)
   | tail hpath h ih =>
+    -- Extract last prefix edge for junction compatibility.
+    -- hpath : TransGen R a b_mid. h : R b_mid c.
+    -- From TransGen.tail': ∃ a', (a = a' ∨ TransGen R a a') ∧ R a' b_mid.
+    -- The last prefix edge R a' b_mid constrains b_mid's read/write.
+    -- For now: pass to compose_three without prefix edge (TODO: add for junction check).
     exact compose_three ih h hknow rfl rfl
       (b.orderedAtEntry.dir_ordered) ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
 
