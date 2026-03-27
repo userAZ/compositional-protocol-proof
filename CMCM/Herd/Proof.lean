@@ -2064,9 +2064,12 @@ private theorem stepOrdering_to_three {l₁ l₂ : Event n}
     For same-protocol l₁/l₃: dir_ordered → l₁ OB l₃ (LinLink) or l₃ OB l₁ (temporal contradiction).
     The temporal contradiction chains through BOTH h₁ and h₂'s data.
     obFinishBefore on h₁ (no l₁→l₂ forward bound): sorry. -/
-private theorem compose_three {l₁ l₂ l₃ : Event n}
+private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
     (h₁ : @StepOrdering n l₁ l₂ ∨ l₁ = l₂)
     (h₂ : @StepOrdering n l₂ l₃)
+    (hedge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₂ e₃)
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (hl₂ : l₂ = (hknow e₂).hreq's_dir_access.choose) (hl₃ : l₃ = (hknow e₃).hreq's_dir_access.choose)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent) (h₃_isdir : l₃.isDirectoryEvent)
     : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ := by
@@ -2190,7 +2193,8 @@ theorem cmcm_acyclic_of_hknow
   induction hpath with
   | single h => exact Or.inl (step_to_ordering h hknow)
   | tail _ h ih =>
-    exact compose_three ih (step_to_ordering h hknow) (b.orderedAtEntry.dir_ordered)
+    exact compose_three ih (step_to_ordering h hknow) h hknow rfl rfl
+      (b.orderedAtEntry.dir_ordered)
       ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
       ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
       ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
