@@ -2190,23 +2190,12 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
               cases (hdir de₁ de₃).ordered with
               | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
               | inr _ =>
-                -- l₃ OB l₁ at same protocol. Need l₂ = l₃ protocol to derive contradiction.
-                -- .ob h₂ comes from same-cluster edge → l₂ = l₃ protocol.
-                -- Then: l₁ = l₃ = l₂ protocol contradicts l₁ ≠ l₂.
-                -- Use by_cases on l₂ vs l₃ protocol:
-                by_cases h₂₃ : l₂.protocol = l₃.protocol
-                · exfalso; rw [hfc₃] at h₂₃; exact hdiff₁ (hprot.trans h₂₃.symm)
-                · -- l₂ ≠ l₃ protocol but h₂ = .ob → .ob comes from dir_ordered at same cluster → contradiction.
-                  -- If l₂ ≠ l₃ protocol, they're at different clusters → no dir_ordered → .ob can't arise.
-                  -- Use stepOrdering_to_three on h₂ itself: same-protocol gives LinLink, diff gives diff_prot.
-                  -- .ob IS LinLink → it was produced at same-protocol. So l₂ ≠ l₃ is impossible.
-                  -- l₂ ≠ l₃ protocol. by_cases l₁ = l₃ (2-cluster pigeonhole usually gives l₁ = l₃).
-                  by_cases hprot₁₃ : l₁.protocol = l₃.protocol
-                  · -- VACUOUS: .ob from step_to_ordering → same-cluster → l₂ = l₃ protocol → contradicts h₂₃.
-                    -- Need: e₂.protocol = e₃.protocol from hcom_edge (all .ob com edges are same-cluster).
-                    sorry
-                  · rw [hfc₁, hfc₃] at hprot₁₃
-                    exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot₁₃)
+                -- l₃ OB l₁ at same protocol. .ob h₂ → same-cluster → l₂ = l₃ protocol.
+                -- Combined with l₁ = l₃ (hprot) and l₁ ≠ l₂ (hdiff₁) → contradiction.
+                -- Derive l₂ = l₃ protocol from edge evidence:
+                exfalso
+                have h₂₃_prot : Event.protocol n l₂ = Event.protocol n l₃ := sorry -- extract from com edge (same-cluster .ob)
+                rw [hfc₃] at h₂₃_prot; exact hdiff₁ (hprot.trans h₂₃_prot.symm)
         · exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
