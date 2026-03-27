@@ -2059,6 +2059,28 @@ private theorem stepOrdering_to_three {l₁ l₂ : Event n}
       (LinLink.single (.ob h_q_ob_p))) (LinLink.single (.ob h_p_ob)))
   | obFinishBefore p h_ob h_lt h_diff => exact Or.inr (Or.inr h_diff)
   | eq h_eq => exact Or.inr (Or.inl h_eq)
+  | encapObEndLt q p h_q_enc h_q_ob h_p_lt =>
+    by_cases h_prot : l₁.protocol = l₂.protocol
+    · -- Same protocol: dir_ordered
+      match hfc₁ : l₁, h₁_isdir with
+      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+      | .directoryEvent de₁, _ =>
+        match hfc₂ : l₂, h₂_isdir with
+        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+        | .directoryEvent de₂, _ =>
+          cases (hdir de₁ de₂).ordered with
+          | inl h => exact Or.inl (LinLink.single (.ob h))
+          | inr h =>
+            exfalso
+            exact Nat.lt_irrefl de₂.oEnd
+              (calc de₂.oEnd
+                _ < de₁.oStart := h
+                _ < Event.oStart n q := h_q_enc.left
+                _ ≤ Event.oEnd n q := Nat.le_of_lt (Event.oWellFormed n q)
+                _ < Event.oStart n p := h_q_ob
+                _ ≤ Event.oEnd n p := Nat.le_of_lt (Event.oWellFormed n p)
+                _ < de₂.oEnd := h_p_lt)
+    · exact Or.inr (Or.inr h_prot)
 
 /-- Compose two StepOrderings (or eq) and extract 3-way disjunction.
     For same-protocol l₁/l₃: dir_ordered → l₁ OB l₃ (LinLink) or l₃ OB l₁ (temporal contradiction).
@@ -2103,6 +2125,10 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
     | proxyPair q₁ p₁ hq₁_enc hq₁_ob hp₁_ob =>
       -- q₁ inside l₁, q₁ OB p₁, p₁ OB l₂, l₂ OB l₃ → p₁ OB l₃
       exact Or.inl (.proxyPair q₁ p₁ hq₁_enc hq₁_ob (Trans.trans hp₁_ob hob₂))
+    | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
+      -- q₁ inside l₁, q₁ OB p₁, p₁.oEnd < l₂.oEnd, l₂ OB l₃ → p₁ OB l₃
+      have : Event.OrderedBefore n p₁ l₃ := show _ from Nat.lt_trans hlt₁ hob₂
+      exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob this))
     | sameLin e₁' e₂' heq₁ henc₁ hob₁' henc₂ =>
       exact Or.inl (heq₁ ▸ .ob hob₂)
     | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
@@ -2112,30 +2138,47 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
     cases hso₁ with
     | ob hob₁ => exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ hob₂) hlt₂)
     | encapOb p₁ henc₁ hob₁ =>
-      -- p₁ inside l₁, p₁ OB l₂ OB p₂ → p₁ OB p₂. But need p₂ for obEndLt, not proxyPair.
-      exact Or.inl (.obEndLt p₂ sorry hlt₂) -- need l₁ OB p₂ (not derivable from encapOb)
+      -- p₁ inside l₁, p₁ OB l₂, l₂ OB p₂ → p₁ OB p₂. Use encapObEndLt.
+      exact Or.inl (.encapObEndLt p₁ p₂ henc₁ (Trans.trans hob₁ hob₂) hlt₂)
     | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-      exact Or.inl (.obEndLt p₂ sorry hlt₂) -- need l₁ OB p₂ (not derivable from proxyPair)
+      -- q₁ inside l₁, q₁ OB p₁ OB l₂ OB p₂ → q₁ OB p₂. Use encapObEndLt.
+      exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans hp_ob hob₂)) hlt₂)
     | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂)
     | eq heq₁ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂)
-    | _ => sorry -- obEndLt/obFinishBefore + obEndLt
+    | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
+      -- q₁ inside l₁, q₁ OB p₁, p₁.oEnd < l₂.oEnd, l₂ OB p₂ → p₁ OB p₂
+      have hp₁p₂ : Event.OrderedBefore n p₁ p₂ := show _ from Nat.lt_trans hlt₁ hob₂
+      exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob hp₁p₂) hlt₂)
+    | obEndLt p₁ hob₁ hlt₁ =>
+      -- l₁ OB p₁, p₁.oEnd < l₂.oEnd, l₂ OB p₂ → p₁.oEnd < p₂.oStart → p₁ OB p₂
+      have hp₁p₂ : Event.OrderedBefore n p₁ p₂ := show _ from Nat.lt_trans hlt₁ hob₂
+      exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ hp₁p₂) hlt₂)
+    | _ => sorry -- obFinishBefore + obEndLt
   | encapOb p₂ henc₂ hob₂ =>
     cases hso₁ with
     | ob hob₁ =>
-      -- l₁ OB l₂ + l₂ encaps p₂ → l₁.oEnd < l₂.oStart < p₂.oStart → l₁ OB p₂
       have h₁₂ : Event.OrderedBefore n l₁ p₂ := Nat.lt_trans hob₁ henc₂.left
       exact Or.inl (.ob (Trans.trans h₁₂ hob₂))
     | encapOb p₁ henc₁ hob₁ =>
-      -- p₁ inside l₁, p₁ OB l₂ + l₂ encaps p₂ → p₁ OB p₂
       have hp₁p₂ : Event.OrderedBefore n p₁ p₂ := Nat.lt_trans hob₁ henc₂.left
       exact Or.inl (.proxyPair p₁ p₂ henc₁ hp₁p₂ hob₂)
     | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-      -- q₁ inside l₁, q₁ OB p₁, p₁ OB l₂ + l₂ encaps p₂ → p₁ OB p₂
       have hp₁p₂ : Event.OrderedBefore n p₁ p₂ := Nat.lt_trans hp_ob henc₂.left
       exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob hp₁p₂) hob₂)
+    | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
+      -- q₁ inside l₁, q₁ OB p₁, p₁.oEnd < l₂.oEnd. l₂ encaps p₂ → p₂.oEnd < l₂.oEnd.
+      -- p₁.oEnd < l₂.oEnd and l₂.oStart < p₂.oStart (from encap). p₁.oEnd vs p₂.oStart unknown.
+      -- But p₁.oEnd < l₂.oEnd and p₂.oEnd < l₂.oEnd (from encap). p₂ OB l₃.
+      -- Use encapObEndLt: q₁ inside l₁, q₁ OB p₁, and need p₁ to connect to l₃.
+      -- p₂ OB l₃: p₂.oEnd < l₃.oStart. Chain for q₁ OB l₃? Need q₁.oEnd < l₃.oStart.
+      -- q₁ OB p₁: q₁.oEnd < p₁.oStart. p₁ → ... → l₃ chain unclear.
+      sorry -- encapObEndLt + encapOb: p₁ and p₂ not necessarily ordered
+    | obEndLt p₁ hob₁ hlt₁ =>
+      -- l₁ OB p₁, p₁.oEnd < l₂.oEnd, p₂ inside l₂, p₂ OB l₃
+      sorry -- obEndLt + encapOb: p₁.oEnd < l₂.oEnd but p₁ vs p₂ unknown
     | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
     | eq heq₁ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
-    | _ => sorry -- obEndLt/obFinishBefore + encapOb
+    | _ => sorry -- obFinishBefore + encapOb
   | proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂ =>
     cases hso₁ with
     | ob hob₁ =>
@@ -2147,9 +2190,13 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
     | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
       have hp₁q₂ : Event.OrderedBefore n p₁ q₂ := Nat.lt_trans hp_ob hq_enc₂.left
       exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans hp₁q₂ hq_ob₂)) hp_ob₂)
+    | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
+      -- q₁ inside l₁, q₁ OB p₁, p₁.oEnd < l₂.oEnd, q₂ inside l₂
+      -- Same issue as encapObEndLt + encapOb
+      sorry -- encapObEndLt + proxyPair
     | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
     | eq heq₁ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
-    | _ => sorry -- obEndLt/obFinishBefore + proxyPair: complex
+    | _ => sorry -- obEndLt/obFinishBefore + proxyPair
   | obFinishBefore p₂ hob₂ hlt₂ hdiff₂ =>
     -- h₂: p₂ OB l₃, p₂.oEnd < l₂.oEnd, l₂ ≠ l₃ protocol.
     cases hso₁ with
@@ -2164,6 +2211,23 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
     | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obFinishBefore p₂ hob₂ hlt₂ hdiff₂)
     | eq heq₁ => exact Or.inl (heq₁ ▸ .obFinishBefore p₂ hob₂ hlt₂ hdiff₂)
     | _ => sorry -- other h₁ + obFinishBefore
+  | encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ =>
+    -- h₂: q₂ inside l₂, q₂ OB p₂, p₂.oEnd < l₃.oEnd. Like encapOb + obEndLt.
+    cases hso₁ with
+    | ob hob₁ =>
+      -- l₁ OB l₂. l₂.oStart < q₂.oStart (encap). l₁.oEnd < l₂.oStart < q₂.oStart → l₁ OB q₂.
+      have h₁q₂ : Event.OrderedBefore n l₁ q₂ := Nat.lt_trans hob₁ hq_enc₂.left
+      exact Or.inl (.obEndLt p₂ (Trans.trans h₁q₂ hq_ob₂) hp_lt₂)
+    | encapOb p₁ henc₁ hob₁ =>
+      -- p₁ inside l₁, p₁ OB l₂ → p₁ OB q₂ (via l₂ encaps q₂)
+      have hp₁q₂ : Event.OrderedBefore n p₁ q₂ := Nat.lt_trans hob₁ hq_enc₂.left
+      exact Or.inl (.encapObEndLt p₁ p₂ henc₁ (Trans.trans hp₁q₂ hq_ob₂) hp_lt₂)
+    | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
+      have hp₁q₂ : Event.OrderedBefore n p₁ q₂ := Nat.lt_trans hp_ob hq_enc₂.left
+      exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans hp₁q₂ hq_ob₂)) hp_lt₂)
+    | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂)
+    | eq heq₁ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂)
+    | _ => sorry -- obEndLt/obFinishBefore/encapObEndLt + encapObEndLt
 
 /-- Acyclicity given that every event has a linearization.
     Invariant: `StepOrdering (cle a) (cle c) ∨ cle a = cle c`.

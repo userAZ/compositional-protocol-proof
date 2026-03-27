@@ -154,6 +154,13 @@ inductive StepOrdering : Event n → Event n → Prop where
   | proxyPair (q p : Event n) (h_q_enc : q.EncapsulatedBy n l₁)
       (h_q_ob_p : q.OrderedBefore n p) (h_p_ob : p.OrderedBefore n l₂) : StepOrdering l₁ l₂
   | eq (h_eq : l₁ = l₂) : StepOrdering l₁ l₂
+  /-- Encap-then-OB-then-oEnd: q inside l₁, q OB p, p.oEnd < l₂.oEnd.
+      Composition of encapOb/proxyPair with obEndLt.
+      Irrefl via dir_ordered: l₂ OB l₁ gives chain l₂.oEnd < l₁.oStart < q.oStart ≤
+      q.oEnd < p.oStart ≤ p.oEnd < l₂.oEnd → l₂.oEnd < l₂.oEnd → False. -/
+  | encapObEndLt (q p : Event n) (h_q_enc : q.EncapsulatedBy n l₁)
+      (h_q_ob_p : q.OrderedBefore n p) (h_p_lt : Event.oEnd n p < Event.oEnd n l₂)
+      : StepOrdering l₁ l₂
 
 /-! ## LinStep / LinLink: replacement for StepOrdering -/
 
