@@ -2030,8 +2030,7 @@ private theorem stepOrdering_to_three {l₁ l₂ : Event n}
   | encapOb p h_enc h_ob =>
     exact Or.inl (LinLink.trans (LinLink.single (.encap h_enc)) (LinLink.single (.ob h_ob)))
   | sameLin e₁' e₂' h_eq h_enc₁ h_ob h_enc₂ =>
-    exact Or.inl (LinLink.trans (LinLink.trans (LinLink.single (.encapBy h_enc₁))
-      (LinLink.single (.ob h_ob))) (LinLink.single (.encap h_enc₂)))
+    exact Or.inr (Or.inl h_eq)
   | proxyPair q p h_q_enc h_q_ob_p h_p_ob =>
     exact Or.inl (LinLink.trans (LinLink.trans (LinLink.single (.encap h_q_enc))
       (LinLink.single (.ob h_q_ob_p))) (LinLink.single (.ob h_p_ob)))

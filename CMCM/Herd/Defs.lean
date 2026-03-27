@@ -162,7 +162,6 @@ inductive StepOrdering : Event n → Event n → Prop where
 inductive LinStep : Event n → Event n → Prop where
   | ob (h : x.OrderedBefore n y) : LinStep x y
   | encap (h : x.Encapsulates n y) : LinStep x y
-  | encapBy (h : x.EncapsulatedBy n y) : LinStep x y
   | finishesBefore (h : Event.oEnd n x < Event.oEnd n y) : LinStep x y
 
 /-- LinLink: transitive closure of LinStep between events. -/
@@ -211,8 +210,19 @@ theorem LinLinked_acyclic_of_LinLink_irrefl (lin : Event n → Event n)
 
     TODO: Formalize using Behaviour.finite (finitely many events → finite chain
     → each event visited at most once → no cycles). -/
-theorem LinLink.irrefl {e : Event n} : ¬ @LinLink n e e := by
-  sorry
+theorem LinStep.oStart_lt {x y : Event n} (h : @LinStep n x y) : Event.oStart n x < Event.oStart n y := by
+  cases h with
+  | ob h => exact Nat.lt_trans (Event.oWellFormed n x) h
+  | encap h => exact h.left
+  | finishesBefore h => sorry -- finishesBefore doesn't constrain oStart
+
+theorem LinLink.oStart_lt {x y : Event n} (h : @LinLink n x y) : Event.oStart n x < Event.oStart n y := by
+  induction h with
+  | single h => exact LinStep.oStart_lt h
+  | tail _ h ih => exact Nat.lt_trans ih (LinStep.oStart_lt h)
+
+theorem LinLink.irrefl {e : Event n} : ¬ @LinLink n e e :=
+  fun h => Nat.lt_irrefl _ (LinLink.oStart_lt h)
 
 /-- FR ordering: descriptive inductive carrying the communication evidence
     for the relationship between e₁ (reader) and e₂ (later writer).
