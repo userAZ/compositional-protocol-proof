@@ -2131,44 +2131,34 @@ theorem cmcm_acyclic_of_hknow
       have hso_rest : StepOrdering (hknow e₂).hreq's_dir_access.choose
           (hknow e).hreq's_dir_access.choose :=
         hrest.elim (fun heq => heq ▸ .eq rfl) (fun htg => this e₂ e htg)
-      -- Compose first + rest: gives a DIFFERENT StepOrdering CLE_e CLE_e
-      -- that might be irreflexive (if first is .ob, composition avoids obFinishBefore).
-      have hcomposed := StepOrdering.trans hso_first hso_rest
-      -- hcomposed : StepOrdering CLE_e CLE_e (possibly different constructor than hstep)
-      -- Case-split on hcomposed — if it's NOT obFinishBefore, use standard irrefl:
-      cases hcomposed with
-      | ob h => exact Event.contradiction_of_reflexive_ordered_before n h
-      | obEndLt p' hp' hlt' =>
-        exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans hp' (Event.oWellFormed n p')) hlt')
-      | encapOb p' henc' hob' =>
-        exact Nat.lt_irrefl _ (Nat.lt_trans hob' (Nat.lt_trans henc'.left (Event.oWellFormed n p')))
-      | obFinishBefore p' hob' hlt' =>
-        -- Composed result is STILL obFinishBefore. The decomposition didn't help.
-        -- This means the cycle is structured such that re-composition gives obFinishBefore again.
-        -- Need deeper analysis or a different decomposition point.
-        sorry -- obFinishBefore persists after recomposition
-      | proxyPair q' p' hq_enc' hq_ob_p' hp_ob' =>
-        exact Nat.lt_irrefl (Event.oStart n p')
-          (calc Event.oStart n p'
-            _ < Event.oEnd n p' := Event.oWellFormed n p'
-            _ < Event.oStart n (hknow e).hreq's_dir_access.choose := hp_ob'
-            _ < Event.oStart n q' := hq_enc'.left
-            _ < Event.oEnd n q' := Event.oWellFormed n q'
-            _ < Event.oStart n p' := hq_ob_p')
-      | sameLin e₁' e₂' heq' he₁' hob' he₂' =>
-        exact Nat.lt_irrefl (Event.oEnd n (hknow e).hreq's_dir_access.choose)
-          (calc _ < e₁'.oEnd := he₁'.right
-            _ < e₂'.oStart := hob'
-            _ < (hknow e).hreq's_dir_access.choose.oStart := he₂'.left
-            _ < (hknow e).hreq's_dir_access.choose.oEnd := Event.oWellFormed n _)
-      | eq _ =>
-        have hisdir := (hknow e).hreq's_dir_access.choose_spec.right.isDirEvent
-        match (hknow e).hreq's_dir_access.choose, hisdir with
-        | .directoryEvent de, _ =>
-          cases (b.orderedAtEntry.dir_ordered de de).ordered with
-          | inl h => exact absurd (Nat.lt_trans h de.oWellFormed) (Nat.lt_irrefl _)
-          | inr h => exact absurd (Nat.lt_trans h de.oWellFormed) (Nat.lt_irrefl _)
-        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+      -- Decompose cycle at first edge, case-split on first edge's StepOrdering.
+      -- If first edge gives .ob (strict): most rest cases close by temporal chain.
+      -- The key unsolved case: .ob + .obFinishBefore (needs FR protocol evidence).
+      cases hso_first with
+      | ob h_first_ob =>
+        cases hso_rest with
+        | ob h_rest =>
+          -- CLE_e OB CLE₂ OB CLE_e → CLE_e.oEnd < CLE₂.oStart < CLE₂.oEnd < CLE_e.oStart → loop
+          exact Nat.lt_irrefl _
+            (Nat.lt_trans (Nat.lt_trans h_first_ob (Event.oWellFormed n _))
+              (Nat.lt_trans h_rest (Event.oWellFormed n _)))
+        | obEndLt p' hp' hlt' =>
+          exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans h_first_ob
+            (Nat.lt_trans (Event.oWellFormed n _) hp')) (Nat.lt_trans (Event.oWellFormed n p') hlt'))
+        | encapOb p' henc' hob' =>
+          exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans h_first_ob henc'.left)
+            (Nat.lt_trans (Event.oWellFormed n p') (Nat.lt_trans hob' (Event.oWellFormed n _))))
+        | obFinishBefore p' hob' hlt' =>
+          sorry -- .ob + .obFinishBefore: temporal bounds consistent, needs FR protocol evidence
+        | proxyPair q' p' hq' hqp' hp' =>
+          exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans h_first_ob hq'.left)
+            (Nat.lt_trans (Event.oWellFormed n q') (Nat.lt_trans hqp'
+              (Nat.lt_trans (Event.oWellFormed n p') (Nat.lt_trans hp' (Event.oWellFormed n _))))))
+        | sameLin _ _ heq' _ _ _ =>
+          rw [heq'] at h_first_ob; exact Event.contradiction_of_reflexive_ordered_before n h_first_ob
+        | eq heq' =>
+          rw [heq'] at h_first_ob; exact Event.contradiction_of_reflexive_ordered_before n h_first_ob
+      | _ => sorry -- non-.ob first edge: similar case analysis (TODO)
     | proxyPair q p hq_enc hq_ob_p hp_ob =>
       -- q inside l (= CLE), q OB p, p OB l. Irrefl:
       -- p.oEnd < l.oStart (p OB l), l.oStart < q.oStart (q inside l),
