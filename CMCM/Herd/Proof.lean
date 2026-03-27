@@ -2105,7 +2105,62 @@ private theorem compose_three {l₁ l₂ l₃ : Event n}
     | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
   | eq heq₂ => exact Or.inl (heq₂ ▸ hso₁)
   | sameLin _ _ heq₂ _ _ _ => exact Or.inl (heq₂ ▸ hso₁)
-  | _ => sorry -- remaining h₂ cases: obEndLt, encapOb, obFinishBefore, proxyPair
+  | obEndLt p₂ hob₂ hlt₂ =>
+    cases hso₁ with
+    | ob hob₁ => exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ hob₂) hlt₂)
+    | encapOb p₁ henc₁ hob₁ =>
+      -- p₁ inside l₁, p₁ OB l₂ OB p₂ → p₁ OB p₂. But need p₂ for obEndLt, not proxyPair.
+      exact Or.inl (.obEndLt p₂ sorry hlt₂) -- need l₁ OB p₂ (not derivable from encapOb)
+    | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
+      exact Or.inl (.obEndLt p₂ sorry hlt₂) -- need l₁ OB p₂ (not derivable from proxyPair)
+    | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂)
+    | eq heq₁ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂)
+    | _ => sorry -- obEndLt/obFinishBefore + obEndLt
+  | encapOb p₂ henc₂ hob₂ =>
+    cases hso₁ with
+    | ob hob₁ =>
+      -- l₁ OB l₂ + l₂ encaps p₂ → l₁.oEnd < l₂.oStart < p₂.oStart → l₁ OB p₂
+      have h₁₂ : Event.OrderedBefore n l₁ p₂ := Nat.lt_trans hob₁ henc₂.left
+      exact Or.inl (.ob (Trans.trans h₁₂ hob₂))
+    | encapOb p₁ henc₁ hob₁ =>
+      -- p₁ inside l₁, p₁ OB l₂ + l₂ encaps p₂ → p₁ OB p₂
+      have hp₁p₂ : Event.OrderedBefore n p₁ p₂ := Nat.lt_trans hob₁ henc₂.left
+      exact Or.inl (.proxyPair p₁ p₂ henc₁ hp₁p₂ hob₂)
+    | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
+      -- q₁ inside l₁, q₁ OB p₁, p₁ OB l₂ + l₂ encaps p₂ → p₁ OB p₂
+      have hp₁p₂ : Event.OrderedBefore n p₁ p₂ := Nat.lt_trans hp_ob henc₂.left
+      exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob hp₁p₂) hob₂)
+    | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
+    | eq heq₁ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
+    | _ => sorry -- obEndLt/obFinishBefore + encapOb
+  | proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂ =>
+    cases hso₁ with
+    | ob hob₁ =>
+      have h₁q₂ : Event.OrderedBefore n l₁ q₂ := Nat.lt_trans hob₁ hq_enc₂.left
+      exact Or.inl (.ob (Trans.trans h₁q₂ (Trans.trans hq_ob₂ hp_ob₂)))
+    | encapOb p₁ henc₁ hob₁ =>
+      have hp₁q₂ : Event.OrderedBefore n p₁ q₂ := Nat.lt_trans hob₁ hq_enc₂.left
+      exact Or.inl (.proxyPair p₁ p₂ henc₁ (Trans.trans hp₁q₂ hq_ob₂) hp_ob₂)
+    | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
+      have hp₁q₂ : Event.OrderedBefore n p₁ q₂ := Nat.lt_trans hp_ob hq_enc₂.left
+      exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans hp₁q₂ hq_ob₂)) hp_ob₂)
+    | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
+    | eq heq₁ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
+    | _ => sorry -- obEndLt/obFinishBefore + proxyPair: complex
+  | obFinishBefore p₂ hob₂ hlt₂ hdiff₂ =>
+    -- h₂: p₂ OB l₃, p₂.oEnd < l₂.oEnd, l₂ ≠ l₃ protocol.
+    cases hso₁ with
+    | ob hob₁ =>
+      -- l₁ OB l₂, p₂ OB l₃, p₂.oEnd < l₂.oEnd.
+      -- l₁ OB l₂ → l₁.oEnd < l₂.oStart. p₂.oEnd < l₂.oEnd.
+      -- Use obFinishBefore: p₂ OB l₃, p₂.oEnd < l₁.oEnd? Need p₂.oEnd < l₁.oEnd.
+      -- p₂.oEnd < l₂.oEnd and l₁.oEnd < l₂.oStart ≤ l₂.oEnd → l₁.oEnd < l₂.oEnd.
+      -- But p₂.oEnd < l₂.oEnd doesn't compare with l₁.oEnd.
+      -- Use .obEndLt: l₁ OB p₂? l₁.oEnd < p₂.oStart? Not available.
+      sorry -- ob + obFinishBefore: can't compose forward bounds
+    | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obFinishBefore p₂ hob₂ hlt₂ hdiff₂)
+    | eq heq₁ => exact Or.inl (heq₁ ▸ .obFinishBefore p₂ hob₂ hlt₂ hdiff₂)
+    | _ => sorry -- other h₁ + obFinishBefore
 
 /-- Acyclicity given that every event has a linearization.
     Invariant: `StepOrdering (cle a) (cle c) ∨ cle a = cle c`.
