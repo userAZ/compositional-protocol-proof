@@ -678,7 +678,20 @@ The key insight (from Anqi): same-address PPOi events share a CLE or have CLE or
 
 The GMO bridge lemma connects framework 2 to framework 1.
 
-### CRITICAL LESSON (session 12): Always check protocol semantics when stuck on abstract structures
+### CRITICAL LESSON (session 12): ALWAYS think about what the protocol relations MEAN!
+
+**When working with PPOi ∪ COM, StepOrdering, TransGen — ALWAYS ask: what do these mathematical objects correspond to in the protocol? What edges are involved? What are the events (reads/writes)? Is this combination even POSSIBLE?**
+
+Key examples from session 12:
+- **FR + FR is IMPOSSIBLE**: FR(e₁,e₂) needs e₂.isWrite, FR(e₂,e₃) needs e₂.isRead. Same event can't be both → edge pair vacuous!
+- **obFinishBefore + .ob is VACUOUS**: .ob only from same-cluster edges (l₂=l₃ protocol). obFinishBefore has l₁≠l₂. Combined: l₁≠l₃, contradicting same-protocol assumption.
+- **Many edge pairs are impossible at junction**: read/write constraints from each edge type eliminate most pair combinations.
+
+**Rule**: Before sorry-ing ANY composition, enumerate the ACTUAL edge pairs (PPOi/rfe/co/fr × PPOi/rfe/co/fr) that could produce the h₁ × h₂ combination. Check read/write compatibility at the junction event. Many "hard" sorry's are actually VACUOUS when you think about the protocol semantics!
+
+**Technique**: Extract the last prefix edge via `TransGen.tail'` to get junction event info.
+
+### Previously: Always check protocol semantics when stuck on abstract structures
 
 When composing abstract mathematical structures (StepOrdering, LinLink, TransGen), **always ask: what PPOi/rfe/co/fr edge types produce this case?** The abstract structure loses protocol information that the concrete edge types carry. This reveals:
 1. **Vacuous cases**: e.g., `obFinishBefore h₁ + .ob h₂` is vacuous because .ob only arises from same-cluster edges (l₂=l₃ protocol), which contradicts obFinishBefore's l₁≠l₂. I spent hours trying to close this "hard case" that was actually impossible.
