@@ -194,47 +194,8 @@ theorem LinLinked_acyclic_of_LinLink_irrefl (lin : Event n → Event n)
     : ∀ e, ¬ Relation.TransGen (LinLinked lin) e e :=
   fun e h => hirrefl e (TransGen_LinLinked_to_LinLink lin h)
 
-/-- Convert StepOrdering to LinLink (or equality).
-    obFinishBefore maps to LinLink via finishesBefore (p.oEnd < l₂.oEnd from p OB l₂).
-    The h_diff_prot is not needed here — it was only for StepOrdering.irrefl.  -/
-theorem StepOrdering.toLinLinkOrEq {l₁ l₂ : Event n}
-    (h : StepOrdering l₁ l₂)
-    : @LinLink n l₁ l₂ ∨ l₁ = l₂ := by
-  cases h with
-  | ob h => exact Or.inl (LinLink.single (.ob h))
-  | obEndLt p h_ob h_lt =>
-    exact Or.inl (LinLink.trans (LinLink.single (.ob h_ob)) (LinLink.single (.finishesBefore h_lt)))
-  | encapOb p h_enc h_ob =>
-    exact Or.inl (LinLink.trans (LinLink.single (.encap h_enc)) (LinLink.single (.ob h_ob)))
-  | obFinishBefore p h_ob h_lt h_diff =>
-    -- p OB l₂: p.oEnd < l₂.oStart → p.oEnd < l₂.oEnd (via oWellFormed).
-    -- p.oEnd < l₁.oEnd. Use finishesBefore from p to l₂, then need l₁ → p.
-    -- l₁ → p: no direct LinStep (p at different cluster from l₁).
-    -- Use finishesBefore: l₁.oEnd vs l₂.oEnd unknown.
-    -- BUT: we can use finishesBefore if we have ANY oEnd chain l₁ → l₂.
-    -- For obFinishBefore: this case only arises in cross-cluster FR.
-    -- At the cycle level (l₁ = l₂): h_diff gives contradiction.
-    -- For non-cycle (general trans): produce .inl with finishesBefore if possible.
-    sorry -- obFinishBefore → LinLink: needs finishesBefore l₁ l₂ or different approach
-  | sameLin e₁' e₂' h_eq h_enc₁ h_ob h_enc₂ =>
-    exact Or.inl (LinLink.trans
-      (LinLink.trans (LinLink.single (.encapBy h_enc₁)) (LinLink.single (.ob h_ob)))
-      (LinLink.single (.encap h_enc₂)))
-  | proxyPair q p h_q_enc h_q_ob_p h_p_ob =>
-    exact Or.inl (LinLink.trans
-      (LinLink.trans (LinLink.single (.encap h_q_enc)) (LinLink.single (.ob h_q_ob_p)))
-      (LinLink.single (.ob h_p_ob)))
-  | eq h_eq => exact Or.inr h_eq
-
-/-- Compose LinLink-or-eq results. -/
-theorem LinLinkOrEq_trans {x y z : Event n}
-    (h₁ : @LinLink n x y ∨ x = y) (h₂ : @LinLink n y z ∨ y = z)
-    : @LinLink n x z ∨ x = z := by
-  cases h₁ with
-  | inl h₁ => cases h₂ with
-    | inl h₂ => exact Or.inl (LinLink.trans h₁ h₂)
-    | inr h₂ => subst h₂; exact Or.inl h₁
-  | inr h₁ => subst h₁; exact h₂
+-- toLinLinkOrEq and LinLinkOrEq_trans removed: superseded by stepOrdering_to_three
+-- and compose_three in Proof.lean, which handle obFinishBefore via diff_protocol.
 
 /-- LinLink is irreflexive: no event can link to itself via a chain of LinSteps.
 

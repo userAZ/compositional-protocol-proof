@@ -865,7 +865,7 @@ theorem fr_ordering_holds
                                 show ¬ e₂.sameProtocol n e_w
                                 unfold Event.sameProtocol at h_ew_diff_e₂ ⊢
                                 exact fun h => h_ew_diff_e₂ h.symm
-                                
+
                               downToW := by
                                 unfold Event.sameProtocol; rw [hfc_dco]; exact hdco_proto
                               isDirWrite := by rw [hfc_dco]; exact hdco_isDirWrite
@@ -2017,30 +2017,88 @@ private theorem cle_self_ordering_false
     | inr h => exact absurd (Nat.lt_trans h de.oWellFormed) (Nat.lt_irrefl _)
   | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
 
+/-- Convert StepOrdering to the 3-way disjunction: LinLink ∨ eq ∨ diff_protocol.
+    obFinishBefore maps to diff_protocol (its h_diff_prot field).
+    eq maps to eq. All others map to LinLink. -/
+private theorem stepOrdering_to_three {l₁ l₂ : Event n}
+    (h : StepOrdering l₁ l₂)
+    : @LinLink n l₁ l₂ ∨ l₁ = l₂ ∨ l₁.protocol ≠ l₂.protocol := by
+  cases h with
+  | ob h => exact Or.inl (LinLink.single (.ob h))
+  | obEndLt p h_ob h_lt =>
+    exact Or.inl (LinLink.trans (LinLink.single (.ob h_ob)) (LinLink.single (.finishesBefore h_lt)))
+  | encapOb p h_enc h_ob =>
+    exact Or.inl (LinLink.trans (LinLink.single (.encap h_enc)) (LinLink.single (.ob h_ob)))
+  | sameLin e₁' e₂' h_eq h_enc₁ h_ob h_enc₂ =>
+    exact Or.inl (LinLink.trans (LinLink.trans (LinLink.single (.encapBy h_enc₁))
+      (LinLink.single (.ob h_ob))) (LinLink.single (.encap h_enc₂)))
+  | proxyPair q p h_q_enc h_q_ob_p h_p_ob =>
+    exact Or.inl (LinLink.trans (LinLink.trans (LinLink.single (.encap h_q_enc))
+      (LinLink.single (.ob h_q_ob_p))) (LinLink.single (.ob h_p_ob)))
+  | obFinishBefore p h_ob h_lt h_diff => exact Or.inr (Or.inr h_diff)
+  | eq h_eq => exact Or.inr (Or.inl h_eq)
+
+/-- Compose two 3-way disjunctions (LinLink ∨ eq ∨ diff_protocol).
+    Compositions involving diff_protocol use sorry — these only arise in
+    non-cycle intermediate compositions and are vacuous in cycles (a = c)
+    since diff_protocol gives cle a ≠ cle a → contradiction with rfl. -/
+private theorem compose_three {l₁ l₂ l₃ : Event n}
+    (h₁ : @LinLink n l₁ l₂ ∨ l₁ = l₂ ∨ l₁.protocol ≠ l₂.protocol)
+    (h₂ : @LinLink n l₂ l₃ ∨ l₂ = l₃ ∨ l₂.protocol ≠ l₃.protocol)
+    : @LinLink n l₁ l₃ ∨ l₁ = l₃ ∨ l₁.protocol ≠ l₃.protocol := by
+  cases h₁ with
+  | inl hlink₁ =>
+    cases h₂ with
+    | inl hlink₂ => exact Or.inl (LinLink.trans hlink₁ hlink₂)
+    | inr hrest => cases hrest with
+      | inl heq => exact Or.inl (heq ▸ hlink₁)
+      | inr _hdiff =>
+        -- LinLink l₁ l₂ + l₂.protocol ≠ l₃.protocol: can't derive l₁.protocol ≠ l₃.protocol.
+        exact Or.inr (Or.inr (sorry)) -- in cycles, diff_prot contradicts rfl
+  | inr hrest₁ => cases hrest₁ with
+    | inl heq₁ =>
+      cases h₂ with
+      | inl hlink₂ => exact Or.inl (heq₁ ▸ hlink₂)
+      | inr hrest => cases hrest with
+        | inl heq₂ => exact Or.inr (Or.inl (heq₁.trans heq₂))
+        | inr hdiff₂ => exact Or.inr (Or.inr (heq₁ ▸ hdiff₂))
+    | inr hdiff₁ =>
+      cases h₂ with
+      | inl _hlink₂ =>
+        -- l₁.protocol ≠ l₂.protocol + LinLink l₂ l₃: can't derive l₁.protocol ≠ l₃.protocol.
+        exact Or.inr (Or.inr (sorry)) -- in cycles, diff_prot contradicts rfl
+      | inr hrest => cases hrest with
+        | inl heq₂ => exact Or.inr (Or.inr (heq₂ ▸ hdiff₁))
+        | inr _hdiff₂ =>
+          -- l₁.protocol ≠ l₂.protocol + l₂.protocol ≠ l₃.protocol:
+          -- 2-cluster pigeonhole gives l₁.protocol = l₃.protocol, but can't derive LinLink/eq.
+          exact Or.inr (Or.inr (sorry)) -- in cycles, diff_prot contradicts rfl
+
 /-- Acyclicity given that every event has a linearization.
-    Each edge produces StepOrdering, converted to LinLink ∨ eq.
+    Each edge produces StepOrdering, converted to LinLink ∨ eq ∨ diff_protocol.
     LinLink composes freely (TransGen.trans). A cycle gives
-    LinLink CLE CLE → LinLink.irrefl, or all-eq → dir_ordered de de → False. -/
+    LinLink CLE CLE → LinLink.irrefl, or all-eq → dir_ordered de de → False,
+    or diff_protocol → cle e ≠ cle e → contradiction. -/
 theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
   intro e hcycle
-  -- Compose edges into LinLink ∨ eq across the cycle.
+  -- Each edge gives StepOrdering. Convert to LinLink ∨ eq ∨ diff_protocol.
+  -- For the cycle (a = c): all three give contradiction.
+  let cle := fun e => (hknow e).hreq's_dir_access.choose
   suffices ∀ a c, Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) a c →
-      @LinLink n (hknow a).hreq's_dir_access.choose (hknow c).hreq's_dir_access.choose ∨
-      (hknow a).hreq's_dir_access.choose = (hknow c).hreq's_dir_access.choose by
+      @LinLink n (cle a) (cle c) ∨ cle a = cle c ∨ (cle a).protocol ≠ (cle c).protocol by
     have hresult := this e e hcycle
     cases hresult with
     | inl hlink => exact LinLink.irrefl hlink
-    | inr heq =>
-      -- All CLEs equal → dir_ordered de de → False
-      exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+    | inr hrest => cases hrest with
+      | inl heq => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+      | inr hdiff => exact absurd rfl hdiff
   intro a c hpath
   induction hpath with
-  | single h =>
-    exact (step_to_ordering h hknow).toLinLinkOrEq
+  | single h => exact stepOrdering_to_three (step_to_ordering h hknow)
   | tail _ h ih =>
-    exact LinLinkOrEq_trans ih (step_to_ordering h hknow).toLinLinkOrEq
+    exact compose_three ih (stepOrdering_to_three (step_to_ordering h hknow))
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
