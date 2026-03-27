@@ -2118,15 +2118,26 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
       | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
         exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
-        -- obFinishBefore + PPOi ob: p₁ OB l₂ OB l₃ → p₁ OB l₃. p₁.oEnd < l₁.oEnd.
-        -- PPOi is same-protocol → l₂.protocol = l₃.protocol. h₁ diff: l₁ ≠ l₂ → l₁ ≠ l₃.
-        -- l₁ ≠ l₂ protocol (from h₁). PPOi same protocol → l₂ = l₃ protocol → l₁ ≠ l₃.
-        exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ (by
-          intro h₁₃; apply hdiff₁
-          -- l₁.protocol = l₃.protocol (h₁₃). l₃.protocol = l₂.protocol (PPOi sameProtocol).
-          -- → l₁.protocol = l₂.protocol. Contradicts hdiff₁.
-          sorry -- need: l₃.protocol = l₂.protocol from PPOi sameProtocol + CLE protocol lemma
-        ))
+        -- obFinishBefore h₁ + ob h₂. by_cases on l₁ vs l₃ protocol.
+        by_cases hprot : l₁.protocol = l₃.protocol
+        · -- Same protocol: dir_ordered(l₁, l₃).
+          match hfc₁ : l₁, h₁_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₁, _ =>
+            have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+            match hfc₃ : l₃, h₃_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₃, _ =>
+              cases (hdir de₁ de₃).ordered with
+              | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
+              | inr hob₃₁ =>
+                -- l₃ OB l₁. p₁ OB l₂ OB l₃ → p₁ OB l₃. p₁.oEnd < l₁.oEnd.
+                -- dir_ordered(p₁, l₁): l₁ OB p₁ → l₁.oEnd < p₁.oStart, but p₁.oEnd < l₁.oEnd → contradiction.
+                -- So p₁ OB l₁. Then p₁ OB l₃ OB l₁ and p₁ OB l₁ — consistent but...
+                -- We have p₁.oEnd < l₁.oEnd and l₁ OB p₁ would give l₁.oEnd < p₁.oStart ≤ p₁.oEnd < l₁.oEnd → contradiction.
+                -- So if p₁ is a directory event at l₁'s cluster: l₁ OB p₁ impossible → p₁ OB l₁.
+                sorry -- l₃ OB l₁ case: needs p₁ cluster analysis
+        · exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
     | _ => sorry -- PPOi non-ob: should not arise (PPOi always gives ob from dir_ordered)
@@ -2148,8 +2159,18 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
       | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
         exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
-        exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ (by
-          intro h₁₃; apply hdiff₁; sorry)) -- protocol: l₃.prot = l₂.prot from same-cluster edge
+        by_cases hprot : l₁.protocol = l₃.protocol
+        · match hfc₁ : l₁, h₁_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₁, _ =>
+            have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+            match hfc₃ : l₃, h₃_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₃, _ =>
+              cases (hdir de₁ de₃).ordered with
+              | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
+              | inr _ => sorry -- l₃ OB l₁: needs p₁ cluster analysis
+        · exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
     | obEndLt p₂ hob₂ hlt₂ =>
