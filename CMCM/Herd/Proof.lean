@@ -2060,41 +2060,150 @@ private theorem stepOrdering_to_three {l₁ l₂ : Event n}
   | obFinishBefore p h_ob h_lt h_diff => exact Or.inr (Or.inr h_diff)
   | eq h_eq => exact Or.inr (Or.inl h_eq)
 
-/-- Compose two 3-way disjunctions (LinLink ∨ eq ∨ diff_protocol).
-    Compositions involving diff_protocol use sorry — these only arise in
-    non-cycle intermediate compositions and are vacuous in cycles (a = c)
-    since diff_protocol gives cle a ≠ cle a → contradiction with rfl. -/
+/-- Compose IH (3-way disjunction) with StepOrdering for the current edge.
+    Uses dir_ordered + isDirectoryEvent for same-protocol l₁/l₃ cases.
+    For l₁ OB l₃ → LinLink. For l₃ OB l₁ → temporal contradiction via h₂'s data.
+    diff_prot prefix + obFinishBefore: sorry (no temporal chain closes). -/
 private theorem compose_three {l₁ l₂ l₃ : Event n}
     (h₁ : @LinLink n l₁ l₂ ∨ l₁ = l₂ ∨ l₁.protocol ≠ l₂.protocol)
-    (h₂ : @LinLink n l₂ l₃ ∨ l₂ = l₃ ∨ l₂.protocol ≠ l₃.protocol)
+    (h₂ : @StepOrdering n l₂ l₃)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent) (h₃_isdir : l₃.isDirectoryEvent)
     : @LinLink n l₁ l₃ ∨ l₁ = l₃ ∨ l₁.protocol ≠ l₃.protocol := by
-  cases h₁ with
-  | inl hlink₁ =>
-    cases h₂ with
-    | inl hlink₂ => exact Or.inl (LinLink.trans hlink₁ hlink₂)
-    | inr hrest => cases hrest with
-      | inl heq => exact Or.inl (heq ▸ hlink₁)
-      | inr _hdiff =>
-        -- LinLink l₁ l₂ + l₂.protocol ≠ l₃.protocol: can't derive l₁.protocol ≠ l₃.protocol.
-        exact Or.inr (Or.inr (sorry)) -- in cycles, diff_prot contradicts rfl
-  | inr hrest₁ => cases hrest₁ with
-    | inl heq₁ =>
-      cases h₂ with
-      | inl hlink₂ => exact Or.inl (heq₁ ▸ hlink₂)
-      | inr hrest => cases hrest with
-        | inl heq₂ => exact Or.inr (Or.inl (heq₁.trans heq₂))
-        | inr hdiff₂ => exact Or.inr (Or.inr (heq₁ ▸ hdiff₂))
-    | inr hdiff₁ =>
-      cases h₂ with
-      | inl _hlink₂ =>
-        -- l₁.protocol ≠ l₂.protocol + LinLink l₂ l₃: can't derive l₁.protocol ≠ l₃.protocol.
-        exact Or.inr (Or.inr (sorry)) -- in cycles, diff_prot contradicts rfl
-      | inr hrest => cases hrest with
-        | inl heq₂ => exact Or.inr (Or.inr (heq₂ ▸ hdiff₁))
-        | inr _hdiff₂ =>
-          -- l₁.protocol ≠ l₂.protocol + l₂.protocol ≠ l₃.protocol:
-          -- 2-cluster pigeonhole gives l₁.protocol = l₃.protocol, but can't derive LinLink/eq.
-          exact Or.inr (Or.inr (sorry)) -- in cycles, diff_prot contradicts rfl
+  -- Convert h₂ to 3-way for the easy cases
+  have h₂' := stepOrdering_to_three h₂ hdir h₂_isdir h₃_isdir
+  -- Handle easy compositions first (no diff_prot involved)
+  cases h₂' with
+  | inl hlink₂ =>
+    -- h₂ gives LinLink: compose directly with h₁
+    cases h₁ with
+    | inl hlink₁ => exact Or.inl (LinLink.trans hlink₁ hlink₂)
+    | inr hr => cases hr with
+      | inl heq₁ => exact Or.inl (heq₁ ▸ hlink₂)
+      | inr hdiff₁ =>
+        -- diff_prot(l₁,l₂) + LinLink(l₂,l₃): by_cases on l₁ vs l₃ protocol
+        by_cases hprot : l₁.protocol = l₃.protocol
+        · -- Same protocol: dir_ordered
+          match hfc₁ : l₁, h₁_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₁, _ =>
+            match hfc₃ : l₃, h₃_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₃, _ =>
+              cases (hdir de₁ de₃).ordered with
+              | inl hob => exact Or.inl (LinLink.single (.ob hob))
+              | inr hob => -- l₃ OB l₁ + diff_prot prefix + LinLink edge
+                -- No temporal data from diff_prot prefix → sorry
+                exact Or.inr (Or.inr sorry)
+        · exact Or.inr (Or.inr hprot)
+  | inr hr₂ => cases hr₂ with
+    | inl heq₂ =>
+      -- h₂ gives eq (l₂ = l₃): substitute
+      cases h₁ with
+      | inl hlink₁ => exact Or.inl (heq₂ ▸ hlink₁)
+      | inr hr => cases hr with
+        | inl heq₁ => exact Or.inr (Or.inl (heq₁.trans heq₂))
+        | inr hdiff₁ => exact Or.inr (Or.inr (heq₂ ▸ hdiff₁))
+    | inr hdiff₂ =>
+      -- h₂ gives diff_prot(l₂,l₃): by_cases on l₁ vs l₃ protocol
+      by_cases hprot : l₁.protocol = l₃.protocol
+      · -- Same protocol l₁ l₃: dir_ordered gives l₁ OB l₃ or l₃ OB l₁
+        match hfc₁ : l₁, h₁_isdir with
+        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+        | .directoryEvent de₁, _ =>
+          match hfc₃ : l₃, h₃_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₃, _ =>
+            cases (hdir de₁ de₃).ordered with
+            | inl hob => exact Or.inl (LinLink.single (.ob hob))
+            | inr hob =>
+              -- l₃ OB l₁: de₃.oEnd < de₁.oStart. Derive contradiction from h₁ + h₂.
+              exfalso
+              -- Case-split on h₂ (StepOrdering) for temporal chain
+              cases h₂ with
+              | ob hob₂ =>
+                -- l₂ OB l₃. Chain through h₁.
+                cases h₁ with
+                | inl hlink₁ =>
+                  have h12 := LinLink.oStart_lt hlink₁  -- de₁.oStart < l₂.oStart
+                  exact Nat.lt_irrefl de₃.oEnd (Nat.lt_trans hob (Nat.lt_trans h12
+                    (Nat.lt_trans (Event.oWellFormed n l₂) (Nat.lt_trans hob₂ de₃.oWellFormed))))
+                | inr hr => cases hr with
+                  | inl heq₁ => -- l₁ = l₂
+                    rw [← heq₁] at hob₂  -- hob₂ : de₁ OB de₃
+                    exact Nat.lt_irrefl de₃.oEnd (Nat.lt_trans hob
+                      (Nat.lt_trans de₁.oWellFormed (Nat.lt_trans hob₂ de₃.oWellFormed)))
+                  | inr _ => exact sorry -- diff_prot prefix + ob
+              | obEndLt p hob₂ hlt₂ =>
+                -- l₂ OB p, p.oEnd < l₃.oEnd = de₃.oEnd.
+                cases h₁ with
+                | inl hlink₁ =>
+                  have h12 := LinLink.oStart_lt hlink₁
+                  exact Nat.lt_irrefl de₃.oEnd (Nat.lt_trans hob (Nat.lt_trans h12
+                    (Nat.lt_trans (Event.oWellFormed n l₂) (Nat.lt_trans hob₂
+                      (Nat.lt_trans (Event.oWellFormed n p) hlt₂)))))
+                | inr hr => cases hr with
+                  | inl heq₁ =>
+                    rw [← heq₁] at hob₂
+                    exact Nat.lt_irrefl de₃.oEnd (Nat.lt_trans hob (Nat.lt_trans de₁.oWellFormed
+                      (Nat.lt_trans hob₂ (Nat.lt_trans (Event.oWellFormed n p) hlt₂))))
+                  | inr _ => exact sorry -- diff_prot prefix + obEndLt
+              | encapOb p henc₂ hob₂ =>
+                -- p inside l₂, p OB l₃.
+                cases h₁ with
+                | inl hlink₁ =>
+                  have h12 := LinLink.oStart_lt hlink₁
+                  exact Nat.lt_irrefl de₃.oEnd (Nat.lt_trans hob (Nat.lt_trans h12
+                    (Nat.lt_trans henc₂.left (Nat.lt_trans (Event.oWellFormed n p)
+                      (Nat.lt_trans hob₂ de₃.oWellFormed)))))
+                | inr hr => cases hr with
+                  | inl heq₁ =>
+                    rw [← heq₁] at henc₂
+                    exact Nat.lt_irrefl de₃.oEnd (Nat.lt_trans hob (Nat.lt_trans henc₂.left
+                      (Nat.lt_trans (Event.oWellFormed n p) (Nat.lt_trans hob₂ de₃.oWellFormed))))
+                  | inr _ => exact sorry -- diff_prot prefix + encapOb
+              | proxyPair q p hq_enc hq_ob hp_ob =>
+                cases h₁ with
+                | inl hlink₁ =>
+                  have h12 := LinLink.oStart_lt hlink₁
+                  exact Nat.lt_irrefl de₃.oEnd (Nat.lt_trans hob (Nat.lt_trans h12
+                    (Nat.lt_trans hq_enc.left (Nat.lt_trans (Event.oWellFormed n q)
+                      (Nat.lt_trans hq_ob (Nat.lt_trans (Event.oWellFormed n p)
+                        (Nat.lt_trans hp_ob de₃.oWellFormed)))))))
+                | inr hr => cases hr with
+                  | inl heq₁ =>
+                    rw [← heq₁] at hq_enc
+                    exact Nat.lt_irrefl de₃.oEnd (Nat.lt_trans hob (Nat.lt_trans hq_enc.left
+                      (Nat.lt_trans (Event.oWellFormed n q) (Nat.lt_trans hq_ob
+                        (Nat.lt_trans (Event.oWellFormed n p) (Nat.lt_trans hp_ob de₃.oWellFormed))))))
+                  | inr _ => exact sorry -- diff_prot prefix + proxyPair
+              | obFinishBefore _ _ _ _ => exact sorry -- obFinishBefore: no temporal chain
+              | sameLin _ _ heq₂ _ _ _ =>
+                -- l₂ = l₃. heq₂ used with hob/h₁.
+                cases h₁ with
+                | inl hlink₁ =>
+                  have h12 := LinLink.oStart_lt hlink₁  -- de₁.oStart < l₂.oStart
+                  rw [heq₂] at h12  -- de₁.oStart < l₃.oStart = de₃.oStart
+                  exact Nat.lt_irrefl de₃.oStart (Nat.lt_trans (Nat.lt_trans de₃.oWellFormed hob) h12)
+                | inr hr => cases hr with
+                  | inl heq₁ => -- l₁ = l₂ = l₃ → de₁ = de₃
+                    have hde : de₁ = de₃ := Event.directoryEvent.inj (heq₁.trans heq₂)
+                    rw [hde] at hob; exact Nat.lt_irrefl de₃.oEnd (Nat.lt_trans hob de₃.oWellFormed)
+                  | inr hdiff₁ => -- l₁ ≠ l₂ protocol, l₂ = l₃ → l₁ ≠ l₃
+                    rw [heq₂] at hdiff₁; exact hdiff₁ hprot
+              | eq heq₂ =>
+                cases h₁ with
+                | inl hlink₁ =>
+                  have h12 := LinLink.oStart_lt hlink₁
+                  rw [heq₂] at h12
+                  exact Nat.lt_irrefl de₃.oStart (Nat.lt_trans (Nat.lt_trans de₃.oWellFormed hob) h12)
+                | inr hr => cases hr with
+                  | inl heq₁ =>
+                    have hde : de₁ = de₃ := Event.directoryEvent.inj (heq₁.trans heq₂)
+                    rw [hde] at hob; exact Nat.lt_irrefl de₃.oEnd (Nat.lt_trans hob de₃.oWellFormed)
+                  | inr hdiff₁ =>
+                    rw [heq₂] at hdiff₁; exact hdiff₁ hprot
+      · exact Or.inr (Or.inr hprot)
 
 /-- Acyclicity given that every event has a linearization.
     Each edge produces StepOrdering, converted to LinLink ∨ eq ∨ diff_protocol.
@@ -2123,9 +2232,10 @@ theorem cmcm_acyclic_of_hknow
       ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
       ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
   | tail _ h ih =>
-    exact compose_three ih (stepOrdering_to_three (step_to_ordering h hknow) (b.orderedAtEntry.dir_ordered)
+    exact compose_three ih (step_to_ordering h hknow) (b.orderedAtEntry.dir_ordered)
       ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
-      ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent))
+      ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
+      ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)

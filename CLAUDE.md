@@ -64,7 +64,7 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **StepOrdering.trans**: DELETED (19 sorry's removed). Replaced by LinLink (TransGen LinStep).
 - **LinLink.irrefl**: FULLY PROVEN (oStart measure).
 - **Cycle proof**: Uses `stepOrdering_to_three` → `compose_three` → cycle contradiction.
-- **13 active sorry's** in Proof.lean (down from 37 at session 10 start, 15 at session 11).
+- **10 active sorry's** in Proof.lean (down from 37 at session 10, 15 at session 11). 3 more in block comment (dead code).
 - **CompoundProtocol.dirAccessUnique**: Field bridging compound lin ↔ Herd CLEs.
 
 **TODO (post-deadline):**
