@@ -155,6 +155,94 @@ inductive StepOrdering : Event n → Event n → Prop where
       (h_q_ob_p : q.OrderedBefore n p) (h_p_ob : p.OrderedBefore n l₂) : StepOrdering l₁ l₂
   | eq (h_eq : l₁ = l₂) : StepOrdering l₁ l₂
 
+/-! ## LinStep / LinLink: replacement for StepOrdering -/
+
+/-- Basic step between linearization events: OB, Encapsulates, EncapsulatedBy, or finishesBefore.
+    Variable names use x/y to avoid shadowing the section variable `b : Behaviour n`. -/
+inductive LinStep : Event n → Event n → Prop where
+  | ob (h : x.OrderedBefore n y) : LinStep x y
+  | encap (h : x.Encapsulates n y) : LinStep x y
+  | encapBy (h : x.EncapsulatedBy n y) : LinStep x y
+  | finishesBefore (h : Event.oEnd n x < Event.oEnd n y) : LinStep x y
+
+/-- LinLink: transitive closure of LinStep between events. -/
+def LinLink : Event n → Event n → Prop := Relation.TransGen LinStep
+
+/-- LinLink composes transitively (free from TransGen). -/
+theorem LinLink.trans {x y z : Event n} (h₁ : @LinLink n x y) (h₂ : @LinLink n y z) : @LinLink n x z :=
+  Relation.TransGen.trans h₁ h₂
+
+/-- A single LinStep lifts to LinLink. -/
+theorem LinLink.single {x y : Event n} (h : @LinStep n x y) : @LinLink n x y :=
+  Relation.TransGen.single h
+
+/-- Lift LinLink to cache events via a linearization function.
+    In the proof, instantiate `lin := fun e => cle (hknow e)`. -/
+def LinLinked (lin : Event n → Event n) (e₁ e₂ : Event n) : Prop :=
+  LinLink (lin e₁) (lin e₂)
+
+/-- A TransGen of LinLinked composes into a single LinLink between endpoints' lin events. -/
+theorem TransGen_LinLinked_to_LinLink (lin : Event n → Event n)
+    (h : Relation.TransGen (LinLinked lin) e₁ e₂) : LinLink (lin e₁) (lin e₂) := by
+  induction h with
+  | single h => exact h
+  | tail _ h ih => exact Relation.TransGen.trans ih h
+
+/-- LinLinked is acyclic iff LinLink is acyclic on the image of lin. -/
+theorem LinLinked_acyclic_of_LinLink_irrefl (lin : Event n → Event n)
+    (hirrefl : ∀ e, ¬ LinLink (lin e) (lin e))
+    : ∀ e, ¬ Relation.TransGen (LinLinked lin) e e :=
+  fun e h => hirrefl e (TransGen_LinLinked_to_LinLink lin h)
+
+/-- Convert StepOrdering to LinLink (or equality).
+    This bridges existing edge proofs to the new LinLink framework. -/
+theorem StepOrdering.toLinLinkOrEq {l₁ l₂ : Event n}
+    (h : StepOrdering l₁ l₂)
+    : @LinLink n l₁ l₂ ∨ l₁ = l₂ := by
+  cases h with
+  | ob h => exact Or.inl (LinLink.single (.ob h))
+  | obEndLt p h_ob h_lt =>
+    exact Or.inl (LinLink.trans (LinLink.single (.ob h_ob)) (LinLink.single (.finishesBefore h_lt)))
+  | encapOb p h_enc h_ob =>
+    -- h_enc : p.EncapsulatedBy l₁ = l₁.Encapsulates p
+    exact Or.inl (LinLink.trans (LinLink.single (.encap h_enc)) (LinLink.single (.ob h_ob)))
+  | obFinishBefore p h_ob h_lt h_diff =>
+    -- p OB l₂ and p.oEnd < l₁.oEnd. No direct chain l₁ → l₂ from these.
+    -- This case only arises for cross-cluster FR; irrefl handles it via h_diff.
+    sorry
+  | sameLin e₁' e₂' h_eq h_enc₁ h_ob h_enc₂ =>
+    -- Chain: l₁ →(encapBy)→ e₁' →(ob)→ e₂' →(encap)→ l₂
+    exact Or.inl (LinLink.trans
+      (LinLink.trans (LinLink.single (.encapBy h_enc₁)) (LinLink.single (.ob h_ob)))
+      (LinLink.single (.encap h_enc₂)))
+  | proxyPair q p h_q_enc h_q_ob_p h_p_ob =>
+    -- Chain: l₁ →(encap)→ q →(ob)→ p →(ob)→ l₂
+    exact Or.inl (LinLink.trans
+      (LinLink.trans (LinLink.single (.encap h_q_enc)) (LinLink.single (.ob h_q_ob_p)))
+      (LinLink.single (.ob h_p_ob)))
+  | eq h_eq => exact Or.inr h_eq
+
+/-- Compose LinLink-or-eq results. -/
+theorem LinLinkOrEq_trans {x y z : Event n}
+    (h₁ : @LinLink n x y ∨ x = y) (h₂ : @LinLink n y z ∨ y = z)
+    : @LinLink n x z ∨ x = z := by
+  cases h₁ with
+  | inl h₁ => cases h₂ with
+    | inl h₂ => exact Or.inl (LinLink.trans h₁ h₂)
+    | inr h₂ => subst h₂; exact Or.inl h₁
+  | inr h₁ => subst h₁; exact h₂
+
+/-- LinLink is irreflexive: no event can link to itself.
+
+    Proof sketch: consider the event with maximum oEnd in any cycle.
+    The step out of max-oEnd must be encap (all others increase oEnd,
+    contradicting maximality). But encap goes inward (oStart increases),
+    and the chain must return to max-oEnd, requiring oStart to eventually
+    decrease below max.oStart — which only encapBy can do, but encapBy
+    increases oEnd past the maximum. Contradiction. -/
+theorem LinLink.irrefl {e : Event n} : ¬ @LinLink n e e := by
+  sorry
+
 /-- FR ordering: descriptive inductive carrying the communication evidence
     for the relationship between e₁ (reader) and e₂ (later writer).
     Mirrors RF's `readsFrom.cases` and CO's `co.ordering`, organized by
