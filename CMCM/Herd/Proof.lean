@@ -2263,52 +2263,28 @@ theorem cmcm_acyclic_of_hknow
       -- Unfold hpath to extract edges.
       cases hpath with
       | single h₁ =>
-        -- 2-cycle: R a b ∧ R b a. Case-split on both edge types.
-        -- Each gives StepOrdering. Compose to get StepOrdering(cle a, cle a) → contradiction.
+        -- 2-cycle: R a b ∧ R b a. Use both edges' StepOrderings directly.
+        -- Compose to get StepOrdering(cle a, cle a) → contradiction.
         let cle := fun e => (hknow e).hreq's_dir_access.choose
         have so₁ := step_to_ordering h₁ hknow  -- StepOrdering (cle a) (cle b)
         have so₂ := step_to_ordering h hknow   -- StepOrdering (cle b) (cle a)
-        -- Convert so₁ to LinLink/eq/diff_prot
-        have h3₁ := stepOrdering_to_three so₁ (b.orderedAtEntry.dir_ordered)
-          ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
-          ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
-        have h3₂ := stepOrdering_to_three so₂ (b.orderedAtEntry.dir_ordered)
-          ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
-          ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
-        cases h3₁ with
-        | inl hlink₁ =>
-          cases h3₂ with
-          | inl hlink₂ => exact LinLink.irrefl (LinLink.trans hlink₁ hlink₂)
-          | inr hr₂ => cases hr₂ with
-            | inl heq₂ => exact LinLink.irrefl (heq₂ ▸ hlink₁)
-            | inr hdiff₂ =>
-              -- LinLink a→b, diff_prot b→a: LinLink gives a.oStart < b.oStart.
-              -- diff_prot gives b.protocol ≠ a.protocol.
-              -- 2-cycle: a→b same cluster (LinLink from same-cluster edge),
-              -- b→a diff cluster. But diff_prot on b→a means b and a at diff clusters.
-              -- LinLink a→b means a.oStart < b.oStart. But if a and b at diff clusters,
-              -- how did we get LinLink? LinLink.oStart_lt only uses temporal data.
-              -- The diff_prot means the StepOrdering was obFinishBefore (cross-cluster).
-              -- For the 2-cycle: a→b gives LinLink (same cluster OB chain).
-              -- b→a gives diff_prot. But a→b same cluster means a and b at SAME cluster.
-              -- b→a diff_prot means b and a at DIFFERENT cluster. Contradiction!
-              sorry -- 2-cycle: LinLink(same cluster) + diff_prot(diff cluster) should contradict
-        | inr hr₁ => cases hr₁ with
-          | inl heq₁ =>
-            cases h3₂ with
-            | inl hlink₂ => exact LinLink.irrefl (heq₁ ▸ hlink₂)
-            | inr hr₂ => cases hr₂ with
-              | inl heq₂ =>
-                -- cle a = cle b and cle b = cle a → cle a = cle a (trivially).
-                -- Use dir_ordered on the shared CLE for contradiction.
-                exact cle_self_ordering_false (hknow a) b.orderedAtEntry.dir_ordered
-              | inr hdiff₂ => exact hdiff₂ (heq₁ ▸ rfl)
-          | inr hdiff₁ =>
-            cases h3₂ with
-            | inl hlink₂ => sorry -- symmetric to above
-            | inr hr₂ => cases hr₂ with
-              | inl heq₂ => exact hdiff₁ (heq₂ ▸ rfl)
-              | inr hdiff₂ => sorry -- diff_prot both directions: 2-cluster pigeonhole?
+        -- Compose: StepOrdering(cle a, cle b) + StepOrdering(cle b, cle a)
+        -- → StepOrdering(cle a, cle a) ∨ eq → contradiction
+        have hcomposed : @StepOrdering n (cle a) (cle a) ∨ cle a = cle a :=
+          compose_three (Or.inl so₁) h hknow rfl rfl
+            (b.orderedAtEntry.dir_ordered) ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
+        -- At cycle: StepOrdering(cle a, cle a) or eq → both contradict
+        cases hcomposed with
+        | inl hso =>
+          have h3 := stepOrdering_to_three hso (b.orderedAtEntry.dir_ordered)
+            ((hknow a).hreq's_dir_access.choose_spec.right.isDirEvent)
+            ((hknow a).hreq's_dir_access.choose_spec.right.isDirEvent)
+          cases h3 with
+          | inl hlink => exact LinLink.irrefl hlink
+          | inr hr => cases hr with
+            | inl heq => exact cle_self_ordering_false (hknow a) b.orderedAtEntry.dir_ordered
+            | inr hdiff => exact absurd rfl hdiff
+        | inr _ => exact cle_self_ordering_false (hknow a) b.orderedAtEntry.dir_ordered
       | tail hpath' h₁ =>
         -- TransGen R a b', R b' b, R b a.
         -- Longer cycle. TODO: reduce or use ranking.
