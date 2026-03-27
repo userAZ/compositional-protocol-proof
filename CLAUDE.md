@@ -75,10 +75,14 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 ### Remaining sorry categories (17 active)
 
-**compose_three (10 sorry's):**
-- obFinishBefore h₂ × {ob, other} h₁: need l₁.protocol ≠ l₃.protocol + temporal bound. obFinishBefore only from FR diffCluster_rfFinishBefore. Use hedge to confirm FR and extract protocol info.
-- *EndLt h₁ × encapOb/proxyPair h₂: proxies p₁ (from h₁) and p₂ (from h₂) at intermediate points inside l₂. p₁.oEnd < l₂.oEnd and l₂.oStart < p₂.oStart, but p₁ vs p₂ temporal order unknown from StepOrdering alone. Use hedge to extract specific proxy identities.
-- obFinishBefore h₁ × obEndLt h₂: no forward l₁→l₂ bound from obFinishBefore. Use hedge for h₂'s edge evidence.
+**compose_three (5 sorry's, restructured with hedge case-split):**
+- PPOi case: mostly done (1 protocol sorry for obFinishBefore h₁ + PPOi, 1 "non-ob" sorry)
+- rfe/co/fr cases: sorry (need same treatment as PPOi — case-split h₂ from step_to_ordering, compose with h₁)
+- Key blocker: obFinishBefore compositions where proxies at different clusters have unknown temporal ordering.
+
+**Two approaches for compose_three (from Anqi):**
+- **Option 1 (backup): Generic LinLink with OB + Encap + EncapBy.** Show each edge maps to TransGen of these steps. All 2-cycles of OB/Encap/EncapBy contradict via oStart/oEnd chains. Challenge: no single monotone measure for the TransGen (OB/Encap increase oStart, EncapBy decreases it). Need a different irreflexivity proof (maybe lex pair or case analysis).
+- **Option 2 (current): Extend StepOrdering with edge-type case analysis.** compose_three case-splits on hedge (PPOi/rfe/co/fr). For each edge type, derive StepOrdering using edge-specific evidence + h₁. Most compositions proven. Remaining sorry's from obFinishBefore (cross-cluster proxy ordering). May need new constructors verified acyclic via stepOrdering_to_three + dir_ordered.
 
 **Helper lemma sorry's (5):**
 - `compound_lin_start/end_bound` clusterCacheLin branches (lines 161, 162, 220, 223, 226). Need `reqHasPerms + reqMissingPerms → False` or `clusterDirLin` precondition.

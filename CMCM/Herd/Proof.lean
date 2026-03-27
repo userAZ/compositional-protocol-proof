@@ -2131,16 +2131,81 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
       | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
     | _ => sorry -- PPOi non-ob: should not arise (PPOi always gives ob from dir_ordered)
   | inr hcom_edge =>
-    cases hcom_edge with
-    | rfe hrfe =>
-      have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering (.inr (.rfe hrfe)) hknow
-      sorry -- rfe: compose h₁ with h₂
-    | co hco =>
-      have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering (.inr (.co hco)) hknow
-      sorry -- co: compose h₁ with h₂
-    | fr hfr =>
-      have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering (.inr (.fr hfr)) hknow
-      sorry -- fr: compose h₁ with h₂
+    -- All com edges: derive h₂ via step_to_ordering, compose with h₁.
+    -- The composition logic is the same for all edge types.
+    have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering (.inr hcom_edge) hknow
+    -- Compose hso₁ with h₂. Case-split h₂ for temporal chain.
+    cases h₂ with
+    | ob hob₂ =>
+      -- Same as PPOi ob case: chain h₁ with OB.
+      cases hso₁ with
+      | ob hob₁ => exact Or.inl (.ob (Trans.trans hob₁ hob₂))
+      | obEndLt p₁ hob₁ hlt₁ =>
+        exact Or.inl (.ob (Trans.trans hob₁ (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
+      | encapOb p₁ henc₁ hob₁ => exact Or.inl (.encapOb p₁ henc₁ (Trans.trans hob₁ hob₂))
+      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
+        exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
+      | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
+        exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
+      | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
+        exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ (by
+          intro h₁₃; apply hdiff₁; sorry)) -- protocol: l₃.prot = l₂.prot from same-cluster edge
+      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
+      | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
+    | obEndLt p₂ hob₂ hlt₂ =>
+      cases hso₁ with
+      | ob hob₁ => exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ hob₂) hlt₂)
+      | encapOb p₁ henc₁ hob₁ =>
+        exact Or.inl (.encapObEndLt p₁ p₂ henc₁ (Trans.trans hob₁ hob₂) hlt₂)
+      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
+        exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hlt₁ hob₂)) hlt₂)
+      | obEndLt p₁ hob₁ hlt₁ =>
+        exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hlt₁ hob₂)) hlt₂)
+      | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
+        exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans hp_ob hob₂)) hlt₂)
+      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂)
+      | eq heq₁ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂)
+      | obFinishBefore _ _ _ _ => sorry -- obFinishBefore h₁ + obEndLt h₂
+    | encapOb p₂ henc₂ hob₂ =>
+      cases hso₁ with
+      | ob hob₁ =>
+        exact Or.inl (.ob (Trans.trans (show Event.OrderedBefore n l₁ p₂ from Nat.lt_trans hob₁ henc₂.left) hob₂))
+      | encapOb p₁ henc₁ hob₁ =>
+        exact Or.inl (.proxyPair p₁ p₂ henc₁ (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hob₁ henc₂.left) hob₂)
+      | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
+        exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hp_ob henc₂.left)) hob₂)
+      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
+      | eq heq₁ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
+      | _ => sorry -- obEndLt/obFinishBefore/encapObEndLt h₁ + encapOb h₂
+    | proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂ =>
+      cases hso₁ with
+      | ob hob₁ =>
+        exact Or.inl (.ob (Trans.trans (show Event.OrderedBefore n l₁ q₂ from Nat.lt_trans hob₁ hq_enc₂.left) (Trans.trans hq_ob₂ hp_ob₂)))
+      | encapOb p₁ henc₁ hob₁ =>
+        exact Or.inl (.proxyPair p₁ p₂ henc₁ (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hob₁ hq_enc₂.left) hq_ob₂) hp_ob₂)
+      | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
+        exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp_ob hq_enc₂.left) hq_ob₂)) hp_ob₂)
+      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
+      | eq heq₁ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
+      | _ => sorry -- obEndLt/obFinishBefore/encapObEndLt h₁ + proxyPair h₂
+    | encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ =>
+      cases hso₁ with
+      | ob hob₁ =>
+        exact Or.inl (.obEndLt p₂ (Trans.trans (show Event.OrderedBefore n l₁ q₂ from Nat.lt_trans hob₁ hq_enc₂.left) hq_ob₂) hp_lt₂)
+      | encapOb p₁ henc₁ hob₁ =>
+        exact Or.inl (.encapObEndLt p₁ p₂ henc₁ (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hob₁ hq_enc₂.left) hq_ob₂) hp_lt₂)
+      | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
+        exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp_ob hq_enc₂.left) hq_ob₂)) hp_lt₂)
+      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂)
+      | eq heq₁ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂)
+      | _ => sorry -- obEndLt/obFinishBefore/encapObEndLt h₁ + encapObEndLt h₂
+    | obFinishBefore p₂ hob₂ hlt₂ hdiff₂ =>
+      cases hso₁ with
+      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obFinishBefore p₂ hob₂ hlt₂ hdiff₂)
+      | eq heq₁ => exact Or.inl (heq₁ ▸ .obFinishBefore p₂ hob₂ hlt₂ hdiff₂)
+      | _ => sorry -- h₁ + obFinishBefore h₂
+    | sameLin _ _ heq₂ _ _ _ => exact Or.inl (heq₂ ▸ hso₁)
+    | eq heq₂ => exact Or.inl (heq₂ ▸ hso₁)
 
 /- OLD compose_three body removed.
   cases h₁ with
