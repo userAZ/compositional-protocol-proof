@@ -56,36 +56,44 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-26 session 12, checkpoint 3)
+### Status (updated 2026-03-27 session 12, checkpoint 4)
 - **CO edge**: FULLY PROVEN
 - **rfe edge**: FULLY PROVEN
 - **FR edge**: `fr_ordering_holds` SORRY-FREE. 1 translatedDir sorry in helper.
 - **PPOi edge**: Restricted to diff-addr. All non-lazy PROVEN. 1 lazy sorry.
-- **Cycle proof**: Invariant = `StepOrdering ∨ eq`. `compose_three` composes two StepOrderings. At cycle level: `stepOrdering_to_three` → LinLink/eq/diff_prot → irrefl/dir_ordered/absurd.
-- **StepOrdering**: 8 constructors (ob, obEndLt, encapOb, obFinishBefore, sameLin, proxyPair, eq, encapObEndLt). `encapObEndLt` added session 12 for encapOb+obEndLt compositions.
-- **compose_three**: Takes h₁ (StepOrdering∨eq), h₂ (StepOrdering), hedge (PPOi∪com edge), hknow, hl₂/hl₃, dir_ordered, isDirectoryEvent. All ob/encapOb/proxyPair/encapObEndLt × ob/obEndLt/encapOb/proxyPair/encapObEndLt compositions PROVEN via OB transitivity + Nat.lt_trans. obFinishBefore and *EndLt+encapOb compositions: sorry.
-- **17 active sorry's** in Proof.lean (10 in compose_three, 7 elsewhere). 3 more in block comment (dead code).
+- **Cycle proof**: Invariant = `StepOrdering ∨ eq`. compose_three composes h₁ (StepOrdering∨eq) with hedge (PPOi∪com edge). At cycle level: stepOrdering_to_three → LinLink/eq/diff_prot → irrefl/dir_ordered/absurd.
+- **StepOrdering**: 8 constructors (ob, obEndLt, encapOb, obFinishBefore, sameLin, proxyPair, eq, encapObEndLt).
+- **compose_three**: Case-splits hedge into PPOi/com. PPOi: ob h₂ fully composed with all h₁ cases (obFinishBefore h₁ uses by_cases on protocol). Com: derives h₂ via step_to_ordering, composes ob/obEndLt h₂ with most h₁ cases. Remaining: obFinishBefore compositions + wildcard catches.
+- **15 active sorry's** in Proof.lean (8 in compose_three, 7 elsewhere). Old compose_three body in block comment.
 - **CompoundProtocol.dirAccessUnique**: Field bridging compound lin ↔ Herd CLEs.
 
 **TODO:**
-1. **compose_three sorry's (10)**: Use `hedge` to case-split on PPOi/rfe/co/fr edge types directly instead of abstract StepOrdering composition. Key insight (from Anqi): work through ALL pairs of (PPOi∪COM) × (PPOi∪COM) edge types. Each pair gives specific temporal evidence that the abstract StepOrdering loses. This is the GUARANTEED path — avoids guessing constructors.
-2. Replace `dirAccessUnique` field with proof by unifying CLE definitions.
+1. **compose_three sorry's (8)**: Close remaining compositions. Two approaches (from Anqi):
+   - **Option 1 (backup): Generic LinLink with OB + Encap + EncapBy.** All 2-cycles of these contradict. Challenge: no single monotone measure.
+   - **Option 2 (current): Extend StepOrdering.** DEAD END for adding proxy protocol/isDir fields — proxy protocol doesn't compose across edges (proxy at l₂'s cluster but output needs l₃'s cluster). Need fundamentally different constructor or approach.
+2. Replace `dirAccessUnique` field with proof.
 3. Lazy PPOi+com pair composition.
 4. `reqHasPerms + reqMissingPerms → False` (closes 5 helper sorry's).
 
-### Remaining sorry categories (17 active)
+### Remaining sorry categories (15 active)
 
-**compose_three (5 sorry's, restructured with hedge case-split):**
-- PPOi case: mostly done (1 protocol sorry for obFinishBefore h₁ + PPOi, 1 "non-ob" sorry)
-- rfe/co/fr cases: sorry (need same treatment as PPOi — case-split h₂ from step_to_ordering, compose with h₁)
-- Key blocker: obFinishBefore compositions where proxies at different clusters have unknown temporal ordering.
+**compose_three (8 sorry's):**
+- 2× obFinishBefore h₁ + ob h₂, same-protocol l₃ OB l₁ (PPOi + com cases)
+- 1× obFinishBefore h₁ + obEndLt h₂
+- 3× obEndLt/obFinishBefore/encapObEndLt h₁ + encapOb/proxyPair/encapObEndLt h₂
+- 1× any h₁ + obFinishBefore h₂
+- 1× PPOi non-ob (should be vacuous)
+- Root cause: obFinishBefore proxy at l₂'s cluster doesn't relate to l₁ (different cluster). Adding proxy protocol to constructor FAILS because composed output needs proxy at l₃'s protocol, not l₂'s.
 
-**Two approaches for compose_three (from Anqi):**
-- **Option 1 (backup): Generic LinLink with OB + Encap + EncapBy.** Show each edge maps to TransGen of these steps. All 2-cycles of OB/Encap/EncapBy contradict via oStart/oEnd chains. Challenge: no single monotone measure for the TransGen (OB/Encap increase oStart, EncapBy decreases it). Need a different irreflexivity proof (maybe lex pair or case analysis).
-- **Option 2 (current): Extend StepOrdering with edge-type case analysis.** compose_three case-splits on hedge (PPOi/rfe/co/fr). For each edge type, derive StepOrdering using edge-specific evidence + h₁. Most compositions proven. Remaining sorry's from obFinishBefore (cross-cluster proxy ordering). May need new constructors verified acyclic via stepOrdering_to_three + dir_ordered.
+**DEAD END: Adding proxy isDirectoryEvent + protocol to obFinishBefore**
+Tried adding `h_p_isdir : p.isDirectoryEvent` and `h_p_prot : p.protocol = l₂.protocol` to obFinishBefore. FAILS for composition: composed obFinishBefore(l₁, l₃) has proxy p₁ at l₂'s protocol, but the constructor needs `p.protocol = l₃.protocol` (the NEW l₂). Since l₂.protocol ≠ l₃.protocol for cross-cluster edges, the field doesn't propagate. Reverted.
 
 **Helper lemma sorry's (5):**
-- `compound_lin_start/end_bound` clusterCacheLin branches (lines 161, 162, 220, 223, 226). Need `reqHasPerms + reqMissingPerms → False` or `clusterDirLin` precondition.
+- `compound_lin_start/end_bound` clusterCacheLin branches (lines 161, 162, 220, 223, 226).
+
+**Other (2):**
+- translatedDir endpoint shift (line 608)
+- lazy PPOi (line 1500)
 
 **Other (2):**
 - translatedDir endpoint shift (line 608)
