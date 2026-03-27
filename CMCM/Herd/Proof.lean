@@ -183,15 +183,34 @@ private noncomputable def compound_lin_start_bound
       | ncRelAcqWeakWriteNotOnCoherentState _ hrelacq hnocoherentperms =>
         cases hreq_has with
         | hasPerms hcoherent _ =>
-          -- isCoherent ∧ isNcRelAcq → ⊥
-          sorry -- coherent events can't be acquire/ncRelease (Request.IsValid constraint)
+          -- isCoherent ∧ isNcRelAcq → ⊥ (coherent can't be acquire/ncRelease)
+          simp [Event.isNcRelAcq, Event.isAcquire, Event.isNcRelease] at hrelacq
+          match e with
+          | .cacheEvent ce =>
+            simp [Event.isCoherent, ValidRequest.isCoherent, Request.isCoherent] at hcoherent
+            simp [CacheEvent.isAcquire, CacheEvent.isNcRelease,
+              ValidRequest.isAcquire, ValidRequest.isNcRelease] at hrelacq
+            cases hrelacq with
+            | inl hacq => simp [hacq] at hcoherent
+            | inr hncrel => simp [hncrel] at hcoherent
+          | .directoryEvent _ => simp [Event.isCoherent] at hcoherent
         | ncRelAcqWeakWriteHasCoherentPerms _ hcoherent_perms =>
           exact hnocoherentperms ⟨show Behaviour.eventOnCoherentState n b init e from
             hcoherent_perms.onCoherentState,
             show Behaviour.eventOnStateHasPerms n b init e from hcoherent_perms.hasPerms⟩
         | ncWeakReadHasPermsNotVd hweak _ =>
           -- isNcWeakRead ∧ isNcRelAcq → ⊥ (weak ≠ acquire/release)
-          sorry -- weak reads are not acquire/ncRelease (Consistency enum constraint)
+          simp [Event.isNcRelAcq, Event.isAcquire, Event.isNcRelease] at hrelacq
+          simp [Event.isNcWeakRead] at hweak
+          match e with
+          | .cacheEvent ce =>
+            simp [CacheEvent.isNcWeakRead, ValidRequest.isNcWeakRead] at hweak
+            simp [CacheEvent.isAcquire, CacheEvent.isNcRelease,
+              ValidRequest.isAcquire, ValidRequest.isNcRelease] at hrelacq
+            cases hrelacq with
+            | inl hacq => simp [hacq] at hweak
+            | inr hncrel => simp [hncrel] at hweak
+          | .directoryEvent _ => simp [Event.isNcWeakRead] at hweak
     | orderAfterDir _ _ _ _ => sorry -- unreachable: clusterCacheLin (reqHasPerms) ∧ orderAfterDir (ncWeak)
   | .clusterDirLin hdir =>
     -- compound lin event = hdir.choose
