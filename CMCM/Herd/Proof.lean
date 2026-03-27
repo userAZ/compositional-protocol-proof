@@ -2136,7 +2136,23 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
                 -- So p₁ OB l₁. Then p₁ OB l₃ OB l₁ and p₁ OB l₁ — consistent but...
                 -- We have p₁.oEnd < l₁.oEnd and l₁ OB p₁ would give l₁.oEnd < p₁.oStart ≤ p₁.oEnd < l₁.oEnd → contradiction.
                 -- So if p₁ is a directory event at l₁'s cluster: l₁ OB p₁ impossible → p₁ OB l₁.
-                sorry -- l₃ OB l₁ case: needs p₁ cluster analysis
+                -- VACUOUS: PPOi sameProtocol → l₂ = l₃ protocol → l₁ ≠ l₂ contradicted.
+                exfalso; apply hdiff₁
+                -- hprot : de₁.protocol = de₃.protocol (after match substitution)
+                -- hl₃ gives: .directoryEvent de₃ = (hknow e₃).choose (after match)
+                -- hl₂ gives: l₂ = (hknow e₂).choose
+                -- Chain: de₁.prot = de₃.prot = cle(e₃).prot = e₃.prot = e₂.prot = cle(e₂).prot = l₂.prot
+                have h₃_prot : Event.protocol n (.directoryEvent de₃) = Event.protocol n (hknow e₃).hreq's_dir_access.choose :=
+                  congrArg (Event.protocol n) hl₃
+                have h₁₃_chain : Event.protocol n (.directoryEvent de₁) = Event.protocol n (hknow e₃).hreq's_dir_access.choose :=
+                  hprot.trans h₃_prot
+                have h₂₃ := (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
+                    (hppoi_edge.1.sameProtocol.trans (write_cle_protocol_eq_write_protocol (hknow e₃)).symm)
+                -- h₁₃_chain gives de₁.pInst = cle(e₃).protocol
+                -- h₂₃ gives cle(e₂).protocol = cle(e₃).protocol (as Nat-level protocol fields)
+                -- Need: de₁.pInst = l₂.protocol
+                -- Use: write_cle_protocol_eq_write_protocol works at Event.protocol level
+                sorry -- close: chain de₁.pInst = cle(e₃).prot = cle(e₂).prot = l₂.prot
         · exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
