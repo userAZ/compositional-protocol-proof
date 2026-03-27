@@ -2086,14 +2086,35 @@ private theorem stepOrdering_to_three {l₁ l₂ : Event n}
     For same-protocol l₁/l₃: dir_ordered → l₁ OB l₃ (LinLink) or l₃ OB l₁ (temporal contradiction).
     The temporal contradiction chains through BOTH h₁ and h₂'s data.
     obFinishBefore on h₁ (no l₁→l₂ forward bound): sorry. -/
-private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
+private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event n}
     (h₁ : @StepOrdering n l₁ l₂ ∨ l₁ = l₂)
     (hedge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₂ e₃)
+    (h_prefix_edge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₁ e₂)
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (hl₂ : l₂ = (hknow e₂).hreq's_dir_access.choose) (hl₃ : l₃ = (hknow e₃).hreq's_dir_access.choose)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h₁_isdir : l₁.isDirectoryEvent)
     : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ := by
+  -- Helper: extract e₂'s read/write from edge, check junction compatibility.
+  -- hedge constrains e₂ from the CURRENT edge. h_prefix_edge from the PREFIX.
+  -- If incompatible (e₂ read + e₂ write) → exfalso.
+  have h_e₂_from_hedge : (e₂.isWrite ∨ e₂.isRead) := by
+    cases hedge with
+    | inl hppoi => left; sorry -- PPOi: e₂ could be read or write. TODO
+    | inr hcom => cases hcom with
+      | rfe hrfe => exact Or.inl hrfe.write
+      | co hco => exact Or.inl hco.write₁
+      | fr hfr => exact Or.inr hfr.read
+  have h_e₂_from_prefix : (e₂.isWrite ∨ e₂.isRead) := by
+    cases h_prefix_edge with
+    | inl hppoi => left; sorry -- PPOi: e₁ could be read or write. TODO
+    | inr hcom => cases hcom with
+      | rfe hrfe => exact Or.inr hrfe.read   -- rfe(e₁, e₂): e₂.isRead
+      | co hco => exact Or.inl hco.write₂    -- co(e₁, e₂): e₂.isWrite
+      | fr hfr => exact Or.inl hfr.write     -- fr(e₁, e₂): e₂.isWrite
+  -- Junction compatibility: if both constrain e₂ differently → contradiction.
+  -- e₂.isWrite ∧ e₂.isRead → False (rw is .r or .w, not both).
+  -- For sorry cases: use this to eliminate impossible edge pairs.
   -- eq h₁: substitute, derive from edge directly
   cases h₁ with
   | inr heq₁ =>
@@ -2511,13 +2532,19 @@ theorem cmcm_acyclic_of_hknow
   induction hpath with
   | single h => exact Or.inl (step_to_ordering h hknow)
   | tail hpath h ih =>
-    -- Extract last prefix edge for junction compatibility.
-    -- hpath : TransGen R a b_mid. h : R b_mid c.
-    -- From TransGen.tail': ∃ a', (a = a' ∨ TransGen R a a') ∧ R a' b_mid.
-    -- The last prefix edge R a' b_mid constrains b_mid's read/write.
-    -- For now: pass to compose_three without prefix edge (TODO: add for junction check).
-    exact compose_three ih h hknow rfl rfl
-      (b.orderedAtEntry.dir_ordered) ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
+    -- Extract last prefix edge via TransGen structure.
+    cases hpath with
+    | single h_prefix =>
+      -- Prefix is single edge: h_prefix is the last (and only) prefix edge.
+      exact compose_three (Or.inl (step_to_ordering h_prefix hknow)) h h_prefix hknow rfl rfl
+        (b.orderedAtEntry.dir_ordered) ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
+    | tail hpath' h_prefix =>
+      -- Prefix is tail: h_prefix is the last prefix edge, hpath' is the rest.
+      -- ih is for the full prefix (hpath' + h_prefix). But we need ih for COMPOSE.
+      -- ih : StepOrdering ∨ eq for (a → b_mid) = (a → prev → b_mid).
+      -- We pass h_prefix as the last prefix edge to compose_three.
+      exact compose_three ih h h_prefix hknow rfl rfl
+        (b.orderedAtEntry.dir_ordered) ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
