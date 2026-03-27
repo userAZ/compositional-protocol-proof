@@ -367,13 +367,25 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
     | eq heq => subst heq; exact .encapOb q henc hob
   | obFinishBefore q hqob hqlt hqdiff =>
     cases h₂₃ with
-    | ob h₂ => exact .obFinishBefore q (Trans.trans hqob h₂) hqlt sorry
+    | ob h₂ =>
+      by_cases h_prot : Event.protocol n l₁ = Event.protocol n l₃
+      · -- Same protocol l₁ l₃: q OB l₃, q.oEnd < l₁.oEnd, l₁/l₃ at same directory.
+        -- Cannot derive l₁ OB l₃ from this alone. Needs dir_ordered (unavailable here).
+        sorry -- trans obFinishBefore+ob, same protocol
+      · exact .obFinishBefore q (Trans.trans hqob h₂) hqlt h_prot
     | obEndLt p hp hlt => sorry -- trans obFinishBefore+obEndLt
-    | encapOb p henc hob => exact .obFinishBefore q (Nat.lt_trans (Nat.lt_trans hqob henc.left) (Nat.lt_trans (Event.oWellFormed n p) hob)) hqlt sorry
+    | encapOb p henc hob =>
+      by_cases h_prot : Event.protocol n l₁ = Event.protocol n l₃
+      · -- Same protocol l₁ l₃: q OB l₃ (through l₂→p→l₃), q.oEnd < l₁.oEnd.
+        sorry -- trans obFinishBefore+encapOb, same protocol
+      · exact .obFinishBefore q (Nat.lt_trans (Nat.lt_trans hqob henc.left) (Nat.lt_trans (Event.oWellFormed n p) hob)) hqlt h_prot
     | obFinishBefore p hob hlt hdiff => sorry -- trans obFinishBefore+obFinishBefore
     | proxyPair r s hr_enc hr_ob_s hs_ob =>
-      exact .obFinishBefore q (Nat.lt_trans (Nat.lt_trans hqob hr_enc.left) (Nat.lt_trans (Event.oWellFormed n r)
-        (Nat.lt_trans hr_ob_s (Nat.lt_trans (Event.oWellFormed n s) hs_ob)))) hqlt sorry
+      by_cases h_prot : Event.protocol n l₁ = Event.protocol n l₃
+      · -- Same protocol l₁ l₃: q OB l₃ (through l₂→r→s→l₃), q.oEnd < l₁.oEnd.
+        sorry -- trans obFinishBefore+proxyPair, same protocol
+      · exact .obFinishBefore q (Nat.lt_trans (Nat.lt_trans hqob hr_enc.left) (Nat.lt_trans (Event.oWellFormed n r)
+          (Nat.lt_trans hr_ob_s (Nat.lt_trans (Event.oWellFormed n s) hs_ob)))) hqlt h_prot
     | sameLin _ _ heq _ _ _ => subst heq; exact .obFinishBefore q hqob hqlt hqdiff
     | eq heq => subst heq; exact .obFinishBefore q hqob hqlt hqdiff
   | proxyPair q p hq_enc hq_ob_p hp_ob =>
