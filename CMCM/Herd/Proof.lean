@@ -143,48 +143,23 @@ private noncomputable def compound_lin_start_bound
     Event.oStart n lin_e.hreq's_dir_access.choose ≤
     Event.oStart n (compound.compoundLinearizationEvent compound.shimAxioms b init e
       (compound.linearizationOfEvent b init e)).linearizationEvent := by
-  -- Match on compound linearization type
+  -- Match on compound linearization type (only clusterDirLin is reachable at call sites)
   match hclin : compound.compoundLinearizationEvent compound.shimAxioms b init e
       (compound.linearizationOfEvent b init e) with
   | .clusterCacheLin hcache =>
-    -- After match, .linearizationEvent reduces to hcache.choose
+    -- Unreachable at call sites (non-lazy CompoundMCM guarantees clusterDirLin).
+    -- For completeness: CLE.oStart ≤ e.oStart holds for orderBeforeDir.
     simp only [ClusterRequestLinearizationEvent.linearizationEvent]
-    -- hcache.choose = e (the cache event)
-    have hcache_eq_e := hcache.choose_spec.right.e_creq_is_e_glin
-    rw [hcache_eq_e]
-    -- Goal: CLE.oStart ≤ e.oStart
-    -- Case-split on dirAccessOfRequest to get the temporal relationship
+    have hcache_eq_e := hcache.choose_spec.right.e_creq_is_e_glin; rw [hcache_eq_e]
     have hdir_access := lin_e.hreq's_dir_access.choose_spec.2
     cases hdir_access with
-    | encapDir hreq_missing _ =>
-      -- clusterCacheLin requires reqHasPerms, encapDir requires reqMissingPerms
-      -- These are contradictory: reqHasPerms gives hasPerms, reqMissingPerms gives noPerms
-      have hreq_has := hcache.choose_spec.right.cReqHasPerms
-      sorry -- reqHasPerms + reqMissingPerms → False
     | orderBeforeDir _ hexists_pred hpred_dir_access _ _ _ _ _ =>
-      -- CLE is from pred's directory access: pred.Encapsulates CLE
-      -- pred OB e: pred.oEnd < e.oStart
-      -- From encapsulation: CLE.oEnd < pred.oEnd
-      -- Chain: CLE.oStart ≤ CLE.oEnd < pred.oEnd < e.oStart → CLE.oStart ≤ e.oStart
-      have hpred_encap_cle := hpred_dir_access.reqEncapDir
-      -- hpred_encap_cle : hexists_pred.choose.Encapsulates n lin_e.hreq's_dir_access.choose
-      -- hpred_encap_cle.right : CLE.oEnd < pred.oEnd
-      have hpred_ob_e : hexists_pred.choose.OrderedBefore n e :=
-        hexists_pred.choose_spec.right.isImmPred.bPred.isPred
-      -- CLE.oEnd < pred.oEnd < e.oStart → CLE.oEnd < e.oStart
-      -- CLE.oStart ≤ CLE.oEnd (from oWellFormed, actually oStart < oEnd)
-      -- So CLE.oStart < e.oStart → CLE.oStart ≤ e.oStart
       exact Nat.le_of_lt (Nat.lt_trans
         (Nat.lt_of_lt_of_le (Event.oWellFormed n lin_e.hreq's_dir_access.choose)
-          (Nat.le_of_lt hpred_encap_cle.right))
-        hpred_ob_e)
-    | orderAfterDir hweak _ _ _ =>
-      -- clusterCacheLin requires reqHasPerms, orderAfterDir requires ncWeakReqOnVd
-      -- nc.weak can have reqHasPerms (e.g., ncWeakReadHasPermsNotVd)
-      -- But clusterCacheLin also requires lin_at_cache (reqLinearizesAtCache),
-      -- which means linearizationOfEvent is .requestLin.
-      -- orderAfterDir uses immBottomSuccOnVdEncapCorrDir, the CLE is from a successor
-      sorry -- reqHasPerms + ncWeakReqOnVd → contradiction via compound axioms
+          (Nat.le_of_lt hpred_dir_access.reqEncapDir.right))
+        hexists_pred.choose_spec.right.isImmPred.bPred.isPred)
+    | encapDir _ _ => sorry -- unreachable: clusterCacheLin (reqHasPerms) ∧ encapDir (reqMissingPerms)
+    | orderAfterDir _ _ _ _ => sorry -- unreachable: clusterCacheLin (reqHasPerms) ∧ orderAfterDir (ncWeak)
   | .clusterDirLin hdir =>
     -- compound lin event = hdir.choose
     simp only [ClusterRequestLinearizationEvent.linearizationEvent]
@@ -346,6 +321,11 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
       -- l₁ OB l₂, p inside l₂, p OB l₃. Chain: l₁ < l₂.oStart < p.oStart ≤ p.oEnd < l₃.oStart.
       exact .ob (Nat.lt_trans (Nat.lt_trans h₁ henc.left) (Nat.lt_trans (Event.oWellFormed n p) hob))
     | obFinishBefore p hob hlt => sorry -- trans ob+obFinishBefore
+    | proxyPair r s hr_enc hr_ob_s hs_ob =>
+      -- l₁ OB l₂, r inside l₂, r OB s, s OB l₃.
+      -- Chain: l₁.oEnd < l₂.oStart < r.oStart < r.oEnd < s.oStart < s.oEnd < l₃.oStart.
+      exact .ob (Nat.lt_trans (Nat.lt_trans h₁ hr_enc.left) (Nat.lt_trans (Event.oWellFormed n r)
+        (Nat.lt_trans hr_ob_s (Nat.lt_trans (Event.oWellFormed n s) hs_ob))))
     | sameLin _ _ heq _ _ _ => subst heq; exact .ob h₁
     | eq heq => subst heq; exact .ob h₁
   | obEndLt q hq hqlt =>
@@ -356,10 +336,11 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
       exact .obEndLt p (Trans.trans hq (show q.OrderedBefore n p from Nat.lt_trans hqlt hp)) hlt
     | encapOb p henc hob =>
       -- l₁ OB q, q.oEnd < l₂.oEnd. p inside l₂, p OB l₃.
-      -- p.oEnd < l₃.oStart → p.oEnd < l₃.oEnd. Use .obEndLt p if l₁ OB p.
-      -- General case: sorry (may need additional TC constructor).
       sorry -- trans obEndLt+encapOb: needs careful oEnd chain
     | obFinishBefore p hob hlt => sorry -- trans obEndLt+obFinishBefore
+    | proxyPair r s hr_enc hr_ob_s hs_ob =>
+      -- l₁ OB q, q.oEnd < l₂.oEnd. r inside l₂, r OB s, s OB l₃.
+      sorry -- trans obEndLt+proxyPair: q.oEnd < l₂.oEnd, r inside l₂, no q→r ordering
     | sameLin _ _ heq _ _ _ => subst heq; exact .obEndLt q hq hqlt
     | eq heq => subst heq; exact .obEndLt q hq hqlt
   | encapOb q henc hob =>
@@ -367,10 +348,9 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
     cases h₂₃ with
     | ob h₂ => exact .encapOb q henc (Trans.trans hob h₂)
     | obEndLt p hp hlt =>
-      -- q inside l₁, q OB l₂. l₂ OB p, p.oEnd < l₃.oEnd. Chain: q OB p via l₂. p.oEnd < l₃.oEnd.
-      -- Use obEndLt with proxy p: need l₁ OB p? No, q inside l₁. Use encapOb q with q OB p.
-      -- But encapOb gives StepOrdering l₁ p_target where p_target is the OB target. Need l₃.
-      -- q OB l₂ OB p. q.oEnd < p.oStart. p.oEnd < l₃.oEnd. So .encapOb needs q OB l₃? No, q OB p, not l₃.
+      -- q inside l₁, q OB l₂, l₂ OB p, p.oEnd < l₃.oEnd.
+      -- q OB p: q.oEnd < l₂.oStart ≤ l₂.oEnd < p.oStart. p not OB l₃ (only p.oEnd < l₃.oEnd).
+      -- Use proxyPair: q inside l₁, q OB p, p OB l₃? No, only p.oEnd < l₃.oEnd.
       sorry -- trans encapOb+obEndLt
     | encapOb p henc₂ hob₂ =>
       -- q inside l₁, q OB l₂. p inside l₂, p OB l₃.
@@ -378,6 +358,11 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
       exact .encapOb q henc (Nat.lt_trans (Nat.lt_trans hob henc₂.left) (Nat.lt_trans (Event.oWellFormed n p) hob₂))
     | obFinishBefore p hob₂ hlt =>
       sorry -- trans encapOb+obFinishBefore
+    | proxyPair r s hr_enc hr_ob_s hs_ob =>
+      -- q inside l₁, q OB l₂. r inside l₂, r OB s, s OB l₃.
+      -- Chain: q.oEnd < l₂.oStart < r.oStart < r.oEnd < s.oStart < s.oEnd < l₃.oStart.
+      exact .encapOb q henc (Nat.lt_trans (Nat.lt_trans hob hr_enc.left) (Nat.lt_trans (Event.oWellFormed n r)
+        (Nat.lt_trans hr_ob_s (Nat.lt_trans (Event.oWellFormed n s) hs_ob))))
     | sameLin _ _ heq _ _ _ => subst heq; exact .encapOb q henc hob
     | eq heq => subst heq; exact .encapOb q henc hob
   | obFinishBefore q hqob hqlt =>
@@ -386,8 +371,45 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
     | obEndLt p hp hlt => sorry -- trans obFinishBefore+obEndLt
     | encapOb p henc hob => exact .obFinishBefore q (Nat.lt_trans (Nat.lt_trans hqob henc.left) (Nat.lt_trans (Event.oWellFormed n p) hob)) hqlt
     | obFinishBefore p hob hlt => sorry -- trans obFinishBefore+obFinishBefore
+    | proxyPair r s hr_enc hr_ob_s hs_ob =>
+      -- q OB l₂, q.oEnd < l₁.oEnd. r inside l₂, r OB s, s OB l₃.
+      -- Chain: q.oEnd < l₂.oStart < r.oStart < r.oEnd < s.oStart < s.oEnd < l₃.oStart.
+      -- So q OB l₃: q.oEnd < l₂.oStart < ... < l₃.oStart. q.oEnd < l₁.oEnd still holds.
+      exact .obFinishBefore q (Nat.lt_trans (Nat.lt_trans hqob hr_enc.left) (Nat.lt_trans (Event.oWellFormed n r)
+        (Nat.lt_trans hr_ob_s (Nat.lt_trans (Event.oWellFormed n s) hs_ob)))) hqlt
     | sameLin _ _ heq _ _ _ => subst heq; exact .obFinishBefore q hqob hqlt
     | eq heq => subst heq; exact .obFinishBefore q hqob hqlt
+  | proxyPair q p hq_enc hq_ob_p hp_ob =>
+    -- q inside l₁, q OB p, p OB l₂. Compose with h₂₃.
+    cases h₂₃ with
+    | ob h₂ =>
+      -- p OB l₂, l₂ OB l₃. p OB l₃ by transitivity.
+      exact .proxyPair q p hq_enc hq_ob_p (Trans.trans hp_ob h₂)
+    | obEndLt r hr hlt =>
+      -- p OB l₂, l₂ OB r, r.oEnd < l₃.oEnd.
+      -- p OB r: p.oEnd < l₂.oStart ≤ l₂.oEnd < r.oStart. q OB r via q→p→l₂→r.
+      -- But r is NOT OB l₃ (only r.oEnd < l₃.oEnd). Can't produce proxyPair.
+      sorry -- trans proxyPair+obEndLt
+    | encapOb r hr_enc hr_ob =>
+      -- p OB l₂, r inside l₂, r OB l₃.
+      -- Chain: p.oEnd < l₂.oStart < r.oStart < r.oEnd < l₃.oStart.
+      -- q OB p OB l₃: chain through p→l₂→r→l₃. So q OB l₃.
+      have hp_ob_l₃ : p.OrderedBefore n l₃ :=
+        Nat.lt_trans (Nat.lt_trans hp_ob hr_enc.left) (Nat.lt_trans (Event.oWellFormed n r) hr_ob)
+      exact .proxyPair q p hq_enc hq_ob_p hp_ob_l₃
+    | obFinishBefore r hr_ob hr_lt =>
+      -- p OB l₂, r OB l₃, r.oEnd < l₂.oEnd.
+      sorry -- trans proxyPair+obFinishBefore
+    | proxyPair r s hr_enc hr_ob_s hs_ob =>
+      -- p OB l₂, r inside l₂, r OB s, s OB l₃.
+      -- Chain: p.oEnd < l₂.oStart < r.oStart < r.oEnd < s.oStart < s.oEnd < l₃.oStart.
+      -- q inside l₁, q OB p, p OB l₃ (chain through l₂→r→s→l₃).
+      have hp_ob_l₃ : p.OrderedBefore n l₃ :=
+        Nat.lt_trans (Nat.lt_trans hp_ob hr_enc.left) (Nat.lt_trans (Event.oWellFormed n r)
+          (Nat.lt_trans hr_ob_s (Nat.lt_trans (Event.oWellFormed n s) hs_ob)))
+      exact .proxyPair q p hq_enc hq_ob_p hp_ob_l₃
+    | sameLin _ _ heq _ _ _ => subst heq; exact .proxyPair q p hq_enc hq_ob_p hp_ob
+    | eq heq => subst heq; exact .proxyPair q p hq_enc hq_ob_p hp_ob
   | sameLin e₁' e₂' heq he₁ hob he₂ =>
     subst heq; exact h₂₃
   | eq heq =>
@@ -1540,9 +1562,11 @@ private theorem ppoi_diff_addr_step_ordering
           let e_lin₂ := (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
             (compound.linearizationOfEvent b init e₂)).linearizationEvent
           have hcle₁_le : Event.oStart n (.directoryEvent de₁) ≤ Event.oStart n e_lin₁ := by
-            have := compound_lin_start_bound e₁ (lin e₁); rwa [hfc₁] at this
+            have := compound_lin_start_bound e₁ (lin e₁)
+            rwa [hfc₁] at this
           have helin₂_le : Event.oEnd n e_lin₂ ≤ Event.oEnd n (.directoryEvent de₂) := by
-            have := compound_lin_end_bound e₂ (lin e₂); rwa [hfc₂] at this
+            have := compound_lin_end_bound e₂ (lin e₂)
+            rwa [hfc₂] at this
           exact Nat.lt_irrefl _ (calc Event.oEnd n (.directoryEvent de₂)
             _ < Event.oStart n (.directoryEvent de₁) := hob
             _ ≤ Event.oStart n e_lin₁ := hcle₁_le
@@ -2089,6 +2113,18 @@ theorem cmcm_acyclic_of_hknow
       exact Nat.lt_irrefl _ (Nat.lt_trans hob (Nat.lt_trans henc.left (Event.oWellFormed n p)))
     | obFinishBefore p hob hlt =>
       sorry -- irrefl obFinishBefore in cycle
+    | proxyPair q p hq_enc hq_ob_p hp_ob =>
+      -- q inside l (= CLE), q OB p, p OB l. Irrefl:
+      -- p.oEnd < l.oStart (p OB l), l.oStart < q.oStart (q inside l),
+      -- q.oStart < q.oEnd (well-formed), q.oEnd < p.oStart (q OB p),
+      -- p.oStart < p.oEnd (well-formed). Chain: p.oStart < p.oEnd < l.oStart < q.oStart < q.oEnd < p.oStart.
+      exact Nat.lt_irrefl (Event.oStart n p)
+        (calc Event.oStart n p
+          _ < Event.oEnd n p := Event.oWellFormed n p
+          _ < Event.oStart n (hknow e).hreq's_dir_access.choose := hp_ob
+          _ < Event.oStart n q := hq_enc.left
+          _ < Event.oEnd n q := Event.oWellFormed n q
+          _ < Event.oStart n p := hq_ob_p)
     | sameLin e₁' e₂' heq he₁ hob he₂ =>
       have : Event.oEnd n (hknow e).hreq's_dir_access.choose <
              Event.oEnd n (hknow e).hreq's_dir_access.choose :=

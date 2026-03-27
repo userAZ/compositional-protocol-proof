@@ -146,6 +146,12 @@ inductive StepOrdering : Event n → Event n → Prop where
   | sameLin (e₁' e₂' : Event n) (h_eq : l₁ = l₂)
       (h_enc₁ : l₁.EncapsulatedBy n e₁') (h_ob : e₁'.OrderedBefore n e₂')
       (h_enc₂ : l₂.EncapsulatedBy n e₂') : StepOrdering l₁ l₂
+  /-- Two-proxy chain: q inside l₁, q OB p, p OB l₂.
+      For compositions of encapOb/obFinishBefore with obEndLt/encapOb/obFinishBefore.
+      Irrefl: q inside l, q OB p, p OB l → p.oEnd < l.oStart < q.oStart → p.oEnd < q.oStart
+      and q.oEnd < p.oStart → contradiction. -/
+  | proxyPair (q p : Event n) (h_q_enc : q.EncapsulatedBy n l₁)
+      (h_q_ob_p : q.OrderedBefore n p) (h_p_ob : p.OrderedBefore n l₂) : StepOrdering l₁ l₂
   | eq (h_eq : l₁ = l₂) : StepOrdering l₁ l₂
 
 /-- FR ordering: descriptive inductive carrying the communication evidence
