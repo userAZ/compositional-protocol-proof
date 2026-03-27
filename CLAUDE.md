@@ -56,15 +56,16 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-26 session 12)
+### Status (updated 2026-03-26 session 12, checkpoint 2)
 - **CO edge**: FULLY PROVEN
 - **rfe edge**: FULLY PROVEN
 - **FR edge**: `fr_ordering_holds` SORRY-FREE. 1 translatedDir sorry in helper.
 - **PPOi edge**: Restricted to diff-addr. All non-lazy PROVEN. 1 lazy sorry.
-- **StepOrdering.trans**: DELETED (19 sorry's removed). Replaced by LinLink (TransGen LinStep).
-- **LinLink.irrefl**: FULLY PROVEN (oStart measure).
-- **Cycle proof**: Uses `stepOrdering_to_three` → `compose_three` → cycle contradiction.
-- **10 active sorry's** in Proof.lean (down from 37 at session 10, 15 at session 11). 3 more in block comment (dead code).
+- **StepOrdering.trans**: DELETED. Replaced by compose_three (StepOrdering × StepOrdering → StepOrdering ∨ eq).
+- **LinLink.irrefl**: FULLY PROVEN (oStart measure). Used at cycle level via stepOrdering_to_three.
+- **Cycle proof**: Invariant = `StepOrdering ∨ eq`. compose_three composes. At cycle level: stepOrdering_to_three → LinLink/eq/diff_prot → irrefl/dir_ordered/absurd.
+- **compose_three**: Takes h₁ (StepOrdering∨eq), h₂ (StepOrdering), hedge (PPOi∪com edge), hknow, hl₂/hl₃ (CLE equalities). ob/encapOb/proxyPair compositions PROVEN. obEndLt/obFinishBefore compositions: sorry.
+- **15 active sorry's** in Proof.lean (8 in compose_three, 7 elsewhere). 3 more in block comment (dead code).
 - **CompoundProtocol.dirAccessUnique**: Field bridging compound lin ↔ Herd CLEs.
 
 **TODO (post-deadline):**
