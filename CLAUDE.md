@@ -63,7 +63,7 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **PPOi edge**: Restricted to diff-addr. All non-lazy PROVEN. 1 lazy sorry.
 - **Cycle proof**: Invariant = `StepOrdering ∨ eq`. compose_three composes h₁ (StepOrdering∨eq) with hedge (PPOi∪com edge). At cycle level: stepOrdering_to_three → LinLink/eq/diff_prot → irrefl/dir_ordered/absurd.
 - **StepOrdering**: 8 constructors (ob, obEndLt, encapOb, obFinishBefore, sameLin, proxyPair, eq, encapObEndLt).
-- **compose_three**: Case-splits hedge into PPOi/com. PPOi: ob h₂ fully composed with all h₁ cases (obFinishBefore h₁ uses by_cases on protocol). Com: derives h₂ via step_to_ordering, composes ob/obEndLt h₂ with most h₁ cases. Remaining: obFinishBefore compositions + wildcard catches.
+- **compose_three**: Case-splits hedge into PPOi/com. ob/obEndLt/encapOb/proxyPair/encapObEndLt h₂ composed with ob/encapOb/proxyPair/encapObEndLt h₁. obFinishBefore h₁ + same-cluster h₂ → same-protocol VACUOUS (PPOi sameProtocol + h₁ diff_prot → contradiction). Diff-protocol → output .obFinishBefore.
 - **15 active sorry's** in Proof.lean (8 in compose_three, 7 elsewhere). Old compose_three body in block comment.
 - **CompoundProtocol.dirAccessUnique**: Field bridging compound lin ↔ Herd CLEs.
 
@@ -83,10 +83,12 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - 3× obEndLt/obFinishBefore/encapObEndLt h₁ + encapOb/proxyPair/encapObEndLt h₂
 - 1× any h₁ + obFinishBefore h₂
 - 1× PPOi non-ob (should be vacuous)
-- Root cause: obFinishBefore proxy at l₂'s cluster doesn't relate to l₁ (different cluster). Adding proxy protocol to constructor FAILS because composed output needs proxy at l₃'s protocol, not l₂'s.
+- Root cause for remaining: obFinishBefore h₁ + cross-cluster h₂, or obEndLt/encapObEndLt h₁ + encapOb h₂.
+- KEY INSIGHT (session 12 late): obFinishBefore h₁ + same-cluster h₂ → same-protocol direction is VACUOUS. h₁ has l₁≠l₂ protocol. Same-cluster h₂ has l₂=l₃ protocol. Combined: l₁≠l₃, contradicting same-protocol assumption. Only diff-protocol output needed → .obFinishBefore with updated diff_prot.
+- For protocol chain proof: need `Event.protocol n (.directoryEvent de) = de.pInst` + `write_cle_protocol_eq_write_protocol` + edge sameProtocol.
 
 **DEAD END: Adding proxy isDirectoryEvent + protocol to obFinishBefore**
-Tried adding `h_p_isdir : p.isDirectoryEvent` and `h_p_prot : p.protocol = l₂.protocol` to obFinishBefore. FAILS for composition: composed obFinishBefore(l₁, l₃) has proxy p₁ at l₂'s protocol, but the constructor needs `p.protocol = l₃.protocol` (the NEW l₂). Since l₂.protocol ≠ l₃.protocol for cross-cluster edges, the field doesn't propagate. Reverted.
+Proxy protocol doesn't compose: composed obFinishBefore(l₁, l₃) has proxy at l₂'s protocol, but needs l₃'s protocol. Reverted.
 
 **Helper lemma sorry's (5):**
 - `compound_lin_start/end_bound` clusterCacheLin branches (lines 161, 162, 220, 223, 226).
