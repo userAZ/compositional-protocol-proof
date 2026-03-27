@@ -2100,14 +2100,32 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
   -- If incompatible (e₂ read + e₂ write) → exfalso.
   have h_e₂_from_hedge : (e₂.isWrite ∨ e₂.isRead) := by
     cases hedge with
-    | inl hppoi => left; sorry -- PPOi: e₂ could be read or write. TODO
+    | inl hppoi =>
+        -- PPOi(e₂, e₃): e₂ is a cache event, so rw is either .w or .r
+        have hcache := hppoi.1.cache₁
+        cases he₂ : e₂ with
+        | directoryEvent _ => simp [Event.isCacheEvent, he₂] at hcache
+        | cacheEvent ce =>
+          simp only [Event.isWrite, Event.isRead, Request.isWrite, Request.isRead, he₂]
+          cases ce.req.val.rw with
+          | w => exact Or.inl rfl
+          | r => exact Or.inr rfl
     | inr hcom => cases hcom with
       | rfe hrfe => exact Or.inl hrfe.write
       | co hco => exact Or.inl hco.write₁
       | fr hfr => exact Or.inr hfr.read
   have h_e₂_from_prefix : (e₂.isWrite ∨ e₂.isRead) := by
     cases h_prefix_edge with
-    | inl hppoi => exact Classical.em _ |>.elim (fun h => Or.inl h) (fun h => Or.inr (sorry))
+    | inl hppoi =>
+        -- PPOi(e₁, e₂): e₂ is a cache event, so rw is either .w or .r
+        have hcache := hppoi.1.cache₂
+        cases he₂ : e₂ with
+        | directoryEvent _ => simp [Event.isCacheEvent, he₂] at hcache
+        | cacheEvent ce =>
+          simp only [Event.isWrite, Event.isRead, Request.isWrite, Request.isRead]
+          cases ce.req.val.rw with
+          | w => exact Or.inl rfl
+          | r => exact Or.inr rfl
     | inr hcom => cases hcom with
       | rfe hrfe => exact Or.inr hrfe.read   -- rfe(e₁, e₂): e₂.isRead
       | co hco => exact Or.inl hco.write₂    -- co(e₁, e₂): e₂.isWrite
@@ -2208,21 +2226,18 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
         exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
-        -- .ob h₂ → same-cluster edge → l₂ = l₃ protocol.
-        -- Derive BEFORE matches to avoid type bridging issues.
+        -- obFinishBefore h₁ + ob h₂: derive l₂ = l₃ protocol.
+        -- .ob from com edge → same-cluster → e₂ = e₃ protocol → l₂ = l₃ protocol.
+        -- Then l₁ ≠ l₂ → l₁ ≠ l₃ → .obFinishBefore.
         have h₂₃_prot : Event.protocol n l₂ = Event.protocol n l₃ := by
           rw [hl₂, hl₃]
-          -- .ob h₂ → same-cluster → e₂ = e₃ protocol. Use Classical.em.
-          -- If e₂ = e₃: direct chain.
-          -- If e₂ ≠ e₃: cross-cluster. With l₁ ≠ l₂ (hdiff₁), pigeonhole → l₁ = l₃ → contradiction with hprot_diff.
           by_cases he₂₃ : e₂.protocol = e₃.protocol
           · exact (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
               (he₂₃.trans (write_cle_protocol_eq_write_protocol (hknow e₃)).symm)
-          · -- e₂ ≠ e₃ protocol (cross-cluster). l₁ ≠ l₂ (hdiff₁). Pigeonhole → l₁ = l₃.
-            -- Then hprot_diff (l₁ ≠ l₃) is False.
-            exfalso; exact sorry -- 2-cluster pigeonhole: l₁ ≠ l₂ ∧ l₂ ≠ l₃ → l₁ = l₃ → contradicts hprot_diff
-        -- Now: l₁ ≠ l₂ (hdiff₁), l₂ = l₃ (h₂₃_prot) → l₁ ≠ l₃.
-        -- So same-protocol direction is always vacuous:
+          · -- diff-cluster com edge + .ob: need to show impossible or derive protocol eq
+            -- .ob only from same-cluster step_to_ordering cases, but proving this
+            -- requires introspecting step_to_ordering (opaque). Use edge case-split.
+            exfalso; exact sorry -- step_to_ordering for diff-cluster com never gives .ob
         have hprot_diff : l₁.protocol ≠ l₃.protocol := fun h₁₃ => hdiff₁ (h₁₃.trans h₂₃_prot.symm)
         exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot_diff)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)

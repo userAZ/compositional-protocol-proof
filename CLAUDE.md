@@ -41,8 +41,8 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **PPOi edge**: Restricted to diff-addr. All non-lazy PROVEN. 1 lazy sorry.
 - **Cycle proof**: `cmcm_acyclic_of_hknow` uses `suffices` with invariant `StepOrdering ∨ eq`. `compose_three` composes prefix + current edge. At cycle level: `stepOrdering_to_three → LinLink/eq/diff_prot → irrefl/dir_ordered/absurd`.
 - **StepOrdering**: 8 constructors (ob, obEndLt, encapOb, obFinishBefore, sameLin, proxyPair, eq, encapObEndLt).
-- **compose_three**: Has `h_prefix_edge` (last prefix edge) and `h_junction_compat : ¬(e₂.isWrite ∧ e₂.isRead)`. Most compositions proven. Remaining sorry's need junction check + protocol extraction.
-- **7 declarations use sorry.** Build clean.
+- **compose_three**: Has `h_prefix_edge` (last prefix edge) and `h_junction_compat : ¬(e₂.isWrite ∧ e₂.isRead)`. PPOi read/write extraction PROVEN (ReadWrite exhaustiveness). Most compositions proven. Remaining sorry's: (a) l₃ OB l₁ same-protocol temporal contradiction ×4, (b) obEndLt/encapObEndLt + encapOb/proxyPair (can't chain through l₂) ×5, (c) wildcard + obFinishBefore/encapObEndLt ×2, (d) PPOi non-ob (blocked by lazy) ×1, (e) 1 pigeonhole.
+- **9 declarations use sorry.** Build clean.
 - **CompoundProtocol.dirAccessUnique**: Field bridging compound lin ↔ Herd CLEs.
 
 ### TODO
