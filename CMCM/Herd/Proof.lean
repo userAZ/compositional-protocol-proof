@@ -2134,6 +2134,46 @@ private theorem stepOrdering_to_three {l₁ l₂ : Event n}
                 _ < de₂.oEnd := h_p_lt)
     · exact Or.inr (Or.inr h_prot)
 
+/-- Key lemma: if StepOrdering l₂ l₃ holds at the same protocol, then l₃ OB l₂ is impossible.
+    Proof: stepOrdering_to_three gives LinLink ∨ eq ∨ diff_prot. diff_prot contradicts same-prot.
+    eq gives self-ordering contradiction. LinLink l₂ l₃ + l₃ OB l₂ → LinLink l₂ l₂ → irrefl. -/
+private theorem step_ordering_same_prot_not_reverse {l₂ l₃ : Event n}
+    (h₂ : @StepOrdering n l₂ l₃)
+    (h_same_prot : l₂.protocol = l₃.protocol)
+    (h₂_isdir : l₂.isDirectoryEvent) (h₃_isdir : l₃.isDirectoryEvent)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    (hob_reverse : l₃.OrderedBefore n l₂)
+    : False := by
+  have h3 := stepOrdering_to_three h₂ hdir h₂_isdir h₃_isdir
+  cases h3 with
+  | inl hlink =>
+    -- LinLink l₂ l₃ + l₃ OB l₂ → LinLink l₃ l₂ → LinLink l₂ l₂ → irrefl
+    exact LinLink.irrefl (hlink.trans (LinLink.single (.ob hob_reverse)))
+  | inr hr => cases hr with
+    | inl heq =>
+      -- l₂ = l₃. l₃ OB l₂ → l₂ OB l₂ → oEnd < oStart contradiction.
+      exact Event.contradiction_of_reflexive_ordered_before n (heq ▸ hob_reverse)
+    | inr hdiff => exact absurd h_same_prot hdiff
+
+/-- Corollary: same-protocol dir_ordered(l₂, l₃) with StepOrdering l₂ l₃ must give l₂ OB l₃. -/
+private theorem same_prot_dir_ordered_forward {l₂ l₃ : Event n}
+    (h₂ : @StepOrdering n l₂ l₃)
+    (h_same_prot : l₂.protocol = l₃.protocol)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    (h₂_isdir : l₂.isDirectoryEvent) (h₃_isdir : l₃.isDirectoryEvent)
+    : l₂.OrderedBefore n l₃ := by
+  match hfc₂ : l₂, h₂_isdir with
+  | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+  | .directoryEvent de₂, _ =>
+    match hfc₃ : l₃, h₃_isdir with
+    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+    | .directoryEvent de₃, _ =>
+      cases (hdir de₂ de₃).ordered with
+      | inl hob => exact hob
+      | inr hob_rev =>
+        exfalso; exact step_ordering_same_prot_not_reverse h₂ h_same_prot
+          (hfc₂ ▸ h₂_isdir) (hfc₃ ▸ h₃_isdir) hdir hob_rev
+
 /-- Compose two StepOrderings (or eq) and extract 3-way disjunction.
     For same-protocol l₁/l₃: dir_ordered → l₁ OB l₃ (LinLink) or l₃ OB l₁ (temporal contradiction).
     The temporal contradiction chains through BOTH h₁ and h₂'s data.
