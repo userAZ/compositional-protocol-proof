@@ -56,25 +56,36 @@ Use this CLAUDE.md as a living scratchpad: record new reasoning patterns, debugg
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-26 session 12, checkpoint 2)
+### Status (updated 2026-03-26 session 12, checkpoint 3)
 - **CO edge**: FULLY PROVEN
 - **rfe edge**: FULLY PROVEN
 - **FR edge**: `fr_ordering_holds` SORRY-FREE. 1 translatedDir sorry in helper.
 - **PPOi edge**: Restricted to diff-addr. All non-lazy PROVEN. 1 lazy sorry.
-- **StepOrdering.trans**: DELETED. Replaced by compose_three (StepOrdering × StepOrdering → StepOrdering ∨ eq).
-- **LinLink.irrefl**: FULLY PROVEN (oStart measure). Used at cycle level via stepOrdering_to_three.
-- **Cycle proof**: Invariant = `StepOrdering ∨ eq`. compose_three composes. At cycle level: stepOrdering_to_three → LinLink/eq/diff_prot → irrefl/dir_ordered/absurd.
-- **compose_three**: Takes h₁ (StepOrdering∨eq), h₂ (StepOrdering), hedge (PPOi∪com edge), hknow, hl₂/hl₃ (CLE equalities). ob/encapOb/proxyPair compositions PROVEN. obEndLt/obFinishBefore compositions: sorry.
-- **15 active sorry's** in Proof.lean (8 in compose_three, 7 elsewhere). 3 more in block comment (dead code).
+- **Cycle proof**: Invariant = `StepOrdering ∨ eq`. `compose_three` composes two StepOrderings. At cycle level: `stepOrdering_to_three` → LinLink/eq/diff_prot → irrefl/dir_ordered/absurd.
+- **StepOrdering**: 8 constructors (ob, obEndLt, encapOb, obFinishBefore, sameLin, proxyPair, eq, encapObEndLt). `encapObEndLt` added session 12 for encapOb+obEndLt compositions.
+- **compose_three**: Takes h₁ (StepOrdering∨eq), h₂ (StepOrdering), hedge (PPOi∪com edge), hknow, hl₂/hl₃, dir_ordered, isDirectoryEvent. All ob/encapOb/proxyPair/encapObEndLt × ob/obEndLt/encapOb/proxyPair/encapObEndLt compositions PROVEN via OB transitivity + Nat.lt_trans. obFinishBefore and *EndLt+encapOb compositions: sorry.
+- **17 active sorry's** in Proof.lean (10 in compose_three, 7 elsewhere). 3 more in block comment (dead code).
 - **CompoundProtocol.dirAccessUnique**: Field bridging compound lin ↔ Herd CLEs.
 
-**TODO (post-deadline):**
-1. Replace `dirAccessUnique` field with proof by unifying CLE definitions (Type/Prop blocker).
-2. Implement lazy PPOi+com pair composition (see TODO in `ppoi_diff_addr_step_ordering`).
-3. Prove `reqHasPerms + reqMissingPerms → False` — closes 5 helper sorry's. Key: ALL reqHasPerms cases give `b.hasPerms` (= `eventOnStateHasPerms`). `reqMissingPerms.noPermsForNonNcRelAcqWeakWrite` gives `¬eventOnStateHasPerms` (direct contradiction). `reqMissingPerms.downgrade` needs `¬down` (from PPOi). `reqMissingPerms.ncRelAcqWeakWriteNotOnCoherentState` needs either `coherentState + hasPerms` (from `ncRelAcqWeakWriteHasCoherentPerms`) or request type exclusion (`isCoherent ∧ isNcRelAcq → False`).
-4. Fix `compose_three` sorry's — needs structural change (see analysis below).
+**TODO:**
+1. **compose_three sorry's (10)**: Use `hedge` to case-split on PPOi/rfe/co/fr edge types directly instead of abstract StepOrdering composition. Key insight (from Anqi): work through ALL pairs of (PPOi∪COM) × (PPOi∪COM) edge types. Each pair gives specific temporal evidence that the abstract StepOrdering loses. This is the GUARANTEED path — avoids guessing constructors.
+2. Replace `dirAccessUnique` field with proof by unifying CLE definitions.
+3. Lazy PPOi+com pair composition.
+4. `reqHasPerms + reqMissingPerms → False` (closes 5 helper sorry's).
 
-### Remaining sorry categories (13 active)
+### Remaining sorry categories (17 active)
+
+**compose_three (10 sorry's):**
+- obFinishBefore h₂ × {ob, other} h₁: need l₁.protocol ≠ l₃.protocol + temporal bound. obFinishBefore only from FR diffCluster_rfFinishBefore. Use hedge to confirm FR and extract protocol info.
+- *EndLt h₁ × encapOb/proxyPair h₂: proxies p₁ (from h₁) and p₂ (from h₂) at intermediate points inside l₂. p₁.oEnd < l₂.oEnd and l₂.oStart < p₂.oStart, but p₁ vs p₂ temporal order unknown from StepOrdering alone. Use hedge to extract specific proxy identities.
+- obFinishBefore h₁ × obEndLt h₂: no forward l₁→l₂ bound from obFinishBefore. Use hedge for h₂'s edge evidence.
+
+**Helper lemma sorry's (5):**
+- `compound_lin_start/end_bound` clusterCacheLin branches (lines 161, 162, 220, 223, 226). Need `reqHasPerms + reqMissingPerms → False` or `clusterDirLin` precondition.
+
+**Other (2):**
+- translatedDir endpoint shift (line 608)
+- lazy PPOi (line 1500)
 
 **Helper lemma sorry's (5, unreachable at call sites):**
 - `compound_lin_start/end_bound` clusterCacheLin branches (lines 161, 162, 220, 223, 226).
