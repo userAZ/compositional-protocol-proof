@@ -365,20 +365,17 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
         (Nat.lt_trans hr_ob_s (Nat.lt_trans (Event.oWellFormed n s) hs_ob))))
     | sameLin _ _ heq _ _ _ => subst heq; exact .encapOb q henc hob
     | eq heq => subst heq; exact .encapOb q henc hob
-  | obFinishBefore q hqob hqlt =>
+  | obFinishBefore q hqob hqlt hqdiff =>
     cases h₂₃ with
-    | ob h₂ => exact .obFinishBefore q (Trans.trans hqob h₂) hqlt
+    | ob h₂ => exact .obFinishBefore q (Trans.trans hqob h₂) hqlt sorry
     | obEndLt p hp hlt => sorry -- trans obFinishBefore+obEndLt
-    | encapOb p henc hob => exact .obFinishBefore q (Nat.lt_trans (Nat.lt_trans hqob henc.left) (Nat.lt_trans (Event.oWellFormed n p) hob)) hqlt
-    | obFinishBefore p hob hlt => sorry -- trans obFinishBefore+obFinishBefore
+    | encapOb p henc hob => exact .obFinishBefore q (Nat.lt_trans (Nat.lt_trans hqob henc.left) (Nat.lt_trans (Event.oWellFormed n p) hob)) hqlt sorry
+    | obFinishBefore p hob hlt hdiff => sorry -- trans obFinishBefore+obFinishBefore
     | proxyPair r s hr_enc hr_ob_s hs_ob =>
-      -- q OB l₂, q.oEnd < l₁.oEnd. r inside l₂, r OB s, s OB l₃.
-      -- Chain: q.oEnd < l₂.oStart < r.oStart < r.oEnd < s.oStart < s.oEnd < l₃.oStart.
-      -- So q OB l₃: q.oEnd < l₂.oStart < ... < l₃.oStart. q.oEnd < l₁.oEnd still holds.
       exact .obFinishBefore q (Nat.lt_trans (Nat.lt_trans hqob hr_enc.left) (Nat.lt_trans (Event.oWellFormed n r)
-        (Nat.lt_trans hr_ob_s (Nat.lt_trans (Event.oWellFormed n s) hs_ob)))) hqlt
-    | sameLin _ _ heq _ _ _ => subst heq; exact .obFinishBefore q hqob hqlt
-    | eq heq => subst heq; exact .obFinishBefore q hqob hqlt
+        (Nat.lt_trans hr_ob_s (Nat.lt_trans (Event.oWellFormed n s) hs_ob)))) hqlt sorry
+    | sameLin _ _ heq _ _ _ => subst heq; exact .obFinishBefore q hqob hqlt hqdiff
+    | eq heq => subst heq; exact .obFinishBefore q hqob hqlt hqdiff
   | proxyPair q p hq_enc hq_ob_p hp_ob =>
     -- q inside l₁, q OB p, p OB l₂. Compose with h₂₃.
     cases h₂₃ with
@@ -1822,7 +1819,11 @@ theorem step_to_ordering
       | diffCluster_evict _ p cle₁_ob_p p_lt_cle₂ => exact .obEndLt p cle₁_ob_p p_lt_cle₂
       | diffCluster_noncoherent _ p cle₁_ob_p p_lt_cle₂ => exact .obEndLt p cle₁_ob_p p_lt_cle₂
       | diffCluster_rfCrossCluster _ p p_inside p_ob => exact .encapOb p p_inside p_ob
-      | diffCluster_rfFinishBefore _ p p_ob p_lt => exact .obFinishBefore p p_ob p_lt
+      | diffCluster_rfFinishBefore h_diff p p_ob p_lt =>
+        have hcle₁_prot := read_cle_protocol_eq_read_protocol (lin e₁)
+        have hcle₂_prot := write_cle_protocol_eq_write_protocol (lin e₂)
+        exact .obFinishBefore p p_ob p_lt (fun heq =>
+          h_diff (show e₁.sameProtocol n e₂ from hcle₁_prot.symm.trans (heq ▸ hcle₂_prot)))
       | sameCLE cle_eq => exact .eq cle_eq
       /- OLD FR proof removed (was 275 lines of dead code with 3 sorry's).
       by_cases h_same_prot : e₁.sameProtocol n e₂
@@ -2120,45 +2121,10 @@ theorem cmcm_acyclic_of_hknow
       exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans hp (Event.oWellFormed n p)) hlt)
     | encapOb p henc hob =>
       exact Nat.lt_irrefl _ (Nat.lt_trans hob (Nat.lt_trans henc.left (Event.oWellFormed n p)))
-    | obFinishBefore p hob hlt =>
-      -- obFinishBefore CLE CLE: p OB CLE, p.oEnd < CLE.oEnd.
-      -- Not contradictory from hstep alone. Use hcycle to decompose.
-      -- Decompose cycle into first step + rest:
-      obtain ⟨e₂, he_first, hrest⟩ := transGen_head_tail hcycle
-      have hso_first := step_to_ordering he_first hknow
-      -- hso_first : StepOrdering CLE_e CLE₂
-      -- Get StepOrdering for the rest (e₂ →⁺ e or e₂ = e):
-      have hso_rest : StepOrdering (hknow e₂).hreq's_dir_access.choose
-          (hknow e).hreq's_dir_access.choose :=
-        hrest.elim (fun heq => heq ▸ .eq rfl) (fun htg => this e₂ e htg)
-      -- Decompose cycle at first edge, case-split on first edge's StepOrdering.
-      -- If first edge gives .ob (strict): most rest cases close by temporal chain.
-      -- The key unsolved case: .ob + .obFinishBefore (needs FR protocol evidence).
-      cases hso_first with
-      | ob h_first_ob =>
-        cases hso_rest with
-        | ob h_rest =>
-          -- CLE_e OB CLE₂ OB CLE_e → CLE_e.oEnd < CLE₂.oStart < CLE₂.oEnd < CLE_e.oStart → loop
-          exact Nat.lt_irrefl _
-            (Nat.lt_trans (Nat.lt_trans h_first_ob (Event.oWellFormed n _))
-              (Nat.lt_trans h_rest (Event.oWellFormed n _)))
-        | obEndLt p' hp' hlt' =>
-          exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans h_first_ob
-            (Nat.lt_trans (Event.oWellFormed n _) hp')) (Nat.lt_trans (Event.oWellFormed n p') hlt'))
-        | encapOb p' henc' hob' =>
-          exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans h_first_ob henc'.left)
-            (Nat.lt_trans (Event.oWellFormed n p') (Nat.lt_trans hob' (Event.oWellFormed n _))))
-        | obFinishBefore p' hob' hlt' =>
-          sorry -- .ob + .obFinishBefore: temporal bounds consistent, needs FR protocol evidence
-        | proxyPair q' p' hq' hqp' hp' =>
-          exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans h_first_ob hq'.left)
-            (Nat.lt_trans (Event.oWellFormed n q') (Nat.lt_trans hqp'
-              (Nat.lt_trans (Event.oWellFormed n p') (Nat.lt_trans hp' (Event.oWellFormed n _))))))
-        | sameLin _ _ heq' _ _ _ =>
-          rw [heq'] at h_first_ob; exact Event.contradiction_of_reflexive_ordered_before n h_first_ob
-        | eq heq' =>
-          rw [heq'] at h_first_ob; exact Event.contradiction_of_reflexive_ordered_before n h_first_ob
-      | _ => sorry -- non-.ob first edge: similar case analysis (TODO)
+    | obFinishBefore p hob hlt hdiff =>
+      -- obFinishBefore CLE CLE: carries l₁.protocol ≠ l₂.protocol.
+      -- But l₁ = l₂ (= CLE of e), so l₁.protocol = l₂.protocol. Contradiction!
+      exact absurd rfl hdiff
     | proxyPair q p hq_enc hq_ob_p hp_ob =>
       -- q inside l (= CLE), q OB p, p OB l. Irrefl:
       -- p.oEnd < l.oStart (p OB l), l.oStart < q.oStart (q inside l),

@@ -142,6 +142,7 @@ inductive StepOrdering : Event n → Event n → Prop where
       For cross-cluster FR with gcacheEncap/noGlobalCache: d_rf OB CLE₂ and d_rf.oEnd < CLE₁.oEnd.
       Not irreflexive alone — requires composition with other edges in a cycle. -/
   | obFinishBefore (p : Event n) (h_ob : p.OrderedBefore n l₂) (h_lt : Event.oEnd n p < Event.oEnd n l₁)
+      (h_diff_prot : l₁.protocol ≠ l₂.protocol)
       : StepOrdering l₁ l₂
   | sameLin (e₁' e₂' : Event n) (h_eq : l₁ = l₂)
       (h_enc₁ : l₁.EncapsulatedBy n e₁') (h_ob : e₁'.OrderedBefore n e₂')
