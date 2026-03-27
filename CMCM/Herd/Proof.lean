@@ -2182,7 +2182,21 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
         -- .ob h₂ → same-cluster edge → l₂ = l₃ protocol.
         -- Derive BEFORE matches to avoid type bridging issues.
         have h₂₃_prot : Event.protocol n l₂ = Event.protocol n l₃ := by
-          rw [hl₂, hl₃]; exact sorry -- extract e₂.protocol = e₃.protocol from com edge
+          rw [hl₂, hl₃]
+          have he₂₃ : e₂.protocol = e₃.protocol := by
+            cases hcom_edge with
+            | rfe hrfe => exact sorry -- rfe same-cluster
+            | co hco =>
+              cases hco.comm with
+              | sameCache hsame _ =>
+                have := congrArg (Event.protocol n) hsame
+                rw [write_cle_protocol_eq_write_protocol hco.w₁_lin,
+                    write_cle_protocol_eq_write_protocol hco.w₂_lin] at this; exact this
+              | sameClusDiffCache hsame _ => exact hsame
+              | diffClus hdiff _ => exact absurd sorry hdiff
+            | fr hfr => exact sorry -- fr same-cluster
+          exact (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
+            (he₂₃.trans (write_cle_protocol_eq_write_protocol (hknow e₃)).symm)
         -- Now: l₁ ≠ l₂ (hdiff₁), l₂ = l₃ (h₂₃_prot) → l₁ ≠ l₃.
         -- So same-protocol direction is always vacuous:
         have hprot_diff : l₁.protocol ≠ l₃.protocol := fun h₁₃ => hdiff₁ (h₁₃.trans h₂₃_prot.symm)
