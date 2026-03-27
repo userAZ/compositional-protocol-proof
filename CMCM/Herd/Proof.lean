@@ -2022,11 +2022,17 @@ private theorem cle_self_ordering_false
     eq maps to eq. All others map to LinLink. -/
 private theorem stepOrdering_to_three {l₁ l₂ : Event n}
     (h : StepOrdering l₁ l₂)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     : @LinLink n l₁ l₂ ∨ l₁ = l₂ ∨ l₁.protocol ≠ l₂.protocol := by
   cases h with
   | ob h => exact Or.inl (LinLink.single (.ob h))
   | obEndLt p h_ob h_lt =>
-    exact Or.inl (LinLink.trans (LinLink.single (.ob h_ob)) (LinLink.single (.finishesBefore h_lt)))
+    -- l₁ OB p, p.oEnd < l₂.oEnd.
+    -- Same protocol: dir_ordered gives p OB l₂ → ob chain → LinLink.
+    -- Diff protocol: diff_protocol → cycle contradiction.
+    by_cases h_prot : l₁.protocol = l₂.protocol
+    · sorry -- same protocol obEndLt: needs dir_ordered p l₂ (both directory events at same cluster)
+    · exact Or.inr (Or.inr h_prot)
   | encapOb p h_enc h_ob =>
     exact Or.inl (LinLink.trans (LinLink.single (.encap h_enc)) (LinLink.single (.ob h_ob)))
   | sameLin e₁' e₂' h_eq h_enc₁ h_ob h_enc₂ =>
@@ -2095,9 +2101,9 @@ theorem cmcm_acyclic_of_hknow
       | inr hdiff => exact absurd rfl hdiff
   intro a c hpath
   induction hpath with
-  | single h => exact stepOrdering_to_three (step_to_ordering h hknow)
+  | single h => exact stepOrdering_to_three (step_to_ordering h hknow) (b.orderedAtEntry.dir_ordered)
   | tail _ h ih =>
-    exact compose_three ih (stepOrdering_to_three (step_to_ordering h hknow))
+    exact compose_three ih (stepOrdering_to_three (step_to_ordering h hknow) (b.orderedAtEntry.dir_ordered))
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)

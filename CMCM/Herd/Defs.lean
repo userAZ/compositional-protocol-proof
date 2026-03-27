@@ -162,7 +162,6 @@ inductive StepOrdering : Event n → Event n → Prop where
 inductive LinStep : Event n → Event n → Prop where
   | ob (h : x.OrderedBefore n y) : LinStep x y
   | encap (h : x.Encapsulates n y) : LinStep x y
-  | finishesBefore (h : Event.oEnd n x < Event.oEnd n y) : LinStep x y
 
 /-- LinLink: transitive closure of LinStep between events. -/
 def LinLink : Event n → Event n → Prop := Relation.TransGen LinStep
@@ -214,7 +213,6 @@ theorem LinStep.oStart_lt {x y : Event n} (h : @LinStep n x y) : Event.oStart n 
   cases h with
   | ob h => exact Nat.lt_trans (Event.oWellFormed n x) h
   | encap h => exact h.left
-  | finishesBefore h => sorry -- finishesBefore doesn't constrain oStart
 
 theorem LinLink.oStart_lt {x y : Event n} (h : @LinLink n x y) : Event.oStart n x < Event.oStart n y := by
   induction h with
