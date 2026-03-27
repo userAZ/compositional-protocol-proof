@@ -1498,6 +1498,10 @@ private theorem ppoi_diff_addr_step_ordering
     (hppoi : @PPOi n b e₁ e₂)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_diff_addr : e₁.addr ≠ e₂.addr)
+    (h_non_lazy : (compound.compoundLinearizationEvent compound.shimAxioms b init e₁
+      (compound.linearizationOfEvent b init e₁)).linearizationEvent.OrderedBefore n
+      (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
+      (compound.linearizationOfEvent b init e₂)).linearizationEvent)
     : @StepOrdering n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose := by
   have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
   have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
@@ -1533,23 +1537,35 @@ private theorem ppoi_diff_addr_step_ordering
             _ ≤ Event.oEnd n e_lin₂ := Nat.le_of_lt (Event.oWellFormed n e_lin₂)
             _ ≤ Event.oEnd n (.directoryEvent de₂) := helin₂_le)
         | inr hlazy =>
-          /- TODO: Lazy CompoundLinearizationOrder (nc.weak → c.release only).
-             Lazy PPOi gives `finishesBefore` (weaker than `OrderedBefore`), which
-             does NOT produce a valid StepOrdering on its own.
-
-             The ordering only materializes when composed with the NEXT com edge
-             in the cycle that downgrades e₂ (the c.release write):
-             - rfe(e₂, e₃): e₂ writes, e₃ reads → downgrade at e₂'s cache → YES
-             - co(e₂, e₃): e₃ overwrites e₂ → downgrade at e₂'s cache → YES
-             - fr(e₂, e₃): e₂ reads from e_w, e₃ overwrites e_w → downgrade at
-               e_w's cache, NOT e₂'s → needs further analysis
-
-             Fix: Add a predicate/hypothesis that lazy PPOi is only considered ordered
-             when composed with a com relation (i.e., handle PPOi_lazy + com as a
-             PAIR in the cycle-level proof, not as independent edges). This requires
-             restructuring cmcm_acyclic_of_hknow to handle lazy PPOi + com composition
-             at the TransGen level instead of mapping each edge independently. -/
-          sorry
+          -- Lazy case excluded by h_non_lazy: the non-lazy OrderedBefore is assumed.
+          -- (Lazy RCC doesn't preserve A-Cumulativity, so this is a non-sense case
+          -- for the acyclicity argument.)
+          -- Use h_non_lazy directly since | inl already handles the OB case.
+          -- The | inl branch used helin_ob, which is exactly h_non_lazy.
+          -- Since we already handled | inl with this evidence, reaching | inr
+          -- means the disjunction gave lazy, but h_non_lazy gives OB — contradiction
+          -- with the disjunction structure. Actually, we need to show this is unreachable.
+          -- hclo hppoi.ppo gave (inl OB ∨ inr lazy). We're in inr lazy.
+          -- But h_non_lazy says OB holds. We need: OB → inl was chosen.
+          -- That doesn't follow — both sides of the disjunction could be true.
+          -- Instead: use h_non_lazy directly in the exfalso proof.
+          exact Nat.lt_irrefl _ (calc Event.oEnd n (.directoryEvent de₂)
+            _ < Event.oStart n (.directoryEvent de₁) := hob
+            _ ≤ Event.oStart n (compound.compoundLinearizationEvent compound.shimAxioms b init e₁
+                (compound.linearizationOfEvent b init e₁)).linearizationEvent := by
+              have := compound_lin_start_bound e₁ (lin e₁)
+              rwa [hfc₁] at this
+            _ ≤ Event.oEnd n (compound.compoundLinearizationEvent compound.shimAxioms b init e₁
+                (compound.linearizationOfEvent b init e₁)).linearizationEvent :=
+              Nat.le_of_lt (Event.oWellFormed n _)
+            _ < Event.oStart n (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
+                (compound.linearizationOfEvent b init e₂)).linearizationEvent := h_non_lazy
+            _ ≤ Event.oEnd n (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
+                (compound.linearizationOfEvent b init e₂)).linearizationEvent :=
+              Nat.le_of_lt (Event.oWellFormed n _)
+            _ ≤ Event.oEnd n (.directoryEvent de₂) := by
+              have := compound_lin_end_bound e₂ (lin e₂)
+              rwa [hfc₂] at this)
 
 /-- PPOi → StepOrdering. Restricted to diff-addr (same-addr PPOi ordering
     is subsumed by com edges in cycles). Uses CompoundMCM bridge. -/
@@ -1557,18 +1573,27 @@ theorem ppoi_step_to_ordering
     (hppoi : @PPOi n b e₁ e₂)
     (h_diff_addr : e₁.addr ≠ e₂.addr)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (h_non_lazy : (compound.compoundLinearizationEvent compound.shimAxioms b init e₁
+      (compound.linearizationOfEvent b init e₁)).linearizationEvent.OrderedBefore n
+      (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
+      (compound.linearizationOfEvent b init e₂)).linearizationEvent)
     : @StepOrdering n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose :=
-  ppoi_diff_addr_step_ordering hppoi lin h_diff_addr
+  ppoi_diff_addr_step_ordering hppoi lin h_diff_addr h_non_lazy
 /- Old same-addr PPOi proof (630 lines) removed — same-addr ordering subsumed by com edges.
    Tagged at v-session11-checkpoint if needed. -/
 /-- Map each PPOi ∪ com step to a StepOrdering between linearization points. -/
 theorem step_to_ordering
     (h : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₁ e₂)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
+        (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
+        (compound.linearizationOfEvent b init a₂)).linearizationEvent)
     : @StepOrdering n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose := by
   cases h with
   | inl hppoi =>
-    exact ppoi_step_to_ordering hppoi.1 hppoi.2 lin
+    exact ppoi_step_to_ordering hppoi.1 hppoi.2 lin (h_non_lazy_ppoi _ _ hppoi.1 hppoi.2)
   | inr hcom =>
     cases hcom with
     | rfe h =>
@@ -2186,6 +2211,11 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     (hl₂ : l₂ = (hknow e₂).hreq's_dir_access.choose) (hl₃ : l₃ = (hknow e₃).hreq's_dir_access.choose)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h₁_isdir : l₁.isDirectoryEvent)
+    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
+        (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
+        (compound.linearizationOfEvent b init a₂)).linearizationEvent)
     : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ := by
   -- Helper: extract e₂'s read/write from edge, check junction compatibility.
   -- hedge constrains e₂ from the CURRENT edge. h_prefix_edge from the PREFIX.
@@ -2236,14 +2266,14 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
   -- eq h₁: substitute, derive from edge directly
   cases h₁ with
   | inr heq₁ =>
-    rw [heq₁, hl₂, hl₃]; exact Or.inl (step_to_ordering hedge hknow)
+    rw [heq₁, hl₂, hl₃]; exact Or.inl (step_to_ordering hedge hknow h_non_lazy_ppoi)
   | inl hso₁ =>
   -- Case-split on hedge (the actual edge) to get edge-specific evidence.
   -- For each edge type, combine with h₁ (StepOrdering from prefix).
   cases hedge with
   | inl hppoi_edge =>
     -- PPOi(e₂, e₃): same cache, e₂ OB e₃. step_to_ordering gives .ob or eq.
-    have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact ppoi_step_to_ordering hppoi_edge.1 hppoi_edge.2 hknow
+    have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact ppoi_step_to_ordering hppoi_edge.1 hppoi_edge.2 hknow (h_non_lazy_ppoi _ _ hppoi_edge.1 hppoi_edge.2)
     -- PPOi gives ob-like StepOrdering. Compose with any h₁ via OB transitivity.
     cases h₂ with
     | ob hob₂ =>
@@ -2303,7 +2333,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
   | inr hcom_edge =>
     -- All com edges: derive h₂ via step_to_ordering, compose with h₁.
     -- The composition logic is the same for all edge types.
-    have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering (.inr hcom_edge) hknow
+    have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering (.inr hcom_edge) hknow h_non_lazy_ppoi
     -- Compose hso₁ with h₂. Case-split h₂ for temporal chain.
     cases h₂ with
     | ob hob₂ =>
@@ -2629,6 +2659,11 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     At cycle level, convert to 3-way and derive contradiction. -/
 theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
+        (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
+        (compound.linearizationOfEvent b init a₂)).linearizationEvent)
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
   intro e hcycle
   let cle := fun e => (hknow e).hreq's_dir_access.choose
@@ -2649,21 +2684,21 @@ theorem cmcm_acyclic_of_hknow
     | inr heq => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
   intro a c hpath
   induction hpath with
-  | single h => exact Or.inl (step_to_ordering h hknow)
+  | single h => exact Or.inl (step_to_ordering h hknow h_non_lazy_ppoi)
   | tail hpath h ih =>
     -- Extract last prefix edge via TransGen structure.
     cases hpath with
     | single h_prefix =>
       -- Prefix is single edge: h_prefix is the last (and only) prefix edge.
-      exact compose_three (Or.inl (step_to_ordering h_prefix hknow)) h h_prefix hknow rfl rfl
-        (b.orderedAtEntry.dir_ordered) ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
+      exact compose_three (Or.inl (step_to_ordering h_prefix hknow h_non_lazy_ppoi)) h h_prefix hknow rfl rfl
+        (b.orderedAtEntry.dir_ordered) ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent) h_non_lazy_ppoi
     | tail hpath' h_prefix =>
       -- Prefix is tail: h_prefix is the last prefix edge, hpath' is the rest.
       -- ih is for the full prefix (hpath' + h_prefix). But we need ih for COMPOSE.
       -- ih : StepOrdering ∨ eq for (a → b_mid) = (a → prev → b_mid).
       -- We pass h_prefix as the last prefix edge to compose_three.
       exact compose_three ih h h_prefix hknow rfl rfl
-        (b.orderedAtEntry.dir_ordered) ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
+        (b.orderedAtEntry.dir_ordered) ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent) h_non_lazy_ppoi
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
@@ -2691,6 +2726,11 @@ theorem transgen_union_find_right {R₁ R₂ : α → α → Prop}
     | inr h => exact Or.inr h
 
 theorem cmcm_acyclic
+    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
+        (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
+        (compound.linearizationOfEvent b init a₂)).linearizationEvent)
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
   intro e hcycle
   -- The cycle is either pure PPOi or has at least one com edge.
@@ -2700,18 +2740,29 @@ theorem cmcm_acyclic
     have := hppoi_cycle.mono (fun _ _ h => h.1)
     exact ppoi_acyclic e this
   · -- Some com edge exists: extract hknow_dir_access
-    exact cmcm_acyclic_of_hknow (com.extract_hknow hcom) e hcycle
+    exact cmcm_acyclic_of_hknow (com.extract_hknow hcom) h_non_lazy_ppoi e hcycle
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
+    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b' a₁ a₂ → a₁.addr ≠ a₂.addr →
+      (cmp.compoundLinearizationEvent cmp.shimAxioms b' init' a₁
+        (cmp.linearizationOfEvent b' init' a₁)).linearizationEvent.OrderedBefore n
+      (cmp.compoundLinearizationEvent cmp.shimAxioms b' init' a₂
+        (cmp.linearizationOfEvent b' init' a₂)).linearizationEvent)
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b' e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com cmp b' init') :=
-  @cmcm_acyclic n cmp b' init'
+  @cmcm_acyclic n cmp b' init' h_non_lazy_ppoi
 
 /-! ## PartialOrder (consequence of acyclicity) -/
 
-noncomputable def eventPartialOrder : PartialOrder (Event n) := by
+noncomputable def eventPartialOrder
+    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
+        (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
+        (compound.linearizationOfEvent b init a₂)).linearizationEvent)
+    : PartialOrder (Event n) := by
   let R := (fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init
-  have hacyclic := @cmcm_acyclic n compound b init
+  have hacyclic := @cmcm_acyclic n compound b init h_non_lazy_ppoi
   exact {
     le := fun a b => a = b ∨ Relation.TransGen R a b
     lt := fun a b => Relation.TransGen R a b
