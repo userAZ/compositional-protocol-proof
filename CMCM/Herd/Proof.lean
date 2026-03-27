@@ -2107,14 +2107,22 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | fr hfr => exact Or.inr hfr.read
   have h_e₂_from_prefix : (e₂.isWrite ∨ e₂.isRead) := by
     cases h_prefix_edge with
-    | inl hppoi => left; sorry -- PPOi: e₁ could be read or write. TODO
+    | inl hppoi => exact Classical.em _ |>.elim (fun h => Or.inl h) (fun h => Or.inr (sorry))
     | inr hcom => cases hcom with
       | rfe hrfe => exact Or.inr hrfe.read   -- rfe(e₁, e₂): e₂.isRead
       | co hco => exact Or.inl hco.write₂    -- co(e₁, e₂): e₂.isWrite
       | fr hfr => exact Or.inl hfr.write     -- fr(e₁, e₂): e₂.isWrite
-  -- Junction compatibility: if both constrain e₂ differently → contradiction.
-  -- e₂.isWrite ∧ e₂.isRead → False (rw is .r or .w, not both).
-  -- For sorry cases: use this to eliminate impossible edge pairs.
+  -- Junction compatibility: check if both edges constrain e₂ to different types.
+  -- If prefix makes e₂ a writer and current edge needs e₂ a reader (or vice versa) → contradiction.
+  -- This eliminates impossible pairs like FR+FR, co+FR, rfe+rfe, etc.
+  have h_junction_compat : ¬(e₂.isWrite ∧ e₂.isRead) := by
+    intro ⟨hw, hr⟩
+    cases e₂ with
+    | cacheEvent ce =>
+      simp only [Event.isRead, Request.isRead] at hr
+      simp only [Event.isWrite, Request.isWrite] at hw
+      rw [hw] at hr; exact absurd hr (by decide)
+    | directoryEvent de => simp [Event.isRead] at hr
   -- eq h₁: substitute, derive from edge directly
   cases h₁ with
   | inr heq₁ =>
@@ -2290,7 +2298,11 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
         -- p₁.oEnd < l₂.oEnd. p₂ inside l₂ → l₂.oStart < p₂.oStart, p₂.oEnd < l₂.oEnd.
         -- p₁ and p₂: both have oEnd < l₂.oEnd. Their relative order unknown.
         -- by_cases protocol: same → dir_ordered; diff → .obFinishBefore needs p₁ OB l₃.
-        sorry -- obEndLt h₁ + encapOb h₂: proxy ordering unknown
+        -- obEndLt h₁ + encapOb h₂. Use junction check: case-split both edges.
+        -- For incompatible pairs: exfalso via h_junction_compat.
+        -- For compatible pairs: by_cases protocol + dir_ordered.
+        -- The compatible pairs for obEndLt prefix + encapOb current are limited.
+        sorry -- TODO: case-split h_prefix_edge and hcom_edge for junction check
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
         -- p₁ OB l₂, p₁.oEnd < l₁.oEnd. p₂ inside l₂, p₂ OB l₃.
         -- p₁ OB l₂: p₁.oEnd < l₂.oStart < p₂.oStart (from encap) → p₁ OB p₂.
