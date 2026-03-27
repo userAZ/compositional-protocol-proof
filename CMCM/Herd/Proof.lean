@@ -1494,7 +1494,7 @@ theorem fr_ordering_holds
 
 /-- Helper: diff-addr PPOi → StepOrdering via dir_ordered + CompoundMCM.
     Extracted to avoid nested match substitution issues in encapDir case. -/
-private theorem ppoi_diff_addr_step_ordering
+private noncomputable def ppoi_diff_addr_step_ordering
     (hppoi : @PPOi n b e₁ e₂)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_diff_addr : e₁.addr ≠ e₂.addr)
@@ -2272,64 +2272,32 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
   -- For each edge type, combine with h₁ (StepOrdering from prefix).
   cases hedge with
   | inl hppoi_edge =>
-    -- PPOi(e₂, e₃): same cache, e₂ OB e₃. step_to_ordering gives .ob or eq.
+    -- PPOi(e₂, e₃): same cache, same protocol. Use same_prot_dir_ordered_forward
+    -- to get l₂ OB l₃ directly (avoids cases on StepOrdering, eliminating non-ob sorry).
     have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact ppoi_step_to_ordering hppoi_edge.1 hppoi_edge.2 hknow (h_non_lazy_ppoi _ _ hppoi_edge.1 hppoi_edge.2)
-    -- PPOi gives ob-like StepOrdering. Compose with any h₁ via OB transitivity.
-    cases h₂ with
-    | ob hob₂ =>
-      cases hso₁ with
-      | ob hob₁ => exact Or.inl (.ob (Trans.trans hob₁ hob₂))
-      | obEndLt p₁ hob₁ hlt₁ =>
-        exact Or.inl (.ob (Trans.trans hob₁ (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
-      | encapOb p₁ henc₁ hob₁ => exact Or.inl (.encapOb p₁ henc₁ (Trans.trans hob₁ hob₂))
-      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
-        exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
-      | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-        exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
-      | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
-        -- obFinishBefore h₁ + ob h₂. by_cases on l₁ vs l₃ protocol.
-        by_cases hprot : l₁.protocol = l₃.protocol
-        · -- Same protocol: dir_ordered(l₁, l₃).
-          match hfc₁ : l₁, h₁_isdir with
-          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-          | .directoryEvent de₁, _ =>
-            have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
-            match hfc₃ : l₃, h₃_isdir with
-            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-            | .directoryEvent de₃, _ =>
-              cases (hdir de₁ de₃).ordered with
-              | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
-              | inr hob₃₁ =>
-                -- l₃ OB l₁. p₁ OB l₂ OB l₃ → p₁ OB l₃. p₁.oEnd < l₁.oEnd.
-                -- dir_ordered(p₁, l₁): l₁ OB p₁ → l₁.oEnd < p₁.oStart, but p₁.oEnd < l₁.oEnd → contradiction.
-                -- So p₁ OB l₁. Then p₁ OB l₃ OB l₁ and p₁ OB l₁ — consistent but...
-                -- We have p₁.oEnd < l₁.oEnd and l₁ OB p₁ would give l₁.oEnd < p₁.oStart ≤ p₁.oEnd < l₁.oEnd → contradiction.
-                -- So if p₁ is a directory event at l₁'s cluster: l₁ OB p₁ impossible → p₁ OB l₁.
-                -- VACUOUS: PPOi sameProtocol → l₂ = l₃ protocol → l₁ ≠ l₂ contradicted.
-                exfalso; apply hdiff₁
-                -- hprot : de₁.protocol = de₃.protocol (after match substitution)
-                -- hl₃ gives: .directoryEvent de₃ = (hknow e₃).choose (after match)
-                -- hl₂ gives: l₂ = (hknow e₂).choose
-                -- Chain: de₁.prot = de₃.prot = cle(e₃).prot = e₃.prot = e₂.prot = cle(e₂).prot = l₂.prot
-                have h₃_prot : Event.protocol n (.directoryEvent de₃) = Event.protocol n (hknow e₃).hreq's_dir_access.choose :=
-                  congrArg (Event.protocol n) hl₃
-                have h₁₃_chain : Event.protocol n (.directoryEvent de₁) = Event.protocol n (hknow e₃).hreq's_dir_access.choose :=
-                  hprot.trans h₃_prot
-                have h₂₃ := (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
-                    (hppoi_edge.1.sameProtocol.trans (write_cle_protocol_eq_write_protocol (hknow e₃)).symm)
-                -- h₁₃_chain gives de₁.pInst = cle(e₃).protocol
-                -- h₂₃ gives cle(e₂).protocol = cle(e₃).protocol (as Nat-level protocol fields)
-                -- Need: de₁.pInst = l₂.protocol
-                -- Use: write_cle_protocol_eq_write_protocol works at Event.protocol level
-                exact h₁₃_chain.trans (show Event.protocol n (hknow e₃).hreq's_dir_access.choose =
-                    Event.protocol n l₂ from by
-                  rw [hl₂]; exact (show Event.protocol n (hknow e₃).hreq's_dir_access.choose =
-                    Event.protocol n (hknow e₂).hreq's_dir_access.choose from by
-                    simp only [Event.protocol, write_cle_protocol_eq_write_protocol]; exact h₂₃.symm))
-        · exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot)
-      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
-      | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
-    | _ => sorry -- PPOi non-ob: should not arise (PPOi always gives ob from dir_ordered)
+    have h₂₃_prot : l₂.protocol = l₃.protocol := by
+      rw [hl₂, hl₃]; exact (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
+        (hppoi_edge.1.sameProtocol.trans (write_cle_protocol_eq_write_protocol (hknow e₃)).symm)
+    have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
+    have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+    have hob₂ : l₂.OrderedBefore n l₃ := same_prot_dir_ordered_forward h₂ h₂₃_prot hdir h₂_isdir h₃_isdir
+    -- Now compose with h₁ via OB transitivity (no case-split on h₂ needed).
+    cases hso₁ with
+    | ob hob₁ => exact Or.inl (.ob (Trans.trans hob₁ hob₂))
+    | obEndLt p₁ hob₁ hlt₁ =>
+      exact Or.inl (.ob (Trans.trans hob₁ (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
+    | encapOb p₁ henc₁ hob₁ => exact Or.inl (.encapOb p₁ henc₁ (Trans.trans hob₁ hob₂))
+    | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
+      exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
+    | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
+      exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
+    | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
+      -- obFinishBefore h₁ + ob h₂. PPOi sameProtocol → l₂ = l₃ protocol.
+      -- l₁ ≠ l₂ (hdiff₁) + l₂ = l₃ → l₁ ≠ l₃ → .obFinishBefore.
+      have hprot_diff : l₁.protocol ≠ l₃.protocol := fun h₁₃ => hdiff₁ (h₁₃.trans h₂₃_prot.symm)
+      exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot_diff)
+    | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
+    | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
   | inr hcom_edge =>
     -- All com edges: derive h₂ via step_to_ordering, compose with h₁.
     -- The composition logic is the same for all edge types.
