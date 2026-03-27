@@ -2198,16 +2198,24 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
     | eq heq₁ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
     | _ => sorry -- obEndLt/obFinishBefore + proxyPair
   | obFinishBefore p₂ hob₂ hlt₂ hdiff₂ =>
-    -- h₂: p₂ OB l₃, p₂.oEnd < l₂.oEnd, l₂ ≠ l₃ protocol.
+    -- obFinishBefore only arises from FR diffCluster_rfFinishBefore.
+    -- Use hedge to extract FR-specific evidence.
+    -- For now: by_cases protocol for the output.
     cases hso₁ with
     | ob hob₁ =>
-      -- l₁ OB l₂, p₂ OB l₃, p₂.oEnd < l₂.oEnd.
-      -- l₁ OB l₂ → l₁.oEnd < l₂.oStart. p₂.oEnd < l₂.oEnd.
-      -- Use obFinishBefore: p₂ OB l₃, p₂.oEnd < l₁.oEnd? Need p₂.oEnd < l₁.oEnd.
-      -- p₂.oEnd < l₂.oEnd and l₁.oEnd < l₂.oStart ≤ l₂.oEnd → l₁.oEnd < l₂.oEnd.
-      -- But p₂.oEnd < l₂.oEnd doesn't compare with l₁.oEnd.
-      -- Use .obEndLt: l₁ OB p₂? l₁.oEnd < p₂.oStart? Not available.
-      sorry -- ob + obFinishBefore: can't compose forward bounds
+      -- l₁ OB l₂. h₂ = obFinishBefore from FR.
+      -- l₁.oEnd < l₂.oStart. p₂ OB l₃. p₂.oEnd < l₂.oEnd.
+      -- p₂ and l₂ are at the SAME cluster (p₂ = d_rf at writer's cluster, l₂ = CLE(writer)).
+      -- By dir_ordered: p₂ OB l₂ or l₂ OB p₂.
+      -- l₂ OB p₂ → l₂.oEnd < p₂.oStart → p₂.oEnd > p₂.oStart > l₂.oEnd → contradicts hlt₂ (p₂.oEnd < l₂.oEnd).
+      -- So p₂ OB l₂. Then: p₂.oEnd < l₂.oStart. And l₁.oEnd < l₂.oStart (from ob).
+      -- Both l₁ and p₂ end before l₂ starts. l₁ OB p₂ or p₂ OB l₁?
+      -- They might be at different clusters. Use obFinishBefore output:
+      -- p₂ OB l₃, p₂.oEnd < l₂.oEnd. And l₁.oEnd < l₂.oStart ≤ l₂.oEnd.
+      -- Need StepOrdering l₁ l₃. Use .obFinishBefore p₂ (p₂ OB l₃) (p₂.oEnd < l₁.oEnd)?
+      -- p₂.oEnd < l₂.oEnd and l₁.oEnd < l₂.oStart. So p₂.oEnd < l₂.oEnd > l₂.oStart > l₁.oEnd.
+      -- p₂.oEnd vs l₁.oEnd: UNKNOWN (p₂ might end before or after l₁).
+      sorry -- ob + obFinishBefore: p₂.oEnd vs l₁.oEnd unknown
     | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obFinishBefore p₂ hob₂ hlt₂ hdiff₂)
     | eq heq₁ => exact Or.inl (heq₁ ▸ .obFinishBefore p₂ hob₂ hlt₂ hdiff₂)
     | _ => sorry -- other h₁ + obFinishBefore
@@ -2257,7 +2265,10 @@ theorem cmcm_acyclic_of_hknow
   induction hpath with
   | single h => exact Or.inl (step_to_ordering h hknow)
   | tail _ h ih =>
-    exact compose_three ih (step_to_ordering h hknow) h hknow rfl rfl
+    -- Try abstract StepOrdering composition first.
+    -- For sorry cases, use edge-specific evidence from h.
+    let so₂ := step_to_ordering h hknow
+    exact compose_three ih so₂ h hknow rfl rfl
       (b.orderedAtEntry.dir_ordered)
       ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
       ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
