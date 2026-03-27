@@ -1551,7 +1551,23 @@ private theorem ppoi_diff_addr_step_ordering
             _ ≤ Event.oEnd n e_lin₂ := Nat.le_of_lt (Event.oWellFormed n e_lin₂)
             _ ≤ Event.oEnd n (.directoryEvent de₂) := helin₂_le)
         | inr hlazy =>
-          sorry -- lazy CompoundLinearizationOrder case
+          /- TODO: Lazy CompoundLinearizationOrder (nc.weak → c.release only).
+             Lazy PPOi gives `finishesBefore` (weaker than `OrderedBefore`), which
+             does NOT produce a valid StepOrdering on its own.
+
+             The ordering only materializes when composed with the NEXT com edge
+             in the cycle that downgrades e₂ (the c.release write):
+             - rfe(e₂, e₃): e₂ writes, e₃ reads → downgrade at e₂'s cache → YES
+             - co(e₂, e₃): e₃ overwrites e₂ → downgrade at e₂'s cache → YES
+             - fr(e₂, e₃): e₂ reads from e_w, e₃ overwrites e_w → downgrade at
+               e_w's cache, NOT e₂'s → needs further analysis
+
+             Fix: Add a predicate/hypothesis that lazy PPOi is only considered ordered
+             when composed with a com relation (i.e., handle PPOi_lazy + com as a
+             PAIR in the cycle-level proof, not as independent edges). This requires
+             restructuring cmcm_acyclic_of_hknow to handle lazy PPOi + com composition
+             at the TransGen level instead of mapping each edge independently. -/
+          sorry
 
 /-- PPOi → StepOrdering. Restricted to diff-addr (same-addr PPOi ordering
     is subsumed by com edges in cycles). Uses CompoundMCM bridge. -/
