@@ -309,9 +309,11 @@ A cycle gives StepOrdering lin(e) lin(e) → contradiction. -/
 -- StepOrdering definition moved to Defs.lean
 
 
-/-- StepOrdering is transitive. -/
+/-- StepOrdering is transitive (given dir_ordered for same-protocol cases). -/
 theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
-    (h₁₂ : StepOrdering l₁ l₂) (h₂₃ : StepOrdering l₂ l₃) : StepOrdering l₁ l₃ := by
+    (h₁₂ : StepOrdering l₁ l₂) (h₂₃ : StepOrdering l₂ l₃)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    : StepOrdering l₁ l₃ := by
   cases h₁₂ with
   | ob h₁ =>
     cases h₂₃ with
@@ -369,21 +371,36 @@ theorem StepOrdering.trans {l₁ l₂ l₃ : Event n}
     cases h₂₃ with
     | ob h₂ =>
       by_cases h_prot : Event.protocol n l₁ = Event.protocol n l₃
-      · -- Same protocol l₁ l₃: q OB l₃, q.oEnd < l₁.oEnd, l₁/l₃ at same directory.
-        -- Cannot derive l₁ OB l₃ from this alone. Needs dir_ordered (unavailable here).
-        sorry -- trans obFinishBefore+ob, same protocol
+      · -- Same protocol: l₁ and l₃ at same directory. Use dir_ordered.
+        match hfc₁ : l₁, hfc₃ : l₃ with
+        | .directoryEvent de₁, .directoryEvent de₃ =>
+          cases (hdir de₁ de₃).ordered with
+          | inl h => exact .ob h
+          | inr h => sorry -- l₃ OB l₁ with same protocol: temporally backwards, shouldn't arise
+        | .directoryEvent _, .cacheEvent _ => sorry -- l₃ not directory
+        | .cacheEvent _, _ => sorry -- l₁ not directory
       · exact .obFinishBefore q (Trans.trans hqob h₂) hqlt h_prot
     | obEndLt p hp hlt => sorry -- trans obFinishBefore+obEndLt
     | encapOb p henc hob =>
       by_cases h_prot : Event.protocol n l₁ = Event.protocol n l₃
-      · -- Same protocol l₁ l₃: q OB l₃ (through l₂→p→l₃), q.oEnd < l₁.oEnd.
-        sorry -- trans obFinishBefore+encapOb, same protocol
+      · match hfc₁ : l₁, hfc₃ : l₃ with
+        | .directoryEvent de₁, .directoryEvent de₃ =>
+          cases (hdir de₁ de₃).ordered with
+          | inl h => exact .ob h
+          | inr h => sorry -- l₃ OB l₁ same protocol: temporally backwards
+        | .directoryEvent _, .cacheEvent _ => sorry -- l₃ not directory
+        | .cacheEvent _, _ => sorry -- l₁ not directory
       · exact .obFinishBefore q (Nat.lt_trans (Nat.lt_trans hqob henc.left) (Nat.lt_trans (Event.oWellFormed n p) hob)) hqlt h_prot
     | obFinishBefore p hob hlt hdiff => sorry -- trans obFinishBefore+obFinishBefore
     | proxyPair r s hr_enc hr_ob_s hs_ob =>
       by_cases h_prot : Event.protocol n l₁ = Event.protocol n l₃
-      · -- Same protocol l₁ l₃: q OB l₃ (through l₂→r→s→l₃), q.oEnd < l₁.oEnd.
-        sorry -- trans obFinishBefore+proxyPair, same protocol
+      · match hfc₁ : l₁, hfc₃ : l₃ with
+        | .directoryEvent de₁, .directoryEvent de₃ =>
+          cases (hdir de₁ de₃).ordered with
+          | inl h => exact .ob h
+          | inr h => sorry -- l₃ OB l₁ same protocol: temporally backwards
+        | .directoryEvent _, .cacheEvent _ => sorry -- l₃ not directory
+        | .cacheEvent _, _ => sorry -- l₁ not directory
       · exact .obFinishBefore q (Nat.lt_trans (Nat.lt_trans hqob hr_enc.left) (Nat.lt_trans (Event.oWellFormed n r)
           (Nat.lt_trans hr_ob_s (Nat.lt_trans (Event.oWellFormed n s) hs_ob)))) hqlt h_prot
     | sameLin _ _ heq _ _ _ => subst heq; exact .obFinishBefore q hqob hqlt hqdiff
@@ -2169,7 +2186,7 @@ theorem cmcm_acyclic_of_hknow
   intro a c hpath
   induction hpath with
   | single h => exact step_to_ordering h hknow
-  | tail _ h ih => exact StepOrdering.trans ih (step_to_ordering h hknow)
+  | tail _ h ih => exact StepOrdering.trans ih (step_to_ordering h hknow) b.orderedAtEntry.dir_ordered
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
