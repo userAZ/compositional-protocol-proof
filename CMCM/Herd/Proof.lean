@@ -2216,7 +2216,20 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
         exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans hp_ob hob₂)) hlt₂)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂)
-      | obFinishBefore _ _ _ _ => sorry -- obFinishBefore h₁ + obEndLt h₂
+      | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
+        -- obFinishBefore h₁ + obEndLt h₂: by_cases protocol, same pattern as ob h₂.
+        by_cases hprot : l₁.protocol = l₃.protocol
+        · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+          match hfc₁ : l₁, h₁_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₁, _ =>
+            match hfc₃ : l₃, h₃_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₃, _ =>
+              cases (hdir de₁ de₃).ordered with
+              | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
+              | inr _ => sorry -- l₃ OB l₁: genuine hard case (cross-cluster proxy ordering)
+        · sorry -- diff protocol: need StepOrdering with diff_prot for obFinishBefore + obEndLt
     | encapOb p₂ henc₂ hob₂ =>
       cases hso₁ with
       | ob hob₁ =>
@@ -2227,7 +2240,20 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
         exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hp_ob henc₂.left)) hob₂)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
-      | _ => sorry -- obEndLt/obFinishBefore/encapObEndLt h₁ + encapOb h₂
+      | _ =>
+        -- obEndLt/obFinishBefore/encapObEndLt h₁ + encapOb h₂: by_cases protocol.
+        by_cases hprot : l₁.protocol = l₃.protocol
+        · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+          match hfc₁ : l₁, h₁_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₁, _ =>
+            match hfc₃ : l₃, h₃_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₃, _ =>
+              cases (hdir de₁ de₃).ordered with
+              | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
+              | inr _ => sorry -- l₃ OB l₁: genuine hard case
+        · sorry -- diff protocol: need StepOrdering with diff_prot (obFinishBefore needs proxy OB l₃)
     | proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂ =>
       cases hso₁ with
       | ob hob₁ =>
@@ -2238,7 +2264,19 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
         exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp_ob hq_enc₂.left) hq_ob₂)) hp_ob₂)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
-      | _ => sorry -- obEndLt/obFinishBefore/encapObEndLt h₁ + proxyPair h₂
+      | _ =>
+        by_cases hprot : l₁.protocol = l₃.protocol
+        · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+          match hfc₁ : l₁, h₁_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₁, _ =>
+            match hfc₃ : l₃, h₃_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₃, _ =>
+              cases (hdir de₁ de₃).ordered with
+              | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
+              | inr _ => sorry -- l₃ OB l₁: genuine hard case
+        · sorry -- diff protocol: need StepOrdering with diff_prot
     | encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ =>
       cases hso₁ with
       | ob hob₁ =>
