@@ -678,6 +678,15 @@ The key insight (from Anqi): same-address PPOi events share a CLE or have CLE or
 
 The GMO bridge lemma connects framework 2 to framework 1.
 
+### CRITICAL LESSON (session 12): Always check protocol semantics when stuck on abstract structures
+
+When composing abstract mathematical structures (StepOrdering, LinLink, TransGen), **always ask: what PPOi/rfe/co/fr edge types produce this case?** The abstract structure loses protocol information that the concrete edge types carry. This reveals:
+1. **Vacuous cases**: e.g., `obFinishBefore h₁ + .ob h₂` is vacuous because .ob only arises from same-cluster edges (l₂=l₃ protocol), which contradicts obFinishBefore's l₁≠l₂. I spent hours trying to close this "hard case" that was actually impossible.
+2. **Proof strategies**: e.g., derive `l₂=l₃ protocol` from the edge BEFORE match/by_cases to avoid type bridging issues. The edge evidence (PPOi.sameProtocol, co.same_protocol) gives exactly what's needed.
+3. **Constructor design**: e.g., adding protocol to `.ob` constructor would work (all .ob are same-cluster) but requires many updates. Better to derive protocol from the edge at use sites.
+
+**Rule**: Before adding constructors or sorry-ing a composition, case-split the edge type mentally. If the composition is protocol-impossible, prove vacuity. If protocol-possible, the edge evidence shows how to compose.
+
 ## Learned reasoning patterns
 
 ### CLE equality shortcut (same address)
