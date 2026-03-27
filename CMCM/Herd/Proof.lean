@@ -2179,24 +2179,14 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₂ e₃ : Event n}
       | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
         exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
-        by_cases hprot : l₁.protocol = l₃.protocol
-        · match hfc₁ : l₁, h₁_isdir with
-          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-          | .directoryEvent de₁, _ =>
-            have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
-            match hfc₃ : l₃, h₃_isdir with
-            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-            | .directoryEvent de₃, _ =>
-              cases (hdir de₁ de₃).ordered with
-              | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
-              | inr _ =>
-                -- l₃ OB l₁ at same protocol. .ob h₂ → same-cluster → l₂ = l₃ protocol.
-                -- Combined with l₁ = l₃ (hprot) and l₁ ≠ l₂ (hdiff₁) → contradiction.
-                -- Derive l₂ = l₃ protocol from edge evidence:
-                exfalso
-                have h₂₃_prot : Event.protocol n l₂ = Event.protocol n l₃ := sorry -- extract from com edge (same-cluster .ob)
-                rw [hfc₃] at h₂₃_prot; exact hdiff₁ (hprot.trans h₂₃_prot.symm)
-        · exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot)
+        -- .ob h₂ → same-cluster edge → l₂ = l₃ protocol.
+        -- Derive BEFORE matches to avoid type bridging issues.
+        have h₂₃_prot : Event.protocol n l₂ = Event.protocol n l₃ := by
+          rw [hl₂, hl₃]; exact sorry -- extract e₂.protocol = e₃.protocol from com edge
+        -- Now: l₁ ≠ l₂ (hdiff₁), l₂ = l₃ (h₂₃_prot) → l₁ ≠ l₃.
+        -- So same-protocol direction is always vacuous:
+        have hprot_diff : l₁.protocol ≠ l₃.protocol := fun h₁₃ => hdiff₁ (h₁₃.trans h₂₃_prot.symm)
+        exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot_diff)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
     | obEndLt p₂ hob₂ hlt₂ =>
