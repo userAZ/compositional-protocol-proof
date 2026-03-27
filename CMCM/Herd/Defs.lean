@@ -195,7 +195,8 @@ theorem LinLinked_acyclic_of_LinLink_irrefl (lin : Event n → Event n)
   fun e h => hirrefl e (TransGen_LinLinked_to_LinLink lin h)
 
 /-- Convert StepOrdering to LinLink (or equality).
-    This bridges existing edge proofs to the new LinLink framework. -/
+    obFinishBefore maps to LinLink via finishesBefore (p.oEnd < l₂.oEnd from p OB l₂).
+    The h_diff_prot is not needed here — it was only for StepOrdering.irrefl.  -/
 theorem StepOrdering.toLinLinkOrEq {l₁ l₂ : Event n}
     (h : StepOrdering l₁ l₂)
     : @LinLink n l₁ l₂ ∨ l₁ = l₂ := by
@@ -204,19 +205,22 @@ theorem StepOrdering.toLinLinkOrEq {l₁ l₂ : Event n}
   | obEndLt p h_ob h_lt =>
     exact Or.inl (LinLink.trans (LinLink.single (.ob h_ob)) (LinLink.single (.finishesBefore h_lt)))
   | encapOb p h_enc h_ob =>
-    -- h_enc : p.EncapsulatedBy l₁ = l₁.Encapsulates p
     exact Or.inl (LinLink.trans (LinLink.single (.encap h_enc)) (LinLink.single (.ob h_ob)))
   | obFinishBefore p h_ob h_lt h_diff =>
-    -- p OB l₂ and p.oEnd < l₁.oEnd. No direct chain l₁ → l₂ from these.
-    -- This case only arises for cross-cluster FR; irrefl handles it via h_diff.
-    sorry
+    -- p OB l₂: p.oEnd < l₂.oStart → p.oEnd < l₂.oEnd (via oWellFormed).
+    -- p.oEnd < l₁.oEnd. Use finishesBefore from p to l₂, then need l₁ → p.
+    -- l₁ → p: no direct LinStep (p at different cluster from l₁).
+    -- Use finishesBefore: l₁.oEnd vs l₂.oEnd unknown.
+    -- BUT: we can use finishesBefore if we have ANY oEnd chain l₁ → l₂.
+    -- For obFinishBefore: this case only arises in cross-cluster FR.
+    -- At the cycle level (l₁ = l₂): h_diff gives contradiction.
+    -- For non-cycle (general trans): produce .inl with finishesBefore if possible.
+    sorry -- obFinishBefore → LinLink: needs finishesBefore l₁ l₂ or different approach
   | sameLin e₁' e₂' h_eq h_enc₁ h_ob h_enc₂ =>
-    -- Chain: l₁ →(encapBy)→ e₁' →(ob)→ e₂' →(encap)→ l₂
     exact Or.inl (LinLink.trans
       (LinLink.trans (LinLink.single (.encapBy h_enc₁)) (LinLink.single (.ob h_ob)))
       (LinLink.single (.encap h_enc₂)))
   | proxyPair q p h_q_enc h_q_ob_p h_p_ob =>
-    -- Chain: l₁ →(encap)→ q →(ob)→ p →(ob)→ l₂
     exact Or.inl (LinLink.trans
       (LinLink.trans (LinLink.single (.encap h_q_enc)) (LinLink.single (.ob h_q_ob_p)))
       (LinLink.single (.ob h_p_ob)))
@@ -232,14 +236,20 @@ theorem LinLinkOrEq_trans {x y z : Event n}
     | inr h₂ => subst h₂; exact Or.inl h₁
   | inr h₁ => subst h₁; exact h₂
 
-/-- LinLink is irreflexive: no event can link to itself.
+/-- LinLink is irreflexive: no event can link to itself via a chain of LinSteps.
 
-    Proof sketch: consider the event with maximum oEnd in any cycle.
-    The step out of max-oEnd must be encap (all others increase oEnd,
-    contradicting maximality). But encap goes inward (oStart increases),
-    and the chain must return to max-oEnd, requiring oStart to eventually
-    decrease below max.oStart — which only encapBy can do, but encapBy
-    increases oEnd past the maximum. Contradiction. -/
+    Each LinStep strictly changes at least one of (oEnd, oStart):
+    - ob: both increase (b entirely after a)
+    - encap: oStart increases, oEnd decreases (b inside a)
+    - encapBy: oStart decreases, oEnd increases (a inside b)
+    - finishesBefore: oEnd increases
+
+    For the specific patterns arising in the proof (encap always followed by ob),
+    a cycle through intermediates gives proxy.oEnd < proxy.oEnd (see CLAUDE.md).
+    The formal proof needs a well-founded measure on the chain structure.
+
+    TODO: Formalize using Behaviour.finite (finitely many events → finite chain
+    → each event visited at most once → no cycles). -/
 theorem LinLink.irrefl {e : Event n} : ¬ @LinLink n e e := by
   sorry
 
