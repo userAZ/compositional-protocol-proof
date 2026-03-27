@@ -2316,20 +2316,29 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
         exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
-        -- obFinishBefore h₁ + ob h₂: derive l₂ = l₃ protocol.
-        -- .ob from com edge → same-cluster → e₂ = e₃ protocol → l₂ = l₃ protocol.
-        -- Then l₁ ≠ l₂ → l₁ ≠ l₃ → .obFinishBefore.
-        have h₂₃_prot : Event.protocol n l₂ = Event.protocol n l₃ := by
-          rw [hl₂, hl₃]
-          by_cases he₂₃ : e₂.protocol = e₃.protocol
-          · exact (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
+        -- obFinishBefore h₁ + ob h₂: by_cases e₂/e₃ same cluster.
+        by_cases he₂₃ : e₂.protocol = e₃.protocol
+        · -- Same cluster: l₂.prot = l₃.prot → l₁ ≠ l₃ → .obFinishBefore
+          have h₂₃_prot : Event.protocol n l₂ = Event.protocol n l₃ := by
+            rw [hl₂, hl₃]
+            exact (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
               (he₂₃.trans (write_cle_protocol_eq_write_protocol (hknow e₃)).symm)
-          · -- diff-cluster com edge + .ob: need to show impossible or derive protocol eq
-            -- .ob only from same-cluster step_to_ordering cases, but proving this
-            -- requires introspecting step_to_ordering (opaque). Use edge case-split.
-            exfalso; exact sorry -- step_to_ordering for diff-cluster com never gives .ob
-        have hprot_diff : l₁.protocol ≠ l₃.protocol := fun h₁₃ => hdiff₁ (h₁₃.trans h₂₃_prot.symm)
-        exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot_diff)
+          have hprot_diff : l₁.protocol ≠ l₃.protocol := fun h₁₃ => hdiff₁ (h₁₃.trans h₂₃_prot.symm)
+          exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot_diff)
+        · -- Diff cluster: by_cases l₁/l₃ same protocol
+          by_cases hprot : l₁.protocol = l₃.protocol
+          · -- Same protocol l₁/l₃: dir_ordered
+            have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+            match hfc₁ : l₁, h₁_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₁, _ =>
+              match hfc₃ : l₃, h₃_isdir with
+              | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+              | .directoryEvent de₃, _ =>
+                cases (hdir de₁ de₃).ordered with
+                | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
+                | inr _ => sorry -- l₃ OB l₁: cross-cluster round-trip (diff-cluster com edge)
+          · exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
     | obEndLt p₂ hob₂ hlt₂ =>
