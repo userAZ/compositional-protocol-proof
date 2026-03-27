@@ -482,6 +482,15 @@ private lemma transGen_first_step {r : α → α → Prop} (h : Relation.TransGe
   | single h => exact ⟨_, h⟩
   | tail _ _ ih => exact ih
 
+/-- Decompose a TransGen cycle into first step + rest. -/
+private lemma transGen_head_tail {r : α → α → Prop} (h : Relation.TransGen r a c) :
+    ∃ b, r a b ∧ (b = c ∨ Relation.TransGen r b c) := by
+  induction h with
+  | single h => exact ⟨_, h, Or.inl rfl⟩
+  | tail h_path h_last ih =>
+    obtain ⟨b, hfirst, hrest⟩ := ih
+    exact ⟨b, hfirst, Or.inr (hrest.elim (fun heq => heq ▸ .single h_last) (fun htg => htg.tail h_last))⟩
+
 /-- If d is a directory event, d.req.val.rw = e_r.req.val.rw, and e_r is a write,
     then d is a directory write. Used to derive isDirWrite from existsRClusterDirDown spec. -/
 private lemma isDirWrite_of_rw_eq_write
@@ -2112,7 +2121,54 @@ theorem cmcm_acyclic_of_hknow
     | encapOb p henc hob =>
       exact Nat.lt_irrefl _ (Nat.lt_trans hob (Nat.lt_trans henc.left (Event.oWellFormed n p)))
     | obFinishBefore p hob hlt =>
-      sorry -- irrefl obFinishBefore in cycle
+      -- obFinishBefore CLE CLE: p OB CLE, p.oEnd < CLE.oEnd.
+      -- Not contradictory from hstep alone. Use hcycle to decompose.
+      -- Decompose cycle into first step + rest:
+      obtain ⟨e₂, he_first, hrest⟩ := transGen_head_tail hcycle
+      have hso_first := step_to_ordering he_first hknow
+      -- hso_first : StepOrdering CLE_e CLE₂
+      -- Get StepOrdering for the rest (e₂ →⁺ e or e₂ = e):
+      have hso_rest : StepOrdering (hknow e₂).hreq's_dir_access.choose
+          (hknow e).hreq's_dir_access.choose :=
+        hrest.elim (fun heq => heq ▸ .eq rfl) (fun htg => this e₂ e htg)
+      -- Compose first + rest: gives a DIFFERENT StepOrdering CLE_e CLE_e
+      -- that might be irreflexive (if first is .ob, composition avoids obFinishBefore).
+      have hcomposed := StepOrdering.trans hso_first hso_rest
+      -- hcomposed : StepOrdering CLE_e CLE_e (possibly different constructor than hstep)
+      -- Case-split on hcomposed — if it's NOT obFinishBefore, use standard irrefl:
+      cases hcomposed with
+      | ob h => exact Event.contradiction_of_reflexive_ordered_before n h
+      | obEndLt p' hp' hlt' =>
+        exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans hp' (Event.oWellFormed n p')) hlt')
+      | encapOb p' henc' hob' =>
+        exact Nat.lt_irrefl _ (Nat.lt_trans hob' (Nat.lt_trans henc'.left (Event.oWellFormed n p')))
+      | obFinishBefore p' hob' hlt' =>
+        -- Composed result is STILL obFinishBefore. The decomposition didn't help.
+        -- This means the cycle is structured such that re-composition gives obFinishBefore again.
+        -- Need deeper analysis or a different decomposition point.
+        sorry -- obFinishBefore persists after recomposition
+      | proxyPair q' p' hq_enc' hq_ob_p' hp_ob' =>
+        exact Nat.lt_irrefl (Event.oStart n p')
+          (calc Event.oStart n p'
+            _ < Event.oEnd n p' := Event.oWellFormed n p'
+            _ < Event.oStart n (hknow e).hreq's_dir_access.choose := hp_ob'
+            _ < Event.oStart n q' := hq_enc'.left
+            _ < Event.oEnd n q' := Event.oWellFormed n q'
+            _ < Event.oStart n p' := hq_ob_p')
+      | sameLin e₁' e₂' heq' he₁' hob' he₂' =>
+        exact Nat.lt_irrefl (Event.oEnd n (hknow e).hreq's_dir_access.choose)
+          (calc _ < e₁'.oEnd := he₁'.right
+            _ < e₂'.oStart := hob'
+            _ < (hknow e).hreq's_dir_access.choose.oStart := he₂'.left
+            _ < (hknow e).hreq's_dir_access.choose.oEnd := Event.oWellFormed n _)
+      | eq _ =>
+        have hisdir := (hknow e).hreq's_dir_access.choose_spec.right.isDirEvent
+        match (hknow e).hreq's_dir_access.choose, hisdir with
+        | .directoryEvent de, _ =>
+          cases (b.orderedAtEntry.dir_ordered de de).ordered with
+          | inl h => exact absurd (Nat.lt_trans h de.oWellFormed) (Nat.lt_irrefl _)
+          | inr h => exact absurd (Nat.lt_trans h de.oWellFormed) (Nat.lt_irrefl _)
+        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
     | proxyPair q p hq_enc hq_ob_p hp_ob =>
       -- q inside l (= CLE), q OB p, p OB l. Irrefl:
       -- p.oEnd < l.oStart (p OB l), l.oStart < q.oStart (q inside l),
