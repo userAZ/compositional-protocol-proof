@@ -36,26 +36,26 @@ Before proving, composing, or sorry-ing ANYTHING:
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 ### Status (updated 2026-03-28)
-- **MAIN THEOREM `cmcm_acyclic` IS SORRY-FREE** (sorry's in helpers don't propagate from `noncomputable def`).
-- **6 sorry-using declarations** remain in helper lemmas.
-- **compose_three**: SORRY-FREE. Uses 3-way invariant `StepOrdering ∨ eq ∨ l₃ OB l₁`. Key lemmas: `step_ordering_same_prot_not_reverse`, `same_prot_dir_ordered_forward`, `compose_obFinishBefore_com`.
+- **Architecture**: `cle` in `cmcm_acyclic_of_hknow` now uses compound lin events (`compoundLinearizationEvent.linearizationEvent`), NOT CLEs.
+- **PPOi (single edge)**: PROVEN. `h_non_lazy_ppoi` gives `.ob` directly on compound lins.
+- **COM (single edge)**: Bridge via `stepOrdering_cle_to_compound_lin_3way`. `step_to_ordering` gives StepOrdering on CLEs; the helper bridges to compound lins using temporal bounds (CLE.oStart ≤ compound_lin.oStart, compound_lin.oEnd ≤ CLE.oEnd) from `dirAccessUnique` + encapsulation.
+  - `.ob` case: PROVEN (chains through bounds).
+  - Other StepOrdering constructors: sorry (bounds insufficient for non-ob cases).
+  - `clusterCacheLin` compound lin type: sorry (CLE doesn't always encapsulate cache event — `orderAfterDir` breaks bounds).
+- **Tail composition**: ob+ob, ob+eq, eq+anything, rev_OB+eq, rev_OB+rev_OB: PROVEN. Other combinations: sorry.
+- **compose_three**: SORRY-FREE (on CLEs). Key lemmas: `step_ordering_same_prot_not_reverse`, `same_prot_dir_ordered_forward`, `compose_obFinishBefore_com`.
 - **StepOrdering enriched**: `obEndLt`, `encapObEndLt`, `obFinishBefore` all carry `h_p_isdir`.
 - **Non-lazy PPOi**: `h_non_lazy_ppoi` hypothesis excludes lazy RCC.
-- **ARCHITECTURE ISSUE**: Currently uses CLEs (`dirAccessOfRequest.choose`) as linearization events. This required `dirAccessUnique` (fake axiom) and has clusterCacheLin sorry's. MUST switch to compound linearization events (`compoundLinearizationEvent.linearizationEvent`) for both PPOi and COM.
+- **4 declarations use sorry** in Proof.lean: `co_chain_cross_cluster_downgrade`, `ppoi_diff_addr_step_ordering`, `stepOrdering_cle_to_compound_lin_3way`, `cmcm_acyclic_of_hknow`.
 
-### TODO (PRIORITY: Architecture switch)
-1. **Switch linearization from CLE to compound linearization event** for ALL edges:
-   - Change `cle` in `cmcm_acyclic_of_hknow` from `(hknow e).hreq's_dir_access.choose` to `(compound.compoundLinearizationEvent ...).linearizationEvent`
-   - PPOi: `h_non_lazy` directly gives `.ob` on compound lin events (TRIVIAL)
-   - COM (rfe/co/fr): re-derive StepOrdering on compound lin events
-   - Eliminates `dirAccessUnique` fake axiom
-   - Eliminates `ppoi_diff_addr_step_ordering` sorry's (clusterCacheLin issue disappears)
-   - See `CompoundPPOs.lean` line 619+ for compound lin type matching patterns
-   - See `CompositionalMCM.lean` for `enforce_compound_consistency`
-   - **CRITICAL**: `dir_ordered` only valid for same-cluster dir events. Never use cross-cluster.
-2. **co_chain_cross_cluster_downgrade** (1 sorry): translatedDir.
-3. **RfProofHelpers** (6 sorry's): Shim translations.
-4. **RfCases** (2 sorry's): cdirEncapsDown.
+### TODO
+1. **stepOrdering_cle_to_compound_lin_3way sorry's**:
+   - **clusterCacheLin bounds** (4 sorry's): CLE doesn't always encapsulate cache event (orderAfterDir). Need either: (a) prove cache events don't arise in COM edges, or (b) use a different temporal chain for clusterCacheLin.
+   - **non-ob StepOrdering** (7 sorry's): obEndLt, encapOb, obFinishBefore, sameLin, proxyPair, eq, encapObEndLt. For most: the CLE bounds don't transfer proxy events to compound lins. Need per-constructor analysis or protocol-level reasoning.
+2. **Tail composition sorry's** (8): Compositions involving non-ob StepOrdering or reverse OB + forward OB. Hard because compound lins don't have dir_ordered.
+3. **co_chain_cross_cluster_downgrade** (1 sorry): translatedDir.
+4. **ppoi_diff_addr_step_ordering** (2 sorry's): clusterCacheLin in PPOi context.
+5. **RfProofHelpers** (6 sorry's): Shim translations.
 
 ### Lessons learned (BE INTROSPECTIVE!)
 - **Don't guess constructors.** Each new StepOrdering constructor multiplies case analysis. Use edge data instead.
@@ -64,6 +64,9 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **Derive equalities BEFORE matches.** After `match hfc : l₁, ...`, rw fails on pre-match hypotheses.
 - **Don't expand wildcards without a closure plan.** Creates MORE sorry's.
 - **Commit clean states, revert fast** when sorry count increases.
+- **`let` bindings block `▸` and `rw`**: In `cmcm_acyclic_of_hknow`, the `let cle` binding prevents `▸` from finding patterns through the expansion. Use `Eq.subst` with explicit motive (`@Eq.subst _ (fun x => ...) _ _ heq h`) instead.
+- **`induction` generalizes indices**: When inducting on `TransGen R a c`, Lean generalizes `c`. Use `_` or `hknow _` to let Lean infer the generalized endpoint.
+- **`Trans.trans` for OB chains**: `Event.instTransOrderOrder` handles OB transitivity (chains through `oWellFormed`). Use `Trans.trans h₁ h₂` not `Nat.lt_trans`.
 
 ## Detailed documentation (read when needed)
 - `docs/compose-three-analysis.md` — Detailed sorry analysis, junction compatibility table, protocol extraction patterns
