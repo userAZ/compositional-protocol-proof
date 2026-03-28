@@ -1527,57 +1527,33 @@ private noncomputable def ppoi_diff_addr_step_ordering
       | inl hob => exact .ob hob
       | inr hob =>
         exfalso
-        have hclo := @ppoi_compound_lin_order n compound b init e₁ e₂ hppoi h_diff_addr
-        unfold CompoundProtocol.CompoundLinearizationOrder at hclo
-        cases hclo hppoi.ppo with
-        | inl helin_ob =>
-          let e_lin₁ := (compound.compoundLinearizationEvent compound.shimAxioms b init e₁
-            (compound.linearizationOfEvent b init e₁)).linearizationEvent
-          let e_lin₂ := (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
-            (compound.linearizationOfEvent b init e₂)).linearizationEvent
-          have hcle₁_le : Event.oStart n (.directoryEvent de₁) ≤ Event.oStart n e_lin₁ := by
-            have := compound_lin_start_bound e₁ (lin e₁)
-            rwa [hfc₁] at this
-          have helin₂_le : Event.oEnd n e_lin₂ ≤ Event.oEnd n (.directoryEvent de₂) := by
-            have := compound_lin_end_bound e₂ (lin e₂)
-            rwa [hfc₂] at this
-          exact Nat.lt_irrefl _ (calc Event.oEnd n (.directoryEvent de₂)
-            _ < Event.oStart n (.directoryEvent de₁) := hob
-            _ ≤ Event.oStart n e_lin₁ := hcle₁_le
-            _ ≤ Event.oEnd n e_lin₁ := Nat.le_of_lt (Event.oWellFormed n e_lin₁)
-            _ < Event.oStart n e_lin₂ := helin_ob
-            _ ≤ Event.oEnd n e_lin₂ := Nat.le_of_lt (Event.oWellFormed n e_lin₂)
-            _ ≤ Event.oEnd n (.directoryEvent de₂) := helin₂_le)
-        | inr hlazy =>
-          -- Lazy case excluded by h_non_lazy: the non-lazy OrderedBefore is assumed.
-          -- (Lazy RCC doesn't preserve A-Cumulativity, so this is a non-sense case
-          -- for the acyclicity argument.)
-          -- Use h_non_lazy directly since | inl already handles the OB case.
-          -- The | inl branch used helin_ob, which is exactly h_non_lazy.
-          -- Since we already handled | inl with this evidence, reaching | inr
-          -- means the disjunction gave lazy, but h_non_lazy gives OB — contradiction
-          -- with the disjunction structure. Actually, we need to show this is unreachable.
-          -- hclo hppoi.ppo gave (inl OB ∨ inr lazy). We're in inr lazy.
-          -- But h_non_lazy says OB holds. We need: OB → inl was chosen.
-          -- That doesn't follow — both sides of the disjunction could be true.
-          -- Instead: use h_non_lazy directly in the exfalso proof.
-          exact Nat.lt_irrefl _ (calc Event.oEnd n (.directoryEvent de₂)
-            _ < Event.oStart n (.directoryEvent de₁) := hob
-            _ ≤ Event.oStart n (compound.compoundLinearizationEvent compound.shimAxioms b init e₁
-                (compound.linearizationOfEvent b init e₁)).linearizationEvent := by
-              have := compound_lin_start_bound e₁ (lin e₁)
-              rwa [hfc₁] at this
-            _ ≤ Event.oEnd n (compound.compoundLinearizationEvent compound.shimAxioms b init e₁
-                (compound.linearizationOfEvent b init e₁)).linearizationEvent :=
-              Nat.le_of_lt (Event.oWellFormed n _)
-            _ < Event.oStart n (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
-                (compound.linearizationOfEvent b init e₂)).linearizationEvent := h_non_lazy
-            _ ≤ Event.oEnd n (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
-                (compound.linearizationOfEvent b init e₂)).linearizationEvent :=
-              Nat.le_of_lt (Event.oWellFormed n _)
-            _ ≤ Event.oEnd n (.directoryEvent de₂) := by
-              have := compound_lin_end_bound e₂ (lin e₂)
-              rwa [hfc₂] at this)
+        -- h_non_lazy gives e_lin₁ OB e_lin₂. Use compound_lin_start/end_bound
+        -- for clusterDirLin cases (sorry-free). For clusterCacheLin cases:
+        -- use encapDir temporal chain directly (e encaps CLE → CLE inside e).
+        -- Combined: de₂.oEnd < de₁.oStart ≤ e_lin₁ < e_lin₂ ≤ de₂.oEnd → contradiction.
+        have hcle₁_le : Event.oStart n (.directoryEvent de₁) ≤ Event.oStart n
+            (compound.compoundLinearizationEvent compound.shimAxioms b init e₁
+            (compound.linearizationOfEvent b init e₁)).linearizationEvent := by
+          have := compound_lin_start_bound e₁ (lin e₁)
+          rwa [hfc₁] at this
+        have helin₂_le : Event.oEnd n (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
+            (compound.linearizationOfEvent b init e₂)).linearizationEvent ≤
+            Event.oEnd n (.directoryEvent de₂) := by
+          have := compound_lin_end_bound e₂ (lin e₂)
+          rwa [hfc₂] at this
+        exact Nat.lt_irrefl _ (calc Event.oEnd n (.directoryEvent de₂)
+          _ < Event.oStart n (.directoryEvent de₁) := hob
+          _ ≤ Event.oStart n (compound.compoundLinearizationEvent compound.shimAxioms b init e₁
+              (compound.linearizationOfEvent b init e₁)).linearizationEvent := hcle₁_le
+          _ ≤ Event.oEnd n (compound.compoundLinearizationEvent compound.shimAxioms b init e₁
+              (compound.linearizationOfEvent b init e₁)).linearizationEvent :=
+            Nat.le_of_lt (Event.oWellFormed n _)
+          _ < Event.oStart n (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
+              (compound.linearizationOfEvent b init e₂)).linearizationEvent := h_non_lazy
+          _ ≤ Event.oEnd n (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
+              (compound.linearizationOfEvent b init e₂)).linearizationEvent :=
+            Nat.le_of_lt (Event.oWellFormed n _)
+          _ ≤ Event.oEnd n (.directoryEvent de₂) := helin₂_le)
 
 /-- PPOi → StepOrdering. Restricted to diff-addr (same-addr PPOi ordering
     is subsumed by com edges in cycles). Uses CompoundMCM bridge. -/
