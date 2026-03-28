@@ -723,7 +723,6 @@ theorem fr_ordering_holds
                             exact absurd ⟨d_co, by rw [hfc_dco]; exact hdco_in_b,
                               { interDiffProtocol := by exact h_mid_diff_ew
                                 downToW := by unfold Event.sameProtocol; rw [hfc_dco]; exact hdco_proto
-                                isDirWrite := sorry -- need isDirWrite but have isDirRead from existsRClusterDirDown
                                 downIsDown := hfc_dco ▸ h_dco_down
                                 isDir := by rw [hfc_dco]; exact hdco_isDir
                                 translatedDir := by rw [hfc_dco]; exact h_mid_translated
@@ -732,7 +731,6 @@ theorem fr_ordering_holds
                             exact absurd ⟨d_co, by rw [hfc_dco]; exact hdco_in_b,
                               { interDiffProtocol := by exact h_mid_diff_ew
                                 downToW := by unfold Event.sameProtocol; rw [hfc_dco]; exact hdco_proto
-                                isDirWrite := sorry -- need isDirWrite but have isDirRead from existsRClusterDirDown
                                 notDown := hfc_dco ▸ h_dco_down
                                 isDir := by rw [hfc_dco]; exact hdco_isDir
                                 translatedDir := by rw [hfc_dco]; exact h_mid_translated
@@ -1063,7 +1061,6 @@ theorem fr_ordering_holds
                           · exact absurd ⟨d_co, by rw [hfc_dco]; exact hdco_in_b,
                               { interDiffProtocol := by exact h_mid_diff_ew
                                 downToW := by unfold Event.sameProtocol; rw [hfc_dco]; exact hdco_proto
-                                isDirWrite := sorry -- need isDirWrite but have isDirRead from existsRClusterDirDown
                                 downIsDown := hfc_dco ▸ h_dco_down
                                 isDir := by rw [hfc_dco]; exact hdco_isDir
                                 translatedDir := by rw [hfc_dco]; exact h_mid_translated
@@ -1071,7 +1068,6 @@ theorem fr_ordering_holds
                           · exact absurd ⟨d_co, by rw [hfc_dco]; exact hdco_in_b,
                               { interDiffProtocol := by exact h_mid_diff_ew
                                 downToW := by unfold Event.sameProtocol; rw [hfc_dco]; exact hdco_proto
-                                isDirWrite := sorry -- need isDirWrite but have isDirRead from existsRClusterDirDown
                                 notDown := hfc_dco ▸ h_dco_down
                                 isDir := by rw [hfc_dco]; exact hdco_isDir
                                 translatedDir := by rw [hfc_dco]; exact h_mid_translated
@@ -1223,7 +1219,6 @@ theorem fr_ordering_holds
                           · exact absurd ⟨d_co, by rw [hfc_dco]; exact hdco_in_b,
                               { interDiffProtocol := by exact h_mid_diff_ew
                                 downToW := by unfold Event.sameProtocol; rw [hfc_dco]; exact hdco_proto
-                                isDirWrite := sorry -- need isDirWrite but have isDirRead from existsRClusterDirDown
                                 downIsDown := hfc_dco ▸ h_dco_down
                                 isDir := by rw [hfc_dco]; exact hdco_isDir
                                 translatedDir := by rw [hfc_dco]; exact h_mid_translated
@@ -1231,7 +1226,6 @@ theorem fr_ordering_holds
                           · exact absurd ⟨d_co, by rw [hfc_dco]; exact hdco_in_b,
                               { interDiffProtocol := by exact h_mid_diff_ew
                                 downToW := by unfold Event.sameProtocol; rw [hfc_dco]; exact hdco_proto
-                                isDirWrite := sorry -- need isDirWrite but have isDirRead from existsRClusterDirDown
                                 notDown := hfc_dco ▸ h_dco_down
                                 isDir := by rw [hfc_dco]; exact hdco_isDir
                                 translatedDir := by rw [hfc_dco]; exact h_mid_translated

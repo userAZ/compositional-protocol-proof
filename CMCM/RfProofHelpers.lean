@@ -3071,7 +3071,7 @@ lemma no_dir_write_between_same_cache
       hcdir_encap, hcdir_between⟩ := hdiff.existsClusterDirDown
     have hdown_proto_w := hcdir_proto.trans hw_cle_proto
     exact hconstraints.diffClusterNotBetweenCles_sameCache ⟨e_cdir_down, hcdir_in_b,
-      ⟨hdiff_w, hdown_proto_w, hcdir_write, hcdir_down, hcdir_dir, hcdir_encap⟩,
+      ⟨hdiff_w, hdown_proto_w, hcdir_down, hcdir_dir, hcdir_encap⟩,
       hcdir_between⟩
 
 /-- Extract `sameReq` from `downgradeCorrespondingToRequest`: the downgrade event carries

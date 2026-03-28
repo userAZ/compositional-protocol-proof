@@ -54,23 +54,20 @@ structure DiffClusterCLE.NotBetweenCLEs.sameCacheConstraints {cmp}
     : Prop where
   interDiffProtocol : e_inter.diffProtocol n e_w
   downToW : e_inter_down.sameProtocol n e_w
-  isDirWrite : e_inter_down.isDirWrite
   downIsDown : e_inter_down.down
   isDir : e_inter_down.isDirectoryEvent
   translatedDir : Event.clusterDirFromDiffProtocolRequest b init e_inter e_inter_down
     hinter_c_and_g_lin
 
-/-- Same-cache variant for a non-downgrade directory write.
-    Matches the directory event from e_w2's write-back at e_w1's cluster (isDirWrite, ¬down).
-    Used in the FR proof: when e_w2 downgrades e_w1's cluster, the write-back directory
-    event is a dir write with down=false. -/
+/-- Same-cache variant for a non-downgrade directory event from a different cluster.
+    Used in the NIW proof: directory events at e_w's cluster from a different cluster
+    can't be between CLE_w and CLE_r. -/
 structure DiffClusterCLE.NotBetweenCLEs.sameCacheWriteConstraints {cmp}
     (e_inter e_w e_inter_down : Event n)
     (hinter_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_inter)
     : Prop where
   interDiffProtocol : e_inter.diffProtocol n e_w
   downToW : e_inter_down.sameProtocol n e_w
-  isDirWrite : e_inter_down.isDirWrite
   notDown : ¬ e_inter_down.down
   isDir : e_inter_down.isDirectoryEvent
   translatedDir : Event.clusterDirFromDiffProtocolRequest b init e_inter e_inter_down
