@@ -3404,7 +3404,7 @@ lemma diffCache_coherent_encapProxyAndDir
           atDir := he_dw_isDir
           globalEncap := he_gdown_encap_dw }⟩⟩
     exact { existsRClusterDirDown := ⟨e_dw, he_dw_in_b, he_dw_isDir, he_dw_proto,
-      he_dw_isDirWrite, he_dw_not_down, he_dw_translated,
+      he_dw_isDirWrite, he_dw_translated,
       Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dw h_dw_end_before_cle⟩ }
     | scReadDown _ _ translation =>
       -- scReadDown: the dir event is a coherent read (not isDirWrite).
@@ -3418,7 +3418,7 @@ lemma diffCache_coherent_encapProxyAndDir
           hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dir
       have h_dir_end_before_cle := Nat.lt_trans h_gcache_encap_dir.2 h_gcache_lt_cle
       exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
-        sorry, sorry, sorry,  -- scReadDown: read dir event, needs different approach
+        sorry, sorry,  -- scReadDown: isDirWrite + translatedDir for read dir event
         Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩ }
   | noCoherentRead hcorrespond _ downTranslation =>
     -- noCoherentRead: directory events have down=True. Need different handling.
@@ -3430,7 +3430,7 @@ lemma diffCache_coherent_encapProxyAndDir
         hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dir
     have h_dir_end_before_cle := Nat.lt_trans h_gcache_encap_dir.2 h_gcache_lt_cle
     exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
-      sorry, sorry, sorry,  -- noCoherentRead: dir events have down=True; needs restructuring
+      sorry, sorry,  -- noCoherentRead: isDirWrite + translatedDir
       Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩ }
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
