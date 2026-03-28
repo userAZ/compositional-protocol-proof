@@ -48,10 +48,9 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **Dead code**: CLE-to-compound_lin bridge removed. `ppoi_diff_addr_step_ordering` bypassed in cycle proof (compose_three uses dir_ordered for PPOi instead).
 
 ### TODO
-1. **co_chain_cross_cluster_downgrade** (1 sorry): translatedDir endpoint.
-2. **ppoi_diff_addr_step_ordering** (3 sorry's): clusterCacheLin — bypassed in cycle proof (compose_three uses dir_ordered for PPOi). Still used by step_to_ordering for eq prefix case in compose_three.
-3. **RfProofHelpers** (2 sorry-using declarations): Shim translations.
-4. Consider deleting ppoi_diff_addr_step_ordering if it can be fully bypassed.
+1. **co_chain_cross_cluster_downgrade** (1 sorry at line 470): `translatedDir` endpoint shifting through CO chain. The `clusterDirFromDiffProtocolRequest` structure's `existsGlobalDownTranslation` depends on the endpoint's linearization (changes when CO chain extends from `b_mid` to `c_ep`). Hard: requires showing downgrade translation persists when endpoint shifts. Alternative: restructure to use base case `d'` from last CO step instead of extending IH's `d`.
+2. **ppoi_diff_addr_step_ordering** (2 sorry's): clusterCacheLin — DEAD CODE for main theorem. All step_to_ordering calls from compose_three/cmcm_acyclic_of_hknow pass COM edges only. Consider deleting.
+3. **RfProofHelpers** (2 sorry-using declarations): `diffCache_coherent_encapProxyAndDir` (shim rw/down/correspondingDir translation), `cdirEncapsDown_exists` (MR case, scReadDown, noCoherentRead).
 
 ### Lessons learned (BE INTROSPECTIVE!)
 - **Don't guess constructors.** Each new StepOrdering constructor multiplies case analysis. Use edge data instead.
