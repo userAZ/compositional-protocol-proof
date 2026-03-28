@@ -2231,7 +2231,7 @@ private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂
         (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
       (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
         (compound.linearizationOfEvent b init a₂)).linearizationEvent)
-    : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ := by
+    : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ ∨ l₃.OrderedBefore n l₁ := by
   -- Same-cluster: l₂.prot = l₃.prot → l₁ ≠ l₃ → .obFinishBefore via OB chain
   by_cases he₂₃ : e₂.protocol = e₃.protocol
   · have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering (.inr hcom_edge) hknow h_non_lazy_ppoi
@@ -2259,16 +2259,7 @@ private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂
           | inr hob₃₁ =>
             -- l₃ OB l₁: need cross-cluster protocol evidence from hcom_edge
             -- Case-split on the com edge to access NIW/rf/co structure
-            cases hcom_edge with
-            | rfe hrfe =>
-                -- rfe(e₂, e₃): e₂ writes, e₃ reads. Cross-cluster communication.
-                sorry -- TODO: extract cross-cluster evidence from rfe
-            | co hco =>
-                -- co(e₂, e₃): coherence order. Cross-cluster communication.
-                sorry -- TODO: extract cross-cluster evidence from co
-            | fr hfr =>
-                -- fr(e₂, e₃): from-reads. Cross-cluster communication.
-                sorry -- TODO: extract cross-cluster evidence from fr
+            exact Or.inr (Or.inr hob₃₁)
     · -- Diff protocol l₁/l₃: chain p₁ through h₂ to l₃
       have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering (.inr hcom_edge) hknow h_non_lazy_ppoi
       -- p₁ OB l₂. Chain through h₂ to get p₁ OB l₃ for .obFinishBefore.
@@ -2317,7 +2308,7 @@ private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂
     The temporal contradiction chains through BOTH h₁ and h₂'s data.
     obFinishBefore on h₁: handled by compose_obFinishBefore_com for com edges. -/
 private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event n}
-    (h₁ : @StepOrdering n l₁ l₂ ∨ l₁ = l₂)
+    (h₁ : @StepOrdering n l₁ l₂ ∨ l₁ = l₂ ∨ l₂.OrderedBefore n l₁)
     (hedge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₂ e₃)
     (h_prefix_edge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₁ e₂)
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
@@ -2329,7 +2320,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
         (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
       (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
         (compound.linearizationOfEvent b init a₂)).linearizationEvent)
-    : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ := by
+    : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ ∨ l₃.OrderedBefore n l₁ := by
   -- Helper: extract e₂'s read/write from edge, check junction compatibility.
   -- hedge constrains e₂ from the CURRENT edge. h_prefix_edge from the PREFIX.
   -- If incompatible (e₂ read + e₂ write) → exfalso.
@@ -2376,10 +2367,40 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       simp only [Event.isWrite, Request.isWrite] at hw
       rw [hw] at hr; exact absurd hr (by decide)
     | directoryEvent de => simp [Event.isRead] at hr
-  -- eq h₁: substitute, derive from edge directly
+  -- eq/OB h₁: substitute or handle l₂ OB l₁
   cases h₁ with
-  | inr heq₁ =>
-    rw [heq₁, hl₂, hl₃]; exact Or.inl (step_to_ordering hedge hknow h_non_lazy_ppoi)
+  | inr hr₁ =>
+    cases hr₁ with
+    | inl heq₁ =>
+      rw [heq₁, hl₂, hl₃]; exact Or.inl (step_to_ordering hedge hknow h_non_lazy_ppoi)
+    | inr h_l₂_ob_l₁ =>
+      -- l₂ OB l₁ + new edge. by_cases protocol for output.
+      have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+      by_cases hprot : l₁.protocol = l₃.protocol
+      · match hfc₁ : l₁, h₁_isdir with
+        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+        | .directoryEvent de₁, _ =>
+          match hfc₃ : l₃, h₃_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₃, _ =>
+            cases (hdir de₁ de₃).ordered with
+            | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
+            | inr hob₃₁ => exact Or.inr (Or.inr hob₃₁)
+      · -- Diff protocol: l₂ OB l₁ gives l₂.oEnd < l₁.oEnd. l₂ is dir event.
+        -- Use .obFinishBefore with l₂ as proxy if we can get l₂ OB l₃.
+        have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering hedge hknow h_non_lazy_ppoi
+        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
+        -- stepOrdering_to_three gives LinLink, eq, or diff_prot
+        have h3way := stepOrdering_to_three h₂ hdir h₂_isdir h₃_isdir
+        cases h3way with
+        | inl hlink =>
+          sorry -- l₂ OB l₁ + LinLink l₂ l₃ + diff-protocol l₁/l₃
+        | inr hr => cases hr with
+          | inl heq₂₃ =>
+            -- l₂ = l₃. Then l₃ OB l₁ from l₂ OB l₁.
+            exact Or.inr (Or.inr (heq₂₃ ▸ h_l₂_ob_l₁))
+          | inr hdiff₂₃ =>
+            sorry -- l₂ OB l₁ + diff_prot l₂ l₃ + diff-prot l₁/l₃
   | inl hso₁ =>
   -- Case-split on hedge (the actual edge) to get edge-specific evidence.
   -- For each edge type, combine with h₁ (StepOrdering from prefix).
@@ -2628,7 +2649,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
             | .directoryEvent de₃, _ =>
               cases (hdir de₁ de₃).ordered with
               | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
-              | inr _ => sorry -- l₃ OB l₁: ob+obFinishBefore same-protocol
+              | inr hob₃₁ => exact Or.inr (Or.inr hob₃₁)
         · -- Diff protocol: use dir_ordered(p₂, l₁) to chain.
           match hfcl₁ : l₁, h₁_isdir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
@@ -2689,7 +2710,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
                   | .directoryEvent del₃, _ =>
                     cases (hdir del₁ del₃).ordered with
                     | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
-                    | inr _ => sorry -- l₃ OB l₁: obEndLt+obFinishBefore same-protocol
+                    | inr hob₃₁ => exact Or.inr (Or.inr hob₃₁)
               · -- Diff protocol: dir_ordered(p₂, l₁) resolves
                 match hfcl₁ : l₁, h₁_isdir with
                 | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
@@ -2741,7 +2762,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
                   | .directoryEvent del₃, _ =>
                     cases (hdir del₁ del₃).ordered with
                     | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
-                    | inr _ => sorry -- l₃ OB l₁: encapObEndLt+obFinishBefore same-protocol
+                    | inr hob₃₁ => exact Or.inr (Or.inr hob₃₁)
               · match hfcl₁ : l₁, h₁_isdir with
                 | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                 | .directoryEvent del₁, _ =>
@@ -2900,8 +2921,8 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
 -/
 
 /-- Acyclicity given that every event has a linearization.
-    Invariant: `StepOrdering (cle a) (cle c) ∨ cle a = cle c`.
-    At cycle level, convert to 3-way and derive contradiction. -/
+    Invariant: `StepOrdering (cle a) (cle c) ∨ cle a = cle c ∨ (cle c).OrderedBefore n (cle a)`.
+    At cycle level, all three alternatives derive contradiction. -/
 theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
@@ -2912,9 +2933,9 @@ theorem cmcm_acyclic_of_hknow
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
   intro e hcycle
   let cle := fun e => (hknow e).hreq's_dir_access.choose
-  -- Invariant: StepOrdering ∨ eq. Contradicts at cycle endpoint.
+  -- Invariant: StepOrdering ∨ eq ∨ reverse OB. Contradicts at cycle endpoint.
   suffices ∀ a c, Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) a c →
-      @StepOrdering n (cle a) (cle c) ∨ cle a = cle c by
+      @StepOrdering n (cle a) (cle c) ∨ cle a = cle c ∨ (cle c).OrderedBefore n (cle a) by
     have hresult := this e e hcycle
     cases hresult with
     | inl hso =>
@@ -2926,7 +2947,9 @@ theorem cmcm_acyclic_of_hknow
       | inr hr => cases hr with
         | inl heq => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
         | inr hdiff => exact absurd rfl hdiff
-    | inr heq => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+    | inr hr => cases hr with
+      | inl heq => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+      | inr hob_rev => exact Event.contradiction_of_reflexive_ordered_before n hob_rev
   intro a c hpath
   induction hpath with
   | single h => exact Or.inl (step_to_ordering h hknow h_non_lazy_ppoi)
