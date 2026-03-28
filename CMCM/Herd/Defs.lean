@@ -143,7 +143,6 @@ inductive StepOrdering : Event n → Event n → Prop where
       Not irreflexive alone — requires composition with other edges in a cycle. -/
   | obFinishBefore (p : Event n) (h_ob : p.OrderedBefore n l₂) (h_lt : Event.oEnd n p < Event.oEnd n l₁)
       (h_diff_prot : l₁.protocol ≠ l₂.protocol) (h_p_isdir : p.isDirectoryEvent)
-      (h_p_after_l₁_start : Event.oStart n l₁ < Event.oStart n p)
       : StepOrdering l₁ l₂
   | sameLin (e₁' e₂' : Event n) (h_eq : l₁ = l₂)
       (h_enc₁ : l₁.EncapsulatedBy n e₁') (h_ob : e₁'.OrderedBefore n e₂')
@@ -309,7 +308,6 @@ inductive FrOrdering
     (p_ob_cle₂ : p.OrderedBefore n e₂_lin.hreq's_dir_access.choose)
     (p_lt_cle₁ : Event.oEnd n p < Event.oEnd n e₁_lin.hreq's_dir_access.choose)
     (h_p_isdir : p.isDirectoryEvent)
-    (h_p_after_cle₁_start : Event.oStart n e₁_lin.hreq's_dir_access.choose < Event.oStart n p)
   /-- Same CLE: both events share the same CLE. -/
   | sameCLE
     (cle_eq : e₁_lin.hreq's_dir_access.choose = e₂_lin.hreq's_dir_access.choose)
