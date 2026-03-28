@@ -3337,19 +3337,70 @@ lemma diffCache_coherent_encapProxyAndDir
       Trans.trans (Trans.trans hdowngrade.downgradePrevOwner.reqEncapDir
         hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dw
     have h_dw_end_before_cle := Nat.lt_trans h_gcache_encap_dw.2 h_gcache_lt_cle
-    -- isDirWrite: from cohWrite's isSCWrite (ValidRequest.isSCWrite) + dirOfReq.correspondingCE
-    -- The dir event's request matches the cache event's request, which satisfies isSCWrite.
+    -- isDirWrite + ¬down: from requestDirectoryEvent.dirReq/sameDown + translateProxyEvent.
+    -- For isSCWrite, reqToDirOfRequestEvent defaults to e_cw.req (coherent=true, no special case).
     have he_dw_isDirWrite : e_dw.isDirWrite := by
-      sorry -- isDirWrite: cohWriteDir.dirOfReq.correspondingCE gives req match; cohWrite.reqTranslation gives isSCWrite
-    -- ¬down: from cohWrite.downgrade=False + cohWriteDir.dirOfReq.sameDown
+      have hdir_of_req := hstruct.cohWriteDir.dirOfReq
+      have hsameDown := hstruct.cohWriteDir.dirCorresponds.sameDown
+      have hreqTrans := hstruct.cohWrite.reqTranslation
+      rw [ValidRequest.isSCWrite] at hreqTrans
+      match he_dw_m : e_dw, he_dw_isDir with
+      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+      | .directoryEvent de_dw, _ =>
+        match he_cw_m : e_cw with
+        | .directoryEvent _ =>
+          simp [Event.dirEventOfReqEvent, he_dw_m] at hdir_of_req
+        | .cacheEvent ce_cw =>
+          -- dirOfReq: de_dw.eReq = ce_cw (from matchesCacheEvent.correspondingCE)
+          simp [Event.dirEventOfReqEvent, he_dw_m, he_cw_m,
+                DirectoryEvent.matchesCacheEvent] at hdir_of_req
+          -- hdir_of_req : de_dw.eReq = ce_cw ∧ de_dw.down = ce_cw.down
+          -- Use requestDirectoryEvent.dirReq to get de_dw.req
+          have hdirReq := hstruct.cohWriteDir.dirCorresponds.dirReq
+          simp only [Event.req, he_dw_m, he_cw_m] at hdirReq hreqTrans
+          simp only [Event.isDirWrite, he_dw_m, Request.isWrite, hdirReq]
+          -- Goal: (b.reqToDirOfRequestEvent ...).val.rw = .w
+          -- For isSCWrite (⟨.w, true, .SC⟩): reqToDirOfRequestEvent defaults to ce_cw.req
+          simp only [Behaviour.reqToDirOfRequestEvent, Event.req, he_cw_m]
+          split
+          · -- rel_wb case: ce_cw.req.val = ⟨.w, false, .Rel⟩ → contradicts isSCWrite
+            next h => rw [hreqTrans] at h; simp at h
+          · -- default: reqToDirOfRequestEvent n state_before.cache
+            simp only [Event.reqToDirOfRequestEvent, Event.req, he_cw_m, Event.down]
+            rw [hreqTrans]
     have he_dw_not_down : ¬ e_dw.down := by
-      sorry -- ¬down: cohWriteDir.dirOfReq.sameDown + cohWrite.downgrade = False
+      have hdir_of_req := hstruct.cohWriteDir.dirOfReq
+      have hcw_not_down := hstruct.cohWrite.downgrade
+      match he_dw_m : e_dw, he_dw_isDir with
+      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+      | .directoryEvent de_dw, _ =>
+        match he_cw_m : e_cw with
+        | .directoryEvent _ =>
+          simp [Event.dirEventOfReqEvent, he_dw_m] at hdir_of_req
+        | .cacheEvent ce_cw =>
+          simp [Event.dirEventOfReqEvent, he_dw_m, he_cw_m,
+                DirectoryEvent.matchesCacheEvent] at hdir_of_req
+          -- hdir_of_req.2 : de_dw.down = ce_cw.down (Bool eq)
+          -- hcw_not_down : ↑(ce_cw.down) = False (Prop eq via Bool→Prop coercion)
+          -- Goal: ¬ ↑(de_dw.down)
+          simp only [Event.down, he_dw_m] at hcw_not_down ⊢
+          simp [hdir_of_req.2, hcw_not_down]
     -- clusterDirFromDiffProtocolRequest: from downgrade + proxyCacheEvent + correspondingDirectoryEvent
     have he_dw_translated : Event.clusterDirFromDiffProtocolRequest b init e_r e_dw hr_c_and_g_lin :=
       ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b, e_cw, hstruct.cohWriteDir.reqInB,
         hdowngrade,
         hstruct.cohWrite.atCorrClusterProxy,
-        { clusterMatch := sorry  -- matchingCluster for dir event (from proxy + sameProtocol)
+        { clusterMatch :=
+            -- Transfer matchingCluster from proxy (e_cw) to dir (e_dw) via sameAddr + sameProtocol.
+            { sameAddr := by
+                have h1 := hstruct.cohWrite.atCorrClusterProxy.clusterMatch.sameAddr
+                have h2 := hstruct.cohWriteDir.dirCorresponds.sameAddr
+                unfold Event.sameAddr at h1 h2 ⊢; exact h2.symm ▸ h1
+              atCorrCluster := by
+                have h1 := hstruct.cohWrite.atCorrClusterProxy.clusterMatch.atCorrCluster
+                have h2 := hstruct.cohWriteDir.sameProtocol
+                simp only [Event.correspondingClusterOfGlobalCache] at h1 ⊢
+                split <;> (try (simp_all [Event.protocol])) <;> (simp [Event.protocol] at h1 ⊢; rw [← h2]; exact h1) }
           atDir := he_dw_isDir
           globalEncap := he_gdown_encap_dw }⟩⟩
     exact { existsRClusterDirDown := ⟨e_dw, he_dw_in_b, he_dw_isDir, he_dw_proto,
