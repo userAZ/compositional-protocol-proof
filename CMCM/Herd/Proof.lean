@@ -2230,7 +2230,14 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
   | inr hr₁ =>
     cases hr₁ with
     | inl heq₁ =>
-      rw [heq₁, hl₂, hl₃]; exact Or.inl (step_to_ordering hedge hknow h_non_lazy_ppoi)
+      -- l₁ = l₂: just need 3-way for (l₂, l₃). For PPOi: dir_ordered. For COM: step_to_ordering.
+      cases hedge with
+      | inl hppoi_edge =>
+        rw [heq₁]; exact step_ordering_dir_ordered_3way
+          (hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent)
+          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+      | inr hcom_edge =>
+        rw [heq₁, hl₂, hl₃]; exact Or.inl (step_to_ordering (.inr hcom_edge) hknow h_non_lazy_ppoi)
     | inr h_l₂_ob_l₁ =>
       -- l₂ OB l₁ + new edge. dir_ordered(l₁, l₃) resolves both directions:
       -- l₁ OB l₃ → .ob (first alternative)
