@@ -403,6 +403,7 @@ theorem co_step_to_ordering
           (by rw [← hw₂]; cases hcdir_spec.2.2.2.2.2.2 with
               | cleEncap henc => exact henc.right
               | gcacheEncap _ hlt => exact hlt)
+          hcdir_spec.2.1
     | evictOrReadBetweenWAndRCleSameCluster evict =>
       exact .ob (by rw [← hw₁, ← hw₂]; exact evict.wObR)
   | diffClus _ diff_cluster_cases =>
@@ -416,6 +417,7 @@ theorem co_step_to_ordering
         (by rw [← hw₂]; cases hcdir_spec.2.2.2.2.2.2 with
             | cleEncap henc => exact henc.right
             | gcacheEncap _ hlt => exact hlt)
+        hcdir_spec.2.1
     | evictOrReadBetweenWAndRDown evict =>
       have hcdir_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
       exact .obEndLt evict.rDown.encapDir.existsRClusterDirDown.choose
@@ -423,6 +425,7 @@ theorem co_step_to_ordering
         (by rw [← hw₂]; cases hcdir_spec.2.2.2.2.2.2 with
             | cleEncap henc => exact henc.right
             | gcacheEncap _ hlt => exact hlt)
+        hcdir_spec.2.1
 
 /-- Extract the first step from a TransGen chain. -/
 private lemma transGen_first_step {r : α → α → Prop} (h : Relation.TransGen r a c) :
@@ -860,6 +863,7 @@ theorem fr_ordering_holds
                   (show (lin e₁).hreq's_dir_access.choose.OrderedBefore n _ from by
                     rw [hfc_cle₁]; exact hob_cle₁_cdir)
                   (by rw [hw₂']; exact hcdir_lt_cle₂)
+                  (by simp [Event.isDirectoryEvent])
               | inr hob_cdir_cle₁ =>
                 -- cdir OB CLE₁. Try evict.
                 have he_evict_isdir' := he_evict_isDir
@@ -873,6 +877,7 @@ theorem fr_ordering_holds
                       (show (lin e₁).hreq's_dir_access.choose.OrderedBefore n _ from by
                         rw [hfc_cle₁]; exact hob_cle₁_evict)
                       (by rw [hw₂']; exact hevict_lt_cle₂)
+                      (by simp [Event.isDirectoryEvent])
                   | inr hob_evict_cle₁ =>
                     -- evict OB CLE₁: both cdir and evict before CLE₁.
                     -- Case-split on e_w's cluster. Don't use exfalso yet —
@@ -932,6 +937,7 @@ theorem fr_ordering_holds
                             (show (lin e₁).hreq's_dir_access.choose.OrderedBefore n _ from by
                               rw [hfc_cle₁]; exact hcle₁_ob_dco)
                             (by rw [hw₂']; exact hdco_lt_cle₂)
+                            (by simp [Event.isDirectoryEvent])
                     · -- e_w same cluster as e₂ (2-cluster elimination):
                       -- RF is cross-cluster (e_w at e₂'s cluster, e₁ at e₁'s cluster).
                       -- RF gives d_rf at e_w's cluster inside CLE₁ (encapDirRelation).
@@ -1206,6 +1212,7 @@ theorem fr_ordering_holds
                 have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
                 exact .diffCluster_coherent h_same_prot (.directoryEvent de_cdir)
                   (by rw [hfc_cle₁₂]; exact hob) (by rw [hw₂']; exact hcdir_lt_cle₂)
+                  (by simp [Event.isDirectoryEvent])
               | inr hob =>
                 have he_evict_isdir' := he_evict_isDir
                 match hfc_evict₂ : e_evict, he_evict_isdir' with
@@ -1216,6 +1223,7 @@ theorem fr_ordering_holds
                     have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
                     exact .diffCluster_coherent h_same_prot (.directoryEvent de_evict)
                       (by rw [hfc_cle₁₂]; exact hob_evict) (by rw [hw₂']; exact hevict_lt_cle₂)
+                      (by simp [Event.isDirectoryEvent])
                   | inr hob_evict =>
                     -- Same structure as encapDir case.
                     obtain ⟨e_w, e_w_write, e_w_lin, _, h_rf, h_no_between, h_co_chain,
@@ -1260,6 +1268,7 @@ theorem fr_ordering_holds
                             (show (lin e₁).hreq's_dir_access.choose.OrderedBefore n _ from by
                               rw [hfc_cle₁₂]; exact hcle₁_ob_dco)
                             (by rw [hw₂']; exact hdco_lt_cle₂)
+                            (by simp [Event.isDirectoryEvent])
                     · -- e_w same as e₂: RF cross-cluster. Same approach as encapDir.
                       have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache
                       have hdrf_spec' := hencapDir'.existsRClusterDirDown.choose_spec
@@ -1356,6 +1365,7 @@ theorem fr_ordering_holds
                 have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
                 exact .diffCluster_noncoherent h_same_prot (.directoryEvent de_cdir)
                   (by rw [hfc_cle₁₃]; exact hob) (by rw [hw₂']; exact hcdir_lt_cle₂)
+                  (by simp [Event.isDirectoryEvent])
               | inr hob =>
                 have he_evict_isdir' := he_evict_isDir
                 match hfc_evict₃ : e_evict, he_evict_isdir' with
@@ -1366,6 +1376,7 @@ theorem fr_ordering_holds
                     have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
                     exact .diffCluster_noncoherent h_same_prot (.directoryEvent de_evict)
                       (by rw [hfc_cle₁₃]; exact hob_evict) (by rw [hw₂']; exact hevict_lt_cle₂)
+                      (by simp [Event.isDirectoryEvent])
                   | inr hob_evict =>
                     -- Same structure as encapDir case.
                     obtain ⟨e_w, e_w_write, e_w_lin, _, h_rf, h_no_between, h_co_chain,
@@ -1409,6 +1420,7 @@ theorem fr_ordering_holds
                             (show (lin e₁).hreq's_dir_access.choose.OrderedBefore n _ from by
                               rw [hfc_cle₁₃]; exact hcle₁_ob_dco)
                             (by rw [hw₂']; exact hdco_lt_cle₂)
+                            (by simp [Event.isDirectoryEvent])
                     · -- e_w same as e₂: RF cross-cluster. Same approach as encapDir.
                       have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache
                       have hdrf_spec' := hencapDir'.existsRClusterDirDown.choose_spec
@@ -1636,6 +1648,7 @@ theorem step_to_ordering
               (by rw [← hw₂]; cases hencap_rel with
                   | cleEncap henc => exact henc.right
                   | gcacheEncap _ hlt => exact hlt)
+              hcdir_spec.2.1
           -- Dispatch all diffCache.case sub-cases
           cases hdiff_cache_case with
           | wHasPermsAfter hw_leaves_SW coherentCase =>
@@ -1671,6 +1684,7 @@ theorem step_to_ordering
                         (by rw [← hw₂, ← h_cdir_ev]; cases hencap_rel with
                             | cleEncap henc => exact henc.right
                             | gcacheEncap _ hlt => exact hlt)
+                        (by simp [Event.isDirectoryEvent])
                     | inr hob_dir =>
                       -- cdir_down OB CLE_w: temporal contradiction
                       -- e_w OB e_r_down, cdir encapsulates e_r_down, cdir OB CLE_w, CLE_w inside e_w
@@ -1792,9 +1806,9 @@ theorem step_to_ordering
         | inl cle_eq => exact .eq cle_eq
         | inr cle_ob => exact .ob cle_ob
       | sameClusDiffCache _ _ cle_ob => exact .ob cle_ob
-      | diffCluster_coherent _ p cle₁_ob_p p_lt_cle₂ => exact .obEndLt p cle₁_ob_p p_lt_cle₂
-      | diffCluster_evict _ p cle₁_ob_p p_lt_cle₂ => exact .obEndLt p cle₁_ob_p p_lt_cle₂
-      | diffCluster_noncoherent _ p cle₁_ob_p p_lt_cle₂ => exact .obEndLt p cle₁_ob_p p_lt_cle₂
+      | diffCluster_coherent _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir
+      | diffCluster_evict _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir
+      | diffCluster_noncoherent _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir
       | diffCluster_rfCrossCluster _ p p_inside p_ob => exact .encapOb p p_inside p_ob
       | diffCluster_rfFinishBefore h_diff p p_ob p_lt =>
         have hcle₁_prot := read_cle_protocol_eq_read_protocol (lin e₁)
@@ -1996,6 +2010,7 @@ theorem step_to_ordering
                 (show (Event.directoryEvent de_cle₁).OrderedBefore n
                     (.directoryEvent de_cdir) from hob)
                 (by rw [hw₂']; exact hcdir_lt_cle₂)
+                (by simp [Event.isDirectoryEvent])
             | inr hob =>
               -- cdir OB CLE₁: e₂'s downgrade at e₁'s cluster is before e₁'s CLE.
               -- Use dir_ordered CLE₁ e_evict: if CLE₁ OB e_evict → .obEndLt e_evict.
@@ -2012,6 +2027,7 @@ theorem step_to_ordering
                     (show (Event.directoryEvent de_cle₁).OrderedBefore n
                         (.directoryEvent de_evict) from hob_cle₁_evict)
                     (by rw [hw₂']; exact hevict_lt_cle₂)
+                    (by simp [Event.isDirectoryEvent])
                 | inr hob_evict_cle₁ =>
                   -- e_evict OB CLE₁: evict (down=true) before reader's CLE → NIW.
                   exfalso
@@ -2104,7 +2120,7 @@ private theorem stepOrdering_to_three {l₁ l₂ : Event n}
     : @LinLink n l₁ l₂ ∨ l₁ = l₂ ∨ l₁.protocol ≠ l₂.protocol := by
   cases h with
   | ob h => exact Or.inl (LinLink.single (.ob h))
-  | obEndLt p h_ob h_lt =>
+  | obEndLt p h_ob h_lt _ =>
     -- l₁ OB p, p.oEnd < l₂.oEnd.
     -- Same protocol: dir_ordered gives p OB l₂ → ob chain → LinLink.
     -- Diff protocol: diff_protocol → cycle contradiction.
@@ -2136,7 +2152,7 @@ private theorem stepOrdering_to_three {l₁ l₂ : Event n}
       (LinLink.single (.ob h_q_ob_p))) (LinLink.single (.ob h_p_ob)))
   | obFinishBefore p h_ob h_lt h_diff => exact Or.inr (Or.inr h_diff)
   | eq h_eq => exact Or.inr (Or.inl h_eq)
-  | encapObEndLt q p h_q_enc h_q_ob h_p_lt =>
+  | encapObEndLt q p h_q_enc h_q_ob h_p_lt _ =>
     by_cases h_prot : l₁.protocol = l₂.protocol
     · -- Same protocol: dir_ordered
       match hfc₁ : l₁, h₁_isdir with
@@ -2284,10 +2300,10 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     -- Now compose with h₁ via OB transitivity (no case-split on h₂ needed).
     cases hso₁ with
     | ob hob₁ => exact Or.inl (.ob (Trans.trans hob₁ hob₂))
-    | obEndLt p₁ hob₁ hlt₁ =>
+    | obEndLt p₁ hob₁ hlt₁ _ =>
       exact Or.inl (.ob (Trans.trans hob₁ (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
     | encapOb p₁ henc₁ hob₁ => exact Or.inl (.encapOb p₁ henc₁ (Trans.trans hob₁ hob₂))
-    | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
+    | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ _ =>
       exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
     | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
       exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
@@ -2308,10 +2324,10 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       -- Same as PPOi ob case: chain h₁ with OB.
       cases hso₁ with
       | ob hob₁ => exact Or.inl (.ob (Trans.trans hob₁ hob₂))
-      | obEndLt p₁ hob₁ hlt₁ =>
+      | obEndLt p₁ hob₁ hlt₁ _ =>
         exact Or.inl (.ob (Trans.trans hob₁ (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
       | encapOb p₁ henc₁ hob₁ => exact Or.inl (.encapOb p₁ henc₁ (Trans.trans hob₁ hob₂))
-      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
+      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ _ =>
         exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
       | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
         exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
@@ -2341,19 +2357,19 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
           · exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
-    | obEndLt p₂ hob₂ hlt₂ =>
+    | obEndLt p₂ hob₂ hlt₂ h_p₂_isdir =>
       cases hso₁ with
-      | ob hob₁ => exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ hob₂) hlt₂)
+      | ob hob₁ => exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ hob₂) hlt₂ h_p₂_isdir)
       | encapOb p₁ henc₁ hob₁ =>
-        exact Or.inl (.encapObEndLt p₁ p₂ henc₁ (Trans.trans hob₁ hob₂) hlt₂)
-      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
-        exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hlt₁ hob₂)) hlt₂)
-      | obEndLt p₁ hob₁ hlt₁ =>
-        exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hlt₁ hob₂)) hlt₂)
+        exact Or.inl (.encapObEndLt p₁ p₂ henc₁ (Trans.trans hob₁ hob₂) hlt₂ h_p₂_isdir)
+      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ _ =>
+        exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hlt₁ hob₂)) hlt₂ h_p₂_isdir)
+      | obEndLt p₁ hob₁ hlt₁ _ =>
+        exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hlt₁ hob₂)) hlt₂ h_p₂_isdir)
       | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-        exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans hp_ob hob₂)) hlt₂)
-      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂)
-      | eq heq₁ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂)
+        exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans hp_ob hob₂)) hlt₂ h_p₂_isdir)
+      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂ h_p₂_isdir)
+      | eq heq₁ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂ h_p₂_isdir)
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
         -- obFinishBefore h₁ + obEndLt h₂: by_cases protocol, same pattern as ob h₂.
         by_cases hprot : l₁.protocol = l₃.protocol
@@ -2407,24 +2423,29 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
         exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hp_ob henc₂.left)) hob₂)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
-      | obEndLt p₁ hob₁ hlt₁ =>
-        -- obEndLt h₁ + encapOb h₂: p₁.oEnd < l₂.oEnd, p₂ inside l₂, p₂ OB l₃.
-        -- p₁ and p₂ both "inside" l₂ but can't be ordered without dir_ordered on both.
-        -- by_cases protocol for output:
-        by_cases hprot : l₁.protocol = l₃.protocol
-        · -- Same: dir_ordered(l₁, l₃)
-          have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
-          match hfc₁ : l₁, h₁_isdir with
+      | obEndLt p₁ hob₁ hlt₁ h_p₁_isdir =>
+        -- obEndLt h₁ + encapOb h₂: use dir_ordered(p₁, l₂) to chain through.
+        -- l₂ OB p₁ → p₁.oEnd < l₂.oEnd (hlt₁) and l₂.oEnd < p₁.oStart → p₁.oEnd < p₁.oStart → False.
+        -- So dir_ordered gives p₁ OB l₂. Chain: l₁ OB p₁ OB l₂, l₂ encaps p₂ OB l₃ → .ob.
+        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
+        have hp₁_ob_l₂ : p₁.OrderedBefore n l₂ := by
+          match hfcp : p₁, h_p₁_isdir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-          | .directoryEvent de₁, _ =>
-            match hfc₃ : l₃, h₃_isdir with
+          | .directoryEvent dep₁, _ =>
+            match hfcl₂ : l₂, h₂_isdir with
             | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-            | .directoryEvent de₃, _ =>
-              cases (hdir de₁ de₃).ordered with
-              | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
-              | inr _ => sorry -- l₃ OB l₁: obEndLt+encapOb same-protocol
-        · -- Diff: need p OB l₃ with p.oEnd < l₁.oEnd, or other constructor
-          sorry -- obEndLt+encapOb diff-protocol: p₁ can't chain to l₃
+            | .directoryEvent del₂, _ =>
+              cases (hdir dep₁ del₂).ordered with
+              | inl hob => exact hob
+              | inr hob_rev =>
+                -- l₂ OB p₁: del₂.oEnd < dep₁.oStart. But p₁.oEnd < l₂.oEnd gives
+                -- dep₁.oEnd < del₂.oEnd < dep₁.oStart → dep₁.oEnd < dep₁.oStart → contradiction.
+                exfalso; exact Nat.lt_irrefl dep₁.oEnd
+                  (Nat.lt_trans (show dep₁.oEnd < del₂.oEnd from hlt₁)
+                    (Nat.lt_trans hob_rev dep₁.oWellFormed))
+        -- Chain: p₁ OB l₂, l₂.oStart < p₂.oStart (encap) → p₁ OB p₂ → p₁ OB l₃
+        exact Or.inl (.ob (Trans.trans hob₁
+          (Trans.trans (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hp₁_ob_l₂ henc₂.left) hob₂)))
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
         -- p₁ OB l₂, p₁.oEnd < l₁.oEnd. p₂ inside l₂, p₂ OB l₃.
         -- p₁ OB l₂: p₁.oEnd < l₂.oStart < p₂.oStart (from encap) → p₁ OB p₂.
@@ -2444,7 +2465,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
               | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
               | inr _ => sorry -- l₃ OB l₁: hard case
         · exact Or.inl (.obFinishBefore p₁ hp₁_ob_l₃ hlt₁ hprot)
-      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
+      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ _ =>
         -- q₁ inside l₁, q₁ OB p₁, p₁.oEnd < l₂.oEnd. p₂ inside l₂, p₂ OB l₃.
         -- Same proxy ordering issue as obEndLt.
         -- encapObEndLt h₁ + encapOb h₂: same issue as obEndLt+encapOb
@@ -2470,7 +2491,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
         exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp_ob hq_enc₂.left) hq_ob₂)) hp_ob₂)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
-      | obEndLt p₁ hob₁ hlt₁ =>
+      | obEndLt p₁ hob₁ hlt₁ _ =>
         -- obEndLt h₁ + proxyPair h₂: same issue as obEndLt+encapOb
         by_cases hprot : l₁.protocol = l₃.protocol
         · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
@@ -2501,7 +2522,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
               | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
               | inr _ => sorry -- l₃ OB l₁: hard case
         · exact Or.inl (.obFinishBefore p₁ hp₁_ob_l₃ hlt₁ hprot)
-      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
+      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ _ =>
         -- encapObEndLt h₁ + proxyPair h₂: same issue
         by_cases hprot : l₁.protocol = l₃.protocol
         · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
@@ -2515,16 +2536,16 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
               | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
               | inr _ => sorry -- l₃ OB l₁: encapObEndLt+proxyPair same-protocol
         · sorry -- encapObEndLt+proxyPair diff-protocol
-    | encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ =>
+    | encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ h_p₂_isdir =>
       cases hso₁ with
       | ob hob₁ =>
-        exact Or.inl (.obEndLt p₂ (Trans.trans (show Event.OrderedBefore n l₁ q₂ from Nat.lt_trans hob₁ hq_enc₂.left) hq_ob₂) hp_lt₂)
+        exact Or.inl (.obEndLt p₂ (Trans.trans (show Event.OrderedBefore n l₁ q₂ from Nat.lt_trans hob₁ hq_enc₂.left) hq_ob₂) hp_lt₂ h_p₂_isdir)
       | encapOb p₁ henc₁ hob₁ =>
-        exact Or.inl (.encapObEndLt p₁ p₂ henc₁ (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hob₁ hq_enc₂.left) hq_ob₂) hp_lt₂)
+        exact Or.inl (.encapObEndLt p₁ p₂ henc₁ (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hob₁ hq_enc₂.left) hq_ob₂) hp_lt₂ h_p₂_isdir)
       | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-        exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp_ob hq_enc₂.left) hq_ob₂)) hp_lt₂)
-      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂)
-      | eq heq₁ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂)
+        exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp_ob hq_enc₂.left) hq_ob₂)) hp_lt₂ h_p₂_isdir)
+      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ h_p₂_isdir)
+      | eq heq₁ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ h_p₂_isdir)
       | _ => sorry -- obEndLt/obFinishBefore/encapObEndLt h₁ + encapObEndLt h₂
     | obFinishBefore p₂ hob₂ hlt₂ hdiff₂ =>
       cases hso₁ with

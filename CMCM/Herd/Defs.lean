@@ -133,7 +133,7 @@ structure co (e₁ e₂ : Event n) : Prop where
 inductive StepOrdering : Event n → Event n → Prop where
   | ob (h : l₁.OrderedBefore n l₂) : StepOrdering l₁ l₂
   | obEndLt (p : Event n) (h_ob : l₁.OrderedBefore n p) (h_lt : Event.oEnd n p < Event.oEnd n l₂)
-      : StepOrdering l₁ l₂
+      (h_p_isdir : p.isDirectoryEvent) : StepOrdering l₁ l₂
   /-- Encap-then-OB: p inside l₁, p before l₂.
       Irrefl: p inside l₁ = l₂ and p OB l₂ → p.oEnd < l₂.oStart < p.oStart → False. -/
   | encapOb (p : Event n) (h_enc : p.EncapsulatedBy n l₁) (h_ob : p.OrderedBefore n l₂)
@@ -160,7 +160,7 @@ inductive StepOrdering : Event n → Event n → Prop where
       q.oEnd < p.oStart ≤ p.oEnd < l₂.oEnd → l₂.oEnd < l₂.oEnd → False. -/
   | encapObEndLt (q p : Event n) (h_q_enc : q.EncapsulatedBy n l₁)
       (h_q_ob_p : q.OrderedBefore n p) (h_p_lt : Event.oEnd n p < Event.oEnd n l₂)
-      : StepOrdering l₁ l₂
+      (h_p_isdir : p.isDirectoryEvent) : StepOrdering l₁ l₂
 
 /-! ## LinStep / LinLink: replacement for StepOrdering -/
 
@@ -270,6 +270,7 @@ inductive FrOrdering
     (p : Event n)
     (cle₁_ob_p : e₁_lin.hreq's_dir_access.choose.OrderedBefore n p)
     (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_lin.hreq's_dir_access.choose)
+    (h_p_isdir : p.isDirectoryEvent)
   /-- Different cluster, e₁ coherent with evict: e₁ had coherent perms but
       evicted before e₂'s downgrade arrived. The downgrade goes to the cluster
       directory after the evict. Proxy is the evict directory event.
@@ -279,6 +280,7 @@ inductive FrOrdering
     (p : Event n)
     (cle₁_ob_p : e₁_lin.hreq's_dir_access.choose.OrderedBefore n p)
     (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_lin.hreq's_dir_access.choose)
+    (h_p_isdir : p.isDirectoryEvent)
   /-- Different cluster, e₁ non-coherent: e₁ doesn't have coherent perms,
       so e₂'s downgrade goes directly to e₁'s CLUSTER DIRECTORY.
       Proxy is the cluster dir downgrade event.
@@ -288,6 +290,7 @@ inductive FrOrdering
     (p : Event n)
     (cle₁_ob_p : e₁_lin.hreq's_dir_access.choose.OrderedBefore n p)
     (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_lin.hreq's_dir_access.choose)
+    (h_p_isdir : p.isDirectoryEvent)
   /-- Different cluster, RF cross-cluster: e_w at e₂'s cluster, RF gives
       proxy p at e_w's cluster INSIDE CLE₁ (from encapDirRelation) and OB CLE₂.
       StepOrdering derived via .encapOb (p inside CLE₁, p OB CLE₂). -/
