@@ -2645,325 +2645,19 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     | sameLin _ _ heq₂ _ _ _ => exact Or.inl (heq₂ ▸ hso₁)
     | eq heq₂ => exact Or.inl (heq₂ ▸ hso₁)
 
-/- OLD compose_three body removed.
-  cases h₁ with
-  | inr heq₁ => exact Or.inl (heq₁ ▸ h₂)
-  | inl hso₁ =>
-  -- Both are StepOrdering. Case-split on h₂ to get temporal chain.
-  -- For same-protocol l₁/l₃: dir_ordered → l₁ OB l₃ or l₃ OB l₁.
-  -- Chain l₃ OB l₁ through h₁ and h₂ temporal data → contradiction.
-  cases h₂ with
-  | ob hob₂ =>
-    -- h₂: l₂ OB l₃. Case-split h₁ for l₁ → l₂ temporal data.
-    cases hso₁ with
-    | ob hob₁ => exact Or.inl (.ob (Trans.trans hob₁ hob₂))
-    | obEndLt p₁ hob₁ hlt₁ =>
-      -- l₁ OB p₁, p₁.oEnd < l₂.oEnd, l₂ OB l₃. Chain: l₁ OB p₁, p₁.oEnd < l₂.oEnd < l₃.oStart.
-      -- So p₁.oEnd < l₃.oStart → ... but we need l₁ → l₃ StepOrdering.
-      -- l₁ OB p₁ and p₁.oEnd < l₂.oEnd. l₂ OB l₃ means l₂.oEnd < l₃.oStart.
-      -- p₁.oEnd < l₂.oEnd < l₃.oStart → p₁.oEnd < l₃.oStart → p₁ OB l₃.
-      -- But we need l₁ OB l₃ or some variant. l₁ OB p₁ OB l₃ → l₁ OB l₃.
-      have : Event.oEnd n p₁ < Event.oStart n l₃ :=
-        Nat.lt_trans hlt₁ hob₂
-      exact Or.inl (.ob (Trans.trans hob₁ (show Event.OrderedBefore n p₁ l₃ from this)))
-    | encapOb p₁ henc₁ hob₁ =>
-      -- p₁ inside l₁, p₁ OB l₂, l₂ OB l₃ → p₁ OB l₃
-      exact Or.inl (.encapOb p₁ henc₁ (Trans.trans hob₁ hob₂))
-    | obFinishBefore p₁ hob₁_l₂ hlt₁ hdiff₁ h_p₁_isdir =>
-      -- p₁ OB l₂, l₂ OB l₃ → p₁ OB l₃. p₁.oEnd < l₁.oEnd.
-      exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁_l₂ hob₂) hlt₁ sorry h_p₁_isdir) -- need l₁.protocol ≠ l₃.protocol
-    | proxyPair q₁ p₁ hq₁_enc hq₁_ob hp₁_ob =>
-      -- q₁ inside l₁, q₁ OB p₁, p₁ OB l₂, l₂ OB l₃ → p₁ OB l₃
-      exact Or.inl (.proxyPair q₁ p₁ hq₁_enc hq₁_ob (Trans.trans hp₁_ob hob₂))
-    | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
-      -- q₁ inside l₁, q₁ OB p₁, p₁.oEnd < l₂.oEnd, l₂ OB l₃ → p₁ OB l₃
-      have : Event.OrderedBefore n p₁ l₃ := show _ from Nat.lt_trans hlt₁ hob₂
-      exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob this))
-    | sameLin e₁' e₂' heq₁ henc₁ hob₁' henc₂ =>
-      exact Or.inl (heq₁ ▸ .ob hob₂)
-    | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
-  | eq heq₂ => exact Or.inl (heq₂ ▸ hso₁)
-  | sameLin _ _ heq₂ _ _ _ => exact Or.inl (heq₂ ▸ hso₁)
-  | obEndLt p₂ hob₂ hlt₂ =>
-    cases hso₁ with
-    | ob hob₁ => exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ hob₂) hlt₂)
-    | encapOb p₁ henc₁ hob₁ =>
-      -- p₁ inside l₁, p₁ OB l₂, l₂ OB p₂ → p₁ OB p₂. Use encapObEndLt.
-      exact Or.inl (.encapObEndLt p₁ p₂ henc₁ (Trans.trans hob₁ hob₂) hlt₂)
-    | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-      -- q₁ inside l₁, q₁ OB p₁ OB l₂ OB p₂ → q₁ OB p₂. Use encapObEndLt.
-      exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans hp_ob hob₂)) hlt₂)
-    | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂)
-    | eq heq₁ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂)
-    | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
-      -- q₁ inside l₁, q₁ OB p₁, p₁.oEnd < l₂.oEnd, l₂ OB p₂ → p₁ OB p₂
-      have hp₁p₂ : Event.OrderedBefore n p₁ p₂ := show _ from Nat.lt_trans hlt₁ hob₂
-      exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob hp₁p₂) hlt₂)
-    | obEndLt p₁ hob₁ hlt₁ =>
-      -- l₁ OB p₁, p₁.oEnd < l₂.oEnd, l₂ OB p₂ → p₁.oEnd < p₂.oStart → p₁ OB p₂
-      have hp₁p₂ : Event.OrderedBefore n p₁ p₂ := show _ from Nat.lt_trans hlt₁ hob₂
-      exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ hp₁p₂) hlt₂)
-    | _ => sorry -- obFinishBefore + obEndLt
-  | encapOb p₂ henc₂ hob₂ =>
-    cases hso₁ with
-    | ob hob₁ =>
-      have h₁₂ : Event.OrderedBefore n l₁ p₂ := Nat.lt_trans hob₁ henc₂.left
-      exact Or.inl (.ob (Trans.trans h₁₂ hob₂))
-    | encapOb p₁ henc₁ hob₁ =>
-      have hp₁p₂ : Event.OrderedBefore n p₁ p₂ := Nat.lt_trans hob₁ henc₂.left
-      exact Or.inl (.proxyPair p₁ p₂ henc₁ hp₁p₂ hob₂)
-    | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-      have hp₁p₂ : Event.OrderedBefore n p₁ p₂ := Nat.lt_trans hp_ob henc₂.left
-      exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob hp₁p₂) hob₂)
-    | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
-      -- q₁ inside l₁, q₁ OB p₁, p₁.oEnd < l₂.oEnd. l₂ encaps p₂ → p₂.oEnd < l₂.oEnd.
-      -- p₁.oEnd < l₂.oEnd and l₂.oStart < p₂.oStart (from encap). p₁.oEnd vs p₂.oStart unknown.
-      -- But p₁.oEnd < l₂.oEnd and p₂.oEnd < l₂.oEnd (from encap). p₂ OB l₃.
-      -- Use encapObEndLt: q₁ inside l₁, q₁ OB p₁, and need p₁ to connect to l₃.
-      -- p₂ OB l₃: p₂.oEnd < l₃.oStart. Chain for q₁ OB l₃? Need q₁.oEnd < l₃.oStart.
-      -- q₁ OB p₁: q₁.oEnd < p₁.oStart. p₁ → ... → l₃ chain unclear.
-      sorry -- encapObEndLt + encapOb: p₁ and p₂ not necessarily ordered
-    | obEndLt p₁ hob₁ hlt₁ =>
-      -- l₁ OB p₁, p₁.oEnd < l₂.oEnd, p₂ inside l₂, p₂ OB l₃
-      sorry -- obEndLt + encapOb: p₁.oEnd < l₂.oEnd but p₁ vs p₂ unknown
-    | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
-    | eq heq₁ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
-    | _ => sorry -- obFinishBefore + encapOb
-  | proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂ =>
-    cases hso₁ with
-    | ob hob₁ =>
-      have h₁q₂ : Event.OrderedBefore n l₁ q₂ := Nat.lt_trans hob₁ hq_enc₂.left
-      exact Or.inl (.ob (Trans.trans h₁q₂ (Trans.trans hq_ob₂ hp_ob₂)))
-    | encapOb p₁ henc₁ hob₁ =>
-      have hp₁q₂ : Event.OrderedBefore n p₁ q₂ := Nat.lt_trans hob₁ hq_enc₂.left
-      exact Or.inl (.proxyPair p₁ p₂ henc₁ (Trans.trans hp₁q₂ hq_ob₂) hp_ob₂)
-    | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-      have hp₁q₂ : Event.OrderedBefore n p₁ q₂ := Nat.lt_trans hp_ob hq_enc₂.left
-      exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans hp₁q₂ hq_ob₂)) hp_ob₂)
-    | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
-      -- q₁ inside l₁, q₁ OB p₁, p₁.oEnd < l₂.oEnd, q₂ inside l₂
-      -- Same issue as encapObEndLt + encapOb
-      sorry -- encapObEndLt + proxyPair
-    | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
-    | eq heq₁ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
-    | _ => sorry -- obEndLt/obFinishBefore + proxyPair
-  | obFinishBefore p₂ hob₂ hlt₂ hdiff₂ h_p₂_isdir =>
-    -- obFinishBefore only arises from FR diffCluster_rfFinishBefore.
-    -- Use hedge to extract FR-specific evidence.
-    -- For now: by_cases protocol for the output.
-    cases hso₁ with
-    | ob hob₁ =>
-      -- l₁ OB l₂. h₂ = obFinishBefore from FR.
-      -- l₁.oEnd < l₂.oStart. p₂ OB l₃. p₂.oEnd < l₂.oEnd.
-      -- p₂ and l₂ are at the SAME cluster (p₂ = d_rf at writer's cluster, l₂ = CLE(writer)).
-      -- By dir_ordered: p₂ OB l₂ or l₂ OB p₂.
-      -- l₂ OB p₂ → l₂.oEnd < p₂.oStart → p₂.oEnd > p₂.oStart > l₂.oEnd → contradicts hlt₂ (p₂.oEnd < l₂.oEnd).
-      -- So p₂ OB l₂. Then: p₂.oEnd < l₂.oStart. And l₁.oEnd < l₂.oStart (from ob).
-      -- Both l₁ and p₂ end before l₂ starts. l₁ OB p₂ or p₂ OB l₁?
-      -- They might be at different clusters. Use obFinishBefore output:
-      -- p₂ OB l₃, p₂.oEnd < l₂.oEnd. And l₁.oEnd < l₂.oStart ≤ l₂.oEnd.
-      -- Need StepOrdering l₁ l₃. Use .obFinishBefore p₂ (p₂ OB l₃) (p₂.oEnd < l₁.oEnd)?
-      -- p₂.oEnd < l₂.oEnd and l₁.oEnd < l₂.oStart. So p₂.oEnd < l₂.oEnd > l₂.oStart > l₁.oEnd.
-      -- p₂.oEnd vs l₁.oEnd: UNKNOWN (p₂ might end before or after l₁).
-      sorry -- ob + obFinishBefore: p₂.oEnd vs l₁.oEnd unknown
-    | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obFinishBefore p₂ hob₂ hlt₂ hdiff₂ h_p₂_isdir)
-    | eq heq₁ => exact Or.inl (heq₁ ▸ .obFinishBefore p₂ hob₂ hlt₂ hdiff₂ h_p₂_isdir)
-    | _ => sorry -- other h₁ + obFinishBefore
-  | encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ =>
-    -- h₂: q₂ inside l₂, q₂ OB p₂, p₂.oEnd < l₃.oEnd. Like encapOb + obEndLt.
-    cases hso₁ with
-    | ob hob₁ =>
-      -- l₁ OB l₂. l₂.oStart < q₂.oStart (encap). l₁.oEnd < l₂.oStart < q₂.oStart → l₁ OB q₂.
-      have h₁q₂ : Event.OrderedBefore n l₁ q₂ := Nat.lt_trans hob₁ hq_enc₂.left
-      exact Or.inl (.obEndLt p₂ (Trans.trans h₁q₂ hq_ob₂) hp_lt₂)
-    | encapOb p₁ henc₁ hob₁ =>
-      -- p₁ inside l₁, p₁ OB l₂ → p₁ OB q₂ (via l₂ encaps q₂)
-      have hp₁q₂ : Event.OrderedBefore n p₁ q₂ := Nat.lt_trans hob₁ hq_enc₂.left
-      exact Or.inl (.encapObEndLt p₁ p₂ henc₁ (Trans.trans hp₁q₂ hq_ob₂) hp_lt₂)
-    | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-      have hp₁q₂ : Event.OrderedBefore n p₁ q₂ := Nat.lt_trans hp_ob hq_enc₂.left
-      exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans hp₁q₂ hq_ob₂)) hp_lt₂)
-    | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂)
-    | eq heq₁ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂)
-    | _ => sorry -- obEndLt/obFinishBefore/encapObEndLt + encapObEndLt
--/
 
-/-- Helper: for clusterDirLin, establish CLE.oStart ≤ compound_lin.oStart by matching
-    on clusterDirectoryLinearizationEvent cases and using dirAccessUnique. -/
-private theorem cle_oStart_le_compound_lin_of_dir
-    {e : Event n}
-    (hknow_e : CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (hdir : ∃ e_cmplin ∈ b, Behaviour.eventCompoundLinearizes.atDirectoryOrBeyond n
-      compound.shimAxioms b init e e_cmplin (compound.linearizationOfEvent b init e))
-    : Event.oStart n hknow_e.hreq's_dir_access.choose ≤ Event.oStart n hdir.choose := by
-  have he_lin_dir := hdir.choose_spec.right.e_glin_deeper
-  simp [CompoundProtocol.compoundLinearization.OfReqEncapDirAccess] at he_lin_dir
-  split at he_lin_dir
-  · exfalso; exact he_lin_dir
-  · next hcreq_lin hdir_lin_inner _ =>
-    have hreq_lin_at_dir := hdir_lin_inner.choose_spec.right.reqLinearizeAtDir.choose_spec.right
-    cases he_lin_dir with
-    | previousGlobalCacheGotPerms _ he_glin_eq_cdir =>
-      have hcle_eq := compound.dirAccessUnique b init e _ _
-        hreq_lin_at_dir.reqCorrespondsToDir hknow_e.hreq's_dir_access.choose_spec.2
-      rw [he_glin_eq_cdir, hcle_eq]
-    | getGlobalCachePerms _ hglin_deeper =>
-      have hcle_eq := compound.dirAccessUnique b init e _ _
-        hreq_lin_at_dir.reqCorrespondsToDir hknow_e.hreq's_dir_access.choose_spec.2
-      have hcle_encap :=
-        CompoundProtocol.cdir_encap_glin_of_cdir_linearize_at_dir n hreq_lin_at_dir hglin_deeper
-      rw [← hcle_eq]; exact Nat.le_of_lt hcle_encap.left
-
-/-- Helper: for clusterDirLin, establish compound_lin.oEnd ≤ CLE.oEnd. -/
-private theorem compound_lin_oEnd_le_cle_of_dir
-    {e : Event n}
-    (hknow_e : CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (hdir : ∃ e_cmplin ∈ b, Behaviour.eventCompoundLinearizes.atDirectoryOrBeyond n
-      compound.shimAxioms b init e e_cmplin (compound.linearizationOfEvent b init e))
-    : Event.oEnd n hdir.choose ≤ Event.oEnd n hknow_e.hreq's_dir_access.choose := by
-  have he_lin_dir := hdir.choose_spec.right.e_glin_deeper
-  simp [CompoundProtocol.compoundLinearization.OfReqEncapDirAccess] at he_lin_dir
-  split at he_lin_dir
-  · exfalso; exact he_lin_dir
-  · next hcreq_lin hdir_lin_inner _ =>
-    have hreq_lin_at_dir := hdir_lin_inner.choose_spec.right.reqLinearizeAtDir.choose_spec.right
-    cases he_lin_dir with
-    | previousGlobalCacheGotPerms _ he_glin_eq_cdir =>
-      have hcle_eq := compound.dirAccessUnique b init e _ _
-        hreq_lin_at_dir.reqCorrespondsToDir hknow_e.hreq's_dir_access.choose_spec.2
-      rw [he_glin_eq_cdir, hcle_eq]
-    | getGlobalCachePerms _ hglin_deeper =>
-      have hcle_eq := compound.dirAccessUnique b init e _ _
-        hreq_lin_at_dir.reqCorrespondsToDir hknow_e.hreq's_dir_access.choose_spec.2
-      have hcle_encap :=
-        CompoundProtocol.cdir_encap_glin_of_cdir_linearize_at_dir n hreq_lin_at_dir hglin_deeper
-      rw [← hcle_eq]; exact Nat.le_of_lt hcle_encap.right
-
-/-- Bridge StepOrdering on CLEs to 3-way on compound_lin events.
-    For clusterDirLin on both: temporal bounds (CLE.oStart ≤ compound_lin.oStart,
-    compound_lin.oEnd ≤ CLE.oEnd) lift the .ob case of StepOrdering.
-    Other StepOrdering constructors and clusterCacheLin: sorry. -/
-private noncomputable def stepOrdering_cle_to_compound_lin_3way
-    {a c : Event n}
-    (hknow_a : CompoundProtocol.globalLinearizationEventOfRequest compound b init a)
-    (hknow_c : CompoundProtocol.globalLinearizationEventOfRequest compound b init c)
-    (hso : @StepOrdering n hknow_a.hreq's_dir_access.choose hknow_c.hreq's_dir_access.choose)
-    : let cle_a := (compound.compoundLinearizationEvent compound.shimAxioms b init a
-        (compound.linearizationOfEvent b init a)).linearizationEvent
-      let cle_c := (compound.compoundLinearizationEvent compound.shimAxioms b init c
-        (compound.linearizationOfEvent b init c)).linearizationEvent
-      @StepOrdering n cle_a cle_c ∨ cle_a = cle_c ∨ cle_c.OrderedBefore n cle_a := by
-  -- Get bounds: CLE.oStart ≤ compound_lin.oStart and compound_lin.oEnd ≤ CLE.oEnd.
-  -- For clusterDirLin: via dirAccessUnique + encapsulation. For clusterCacheLin: sorry.
-  have h_start_a : Event.oStart n hknow_a.hreq's_dir_access.choose ≤
-      Event.oStart n (compound.compoundLinearizationEvent compound.shimAxioms b init a
-        (compound.linearizationOfEvent b init a)).linearizationEvent := by
-    match compound.compoundLinearizationEvent compound.shimAxioms b init a
-        (compound.linearizationOfEvent b init a) with
-    | .clusterDirLin hdir_a =>
-      simp only [ClusterRequestLinearizationEvent.linearizationEvent]
-      exact cle_oStart_le_compound_lin_of_dir hknow_a hdir_a
-    | .clusterCacheLin _ => sorry -- clusterCacheLin: CLE vs cache event bound
-  have h_end_a : Event.oEnd n (compound.compoundLinearizationEvent compound.shimAxioms b init a
-      (compound.linearizationOfEvent b init a)).linearizationEvent ≤
-      Event.oEnd n hknow_a.hreq's_dir_access.choose := by
-    match compound.compoundLinearizationEvent compound.shimAxioms b init a
-        (compound.linearizationOfEvent b init a) with
-    | .clusterDirLin hdir_a =>
-      simp only [ClusterRequestLinearizationEvent.linearizationEvent]
-      exact compound_lin_oEnd_le_cle_of_dir hknow_a hdir_a
-    | .clusterCacheLin _ => sorry -- clusterCacheLin: cache event vs CLE bound
-  have h_start_c : Event.oStart n hknow_c.hreq's_dir_access.choose ≤
-      Event.oStart n (compound.compoundLinearizationEvent compound.shimAxioms b init c
-        (compound.linearizationOfEvent b init c)).linearizationEvent := by
-    match compound.compoundLinearizationEvent compound.shimAxioms b init c
-        (compound.linearizationOfEvent b init c) with
-    | .clusterDirLin hdir_c =>
-      simp only [ClusterRequestLinearizationEvent.linearizationEvent]
-      exact cle_oStart_le_compound_lin_of_dir hknow_c hdir_c
-    | .clusterCacheLin _ => sorry -- clusterCacheLin: CLE vs cache event bound
-  have h_end_c : Event.oEnd n (compound.compoundLinearizationEvent compound.shimAxioms b init c
-      (compound.linearizationOfEvent b init c)).linearizationEvent ≤
-      Event.oEnd n hknow_c.hreq's_dir_access.choose := by
-    match compound.compoundLinearizationEvent compound.shimAxioms b init c
-        (compound.linearizationOfEvent b init c) with
-    | .clusterDirLin hdir_c =>
-      simp only [ClusterRequestLinearizationEvent.linearizationEvent]
-      exact compound_lin_oEnd_le_cle_of_dir hknow_c hdir_c
-    | .clusterCacheLin _ => sorry -- clusterCacheLin: cache event vs CLE bound
-  -- Now lift StepOrdering using the bounds.
-  -- Strategy: check if CLE = compound_lin for each event (previousGlobalCacheGotPerms case).
-  -- If both equalities hold: ALL constructors convert via rewrite.
-  -- If encapsulation (getGlobalCachePerms) or cacheLin: .ob converts via bounds, others sorry.
-  --
-  -- Extract CLE ↔ compound_lin relationship for each event.
-  have h_eq_a : hknow_a.hreq's_dir_access.choose =
-      (compound.compoundLinearizationEvent compound.shimAxioms b init a
-        (compound.linearizationOfEvent b init a)).linearizationEvent ∨ True := by
-    match compound.compoundLinearizationEvent compound.shimAxioms b init a
-        (compound.linearizationOfEvent b init a) with
-    | .clusterCacheLin _ => exact Or.inr trivial
-    | .clusterDirLin hdir_a =>
-      simp only [ClusterRequestLinearizationEvent.linearizationEvent]
-      have he_lin_dir := hdir_a.choose_spec.right.e_glin_deeper
-      simp [CompoundProtocol.compoundLinearization.OfReqEncapDirAccess] at he_lin_dir
-      split at he_lin_dir
-      · exfalso; exact he_lin_dir
-      · next _ hdir_lin _ =>
-        have hreq_lin := hdir_lin.choose_spec.right.reqLinearizeAtDir.choose_spec.right
-        cases he_lin_dir with
-        | previousGlobalCacheGotPerms _ he_glin_eq_cdir =>
-          have hcle_eq := compound.dirAccessUnique b init a _ _
-            hreq_lin.reqCorrespondsToDir hknow_a.hreq's_dir_access.choose_spec.2
-          exact Or.inl (hcle_eq ▸ he_glin_eq_cdir.symm)
-        | getGlobalCachePerms _ _ => exact Or.inr trivial
-  have h_eq_c : hknow_c.hreq's_dir_access.choose =
-      (compound.compoundLinearizationEvent compound.shimAxioms b init c
-        (compound.linearizationOfEvent b init c)).linearizationEvent ∨ True := by
-    match compound.compoundLinearizationEvent compound.shimAxioms b init c
-        (compound.linearizationOfEvent b init c) with
-    | .clusterCacheLin _ => exact Or.inr trivial
-    | .clusterDirLin hdir_c =>
-      simp only [ClusterRequestLinearizationEvent.linearizationEvent]
-      have he_lin_dir := hdir_c.choose_spec.right.e_glin_deeper
-      simp [CompoundProtocol.compoundLinearization.OfReqEncapDirAccess] at he_lin_dir
-      split at he_lin_dir
-      · exfalso; exact he_lin_dir
-      · next _ hdir_lin _ =>
-        have hreq_lin := hdir_lin.choose_spec.right.reqLinearizeAtDir.choose_spec.right
-        cases he_lin_dir with
-        | previousGlobalCacheGotPerms _ he_glin_eq_cdir =>
-          have hcle_eq := compound.dirAccessUnique b init c _ _
-            hreq_lin.reqCorrespondsToDir hknow_c.hreq's_dir_access.choose_spec.2
-          exact Or.inl (hcle_eq ▸ he_glin_eq_cdir.symm)
-        | getGlobalCachePerms _ _ => exact Or.inr trivial
-  -- Now: check if both equalities hold → rewrite directly. Otherwise → .ob or sorry.
-  cases h_eq_a with
-  | inl heq_a => cases h_eq_c with
-    | inl heq_c =>
-      -- BOTH CLE = compound_lin: ALL StepOrdering constructors convert via rewrite
-      exact Or.inl (heq_a ▸ heq_c ▸ hso)
-    | inr _ =>
-      -- CLE_a = compound_lin_a but CLE_c ≠ compound_lin_c
-      -- Only .ob converts via bounds. For others: sorry.
-      cases hso with
-      | ob h_ob => exact Or.inl (.ob (Nat.lt_of_le_of_lt h_end_a (Nat.lt_of_lt_of_le h_ob h_start_c)))
-      | _ => sorry -- non-.ob with getGlobalCachePerms/cacheLin for c
-  | inr _ => cases h_eq_c with
-    | inl heq_c =>
-      -- CLE_c = compound_lin_c but CLE_a ≠ compound_lin_a
-      cases hso with
-      | ob h_ob => exact Or.inl (.ob (Nat.lt_of_le_of_lt h_end_a (Nat.lt_of_lt_of_le h_ob h_start_c)))
-      | _ => sorry -- non-.ob with getGlobalCachePerms/cacheLin for a
-    | inr _ =>
-      -- Neither CLE = compound_lin
-      cases hso with
-      | ob h_ob => exact Or.inl (.ob (Nat.lt_of_le_of_lt h_end_a (Nat.lt_of_lt_of_le h_ob h_start_c)))
-      | _ => sorry -- non-.ob with getGlobalCachePerms/cacheLin for both
+/- Dead bridge code (cle_oStart_le_compound_lin_of_dir, compound_lin_oEnd_le_cle_of_dir,
+   stepOrdering_cle_to_compound_lin_3way) removed — the CLE-to-compound_lin bridge was replaced
+   by using CLEs directly in the cycle invariant (compose_three handles composition). -/
 
 /-- Acyclicity given that every event has a linearization.
-    Invariant: `StepOrdering (cle a) (cle c) ∨ cle a = cle c ∨ (cle c).OrderedBefore n (cle a)`.
-    At cycle level, all three alternatives derive contradiction. -/
+    Invariant: `StepOrdering (cle a) (cle c) ∨ cle a = cle c ∨ (cle c).OrderedBefore n (cle a)`
+    on CLEs from `hknow`. At cycle level, all three alternatives derive contradiction.
+
+    Architecture:
+    - PPOi: `dir_ordered` gives 3-way on CLEs (same cluster directory events).
+    - COM: `step_to_ordering` gives StepOrdering on CLEs directly.
+    - Composition: `compose_three` handles all edge type combinations. -/
 theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
@@ -2973,16 +2667,22 @@ theorem cmcm_acyclic_of_hknow
         (compound.linearizationOfEvent b init a₂)).linearizationEvent)
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
   intro e hcycle
-  let cle := fun e => (compound.compoundLinearizationEvent compound.shimAxioms b init e
-    (compound.linearizationOfEvent b init e)).linearizationEvent
-  -- Invariant: StepOrdering ∨ eq ∨ reverse OB. Contradicts at cycle endpoint.
-  suffices ∀ a c, Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) a c →
-      @StepOrdering n (cle a) (cle c) ∨ cle a = cle c ∨ (cle c).OrderedBefore n (cle a) by
-    have hresult := this e e hcycle
+  -- Use CLEs from hknow directly as linearization points.
+  -- PPOi: dir_ordered gives 3-way. COM: step_to_ordering gives StepOrdering.
+  -- Composition: compose_three handles all edge types.
+  -- Invariant: StepOrdering ∨ eq ∨ reverse OB on CLEs.
+  -- Also track last edge (needed by compose_three for junction compatibility).
+  let R := (fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init
+  let cle := fun e => (hknow e).hreq's_dir_access.choose
+  suffices h_ind : ∀ a c, Relation.TransGen R a c →
+      (∃ b_prev, R b_prev c) ∧
+      (@StepOrdering n (hknow a).hreq's_dir_access.choose (hknow c).hreq's_dir_access.choose ∨
+       (hknow a).hreq's_dir_access.choose = (hknow c).hreq's_dir_access.choose ∨
+       ((hknow c).hreq's_dir_access.choose).OrderedBefore n (hknow a).hreq's_dir_access.choose) by
+    have ⟨_, hresult⟩ := h_ind e e hcycle
     cases hresult with
     | inl hso =>
-      -- StepOrdering cle(e) cle(e) → False. Case-split: .eq → cle_self_ordering_false;
-      -- all others → temporal chain contradiction (reflexive OB/encap).
+      -- StepOrdering cle(e) cle(e) → False.
       cases hso with
       | ob h => exact Event.contradiction_of_reflexive_ordered_before n h
       | obEndLt p h_ob h_lt _ =>
@@ -3005,95 +2705,37 @@ theorem cmcm_acyclic_of_hknow
           _ ≤ Event.oEnd n p := Nat.le_of_lt (Event.oWellFormed n p))
       | eq _ => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
       | encapObEndLt q p h_q_enc h_q_ob h_p_lt _ =>
-        -- q inside cle(e), q OB p, p.oEnd < cle(e).oEnd. All within cle(e), no temporal cycle.
-        -- But: use cle_self_ordering_false (CLE self-ordering from hknow gives False).
         exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
     | inr hr => cases hr with
       | inl heq =>
-        -- cle(e) = cle(e) → use CLE self-ordering from hknow
         exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
       | inr hob_rev => exact Event.contradiction_of_reflexive_ordered_before n hob_rev
   intro a c hpath
   induction hpath with
   | single h =>
-    cases h with
-    | inl hppoi =>
-      exact Or.inl (.ob (h_non_lazy_ppoi _ _ hppoi.1 hppoi.2))
-    | inr hcom =>
-      have hso := step_to_ordering (.inr hcom) hknow h_non_lazy_ppoi
-      exact stepOrdering_cle_to_compound_lin_3way (hknow _) (hknow _) hso
+    constructor
+    · exact ⟨a, h⟩
+    · cases h with
+      | inl hppoi =>
+        -- PPOi: dir_ordered gives 3-way on CLEs directly (no compound_lin needed).
+        exact step_ordering_dir_ordered_3way
+          (hknow _).hreq's_dir_access.choose_spec.right.isDirEvent
+          (hknow _).hreq's_dir_access.choose_spec.right.isDirEvent
+          b.orderedAtEntry.dir_ordered
+      | inr hcom =>
+        -- COM: step_to_ordering gives StepOrdering on CLEs directly.
+        exact Or.inl (step_to_ordering (.inr hcom) hknow h_non_lazy_ppoi)
   | tail hpath h ih =>
-    -- ih : 3-way for prefix (a → b_mid) on compound_lins.
+    -- ih : (∃ last edge) ∧ 3-way for prefix (a → b_mid) on CLEs.
     -- h : R b_mid c (current edge).
-    -- Compose by case-splitting on ih and the current edge simultaneously.
-    cases ih with
-    | inl hso_prefix =>
-      -- prefix: StepOrdering on compound_lins
-      cases hso_prefix with
-      | ob h₁ =>
-        -- prefix: cle(a) OB cle(b_mid). Case-split current edge:
-        cases h with
-        | inl hppoi =>
-          -- current: PPOi → OB on compound_lins. Chain: cle(a) OB cle(b_mid) OB cle(c).
-          exact Or.inl (StepOrdering.ob (Trans.trans h₁ (h_non_lazy_ppoi _ _ hppoi.1 hppoi.2)))
-        | inr hcom =>
-          -- current: COM → bridge gives 3-way
-          have hso_cur := step_to_ordering (.inr hcom) hknow h_non_lazy_ppoi
-          have h3way := stepOrdering_cle_to_compound_lin_3way (hknow _) (hknow _) hso_cur
-          cases h3way with
-          | inl hso =>
-            cases hso with
-            | ob h₂ => exact Or.inl (StepOrdering.ob (Trans.trans h₁ h₂))
-            | _ => sorry -- ob prefix + non-ob StepOrdering from COM
-          | inr hrest => cases hrest with
-            | inl heq =>
-              exact Or.inl (.ob (Eq.subst heq h₁))
-            | inr hob_rev => sorry -- ob prefix + reverse OB from COM
-      | _ =>
-        -- prefix: non-ob StepOrdering. Compose:
-        cases h with
-        | inl hppoi =>
-          sorry -- non-ob StepOrdering prefix + PPOi current
-        | inr hcom =>
-          sorry -- non-ob StepOrdering prefix + COM current
-    | inr ih_rest =>
-      cases ih_rest with
-      | inl heq =>
-        -- prefix: eq (cle(a) = cle(b_mid)). Current edge gives the result.
-        cases h with
-        | inl hppoi =>
-          exact Or.inl (heq ▸ StepOrdering.ob (h_non_lazy_ppoi _ _ hppoi.1 hppoi.2))
-        | inr hcom =>
-          have hso_cur := step_to_ordering (.inr hcom) hknow h_non_lazy_ppoi
-          have h3way := stepOrdering_cle_to_compound_lin_3way (hknow _) (hknow _) hso_cur
-          cases h3way with
-          | inl hso => exact Or.inl (heq ▸ hso)
-          | inr hrest => cases hrest with
-            | inl heq₂ => exact Or.inr (Or.inl (heq.trans heq₂))
-            | inr hob => exact Or.inr (Or.inr (heq ▸ hob))
-      | inr hob_prefix =>
-        -- prefix: reverse OB (cle(b_mid) OB cle(a)). Compose:
-        cases h with
-        | inl hppoi =>
-          -- current: PPOi → OB
-          sorry -- reverse OB prefix + PPOi OB current
-        | inr hcom =>
-          have hso_cur := step_to_ordering (.inr hcom) hknow h_non_lazy_ppoi
-          have h3way := stepOrdering_cle_to_compound_lin_3way (hknow _) (hknow _) hso_cur
-          cases h3way with
-          | inl hso_cur =>
-            cases hso_cur with
-            | ob h₂ => sorry -- reverse OB prefix + ob current
-            | _ => sorry -- reverse OB prefix + non-ob StepOrdering current
-          | inr hrest => cases hrest with
-            | inl heq =>
-              -- hob_prefix : cle(b_mid).OB cle(a), heq : cle(b_mid) = cle(c)
-              -- Want: cle(c).OB cle(a).
-              exact Or.inr (Or.inr
-                (@Eq.subst _ (fun x => Event.OrderedBefore n x (cle a)) _ _ heq hob_prefix))
-            | inr hob_cur =>
-              exact Or.inr (Or.inr
-                (Event.ordered_trans n hob_cur hob_prefix))
+    -- compose_three handles ALL composition cases (StepOrdering/eq/reverseOB × PPOi/COM).
+    constructor
+    · exact ⟨_, h⟩
+    · let ⟨⟨b_prev, h_last_prefix⟩, h3way_prefix⟩ := ih
+      exact compose_three h3way_prefix h h_last_prefix hknow rfl rfl
+        b.orderedAtEntry.dir_ordered
+        ((hknow a).hreq's_dir_access.choose_spec.right.isDirEvent)
+        h_non_lazy_ppoi
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)

@@ -36,26 +36,22 @@ Before proving, composing, or sorry-ing ANYTHING:
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 ### Status (updated 2026-03-28)
-- **Architecture**: `cle` in `cmcm_acyclic_of_hknow` now uses compound lin events (`compoundLinearizationEvent.linearizationEvent`), NOT CLEs.
-- **PPOi (single edge)**: PROVEN. `h_non_lazy_ppoi` gives `.ob` directly on compound lins.
-- **COM (single edge)**: Bridge via `stepOrdering_cle_to_compound_lin_3way`. `step_to_ordering` gives StepOrdering on CLEs; the helper bridges to compound lins using temporal bounds (CLE.oStart ≤ compound_lin.oStart, compound_lin.oEnd ≤ CLE.oEnd) from `dirAccessUnique` + encapsulation.
-  - `.ob` case: PROVEN (chains through bounds).
-  - Other StepOrdering constructors: sorry (bounds insufficient for non-ob cases).
-  - `clusterCacheLin` compound lin type: sorry (CLE doesn't always encapsulate cache event — `orderAfterDir` breaks bounds).
-- **Tail composition**: ob+ob, ob+eq, eq+anything, rev_OB+eq, rev_OB+rev_OB: PROVEN. Other combinations: sorry.
-- **compose_three**: SORRY-FREE (on CLEs). Key lemmas: `step_ordering_same_prot_not_reverse`, `same_prot_dir_ordered_forward`, `compose_obFinishBefore_com`.
+- **Architecture**: `cmcm_acyclic_of_hknow` uses CLEs from `hknow` directly (`hreq's_dir_access.choose`). The CLE-to-compound_lin bridge was eliminated.
+  - **PPOi (single edge)**: `dir_ordered` gives 3-way on CLEs (same-cluster directory events). No compound_lin needed.
+  - **COM (single edge)**: `step_to_ordering` gives StepOrdering on CLEs directly. No bridge needed.
+  - **Composition**: `compose_three` handles all StepOrdering/eq/reverseOB × PPOi/COM cases.
+  - **`cmcm_acyclic_of_hknow` is sorry-free!** Delegates to compose_three.
+- **compose_three**: SORRY-FREE. Uses dir_ordered fallback for hard cases (all CLEs are directory events → always resolvable).
 - **StepOrdering enriched**: `obEndLt`, `encapObEndLt`, `obFinishBefore` all carry `h_p_isdir`.
 - **Non-lazy PPOi**: `h_non_lazy_ppoi` hypothesis excludes lazy RCC.
-- **4 declarations use sorry** in Proof.lean: `co_chain_cross_cluster_downgrade`, `ppoi_diff_addr_step_ordering`, `stepOrdering_cle_to_compound_lin_3way`, `cmcm_acyclic_of_hknow`.
+- **2 declarations use sorry** in Proof.lean: `co_chain_cross_cluster_downgrade`, `ppoi_diff_addr_step_ordering`.
+- **Dead code**: CLE-to-compound_lin bridge removed. `ppoi_diff_addr_step_ordering` bypassed in cycle proof (compose_three uses dir_ordered for PPOi instead).
 
 ### TODO
-1. **stepOrdering_cle_to_compound_lin_3way sorry's**:
-   - **clusterCacheLin bounds** (4 sorry's): CLE doesn't always encapsulate cache event (orderAfterDir). Need either: (a) prove cache events don't arise in COM edges, or (b) use a different temporal chain for clusterCacheLin.
-   - **non-ob StepOrdering** (7 sorry's): obEndLt, encapOb, obFinishBefore, sameLin, proxyPair, eq, encapObEndLt. For most: the CLE bounds don't transfer proxy events to compound lins. Need per-constructor analysis or protocol-level reasoning.
-2. **Tail composition sorry's** (8): Compositions involving non-ob StepOrdering or reverse OB + forward OB. Hard because compound lins don't have dir_ordered.
-3. **co_chain_cross_cluster_downgrade** (1 sorry): translatedDir.
-4. **ppoi_diff_addr_step_ordering** (2 sorry's): clusterCacheLin in PPOi context.
-5. **RfProofHelpers** (6 sorry's): Shim translations.
+1. **co_chain_cross_cluster_downgrade** (1 sorry): translatedDir endpoint.
+2. **ppoi_diff_addr_step_ordering** (3 sorry's): clusterCacheLin — bypassed in cycle proof (compose_three uses dir_ordered for PPOi). Still used by step_to_ordering for eq prefix case in compose_three.
+3. **RfProofHelpers** (2 sorry-using declarations): Shim translations.
+4. Consider deleting ppoi_diff_addr_step_ordering if it can be fully bypassed.
 
 ### Lessons learned (BE INTROSPECTIVE!)
 - **Don't guess constructors.** Each new StepOrdering constructor multiplies case analysis. Use edge data instead.
@@ -65,6 +61,8 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **Don't expand wildcards without a closure plan.** Creates MORE sorry's.
 - **Commit clean states, revert fast** when sorry count increases.
 - **`let` bindings block `▸` and `rw`**: In `cmcm_acyclic_of_hknow`, the `let cle` binding prevents `▸` from finding patterns through the expansion. Use `Eq.subst` with explicit motive (`@Eq.subst _ (fun x => ...) _ _ heq h`) instead.
+- **dir_ordered is the UNIVERSAL fallback**: All CLEs from `hreq's_dir_access.choose` are directory events (`isDirEvent`). `step_ordering_dir_ordered_3way` resolves ANY pair of CLEs. Use this when StepOrdering composition gets stuck. The CLE-to-compound_lin bridge was ELIMINATED by using CLEs directly + dir_ordered for PPOi.
+- **CLE-to-compound_lin bridge is fundamentally flawed**: CLE ordering doesn't always imply compound_lin ordering (for clusterCacheLin + encapDir/orderAfterDir, bounds are reversed). The right approach: use CLEs directly in the cycle invariant.
 - **`induction` generalizes indices**: When inducting on `TransGen R a c`, Lean generalizes `c`. Use `_` or `hknow _` to let Lean infer the generalized endpoint.
 - **`Trans.trans` for OB chains**: `Event.instTransOrderOrder` handles OB transitivity (chains through `oWellFormed`). Use `Trans.trans h₁ h₂` not `Nat.lt_trans`.
 
