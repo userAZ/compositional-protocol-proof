@@ -123,6 +123,12 @@ structure co (e₁ e₂ : Event n) : Prop where
   w₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
   w₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
+  in_b₁ : e₁ ∈ b
+  in_b₂ : e₂ ∈ b
+  cache₁ : e₁.isClusterCache
+  cache₂ : e₂.isClusterCache
+  notDown₁ : ¬ e₁.down
+  notDown₂ : ¬ e₂.down
   comm : co.ordering w₁_lin w₂_lin
 
 /-! ## StepOrdering: ordering between linearization points -/
