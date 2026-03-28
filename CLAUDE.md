@@ -44,13 +44,12 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **compose_three**: SORRY-FREE. Uses dir_ordered fallback for hard cases (all CLEs are directory events → always resolvable).
 - **StepOrdering enriched**: `obEndLt`, `encapObEndLt`, `obFinishBefore` all carry `h_p_isdir`.
 - **Non-lazy PPOi**: `h_non_lazy_ppoi` hypothesis excludes lazy RCC.
-- **2 declarations use sorry** in Proof.lean: `co_chain_cross_cluster_downgrade`, `ppoi_diff_addr_step_ordering`.
-- **Dead code**: CLE-to-compound_lin bridge removed. `ppoi_diff_addr_step_ordering` bypassed in cycle proof (compose_three uses dir_ordered for PPOi instead).
+- **0 sorry-using declarations** in Proof.lean. Proof.lean is sorry-free.
+- **Dead code**: CLE-to-compound_lin bridge removed. `ppoi_diff_addr_step_ordering` deleted.
 
 ### TODO
-1. **co_chain_cross_cluster_downgrade** (1 sorry at line 470): `translatedDir` endpoint shifting through CO chain. The `clusterDirFromDiffProtocolRequest` structure's `existsGlobalDownTranslation` depends on the endpoint's linearization (changes when CO chain extends from `b_mid` to `c_ep`). Hard: requires showing downgrade translation persists when endpoint shifts. Alternative: restructure to use base case `d'` from last CO step instead of extending IH's `d`.
-2. **ppoi_diff_addr_step_ordering** (2 sorry's): clusterCacheLin — DEAD CODE for main theorem. All step_to_ordering calls from compose_three/cmcm_acyclic_of_hknow pass COM edges only. Consider deleting.
-3. **RfProofHelpers** (2 sorry-using declarations): `diffCache_coherent_encapProxyAndDir` (shim rw/down/correspondingDir translation), `cdirEncapsDown_exists` (MR case, scReadDown, noCoherentRead).
+1. **RfProofHelpers** (2 sorry-using declarations, 7 sorry's): `diffCache_coherent_encapProxyAndDir` (scReadDown isDirWrite/translatedDir, noCoherentRead isDirWrite/translatedDir), `cdirEncapsDown_exists` (cWriteOnMR, scReadDown evict, noCoherentRead). These need case-specific shim extraction that `globalToCluster_extract_dir_with_encap` loses.
+2. **Named structures**: Replace `.2.2.2.1.2` tuple access patterns in `existsRClusterDirDown`, `co_chain_cross_cluster_downgrade` return types, and similar with named structure fields for readability and maintainability.
 
 ### Lessons learned (BE INTROSPECTIVE!)
 - **Don't guess constructors.** Each new StepOrdering constructor multiplies case analysis. Use edge data instead.
