@@ -2408,15 +2408,23 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
       | obEndLt p₁ hob₁ hlt₁ =>
-        -- l₁ OB p₁, p₁.oEnd < l₂.oEnd, p₂ inside l₂, p₂ OB l₃
-        -- p₁.oEnd < l₂.oEnd. p₂ inside l₂ → l₂.oStart < p₂.oStart, p₂.oEnd < l₂.oEnd.
-        -- p₁ and p₂: both have oEnd < l₂.oEnd. Their relative order unknown.
-        -- by_cases protocol: same → dir_ordered; diff → .obFinishBefore needs p₁ OB l₃.
-        -- obEndLt h₁ + encapOb h₂. Use junction check: case-split both edges.
-        -- For incompatible pairs: exfalso via h_junction_compat.
-        -- For compatible pairs: by_cases protocol + dir_ordered.
-        -- The compatible pairs for obEndLt prefix + encapOb current are limited.
-        sorry -- TODO: case-split h_prefix_edge and hcom_edge for junction check
+        -- obEndLt h₁ + encapOb h₂: p₁.oEnd < l₂.oEnd, p₂ inside l₂, p₂ OB l₃.
+        -- p₁ and p₂ both "inside" l₂ but can't be ordered without dir_ordered on both.
+        -- by_cases protocol for output:
+        by_cases hprot : l₁.protocol = l₃.protocol
+        · -- Same: dir_ordered(l₁, l₃)
+          have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+          match hfc₁ : l₁, h₁_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₁, _ =>
+            match hfc₃ : l₃, h₃_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₃, _ =>
+              cases (hdir de₁ de₃).ordered with
+              | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
+              | inr _ => sorry -- l₃ OB l₁: obEndLt+encapOb same-protocol
+        · -- Diff: need p OB l₃ with p.oEnd < l₁.oEnd, or other constructor
+          sorry -- obEndLt+encapOb diff-protocol: p₁ can't chain to l₃
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
         -- p₁ OB l₂, p₁.oEnd < l₁.oEnd. p₂ inside l₂, p₂ OB l₃.
         -- p₁ OB l₂: p₁.oEnd < l₂.oStart < p₂.oStart (from encap) → p₁ OB p₂.
@@ -2439,7 +2447,19 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
         -- q₁ inside l₁, q₁ OB p₁, p₁.oEnd < l₂.oEnd. p₂ inside l₂, p₂ OB l₃.
         -- Same proxy ordering issue as obEndLt.
-        sorry -- encapObEndLt h₁ + encapOb h₂
+        -- encapObEndLt h₁ + encapOb h₂: same issue as obEndLt+encapOb
+        by_cases hprot : l₁.protocol = l₃.protocol
+        · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+          match hfc₁ : l₁, h₁_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₁, _ =>
+            match hfc₃ : l₃, h₃_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₃, _ =>
+              cases (hdir de₁ de₃).ordered with
+              | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
+              | inr _ => sorry -- l₃ OB l₁: encapObEndLt+encapOb same-protocol
+        · sorry -- encapObEndLt+encapOb diff-protocol
     | proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂ =>
       cases hso₁ with
       | ob hob₁ =>
@@ -2450,7 +2470,20 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
         exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp_ob hq_enc₂.left) hq_ob₂)) hp_ob₂)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
-      | obEndLt p₁ hob₁ hlt₁ => sorry -- obEndLt h₁ + proxyPair h₂: proxy ordering unknown
+      | obEndLt p₁ hob₁ hlt₁ =>
+        -- obEndLt h₁ + proxyPair h₂: same issue as obEndLt+encapOb
+        by_cases hprot : l₁.protocol = l₃.protocol
+        · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+          match hfc₁ : l₁, h₁_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₁, _ =>
+            match hfc₃ : l₃, h₃_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₃, _ =>
+              cases (hdir de₁ de₃).ordered with
+              | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
+              | inr _ => sorry -- l₃ OB l₁: obEndLt+proxyPair same-protocol
+        · sorry -- obEndLt+proxyPair diff-protocol
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
         -- p₁ OB l₂. q₂ inside l₂ → l₂.oStart < q₂.oStart → p₁ OB q₂.
         -- q₂ OB p₂ OB l₃ → p₁ OB l₃. Output .obFinishBefore.
@@ -2468,7 +2501,20 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
               | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
               | inr _ => sorry -- l₃ OB l₁: hard case
         · exact Or.inl (.obFinishBefore p₁ hp₁_ob_l₃ hlt₁ hprot)
-      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ => sorry -- encapObEndLt h₁ + proxyPair h₂
+      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ =>
+        -- encapObEndLt h₁ + proxyPair h₂: same issue
+        by_cases hprot : l₁.protocol = l₃.protocol
+        · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+          match hfc₁ : l₁, h₁_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₁, _ =>
+            match hfc₃ : l₃, h₃_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₃, _ =>
+              cases (hdir de₁ de₃).ordered with
+              | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
+              | inr _ => sorry -- l₃ OB l₁: encapObEndLt+proxyPair same-protocol
+        · sorry -- encapObEndLt+proxyPair diff-protocol
     | encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ =>
       cases hso₁ with
       | ob hob₁ =>
