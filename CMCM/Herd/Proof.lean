@@ -337,7 +337,9 @@ private lemma co_chain_same_cluster_ob
     exact Nat.lt_irrefl de₁.oEnd (Nat.lt_of_le_of_lt hoEnd (Nat.lt_trans h de₁.oWellFormed))
 
 /-- For a co chain crossing clusters: extract downgrade d at e_w's cluster
-    with CLE_w OB d, d.oEnd < CLE₂.oEnd, d at e_w's protocol. -/
+    with CLE_w OB d, d.oEnd < CLE₂.oEnd, d at e_w's protocol.
+    Returns an intermediate write `e_mid` that triggered the downgrade (with translatedDir).
+    h_no_between can be applied to e_mid at the call site. -/
 private lemma co_chain_cross_cluster_downgrade
     {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     {e_w e₂ : Event n}
@@ -353,7 +355,10 @@ private lemma co_chain_cross_cluster_downgrade
         d.protocol = e_w.protocol ∧
         ¬ d.down ∧
         d.isDirWrite ∧
-        Event.clusterDirFromDiffProtocolRequest b init e₂ d (lin e₂) := by
+        -- e_mid: the intermediate write that triggered the downgrade (with translatedDir).
+        -- At call sites, use e_mid with h_no_between for the NIW argument.
+        ∃ (e_mid : Event n), ¬ e_mid.sameProtocol n e_w ∧
+          Event.clusterDirFromDiffProtocolRequest b init e_mid d (lin e_mid) := by
   -- Induction on co chain. The endpoint e₂ gets generalized.
   -- Use h_diff_prot and lin in generalized form.
   induction h_co_chain with
@@ -378,13 +383,15 @@ private lemma co_chain_cross_cluster_downgrade
           cases hrd_spec.2.2.2.2.2.2 with
           | cleEncap henc => exact henc.right
           | gcacheEncap _ hlt => exact hlt
+        -- e_mid = the second writer in this CO step (the endpoint)
         exact ⟨w.rDown.encapDir.existsRClusterDirDown.choose,
           hrd_spec.1,
           by rw [show e_w_lin = h_co.w₁_lin from Subsingleton.elim _ _]; exact w.wObRDown,
           by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
           hrd_spec.2.1, hrd_spec.2.2.1, hrd_spec.2.2.2.2.1,
           isDirWrite_of_rw_eq_write hrd_spec.2.1 hrd_spec.2.2.2.1 h_co.write₂,
-          by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.2.2.2.2.1⟩
+          ⟨_, fun h => h_diff_prot (show e_w.sameProtocol n _ from h.symm),
+           by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.2.2.2.2.1⟩⟩
       | evictOrReadBetweenWAndRDown evict =>
         have hrd_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
         have hrd_lt : evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
@@ -398,7 +405,8 @@ private lemma co_chain_cross_cluster_downgrade
           by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
           hrd_spec.2.1, hrd_spec.2.2.1, hrd_spec.2.2.2.2.1,
           isDirWrite_of_rw_eq_write hrd_spec.2.1 hrd_spec.2.2.2.1 h_co.write₂,
-          by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.2.2.2.2.1⟩
+          ⟨_, fun h => h_diff_prot (show e_w.sameProtocol n _ from h.symm),
+           by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.2.2.2.2.1⟩⟩
   | tail hpath h_last ih =>
     rename_i b_mid c_ep
     -- IH for prefix. Extend d.oEnd bound via last step's StepOrdering.
@@ -442,7 +450,9 @@ private lemma co_chain_cross_cluster_downgrade
               (show e_w.protocol = b_mid.protocol from h_mid_prot).symm),
             hrd_spec.2.2.2.2.1,
             isDirWrite_of_rw_eq_write hrd_spec.2.1 hrd_spec.2.2.2.1 h_last.write₂,
-            by rw [show lin c_ep = h_last.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.2.2.2.2.1⟩
+            ⟨c_ep,
+             fun h => h_diff_prot (show e_w.sameProtocol n c_ep from h.symm),
+             by rw [show lin c_ep = h_last.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.2.2.2.2.1⟩⟩
         | evictOrReadBetweenWAndRDown evict =>
           have hrd_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
           have hrd_lt : evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
@@ -461,18 +471,16 @@ private lemma co_chain_cross_cluster_downgrade
               (show e_w.protocol = b_mid.protocol from h_mid_prot).symm),
             hrd_spec.2.2.2.2.1,
             isDirWrite_of_rw_eq_write hrd_spec.2.1 hrd_spec.2.2.2.1 h_last.write₂,
-            by rw [show lin c_ep = h_last.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.2.2.2.2.1⟩
-    · -- Prefix diff-cluster: IH gives d at e_w's cluster with d.oEnd < CLE_mid.oEnd.
-      -- The sorry is for translatedDir: shifting clusterDirFromDiffProtocolRequest from b_mid to c_ep.
-      -- Protocol analysis: d was triggered by some write's GLE at a different cluster than e_w.
-      -- When the CO chain extends to c_ep, the SAME d is still the relevant downgrade
-      -- (it's the one that invalidated e_w's copy). The translatedDir structure should
-      -- carry through because c_ep's write to the same address at the same (or further) cluster
-      -- must also trigger a downgrade visible to e_w, but the existing d suffices.
-      obtain ⟨d, hd_in_b, hob_d, hd_lt, hd_isDir, hd_proto, hd_not_down, hd_isDirWrite, hd_translatedDir⟩ := ih h_mid_prot
+            ⟨c_ep,
+             fun h => h_diff_prot (show e_w.sameProtocol n c_ep from h.symm),
+             by rw [show lin c_ep = h_last.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.2.2.2.2.1⟩⟩
+    · -- Prefix diff-cluster: IH gives d with e_mid from some earlier step.
+      -- Pass through the IH's e_mid — it has translatedDir about e_mid, not the endpoint.
+      -- h_no_between at the call site can be applied to e_mid instead of e₂.
+      obtain ⟨d, hd_in_b, hob_d, hd_lt, hd_isDir, hd_proto, hd_not_down, hd_isDirWrite, hd_emid⟩ := ih h_mid_prot
       have hext : (lin b_mid).hreq's_dir_access.choose.oEnd ≤ (lin c_ep).hreq's_dir_access.choose.oEnd :=
         co_step_oEnd_le h_last lin
-      exact ⟨d, hd_in_b, hob_d, Nat.lt_of_lt_of_le hd_lt hext, hd_isDir, hd_proto, hd_not_down, hd_isDirWrite, sorry⟩ -- translatedDir: endpoint shift from b_mid to c_ep
+      exact ⟨d, hd_in_b, hob_d, Nat.lt_of_lt_of_le hd_lt hext, hd_isDir, hd_proto, hd_not_down, hd_isDirWrite, hd_emid⟩
 
 /-- Extract cross-cluster encapDir from any diffCache.case sub-case when e_w and e_r
     are at different clusters. Returns encapDir (with existsRClusterDirDown + encapDirRelation). -/
@@ -706,7 +714,8 @@ theorem fr_ordering_holds
                       have h_ew_diff_e₂ : ¬ e_w.sameProtocol n e₂ := by
                         unfold Event.sameProtocol
                         intro h; exact h_same_prot (show e₁.protocol = e₂.protocol from h_ew_e₁.trans h)
-                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto, hdco_not_down, hdco_isDirWrite, hdco_translatedDir⟩ :=
+                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto,
+                        hdco_not_down, hdco_isDirWrite, e_mid, h_mid_diff_ew, h_mid_translated⟩ :=
                         co_chain_cross_cluster_downgrade h_co_chain h_ew_diff_e₂ e_w_lin hlin
                       -- dir_ordered d_co CLE₁ at e₁'s cluster
                       have hdco_isdir' := hdco_isDir
@@ -716,32 +725,11 @@ theorem fr_ordering_holds
                         cases (b.orderedAtEntry.dir_ordered de_dco de_cle₁).ordered with
                         | inl hdco_ob_cle₁ =>
                           -- d_co OB CLE₁: d_co between CLE_w and CLE₁ → NIW contradiction.
-                          -- Need sameCacheWriteConstraints for d_co. d_co has isDirWrite (from rw = e₂.rw = .w)
-                          -- and ¬down (from the shim construction). These need existsRClusterDirDown.choose_spec.
-                          -- For now: sorry (needs rw/down extraction from CO step spec).
+                          -- Use h_no_between with e_mid (not e₂) for the NIW argument.
                           exfalso
-                          have h_constraints := h_no_between e₂ h.in_b₂
-                            h.cache₂ h.write h.notDown₂ (hlin e₂)
-                          -- d_co between CLE_w and CLE₁ with sameCacheWriteConstraints.
-                          have h_between : d_co.OrderedBetween n
-                              e_w_lin.hreq's_dir_access.choose
-                              (lin e₁).hreq's_dir_access.choose := by
-                            constructor
-                            · rw [hfc_dco]; exact hcle_w_ob_dco
-                            · rw [hfc_dco, hfc_cle₁]; exact hdco_ob_cle₁
-                          exact absurd ⟨d_co, by rw [hfc_dco]; exact hdco_in_b,
-                            { interDiffProtocol := by
-                                show ¬ e₂.sameProtocol n e_w
-                                unfold Event.sameProtocol at h_ew_diff_e₂ ⊢
-                                exact fun h => h_ew_diff_e₂ h.symm
-
-                              downToW := by
-                                unfold Event.sameProtocol; rw [hfc_dco]; exact hdco_proto
-                              isDirWrite := by rw [hfc_dco]; exact hdco_isDirWrite
-                              notDown := by rw [hfc_dco]; exact hdco_not_down
-                              isDir := by rw [hfc_dco]; exact hdco_isDir
-                              translatedDir := by rw [hfc_dco]; exact hdco_translatedDir
-                            }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCacheWrite
+                          -- e_mid is a write in the CO chain at a different cluster from e_w.
+                          -- h_no_between e_mid gives us diffClusterNotBetweenCles_sameCacheWrite.
+                          sorry -- TODO: apply h_no_between to e_mid (needs e_mid ∈ b, isClusterCache, isWrite, ¬down)
                         | inr hcle₁_ob_dco =>
                           -- CLE₁ OB d_co: proxy for .diffCluster_coherent
                           have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
@@ -1045,7 +1033,7 @@ theorem fr_ordering_holds
                     · have h_ew_diff_e₂ : ¬ e_w.sameProtocol n e₂ := by
                         unfold Event.sameProtocol
                         intro h; exact h_same_prot (show e₁.protocol = e₂.protocol from h_ew_e₁.trans h)
-                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto, hdco_not_down, hdco_isDirWrite, hdco_translatedDir⟩ :=
+                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto, hdco_not_down, hdco_isDirWrite, e_mid, h_mid_diff_ew, h_mid_translated⟩ :=
                         co_chain_cross_cluster_downgrade h_co_chain h_ew_diff_e₂ e_w_lin hlin
                       have hdco_isdir' := hdco_isDir
                       match hfc_dco : d_co, hdco_isdir' with
@@ -1072,7 +1060,7 @@ theorem fr_ordering_holds
                               isDirWrite := by rw [hfc_dco]; exact hdco_isDirWrite
                               notDown := by rw [hfc_dco]; exact hdco_not_down
                               isDir := by rw [hfc_dco]; exact hdco_isDir
-                              translatedDir := by rw [hfc_dco]; exact hdco_translatedDir
+                              translatedDir := by rw [hfc_dco]; exact sorry -- TODO: use e_mid translatedDir
                             }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCacheWrite
                         | inr hcle₁_ob_dco =>
                           have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
@@ -1198,7 +1186,7 @@ theorem fr_ordering_holds
                     · have h_ew_diff_e₂ : ¬ e_w.sameProtocol n e₂ := by
                         unfold Event.sameProtocol
                         intro h; exact h_same_prot (show e₁.protocol = e₂.protocol from h_ew_e₁.trans h)
-                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto, hdco_not_down, hdco_isDirWrite, hdco_translatedDir⟩ :=
+                      obtain ⟨d_co, hdco_in_b, hcle_w_ob_dco, hdco_lt_cle₂, hdco_isDir, hdco_proto, hdco_not_down, hdco_isDirWrite, e_mid, h_mid_diff_ew, h_mid_translated⟩ :=
                         co_chain_cross_cluster_downgrade h_co_chain h_ew_diff_e₂ e_w_lin hlin
                       have hdco_isdir' := hdco_isDir
                       match hfc_dco : d_co, hdco_isdir' with
@@ -1224,7 +1212,7 @@ theorem fr_ordering_holds
                               isDirWrite := by rw [hfc_dco]; exact hdco_isDirWrite
                               notDown := by rw [hfc_dco]; exact hdco_not_down
                               isDir := by rw [hfc_dco]; exact hdco_isDir
-                              translatedDir := by rw [hfc_dco]; exact hdco_translatedDir
+                              translatedDir := by rw [hfc_dco]; exact sorry -- TODO: use e_mid translatedDir
                             }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCacheWrite
                         | inr hcle₁_ob_dco =>
                           have hw₂' : lin e₂ = h.e₂_lin := Subsingleton.elim _ _
