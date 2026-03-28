@@ -2465,22 +2465,25 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
               | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
               | inr _ => sorry -- l₃ OB l₁: hard case
         · exact Or.inl (.obFinishBefore p₁ hp₁_ob_l₃ hlt₁ hprot)
-      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ _ =>
-        -- q₁ inside l₁, q₁ OB p₁, p₁.oEnd < l₂.oEnd. p₂ inside l₂, p₂ OB l₃.
-        -- Same proxy ordering issue as obEndLt.
-        -- encapObEndLt h₁ + encapOb h₂: same issue as obEndLt+encapOb
-        by_cases hprot : l₁.protocol = l₃.protocol
-        · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
-          match hfc₁ : l₁, h₁_isdir with
+      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ h_p₁_isdir =>
+        -- encapObEndLt h₁ + encapOb h₂: same dir_ordered(p₁, l₂) trick as obEndLt.
+        -- p₁ OB l₂ (reverse contradicts p₁.oEnd < l₂.oEnd). Chain: q₁ OB p₁ OB l₂ OB p₂ OB l₃.
+        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
+        have hp₁_ob_l₂ : p₁.OrderedBefore n l₂ := by
+          match hfcp : p₁, h_p₁_isdir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-          | .directoryEvent de₁, _ =>
-            match hfc₃ : l₃, h₃_isdir with
+          | .directoryEvent dep₁, _ =>
+            match hfcl₂ : l₂, h₂_isdir with
             | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-            | .directoryEvent de₃, _ =>
-              cases (hdir de₁ de₃).ordered with
-              | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
-              | inr _ => sorry -- l₃ OB l₁: encapObEndLt+encapOb same-protocol
-        · sorry -- encapObEndLt+encapOb diff-protocol
+            | .directoryEvent del₂, _ =>
+              cases (hdir dep₁ del₂).ordered with
+              | inl hob => exact hob
+              | inr hob_rev =>
+                exfalso; exact Nat.lt_irrefl dep₁.oEnd
+                  (Nat.lt_trans (show dep₁.oEnd < del₂.oEnd from hlt₁)
+                    (Nat.lt_trans hob_rev dep₁.oWellFormed))
+        exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob
+          (Trans.trans (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hp₁_ob_l₂ henc₂.left) hob₂)))
     | proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂ =>
       cases hso₁ with
       | ob hob₁ =>
@@ -2491,20 +2494,26 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
         exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp_ob hq_enc₂.left) hq_ob₂)) hp_ob₂)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
-      | obEndLt p₁ hob₁ hlt₁ _ =>
-        -- obEndLt h₁ + proxyPair h₂: same issue as obEndLt+encapOb
-        by_cases hprot : l₁.protocol = l₃.protocol
-        · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
-          match hfc₁ : l₁, h₁_isdir with
+      | obEndLt p₁ hob₁ hlt₁ h_p₁_isdir =>
+        -- obEndLt h₁ + proxyPair h₂: same dir_ordered(p₁, l₂) trick.
+        -- p₁ OB l₂ → p₁ OB q₂ OB p₂ OB l₃ → l₁ OB p₁ OB l₃ → .ob.
+        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
+        have hp₁_ob_l₂ : p₁.OrderedBefore n l₂ := by
+          match hfcp : p₁, h_p₁_isdir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-          | .directoryEvent de₁, _ =>
-            match hfc₃ : l₃, h₃_isdir with
+          | .directoryEvent dep₁, _ =>
+            match hfcl₂ : l₂, h₂_isdir with
             | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-            | .directoryEvent de₃, _ =>
-              cases (hdir de₁ de₃).ordered with
-              | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
-              | inr _ => sorry -- l₃ OB l₁: obEndLt+proxyPair same-protocol
-        · sorry -- obEndLt+proxyPair diff-protocol
+            | .directoryEvent del₂, _ =>
+              cases (hdir dep₁ del₂).ordered with
+              | inl hob => exact hob
+              | inr hob_rev =>
+                exfalso; exact Nat.lt_irrefl dep₁.oEnd
+                  (Nat.lt_trans (show dep₁.oEnd < del₂.oEnd from hlt₁)
+                    (Nat.lt_trans hob_rev dep₁.oWellFormed))
+        exact Or.inl (.ob (Trans.trans hob₁ (Trans.trans
+          (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp₁_ob_l₂ hq_enc₂.left)
+          (Trans.trans hq_ob₂ hp_ob₂))))
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
         -- p₁ OB l₂. q₂ inside l₂ → l₂.oStart < q₂.oStart → p₁ OB q₂.
         -- q₂ OB p₂ OB l₃ → p₁ OB l₃. Output .obFinishBefore.
@@ -2522,20 +2531,25 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
               | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
               | inr _ => sorry -- l₃ OB l₁: hard case
         · exact Or.inl (.obFinishBefore p₁ hp₁_ob_l₃ hlt₁ hprot)
-      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ _ =>
-        -- encapObEndLt h₁ + proxyPair h₂: same issue
-        by_cases hprot : l₁.protocol = l₃.protocol
-        · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
-          match hfc₁ : l₁, h₁_isdir with
+      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ h_p₁_isdir =>
+        -- encapObEndLt h₁ + proxyPair h₂: same dir_ordered(p₁, l₂) trick.
+        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
+        have hp₁_ob_l₂ : p₁.OrderedBefore n l₂ := by
+          match hfcp : p₁, h_p₁_isdir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-          | .directoryEvent de₁, _ =>
-            match hfc₃ : l₃, h₃_isdir with
+          | .directoryEvent dep₁, _ =>
+            match hfcl₂ : l₂, h₂_isdir with
             | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-            | .directoryEvent de₃, _ =>
-              cases (hdir de₁ de₃).ordered with
-              | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
-              | inr _ => sorry -- l₃ OB l₁: encapObEndLt+proxyPair same-protocol
-        · sorry -- encapObEndLt+proxyPair diff-protocol
+            | .directoryEvent del₂, _ =>
+              cases (hdir dep₁ del₂).ordered with
+              | inl hob => exact hob
+              | inr hob_rev =>
+                exfalso; exact Nat.lt_irrefl dep₁.oEnd
+                  (Nat.lt_trans (show dep₁.oEnd < del₂.oEnd from hlt₁)
+                    (Nat.lt_trans hob_rev dep₁.oWellFormed))
+        exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob (Trans.trans
+          (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp₁_ob_l₂ hq_enc₂.left)
+          (Trans.trans hq_ob₂ hp_ob₂))))
     | encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ h_p₂_isdir =>
       cases hso₁ with
       | ob hob₁ =>
