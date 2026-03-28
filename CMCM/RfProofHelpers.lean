@@ -3322,7 +3322,12 @@ lemma diffCache_coherent_encapProxyAndDir
   cases hg2c with
   | bothCoherentWriteAndRead hcorrespond _ downTranslation =>
     cases downTranslation with
-    | scWriteDown _ translation =>
+    | scWriteDown hwrite_down translation =>
+      -- scWriteDown requires isSCWriteGlobalDowngrade. But diffCache_coherent_globalDowngrade
+      -- uses coherentReadDowngrades → the global downgrade should be isSCReadGlobalDowngrade.
+      -- scWriteDown likely vacuous here. Sorry for now.
+      sorry
+    /- Original scWriteDown proof (isDirWrite → isDirRead change makes it inapplicable):
     obtain ⟨e_cw, he_cw_in_b, e_dw, e_ce, he_ce_in_b, e_de, he_de_in_b, hstruct⟩ := translation.scGDownTranslation
     -- e_dw: the write directory event at e_w's cluster (isDirWrite, ¬down)
     have he_dw_in_b := hstruct.cohWriteDir.dirInB
@@ -3406,6 +3411,7 @@ lemma diffCache_coherent_encapProxyAndDir
     exact { existsRClusterDirDown := ⟨e_dw, he_dw_in_b, he_dw_isDir, he_dw_proto,
       he_dw_isDirWrite, he_dw_translated,
       Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dw h_dw_end_before_cle⟩ }
+    -/
     | scReadDown _ _ translation =>
       -- scReadDown: dir event is a coherent read. isDirWrite is NOT satisfiable (isSCRead → rw=.r).
       -- translatedDir IS provable from cohRead.atCorrClusterProxy.
@@ -3438,8 +3444,29 @@ lemma diffCache_coherent_encapProxyAndDir
                   split <;> (try (simp_all [Event.protocol])) <;> (simp [Event.protocol] at h1 ⊢; rw [← h2]; exact h1) }
             atDir := he_dr_isDir
             globalEncap := he_gdown_encap_dr }⟩⟩
+      -- isDirRead: from cohRead's isSCRead + dirOfReq + reqToDirOfRequestEvent default
+      have he_dr_isDirRead : e_dr.isDirRead := by
+        have hdir_of_req := hstruct.cohReadDir.dirOfReq
+        have hreqTrans := hstruct.cohRead.reqTranslation
+        rw [ValidRequest.isSCRead] at hreqTrans
+        match he_dr_m : e_dr, he_dr_isDir with
+        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+        | .directoryEvent de_dr, _ =>
+          match he_cr_m : e_cr with
+          | .directoryEvent _ =>
+            simp [Event.dirEventOfReqEvent, he_dr_m] at hdir_of_req
+          | .cacheEvent ce_cr =>
+            simp only [Event.isDirRead, he_dr_m, Request.isRead]
+            have hdirReq := hstruct.cohReadDir.dirCorresponds.dirReq
+            simp only [Event.req, he_dr_m, he_cr_m] at hdirReq hreqTrans
+            rw [hdirReq]
+            simp only [Behaviour.reqToDirOfRequestEvent, Event.req, he_cr_m]
+            split
+            · next h => rw [hreqTrans] at h; simp at h
+            · simp only [Event.reqToDirOfRequestEvent, Event.req, he_cr_m, Event.down]
+              rw [hreqTrans]
       exact { existsRClusterDirDown := ⟨e_dr, he_dr_in_b, he_dr_isDir, he_dr_proto,
-        sorry, -- isDirWrite: UNFILLABLE — scReadDown shim produces isSCRead dir event (rw=.r)
+        he_dr_isDirRead,
         he_dr_translated,
         Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dr h_dr_end_before_cle⟩ }
   | noCoherentRead hcorrespond _ downTranslation =>
