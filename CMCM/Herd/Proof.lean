@@ -2808,9 +2808,33 @@ theorem cmcm_acyclic_of_hknow
     have hresult := this e e hcycle
     cases hresult with
     | inl hso =>
-      -- StepOrdering cle(e) cle(e) → False (reflexive StepOrdering is impossible).
-      -- Each constructor gives either reflexive OB or reflexive temporal chain → contradiction.
-      sorry -- TODO: prove StepOrdering l l → False for compound lin events
+      -- StepOrdering cle(e) cle(e) → False. Case-split: .eq → cle_self_ordering_false;
+      -- all others → temporal chain contradiction (reflexive OB/encap).
+      cases hso with
+      | ob h => exact Event.contradiction_of_reflexive_ordered_before n h
+      | obEndLt p h_ob h_lt _ =>
+        exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans h_ob (Event.oWellFormed n p)) h_lt)
+      | encapOb p h_enc h_ob =>
+        exact Nat.lt_irrefl _ (Nat.lt_trans h_enc.left (Nat.lt_trans (Event.oWellFormed n p) h_ob))
+      | obFinishBefore _ _ _ h_diff _ => exact absurd rfl h_diff
+      | sameLin e₁' e₂' _ h_enc₁ h_ob h_enc₂ =>
+        exact Nat.lt_irrefl _ (calc Event.oEnd n (cle e)
+          _ < Event.oEnd n e₁' := h_enc₁.right
+          _ < Event.oStart n e₂' := h_ob
+          _ < Event.oStart n (cle e) := h_enc₂.left
+          _ ≤ Event.oEnd n (cle e) := Nat.le_of_lt (Event.oWellFormed n _))
+      | proxyPair q p h_q_enc h_q_ob h_p_ob =>
+        exact Nat.lt_irrefl _ (calc Event.oEnd n p
+          _ < Event.oStart n (cle e) := h_p_ob
+          _ < Event.oStart n q := h_q_enc.left
+          _ ≤ Event.oEnd n q := Nat.le_of_lt (Event.oWellFormed n q)
+          _ < Event.oStart n p := h_q_ob
+          _ ≤ Event.oEnd n p := Nat.le_of_lt (Event.oWellFormed n p))
+      | eq _ => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+      | encapObEndLt q p h_q_enc h_q_ob h_p_lt _ =>
+        -- q inside cle(e), q OB p, p.oEnd < cle(e).oEnd. All within cle(e), no temporal cycle.
+        -- But: use cle_self_ordering_false (CLE self-ordering from hknow gives False).
+        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
     | inr hr => cases hr with
       | inl heq =>
         -- cle(e) = cle(e) → use CLE self-ordering from hknow
