@@ -41,13 +41,14 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **PPOi edge**: Restricted to diff-addr. All non-lazy PROVEN. 1 lazy sorry.
 - **Cycle proof**: `cmcm_acyclic_of_hknow` uses `suffices` with invariant `StepOrdering ∨ eq`. `compose_three` composes prefix + current edge. At cycle level: `stepOrdering_to_three → LinLink/eq/diff_prot → irrefl/dir_ordered/absurd`.
 - **StepOrdering**: 8 constructors (ob, obEndLt, encapOb, obFinishBefore, sameLin, proxyPair, eq, encapObEndLt).
-- **compose_three**: Has `h_prefix_edge` (last prefix edge) and `h_junction_compat : ¬(e₂.isWrite ∧ e₂.isRead)`. PPOi read/write extraction PROVEN (ReadWrite exhaustiveness). Most compositions proven. Remaining sorry's: (a) l₃ OB l₁ same-protocol temporal contradiction ×4, (b) obEndLt/encapObEndLt + encapOb/proxyPair (can't chain through l₂) ×5, (c) wildcard + obFinishBefore/encapObEndLt ×2, (d) PPOi non-ob (blocked by lazy) ×1, (e) 1 pigeonhole.
-- **9 declarations use sorry.** Build clean.
+- **compose_three**: Has `h_prefix_edge` (last prefix edge) and `h_junction_compat : ¬(e₂.isWrite ∧ e₂.isRead)`. Most compositions proven. Remaining sorry's need junction check + protocol extraction.
+- **6 declarations use sorry** (down from 7). Build clean.
 - **CompoundProtocol.dirAccessUnique**: Field bridging compound lin ↔ Herd CLEs.
+- **ppoi_diff_addr_step_ordering**: Refactored to match on compound linearization types directly. clusterDirLin case PROVEN (inlined from deleted compound_lin_start/end_bound). clusterCacheLin case has sorry (2 sorry sites, 1 declaration).
 
 ### TODO
 1. **compose_three sorry's**: Case-split `h_prefix_edge × hcom_edge`, eliminate impossible pairs via `h_junction_compat`, handle compatible pairs with `by_cases protocol + dir_ordered`. See `docs/compose-three-analysis.md`.
-2. **Helper lemma sorry's (5)**: `reqHasPerms + reqMissingPerms → False` for clusterCacheLin contradictions.
+2. **ppoi_diff_addr clusterCacheLin sorry's (2 sites in 1 decl)**: Non-lazy diff-addr PPOi likely guarantees clusterDirLin, making clusterCacheLin unreachable. Alternatively: prove cReqHasPerms rules out encapDir/orderAfterDir in dirAccessOfRequest, then use orderBeforeDir temporal chain for start_bound (proven). For end_bound: the bound e.oEnd ≤ CLE.oEnd is FALSE for clusterCacheLin+orderBeforeDir — needs a fundamentally different temporal chain.
 3. **translatedDir** (1): endpoint shift through CO chain.
 4. **lazy PPOi** (1): needs PPOi+com pair composition.
 
