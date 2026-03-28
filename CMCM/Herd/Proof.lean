@@ -2800,51 +2800,43 @@ theorem cmcm_acyclic_of_hknow
         (compound.linearizationOfEvent b init a₂)).linearizationEvent)
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
   intro e hcycle
-  let cle := fun e => (hknow e).hreq's_dir_access.choose
+  let cle := fun e => (compound.compoundLinearizationEvent compound.shimAxioms b init e
+    (compound.linearizationOfEvent b init e)).linearizationEvent
   -- Invariant: StepOrdering ∨ eq ∨ reverse OB. Contradicts at cycle endpoint.
   suffices ∀ a c, Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) a c →
       @StepOrdering n (cle a) (cle c) ∨ cle a = cle c ∨ (cle c).OrderedBefore n (cle a) by
     have hresult := this e e hcycle
     cases hresult with
     | inl hso =>
-      have h3 := stepOrdering_to_three hso (b.orderedAtEntry.dir_ordered)
-        ((hknow e).hreq's_dir_access.choose_spec.right.isDirEvent)
-        ((hknow e).hreq's_dir_access.choose_spec.right.isDirEvent)
-      cases h3 with
-      | inl hlink => exact LinLink.irrefl hlink
-      | inr hr => cases hr with
-        | inl heq => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
-        | inr hdiff => exact absurd rfl hdiff
+      -- StepOrdering cle(e) cle(e) → False (reflexive StepOrdering is impossible).
+      -- Each constructor gives either reflexive OB or reflexive temporal chain → contradiction.
+      sorry -- TODO: prove StepOrdering l l → False for compound lin events
     | inr hr => cases hr with
-      | inl heq => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+      | inl heq =>
+        -- cle(e) = cle(e) → use CLE self-ordering from hknow
+        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
       | inr hob_rev => exact Event.contradiction_of_reflexive_ordered_before n hob_rev
   intro a c hpath
   induction hpath with
   | single h =>
     cases h with
     | inl hppoi =>
-      -- PPOi: dir_ordered on CLEs gives either direction → valid 3-way output.
-      -- Bypasses ppoi_diff_addr_step_ordering entirely.
-      exact step_ordering_dir_ordered_3way
-        ((hknow a).hreq's_dir_access.choose_spec.right.isDirEvent)
-        ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
-        (b.orderedAtEntry.dir_ordered)
+      -- PPOi: h_non_lazy directly gives cle(a) OB cle(c) where cle = compound lin event.
+      exact Or.inl (.ob (h_non_lazy_ppoi _ _ hppoi.1 hppoi.2))
     | inr hcom =>
-      exact Or.inl (step_to_ordering (Or.inr hcom) hknow h_non_lazy_ppoi)
+      -- COM: step_to_ordering gives StepOrdering on CLEs. Need to convert to compound lin events.
+      -- TODO: implement CLE-to-compound_lin wrapper
+      sorry
   | tail hpath h ih =>
     -- Extract last prefix edge via TransGen structure.
     cases hpath with
     | single h_prefix =>
       -- Prefix is single edge: h_prefix is the last (and only) prefix edge.
-      exact compose_three (Or.inl (step_to_ordering h_prefix hknow h_non_lazy_ppoi)) h h_prefix hknow rfl rfl
-        (b.orderedAtEntry.dir_ordered) ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent) h_non_lazy_ppoi
+      -- TODO: compose_three needs to work with compound lin events
+      sorry
     | tail hpath' h_prefix =>
-      -- Prefix is tail: h_prefix is the last prefix edge, hpath' is the rest.
-      -- ih is for the full prefix (hpath' + h_prefix). But we need ih for COMPOSE.
-      -- ih : StepOrdering ∨ eq for (a → b_mid) = (a → prev → b_mid).
-      -- We pass h_prefix as the last prefix edge to compose_three.
-      exact compose_three ih h h_prefix hknow rfl rfl
-        (b.orderedAtEntry.dir_ordered) ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent) h_non_lazy_ppoi
+      -- TODO: compose_three needs to work with compound lin events
+      sorry
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
