@@ -2892,28 +2892,74 @@ private noncomputable def stepOrdering_cle_to_compound_lin_3way
       exact compound_lin_oEnd_le_cle_of_dir hknow_c hdir_c
     | .clusterCacheLin _ => sorry -- clusterCacheLin: cache event vs CLE bound
   -- Now lift StepOrdering using the bounds.
-  cases hso with
-  | ob h_ob =>
-    -- CLE_a.oEnd < CLE_c.oStart
-    -- → compound_lin_a.oEnd ≤ CLE_a.oEnd < CLE_c.oStart ≤ compound_lin_c.oStart
-    exact Or.inl (.ob (Nat.lt_of_le_of_lt h_end_a (Nat.lt_of_lt_of_le h_ob h_start_c)))
-  | obEndLt p h_ob h_lt h_p_isdir =>
-    -- compound_lin_a OB p (via h_end_a and h_ob chain).
-    -- p.oEnd < CLE_c.oEnd but need vs compound_lin_c.oEnd. Insufficient from bounds.
-    sorry -- obEndLt: p.oEnd < CLE_c.oEnd ≥ compound_lin_c.oEnd unclear
-  | encapOb p h_enc h_ob =>
-    -- p inside CLE_a, p OB CLE_c. Both compound_lin_a and p within CLE_a.
-    sorry -- encapOb: relative order of compound_lin_a and p inside CLE_a unclear
-  | obFinishBefore p h_ob h_lt h_diff h_p_isdir =>
-    sorry -- obFinishBefore: cross-protocol
-  | sameLin e₁' e₂' heq h_enc₁ h_ob h_enc₂ =>
-    sorry -- sameLin: CLE_a = CLE_c with proxy witnesses
-  | proxyPair q p h_q_enc h_q_ob h_p_ob =>
-    sorry -- proxyPair
-  | eq heq =>
-    sorry -- eq: CLE_a = CLE_c, compound_lins within same CLE
-  | encapObEndLt q p h_q_enc h_q_ob h_p_lt h_p_isdir =>
-    sorry -- encapObEndLt
+  -- Strategy: check if CLE = compound_lin for each event (previousGlobalCacheGotPerms case).
+  -- If both equalities hold: ALL constructors convert via rewrite.
+  -- If encapsulation (getGlobalCachePerms) or cacheLin: .ob converts via bounds, others sorry.
+  --
+  -- Extract CLE ↔ compound_lin relationship for each event.
+  have h_eq_a : hknow_a.hreq's_dir_access.choose =
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a
+        (compound.linearizationOfEvent b init a)).linearizationEvent ∨ True := by
+    match compound.compoundLinearizationEvent compound.shimAxioms b init a
+        (compound.linearizationOfEvent b init a) with
+    | .clusterCacheLin _ => exact Or.inr trivial
+    | .clusterDirLin hdir_a =>
+      simp only [ClusterRequestLinearizationEvent.linearizationEvent]
+      have he_lin_dir := hdir_a.choose_spec.right.e_glin_deeper
+      simp [CompoundProtocol.compoundLinearization.OfReqEncapDirAccess] at he_lin_dir
+      split at he_lin_dir
+      · exfalso; exact he_lin_dir
+      · next _ hdir_lin _ =>
+        have hreq_lin := hdir_lin.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+        cases he_lin_dir with
+        | previousGlobalCacheGotPerms _ he_glin_eq_cdir =>
+          have hcle_eq := compound.dirAccessUnique b init a _ _
+            hreq_lin.reqCorrespondsToDir hknow_a.hreq's_dir_access.choose_spec.2
+          exact Or.inl (hcle_eq ▸ he_glin_eq_cdir.symm)
+        | getGlobalCachePerms _ _ => exact Or.inr trivial
+  have h_eq_c : hknow_c.hreq's_dir_access.choose =
+      (compound.compoundLinearizationEvent compound.shimAxioms b init c
+        (compound.linearizationOfEvent b init c)).linearizationEvent ∨ True := by
+    match compound.compoundLinearizationEvent compound.shimAxioms b init c
+        (compound.linearizationOfEvent b init c) with
+    | .clusterCacheLin _ => exact Or.inr trivial
+    | .clusterDirLin hdir_c =>
+      simp only [ClusterRequestLinearizationEvent.linearizationEvent]
+      have he_lin_dir := hdir_c.choose_spec.right.e_glin_deeper
+      simp [CompoundProtocol.compoundLinearization.OfReqEncapDirAccess] at he_lin_dir
+      split at he_lin_dir
+      · exfalso; exact he_lin_dir
+      · next _ hdir_lin _ =>
+        have hreq_lin := hdir_lin.choose_spec.right.reqLinearizeAtDir.choose_spec.right
+        cases he_lin_dir with
+        | previousGlobalCacheGotPerms _ he_glin_eq_cdir =>
+          have hcle_eq := compound.dirAccessUnique b init c _ _
+            hreq_lin.reqCorrespondsToDir hknow_c.hreq's_dir_access.choose_spec.2
+          exact Or.inl (hcle_eq ▸ he_glin_eq_cdir.symm)
+        | getGlobalCachePerms _ _ => exact Or.inr trivial
+  -- Now: check if both equalities hold → rewrite directly. Otherwise → .ob or sorry.
+  cases h_eq_a with
+  | inl heq_a => cases h_eq_c with
+    | inl heq_c =>
+      -- BOTH CLE = compound_lin: ALL StepOrdering constructors convert via rewrite
+      exact Or.inl (heq_a ▸ heq_c ▸ hso)
+    | inr _ =>
+      -- CLE_a = compound_lin_a but CLE_c ≠ compound_lin_c
+      -- Only .ob converts via bounds. For others: sorry.
+      cases hso with
+      | ob h_ob => exact Or.inl (.ob (Nat.lt_of_le_of_lt h_end_a (Nat.lt_of_lt_of_le h_ob h_start_c)))
+      | _ => sorry -- non-.ob with getGlobalCachePerms/cacheLin for c
+  | inr _ => cases h_eq_c with
+    | inl heq_c =>
+      -- CLE_c = compound_lin_c but CLE_a ≠ compound_lin_a
+      cases hso with
+      | ob h_ob => exact Or.inl (.ob (Nat.lt_of_le_of_lt h_end_a (Nat.lt_of_lt_of_le h_ob h_start_c)))
+      | _ => sorry -- non-.ob with getGlobalCachePerms/cacheLin for a
+    | inr _ =>
+      -- Neither CLE = compound_lin
+      cases hso with
+      | ob h_ob => exact Or.inl (.ob (Nat.lt_of_le_of_lt h_end_a (Nat.lt_of_lt_of_le h_ob h_start_c)))
+      | _ => sorry -- non-.ob with getGlobalCachePerms/cacheLin for both
 
 /-- Acyclicity given that every event has a linearization.
     Invariant: `StepOrdering (cle a) (cle c) ∨ cle a = cle c ∨ (cle c).OrderedBefore n (cle a)`.
