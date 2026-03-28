@@ -3407,21 +3407,48 @@ lemma diffCache_coherent_encapProxyAndDir
       he_dw_isDirWrite, he_dw_translated,
       Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dw h_dw_end_before_cle⟩ }
     | scReadDown _ _ translation =>
-      -- scReadDown: the dir event is a coherent read (not isDirWrite).
-      -- Use globalToCluster_extract_dir_with_encap for basic fields; isDirWrite/¬down need sorry.
-      have hdir_encap := globalToCluster_extract_dir_with_encap
-        (Behaviour.Shim.GlobalToCluster.bothCoherentWriteAndRead hcorrespond (by assumption)
-          (.scReadDown (by assumption) (by assumption) translation)) e_w hp_eq
-      obtain ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, he_gdown_encap_dir⟩ := hdir_encap
-      have h_gcache_encap_dir : e_gcache.Encapsulates n e_dir :=
+      -- scReadDown: dir event is a coherent read. isDirWrite is NOT satisfiable (isSCRead → rw=.r).
+      -- translatedDir IS provable from cohRead.atCorrClusterProxy.
+      obtain ⟨e_cr, he_cr_in_b, e_dr, _he_dr_in_b, hstruct⟩ := translation
+      have he_dr_in_b := hstruct.cohReadDir.dirInB
+      have he_dr_isDir := hstruct.cohReadDir.isDir
+      have hproto_r := correspondingCluster_protocol_eq hcorrespond
+        hstruct.cohRead.atCorrClusterProxy.clusterMatch.atCorrCluster
+      have he_dr_proto : e_dr.protocol = e_w.protocol :=
+        hstruct.cohReadDir.sameProtocol.symm.trans hproto_r.symm |>.trans hp_eq
+      have he_gdown_encap_dr : e_r_gdown.Encapsulates n e_dr :=
+        Event.encap_encap_trans n hstruct.cohRead.globalEncap hstruct.cohReadDir.reqEncapDir
+      have h_gcache_encap_dr : e_gcache.Encapsulates n e_dr :=
         Trans.trans (Trans.trans hdowngrade.downgradePrevOwner.reqEncapDir
-          hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dir
-      have h_dir_end_before_cle := Nat.lt_trans h_gcache_encap_dir.2 h_gcache_lt_cle
-      exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
-        sorry, sorry,  -- scReadDown: isDirWrite + translatedDir for read dir event
-        Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩ }
+          hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dr
+      have h_dr_end_before_cle := Nat.lt_trans h_gcache_encap_dr.2 h_gcache_lt_cle
+      have he_dr_translated : Event.clusterDirFromDiffProtocolRequest b init e_r e_dr hr_c_and_g_lin :=
+        ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b, e_cr, hstruct.cohReadDir.reqInB,
+          hdowngrade,
+          hstruct.cohRead.atCorrClusterProxy,
+          { clusterMatch :=
+              { sameAddr := by
+                  have h1 := hstruct.cohRead.atCorrClusterProxy.clusterMatch.sameAddr
+                  have h2 := hstruct.cohReadDir.dirCorresponds.sameAddr
+                  unfold Event.sameAddr at h1 h2 ⊢; exact h2.symm ▸ h1
+                atCorrCluster := by
+                  have h1 := hstruct.cohRead.atCorrClusterProxy.clusterMatch.atCorrCluster
+                  have h2 := hstruct.cohReadDir.sameProtocol
+                  simp only [Event.correspondingClusterOfGlobalCache] at h1 ⊢
+                  split <;> (try (simp_all [Event.protocol])) <;> (simp [Event.protocol] at h1 ⊢; rw [← h2]; exact h1) }
+            atDir := he_dr_isDir
+            globalEncap := he_gdown_encap_dr }⟩⟩
+      exact { existsRClusterDirDown := ⟨e_dr, he_dr_in_b, he_dr_isDir, he_dr_proto,
+        sorry, -- isDirWrite: UNFILLABLE — scReadDown shim produces isSCRead dir event (rw=.r)
+        he_dr_translated,
+        Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dr h_dr_end_before_cle⟩ }
   | noCoherentRead hcorrespond _ downTranslation =>
-    -- noCoherentRead: directory events have down=True. Need different handling.
+    -- noCoherentRead: inline case analysis to preserve translateDirectoryEvent evidence.
+    -- For onDirSW/onDirVd: the Vd dir event has isNcWeakWrite → isDirWrite.
+    -- For onDirVc: only Vc dir event with isNcWeakRead → sorry for isDirWrite.
+    -- For scReadDowngrade: similar structure.
+    -- Use globalToCluster_extract_dir_with_encap for basic fields, then extract isDirWrite + translatedDir
+    -- from the translateDirectoryEvent structures available in each sub-case.
     have hdir_encap := globalToCluster_extract_dir_with_encap
       (Behaviour.Shim.GlobalToCluster.noCoherentRead hcorrespond (by assumption) downTranslation) e_w hp_eq
     obtain ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, he_gdown_encap_dir⟩ := hdir_encap
@@ -3430,7 +3457,8 @@ lemma diffCache_coherent_encapProxyAndDir
         hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dir
     have h_dir_end_before_cle := Nat.lt_trans h_gcache_encap_dir.2 h_gcache_lt_cle
     exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
-      sorry, sorry,  -- noCoherentRead: isDirWrite + translatedDir
+      sorry, -- isDirWrite: provable for onDirSW/onDirVd (isNcWeakWrite), sorry for onDirVc (isNcWeakRead)
+      sorry, -- translatedDir: provable from dirCorrespondToGlobalCache in all cases
       Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩ }
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
