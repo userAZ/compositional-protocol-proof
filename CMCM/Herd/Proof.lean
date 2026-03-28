@@ -2560,7 +2560,48 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
         exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp_ob hq_enc₂.left) hq_ob₂)) hp_lt₂ h_p₂_isdir)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ h_p₂_isdir)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ h_p₂_isdir)
-      | _ => sorry -- obEndLt/obFinishBefore/encapObEndLt h₁ + encapObEndLt h₂
+      | obEndLt p₁ hob₁ hlt₁ h_p₁_isdir =>
+        -- Same dir_ordered(p₁, l₂) trick: p₁ OB l₂ → p₁ OB q₂ OB p₂.
+        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
+        have hp₁_ob_l₂ : p₁.OrderedBefore n l₂ := by
+          match hfcp : p₁, h_p₁_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent dep₁, _ =>
+            match hfcl₂ : l₂, h₂_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent del₂, _ =>
+              cases (hdir dep₁ del₂).ordered with
+              | inl hob => exact hob
+              | inr hob_rev =>
+                exfalso; exact Nat.lt_irrefl dep₁.oEnd
+                  (Nat.lt_trans (show dep₁.oEnd < del₂.oEnd from hlt₁)
+                    (Nat.lt_trans hob_rev dep₁.oWellFormed))
+        exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ (Trans.trans
+          (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp₁_ob_l₂ hq_enc₂.left) hq_ob₂))
+          hp_lt₂ h_p₂_isdir)
+      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ h_p₁_isdir =>
+        -- Same trick: p₁ OB l₂ → chain q₁ OB p₁ OB q₂ OB p₂.
+        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
+        have hp₁_ob_l₂ : p₁.OrderedBefore n l₂ := by
+          match hfcp : p₁, h_p₁_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent dep₁, _ =>
+            match hfcl₂ : l₂, h₂_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent del₂, _ =>
+              cases (hdir dep₁ del₂).ordered with
+              | inl hob => exact hob
+              | inr hob_rev =>
+                exfalso; exact Nat.lt_irrefl dep₁.oEnd
+                  (Nat.lt_trans (show dep₁.oEnd < del₂.oEnd from hlt₁)
+                    (Nat.lt_trans hob_rev dep₁.oWellFormed))
+        exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans
+          (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp₁_ob_l₂ hq_enc₂.left) hq_ob₂))
+          hp_lt₂ h_p₂_isdir)
+      | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ =>
+        -- obFinishBefore + encapObEndLt: p₁ OB l₂ → p₁ OB q₂ OB p₂.
+        -- But p₂.oEnd < l₃.oEnd (not OB l₃). Can't construct .obFinishBefore.
+        sorry -- obFinishBefore + encapObEndLt: can't chain p₂ to l₃ via OB
     | obFinishBefore p₂ hob₂ hlt₂ hdiff₂ =>
       cases hso₁ with
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obFinishBefore p₂ hob₂ hlt₂ hdiff₂)
