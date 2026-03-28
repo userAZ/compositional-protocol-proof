@@ -462,12 +462,17 @@ private lemma co_chain_cross_cluster_downgrade
             hrd_spec.2.2.2.2.1,
             isDirWrite_of_rw_eq_write hrd_spec.2.1 hrd_spec.2.2.2.1 h_last.write₂,
             by rw [show lin c_ep = h_last.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.2.2.2.2.1⟩
-    · -- Prefix diff-cluster: IH gives d with d.oEnd < CLE_mid.oEnd.
+    · -- Prefix diff-cluster: IH gives d at e_w's cluster with d.oEnd < CLE_mid.oEnd.
+      -- The sorry is for translatedDir: shifting clusterDirFromDiffProtocolRequest from b_mid to c_ep.
+      -- Protocol analysis: d was triggered by some write's GLE at a different cluster than e_w.
+      -- When the CO chain extends to c_ep, the SAME d is still the relevant downgrade
+      -- (it's the one that invalidated e_w's copy). The translatedDir structure should
+      -- carry through because c_ep's write to the same address at the same (or further) cluster
+      -- must also trigger a downgrade visible to e_w, but the existing d suffices.
       obtain ⟨d, hd_in_b, hob_d, hd_lt, hd_isDir, hd_proto, hd_not_down, hd_isDirWrite, hd_translatedDir⟩ := ih h_mid_prot
-      -- Extend to CLE_c via co_step_to_ordering.
       have hext : (lin b_mid).hreq's_dir_access.choose.oEnd ≤ (lin c_ep).hreq's_dir_access.choose.oEnd :=
         co_step_oEnd_le h_last lin
-      exact ⟨d, hd_in_b, hob_d, Nat.lt_of_lt_of_le hd_lt hext, hd_isDir, hd_proto, hd_not_down, hd_isDirWrite, sorry⟩ -- translatedDir endpoint shifted
+      exact ⟨d, hd_in_b, hob_d, Nat.lt_of_lt_of_le hd_lt hext, hd_isDir, hd_proto, hd_not_down, hd_isDirWrite, sorry⟩ -- translatedDir: endpoint shift from b_mid to c_ep
 
 /-- Extract cross-cluster encapDir from any diffCache.case sub-case when e_w and e_r
     are at different clusters. Returns encapDir (with existsRClusterDirDown + encapDirRelation). -/
@@ -1311,127 +1316,10 @@ theorem fr_ordering_holds
                                   exact h_constraints.interSameProtocolAsWNotBetweenCleAndDrf
                                     h_ew_e₂ hencapDir' ⟨hcle_w_ob, hcle₂_ob_ev⟩
 
-/-- Helper: diff-addr PPOi → StepOrdering via dir_ordered + CompoundMCM.
-    Extracted to avoid nested match substitution issues in encapDir case. -/
-private noncomputable def ppoi_diff_addr_step_ordering
-    (hppoi : @PPOi n b e₁ e₂)
-    (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (h_diff_addr : e₁.addr ≠ e₂.addr)
-    (h_non_lazy : (compound.compoundLinearizationEvent compound.shimAxioms b init e₁
-      (compound.linearizationOfEvent b init e₁)).linearizationEvent.OrderedBefore n
-      (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
-      (compound.linearizationOfEvent b init e₂)).linearizationEvent)
-    : @StepOrdering n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose := by
-  have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
-  have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-  match hfc₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
-  | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-  | .directoryEvent de₁, _ =>
-    match hfc₂ : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
-    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-    | .directoryEvent de₂, _ =>
-      cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
-      | inl hob => exact .ob hob
-      | inr hob =>
-        exfalso
-        -- h_non_lazy gives e_lin₁ OB e_lin₂. Match on compound linearization types:
-        -- clusterDirLin: proven via CLE uniqueness + encapsulation bounds.
-        -- clusterCacheLin: sorry (unreachable for non-lazy diff-addr PPOi).
-        -- Chain: de₂.oEnd < de₁.oStart ≤ e_lin₁ < e_lin₂ ≤ de₂.oEnd → contradiction.
-        have hcle₁_le : Event.oStart n (.directoryEvent de₁) ≤ Event.oStart n
-            (compound.compoundLinearizationEvent compound.shimAxioms b init e₁
-            (compound.linearizationOfEvent b init e₁)).linearizationEvent := by
-          match hclin₁ : compound.compoundLinearizationEvent compound.shimAxioms b init e₁
-              (compound.linearizationOfEvent b init e₁) with
-          | .clusterCacheLin _ =>
-            -- Unreachable: non-lazy diff-addr PPOi guarantees clusterDirLin.
-            -- Alternative proof: clusterCacheLin(e₁) means e_lin₁=e₁,
-            -- dirAccessOfRequest must be orderBeforeDir (cReqHasPerms rules out encapDir/orderAfterDir),
-            -- and orderBeforeDir gives de₁.oStart < pred.oStart < e₁.oStart.
-            sorry
-          | .clusterDirLin hdir₁ =>
-            simp only [ClusterRequestLinearizationEvent.linearizationEvent]
-            have he_lin_dir := hdir₁.choose_spec.right.e_glin_deeper
-            simp [CompoundProtocol.compoundLinearization.OfReqEncapDirAccess] at he_lin_dir
-            split at he_lin_dir
-            · exfalso; exact he_lin_dir
-            · next hcreq_lin hdir_lin _ =>
-              have hreq_lin_at_dir := hdir_lin.choose_spec.right.reqLinearizeAtDir.choose_spec.right
-              cases he_lin_dir with
-              | previousGlobalCacheGotPerms _ he_glin_eq_cdir =>
-                have h_compound_dir := hreq_lin_at_dir.reqCorrespondsToDir
-                have h_herd_dir := (lin e₁).hreq's_dir_access.choose_spec.2
-                have hcle_eq := compound.dirAccessUnique b init e₁ _ _ h_compound_dir h_herd_dir
-                rw [hfc₁] at hcle_eq; rw [he_glin_eq_cdir, hcle_eq]
-              | getGlobalCachePerms _ hglin_deeper =>
-                have hcle_eq := compound.dirAccessUnique b init e₁ _ _
-                  hreq_lin_at_dir.reqCorrespondsToDir (lin e₁).hreq's_dir_access.choose_spec.2
-                have hcle_encap_glin :=
-                  CompoundProtocol.cdir_encap_glin_of_cdir_linearize_at_dir n hreq_lin_at_dir hglin_deeper
-                rw [hfc₁] at hcle_eq; rw [← hcle_eq]
-                exact Nat.le_of_lt hcle_encap_glin.left
-        have helin₂_le : Event.oEnd n (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
-            (compound.linearizationOfEvent b init e₂)).linearizationEvent ≤
-            Event.oEnd n (.directoryEvent de₂) := by
-          match hclin₂ : compound.compoundLinearizationEvent compound.shimAxioms b init e₂
-              (compound.linearizationOfEvent b init e₂) with
-          | .clusterCacheLin _ =>
-            -- Unreachable: non-lazy diff-addr PPOi guarantees clusterDirLin.
-            -- Alternative proof: clusterCacheLin(e₂) means e_lin₂=e₂, and
-            -- the bound e₂.oEnd ≤ de₂.oEnd does NOT hold for orderBeforeDir.
-            -- Needs a different temporal chain for the overall contradiction.
-            sorry
-          | .clusterDirLin hdir₂ =>
-            simp only [ClusterRequestLinearizationEvent.linearizationEvent]
-            have he_lin_dir := hdir₂.choose_spec.right.e_glin_deeper
-            simp [CompoundProtocol.compoundLinearization.OfReqEncapDirAccess] at he_lin_dir
-            split at he_lin_dir
-            · exfalso; exact he_lin_dir
-            · next hcreq_lin hdir_lin _ =>
-              have hreq_lin_at_dir := hdir_lin.choose_spec.right.reqLinearizeAtDir.choose_spec.right
-              cases he_lin_dir with
-              | previousGlobalCacheGotPerms _ he_glin_eq_cdir =>
-                have hcle_eq := compound.dirAccessUnique b init e₂ _ _
-                  hreq_lin_at_dir.reqCorrespondsToDir (lin e₂).hreq's_dir_access.choose_spec.2
-                rw [hfc₂] at hcle_eq; rw [he_glin_eq_cdir, hcle_eq]
-              | getGlobalCachePerms _ hglin_deeper =>
-                have hcle_eq := compound.dirAccessUnique b init e₂ _ _
-                  hreq_lin_at_dir.reqCorrespondsToDir (lin e₂).hreq's_dir_access.choose_spec.2
-                have hcle_encap_glin :=
-                  CompoundProtocol.cdir_encap_glin_of_cdir_linearize_at_dir n hreq_lin_at_dir hglin_deeper
-                rw [hfc₂] at hcle_eq; rw [← hcle_eq]
-                exact Nat.le_of_lt hcle_encap_glin.right
-        exact Nat.lt_irrefl _ (calc Event.oEnd n (.directoryEvent de₂)
-          _ < Event.oStart n (.directoryEvent de₁) := hob
-          _ ≤ Event.oStart n (compound.compoundLinearizationEvent compound.shimAxioms b init e₁
-              (compound.linearizationOfEvent b init e₁)).linearizationEvent := hcle₁_le
-          _ ≤ Event.oEnd n (compound.compoundLinearizationEvent compound.shimAxioms b init e₁
-              (compound.linearizationOfEvent b init e₁)).linearizationEvent :=
-            Nat.le_of_lt (Event.oWellFormed n _)
-          _ < Event.oStart n (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
-              (compound.linearizationOfEvent b init e₂)).linearizationEvent := h_non_lazy
-          _ ≤ Event.oEnd n (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
-              (compound.linearizationOfEvent b init e₂)).linearizationEvent :=
-            Nat.le_of_lt (Event.oWellFormed n _)
-          _ ≤ Event.oEnd n (.directoryEvent de₂) := helin₂_le)
-
-/-- PPOi → StepOrdering. Restricted to diff-addr (same-addr PPOi ordering
-    is subsumed by com edges in cycles). Uses CompoundMCM bridge. -/
-theorem ppoi_step_to_ordering
-    (hppoi : @PPOi n b e₁ e₂)
-    (h_diff_addr : e₁.addr ≠ e₂.addr)
-    (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (h_non_lazy : (compound.compoundLinearizationEvent compound.shimAxioms b init e₁
-      (compound.linearizationOfEvent b init e₁)).linearizationEvent.OrderedBefore n
-      (compound.compoundLinearizationEvent compound.shimAxioms b init e₂
-      (compound.linearizationOfEvent b init e₂)).linearizationEvent)
-    : @StepOrdering n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose :=
-  ppoi_diff_addr_step_ordering hppoi lin h_diff_addr h_non_lazy
-/- Old same-addr PPOi proof (630 lines) removed — same-addr ordering subsumed by com edges.
-   Tagged at v-session11-checkpoint if needed. -/
-/-- Map each PPOi ∪ com step to a StepOrdering between linearization points. -/
+/-- Map a COM edge to a StepOrdering between CLEs.
+    PPOi is handled separately via dir_ordered in compose_three/cmcm_acyclic_of_hknow. -/
 theorem step_to_ordering
-    (h : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₁ e₂)
+    (h : com compound b init e₁ e₂)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
       (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
@@ -1440,10 +1328,6 @@ theorem step_to_ordering
         (compound.linearizationOfEvent b init a₂)).linearizationEvent)
     : @StepOrdering n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose := by
   cases h with
-  | inl hppoi =>
-    exact ppoi_step_to_ordering hppoi.1 hppoi.2 lin (h_non_lazy_ppoi _ _ hppoi.1 hppoi.2)
-  | inr hcom =>
-    cases hcom with
     | rfe h =>
       -- rfe: extract protocol events from readsFrom.cases
       cases h.readsFrom with
@@ -2086,7 +1970,7 @@ private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂
     : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ ∨ l₃.OrderedBefore n l₁ := by
   -- Same-cluster: l₂.prot = l₃.prot → l₁ ≠ l₃ → .obFinishBefore via OB chain
   by_cases he₂₃ : e₂.protocol = e₃.protocol
-  · have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering (.inr hcom_edge) hknow h_non_lazy_ppoi
+  · have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering hcom_edge hknow h_non_lazy_ppoi
     have h₂₃_prot : Event.protocol n l₂ = Event.protocol n l₃ := by
       rw [hl₂, hl₃]
       exact (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
@@ -2113,7 +1997,7 @@ private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂
             -- Case-split on the com edge to access NIW/rf/co structure
             exact Or.inr (Or.inr hob₃₁)
     · -- Diff protocol l₁/l₃: chain p₁ through h₂ to l₃
-      have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering (.inr hcom_edge) hknow h_non_lazy_ppoi
+      have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering hcom_edge hknow h_non_lazy_ppoi
       -- p₁ OB l₂. Chain through h₂ to get p₁ OB l₃ for .obFinishBefore.
       -- stepOrdering_to_three h₂ gives LinLink or eq or diff_prot.
       -- For LinLink: p₁ OB l₂ + LinLink l₂ l₃ → p₁ OB l₃ (by induction on TransGen).
@@ -2237,7 +2121,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
           (hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent)
           (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
       | inr hcom_edge =>
-        rw [heq₁, hl₂, hl₃]; exact Or.inl (step_to_ordering (.inr hcom_edge) hknow h_non_lazy_ppoi)
+        rw [heq₁, hl₂, hl₃]; exact Or.inl (step_to_ordering hcom_edge hknow h_non_lazy_ppoi)
     | inr h_l₂_ob_l₁ =>
       -- l₂ OB l₁ + new edge. dir_ordered(l₁, l₃) resolves both directions:
       -- l₁ OB l₃ → .ob (first alternative)
@@ -2299,7 +2183,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
   | inr hcom_edge =>
     -- All com edges: derive h₂ via step_to_ordering, compose with h₁.
     -- The composition logic is the same for all edge types.
-    have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering (.inr hcom_edge) hknow h_non_lazy_ppoi
+    have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering hcom_edge hknow h_non_lazy_ppoi
     -- Compose hso₁ with h₂. Case-split h₂ for temporal chain.
     cases h₂ with
     | ob hob₂ =>
@@ -2731,7 +2615,7 @@ theorem cmcm_acyclic_of_hknow
           b.orderedAtEntry.dir_ordered
       | inr hcom =>
         -- COM: step_to_ordering gives StepOrdering on CLEs directly.
-        exact Or.inl (step_to_ordering (.inr hcom) hknow h_non_lazy_ppoi)
+        exact Or.inl (step_to_ordering hcom hknow h_non_lazy_ppoi)
   | tail hpath h ih =>
     -- ih : (∃ last edge) ∧ 3-way for prefix (a → b_mid) on CLEs.
     -- h : R b_mid c (current edge).
