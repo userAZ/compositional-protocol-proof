@@ -2051,6 +2051,22 @@ private theorem same_prot_dir_ordered_forward {l₂ l₃ : Event n}
         exfalso; exact step_ordering_same_prot_not_reverse h₂ h_same_prot
           (hfc₂ ▸ h₂_isdir) (hfc₃ ▸ h₃_isdir) hdir hob_rev
 
+/-- For PPOi: dir_ordered on CLEs gives the 3-way result directly.
+    CLE₁ OB CLE₂ → .ob. CLE₂ OB CLE₁ → third alternative (cycle closure handles). -/
+private theorem step_ordering_dir_ordered_3way {l₁ l₂ : Event n}
+    (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    : @StepOrdering n l₁ l₂ ∨ l₁ = l₂ ∨ l₂.OrderedBefore n l₁ := by
+  match l₁, h₁_isdir with
+  | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+  | .directoryEvent de₁, _ =>
+    match l₂, h₂_isdir with
+    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+    | .directoryEvent de₂, _ =>
+      cases (hdir de₁ de₂).ordered with
+      | inl hob => exact Or.inl (.ob hob)
+      | inr hob_rev => exact Or.inr (Or.inr hob_rev)
+
 /-- Handle obFinishBefore h₁ + com edge directly.
     Case-splits on hcom_edge for full protocol evidence instead of going
     through the lossy step_to_ordering → StepOrdering path. -/
@@ -2234,32 +2250,45 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
   -- For each edge type, combine with h₁ (StepOrdering from prefix).
   cases hedge with
   | inl hppoi_edge =>
-    -- PPOi(e₂, e₃): same cache, same protocol. Use same_prot_dir_ordered_forward
-    -- to get l₂ OB l₃ directly (avoids cases on StepOrdering, eliminating non-ob sorry).
-    have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact ppoi_step_to_ordering hppoi_edge.1 hppoi_edge.2 hknow (h_non_lazy_ppoi _ _ hppoi_edge.1 hppoi_edge.2)
-    have h₂₃_prot : l₂.protocol = l₃.protocol := by
-      rw [hl₂, hl₃]; exact (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
-        (hppoi_edge.1.sameProtocol.trans (write_cle_protocol_eq_write_protocol (hknow e₃)).symm)
+    -- PPOi(e₂, e₃): dir_ordered on CLEs gives the 3-way result directly.
+    -- Bypasses ppoi_step_to_ordering and avoids compound linearization matching.
     have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
     have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
-    have hob₂ : l₂.OrderedBefore n l₃ := same_prot_dir_ordered_forward h₂ h₂₃_prot hdir h₂_isdir h₃_isdir
-    -- Now compose with h₁ via OB transitivity (no case-split on h₂ needed).
-    cases hso₁ with
-    | ob hob₁ => exact Or.inl (.ob (Trans.trans hob₁ hob₂))
-    | obEndLt p₁ hob₁ hlt₁ _ =>
-      exact Or.inl (.ob (Trans.trans hob₁ (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
-    | encapOb p₁ henc₁ hob₁ => exact Or.inl (.encapOb p₁ henc₁ (Trans.trans hob₁ hob₂))
-    | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ _ =>
-      exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
-    | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-      exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
-    | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
-      -- obFinishBefore h₁ + ob h₂. PPOi sameProtocol → l₂ = l₃ protocol.
-      -- l₁ ≠ l₂ (hdiff₁) + l₂ = l₃ → l₁ ≠ l₃ → .obFinishBefore.
-      have hprot_diff : l₁.protocol ≠ l₃.protocol := fun h₁₃ => hdiff₁ (h₁₃.trans h₂₃_prot.symm)
-      exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot_diff h_p₁_isdir)
-    | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
-    | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
+    have h₂₃_3way : @StepOrdering n l₂ l₃ ∨ l₂ = l₃ ∨ l₃.OrderedBefore n l₂ := by
+      rw [hl₂, hl₃]; exact step_ordering_dir_ordered_3way
+        ((hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent)
+        ((hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+    cases h₂₃_3way with
+    | inl hso₂ =>
+      -- StepOrdering l₂ l₃: compose with h₁ using OB from same_prot_dir_ordered_forward
+      have h₂₃_prot : l₂.protocol = l₃.protocol := by
+        rw [hl₂, hl₃]; exact (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
+          (hppoi_edge.1.sameProtocol.trans (write_cle_protocol_eq_write_protocol (hknow e₃)).symm)
+      have hob₂ : l₂.OrderedBefore n l₃ := same_prot_dir_ordered_forward hso₂ h₂₃_prot hdir h₂_isdir h₃_isdir
+      cases hso₁ with
+      | ob hob₁ => exact Or.inl (.ob (Trans.trans hob₁ hob₂))
+      | obEndLt p₁ hob₁ hlt₁ _ =>
+        exact Or.inl (.ob (Trans.trans hob₁ (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
+      | encapOb p₁ henc₁ hob₁ => exact Or.inl (.encapOb p₁ henc₁ (Trans.trans hob₁ hob₂))
+      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ _ =>
+        exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
+      | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
+        exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
+      | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
+        have h₂₃_prot : l₂.protocol = l₃.protocol := by
+          rw [hl₂, hl₃]; exact (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
+            (hppoi_edge.1.sameProtocol.trans (write_cle_protocol_eq_write_protocol (hknow e₃)).symm)
+        have hprot_diff : l₁.protocol ≠ l₃.protocol := fun h₁₃ => hdiff₁ (h₁₃.trans h₂₃_prot.symm)
+        exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot_diff h_p₁_isdir)
+      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
+      | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
+    | inr hr₂ => cases hr₂ with
+      | inl heq₂₃ =>
+        -- l₂ = l₃: substitute in h₁
+        exact heq₂₃ ▸ Or.inl hso₁
+      | inr hob_l₃_l₂ =>
+        -- l₃ OB l₂: use dir_ordered on l₁ and l₃ for 3-way output
+        exact step_ordering_dir_ordered_3way h₁_isdir (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
   | inr hcom_edge =>
     -- All com edges: derive h₂ via step_to_ordering, compose with h₁.
     -- The composition logic is the same for all edge types.
@@ -2791,7 +2820,17 @@ theorem cmcm_acyclic_of_hknow
       | inr hob_rev => exact Event.contradiction_of_reflexive_ordered_before n hob_rev
   intro a c hpath
   induction hpath with
-  | single h => exact Or.inl (step_to_ordering h hknow h_non_lazy_ppoi)
+  | single h =>
+    cases h with
+    | inl hppoi =>
+      -- PPOi: dir_ordered on CLEs gives either direction → valid 3-way output.
+      -- Bypasses ppoi_diff_addr_step_ordering entirely.
+      exact step_ordering_dir_ordered_3way
+        ((hknow a).hreq's_dir_access.choose_spec.right.isDirEvent)
+        ((hknow _).hreq's_dir_access.choose_spec.right.isDirEvent)
+        (b.orderedAtEntry.dir_ordered)
+    | inr hcom =>
+      exact Or.inl (step_to_ordering (Or.inr hcom) hknow h_non_lazy_ppoi)
   | tail hpath h ih =>
     -- Extract last prefix edge via TransGen structure.
     cases hpath with
