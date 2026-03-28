@@ -2298,10 +2298,16 @@ private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂
           -- l₂ = l₃ → p₁ OB l₃
           exact Or.inl (.obFinishBefore p₁ (heq ▸ hob₁) hlt₁ hprot h_p₁_isdir)
         | inr hdiff₂ =>
-          -- l₂ ≠ l₃ protocol. h₂ is obFinishBefore-like.
-          -- p₁ OB l₂ doesn't chain to l₃ via diff_prot h₂.
-          -- But: l₁ ≠ l₃ (hprot). Use dir_ordered on p₁ and the h₂ proxies.
-          sorry -- diff-protocol l₁/l₃ with diff-protocol l₂/l₃: rare multi-cluster case
+          -- l₂ ≠ l₃ protocol. dir_ordered(l₁, l₃) resolves via 3-way invariant.
+          match hfc₁ : l₁, h₁_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₁, _ =>
+            match hfc₃ : l₃, h₃_isdir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de₃, _ =>
+              cases (hdir de₁ de₃).ordered with
+              | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
+              | inr hob₃₁ => exact Or.inr (Or.inr hob₃₁)
 
 /-- Compose two StepOrderings (or eq) and extract 3-way disjunction.
     For same-protocol l₁/l₃: dir_ordered → l₁ OB l₃ (LinLink) or l₃ OB l₁ (temporal contradiction).
@@ -2374,33 +2380,19 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     | inl heq₁ =>
       rw [heq₁, hl₂, hl₃]; exact Or.inl (step_to_ordering hedge hknow h_non_lazy_ppoi)
     | inr h_l₂_ob_l₁ =>
-      -- l₂ OB l₁ + new edge. by_cases protocol for output.
+      -- l₂ OB l₁ + new edge. dir_ordered(l₁, l₃) resolves both directions:
+      -- l₁ OB l₃ → .ob (first alternative)
+      -- l₃ OB l₁ → third alternative (resolved at cycle closure)
       have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
-      by_cases hprot : l₁.protocol = l₃.protocol
-      · match hfc₁ : l₁, h₁_isdir with
+      match hfc₁ : l₁, h₁_isdir with
+      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+      | .directoryEvent de₁, _ =>
+        match hfc₃ : l₃, h₃_isdir with
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-        | .directoryEvent de₁, _ =>
-          match hfc₃ : l₃, h₃_isdir with
-          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-          | .directoryEvent de₃, _ =>
-            cases (hdir de₁ de₃).ordered with
-            | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
-            | inr hob₃₁ => exact Or.inr (Or.inr hob₃₁)
-      · -- Diff protocol: l₂ OB l₁ gives l₂.oEnd < l₁.oEnd. l₂ is dir event.
-        -- Use .obFinishBefore with l₂ as proxy if we can get l₂ OB l₃.
-        have h₂ : @StepOrdering n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering hedge hknow h_non_lazy_ppoi
-        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
-        -- stepOrdering_to_three gives LinLink, eq, or diff_prot
-        have h3way := stepOrdering_to_three h₂ hdir h₂_isdir h₃_isdir
-        cases h3way with
-        | inl hlink =>
-          sorry -- l₂ OB l₁ + LinLink l₂ l₃ + diff-protocol l₁/l₃
-        | inr hr => cases hr with
-          | inl heq₂₃ =>
-            -- l₂ = l₃. Then l₃ OB l₁ from l₂ OB l₁.
-            exact Or.inr (Or.inr (heq₂₃ ▸ h_l₂_ob_l₁))
-          | inr hdiff₂₃ =>
-            sorry -- l₂ OB l₁ + diff_prot l₂ l₃ + diff-prot l₁/l₃
+        | .directoryEvent de₃, _ =>
+          cases (hdir de₁ de₃).ordered with
+          | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
+          | inr hob₃₁ => exact Or.inr (Or.inr hob₃₁)
   | inl hso₁ =>
   -- Case-split on hedge (the actual edge) to get edge-specific evidence.
   -- For each edge type, combine with h₁ (StepOrdering from prefix).
@@ -2773,7 +2765,18 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
                       hprot (by simp [Event.isDirectoryEvent]))
                   | inr hl₁p₂ =>
                     exact Or.inl (.ob (Nat.lt_trans (Nat.lt_trans hl₁p₂ dep₂.oWellFormed) hob₂))
-      | _ => sorry -- encapOb/proxyPair + obFinishBefore h₂ (proxies not enriched with isDir)
+      | _ =>
+        -- encapOb/proxyPair/ob + obFinishBefore h₂: dir_ordered(l₁, l₃) via 3-way invariant
+        have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+        match hfc₁ : l₁, h₁_isdir with
+        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+        | .directoryEvent de₁, _ =>
+          match hfc₃ : l₃, h₃_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₃, _ =>
+            cases (hdir de₁ de₃).ordered with
+            | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
+            | inr hob₃₁ => exact Or.inr (Or.inr hob₃₁)
     | sameLin _ _ heq₂ _ _ _ => exact Or.inl (heq₂ ▸ hso₁)
     | eq heq₂ => exact Or.inl (heq₂ ▸ hso₁)
 
