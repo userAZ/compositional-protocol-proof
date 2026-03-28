@@ -2848,18 +2848,31 @@ theorem cmcm_acyclic_of_hknow
       -- PPOi: h_non_lazy directly gives cle(a) OB cle(c) where cle = compound lin event.
       exact Or.inl (.ob (h_non_lazy_ppoi _ _ hppoi.1 hppoi.2))
     | inr hcom =>
-      -- COM: step_to_ordering gives StepOrdering on CLEs. Need to convert to compound lin events.
-      -- TODO: implement CLE-to-compound_lin wrapper
+      -- COM (single edge a→c): step_to_ordering gives StepOrdering on CLEs
+      -- (hknow a).hreq's_dir_access.choose and (hknow c).hreq's_dir_access.choose.
+      -- Need to bridge to compound_lin events (cle a, cle c).
+      -- Bridge depends on compound lin type for each event:
+      --   clusterDirLin + previousGlobalCacheGotPerms: dirAccessUnique gives CLE = compound_lin
+      --   clusterDirLin + getGlobalCachePerms: CLE.Encapsulates compound_lin
+      --   clusterCacheLin: compound_lin = cache event itself (e_creq_is_e_glin)
+      -- For each pair, StepOrdering on CLEs lifts to the 3-way on compound_lins
+      -- via temporal chains through the encapsulation/equality relationships.
       sorry
   | tail hpath h ih =>
-    -- Extract last prefix edge via TransGen structure.
+    -- ih : StepOrdering (cle a) (cle b_mid) ∨ cle a = cle b_mid ∨ (cle b_mid).OB (cle a)
+    -- h : (PPOi ∧ diff_addr ∪ com) b_mid c
+    -- Need: StepOrdering (cle a) (cle c) ∨ cle a = cle c ∨ (cle c).OB (cle a)
+    -- This is compose_three on compound_lin events. The existing compose_three works on CLEs.
+    -- Bridge: convert ih and step_to_ordering(h) from CLE-based to compound_lin-based,
+    -- then compose. Same CLE-to-compound_lin bridge as the single-edge case.
     cases hpath with
     | single h_prefix =>
-      -- Prefix is single edge: h_prefix is the last (and only) prefix edge.
-      -- TODO: compose_three needs to work with compound lin events
+      -- Prefix is single edge a→b_mid, current edge b_mid→c.
+      -- ih from prefix, step_to_ordering from current edge, compose on compound_lins.
       sorry
     | tail hpath' h_prefix =>
-      -- TODO: compose_three needs to work with compound lin events
+      -- Prefix is multi-edge: hpath' is a→...→b_mid', h_prefix is b_mid'→b_mid, h is b_mid→c.
+      -- ih from induction on hpath' ++ h_prefix, compose with current edge h.
       sorry
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
