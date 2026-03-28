@@ -390,7 +390,7 @@ private lemma co_chain_cross_cluster_downgrade
           by rw [show e_w_lin = h_co.w₁_lin from Subsingleton.elim _ _]; exact w.wObRDown,
           by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
           hrd_spec.2.1, hrd_spec.2.2.1, hrd_spec.2.2.2.2.1,
-          isDirWrite_of_rw_eq_write hrd_spec.2.1 hrd_spec.2.2.2.1 h_co.write₂,
+          hrd_spec.2.2.2.1,
           ⟨_, h_co.in_b₂, h_co.cache₂, h_co.write₂, h_co.notDown₂,
            fun h => h_diff_prot (show e_w.sameProtocol n _ from h.symm),
            by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.2.2.2.2.1⟩⟩
@@ -406,7 +406,7 @@ private lemma co_chain_cross_cluster_downgrade
           by rw [show e_w_lin = h_co.w₁_lin from Subsingleton.elim _ _]; exact evict.wObRDown,
           by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_lt,
           hrd_spec.2.1, hrd_spec.2.2.1, hrd_spec.2.2.2.2.1,
-          isDirWrite_of_rw_eq_write hrd_spec.2.1 hrd_spec.2.2.2.1 h_co.write₂,
+          hrd_spec.2.2.2.1,
           ⟨_, h_co.in_b₂, h_co.cache₂, h_co.write₂, h_co.notDown₂,
            fun h => h_diff_prot (show e_w.sameProtocol n _ from h.symm),
            by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.2.2.2.2.1⟩⟩
@@ -452,7 +452,7 @@ private lemma co_chain_cross_cluster_downgrade
             hrd_spec.2.2.1.trans (show b_mid.protocol = e_w.protocol from
               (show e_w.protocol = b_mid.protocol from h_mid_prot).symm),
             hrd_spec.2.2.2.2.1,
-            isDirWrite_of_rw_eq_write hrd_spec.2.1 hrd_spec.2.2.2.1 h_last.write₂,
+            hrd_spec.2.2.2.1,
             ⟨c_ep, h_last.in_b₂, h_last.cache₂, h_last.write₂, h_last.notDown₂,
              fun h => h_diff_prot (show e_w.sameProtocol n c_ep from h.symm),
              by rw [show lin c_ep = h_last.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.2.2.2.2.1⟩⟩
@@ -473,7 +473,7 @@ private lemma co_chain_cross_cluster_downgrade
             hrd_spec.2.2.1.trans (show b_mid.protocol = e_w.protocol from
               (show e_w.protocol = b_mid.protocol from h_mid_prot).symm),
             hrd_spec.2.2.2.2.1,
-            isDirWrite_of_rw_eq_write hrd_spec.2.1 hrd_spec.2.2.2.1 h_last.write₂,
+            hrd_spec.2.2.2.1,
             ⟨c_ep, h_last.in_b₂, h_last.cache₂, h_last.write₂, h_last.notDown₂,
              fun h => h_diff_prot (show e_w.sameProtocol n c_ep from h.symm),
              by rw [show lin c_ep = h_last.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.2.2.2.2.1⟩⟩

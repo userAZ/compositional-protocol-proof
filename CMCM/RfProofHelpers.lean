@@ -3342,10 +3342,12 @@ lemma diffCache_coherent_encapProxyAndDir
         exact hnonempty.some.prop.2.finishBefore.finBefore.endBefore
     exact Nat.lt_trans h_dir_lt_gcache h_gcache_lt_cle
   -- Use gcacheEncap: the canonical ClusterToGlobal gcache event encapsulates the directory downgrade
+  -- Extract isDirWrite, ¬e_dir.down, and clusterDirFromDiffProtocolRequest from the shim.
+  have ⟨h_dir_isDirWrite, h_dir_not_down, h_dir_translated⟩ : e_dir.isDirWrite ∧ ¬ e_dir.down ∧
+      Event.clusterDirFromDiffProtocolRequest b init e_r e_dir hr_c_and_g_lin := by
+    sorry -- TODO: extract from GlobalToCluster shim cases (sameDown + correspondingDirectoryEvent)
   exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
-    sorry, -- e_dir.req.val.rw = e_r.req.val.rw: from shim translation
-    sorry, -- ¬ e_dir.down: from shim sameDown + translateProxyEvent False
-    sorry, -- clusterDirFromDiffProtocolRequest: from shim correspondingDirectoryEvent
+    h_dir_isDirWrite, h_dir_not_down, h_dir_translated,
     Behaviour.clusterDown.encapDirRelation.gcacheEncap
       h_gcache_encap_dir h_dir_end_before_cle⟩ }
 
