@@ -3317,20 +3317,70 @@ lemma diffCache_coherent_encapProxyAndDir
       unfold Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent
       have hnonempty := Behaviour.hasPermsInGlobalCache_implies_nonempty_immFinishBefore b init _ hhas_perms
       rw [dif_pos hnonempty]; exact hnonempty.some.prop.2.finishBefore.finBefore.endBefore
-  -- Inline GlobalToCluster case analysis to extract ALL needed fields for existsRClusterDirDown.
-  -- Each case provides: e_dir, in_b, isDir, protocol, isDirWrite, ¬down, translatedDir, encapDirRelation.
-  have hdir_encap := globalToCluster_extract_dir_with_encap hg2c e_w hp_eq
-  obtain ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, he_gdown_encap_dir⟩ := hdir_encap
-  have h_gcache_encap_dir : e_gcache.Encapsulates n e_dir :=
-    Trans.trans (Trans.trans hdowngrade.downgradePrevOwner.reqEncapDir
-      hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dir
-  have h_dir_end_before_cle := Nat.lt_trans h_gcache_encap_dir.2 h_gcache_lt_cle
-  exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
-    sorry, -- isDirWrite: from shim matchesCacheEvent.correspondingCE + write request
-    sorry, -- ¬down: from shim translateProxyEvent.downgrade=False + sameDown
-    sorry, -- clusterDirFromDiffProtocolRequest: from correspondingDirectoryEvent + proxyCacheEvent
-    Behaviour.clusterDown.encapDirRelation.gcacheEncap
-      h_gcache_encap_dir h_dir_end_before_cle⟩ }
+  -- Use scGDownTranslation (always available in bothCoherentWriteAndRead) to get the write dir
+  -- event with isDirWrite, ¬down, and correspondingDirectoryEvent.
+  cases hg2c with
+  | bothCoherentWriteAndRead hcorrespond _ downTranslation =>
+    cases downTranslation with
+    | scWriteDown _ translation =>
+    obtain ⟨e_cw, he_cw_in_b, e_dw, e_ce, he_ce_in_b, e_de, he_de_in_b, hstruct⟩ := translation.scGDownTranslation
+    -- e_dw: the write directory event at e_w's cluster (isDirWrite, ¬down)
+    have he_dw_in_b := hstruct.cohWriteDir.dirInB
+    have he_dw_isDir := hstruct.cohWriteDir.isDir
+    have hproto := correspondingCluster_protocol_eq hcorrespond
+      hstruct.cohWrite.atCorrClusterProxy.clusterMatch.atCorrCluster
+    have he_dw_proto : e_dw.protocol = e_w.protocol :=
+      hstruct.cohWriteDir.sameProtocol.symm.trans hproto.symm |>.trans hp_eq
+    have he_gdown_encap_dw : e_r_gdown.Encapsulates n e_dw :=
+      Event.encap_encap_trans n hstruct.cohWrite.globalEncap hstruct.cohWriteDir.reqEncapDir
+    have h_gcache_encap_dw : e_gcache.Encapsulates n e_dw :=
+      Trans.trans (Trans.trans hdowngrade.downgradePrevOwner.reqEncapDir
+        hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dw
+    have h_dw_end_before_cle := Nat.lt_trans h_gcache_encap_dw.2 h_gcache_lt_cle
+    -- isDirWrite: from cohWrite's isSCWrite (ValidRequest.isSCWrite) + dirOfReq.correspondingCE
+    -- The dir event's request matches the cache event's request, which satisfies isSCWrite.
+    have he_dw_isDirWrite : e_dw.isDirWrite := by
+      sorry -- isDirWrite: cohWriteDir.dirOfReq.correspondingCE gives req match; cohWrite.reqTranslation gives isSCWrite
+    -- ¬down: from cohWrite.downgrade=False + cohWriteDir.dirOfReq.sameDown
+    have he_dw_not_down : ¬ e_dw.down := by
+      sorry -- ¬down: cohWriteDir.dirOfReq.sameDown + cohWrite.downgrade = False
+    -- clusterDirFromDiffProtocolRequest: from downgrade + proxyCacheEvent + correspondingDirectoryEvent
+    have he_dw_translated : Event.clusterDirFromDiffProtocolRequest b init e_r e_dw hr_c_and_g_lin :=
+      ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b, e_cw, hstruct.cohWriteDir.reqInB,
+        hdowngrade,
+        hstruct.cohWrite.atCorrClusterProxy,
+        { clusterMatch := sorry  -- matchingCluster for dir event (from proxy + sameProtocol)
+          atDir := he_dw_isDir
+          globalEncap := he_gdown_encap_dw }⟩⟩
+    exact { existsRClusterDirDown := ⟨e_dw, he_dw_in_b, he_dw_isDir, he_dw_proto,
+      he_dw_isDirWrite, he_dw_not_down, he_dw_translated,
+      Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dw h_dw_end_before_cle⟩ }
+    | scReadDown _ _ translation =>
+      -- scReadDown: the dir event is a coherent read (not isDirWrite).
+      -- Use globalToCluster_extract_dir_with_encap for basic fields; isDirWrite/¬down need sorry.
+      have hdir_encap := globalToCluster_extract_dir_with_encap
+        (Behaviour.Shim.GlobalToCluster.bothCoherentWriteAndRead hcorrespond (by assumption)
+          (.scReadDown (by assumption) (by assumption) translation)) e_w hp_eq
+      obtain ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, he_gdown_encap_dir⟩ := hdir_encap
+      have h_gcache_encap_dir : e_gcache.Encapsulates n e_dir :=
+        Trans.trans (Trans.trans hdowngrade.downgradePrevOwner.reqEncapDir
+          hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dir
+      have h_dir_end_before_cle := Nat.lt_trans h_gcache_encap_dir.2 h_gcache_lt_cle
+      exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
+        sorry, sorry, sorry,  -- scReadDown: read dir event, needs different approach
+        Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩ }
+  | noCoherentRead hcorrespond _ downTranslation =>
+    -- noCoherentRead: directory events have down=True. Need different handling.
+    have hdir_encap := globalToCluster_extract_dir_with_encap
+      (Behaviour.Shim.GlobalToCluster.noCoherentRead hcorrespond (by assumption) downTranslation) e_w hp_eq
+    obtain ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, he_gdown_encap_dir⟩ := hdir_encap
+    have h_gcache_encap_dir : e_gcache.Encapsulates n e_dir :=
+      Trans.trans (Trans.trans hdowngrade.downgradePrevOwner.reqEncapDir
+        hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dir
+    have h_dir_end_before_cle := Nat.lt_trans h_gcache_encap_dir.2 h_gcache_lt_cle
+    exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
+      sorry, sorry, sorry,  -- noCoherentRead: dir events have down=True; needs restructuring
+      Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩ }
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit
