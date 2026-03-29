@@ -48,8 +48,12 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **Dead code**: CLE-to-compound_lin bridge removed. `ppoi_diff_addr_step_ordering` deleted.
 
 ### TODO
-1. **RfProofHelpers** (2 sorry-using declarations, 7 sorry's): `diffCache_coherent_encapProxyAndDir` (scReadDown isDirWrite/translatedDir, noCoherentRead isDirWrite/translatedDir), `cdirEncapsDown_exists` (cWriteOnMR, scReadDown evict, noCoherentRead). These need case-specific shim extraction that `globalToCluster_extract_dir_with_encap` loses.
-2. **Named structures**: Replace `.2.2.2.1.2` tuple access patterns in `existsRClusterDirDown`, `co_chain_cross_cluster_downgrade` return types, and similar with named structure fields for readability and maintainability.
+1. **RfProofHelpers** (2 sorry-using declarations, 5 live sorry's):
+   - **isDirMatchingRW** (scReadDown + noCoherentRead): needs `GCR.req.val.rw = e_r.req.val.rw` lemma (GCR preserves rw through ClusterToGlobal shim)
+   - **translatedDir** (noCoherentRead): `clusterDirFromDiffProtocolRequest` requires `proxyCacheEvent` but noCoherentRead has no proxy events. Needs def change.
+   - **scReadDown evict** + **noCoherentRead** in cdirEncapsDown: need evict dir event from cluster protocol axiom
+2. **Named structures**: Replace `.2.2.2.1.2` tuple access patterns with named structure fields.
+3. **Sub-lemma extraction**: Continue decomposing large theorems (799-line `noInterveningWrites_diffCache_sameProtocol_case` is highest priority).
 
 ### Lessons learned (BE INTROSPECTIVE!)
 - **Don't guess constructors.** Each new StepOrdering constructor multiplies case analysis. Use edge data instead.
