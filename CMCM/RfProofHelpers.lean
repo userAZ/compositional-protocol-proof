@@ -3858,19 +3858,22 @@ lemma cdirEncapsDown_exists
              hdowngrade,
              hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache⟩⟩⟩⟩
       | onDirVd hdirVd htrans =>
-        -- onDirVd vacuous via nonCohReqDowngrades (Axiom 12):
-        -- Extract the phantom cache event from the wrapper (e_shim_acq ∈ b).
-        -- Apply Axiom 12 to e_shim_acq + e_dir_shim_vd_down.
-        -- Axiom 12 gives reqDirOnSW: dir state before e_dir = SW.
-        -- But hdirVd says dir state = Vd. SW ≠ Vd → contradiction.
+        -- onDirVd vacuous: Axiom 12 says dir state = SW, but hdirVd says Vd.
         obtain ⟨e_shim_acq, he_acq_in_b, _, _, e_dir_vd, hvd_in_b, hstruct⟩ := htrans
         exfalso
-        -- Apply nonCohReqDowngrades (Axiom 12) to the translated cache+dir events
+        -- Axiom 12 gives dir state before e_dir_vd = SW
         have hncAxiom := (e_w.getProtocol cmp).reqAxioms.nonCohReqDowngrades b init
           e_shim_acq he_acq_in_b e_dir_vd hvd_in_b
-        -- Axiom 12 asserts reqDirOnSW: directory state before e_dir_vd = SW
-        have hdir_sw := hncAxiom.reqDirOnSW
-        -- But hdirVd says clusterDirStateBefore = Vd
-        -- Need to connect: stateBefore(e_dir_vd).state = latestDirectoryState.Before.GlobalCache.state
-        -- They should agree since e_dir_vd is the first dir event inside e_r_gdown.
-        sorry -- TODO: connect reqDirOnSW (SW) with hdirVd (Vd) → SW = Vd contradiction
+        have hdir_sw := hncAxiom.reqDirOnSW  -- (b.stateBefore ...).state = SW
+        -- hdirVd: (latestDirectoryState.Before.GlobalCache ...).state = Vd
+        -- Bridge: these compute the same dir state.
+        -- Pattern from Lemma 6: use cluster_dir_vd_downgrade_event_immediately_finish_before_of_global_write_downgrade'
+        -- to establish e_dir_vd immediately finishes before e_r_gdown, then
+        -- event_immediate_finish_before_gdown_singleton' to collapse to singleton,
+        -- then stateOfSubsingletonEventSet to extract state = stateAfter(latest_non_encap_dir).
+        -- Since e_dir_vd is the only dir event inside e_r_gdown (onlyVdDir), and it's encapsulated,
+        -- the latest non-encap dir event determines latestDirectoryState.Before.GlobalCache.
+        -- The state before e_dir_vd = state after the latest non-encap dir event.
+        -- Combined: SW = Vd → contradiction.
+        -- TODO: write bridge lemma following Lemma 6 pattern (lines 2112-2175 of Lemma6GlobalWriteDowngrade.lean)
+        sorry
