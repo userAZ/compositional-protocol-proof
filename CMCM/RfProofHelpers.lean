@@ -3520,56 +3520,9 @@ lemma diffCache_coherent_encapProxyAndDir
             · next h => rw [hreqTrans] at h; simp at h
             · simp only [Event.reqToDirOfRequestEvent, Event.req, he_cr_m, Event.down]
               rw [hreqTrans]
-      -- isDirMatchingRW: de_dr.req.val.rw = e_r.req.val.rw
-      -- The dir event's rw matches the read proxy's rw (from reqToDirOfRequestEvent default).
-      -- The read proxy's rw matches e_r's rw (both reads in the RF relation).
-      -- isDirMatchingRW: e_dr.rw = CLE.rw. Both derived from the same global downgrade chain.
-      -- e_dr.rw = .r (from isDirRead, proved above).
-      -- CLE.rw: from matchingOp (GCR.rw = CLE.rw) + isCoherentRead (GCR.rw = .r) → CLE.rw = .r.
-      -- isDirMatchingRW = (.r = .r) = rfl.
-      have he_dr_matchingRW : e_dr.isDirMatchingRW n hr_c_and_g_lin.hreq's_dir_access.choose := by
-        -- e_dr.rw = .r (from isDirRead). CLE.rw = .r (from matchingOp + isCoherentRead).
-        -- Case-split ClusterToGlobal to get matchingOp for CLE.rw.
-        let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
-        let hcdir_is_dir := hr_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
-        -- Re-derive global axiom for isCoherentRead
-        let e_r_cle_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
-            (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)
-        have he_gcache_in_b : e_r_cle_gcache ∈ b :=
-          Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB cmp b init hr_c_and_g_lin.hreq's_dir_access
-        let e_r_gle := hr_c_and_g_lin.hreq's_global_lin.choose
-        have he_gle_in_b : e_r_gle ∈ b := hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
-        have haxiom_g := cmp.global.reqAxioms.coherentReadDowngrades b init
-          e_r_cle_gcache he_gcache_in_b e_r_gle he_gle_in_b
-        have hgcr_read := haxiom_g.reqCoherentRead.2  -- GCR.req.val.isRead (= rw = .r)
-        -- matchingOp connects GCR.rw to CLE.rw
-        match hshim : cmp.shimAxioms.clusterToGlobal b init e_r_cle hcdir_is_dir with
-        | .encapGlobalCache _ hgreq_spec =>
-          have hmatch := hgreq_spec.choose_spec.right.gReqOfCDir.matchingOp
-          -- GCR.rw = CLE.rw (from matchingOp). GCR.rw = .r (from isCoherentRead).
-          have h_cle_rw : e_r_cle.req.val.rw = ReadWrite.r := by
-            have : e_r_cle_gcache.req.val.rw = e_r_cle.req.val.rw := by
-              show (Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init e_r_cle hcdir_is_dir).req.val.rw = _
-              unfold Behaviour.Shim.ClusterToGlobal.cDir'sGReq; rw [hshim]
-              exact congrArg (·.val.rw) hmatch
-            rw [← this]; exact hgcr_read
-          -- Both e_dr.rw and CLE.rw are .r → isDirMatchingRW
-          -- isDirMatchingRW for (.directoryEvent de, e) = de.req.val.rw = e.req.val.rw
-          -- he_dr_isDirRead : de_dr.req.val.rw = .r (after isDirRead unfolding)
-          -- h_cle_rw : e_r_cle.req.val.rw = .r
-          -- Goal: e_dr.isDirMatchingRW n e_r_cle
-          show e_dr.isDirMatchingRW n e_r_cle
-          unfold Event.isDirMatchingRW
-          split
-          · simp [Event.isDirectoryEvent] at he_dr_isDir
-          · rename_i de_dr
-            simp only [Event.isDirRead, Request.isRead] at he_dr_isDirRead
-            rw [he_dr_isDirRead, h_cle_rw]
-        | .noGlobalCache _ _ =>
-          -- TODO: noGlobalCache isDirMatchingRW — need CLE.rw from orderBeforeDir/orderAfterDir case
-          sorry
+      -- isDirDownRW: e_dr is a read dir event (coherent read downgrade).
       exact { existsRClusterDirDown := ⟨e_dr, he_dr_in_b, he_dr_isDir, he_dr_proto,
-        he_dr_matchingRW,
+        .readDown he_dr_isDirRead,
         he_dr_translated,
         Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dr h_dr_end_before_cle⟩ }
   | noCoherentRead hcorrespond _ downTranslation =>
@@ -3600,8 +3553,18 @@ lemma diffCache_coherent_encapProxyAndDir
                   (simp [Event.protocol] at h1 ⊢; rw [← he_dir_proto, ← hp_eq]; exact h1) }
           atDir := he_dir_isDir
           globalEncap := he_gdown_encap_dir }⟩⟩
-    -- TODO: noCoherentRead isDirMatchingRW — need CLE.rw from translateDirectoryEvent sub-cases
-    sorry
+    -- isDirDownRW: case-split on dir event's rw. Either isDirRead or isDirWrite.
+    have he_dir_downRW : e_dir.isDirDownRW := by
+      match he_dir_m : e_dir, he_dir_isDir with
+      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+      | .directoryEvent de, _ =>
+        cases hrw : de.req.val.rw with
+        | r => exact .readDown (by simp [Event.isDirRead, Request.isRead, hrw])
+        | w => exact .writeDown (by simp [Event.isDirWrite, Request.isWrite, hrw])
+    exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
+      he_dir_downRW,
+      he_dir_translated,
+      Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩ }
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit
@@ -3911,8 +3874,11 @@ lemma cdirEncapsDown_exists
           ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b,
             hdowngrade,
             hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache⟩⟩
-        -- TODO: need cache downgrade encapsulated by e_dir_vd.
-        -- e_dir_vd is isNcWeakWrite with down=True (Vd writeback dir).
-        -- Protocol: the Vd writeback dir encapsulates a cache writeback event.
-        -- Need axiom or structure that gives the cache event inside the dir event.
+        -- onDirVd is vacuous: e_w has ¬down (hw_not_down), so its dirAccessOfRequest
+        -- is orderBeforeDir (has coherent perms from predecessor). The predecessor's
+        -- coherent request established dir state with c=true. Between predecessor and
+        -- global downgrade, no event downgraded → dir stays c=true. But Vd has c=false.
+        -- Proof: hw_c_and_g_lin.hreq's_dir_access → orderBeforeDir → predecessor
+        -- established coherent dir → hdirVd (Vd, c=false) contradicts c=true.
+        -- TODO: implement orderBeforeDir → clusterDirStateBefore ≠ Vd bridge
         sorry

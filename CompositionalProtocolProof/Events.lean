@@ -375,6 +375,18 @@ def Event.isDirMatchingRW : Event n → Event n → Prop
 | .cacheEvent _ , _ => False
 | .directoryEvent de, e => de.req.val.rw = e.req.val.rw
 
+/-- The cluster directory downgrade event's rw matches protocol shim cases:
+    - `readDown`: coherent read downgrade or non-coherent read (e.g., Vc invalidate).
+      The dir event is a read (.r). Arises from bothCoherentWriteAndRead.scReadDown
+      or noCoherentRead with read-type dir event.
+    - `writeDown`: Vd writeback (isNcWeakWrite). The dir event is a write (.w).
+      Arises from noCoherentRead when dir was on Vd state — the shim translates
+      a global read downgrade into a Vd writeback at the cluster directory.
+    Write ≥ Read in permissions, so writeDown subsumes any read reference. -/
+inductive Event.isDirDownRW : Event n → Prop
+| readDown (h : e.isDirRead) : Event.isDirDownRW e
+| writeDown (h : e.isDirWrite) : Event.isDirDownRW e
+
 -- def CacheEvent.requestEvent (e : CacheEvent) : Prop := e.cid = e.rid
 -- def CacheEvent.sameAddress (e : CacheEvent) : Prop := e.cid = e.rid
 
