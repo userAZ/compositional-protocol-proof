@@ -3596,14 +3596,31 @@ private lemma orderBeforeDir_clusterDirState_ne_Vd
     (hdowngrade : Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init
         hr_c_and_g_lin e_r_gdown e_r_grant)
     (hmade_on_sw : b.cacheStateMadeOn n init e_r_gdown = SW)
+    -- Temporal: e_w's CLE is before e_r_gdown (from the CO/FR ordering)
+    (hw_cle_lt_gdown : hw_c_and_g_lin.hreq's_dir_access.choose.oEnd < e_r_gdown.oEnd)
     : ¬ Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_r_gdown Vd := by
   intro hdirVd
   unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
-  -- hdirVd: (latestDirectoryState.Before.GlobalCache ...).state = Vd
-  -- Need: show latestDirectoryState.Before.GlobalCache.state ≠ Vd
-  -- because the CLE (predecessor's dir event) left the directory at coherent state,
-  -- and no dir event between CLE and e_r_gdown could have changed it to Vd
-  -- (any such event would downgrade e_w's cache, contradicting hinter_state or hmade_on_sw).
+  -- Step 1: e_w's CLE (= predecessor's dir event) left the directory at coherent state.
+  -- The predecessor's dir event is hpred_dir. It's at e_w's cluster.
+  -- After it processes, the directory should be at a coherent state (from the predecessor
+  -- having coherent perms → the dir event establishes SW).
+  --
+  -- Step 2: No dir event between CLE and e_r_gdown changed the dir to Vd.
+  -- Between CLE and e_w: hinter_state ensures cache ≥ SW. Any dir event that
+  -- accesses the directory on SW would trigger a downgrade to the cache owner,
+  -- lowering the cache below SW → contradicts hinter_state.
+  -- Between e_w and e_r_gdown: hmade_on_sw (global cache = SW) means the cluster
+  -- still has global coherent perms. A non-coherent dir event that changes dir to Vd
+  -- would require downgrading the current owner, which would propagate to the global
+  -- level (through the ClusterToGlobal shim), lowering the global cache below SW.
+  -- But hmade_on_sw says it's still SW → contradiction.
+  --
+  -- Step 3: CLE is the latest non-encapped dir event before e_r_gdown.
+  -- From hw_cle_lt_gdown: CLE.oEnd < e_r_gdown.oEnd.
+  -- CLE is not encapsulated by e_r_gdown (CLE is e_w's dir access, not from the shim).
+  -- No later dir event exists (from Step 2).
+  -- Therefore latestDirectoryState.Before.GlobalCache = stateAfter(CLE) = coherent ≠ Vd.
   sorry
 
 /-- Helper: In encapDir, e_w's own dir event establishes coherent state at the directory.
@@ -3625,11 +3642,12 @@ private lemma encapDir_clusterDirState_ne_Vd
     (hdowngrade : Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init
         hr_c_and_g_lin e_r_gdown e_r_grant)
     (hmade_on_sw : b.cacheStateMadeOn n init e_r_gdown = SW)
+    (hw_cle_lt_gdown : hw_c_and_g_lin.hreq's_dir_access.choose.oEnd < e_r_gdown.oEnd)
     : ¬ Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_r_gdown Vd := by
   intro hdirVd
   unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
-  -- e_w encapsulates its dir event (CLE). The CLE establishes coherent state at the directory.
-  -- Between the CLE and e_r_gdown: same argument as orderBeforeDir.
+  -- e_w encapsulates its dir event (CLE). The CLE establishes coherent state.
+  -- Same argument as orderBeforeDir: no intervening dir access → dir ≠ Vd.
   sorry
 
 /-- Helper: orderAfterDir with hmade_on_sw → contradiction.
@@ -3650,12 +3668,15 @@ private lemma orderAfterDir_clusterDirState_ne_Vd
     (hdowngrade : Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init
         hr_c_and_g_lin e_r_gdown e_r_grant)
     (hmade_on_sw : b.cacheStateMadeOn n init e_r_gdown = SW)
+    (hw_cle_lt_gdown : hw_c_and_g_lin.hreq's_dir_access.choose.oEnd < e_r_gdown.oEnd)
     : ¬ Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_r_gdown Vd := by
   intro hdirVd
   unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
   -- e_w is NC weak on Vd. The cache is on Vd state (non-coherent).
   -- hmade_on_sw says global cache = SW (coherent).
-  -- Need: derive that the cluster directory can't be Vd when global is coherent.
+  -- hw_cle_lt_gdown: e_w's CLE finishes before e_r_gdown.
+  -- The CLE (from orderAfterDir) is the SUCCESSOR's dir event.
+  -- Need: derive contradiction — NC weak on Vd + global SW + hdirVd = Vd.
   sorry
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
@@ -3955,18 +3976,37 @@ lemma cdirEncapsDown_exists
         -- Proof: case-split on e_w's dirAccessOfRequest to derive dir = SW,
         -- then contradict with hdirVd (Vd).
         exfalso
+        -- Derive temporal: e_w's CLE.oEnd < e_r_gdown.oEnd
+        -- From shim: e_r_gdown encapsulates e_dir_vd (Vd writeback dir from htrans).
+        -- e_w's CLE and e_dir_vd are both dir events at e_w's cluster.
+        -- dir_ordered gives their ordering. CLE before e_dir_vd (protocol order).
+        obtain ⟨_, _, _, _, e_dir_vd_temp, _, hstruct_temp⟩ := htrans
+        have hgdown_encap_vd := hstruct_temp.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap
+        -- e_dir_vd_temp.oEnd < e_r_gdown.oEnd (from encapsulation)
+        have hvd_lt_gdown := hgdown_encap_vd.2  -- e_dir_vd_temp.oEnd < e_r_gdown.oEnd
+        -- CLE.oEnd < e_r_gdown.oEnd: via gcache_encap_dir_chain
+        have he_gdown_encap_vd' : e_r_gdown.Encapsulates n e_dir_vd_temp := hgdown_encap_vd
+        have hw_cle_lt_gdown : hw_c_and_g_lin.hreq's_dir_access.choose.oEnd < e_r_gdown.oEnd := by
+          have h_gcache_encap := gcache_encap_dir_chain hr_c_and_g_lin hdowngrade he_gdown_encap_vd'
+          -- e_gcache encaps e_dir_vd_temp. e_gcache.oEnd < e_r's CLE.oEnd.
+          -- But need e_w's CLE.oEnd < e_r_gdown.oEnd.
+          -- From gcache_oEnd_lt_cle: e_gcache.oEnd < e_r's CLE.oEnd
+          -- e_dir_vd_temp.oEnd < e_gcache.oEnd (from h_gcache_encap)
+          -- e_dir_vd_temp.oEnd < e_r_gdown.oEnd (from hgdown_encap_vd)
+          -- e_w's CLE: use dir_ordered with e_dir_vd_temp
+          sorry -- TODO: derive from dir_ordered + temporal chain
         have hda_w := hw_c_and_g_lin.hreq's_dir_access.choose_spec.2
         cases hda_w with
         | encapDir hreq_missing hencap =>
           exact encapDir_clusterDirState_ne_Vd hw_c_and_g_lin hr_c_and_g_lin
             hw_not_down hw_cluster hw_in_b hreq_missing hencap
-            he_r_gdown_in_b hdowngrade hmade_on_sw hdirVd
+            he_r_gdown_in_b hdowngrade hmade_on_sw hw_cle_lt_gdown hdirVd
         | orderBeforeDir hreq_has_perms hexists_pred hpred_dir hinter_state hpred_proto hnot_down' hpred_leaves hpred_not_down =>
           exact orderBeforeDir_clusterDirState_ne_Vd hw_c_and_g_lin hr_c_and_g_lin
             hw_not_down hw_cluster hw_in_b
             hreq_has_perms hexists_pred hpred_dir hinter_state hpred_proto hpred_not_down
-            he_r_gdown_in_b hdowngrade hmade_on_sw hdirVd
+            he_r_gdown_in_b hdowngrade hmade_on_sw hw_cle_lt_gdown hdirVd
         | orderAfterDir hweak_on_vd _ _ _ =>
           exact orderAfterDir_clusterDirState_ne_Vd hw_c_and_g_lin hr_c_and_g_lin
             hw_not_down hw_cluster hw_in_b hweak_on_vd
-            he_r_gdown_in_b hdowngrade hmade_on_sw hdirVd
+            he_r_gdown_in_b hdowngrade hmade_on_sw hw_cle_lt_gdown hdirVd
