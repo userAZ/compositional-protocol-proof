@@ -532,7 +532,7 @@ structure CacheEvent.downgradeOfReqToCache (e_req e_down : CacheEvent n) (destin
 structure Event.encapGrantAfterDirEvent (e_req e_dir e_grant : Event n) : Prop where
   requestEncapGrant : e_req.Encapsulates n e_grant
   grantOfRequest : e_dir.grantToRequester n e_req e_grant
-  grantEndsRequest : e_grant.oEnd = (e_req.oEnd + 1)
+  grantEndsRequest : (e_grant.oEnd + 1) = e_req.oEnd
   dirBeforeGrant : e_dir.OrderedBefore n e_grant
 
 structure Event.fwdMRDowngradeEventOrdering (e_req e_dir e_down e_grant : Event n) : Prop where

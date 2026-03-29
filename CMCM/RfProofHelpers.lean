@@ -3566,12 +3566,8 @@ lemma diffCache_coherent_encapProxyAndDir
             simp only [Event.isDirRead, Request.isRead] at he_dr_isDirRead
             rw [he_dr_isDirRead, h_cle_rw]
         | .noGlobalCache _ _ =>
-          -- Vacuous: hdowngrade.grantRels is unsatisfiable
-          -- (requestEncapGrant.2 vs grantEndsRequest → oEnd+1 < oEnd).
-          exfalso
-          have h1 := hdowngrade.grantRels.requestEncapGrant.2
-          have h2 := hdowngrade.grantRels.grantEndsRequest
-          simp only [h2] at h1; exact absurd (Nat.le_of_lt h1) (Nat.not_succ_le_self _)
+          -- TODO: noGlobalCache isDirMatchingRW — need CLE.rw from orderBeforeDir/orderAfterDir case
+          sorry
       exact { existsRClusterDirDown := ⟨e_dr, he_dr_in_b, he_dr_isDir, he_dr_proto,
         he_dr_matchingRW,
         he_dr_translated,
@@ -3604,11 +3600,8 @@ lemma diffCache_coherent_encapProxyAndDir
                   (simp [Event.protocol] at h1 ⊢; rw [← he_dir_proto, ← hp_eq]; exact h1) }
           atDir := he_dir_isDir
           globalEncap := he_gdown_encap_dir }⟩⟩
-    -- Vacuous: hdowngrade.grantRels is unsatisfiable
-    exfalso
-    have h1 := hdowngrade.grantRels.requestEncapGrant.2
-    have h2 := hdowngrade.grantRels.grantEndsRequest
-    simp only [h2] at h1; exact absurd (Nat.le_of_lt h1) (Nat.not_succ_le_self _)
+    -- TODO: noCoherentRead isDirMatchingRW — need CLE.rw from translateDirectoryEvent sub-cases
+    sorry
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit
@@ -3809,17 +3802,10 @@ lemma cdirEncapsDown_exists
           | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
         exact ⟨e_dr, he_dr_in_b, he_dr_isDir, he_dr_proto, h_dr_end_before_cle,
           ⟨e_down, he_down_in_b, hencap, hdown_is_down, h_dpow.downgradePrevOwner.downAtCache⟩,
-          by
-          -- grantRels is unsatisfiable: requestEncapGrant gives e_grant.oEnd < e_cr.oEnd,
-          -- but grantEndsRequest gives e_grant.oEnd = e_cr.oEnd + 1. Contradiction.
-          exfalso
-          have h1 := h_dpow.grantRels.requestEncapGrant.2  -- e_grant.oEnd < e_cr.oEnd
-          have h2 := h_dpow.grantRels.grantEndsRequest      -- e_grant.oEnd = e_cr.oEnd + 1
-          -- h1 : Event.oEnd n e_grant < Event.oEnd n e_cr
-          -- h2 : Event.oEnd n e_grant = Event.oEnd n e_cr + 1
-          -- Combined: e_cr.oEnd + 1 < e_cr.oEnd → contradiction
-          simp only [h2] at h1; exact absurd (Nat.le_of_lt h1) (Nat.not_succ_le_self _)
-          ⟩
+          -- TODO: scReadDown.cReadOnSW evict — need 2nd dir event from coherentReadDowngrades.
+          -- h_dpow has downgradePrevOwner (cache downgrade) + grantRels (grant after dir).
+          -- The grant signals completion. Need e_evict dir event OB e_dr at same cluster.
+          sorry⟩
   | noCoherentRead hcorrespond _ downTranslation =>
     -- noCoherentRead: case-split downTranslation. scWriteDowngrade is vacuous (same as scWriteDown).
     -- scReadDowngrade is the valid case but needs evict dir from cluster axiom.
@@ -3889,10 +3875,7 @@ lemma cdirEncapsDown_exists
              hdowngrade,
              hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache⟩⟩⟩⟩
       | onDirVd hdirVd htrans =>
-        -- globalReadDownOnDirVd: only 1 dir event. Return type needs 2 with OB.
-        -- Use exfalso: the global hdowngrade has grantRels which is unsatisfiable
-        -- (requestEncapGrant.2 vs grantEndsRequest gives oEnd+1 < oEnd).
-        exfalso
-        have h1 := hdowngrade.grantRels.requestEncapGrant.2
-        have h2 := hdowngrade.grantRels.grantEndsRequest
-        simp only [h2] at h1; exact absurd (Nat.le_of_lt h1) (Nat.not_succ_le_self _)
+        -- TODO: onDirVd — only 1 dir event from shim (e_dir_shim_vd_down).
+        -- Return type needs 2 dir events with OB. Need protocol argument to find 2nd dir event,
+        -- or restructure return type to handle single-event case.
+        sorry

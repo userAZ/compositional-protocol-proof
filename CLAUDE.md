@@ -48,9 +48,14 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **Dead code**: CLE-to-compound_lin bridge removed. `ppoi_diff_addr_step_ordering` deleted.
 
 ### TODO
-1. **Named structures**: Replace `.2.2.2.1.2` tuple access patterns with named structure fields.
-2. **Sub-lemma extraction**: Continue decomposing large theorems (799-line `noInterveningWrites_diffCache_sameProtocol_case` is highest priority).
-3. **Clean up block comments**: Remove old vacuous-proof block comments in cdirEncapsDown_exists and old FR proof in Proof.lean.
+1. **Fix 4 sorry's that relied on vacuous grantRels** (encapGrantAfterDirEvent fixed — grant is last encapsulated event, not contradictory):
+   - `diffCache_coherent_encapProxyAndDir` noGlobalCache isDirMatchingRW (line ~3570)
+   - `diffCache_coherent_encapProxyAndDir` noCoherentRead isDirMatchingRW (line ~3604)
+   - `cdirEncapsDown_exists` scReadDown.cReadOnSW evict (line ~3803) — pre-existing
+   - `cdirEncapsDown_exists` noCoherentRead.scReadDowngrade.onDirVd (line ~3878)
+2. **Named structures**: Replace `.2.2.2.1.2` tuple access patterns with named structure fields.
+3. **Sub-lemma extraction**: Continue decomposing large theorems.
+4. **Clean up block comments**: Remove old vacuous-proof block comments in cdirEncapsDown_exists and old FR proof in Proof.lean.
 
 ### Lessons learned (BE INTROSPECTIVE!)
 - **Don't guess constructors.** Each new StepOrdering constructor multiplies case analysis. Use edge data instead.
