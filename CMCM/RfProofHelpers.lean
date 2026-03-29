@@ -3566,6 +3566,35 @@ lemma diffCache_coherent_encapProxyAndDir
       he_dir_translated,
       Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩ }
 
+/-- Shared: establish a dir event in the immediateFinishesBeforeAtClusterDirectoryNotEncap set
+    for a global downgrade e_r_gdown. Needs:
+    - The dir event finishes before e_r_gdown (endBefore)
+    - Same address (sameAddr)
+    - The dir event is in b (predInB)
+    - The global downgrade is a global cache event at the corresponding cluster (gCacheOfCDir)
+    - The dir event is NOT encapsulated by e_r_gdown (notEncap)
+    - No intermediate non-encapped dir event between them (noIntermediate) -/
+private lemma establish_cle_in_notEncap_set
+    {b : Behaviour n} {init : InitialSystemState n}
+    (de_cle : DirectoryEvent n) (hcle_in_b : Event.directoryEvent de_cle ∈ b)
+    {e_r_gdown : Event n} (he_gdown_in_b : e_r_gdown ∈ b)
+    (hcle_lt_gdown : de_cle.oEnd < e_r_gdown.oEnd)
+    (hcle_sameAddr : (Event.directoryEvent de_cle).sameAddr n e_r_gdown)
+    (hcle_gCacheOfCDir : Event.reqAtCorrespondingGCacheOfCDir n (Event.directoryEvent de_cle) e_r_gdown)
+    (hcle_notEncap : ¬ e_r_gdown.Encapsulates n (Event.directoryEvent de_cle))
+    (hcle_noInter : b.noIntermediateFinishesBeforeOfSameEntryNotEncap n (Event.directoryEvent de_cle) e_r_gdown)
+    : Behaviour.immediateFinishesBeforeAtClusterDirectoryNotEncap n b
+        (Event.directoryEvent de_cle) e_r_gdown :=
+  { finishBefore :=
+      { finBefore :=
+          { endBefore := by simp [Event.finishesBefore, Event.oEnd]; exact hcle_lt_gdown
+            sameAddr := hcle_sameAddr
+            predInB := hcle_in_b
+            succInB := he_gdown_in_b }
+        gCacheOfCDir := hcle_gCacheOfCDir }
+    notEncap := hcle_notEncap
+    noIntermediate := hcle_noInter }
+
 /-- Helper: In orderBeforeDir, the predecessor established coherent perms at e_w's cache.
     The predecessor's dir event (= CLE) is at e_w's cluster. Between the CLE and e_w,
     hinter_leaves_state_at_least prevents any dir event from downgrading the cache.
@@ -3603,7 +3632,7 @@ private lemma orderBeforeDir_clusterDirState_ne_Vd
   have hp_eq := Event.getProtocol_pi cmp e_w
   have hg2c := cmp.shimAxioms.globalToCluster b init (e_w.getProtocol cmp) e_r_gdown he_r_gdown_in_b
   -- The shim gives dir events at e_w's cluster. Extract one to use with dir_ordered.
-  have ⟨e_shim_dir, he_shim_in_b, he_shim_isDir, _, he_gdown_encap_shim, _⟩ :=
+  have ⟨e_shim_dir, he_shim_in_b, he_shim_isDir, he_shim_proto, he_gdown_encap_shim, he_gdown_sameAddr_shim⟩ :=
     globalToCluster_extract_dir_with_encap hg2c e_w hp_eq
   -- e_gdown encapsulates e_shim_dir → e_shim_dir.oEnd < e_r_gdown.oEnd
   have hshim_lt_gdown := he_gdown_encap_shim.2
@@ -3625,7 +3654,17 @@ private lemma orderBeforeDir_clusterDirState_ne_Vd
         -- Establish CLE in immediateFinishesBeforeAtClusterDirectoryNotEncap set
         have hcle_imm : Behaviour.immediateFinishesBeforeAtClusterDirectoryNotEncap n b
             (Event.directoryEvent de_cle) e_r_gdown := by
-          exact sorry -- establish CLE in NotEncap set (finishBefore + gCacheOfCDir + notEncap + noIntermediate)
+          exact establish_cle_in_notEncap_set (init := init) de_cle
+            (by rw [← hfc_cle]; exact hpred_dir.dirInB)
+            he_r_gdown_in_b hcle_lt_gdown
+            (by -- sameAddr: transitivity from dir_ordered + shim
+              have hsame_de := (b.orderedAtEntry.dir_ordered de_cle de_shim).sameDirectoryEntry
+              unfold Event.sameAddr at he_gdown_sameAddr_shim ⊢
+              simp [Event.addr, hfc_shim] at he_gdown_sameAddr_shim
+              simp [Event.addr]; rw [hsame_de, ← he_gdown_sameAddr_shim])
+            sorry -- gCacheOfCDir: use global_downgrade_cache_translation_encap_corresponding_request
+            sorry -- notEncap
+            sorry -- noIntermediate
         -- Use singleton pattern: CLE is in the set, set is subsingleton → singleton = CLE
         have hsubsingleton := Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap_is_subsingleton
             n b e_r_gdown
@@ -3680,7 +3719,7 @@ private lemma encapDir_clusterDirState_ne_Vd
   -- Re-derive shim to get a dir event encapsulated by e_r_gdown
   have hp_eq := Event.getProtocol_pi cmp e_w
   have hg2c := cmp.shimAxioms.globalToCluster b init (e_w.getProtocol cmp) e_r_gdown he_r_gdown_in_b
-  have ⟨e_shim_dir, _, he_shim_isDir, _, he_gdown_encap_shim, _⟩ :=
+  have ⟨e_shim_dir, _, he_shim_isDir, _, he_gdown_encap_shim, he_gdown_sameAddr_shim⟩ :=
     globalToCluster_extract_dir_with_encap hg2c e_w hp_eq
   have hshim_lt_gdown := he_gdown_encap_shim.2
   -- CLE and shim dir are both dir events → dir_ordered
@@ -3703,7 +3742,17 @@ private lemma encapDir_clusterDirState_ne_Vd
             hshim_lt_gdown
         have hcle_imm : Behaviour.immediateFinishesBeforeAtClusterDirectoryNotEncap n b
             (Event.directoryEvent de_cle) e_r_gdown := by
-          exact sorry -- establish CLE in NotEncap set
+          exact establish_cle_in_notEncap_set (init := init) de_cle
+            (by rw [← hfc_cle]; exact sorry) -- dirInB
+            he_r_gdown_in_b hcle_lt_gdown
+            (by -- sameAddr: transitivity from dir_ordered + shim
+              have hsame_de := (b.orderedAtEntry.dir_ordered de_cle de_shim).sameDirectoryEntry
+              unfold Event.sameAddr at he_gdown_sameAddr_shim ⊢
+              simp [Event.addr, hfc_shim] at he_gdown_sameAddr_shim
+              simp [Event.addr]; rw [hsame_de, ← he_gdown_sameAddr_shim])
+            sorry -- gCacheOfCDir: use global_downgrade_cache_translation_encap_corresponding_request
+            sorry -- notEncap
+            sorry -- noIntermediate
         have hsubsingleton := Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap_is_subsingleton
             n b e_r_gdown
         have hsingleton := Behaviour.event_immediate_finish_before_gdown_singleton' n
@@ -3742,7 +3791,7 @@ private lemma orderAfterDir_clusterDirState_ne_Vd
   -- Same shim pattern to get temporal info.
   have hp_eq := Event.getProtocol_pi cmp e_w
   have hg2c := cmp.shimAxioms.globalToCluster b init (e_w.getProtocol cmp) e_r_gdown he_r_gdown_in_b
-  have ⟨e_shim_dir, _, he_shim_isDir, _, he_gdown_encap_shim, _⟩ :=
+  have ⟨e_shim_dir, _, he_shim_isDir, _, he_gdown_encap_shim, he_gdown_sameAddr_shim⟩ :=
     globalToCluster_extract_dir_with_encap hg2c e_w hp_eq
   have hshim_lt_gdown := he_gdown_encap_shim.2
   have hcle_isDir := hw_c_and_g_lin.hreq's_dir_access.choose_spec.2.isDirEvent
@@ -3761,7 +3810,17 @@ private lemma orderAfterDir_clusterDirState_ne_Vd
             hshim_lt_gdown
         have hcle_imm : Behaviour.immediateFinishesBeforeAtClusterDirectoryNotEncap n b
             (Event.directoryEvent de_cle) e_r_gdown := by
-          exact sorry -- establish CLE in NotEncap set
+          exact establish_cle_in_notEncap_set (init := init) de_cle
+            (by rw [← hfc_cle]; exact sorry) -- dirInB
+            he_r_gdown_in_b hcle_lt_gdown
+            (by -- sameAddr: transitivity from dir_ordered + shim
+              have hsame_de := (b.orderedAtEntry.dir_ordered de_cle de_shim).sameDirectoryEntry
+              unfold Event.sameAddr at he_gdown_sameAddr_shim ⊢
+              simp [Event.addr, hfc_shim] at he_gdown_sameAddr_shim
+              simp [Event.addr]; rw [hsame_de, ← he_gdown_sameAddr_shim])
+            sorry -- gCacheOfCDir: use global_downgrade_cache_translation_encap_corresponding_request
+            sorry -- notEncap
+            sorry -- noIntermediate
         have hsubsingleton := Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap_is_subsingleton
             n b e_r_gdown
         have hcle_in_b : (Event.directoryEvent de_cle) ∈ b := by
