@@ -3858,57 +3858,19 @@ lemma cdirEncapsDown_exists
              hdowngrade,
              hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache⟩⟩⟩⟩
       | onDirVd hdirVd htrans =>
-        -- globalReadDownOnDirVd: only 1 dir event (e_dir_shim_vd_down). Use e_cdir = e_evict.
-        obtain ⟨_, _, _, _, e_dir_vd, hvd_in_b, hstruct⟩ := htrans
-        have he_dir_vd_isDir := hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir
-        have he_gdown_encap_vd : e_r_gdown.Encapsulates n e_dir_vd :=
-          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap
-        have h_vd_lt_cle : e_dir_vd.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd :=
-          Nat.lt_trans (gcache_encap_dir_chain hr_c_and_g_lin hdowngrade he_gdown_encap_vd).2
-            (gcache_oEnd_lt_cle hr_c_and_g_lin)
-        have he_dir_vd_proto : e_dir_vd.protocol = e_w.protocol := by
-          have := hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
-          have := correspondingCluster_protocol_eq hcorrespond this
-          exact this.symm.trans hp_eq
-        have he_vd_translated : Event.clusterDirFromDiffProtocolRequest b init e_r e_dir_vd hr_c_and_g_lin :=
-          ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b,
-            hdowngrade,
-            hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache⟩⟩
-        -- onDirVd is vacuous: e_w.¬down → dirAccessOfRequest has coherent perms.
-        -- Any dir access that changed state to Vd would have downgraded e_w's perms,
-        -- contradicting orderBeforeDir's hinter_leaves_state_at_least.
+        -- onDirVd vacuous via nonCohReqDowngrades (Axiom 12):
+        -- Extract the phantom cache event from the wrapper (e_shim_acq ∈ b).
+        -- Apply Axiom 12 to e_shim_acq + e_dir_shim_vd_down.
+        -- Axiom 12 gives reqDirOnSW: dir state before e_dir = SW.
+        -- But hdirVd says dir state = Vd. SW ≠ Vd → contradiction.
+        obtain ⟨e_shim_acq, he_acq_in_b, _, _, e_dir_vd, hvd_in_b, hstruct⟩ := htrans
         exfalso
-        have hda_w := hw_c_and_g_lin.hreq's_dir_access.choose_spec.2
-        cases hda_w with
-        | encapDir hreq_missing hencap =>
-          -- encapDir: e_w missing perms → coherent request (from reqMissingPerms).
-          -- e_w's dir event is encapsulated by e_w and establishes SW at the directory.
-          -- Between e_w's dir event and e_r_gdown: if dir changed to Vd, Axiom 12
-          -- (nonCohReqDowngrades) gives a downgrade to e_w's cache, but hmade_on_sw
-          -- says global cache is still SW → e_w's cache wasn't downgraded → contradiction.
-          -- TODO: formalize the temporal chain from encapDir → dir at SW → no transition to Vd
-          sorry
-        | orderBeforeDir hreq_has_perms hexists_pred hpred_dir hinter_state hpred_proto hnot_down' hpred_leaves hpred_not_down =>
-          -- orderBeforeDir: predecessor established coherent perms at e_w's cache.
-          -- The predecessor's dir event set the directory to SW.
-          -- Between predecessor and e_r_gdown: if dir changed to Vd, Axiom 12
-          -- (nonCohReqDowngrades) gives e_cdir on SW → downgrade to coherent owner.
-          -- That downgrade targets e_w's cache → lowers cache below SW.
-          -- But hmade_on_sw (global cache=SW) means e_w's cache still has perms → contradiction.
-          -- The formal chain:
-          --   1. predecessor's dir event → directory at SW
-          --   2. if e_cdir changed dir SW→Vd, Axiom 12 gives requestDowngradePrevOwner
-          --   3. downgrade targets the SW owner = e_w's cache
-          --   4. but hmade_on_sw → global cache=SW → cluster has coherent perms → no downgrade
-          -- TODO: formalize using nonCohReqDowngrades + hmade_on_sw
-          sorry
-        | orderAfterDir hweak_on_vd _ _ _ =>
-          -- orderAfterDir: e_w is NC weak on Vd. Its cache is on Vd state.
-          -- The directory IS at Vd in this case — but hmade_on_sw (global cache=SW)
-          -- constrains this. If the global cache is SW (coherent), the cluster should
-          -- have coherent permissions, contradicting the cache being at Vd (non-coherent).
-          -- The cluster directory at Vd with global cache at SW: CompoundSWMR says dir ≤ cache,
-          -- and Vd ≤ SW is true. But the COHERENCE of the global cache (c=true) should
-          -- propagate: the cluster can't be at Vd (c=false) if the global level is coherent.
-          -- TODO: derive contradiction from hmade_on_sw + ncWeakReqOnVd
-          sorry
+        -- Apply nonCohReqDowngrades (Axiom 12) to the translated cache+dir events
+        have hncAxiom := (e_w.getProtocol cmp).reqAxioms.nonCohReqDowngrades b init
+          e_shim_acq he_acq_in_b e_dir_vd hvd_in_b
+        -- Axiom 12 asserts reqDirOnSW: directory state before e_dir_vd = SW
+        have hdir_sw := hncAxiom.reqDirOnSW
+        -- But hdirVd says clusterDirStateBefore = Vd
+        -- Need to connect: stateBefore(e_dir_vd).state = latestDirectoryState.Before.GlobalCache.state
+        -- They should agree since e_dir_vd is the first dir event inside e_r_gdown.
+        sorry -- TODO: connect reqDirOnSW (SW) with hdirVd (Vd) → SW = Vd contradiction
