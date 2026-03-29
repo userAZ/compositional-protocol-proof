@@ -3566,28 +3566,6 @@ lemma diffCache_coherent_encapProxyAndDir
       he_dir_translated,
       Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩ }
 
-/-- Bridge lemma: for a dir event encapsulated by a global cache event,
-    the directory state before the dir event (from stateBefore) equals
-    the clusterDirStateBefore (from latestDirectoryState.Before.GlobalCache).
-    Both compute the same directory entry state: the state after the latest
-    non-encapsulated directory event at the corresponding cluster. -/
-private lemma clusterDirStateBefore_eq_stateBefore_of_encap
-    {b : Behaviour n} {init : InitialSystemState n}
-    {e_gdown e_dir : Event n}
-    (hgdown_in_b : e_gdown ∈ b) (hdir_in_b : e_dir ∈ b)
-    (hgdown_is_global : e_gdown.isGlobalDowngrade)
-    (hencap : e_gdown.Encapsulates n e_dir)
-    (hdir_is_dir : e_dir.isDirectoryEvent)
-    (hfwd_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirVd n b init e_gdown e_dir)
-    : (Behaviour.latestDirectoryState.Before.GlobalCache n b init e_gdown).state =
-      (b.stateBefore n (init.stateAt n e_dir) e_dir).state := by
-  -- Pattern from Lemma 6 (Lemma6GlobalWriteDowngrade.lean:2112-2175):
-  -- 1. Establish immediateFinishesBeforeAtClusterDirectory for e_dir
-  -- 2. Use event_immediate_finish_before_gdown_singleton to collapse to singleton
-  -- 3. Rewrite stateOfSubsingletonEventSet to extract state
-  -- The NotEncap variant excludes e_dir itself, giving the state BEFORE e_dir processes.
-  sorry
-
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit
     existential witness. This avoids Exists.choose issues by never going through
@@ -3880,27 +3858,34 @@ lemma cdirEncapsDown_exists
              hdowngrade,
              hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache⟩⟩⟩⟩
       | onDirVd hdirVd htrans =>
-        -- onDirVd vacuous: Axiom 12 says dir state = SW, but hdirVd says Vd.
-        obtain ⟨e_shim_acq, he_acq_in_b, _, _, e_dir_vd, hvd_in_b, hstruct⟩ := htrans
+        -- onDirVd vacuous: e_w has coherent perms (from orderBeforeDir), so the
+        -- directory at e_w's cluster must be in coherent state (SW), not Vd.
+        -- Proof: case-split on e_w's dirAccessOfRequest to derive dir = SW,
+        -- then contradict with hdirVd (Vd).
         exfalso
-        -- Axiom 12 gives dir state before e_dir_vd = SW
-        have hncAxiom := (e_w.getProtocol cmp).reqAxioms.nonCohReqDowngrades b init
-          e_shim_acq he_acq_in_b e_dir_vd hvd_in_b
-        have hdir_sw := hncAxiom.reqDirOnSW  -- (b.stateBefore ...).state = SW
-        -- hdirVd: (latestDirectoryState.Before.GlobalCache ...).state = Vd
-        -- Bridge: clusterDirStateBefore = stateBefore via bridge lemma
-        have hgdown_is_global : e_r_gdown.isGlobalDowngrade := by
-          exact ⟨hread_down.isGlobalDown, by sorry⟩ -- e_r_gdown.down from downgrade chain
-        have hbridge := clusterDirStateBefore_eq_stateBefore_of_encap
-          he_r_gdown_in_b hvd_in_b hgdown_is_global
-          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap
-          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir
-          hstruct
-        -- hdirVd: clusterDirStateBefore = Vd. Unfold to get latestDirectoryState form.
-        unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
-        -- Now hdirVd: (latestDirectoryState.Before.GlobalCache ...).state = Vd
-        -- hbridge: same = (b.stateBefore ...).state
-        -- hdir_sw: (b.stateBefore ...).state = SW
-        rw [hbridge] at hdirVd; rw [hdir_sw] at hdirVd
-        -- hdirVd: SW = Vd
-        exact absurd hdirVd (by decide)
+        have hda_w := hw_c_and_g_lin.hreq's_dir_access.choose_spec.2
+        cases hda_w with
+        | encapDir hreq_missing hencap =>
+          -- e_w missing perms → coherent request → e_w's dir event establishes SW at directory.
+          -- The dir event is encapsulated by e_w and is at e_w's cluster.
+          -- Between e_w's dir event and e_r_gdown: if any dir event changed state to Vd,
+          -- that event's downgrade would have lowered e_w's cache below MRS.
+          -- But hinter_leaves_state_at_least (from encapDir) prevents this.
+          -- Therefore dir stays SW → contradicts hdirVd (Vd).
+          sorry -- TODO: encapDir → dir stays coherent → ≠ Vd
+        | orderBeforeDir hreq_has_perms hexists_pred hpred_dir hinter_state hpred_proto hnot_down' hpred_leaves hpred_not_down =>
+          -- Predecessor established coherent perms at e_w's cache.
+          -- predecessor's dir event (= CLE) set directory to SW.
+          -- Between CLE and e_w: hinter_state ensures cache ≥ SW.
+          --   Any dir event here downgrades cache → contradicts hinter_state.
+          -- Between e_w and e_r_gdown: hmade_on_sw (global cache=SW) means
+          --   e_w still has perms. Any dir event downgrades cache → contradicts global SW.
+          -- So no dir event changed the directory → dir stays SW → contradicts hdirVd.
+          sorry -- TODO: orderBeforeDir → no intervening dir access → dir stays SW → ≠ Vd
+        | orderAfterDir hweak_on_vd _ _ _ =>
+          -- e_w is NC weak on Vd. The directory IS at Vd in this case.
+          -- But hmade_on_sw says global cache = SW. The global cache at SW means
+          -- the cluster has coherent global perms. If the internal dir is at Vd,
+          -- and e_w is NC weak on Vd, the global cache should not still be SW...
+          -- This case may need the CompoundSWMR invariant or additional constraint.
+          sorry -- TODO: orderAfterDir + hmade_on_sw → contradiction
