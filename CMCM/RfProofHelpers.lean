@@ -3620,11 +3620,11 @@ lemma cdirEncapsDown_exists
         (∃ e_cache_down ∈ b,
             e_cdir.Encapsulates n e_cache_down ∧
             e_cache_down.down ∧ e_cache_down.isCacheEvent) ∧
-        -- The evict directory event: e_cdir OB e_evict, both at same cluster.
-        -- Call sites case-split on e_evict.down for sameCacheConstraints vs sameCacheWriteConstraints.
+        -- The evict directory event: e_cdir.oEnd ≤ e_evict.oEnd (allows e_cdir = e_evict
+        -- when only 1 dir event from shim, e.g. scReadDown or onDirVd).
         (∃ e_evict ∈ b, e_evict.isDirectoryEvent ∧
             e_evict.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧
-            e_cdir.OrderedBefore n e_evict ∧ e_evict.protocol = e_w.protocol ∧
+            e_cdir.oEnd ≤ e_evict.oEnd ∧ e_evict.protocol = e_w.protocol ∧
             Event.clusterDirFromDiffProtocolRequest b init e_r e_evict hr_c_and_g_lin) := by
   -- Get global downgrade and GlobalToCluster shim
   have hgdown := diffCache_coherent_globalDowngrade hr_c_and_g_lin
@@ -3800,12 +3800,29 @@ lemma cdirEncapsDown_exists
               exact hfwd_from.isDown
             | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
           | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+        -- e_evict = e_dr (same event): only 1 dir event in scReadDown.
+        -- oEnd ≤ oEnd holds by Nat.le_refl.
+        have he_dr_translated : Event.clusterDirFromDiffProtocolRequest b init e_r e_dr hr_c_and_g_lin :=
+          ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b,
+            hdowngrade,
+            { clusterMatch :=
+                { sameAddr := by
+                    have h1 := hstruct.cohRead.atCorrClusterProxy.clusterMatch.sameAddr
+                    have h2 := hstruct.cohReadDir.dirCorresponds.sameAddr
+                    unfold Event.sameAddr at h1 h2 ⊢; rw [← h2]; exact h1
+                  atCorrCluster := by
+                    have h1 := hstruct.cohRead.atCorrClusterProxy.clusterMatch.atCorrCluster
+                    have hproto_eq := hstruct.cohReadDir.sameProtocol
+                    show e_r_gdown.correspondingClusterOfGlobalCache n e_dr (Event.protocol n)
+                    have : (Event.protocol n) e_dr = (Event.protocol n) e_cr := hproto_eq.symm
+                    unfold Event.correspondingClusterOfGlobalCache at h1 ⊢
+                    rw [this]; exact h1 }
+              atDir := he_dr_isDir
+              globalEncap := he_gdown_encap_dr }⟩⟩
         exact ⟨e_dr, he_dr_in_b, he_dr_isDir, he_dr_proto, h_dr_end_before_cle,
           ⟨e_down, he_down_in_b, hencap, hdown_is_down, h_dpow.downgradePrevOwner.downAtCache⟩,
-          -- TODO: scReadDown.cReadOnSW evict — need 2nd dir event from coherentReadDowngrades.
-          -- h_dpow has downgradePrevOwner (cache downgrade) + grantRels (grant after dir).
-          -- The grant signals completion. Need e_evict dir event OB e_dr at same cluster.
-          sorry⟩
+          ⟨e_dr, he_dr_in_b, he_dr_isDir, h_dr_end_before_cle, Nat.le_refl _,
+           he_dr_proto, he_dr_translated⟩⟩
   | noCoherentRead hcorrespond _ downTranslation =>
     -- noCoherentRead: case-split downTranslation. scWriteDowngrade is vacuous (same as scWriteDown).
     -- scReadDowngrade is the valid case but needs evict dir from cluster axiom.
@@ -3870,12 +3887,32 @@ lemma cdirEncapsDown_exists
         -- Construct the full return tuple
         exact ⟨e_dir_acq, he_dir_acq_in_b, he_dir_acq_isDir, he_dir_acq_proto, h_acq_dir_lt_cle,
           ⟨e_down, he_down_in_b, hdown_encap, hdown_is_down, h_dpow.downAtCache⟩,
-          ⟨e_dir_vd, hvd_in_b, he_dir_vd_isDir, h_vd_lt_cle, h_acq_ob_vd, he_dir_vd_proto,
+          ⟨e_dir_vd, hvd_in_b, he_dir_vd_isDir, h_vd_lt_cle,
+           -- OB → oEnd ≤: e_dir_acq.oEnd < e_dir_vd.oStart ≤ e_dir_vd.oEnd
+           Nat.le_of_lt (Nat.lt_of_lt_of_le h_acq_ob_vd (Nat.le_of_lt (Event.oWellFormed n e_dir_vd))),
+           he_dir_vd_proto,
            ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b,
              hdowngrade,
              hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache⟩⟩⟩⟩
       | onDirVd hdirVd htrans =>
-        -- TODO: onDirVd — only 1 dir event from shim (e_dir_shim_vd_down).
-        -- Return type needs 2 dir events with OB. Need protocol argument to find 2nd dir event,
-        -- or restructure return type to handle single-event case.
+        -- globalReadDownOnDirVd: only 1 dir event (e_dir_shim_vd_down). Use e_cdir = e_evict.
+        obtain ⟨_, _, _, _, e_dir_vd, hvd_in_b, hstruct⟩ := htrans
+        have he_dir_vd_isDir := hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir
+        have he_gdown_encap_vd : e_r_gdown.Encapsulates n e_dir_vd :=
+          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap
+        have h_vd_lt_cle : e_dir_vd.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd :=
+          Nat.lt_trans (gcache_encap_dir_chain hr_c_and_g_lin hdowngrade he_gdown_encap_vd).2
+            (gcache_oEnd_lt_cle hr_c_and_g_lin)
+        have he_dir_vd_proto : e_dir_vd.protocol = e_w.protocol := by
+          have := hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
+          have := correspondingCluster_protocol_eq hcorrespond this
+          exact this.symm.trans hp_eq
+        have he_vd_translated : Event.clusterDirFromDiffProtocolRequest b init e_r e_dir_vd hr_c_and_g_lin :=
+          ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b,
+            hdowngrade,
+            hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache⟩⟩
+        -- TODO: need cache downgrade encapsulated by e_dir_vd.
+        -- e_dir_vd is isNcWeakWrite with down=True (Vd writeback dir).
+        -- Protocol: the Vd writeback dir encapsulates a cache writeback event.
+        -- Need axiom or structure that gives the cache event inside the dir event.
         sorry

@@ -93,6 +93,7 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - `lake build` — build entire project
 
 ## Auto-habits
+- `/protocol-proof` BEFORE and DURING implementing any sorry or writing/updating Lean definitions. Think about what the protocol actually does. Check existing Behaviour/proof files for reusable patterns.
 - `/checkpoint` every ~15 min, after milestones, after corrections
 - `/learn` after discovering patterns or user corrections — IMMEDIATELY
 - `/reflect` every ~20-30 min: am I correct? efficient? going in circles?
