@@ -3196,7 +3196,12 @@ private lemma diffCache_coherent_e_r_isRead
     -- CLE.rw = .r established. Need e_r.rw = CLE.rw via reqToDirOfRequestEvent.
     -- reqToDirOfRequestEvent defaults to e_r.req for coherent requests (SC/Acq/Rel).
     -- CLE comes from encapDir/orderBeforeDir/orderAfterDir which all use requestDirectoryEvent.dirReq.
-    sorry -- CLE.rw → e_r.rw via reqToDirOfRequestEvent (preserves rw for coherent reads)
+    -- CLE.rw = .r. Need e_r.rw = .r. Chain: CLE.req = reqToDirOfRequestEvent(e_r).
+    -- reqToDirOfRequestEvent preserves rw EXCEPT for non-coherent writes on I/Vd state
+    -- (where it changes .w → .r). In that case e_r.isRead is FALSE.
+    -- BUT: all call sites have e_r.isRead (from rfe), so this sorry is valid at call sites.
+    -- The lemma cannot be proved in general without e_r.isRead as a hypothesis.
+    sorry
   | .noGlobalCache _ _ =>
     sorry -- noGlobalCache: same chain but without matchingOp
 
