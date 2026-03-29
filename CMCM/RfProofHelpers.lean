@@ -3617,21 +3617,30 @@ private lemma orderBeforeDir_clusterDirState_ne_Vd
     | .directoryEvent de_shim, _ =>
       cases (b.orderedAtEntry.dir_ordered de_cle de_shim).ordered with
       | inl hcle_ob_shim =>
-        -- CLE OB shim_dir → CLE.oEnd < shim_dir.oStart ≤ shim_dir.oEnd < e_r_gdown.oEnd
-        -- So CLE finishes before e_r_gdown. The dir state at CLE time was coherent
-        -- (from orderBeforeDir), and no intervening dir event changed it to Vd
-        -- (hinter_state prevents between pred and e_w; hmade_on_sw prevents after e_w).
-        -- Therefore latestDirectoryState.Before.GlobalCache.state ≠ Vd.
+        -- CLE OB shim_dir → CLE.oEnd < e_r_gdown.oEnd (temporal chain)
+        simp only [Event.oEnd, hfc_shim] at hshim_lt_gdown
+        have hcle_lt_gdown : de_cle.oEnd < e_r_gdown.oEnd :=
+          Nat.lt_trans (Nat.lt_of_lt_of_le hcle_ob_shim (Nat.le_of_lt de_shim.oWellFormed))
+            hshim_lt_gdown
+        -- CLE satisfies immediateFinishesBeforeAtClusterDirectoryNotEncap
+        -- (finishes before e_r_gdown, not encapped, no intermediate non-encapped dir event).
+        -- Use Lemma 6 singleton pattern to extract state = stateAfter(CLE).
+        -- stateAfter(CLE) is coherent (from orderBeforeDir evidence) → ≠ Vd.
+        -- TODO: establish CLE in NotEncap set + singleton + state extraction
         sorry
       | inr hshim_ob_cle =>
-        -- shim_dir OB CLE → downgrade arrived before CLE.
-        -- This means e_shim_dir finishes before CLE starts.
-        -- e_shim_dir is encapsulated by e_r_gdown, and CLE starts after e_shim_dir.
-        -- hinter_state: events between pred and e_w preserve cache ≥ SW.
-        -- The shim dir event (downgrade at e_w's cluster) between pred and e_w
-        -- would lower the cache → contradicts hinter_state.
-        -- Or the shim event is before the predecessor → temporally impossible
-        -- (downgrade from e_r arrives after e_w's predecessor).
+        -- shim_dir OB CLE: shim finished before CLE started.
+        -- shim is encapsulated by e_r_gdown → shim.oEnd < e_r_gdown.oEnd
+        -- hshim_ob_cle: de_shim.oEnd < de_cle.oStart
+        -- So CLE starts after something inside e_r_gdown.
+        -- From hinter_state: any event between predecessor and e_w that
+        -- accesses the directory would downgrade e_w's cache below SW.
+        -- The shim dir is such an event (it's a dir event at e_w's cluster).
+        -- If shim is between predecessor and e_w → violates hinter_state.
+        -- If shim is after e_w → CLE (predecessor's dir) is before e_w,
+        --   but shim OB CLE means shim before CLE before e_w,
+        --   so shim IS between predecessor and e_w → contradiction.
+        -- TODO: formalize temporal chain showing shim between pred and e_w
         sorry
 
 /-- Helper: In encapDir, e_w's own dir event establishes coherent state at the directory.
