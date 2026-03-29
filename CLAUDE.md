@@ -52,7 +52,8 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
    - `encapDir`: e_w's dir establishes SW → transition to Vd requires Axiom 12 downgrade → contradicts cache ≥ SW + global SW
    - `orderBeforeDir`: predecessor established SW → same Axiom 12 argument
    - `orderAfterDir`: NC weak on Vd + global SW → need contradiction
-   - **Gap**: No existing property connects "cache ≥ SW + global cache = SW" to "directory ≠ Vd" directly. Need temporal argument: CLE dir event set dir to SW, any subsequent SW→Vd requires Axiom 12 downgrade of coherent owner, but cache stays ≥ SW and global cache = SW prevents downgrade.
+   - **Architecture**: 3 helper lemmas (`orderBeforeDir_clusterDirState_ne_Vd`, `encapDir_clusterDirState_ne_Vd`, `orderAfterDir_clusterDirState_ne_Vd`) with `hw_cle_lt_gdown` temporal hypothesis.
+   - **Remaining sorry's**: (a) `hw_cle_lt_gdown` derivation via dir_ordered + encapsulation chain, (b) 3 helper lemma bodies showing `latestDirectoryState.Before.GlobalCache ≠ Vd` using the Lemma 6 singleton pattern.
    - **RESOLVED**: isDirMatchingRW replaced with isDirDownRW (readDown/writeDown inductive). scReadDown.cReadOnSW evict fixed via e_cdir=e_evict.
 2. **Named structures**: Replace `.2.2.2.1.2` tuple access patterns with named structure fields.
 3. **Sub-lemma extraction**: Continue decomposing large theorems.
