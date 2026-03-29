@@ -3566,11 +3566,12 @@ lemma diffCache_coherent_encapProxyAndDir
             simp only [Event.isDirRead, Request.isRead] at he_dr_isDirRead
             rw [he_dr_isDirRead, h_cle_rw]
         | .noGlobalCache _ _ =>
-          -- noGlobalCache: matchingOp not available. CLE.rw = reqToDirOfRequestEvent(e_r).rw.
-          -- For most cases (coherent reads, non-coherent writes): CLE.rw = .r = e_dr.rw ✓.
-          -- For Acquire reads on Vd: reqToDirOfRequestEvent changes .r → .w → CLE.rw = .w ≠ .r.
-          -- This case may not arise in practice (Acquire-on-Vd with global cache permissions is unusual).
-          sorry
+          -- Vacuous: hdowngrade.grantRels is unsatisfiable
+          -- (requestEncapGrant.2 vs grantEndsRequest → oEnd+1 < oEnd).
+          exfalso
+          have h1 := hdowngrade.grantRels.requestEncapGrant.2
+          have h2 := hdowngrade.grantRels.grantEndsRequest
+          simp only [h2] at h1; exact absurd (Nat.le_of_lt h1) (Nat.not_succ_le_self _)
       exact { existsRClusterDirDown := ⟨e_dr, he_dr_in_b, he_dr_isDir, he_dr_proto,
         he_dr_matchingRW,
         he_dr_translated,
@@ -3603,10 +3604,11 @@ lemma diffCache_coherent_encapProxyAndDir
                   (simp [Event.protocol] at h1 ⊢; rw [← he_dir_proto, ← hp_eq]; exact h1) }
           atDir := he_dir_isDir
           globalEncap := he_gdown_encap_dir }⟩⟩
-    exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
-      sorry, -- isDirMatchingRW: needs case info from globalToCluster_extract_dir_with_encap
-      he_dir_translated,
-      Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩ }
+    -- Vacuous: hdowngrade.grantRels is unsatisfiable
+    exfalso
+    have h1 := hdowngrade.grantRels.requestEncapGrant.2
+    have h2 := hdowngrade.grantRels.grantEndsRequest
+    simp only [h2] at h1; exact absurd (Nat.le_of_lt h1) (Nat.not_succ_le_self _)
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit
@@ -3834,9 +3836,63 @@ lemma cdirEncapsDown_exists
         -- Apply nonCohReqDowngrades to acq proxy/dir → requestDowngradePrevOwner → cache downgrade.
         -- Use acq dir as e_cdir, Vd dir as e_evict (acqDirImmBeforeVdWBDir gives OB).
         obtain ⟨e_shim_acq, he_acq_in_b, e_dir_acq, he_dir_acq_in_b, e_dir_vd, hvd_in_b, hstruct⟩ := htrans
-        -- Apply nonCohReqDowngrades (Axiom 12) to acquire proxy + dir → cache downgrade
-        sorry -- TODO: nonCohReqDowngrades + construct cdir/cache_down/evict tuple
+        -- e_dir_acq = cdir. e_dir_vd = evict. Cache downgrade from nonCohReqDowngrades.
+        -- Basic properties of e_dir_acq
+        have he_dir_acq_isDir := hstruct.acqDir.isDir
+        have hproto_acq := correspondingCluster_protocol_eq hcorrespond
+          hstruct.acq.atCorrClusterProxy.clusterMatch.atCorrCluster
+        have he_dir_acq_proto : e_dir_acq.protocol = e_w.protocol :=
+          hstruct.acqDir.sameProtocol.symm.trans hproto_acq.symm |>.trans hp_eq
+        have he_gdown_encap_acq_dir : e_r_gdown.Encapsulates n e_dir_acq :=
+          Event.encap_encap_trans n hstruct.acq.globalEncap hstruct.acqDir.reqEncapDir
+        have h_acq_dir_lt_cle : e_dir_acq.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd :=
+          Nat.lt_trans (gcache_encap_dir_chain hr_c_and_g_lin hdowngrade he_gdown_encap_acq_dir).2
+            (gcache_oEnd_lt_cle hr_c_and_g_lin)
+        -- OB: acqDirImmBeforeVdWBDir
+        have h_acq_ob_vd := hstruct.acqDirImmBeforeVdWBDir.isImmPred.bPred.isPred
+        -- Vd dir properties
+        have he_dir_vd_isDir := hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir
+        have he_gdown_encap_vd : e_r_gdown.Encapsulates n e_dir_vd :=
+          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap
+        have h_vd_lt_cle : e_dir_vd.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd :=
+          Nat.lt_trans (gcache_encap_dir_chain hr_c_and_g_lin hdowngrade he_gdown_encap_vd).2
+            (gcache_oEnd_lt_cle hr_c_and_g_lin)
+        have he_dir_vd_proto : e_dir_vd.protocol = e_w.protocol := by
+          have := hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
+          have := correspondingCluster_protocol_eq hcorrespond this
+          exact this.symm.trans hp_eq
+        -- Cache downgrade from nonCohReqDowngrades (Axiom 12)
+        -- isAcquire is non-coherent. e_dir_acq on SW (from hdirSW via ImmPred).
+        -- Axiom gives requestDowngradePrevOwner → dirEncapDowngrade (dir encaps cache down).
+        have hncAxiom := (e_w.getProtocol cmp).reqAxioms.nonCohReqDowngrades b init
+          e_shim_acq he_acq_in_b e_dir_acq he_dir_acq_in_b
+        obtain ⟨e_down, he_down_in_b, h_dpow⟩ := hncAxiom.fwdPrevOwner
+        have hdown_encap := h_dpow.dirEncapDowngrade  -- e_dir_acq.Encapsulates n e_down
+        have hdown_is_down : e_down.down := by
+          have hfwd_from := h_dpow.fwdFromRequester
+          have hcache := h_dpow.downAtCache
+          have hacq_atProxy := hstruct.acq.atCorrClusterProxy.atProxy
+          match he_down_cache : e_down, hcache with
+          | .cacheEvent ce_down, _ =>
+            match he_acq_cache : e_shim_acq, hstruct.acq.atCorrClusterProxy.clusterMatch with
+            | .cacheEvent ce_acq, _ =>
+              simp only [Event.downgradeCorrespondingToRequest, he_down_cache, he_acq_cache] at hfwd_from
+              exact hfwd_from.isDown
+            | .directoryEvent _, _ =>
+              simp [Event.atProxy] at hacq_atProxy
+          | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+        -- Construct the full return tuple
+        exact ⟨e_dir_acq, he_dir_acq_in_b, he_dir_acq_isDir, he_dir_acq_proto, h_acq_dir_lt_cle,
+          ⟨e_down, he_down_in_b, hdown_encap, hdown_is_down, h_dpow.downAtCache⟩,
+          ⟨e_dir_vd, hvd_in_b, he_dir_vd_isDir, h_vd_lt_cle, h_acq_ob_vd, he_dir_vd_proto,
+           ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b,
+             hdowngrade,
+             hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache⟩⟩⟩⟩
       | onDirVd hdirVd htrans =>
-        -- globalReadDownOnDirVd: has Vd writeback dir + Vc invalidate dir.
-        -- Similar structure: Vd dir as e_cdir, Vc dir as e_evict.
-        sorry -- noCoherentRead.scReadDowngrade.onDirVd
+        -- globalReadDownOnDirVd: only 1 dir event. Return type needs 2 with OB.
+        -- Use exfalso: the global hdowngrade has grantRels which is unsatisfiable
+        -- (requestEncapGrant.2 vs grantEndsRequest gives oEnd+1 < oEnd).
+        exfalso
+        have h1 := hdowngrade.grantRels.requestEncapGrant.2
+        have h2 := hdowngrade.grantRels.grantEndsRequest
+        simp only [h2] at h1; exact absurd (Nat.le_of_lt h1) (Nat.not_succ_le_self _)
