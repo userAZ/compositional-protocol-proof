@@ -3874,11 +3874,29 @@ lemma cdirEncapsDown_exists
           ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b,
             hdowngrade,
             hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache⟩⟩
-        -- onDirVd is vacuous: e_w has ¬down (hw_not_down), so its dirAccessOfRequest
-        -- is orderBeforeDir (has coherent perms from predecessor). The predecessor's
-        -- coherent request established dir state with c=true. Between predecessor and
-        -- global downgrade, no event downgraded → dir stays c=true. But Vd has c=false.
-        -- Proof: hw_c_and_g_lin.hreq's_dir_access → orderBeforeDir → predecessor
-        -- established coherent dir → hdirVd (Vd, c=false) contradicts c=true.
-        -- TODO: implement orderBeforeDir → clusterDirStateBefore ≠ Vd bridge
-        sorry
+        -- onDirVd is vacuous: e_w.¬down → dirAccessOfRequest has coherent perms.
+        -- Any dir access that changed state to Vd would have downgraded e_w's perms,
+        -- contradicting orderBeforeDir's hinter_leaves_state_at_least.
+        exfalso
+        have hda_w := hw_c_and_g_lin.hreq's_dir_access.choose_spec.2
+        cases hda_w with
+        | encapDir hreq_missing hencap =>
+          -- e_w missing perms → coherent request → dir access establishes coherent state.
+          -- The dir event is encapsulated by e_w, so it's before e_w.
+          -- clusterDirStateBefore at e_r_gdown should reflect this coherent state.
+          -- But hdirVd says Vd (non-coherent). Contradiction needs temporal chain.
+          sorry -- encapDir case: e_w's dir establishes coherent state ≠ Vd
+        | orderBeforeDir hreq_has_perms _ _ _ _ _ _ =>
+          -- e_w has perms from predecessor. The predecessor was coherent, established
+          -- SW state at directory. Between predecessor and e_w, hinter_leaves_state_at_least
+          -- ensures no downgrade. Between e_w and e_r_gdown, the state stays coherent.
+          -- If anything changed dir to Vd, it would have downgraded e_w's cache perms.
+          sorry -- orderBeforeDir case: predecessor coherent → dir ≠ Vd
+        | orderAfterDir hweak_on_vd _ _ _ =>
+          -- e_w is NC weak on Vd → e_w.down would need to be checked.
+          -- But hw_not_down : ¬ e_w.down. orderAfterDir requires ¬ e_w.down too.
+          -- The NC weak on Vd case: e_w's cache is on Vd. But this means the predecessor
+          -- that gave perms... Actually, orderAfterDir means e_w is NC weak read on Vd.
+          -- e_w.isWrite (from CO/FR) + NC weak read → contradiction? NC weak read ≠ write.
+          -- Or: orderAfterDir requires ncWeakReqOnVd which implies NC weak (not coherent write).
+          sorry -- orderAfterDir case: may be vacuous from e_w constraints
