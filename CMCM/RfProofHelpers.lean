@@ -3544,7 +3544,15 @@ lemma diffCache_coherent_encapProxyAndDir
     have he_dir_translated : Event.clusterDirFromDiffProtocolRequest b init e_r e_dir hr_c_and_g_lin :=
       ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b,
         hdowngrade,
-        { clusterMatch := { sameAddr := sorry, atCorrCluster := sorry }
+        { clusterMatch :=
+            { sameAddr := sorry  -- sameAddr: needs shim address preservation (lost by helper)
+              atCorrCluster := by
+                -- hcorrespond at p, he_dir_proto: e_dir at p → correspondingCluster matches
+                have h1 := hcorrespond
+                show e_r_gdown.correspondingClusterOfGlobalCache n e_dir (Event.protocol n)
+                unfold Event.correspondingClusterOfGlobalCache at h1 ⊢
+                split <;> (try simp_all [Event.protocol, hp_eq]) <;>
+                  (simp [Event.protocol] at h1 ⊢; rw [← he_dir_proto, ← hp_eq]; exact h1) }
           atDir := he_dir_isDir
           globalEncap := he_gdown_encap_dir }⟩⟩
     exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
