@@ -3987,14 +3987,46 @@ lemma cdirEncapsDown_exists
         -- CLE.oEnd < e_r_gdown.oEnd: via gcache_encap_dir_chain
         have he_gdown_encap_vd' : e_r_gdown.Encapsulates n e_dir_vd_temp := hgdown_encap_vd
         have hw_cle_lt_gdown : hw_c_and_g_lin.hreq's_dir_access.choose.oEnd < e_r_gdown.oEnd := by
-          have h_gcache_encap := gcache_encap_dir_chain hr_c_and_g_lin hdowngrade he_gdown_encap_vd'
-          -- e_gcache encaps e_dir_vd_temp. e_gcache.oEnd < e_r's CLE.oEnd.
-          -- But need e_w's CLE.oEnd < e_r_gdown.oEnd.
-          -- From gcache_oEnd_lt_cle: e_gcache.oEnd < e_r's CLE.oEnd
-          -- e_dir_vd_temp.oEnd < e_gcache.oEnd (from h_gcache_encap)
-          -- e_dir_vd_temp.oEnd < e_r_gdown.oEnd (from hgdown_encap_vd)
-          -- e_w's CLE: use dir_ordered with e_dir_vd_temp
-          sorry -- TODO: derive from dir_ordered + temporal chain
+          -- Both CLE and e_dir_vd_temp are dir events. Use dir_ordered to order them.
+          have hcle_isDir := hw_c_and_g_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+          have hvd_isDir := hstruct_temp.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir
+          match hfc_cle : hw_c_and_g_lin.hreq's_dir_access.choose, hcle_isDir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de_cle, _ =>
+            match hfc_vd : e_dir_vd_temp, hvd_isDir with
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+            | .directoryEvent de_vd, _ =>
+              cases (b.orderedAtEntry.dir_ordered de_cle de_vd).ordered with
+              | inl hcle_ob_vd =>
+                -- CLE OB e_dir_vd_temp: CLE.oEnd < vd.oStart ≤ vd.oEnd < e_r_gdown.oEnd
+                simp only [Event.oEnd, hfc_cle, hfc_vd] at hvd_lt_gdown ⊢
+                exact Nat.lt_trans (Nat.lt_of_lt_of_le hcle_ob_vd
+                  (Nat.le_of_lt de_vd.oWellFormed)) hvd_lt_gdown
+              | inr hvd_ob_cle =>
+                -- e_dir_vd_temp OB CLE: shim dir before CLE → contradiction.
+                -- e_dir_vd_temp is encapsulated by e_r_gdown, which is encapsulated by
+                -- e_r_cle_gcache, which has oEnd < e_r's CLE.oEnd.
+                -- e_dir_vd_temp.oEnd < CLE.oStart, so CLE starts after e_dir_vd_temp.
+                -- But CLE is also inside the gcache encapsulation chain...
+                -- Actually: e_dir_vd_temp.oEnd < de_cle.oStart (from hvd_ob_cle).
+                -- We need CLE.oEnd < e_r_gdown.oEnd.
+                -- From gcache_encap_dir_chain: e_gcache encaps e_dir_vd_temp.
+                -- So e_dir_vd_temp.oEnd < e_gcache.oEnd. And e_gcache.oEnd < e_r's CLE.oEnd.
+                -- But CLE starts after e_dir_vd_temp ends, and e_dir_vd_temp is inside e_r_gdown...
+                -- e_r_gdown.oStart < e_dir_vd_temp.oStart (encap) and
+                -- e_dir_vd_temp.oEnd < de_cle.oStart (hvd_ob_cle).
+                -- So e_r_gdown.oStart < de_cle.oStart. CLE starts after e_r_gdown starts.
+                -- But does CLE end before e_r_gdown ends? Not necessarily.
+                -- Use: e_r_gdown encaps e_dir_vd_temp → e_r_gdown.oEnd > e_dir_vd_temp.oEnd
+                -- And e_dir_vd_temp OB CLE → CLE.oStart > e_dir_vd_temp.oEnd
+                -- So CLE.oStart > e_dir_vd_temp.oEnd and CLE ⊆ [CLE.oStart, CLE.oEnd]
+                -- Need CLE.oEnd < e_r_gdown.oEnd.
+                -- From gcache chain: e_gcache encaps e_dir_vd_temp → e_gcache.oEnd > e_dir_vd_temp.oEnd
+                -- Also e_gcache.oEnd < e_r's CLE.oEnd (from gcache_oEnd_lt_cle)
+                -- But e_w's CLE ≠ e_r's CLE. No direct bound on e_w's CLE.oEnd vs e_r_gdown.oEnd.
+                -- This case may actually be impossible from protocol ordering, but proving it
+                -- formally requires more context. For now: sorry
+                sorry
         have hda_w := hw_c_and_g_lin.hreq's_dir_access.choose_spec.2
         cases hda_w with
         | encapDir hreq_missing hencap =>
