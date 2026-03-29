@@ -3465,8 +3465,13 @@ lemma diffCache_coherent_encapProxyAndDir
             · next h => rw [hreqTrans] at h; simp at h
             · simp only [Event.reqToDirOfRequestEvent, Event.req, he_cr_m, Event.down]
               rw [hreqTrans]
+      -- isDirMatchingRW: de_dr.req.val.rw = e_r.req.val.rw
+      -- The dir event's rw matches the read proxy's rw (from reqToDirOfRequestEvent default).
+      -- The read proxy's rw matches e_r's rw (both reads in the RF relation).
+      have he_dr_matchingRW : e_dr.isDirMatchingRW n e_r := by
+        sorry -- isDirMatchingRW: needs e_cr.req.val.rw = e_r.req.val.rw chain
       exact { existsRClusterDirDown := ⟨e_dr, he_dr_in_b, he_dr_isDir, he_dr_proto,
-
+        he_dr_matchingRW,
         he_dr_translated,
         Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dr h_dr_end_before_cle⟩ }
   | noCoherentRead hcorrespond _ downTranslation =>
@@ -3484,6 +3489,7 @@ lemma diffCache_coherent_encapProxyAndDir
         hdowngrade.downgradePrevOwner.dirEncapDowngrade) he_gdown_encap_dir
     have h_dir_end_before_cle := Nat.lt_trans h_gcache_encap_dir.2 h_gcache_lt_cle
     exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
+      sorry, -- isDirMatchingRW: needs case info from globalToCluster_extract_dir_with_encap
       sorry, -- translatedDir: needs dirCorrespondToGlobalCache from GlobalToCluster case info
       Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩ }
 

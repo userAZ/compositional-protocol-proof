@@ -371,6 +371,10 @@ def Event.isDirRead : Event n → Prop
 | .cacheEvent _ => False
 | .directoryEvent de => de.req.val.isRead
 
+def Event.isDirMatchingRW : Event n → Event n → Prop
+| .cacheEvent _ , _ => False
+| .directoryEvent de, e => de.req.val.rw = e.req.val.rw
+
 -- def CacheEvent.requestEvent (e : CacheEvent) : Prop := e.cid = e.rid
 -- def CacheEvent.sameAddress (e : CacheEvent) : Prop := e.cid = e.rid
 
