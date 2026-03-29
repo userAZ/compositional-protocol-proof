@@ -3743,14 +3743,14 @@ private lemma encapDir_clusterDirState_ne_Vd
         have hcle_imm : Behaviour.immediateFinishesBeforeAtClusterDirectoryNotEncap n b
             (Event.directoryEvent de_cle) e_r_gdown := by
           exact establish_cle_in_notEncap_set (init := init) de_cle
-            (by rw [← hfc_cle]; exact sorry) -- dirInB
+            (by rw [← hfc_cle]; exact hencap.dirInB)
             he_r_gdown_in_b hcle_lt_gdown
             (by -- sameAddr: transitivity from dir_ordered + shim
               have hsame_de := (b.orderedAtEntry.dir_ordered de_cle de_shim).sameDirectoryEntry
               unfold Event.sameAddr at he_gdown_sameAddr_shim ⊢
               simp [Event.addr, hfc_shim] at he_gdown_sameAddr_shim
               simp [Event.addr]; rw [hsame_de, ← he_gdown_sameAddr_shim])
-            sorry -- gCacheOfCDir: use global_downgrade_cache_translation_encap_corresponding_request
+            sorry -- gCacheOfCDir
             sorry -- notEncap
             sorry -- noIntermediate
         have hsubsingleton := Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap_is_subsingleton
@@ -3811,7 +3811,7 @@ private lemma orderAfterDir_clusterDirState_ne_Vd
         have hcle_imm : Behaviour.immediateFinishesBeforeAtClusterDirectoryNotEncap n b
             (Event.directoryEvent de_cle) e_r_gdown := by
           exact establish_cle_in_notEncap_set (init := init) de_cle
-            (by rw [← hfc_cle]; exact sorry) -- dirInB
+            (by rw [← hfc_cle]; exact sorry) -- dirInB (extract from dirAccessOfRequest)
             he_r_gdown_in_b hcle_lt_gdown
             (by -- sameAddr: transitivity from dir_ordered + shim
               have hsame_de := (b.orderedAtEntry.dir_ordered de_cle de_shim).sameDirectoryEntry
