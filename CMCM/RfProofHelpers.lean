@@ -3615,17 +3615,17 @@ lemma cdirEncapsDown_exists
     (_hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
     (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
     (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache)
+    (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
     : ∃ e_cdir ∈ b, e_cdir.isDirectoryEvent ∧ e_cdir.protocol = e_w.protocol ∧
         e_cdir.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧
         (∃ e_cache_down ∈ b,
             e_cdir.Encapsulates n e_cache_down ∧
             e_cache_down.down ∧ e_cache_down.isCacheEvent) ∧
-        -- The evict directory event (down=true, isDirWrite) for diffClusterNotBetweenCles_sameCache.
-        -- e_cdir (write dir) OB e_evict (evict dir), both at same cluster.
-        (∃ e_evict ∈ b, e_evict.isDirectoryEvent ∧ e_evict.down ∧
+        -- The evict directory event: e_cdir OB e_evict, both at same cluster.
+        -- Call sites case-split on e_evict.down for sameCacheConstraints vs sameCacheWriteConstraints.
+        (∃ e_evict ∈ b, e_evict.isDirectoryEvent ∧
             e_evict.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧
             e_cdir.OrderedBefore n e_evict ∧ e_evict.protocol = e_w.protocol ∧
-            e_evict.isDirWrite ∧
             Event.clusterDirFromDiffProtocolRequest b init e_r e_evict hr_c_and_g_lin) := by
   -- Get global downgrade and GlobalToCluster shim
   have hgdown := diffCache_coherent_globalDowngrade hr_c_and_g_lin
@@ -3803,7 +3803,11 @@ lemma cdirEncapsDown_exists
           | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
         exact ⟨e_dr, he_dr_in_b, he_dr_isDir, he_dr_proto, h_dr_end_before_cle,
           ⟨e_down, he_down_in_b, hencap, hdown_is_down, h_dpow.downgradePrevOwner.downAtCache⟩,
-          sorry⟩ -- scReadDown: evict directory event (same structure as scWriteDown)
+          by
+          -- Evict: use the grant event's CLE (dir access via lin).
+          -- grantRels: e_cr.encapGrantAfterDirEvent n e_dr e_grant → e_dr OB e_grant.
+          -- lin e_grant → e_grant's CLE at e_w's cluster.
+          sorry⟩ -- scReadDown evict: derive from grant's CLE via lin
   | noCoherentRead hcorrespond _ downTranslation =>
     -- noCoherentRead: case-split downTranslation. scWriteDowngrade is vacuous (same as scWriteDown).
     -- scReadDowngrade is the valid case but needs evict dir from cluster axiom.
