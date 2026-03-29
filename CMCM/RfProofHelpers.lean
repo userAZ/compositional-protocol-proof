@@ -3128,9 +3128,9 @@ lemma diffCache_coherent_globalDowngrade
 lemma diffCache_coherent_globalDowngrade_not_scWrite
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_r : Event n}
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  {e_r_gdown : Event n}
+  {e_r_gdown e_r_grant : Event n}
   (hdowngrade : Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init
-    hr_c_and_g_lin e_r_gdown _)
+    hr_c_and_g_lin e_r_gdown e_r_grant)
   : ¬ e_r_gdown.isSCWriteGlobalDowngrade := by
   intro hwrite_down
   -- Re-derive the axiom to get reqCoherentRead
@@ -3156,7 +3156,8 @@ lemma diffCache_coherent_globalDowngrade_not_scWrite
   simp only [Event.isSCWrite, ValidRequest.isSCWrite] at h_write
   simp only [Request.isRead] at h_read
   rw [h_write] at h_read
-  exact h_read -- ReadWrite.w = ReadWrite.r, which is False after rw
+  -- h_read : (↑SCWrite).rw = .r, which reduces to ReadWrite.w = ReadWrite.r → False
+  exact absurd h_read (by decide)
 
 /-- If two correspondingClusterOfGlobalCache facts share the same e_gdown,
     they determine the same cluster — so the protocol outputs are equal. -/
@@ -3360,6 +3361,7 @@ lemma diffCache_coherent_encapProxyAndDir
     cases downTranslation with
     | scWriteDown hwrite_down _ =>
       exact absurd hwrite_down (diffCache_coherent_globalDowngrade_not_scWrite hr_c_and_g_lin hdowngrade)
+    /- Old scWriteDown proof (vacuous — kept for reference):
     -- e_dw: the write directory event at e_w's cluster (isDirWrite, ¬down)
     have he_dw_in_b := hstruct.cohWriteDir.dirInB
     have he_dw_isDir := hstruct.cohWriteDir.isDir
