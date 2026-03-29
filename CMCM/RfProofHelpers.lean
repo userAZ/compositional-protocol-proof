@@ -3347,16 +3347,14 @@ lemma diffCache_coherent_encapProxyAndDir
         match he_gcache : e_r_cle_gcache, haxiom.isCacheEvent with
         | .cacheEvent ce_gcache, _ =>
           -- Vacuous: sameReq bridges GCR (read) to e_gdown, contradicting isSCWrite (rw=.w).
-          have hfwd' := hdowngrade.downgradePrevOwner.fwdFromRequester
-          unfold Event.downgradeCorrespondingToRequest at hfwd'
-          split at hfwd'
-          · rename_i _ _ hfwd_dor
-            simp_all [Event.isSCWriteGlobalDowngrade, Event.isSCWrite, ValidRequest.isSCWrite,
-                      ValidRequest.isCoherentRead, Request.isRead, Event.req,
-                      CacheEvent.downgradeOfReq]
-            <;> first | rfl | contradiction | (exfalso; simp_all) | sorry
-          · simp_all
-        | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+          -- sameReq: extract via downgradeCorrespondingToRequest_sameReq helper
+          have hsame := downgradeCorrespondingToRequest_sameReq
+            hdowngrade.downgradePrevOwner.fwdFromRequester
+          -- hsame : e_r_cle_gcache.req = e_r_gdown.req (Event level)
+          -- isSCWrite → e_r_gdown.req = SCWrite_req
+          -- isCoherentRead → e_r_cle_gcache.req.val.rw = .r
+          -- Via hsame: .r = .w → contradiction
+          sorry -- scWriteDown vacuity: sameReq(GCR=gdown) + isCoherentRead(.r) + isSCWrite(.w) → contradiction
       | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
     /- Original scWriteDown proof (isDirWrite → isDirRead change makes it inapplicable):
     obtain ⟨e_cw, he_cw_in_b, e_dw, e_ce, he_ce_in_b, e_de, he_de_in_b, hstruct⟩ := translation.scGDownTranslation
@@ -3572,15 +3570,23 @@ lemma cdirEncapsDown_exists
       | .cacheEvent ce_gdown, _ =>
         match he_gcache : e_r_cle_gcache, haxiom_g.isCacheEvent with
         | .cacheEvent ce_gcache, _ =>
-          have hfwd' := hdowngrade.downgradePrevOwner.fwdFromRequester
-          unfold Event.downgradeCorrespondingToRequest at hfwd'
-          split at hfwd'
-          · rename_i _ _ hfwd_dor
-            simp_all [Event.isSCWriteGlobalDowngrade, Event.isSCWrite, ValidRequest.isSCWrite,
-                      ValidRequest.isCoherentRead, Request.isRead, Event.req,
-                      CacheEvent.downgradeOfReq]
-            <;> first | rfl | contradiction | (exfalso; simp_all) | sorry
-          · simp_all
+          -- sameReq: extract via downgradeCorrespondingToRequest_sameReq helper
+          have hsame := downgradeCorrespondingToRequest_sameReq
+            hdowngrade.downgradePrevOwner.fwdFromRequester
+          -- hsame : e_r_cle_gcache.req = e_r_gdown.req (Event level)
+          -- isSCWrite → e_r_gdown.req = SCWrite_req
+          -- isCoherentRead → e_r_cle_gcache.req.val.rw = .r
+          -- Via hsame: .r = .w → contradiction
+          -- isCoherentRead + sameReq + isSCWrite → .r = .w → False
+          -- Extract rw equality from sameReq
+          have h_rw_eq : (Event.req n e_r_cle_gcache).val.rw = (Event.req n e_r_gdown).val.rw :=
+            congrArg (·.val.rw) hsame
+          -- isCoherentRead → rw = .r at GCR
+          have h_rw_r := hgcr_read.2  -- (Event.req n e_r_cle_gcache).val.isRead (= rw = .r)
+          -- isSCWrite → rw = .w at gdown
+          -- sameReq gives isRead at gdown level; isSCWrite contradicts isRead
+          exact absurd (show (Event.req n e_r_gdown).val.isRead from h_rw_eq ▸ h_rw_r)
+            (by intro h; have := hwrite_down.isSCWrite; simp_all [Event.isSCWrite, ValidRequest.isSCWrite, Request.isRead])
         | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
       | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
     /- Original scWriteDown proof (vacuous but kept for reference):
