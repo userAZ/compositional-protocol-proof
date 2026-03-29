@@ -3259,7 +3259,7 @@ lemma globalToCluster_extract_dir_with_encap
   (hg2c : Behaviour.Shim.GlobalToCluster n b init p e_gdown)
   (e_w : Event n) (hp_eq : p.pi = e_w.protocol)
   : ∃ e_dir ∈ b, e_dir.isDirectoryEvent ∧ e_dir.protocol = e_w.protocol ∧
-      e_gdown.Encapsulates n e_dir := by
+      e_gdown.Encapsulates n e_dir ∧ e_gdown.sameAddr n e_dir := by
   cases hg2c with
   | bothCoherentWriteAndRead hcorrespond _ downTranslation =>
     cases downTranslation with
@@ -3269,18 +3269,20 @@ lemma globalToCluster_extract_dir_with_encap
         hstruct.cohWrite.atCorrClusterProxy.clusterMatch.atCorrCluster
       exact ⟨e_dw, hstruct.cohWriteDir.dirInB, hstruct.cohWriteDir.isDir,
         hstruct.cohWriteDir.sameProtocol.symm.trans hproto.symm |>.trans hp_eq,
-        Event.encap_encap_trans n
-          (hstruct.cohWrite.globalEncap)
-          (hstruct.cohWriteDir.reqEncapDir)⟩
+        Event.encap_encap_trans n (hstruct.cohWrite.globalEncap) (hstruct.cohWriteDir.reqEncapDir),
+        by have h1 := hstruct.cohWrite.atCorrClusterProxy.clusterMatch.sameAddr
+           have h2 := hstruct.cohWriteDir.dirCorresponds.sameAddr
+           unfold Event.sameAddr at h1 h2 ⊢; exact h2.symm ▸ h1⟩
     | scReadDown _ _ translation =>
       obtain ⟨e_cr, _, e_dr, _, hstruct⟩ := translation
       have hproto := correspondingCluster_protocol_eq hcorrespond
         hstruct.cohRead.atCorrClusterProxy.clusterMatch.atCorrCluster
       exact ⟨e_dr, hstruct.cohReadDir.dirInB, hstruct.cohReadDir.isDir,
         hstruct.cohReadDir.sameProtocol.symm.trans hproto.symm |>.trans hp_eq,
-        Event.encap_encap_trans n
-          (hstruct.cohRead.globalEncap)
-          (hstruct.cohReadDir.reqEncapDir)⟩
+        Event.encap_encap_trans n (hstruct.cohRead.globalEncap) (hstruct.cohReadDir.reqEncapDir),
+        by have h1 := hstruct.cohRead.atCorrClusterProxy.clusterMatch.sameAddr
+           have h2 := hstruct.cohReadDir.dirCorresponds.sameAddr
+           unfold Event.sameAddr at h1 h2 ⊢; exact h2.symm ▸ h1⟩
   | noCoherentRead hcorrespond _ downTranslation =>
     cases downTranslation with
     | scWriteDowngrade _ translation =>
@@ -3291,21 +3293,21 @@ lemma globalToCluster_extract_dir_with_encap
           hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
         exact ⟨e_vd, hvd_in_b, hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir,
           hproto.symm.trans hp_eq,
-          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap⟩
+          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap, hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.sameAddr⟩
       | onDirVd _ htrans =>
         obtain ⟨e_vd, hvd_in_b, _, _, hstruct⟩ := htrans
         have hproto := correspondingCluster_protocol_eq hcorrespond
           hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
         exact ⟨e_vd, hvd_in_b, hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir,
           hproto.symm.trans hp_eq,
-          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap⟩
+          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap, hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.sameAddr⟩
       | onDirVc _ htrans =>
         obtain ⟨e_vc, hvc_in_b, hstruct⟩ := htrans
         have hproto := correspondingCluster_protocol_eq hcorrespond
           hstruct.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
         exact ⟨e_vc, hvc_in_b, hstruct.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.atDir,
           hproto.symm.trans hp_eq,
-          hstruct.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.globalEncap⟩
+          hstruct.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.globalEncap, hstruct.gDownEncapVcInvalDir.dirCorrespondToGlobalCache.clusterMatch.sameAddr⟩
     | scReadDowngrade _ _ translation =>
       cases translation with
       | onDirSW _ htrans =>
@@ -3314,14 +3316,14 @@ lemma globalToCluster_extract_dir_with_encap
           hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
         exact ⟨e_vd, hvd_in_b, hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir,
           hproto.symm.trans hp_eq,
-          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap⟩
+          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap, hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.sameAddr⟩
       | onDirVd _ htrans =>
         obtain ⟨_, _, _, _, e_vd, hvd_in_b, hstruct⟩ := htrans
         have hproto := correspondingCluster_protocol_eq hcorrespond
           hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
         exact ⟨e_vd, hvd_in_b, hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir,
           hproto.symm.trans hp_eq,
-          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap⟩
+          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap, hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.sameAddr⟩
 
 /-- The GCR (global cache request from ClusterToGlobal shim) finishes before the CLE.
     Used in temporal bound computations for encapDirRelation. -/
@@ -3536,7 +3538,7 @@ lemma diffCache_coherent_encapProxyAndDir
     -- from the translateDirectoryEvent structures available in each sub-case.
     have hdir_encap := globalToCluster_extract_dir_with_encap
       (Behaviour.Shim.GlobalToCluster.noCoherentRead hcorrespond (by assumption) downTranslation) e_w hp_eq
-    obtain ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, he_gdown_encap_dir⟩ := hdir_encap
+    obtain ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto, he_gdown_encap_dir, he_gdown_sameAddr⟩ := hdir_encap
     have h_gcache_encap_dir : e_gcache.Encapsulates n e_dir :=
       gcache_encap_dir_chain hr_c_and_g_lin hdowngrade he_gdown_encap_dir
     have h_dir_end_before_cle := Nat.lt_trans h_gcache_encap_dir.2 h_gcache_lt_cle
@@ -3545,7 +3547,7 @@ lemma diffCache_coherent_encapProxyAndDir
       ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b,
         hdowngrade,
         { clusterMatch :=
-            { sameAddr := sorry  -- sameAddr: needs shim address preservation (lost by helper)
+            { sameAddr := he_gdown_sameAddr
               atCorrCluster := by
                 -- hcorrespond at p, he_dir_proto: e_dir at p → correspondingCluster matches
                 have h1 := hcorrespond
