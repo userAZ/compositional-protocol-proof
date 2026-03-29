@@ -3656,9 +3656,30 @@ private lemma encapDir_clusterDirState_ne_Vd
     : ¬ Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_r_gdown Vd := by
   intro hdirVd
   unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
-  -- e_w encapsulates its dir event (CLE). The CLE establishes coherent state.
-  -- Same argument as orderBeforeDir: no intervening dir access → dir ≠ Vd.
-  sorry
+  -- Re-derive shim to get a dir event encapsulated by e_r_gdown
+  have hp_eq := Event.getProtocol_pi cmp e_w
+  have hg2c := cmp.shimAxioms.globalToCluster b init (e_w.getProtocol cmp) e_r_gdown he_r_gdown_in_b
+  have ⟨e_shim_dir, _, he_shim_isDir, _, he_gdown_encap_shim, _⟩ :=
+    globalToCluster_extract_dir_with_encap hg2c e_w hp_eq
+  have hshim_lt_gdown := he_gdown_encap_shim.2
+  -- CLE and shim dir are both dir events → dir_ordered
+  have hcle_isDir := hw_c_and_g_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+  -- encapDir: CLE is encapsulated by e_w. e_w encaps CLE.
+  -- CLE.oEnd < e_w.oEnd (from hencap.reqEncapDir).
+  -- Use dir_ordered between CLE and shim_dir to derive temporal chain.
+  match hfc_cle : hw_c_and_g_lin.hreq's_dir_access.choose, hcle_isDir with
+  | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+  | .directoryEvent de_cle, _ =>
+    match hfc_shim : e_shim_dir, he_shim_isDir with
+    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+    | .directoryEvent de_shim, _ =>
+      cases (b.orderedAtEntry.dir_ordered de_cle de_shim).ordered with
+      | inl hcle_ob_shim =>
+        -- CLE OB shim → CLE before downgrade → dir state coherent
+        sorry
+      | inr hshim_ob_cle =>
+        -- shim OB CLE → downgrade before CLE → contradiction via encapDir
+        sorry
 
 /-- Helper: orderAfterDir with hmade_on_sw → contradiction.
     If e_w is NC weak on Vd, the directory is at Vd. But hmade_on_sw says the global
@@ -3681,12 +3702,28 @@ private lemma orderAfterDir_clusterDirState_ne_Vd
     : ¬ Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_r_gdown Vd := by
   intro hdirVd
   unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
-  -- e_w is NC weak on Vd. The cache is on Vd state (non-coherent).
-  -- hmade_on_sw says global cache = SW (coherent).
-  -- hw_cle_lt_gdown: e_w's CLE finishes before e_r_gdown.
-  -- The CLE (from orderAfterDir) is the SUCCESSOR's dir event.
-  -- Need: derive contradiction — NC weak on Vd + global SW + hdirVd = Vd.
-  sorry
+  -- orderAfterDir: e_w is NC weak on Vd. CLE is the SUCCESSOR's dir event.
+  -- Same shim pattern to get temporal info.
+  have hp_eq := Event.getProtocol_pi cmp e_w
+  have hg2c := cmp.shimAxioms.globalToCluster b init (e_w.getProtocol cmp) e_r_gdown he_r_gdown_in_b
+  have ⟨e_shim_dir, _, he_shim_isDir, _, he_gdown_encap_shim, _⟩ :=
+    globalToCluster_extract_dir_with_encap hg2c e_w hp_eq
+  have hshim_lt_gdown := he_gdown_encap_shim.2
+  have hcle_isDir := hw_c_and_g_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+  match hfc_cle : hw_c_and_g_lin.hreq's_dir_access.choose, hcle_isDir with
+  | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+  | .directoryEvent de_cle, _ =>
+    match hfc_shim : e_shim_dir, he_shim_isDir with
+    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+    | .directoryEvent de_shim, _ =>
+      cases (b.orderedAtEntry.dir_ordered de_cle de_shim).ordered with
+      | inl hcle_ob_shim =>
+        -- CLE OB shim → CLE before downgrade
+        -- orderAfterDir: CLE is successor's dir on Vd. hmade_on_sw says global = SW.
+        sorry
+      | inr hshim_ob_cle =>
+        -- shim OB CLE → downgrade before CLE
+        sorry
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit
