@@ -3483,9 +3483,8 @@ lemma diffCache_coherent_encapProxyAndDir
 
       have h_dr_end_before_cle := Nat.lt_trans h_gcache_encap_dr.2 h_gcache_lt_cle
       have he_dr_translated : Event.clusterDirFromDiffProtocolRequest b init e_r e_dr hr_c_and_g_lin :=
-        ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b, e_cr, hstruct.cohReadDir.reqInB,
+        ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b,
           hdowngrade,
-          hstruct.cohRead.atCorrClusterProxy,
           { clusterMatch :=
               { sameAddr := by
                   have h1 := hstruct.cohRead.atCorrClusterProxy.clusterMatch.sameAddr
@@ -3541,9 +3540,16 @@ lemma diffCache_coherent_encapProxyAndDir
     have h_gcache_encap_dir : e_gcache.Encapsulates n e_dir :=
       gcache_encap_dir_chain hr_c_and_g_lin hdowngrade he_gdown_encap_dir
     have h_dir_end_before_cle := Nat.lt_trans h_gcache_encap_dir.2 h_gcache_lt_cle
+    -- translatedDir: construct correspondingDirectoryEvent from encap + isDir + clusterMatch
+    have he_dir_translated : Event.clusterDirFromDiffProtocolRequest b init e_r e_dir hr_c_and_g_lin :=
+      ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b,
+        hdowngrade,
+        { clusterMatch := { sameAddr := sorry, atCorrCluster := sorry }
+          atDir := he_dir_isDir
+          globalEncap := he_gdown_encap_dir }⟩⟩
     exact { existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
       sorry, -- isDirMatchingRW: needs case info from globalToCluster_extract_dir_with_encap
-      sorry, -- translatedDir: needs dirCorrespondToGlobalCache from GlobalToCluster case info
+      he_dir_translated,
       Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩ }
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
@@ -3678,10 +3684,8 @@ lemma cdirEncapsDown_exists
              | .cacheEvent _, _ =>
                have := hstruct.cohEvictDir.isDir; simp [Event.isDirectoryEvent, he_de_ev] at this,
            -- translatedDir: clusterDirFromDiffProtocolRequest from global downgrade chain
-           ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b, e_ce, _he_ce_in_b,
+           ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b,
              hdowngrade,
-             hstruct.cohEvict.atCorrClusterProxy,
-             -- correspondingDirectoryEvent: e_r_gdown encaps e_de
              { clusterMatch :=
                 { sameAddr := by
                     have h1 := hstruct.cohEvict.atCorrClusterProxy.clusterMatch.sameAddr

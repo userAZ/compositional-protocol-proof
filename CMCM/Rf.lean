@@ -259,10 +259,9 @@ structure Event.clusterDirFromDiffProtocolRequest {cmp : CompoundProtocol n}
   (hinter_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_inter)
   : Prop where
   existsGlobalDownTranslation :
-    ∃ e_gdown ∈ b, ∃ e_grant ∈ b, ∃ e_proxy ∈ b,
+    ∃ e_gdown ∈ b, ∃ e_grant ∈ b,
       Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init
         hinter_c_and_g_lin e_gdown e_grant ∧
-      Event.Shim.Global.ToCluster.proxyCacheEvent n e_gdown e_proxy ∧
       Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_inter_down
 
 def Event.getProtocol (cmp : CompoundProtocol n) (e : Event n) : Protocol n :=
