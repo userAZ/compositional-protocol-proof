@@ -3159,52 +3159,6 @@ lemma diffCache_coherent_globalDowngrade_not_scWrite
   -- h_read : (↑SCWrite).rw = .r, which reduces to ReadWrite.w = ReadWrite.r → False
   exact absurd h_read (by decide)
 
-/-- The CLE of `e_r` has rw matching `e_r`'s rw. From `coherentReadDowngrades`:
-    GCR.isCoherentRead → GCR.rw = .r. From `matchingOp` (encapGlobalCache case):
-    GCR.rw = CLE.rw. From `dirReq`: CLE.req = reqToDirOfRequestEvent(e_r) ≈ e_r.req. -/
-private lemma diffCache_coherent_e_r_isRead
-    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_r : Event n}
-    (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-    : e_r.isRead := by
-  -- Apply the global axiom to get isCoherentRead
-  let e_r_cle_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
-      (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)
-  let e_r_gle := hr_c_and_g_lin.hreq's_global_lin.choose
-  have he_gcache_in_b : e_r_cle_gcache ∈ b :=
-    Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB cmp b init hr_c_and_g_lin.hreq's_dir_access
-  have he_gle_in_b : e_r_gle ∈ b := hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
-  have haxiom := cmp.global.reqAxioms.coherentReadDowngrades b init
-    e_r_cle_gcache he_gcache_in_b e_r_gle he_gle_in_b
-  -- GCR.isCoherentRead → GCR.rw = .r
-  have hgcr_read := haxiom.reqCoherentRead.2  -- e_r_cle_gcache.req.val.isRead
-  -- Case-split ClusterToGlobal shim to connect GCR.rw to CLE.rw
-  let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
-  let hcdir_is_dir := hr_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
-  match hshim : cmp.shimAxioms.clusterToGlobal b init e_r_cle hcdir_is_dir with
-  | .encapGlobalCache _ hgreq_spec =>
-    -- matchingOp: GCR.req.val.rw = CLE.req.val.rw
-    have hmatch := hgreq_spec.choose_spec.right.gReqOfCDir.matchingOp
-    -- GCR = hgreq_spec.choose in this case
-    -- hgcr_read is about (cDir'sGReq ...) which in this case = hgreq_spec.choose
-    -- Extract CLE.rw from matchingOp + isCoherentRead
-    have h_cle_rw : e_r_cle.req.val.rw = ReadWrite.r := by
-      have : e_r_cle_gcache.req.val.rw = e_r_cle.req.val.rw := by
-        show (Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init e_r_cle hcdir_is_dir).req.val.rw = _
-        unfold Behaviour.Shim.ClusterToGlobal.cDir'sGReq; rw [hshim]
-        exact congrArg (·.val.rw) hmatch
-      rw [← this]; exact hgcr_read
-    -- CLE.rw = .r established. Need e_r.rw = CLE.rw via reqToDirOfRequestEvent.
-    -- reqToDirOfRequestEvent defaults to e_r.req for coherent requests (SC/Acq/Rel).
-    -- CLE comes from encapDir/orderBeforeDir/orderAfterDir which all use requestDirectoryEvent.dirReq.
-    -- CLE.rw = .r. Need e_r.rw = .r. Chain: CLE.req = reqToDirOfRequestEvent(e_r).
-    -- reqToDirOfRequestEvent preserves rw EXCEPT for non-coherent writes on I/Vd state
-    -- (where it changes .w → .r). In that case e_r.isRead is FALSE.
-    -- BUT: all call sites have e_r.isRead (from rfe), so this sorry is valid at call sites.
-    -- The lemma cannot be proved in general without e_r.isRead as a hypothesis.
-    sorry
-  | .noGlobalCache _ _ =>
-    sorry -- noGlobalCache: same chain but without matchingOp
-
 /-- If two correspondingClusterOfGlobalCache facts share the same e_gdown,
     they determine the same cluster — so the protocol outputs are equal. -/
 private lemma correspondingCluster_protocol_eq
