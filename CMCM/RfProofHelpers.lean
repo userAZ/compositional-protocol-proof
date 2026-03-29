@@ -3819,7 +3819,8 @@ lemma cdirEncapsDown_exists
             sorry
           · -- e_dr OB e_grant_cle: via dirBeforeGrant + dirAccessOfRequest
             sorry
-          · -- protocol: from dirAccessOfRequest sameProtocol
+          · -- protocol: e_grant_cle.protocol = e_w.protocol
+            -- Chain: e_grant_cle at same cluster as e_grant at same cluster as e_cr/e_dr = e_w
             sorry
           · -- translatedDir
             sorry
