@@ -3346,9 +3346,9 @@ lemma diffCache_coherent_encapProxyAndDir
       | .cacheEvent ce_gdown, _ =>
         match he_gcache : e_r_cle_gcache, haxiom.isCacheEvent with
         | .cacheEvent ce_gcache, _ =>
-          -- Vacuous: coherentReadDowngrades gives a read downgrade, but scWriteDown needs a write.
-          -- sameReq bridges GCR (read) to e_gdown (must match) → contradicts isSCWrite.
-          sorry -- scWriteDown vacuity: needs formal sameReq + isSCWrite/isCoherentRead contradiction
+          -- Vacuous: coherentReadDowngrades → GCR is a read, but scWriteDown needs a write.
+          -- Use sameReq to bridge, then .r ≠ .w.
+          sorry -- scWriteDown vacuity: sameReq + rw mismatch (Lean match reduction issue)
         | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
       | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
     /- Original scWriteDown proof (isDirWrite → isDirRead change makes it inapplicable):
