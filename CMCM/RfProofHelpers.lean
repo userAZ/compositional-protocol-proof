@@ -3323,10 +3323,34 @@ lemma diffCache_coherent_encapProxyAndDir
   | bothCoherentWriteAndRead hcorrespond _ downTranslation =>
     cases downTranslation with
     | scWriteDown hwrite_down translation =>
-      -- scWriteDown requires isSCWriteGlobalDowngrade. But diffCache_coherent_globalDowngrade
-      -- uses coherentReadDowngrades → the global downgrade should be isSCReadGlobalDowngrade.
-      -- scWriteDown likely vacuous here. Sorry for now.
-      sorry
+      -- scWriteDown requires isSCWriteGlobalDowngrade (rw=.w).
+      -- But the global downgrade comes from coherentReadDowngrades (rw=.r). Contradiction.
+      exfalso
+      -- Re-derive the global axiom to get reqCoherentRead
+      let e_r_cle_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
+          (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)
+      let e_r_gle := hr_c_and_g_lin.hreq's_global_lin.choose
+      have he_gcache_in_b : e_r_cle_gcache ∈ b :=
+        Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB cmp b init hr_c_and_g_lin.hreq's_dir_access
+      have he_gle_in_b : e_r_gle ∈ b := hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
+      have haxiom := cmp.global.reqAxioms.coherentReadDowngrades b init
+        e_r_cle_gcache he_gcache_in_b e_r_gle he_gle_in_b
+      -- reqCoherentRead: GCR is a read → rw = .r
+      have hgcr_read := haxiom.reqCoherentRead
+      -- fwdFromRequester → sameReq: e_r_gdown.req = e_gcache.req
+      have hfwd := hdowngrade.downgradePrevOwner.fwdFromRequester
+      -- e_r_gdown and e_gcache are both cache events
+      -- isSCWriteGlobalDowngrade requires rw=.w. But the global downgrade's request
+      -- matches the GCR (coherent read, rw=.r) via downgradeCorrespondingToRequest.
+      match he_gdown_cache : e_r_gdown, hdowngrade.downgradePrevOwner.downAtCache with
+      | .cacheEvent ce_gdown, _ =>
+        match he_gcache : e_r_cle_gcache, haxiom.isCacheEvent with
+        | .cacheEvent ce_gcache, _ =>
+          -- Vacuous: coherentReadDowngrades gives a read downgrade, but scWriteDown needs a write.
+          -- sameReq bridges GCR (read) to e_gdown (must match) → contradicts isSCWrite.
+          sorry -- scWriteDown vacuity: needs formal sameReq + isSCWrite/isCoherentRead contradiction
+        | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+      | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
     /- Original scWriteDown proof (isDirWrite → isDirRead change makes it inapplicable):
     obtain ⟨e_cw, he_cw_in_b, e_dw, e_ce, he_ce_in_b, e_de, he_de_in_b, hstruct⟩ := translation.scGDownTranslation
     -- e_dw: the write directory event at e_w's cluster (isDirWrite, ¬down)
