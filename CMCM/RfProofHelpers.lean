@@ -3811,16 +3811,14 @@ lemma cdirEncapsDown_exists
           have he_gcle_spec := (lin e_grant).hreq's_dir_access.choose_spec.right
           have he_gcle_in_b := (lin e_grant).hreq's_dir_access.choose_spec.left
           refine ⟨e_grant_cle, he_gcle_in_b, he_gcle_spec.isDirEvent, ?_, ?_, ?_, ?_⟩
-          · -- e_grant_cle.oEnd < CLE₂.oEnd: grant_cle inside e_grant inside e_cr inside e_gdown inside e_gcache
-            -- e_grant inside e_cr (from requestEncapGrant). e_cr inside e_gdown (from cohRead.globalEncap).
-            -- e_gdown inside e_gcache. e_gcache.oEnd < CLE₂.oEnd.
-            sorry -- temporal bound via encap chain
-          · -- e_dr OB e_grant_cle: e_dr OB e_grant (dirBeforeGrant). e_grant encaps/precedes e_grant_cle.
-            sorry -- OB chain via dirAccessOfRequest case
-          · -- protocol: e_grant_cle.protocol = e_w.protocol
-            sorry -- from dirAccessOfRequest sameProtocol + e_grant at e_w's cluster
-          · -- translatedDir: clusterDirFromDiffProtocolRequest
-            sorry -- from hdowngrade + correspondingDirectoryEvent for e_grant_cle
+          · -- e_grant_cle.oEnd < CLE₂.oEnd: via encap chain
+            sorry
+          · -- e_dr OB e_grant_cle: via dirBeforeGrant + dirAccessOfRequest
+            sorry
+          · -- protocol: from dirAccessOfRequest sameProtocol
+            sorry
+          · -- translatedDir
+            sorry
           ⟩
   | noCoherentRead hcorrespond _ downTranslation =>
     -- noCoherentRead: case-split downTranslation. scWriteDowngrade is vacuous (same as scWriteDown).
