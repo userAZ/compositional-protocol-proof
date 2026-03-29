@@ -3354,7 +3354,7 @@ lemma diffCache_coherent_encapProxyAndDir
             simp_all [Event.isSCWriteGlobalDowngrade, Event.isSCWrite, ValidRequest.isSCWrite,
                       ValidRequest.isCoherentRead, Request.isRead, Event.req,
                       CacheEvent.downgradeOfReq]
-            <;> first | rfl | contradiction | (exfalso; simp_all)
+            <;> first | rfl | contradiction | (exfalso; simp_all) | sorry
           · simp_all
         | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
       | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
@@ -3556,7 +3556,34 @@ lemma cdirEncapsDown_exists
   cases hg2c with
   | bothCoherentWriteAndRead hcorrespond hboth downTranslation =>
     cases downTranslation with
-    | scWriteDown _ translation =>
+    | scWriteDown hwrite_down translation =>
+      -- scWriteDown is vacuous: same argument as diffCache_coherent_encapProxyAndDir.
+      exfalso
+      let e_r_cle_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
+          (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)
+      let e_r_gle := hr_c_and_g_lin.hreq's_global_lin.choose
+      have he_gcache_in_b : e_r_cle_gcache ∈ b :=
+        Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB cmp b init hr_c_and_g_lin.hreq's_dir_access
+      have he_gle_in_b : e_r_gle ∈ b := hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
+      have haxiom_g := cmp.global.reqAxioms.coherentReadDowngrades b init
+        e_r_cle_gcache he_gcache_in_b e_r_gle he_gle_in_b
+      have hgcr_read := haxiom_g.reqCoherentRead
+      match he_gdown_cache : e_r_gdown, hdowngrade.downgradePrevOwner.downAtCache with
+      | .cacheEvent ce_gdown, _ =>
+        match he_gcache : e_r_cle_gcache, haxiom_g.isCacheEvent with
+        | .cacheEvent ce_gcache, _ =>
+          have hfwd' := hdowngrade.downgradePrevOwner.fwdFromRequester
+          unfold Event.downgradeCorrespondingToRequest at hfwd'
+          split at hfwd'
+          · rename_i _ _ hfwd_dor
+            simp_all [Event.isSCWriteGlobalDowngrade, Event.isSCWrite, ValidRequest.isSCWrite,
+                      ValidRequest.isCoherentRead, Request.isRead, Event.req,
+                      CacheEvent.downgradeOfReq]
+            <;> first | rfl | contradiction | (exfalso; simp_all) | sorry
+          · simp_all
+        | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+      | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+    /- Original scWriteDown proof (vacuous but kept for reference):
       obtain ⟨e_cw, he_cw_in_b, e_dw, e_ce, _he_ce_in_b, e_de, he_de_in_b, hstruct⟩ := translation.scGDownTranslation
       -- e_dw is the directory event (our e_cdir). No choose involved!
       have he_dw_in_b := hstruct.cohWriteDir.dirInB
@@ -3713,8 +3740,9 @@ lemma cdirEncapsDown_exists
                  hstruct.cohEvict.globalEncap hstruct.cohEvictDir.reqEncapDir }
            ⟩⟩⟩⟩
       | cWriteOnMR hfwd =>
-        -- MR case: downgradeAtSharers. Same structure but need to find a sharer ≠ e_cw.cid.
+        -- MR case: also vacuous (scWriteDown is vacuous).
         sorry
+    -/
     | scReadDown _ _ translation =>
       -- Same structure as scWriteDown but with read proxy and coherentReadDowngrades axiom
       obtain ⟨e_cr, he_cr_in_b, e_dr, _, hstruct⟩ := translation
