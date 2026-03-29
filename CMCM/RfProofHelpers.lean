@@ -3881,22 +3881,34 @@ lemma cdirEncapsDown_exists
         have hda_w := hw_c_and_g_lin.hreq's_dir_access.choose_spec.2
         cases hda_w with
         | encapDir hreq_missing hencap =>
-          -- e_w missing perms → coherent request → dir access establishes coherent state.
-          -- The dir event is encapsulated by e_w, so it's before e_w.
-          -- clusterDirStateBefore at e_r_gdown should reflect this coherent state.
-          -- But hdirVd says Vd (non-coherent). Contradiction needs temporal chain.
-          sorry -- encapDir case: e_w's dir establishes coherent state ≠ Vd
-        | orderBeforeDir hreq_has_perms _ _ _ _ _ _ =>
-          -- e_w has perms from predecessor. The predecessor was coherent, established
-          -- SW state at directory. Between predecessor and e_w, hinter_leaves_state_at_least
-          -- ensures no downgrade. Between e_w and e_r_gdown, the state stays coherent.
-          -- If anything changed dir to Vd, it would have downgraded e_w's cache perms.
-          sorry -- orderBeforeDir case: predecessor coherent → dir ≠ Vd
+          -- encapDir: e_w missing perms → coherent request (from reqMissingPerms).
+          -- e_w's dir event is encapsulated by e_w and establishes SW at the directory.
+          -- Between e_w's dir event and e_r_gdown: if dir changed to Vd, Axiom 12
+          -- (nonCohReqDowngrades) gives a downgrade to e_w's cache, but hmade_on_sw
+          -- says global cache is still SW → e_w's cache wasn't downgraded → contradiction.
+          -- TODO: formalize the temporal chain from encapDir → dir at SW → no transition to Vd
+          sorry
+        | orderBeforeDir hreq_has_perms hexists_pred hpred_dir hinter_state hpred_proto hnot_down' hpred_leaves hpred_not_down =>
+          -- orderBeforeDir: predecessor established coherent perms at e_w's cache.
+          -- The predecessor's dir event set the directory to SW.
+          -- Between predecessor and e_r_gdown: if dir changed to Vd, Axiom 12
+          -- (nonCohReqDowngrades) gives e_cdir on SW → downgrade to coherent owner.
+          -- That downgrade targets e_w's cache → lowers cache below SW.
+          -- But hmade_on_sw (global cache=SW) means e_w's cache still has perms → contradiction.
+          -- The formal chain:
+          --   1. predecessor's dir event → directory at SW
+          --   2. if e_cdir changed dir SW→Vd, Axiom 12 gives requestDowngradePrevOwner
+          --   3. downgrade targets the SW owner = e_w's cache
+          --   4. but hmade_on_sw → global cache=SW → cluster has coherent perms → no downgrade
+          -- TODO: formalize using nonCohReqDowngrades + hmade_on_sw
+          sorry
         | orderAfterDir hweak_on_vd _ _ _ =>
-          -- e_w is NC weak on Vd → e_w.down would need to be checked.
-          -- But hw_not_down : ¬ e_w.down. orderAfterDir requires ¬ e_w.down too.
-          -- The NC weak on Vd case: e_w's cache is on Vd. But this means the predecessor
-          -- that gave perms... Actually, orderAfterDir means e_w is NC weak read on Vd.
-          -- e_w.isWrite (from CO/FR) + NC weak read → contradiction? NC weak read ≠ write.
-          -- Or: orderAfterDir requires ncWeakReqOnVd which implies NC weak (not coherent write).
-          sorry -- orderAfterDir case: may be vacuous from e_w constraints
+          -- orderAfterDir: e_w is NC weak on Vd. Its cache is on Vd state.
+          -- The directory IS at Vd in this case — but hmade_on_sw (global cache=SW)
+          -- constrains this. If the global cache is SW (coherent), the cluster should
+          -- have coherent permissions, contradicting the cache being at Vd (non-coherent).
+          -- The cluster directory at Vd with global cache at SW: CompoundSWMR says dir ≤ cache,
+          -- and Vd ≤ SW is true. But the COHERENCE of the global cache (c=true) should
+          -- propagate: the cluster can't be at Vd (c=false) if the global level is coherent.
+          -- TODO: derive contradiction from hmade_on_sw + ncWeakReqOnVd
+          sorry
