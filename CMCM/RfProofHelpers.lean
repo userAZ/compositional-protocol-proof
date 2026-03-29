@@ -3599,14 +3599,40 @@ private lemma orderBeforeDir_clusterDirState_ne_Vd
     : ¬ Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_r_gdown Vd := by
   intro hdirVd
   unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
-  -- Goal: False. We have hdirVd: latestDirectoryState.Before.GlobalCache.state = Vd.
-  -- Show this is impossible because:
-  -- 1. Predecessor's dir event (CLE) left the directory at coherent state (not Vd)
-  -- 2. CLE is the latest non-encapped dir event before e_r_gdown
-  --    (hinter_state prevents any dir event between predecessor and e_w that
-  --     would downgrade the cache; hmade_on_sw prevents after e_w)
-  -- 3. Therefore latestDirectoryState.Before.GlobalCache = stateAfter(CLE) ≠ Vd
-  sorry
+  -- Re-derive the shim to get a dir event encapsulated by e_r_gdown
+  have hp_eq := Event.getProtocol_pi cmp e_w
+  have hg2c := cmp.shimAxioms.globalToCluster b init (e_w.getProtocol cmp) e_r_gdown he_r_gdown_in_b
+  -- The shim gives dir events at e_w's cluster. Extract one to use with dir_ordered.
+  have ⟨e_shim_dir, he_shim_in_b, he_shim_isDir, _, he_gdown_encap_shim, _⟩ :=
+    globalToCluster_extract_dir_with_encap hg2c e_w hp_eq
+  -- e_gdown encapsulates e_shim_dir → e_shim_dir.oEnd < e_r_gdown.oEnd
+  have hshim_lt_gdown := he_gdown_encap_shim.2
+  -- CLE and e_shim_dir are both dir events at the same entry → dir_ordered
+  have hcle_isDir := hw_c_and_g_lin.hreq's_dir_access.choose_spec.2.isDirEvent
+  match hfc_cle : hw_c_and_g_lin.hreq's_dir_access.choose, hcle_isDir with
+  | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+  | .directoryEvent de_cle, _ =>
+    match hfc_shim : e_shim_dir, he_shim_isDir with
+    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+    | .directoryEvent de_shim, _ =>
+      cases (b.orderedAtEntry.dir_ordered de_cle de_shim).ordered with
+      | inl hcle_ob_shim =>
+        -- CLE OB shim_dir → CLE.oEnd < shim_dir.oStart ≤ shim_dir.oEnd < e_r_gdown.oEnd
+        -- So CLE finishes before e_r_gdown. The dir state at CLE time was coherent
+        -- (from orderBeforeDir), and no intervening dir event changed it to Vd
+        -- (hinter_state prevents between pred and e_w; hmade_on_sw prevents after e_w).
+        -- Therefore latestDirectoryState.Before.GlobalCache.state ≠ Vd.
+        sorry
+      | inr hshim_ob_cle =>
+        -- shim_dir OB CLE → downgrade arrived before CLE.
+        -- This means e_shim_dir finishes before CLE starts.
+        -- e_shim_dir is encapsulated by e_r_gdown, and CLE starts after e_shim_dir.
+        -- hinter_state: events between pred and e_w preserve cache ≥ SW.
+        -- The shim dir event (downgrade at e_w's cluster) between pred and e_w
+        -- would lower the cache → contradicts hinter_state.
+        -- Or the shim event is before the predecessor → temporally impossible
+        -- (downgrade from e_r arrives after e_w's predecessor).
+        sorry
 
 /-- Helper: In encapDir, e_w's own dir event establishes coherent state at the directory.
     The same argument as orderBeforeDir applies: no later dir event changes it to Vd. -/
