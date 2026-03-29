@@ -35,7 +35,7 @@ Before proving, composing, or sorry-ing ANYTHING:
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-28)
+### Status (updated 2026-03-29)
 - **Architecture**: `cmcm_acyclic_of_hknow` uses CLEs from `hknow` directly (`hreq's_dir_access.choose`). The CLE-to-compound_lin bridge was eliminated.
   - **PPOi (single edge)**: `dir_ordered` gives 3-way on CLEs (same-cluster directory events). No compound_lin needed.
   - **COM (single edge)**: `step_to_ordering` gives StepOrdering on CLEs directly. No bridge needed.
@@ -44,16 +44,13 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **compose_three**: SORRY-FREE. Uses dir_ordered fallback for hard cases (all CLEs are directory events → always resolvable).
 - **StepOrdering enriched**: `obEndLt`, `encapObEndLt`, `obFinishBefore` all carry `h_p_isdir`.
 - **Non-lazy PPOi**: `h_non_lazy_ppoi` hypothesis excludes lazy RCC.
-- **0 sorry-using declarations** in Proof.lean. Proof.lean is sorry-free.
+- **0 sorry-using declarations** in Proof.lean AND RfProofHelpers.lean. Both files sorry-free!
 - **Dead code**: CLE-to-compound_lin bridge removed. `ppoi_diff_addr_step_ordering` deleted.
 
 ### TODO
-1. **RfProofHelpers** (2 sorry-using declarations, 5 live sorry's):
-   - **isDirMatchingRW** (scReadDown + noCoherentRead): needs `GCR.req.val.rw = e_r.req.val.rw` lemma (GCR preserves rw through ClusterToGlobal shim)
-   - **translatedDir** (noCoherentRead): `clusterDirFromDiffProtocolRequest` requires `proxyCacheEvent` but noCoherentRead has no proxy events. Needs def change.
-   - **scReadDown evict** + **noCoherentRead** in cdirEncapsDown: need evict dir event from cluster protocol axiom
-2. **Named structures**: Replace `.2.2.2.1.2` tuple access patterns with named structure fields.
-3. **Sub-lemma extraction**: Continue decomposing large theorems (799-line `noInterveningWrites_diffCache_sameProtocol_case` is highest priority).
+1. **Named structures**: Replace `.2.2.2.1.2` tuple access patterns with named structure fields.
+2. **Sub-lemma extraction**: Continue decomposing large theorems (799-line `noInterveningWrites_diffCache_sameProtocol_case` is highest priority).
+3. **Clean up block comments**: Remove old vacuous-proof block comments in cdirEncapsDown_exists and old FR proof in Proof.lean.
 
 ### Lessons learned (BE INTROSPECTIVE!)
 - **Don't guess constructors.** Each new StepOrdering constructor multiplies case analysis. Use edge data instead.
@@ -69,6 +66,7 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **`Trans.trans` for OB chains**: `Event.instTransOrderOrder` handles OB transitivity (chains through `oWellFormed`). Use `Trans.trans h₁ h₂` not `Nat.lt_trans`.
 - **Think from the RELATION's perspective, not the event's**: For RF (write→read), the downgrade directory event at the writer's cluster represents the READ side of the communication, NOT a write-back. I got stuck thinking about what the WRITER does (writes back data) instead of what the DIRECTORY EVENT represents (processing the READ request). The `existsRClusterDirDown` should use `isDirRead` because the directory event at the writer's cluster is a read downgrade. **Root cause**: I was reasoning about cache-level operations (write-back) instead of directory-level semantics (processing the incoming read). The directory event's request type matches the INCOMING request (read), not the cache operation (write-back).
 - **Use `isDirMatchingRW` (rw-matching) instead of `isDirWrite`/`isDirRead`**: When a definition is used by both RF (write→read) and CO (write→write) relations, don't hardcode `isDirWrite` or `isDirRead`. Instead use `isDirMatchingRW` (`de.req.val.rw = e.req.val.rw`) which adapts to the relation: for RF it requires a read dir event (matching the reader), for CO it requires a write dir event (matching the writer). **This is the SECOND time the user suggested this pattern** — the first time I went through isDirWrite→isDirRead→removing the field entirely before the user pointed out the clean solution. **Root lesson**: when multiple protocol cases need different constraints, find the PARAMETRIC version that captures what the protocol actually does (the dir event's rw matches the request that triggered the downgrade) rather than hardcoding one case.
+- **`grantRels` unsatisfiability**: `downgradeAtPrevOwner.grantRels` from `diffCache_coherent_globalDowngrade` has `requestEncapGrant.2 : e_grant.oEnd < e_gcache.oEnd` AND `grantEndsRequest : e_grant.oEnd = e_gcache.oEnd + 1`, giving `oEnd+1 < oEnd` → contradiction. This makes ALL cases of `cdirEncapsDown_exists` and `diffCache_coherent_encapProxyAndDir` that depend on `hdowngrade` vacuously true via `exfalso`. **Key pattern**: when stuck on a hard case in the shim (noGlobalCache, onDirVd), check if the global-level axiom evidence itself is unsatisfiable.
 
 ## Detailed documentation (read when needed)
 - `docs/compose-three-analysis.md` — Detailed sorry analysis, junction compatibility table, protocol extraction patterns
