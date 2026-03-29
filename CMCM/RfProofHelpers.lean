@@ -3122,6 +3122,42 @@ lemma diffCache_coherent_globalDowngrade
   cases haxiom.downgradeOtherCaches with
   | cReadOnSW hfwd => exact hfwd.fwdPrevOwner
 
+/-- The global downgrade from `diffCache_coherent_globalDowngrade` is NOT an SC write downgrade.
+    It comes from `coherentReadDowngrades.cReadOnSW`, so the forwarded downgrade carries a
+    read request (via `sameReq`), contradicting `isSCWriteGlobalDowngrade` (which needs rw=.w). -/
+lemma diffCache_coherent_globalDowngrade_not_scWrite
+  {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_r : Event n}
+  (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+  {e_r_gdown : Event n}
+  (hdowngrade : Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init
+    hr_c_and_g_lin e_r_gdown _)
+  : ¬ e_r_gdown.isSCWriteGlobalDowngrade := by
+  intro hwrite_down
+  -- Re-derive the axiom to get reqCoherentRead
+  let e_r_cle_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
+      (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)
+  let e_r_gle := hr_c_and_g_lin.hreq's_global_lin.choose
+  have he_gcache_in_b : e_r_cle_gcache ∈ b :=
+    Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB cmp b init hr_c_and_g_lin.hreq's_dir_access
+  have he_gle_in_b : e_r_gle ∈ b := hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
+  have haxiom := cmp.global.reqAxioms.coherentReadDowngrades b init
+    e_r_cle_gcache he_gcache_in_b e_r_gle he_gle_in_b
+  -- sameReq: GCR.req = e_gdown.req
+  have hsame := downgradeCorrespondingToRequest_sameReq
+    hdowngrade.downgradePrevOwner.fwdFromRequester
+  -- isCoherentRead → GCR is a read. Via sameReq → gdown is also a read.
+  -- But isSCWrite → gdown is a write. Contradiction.
+  have hgcr_read := haxiom.reqCoherentRead
+  -- Transfer isRead from GCR to gdown via sameReq
+  have h_read : (Event.req n e_r_gdown).val.isRead := by
+    have := hgcr_read.2; rw [hsame] at this; exact this
+  -- isSCWrite says rw = .w → ¬ isRead
+  have h_write := hwrite_down.isSCWrite
+  simp only [Event.isSCWrite, ValidRequest.isSCWrite] at h_write
+  simp only [Request.isRead] at h_read
+  rw [h_write] at h_read
+  exact h_read -- ReadWrite.w = ReadWrite.r, which is False after rw
+
 /-- If two correspondingClusterOfGlobalCache facts share the same e_gdown,
     they determine the same cluster — so the protocol outputs are equal. -/
 private lemma correspondingCluster_protocol_eq
@@ -3322,42 +3358,8 @@ lemma diffCache_coherent_encapProxyAndDir
   cases hg2c with
   | bothCoherentWriteAndRead hcorrespond _ downTranslation =>
     cases downTranslation with
-    | scWriteDown hwrite_down translation =>
-      -- scWriteDown requires isSCWriteGlobalDowngrade (rw=.w).
-      -- But the global downgrade comes from coherentReadDowngrades (rw=.r). Contradiction.
-      exfalso
-      -- Re-derive the global axiom to get reqCoherentRead
-      let e_r_cle_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
-          (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)
-      let e_r_gle := hr_c_and_g_lin.hreq's_global_lin.choose
-      have he_gcache_in_b : e_r_cle_gcache ∈ b :=
-        Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB cmp b init hr_c_and_g_lin.hreq's_dir_access
-      have he_gle_in_b : e_r_gle ∈ b := hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
-      have haxiom := cmp.global.reqAxioms.coherentReadDowngrades b init
-        e_r_cle_gcache he_gcache_in_b e_r_gle he_gle_in_b
-      -- reqCoherentRead: GCR is a read → rw = .r
-      have hgcr_read := haxiom.reqCoherentRead
-      -- fwdFromRequester → sameReq: e_r_gdown.req = e_gcache.req
-      have hfwd := hdowngrade.downgradePrevOwner.fwdFromRequester
-      -- e_r_gdown and e_gcache are both cache events
-      -- isSCWriteGlobalDowngrade requires rw=.w. But the global downgrade's request
-      -- matches the GCR (coherent read, rw=.r) via downgradeCorrespondingToRequest.
-      match he_gdown_cache : e_r_gdown, hdowngrade.downgradePrevOwner.downAtCache with
-      | .cacheEvent ce_gdown, _ =>
-        match he_gcache : e_r_cle_gcache, haxiom.isCacheEvent with
-        | .cacheEvent ce_gcache, _ =>
-          -- Vacuous: sameReq bridges GCR (read) to e_gdown, contradicting isSCWrite (rw=.w).
-          -- sameReq: extract via downgradeCorrespondingToRequest_sameReq helper
-          have hsame := downgradeCorrespondingToRequest_sameReq
-            hdowngrade.downgradePrevOwner.fwdFromRequester
-          -- hsame : e_r_cle_gcache.req = e_r_gdown.req (Event level)
-          -- isSCWrite → e_r_gdown.req = SCWrite_req
-          -- isCoherentRead → e_r_cle_gcache.req.val.rw = .r
-          -- Via hsame: .r = .w → contradiction
-          sorry -- scWriteDown vacuity: sameReq(GCR=gdown) + isCoherentRead(.r) + isSCWrite(.w) → contradiction
-      | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
-    /- Original scWriteDown proof (isDirWrite → isDirRead change makes it inapplicable):
-    obtain ⟨e_cw, he_cw_in_b, e_dw, e_ce, he_ce_in_b, e_de, he_de_in_b, hstruct⟩ := translation.scGDownTranslation
+    | scWriteDown hwrite_down _ =>
+      exact absurd hwrite_down (diffCache_coherent_globalDowngrade_not_scWrite hr_c_and_g_lin hdowngrade)
     -- e_dw: the write directory event at e_w's cluster (isDirWrite, ¬down)
     have he_dw_in_b := hstruct.cohWriteDir.dirInB
     have he_dw_isDir := hstruct.cohWriteDir.isDir
@@ -3554,41 +3556,8 @@ lemma cdirEncapsDown_exists
   cases hg2c with
   | bothCoherentWriteAndRead hcorrespond hboth downTranslation =>
     cases downTranslation with
-    | scWriteDown hwrite_down translation =>
-      -- scWriteDown is vacuous: same argument as diffCache_coherent_encapProxyAndDir.
-      exfalso
-      let e_r_cle_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
-          (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)
-      let e_r_gle := hr_c_and_g_lin.hreq's_global_lin.choose
-      have he_gcache_in_b : e_r_cle_gcache ∈ b :=
-        Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB cmp b init hr_c_and_g_lin.hreq's_dir_access
-      have he_gle_in_b : e_r_gle ∈ b := hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
-      have haxiom_g := cmp.global.reqAxioms.coherentReadDowngrades b init
-        e_r_cle_gcache he_gcache_in_b e_r_gle he_gle_in_b
-      have hgcr_read := haxiom_g.reqCoherentRead
-      match he_gdown_cache : e_r_gdown, hdowngrade.downgradePrevOwner.downAtCache with
-      | .cacheEvent ce_gdown, _ =>
-        match he_gcache : e_r_cle_gcache, haxiom_g.isCacheEvent with
-        | .cacheEvent ce_gcache, _ =>
-          -- sameReq: extract via downgradeCorrespondingToRequest_sameReq helper
-          have hsame := downgradeCorrespondingToRequest_sameReq
-            hdowngrade.downgradePrevOwner.fwdFromRequester
-          -- hsame : e_r_cle_gcache.req = e_r_gdown.req (Event level)
-          -- isSCWrite → e_r_gdown.req = SCWrite_req
-          -- isCoherentRead → e_r_cle_gcache.req.val.rw = .r
-          -- Via hsame: .r = .w → contradiction
-          -- isCoherentRead + sameReq + isSCWrite → .r = .w → False
-          -- Extract rw equality from sameReq
-          have h_rw_eq : (Event.req n e_r_cle_gcache).val.rw = (Event.req n e_r_gdown).val.rw :=
-            congrArg (·.val.rw) hsame
-          -- isCoherentRead → rw = .r at GCR
-          have h_rw_r := hgcr_read.2  -- (Event.req n e_r_cle_gcache).val.isRead (= rw = .r)
-          -- isSCWrite → rw = .w at gdown
-          -- sameReq gives isRead at gdown level; isSCWrite contradicts isRead
-          exact absurd (show (Event.req n e_r_gdown).val.isRead from h_rw_eq ▸ h_rw_r)
-            (by intro h; have := hwrite_down.isSCWrite; simp_all [Event.isSCWrite, ValidRequest.isSCWrite, Request.isRead])
-        | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
-      | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+    | scWriteDown hwrite_down _ =>
+      exact absurd hwrite_down (diffCache_coherent_globalDowngrade_not_scWrite hr_c_and_g_lin hdowngrade)
     /- Original scWriteDown proof (vacuous but kept for reference):
       obtain ⟨e_cw, he_cw_in_b, e_dw, e_ce, _he_ce_in_b, e_de, he_de_in_b, hstruct⟩ := translation.scGDownTranslation
       -- e_dw is the directory event (our e_cdir). No choose involved!
