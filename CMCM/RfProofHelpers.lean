@@ -3611,9 +3611,9 @@ lemma diffCache_coherent_encapProxyAndDir
 lemma cdirEncapsDown_exists
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     {e_w e_r : Event n}
-    (_hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+    (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
     (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-    (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache)
+    (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache) (hw_not_down : ¬ e_w.down)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
     : ∃ e_cdir ∈ b, e_cdir.isDirectoryEvent ∧ e_cdir.protocol = e_w.protocol ∧
         e_cdir.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧
