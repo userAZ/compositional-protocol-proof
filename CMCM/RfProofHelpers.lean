@@ -3617,17 +3617,29 @@ private lemma orderBeforeDir_clusterDirState_ne_Vd
     | .directoryEvent de_shim, _ =>
       cases (b.orderedAtEntry.dir_ordered de_cle de_shim).ordered with
       | inl hcle_ob_shim =>
-        -- CLE OB shim_dir → CLE.oEnd < e_r_gdown.oEnd (temporal chain)
+        -- CLE OB shim_dir → CLE.oEnd < e_r_gdown.oEnd
         simp only [Event.oEnd, hfc_shim] at hshim_lt_gdown
         have hcle_lt_gdown : de_cle.oEnd < e_r_gdown.oEnd :=
           Nat.lt_trans (Nat.lt_of_lt_of_le hcle_ob_shim (Nat.le_of_lt de_shim.oWellFormed))
             hshim_lt_gdown
-        -- CLE satisfies immediateFinishesBeforeAtClusterDirectoryNotEncap
-        -- (finishes before e_r_gdown, not encapped, no intermediate non-encapped dir event).
-        -- Use Lemma 6 singleton pattern to extract state = stateAfter(CLE).
-        -- stateAfter(CLE) is coherent (from orderBeforeDir evidence) → ≠ Vd.
-        -- TODO: establish CLE in NotEncap set + singleton + state extraction
-        sorry
+        -- Establish CLE in immediateFinishesBeforeAtClusterDirectoryNotEncap set
+        have hcle_imm : Behaviour.immediateFinishesBeforeAtClusterDirectoryNotEncap n b
+            (Event.directoryEvent de_cle) e_r_gdown := by
+          exact sorry -- establish CLE in NotEncap set (finishBefore + gCacheOfCDir + notEncap + noIntermediate)
+        -- Use singleton pattern: CLE is in the set, set is subsingleton → singleton = CLE
+        have hsubsingleton := Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap_is_subsingleton
+            n b e_r_gdown
+        have hsingleton := Behaviour.event_immediate_finish_before_gdown_singleton' n
+            (by rw [← hfc_cle]; exact hpred_dir.dirInB) hcle_imm hsubsingleton
+        -- Rewrite latestDirectoryState.Before.GlobalCache using singleton = {CLE}
+        -- Following Lemma 6 pattern (Lemma6GlobalWriteDowngrade.lean:2167-2176)
+        unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
+        simp only [Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap] at hdirVd hsingleton
+        rw [hsingleton] at hdirVd
+        simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToEntryState] at hdirVd
+        -- Now hdirVd should reference stateAfter(CLE). The state after CLE should be
+        -- coherent (from the predecessor having coherent perms), i.e., ≠ Vd.
+        sorry -- stateAfter(CLE).state = Vd contradicts coherent state from orderBeforeDir
       | inr hshim_ob_cle =>
         -- shim_dir OB CLE: shim finished before CLE started.
         -- shim is encapsulated by e_r_gdown → shim.oEnd < e_r_gdown.oEnd
@@ -3684,10 +3696,25 @@ private lemma encapDir_clusterDirState_ne_Vd
     | .directoryEvent de_shim, _ =>
       cases (b.orderedAtEntry.dir_ordered de_cle de_shim).ordered with
       | inl hcle_ob_shim =>
-        -- CLE OB shim → CLE before downgrade → dir state coherent
-        sorry
+        -- Same as orderBeforeDir: CLE OB shim → singleton collapse → state ≠ Vd
+        simp only [Event.oEnd, hfc_shim] at hshim_lt_gdown
+        have hcle_lt_gdown : de_cle.oEnd < e_r_gdown.oEnd :=
+          Nat.lt_trans (Nat.lt_of_lt_of_le hcle_ob_shim (Nat.le_of_lt de_shim.oWellFormed))
+            hshim_lt_gdown
+        have hcle_imm : Behaviour.immediateFinishesBeforeAtClusterDirectoryNotEncap n b
+            (Event.directoryEvent de_cle) e_r_gdown := by
+          exact sorry -- establish CLE in NotEncap set
+        have hsubsingleton := Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap_is_subsingleton
+            n b e_r_gdown
+        have hsingleton := Behaviour.event_immediate_finish_before_gdown_singleton' n
+            (by rw [← hfc_cle]; exact hencap.dirInB) hcle_imm hsubsingleton
+        unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
+        simp only [Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap] at hdirVd hsingleton
+        rw [hsingleton] at hdirVd
+        simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToEntryState] at hdirVd
+        sorry -- stateAfter(CLE) ≠ Vd
       | inr hshim_ob_cle =>
-        -- shim OB CLE → downgrade before CLE → contradiction via encapDir
+        -- shim OB CLE → downgrade before CLE → contradiction
         sorry
 
 /-- Helper: orderAfterDir with hmade_on_sw → contradiction.
@@ -3727,12 +3754,27 @@ private lemma orderAfterDir_clusterDirState_ne_Vd
     | .directoryEvent de_shim, _ =>
       cases (b.orderedAtEntry.dir_ordered de_cle de_shim).ordered with
       | inl hcle_ob_shim =>
-        -- CLE OB shim → CLE before downgrade
-        -- orderAfterDir: CLE is successor's dir on Vd. hmade_on_sw says global = SW.
-        sorry
+        -- Same singleton pattern as orderBeforeDir
+        simp only [Event.oEnd, hfc_shim] at hshim_lt_gdown
+        have hcle_lt_gdown : de_cle.oEnd < e_r_gdown.oEnd :=
+          Nat.lt_trans (Nat.lt_of_lt_of_le hcle_ob_shim (Nat.le_of_lt de_shim.oWellFormed))
+            hshim_lt_gdown
+        have hcle_imm : Behaviour.immediateFinishesBeforeAtClusterDirectoryNotEncap n b
+            (Event.directoryEvent de_cle) e_r_gdown := by
+          exact sorry -- establish CLE in NotEncap set
+        have hsubsingleton := Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap_is_subsingleton
+            n b e_r_gdown
+        have hcle_in_b : (Event.directoryEvent de_cle) ∈ b := by
+          rw [← hfc_cle]; exact sorry -- dirInB from orderAfterDir evidence
+        have hsingleton := Behaviour.event_immediate_finish_before_gdown_singleton' n
+            hcle_in_b hcle_imm hsubsingleton
+        unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
+        simp only [Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap] at hdirVd hsingleton
+        rw [hsingleton] at hdirVd
+        simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToEntryState] at hdirVd
+        sorry -- stateAfter(CLE) ≠ Vd (orderAfterDir: successor's dir event state)
       | inr hshim_ob_cle =>
-        -- shim OB CLE → downgrade before CLE
-        sorry
+        sorry -- shim OB CLE contradiction
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit
