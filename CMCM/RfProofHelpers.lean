@@ -3566,7 +3566,11 @@ lemma diffCache_coherent_encapProxyAndDir
             simp only [Event.isDirRead, Request.isRead] at he_dr_isDirRead
             rw [he_dr_isDirRead, h_cle_rw]
         | .noGlobalCache _ _ =>
-          sorry -- noGlobalCache: matchingOp not available, need alternative
+          -- noGlobalCache: matchingOp not available. CLE.rw = reqToDirOfRequestEvent(e_r).rw.
+          -- For most cases (coherent reads, non-coherent writes): CLE.rw = .r = e_dr.rw ✓.
+          -- For Acquire reads on Vd: reqToDirOfRequestEvent changes .r → .w → CLE.rw = .w ≠ .r.
+          -- This case may not arise in practice (Acquire-on-Vd with global cache permissions is unusual).
+          sorry
       exact { existsRClusterDirDown := ⟨e_dr, he_dr_in_b, he_dr_isDir, he_dr_proto,
         he_dr_matchingRW,
         he_dr_translated,
