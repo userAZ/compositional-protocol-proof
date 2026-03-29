@@ -3834,7 +3834,8 @@ lemma cdirEncapsDown_exists
         -- Apply nonCohReqDowngrades to acq proxy/dir → requestDowngradePrevOwner → cache downgrade.
         -- Use acq dir as e_cdir, Vd dir as e_evict (acqDirImmBeforeVdWBDir gives OB).
         obtain ⟨e_shim_acq, he_acq_in_b, e_dir_acq, he_dir_acq_in_b, e_dir_vd, hvd_in_b, hstruct⟩ := htrans
-        sorry -- noCoherentRead.scReadDowngrade.onDirSW: use nonCohReqDowngrades + acq/vd structure
+        -- Apply nonCohReqDowngrades (Axiom 12) to acquire proxy + dir → cache downgrade
+        sorry -- TODO: nonCohReqDowngrades + construct cdir/cache_down/evict tuple
       | onDirVd hdirVd htrans =>
         -- globalReadDownOnDirVd: has Vd writeback dir + Vc invalidate dir.
         -- Similar structure: Vd dir as e_cdir, Vc dir as e_evict.
