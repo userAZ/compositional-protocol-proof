@@ -3804,10 +3804,24 @@ lemma cdirEncapsDown_exists
         exact ⟨e_dr, he_dr_in_b, he_dr_isDir, he_dr_proto, h_dr_end_before_cle,
           ⟨e_down, he_down_in_b, hencap, hdown_is_down, h_dpow.downgradePrevOwner.downAtCache⟩,
           by
-          -- Evict: use the grant event's CLE (dir access via lin).
-          -- grantRels: e_cr.encapGrantAfterDirEvent n e_dr e_grant → e_dr OB e_grant.
-          -- lin e_grant → e_grant's CLE at e_w's cluster.
-          sorry⟩ -- scReadDown evict: derive from grant's CLE via lin
+          -- Evict: use grant event's CLE. grantRels gives e_dr OB e_grant.
+          -- lin e_grant gives grant's dirAccessOfRequest → CLE.
+          have hdir_before_grant := h_dpow.grantRels.dirBeforeGrant
+          let e_grant_cle := (lin e_grant).hreq's_dir_access.choose
+          have he_gcle_spec := (lin e_grant).hreq's_dir_access.choose_spec.right
+          have he_gcle_in_b := (lin e_grant).hreq's_dir_access.choose_spec.left
+          refine ⟨e_grant_cle, he_gcle_in_b, he_gcle_spec.isDirEvent, ?_, ?_, ?_, ?_⟩
+          · -- e_grant_cle.oEnd < CLE₂.oEnd: grant_cle inside e_grant inside e_cr inside e_gdown inside e_gcache
+            -- e_grant inside e_cr (from requestEncapGrant). e_cr inside e_gdown (from cohRead.globalEncap).
+            -- e_gdown inside e_gcache. e_gcache.oEnd < CLE₂.oEnd.
+            sorry -- temporal bound via encap chain
+          · -- e_dr OB e_grant_cle: e_dr OB e_grant (dirBeforeGrant). e_grant encaps/precedes e_grant_cle.
+            sorry -- OB chain via dirAccessOfRequest case
+          · -- protocol: e_grant_cle.protocol = e_w.protocol
+            sorry -- from dirAccessOfRequest sameProtocol + e_grant at e_w's cluster
+          · -- translatedDir: clusterDirFromDiffProtocolRequest
+            sorry -- from hdowngrade + correspondingDirectoryEvent for e_grant_cle
+          ⟩
   | noCoherentRead hcorrespond _ downTranslation =>
     -- noCoherentRead: case-split downTranslation. scWriteDowngrade is vacuous (same as scWriteDown).
     -- scReadDowngrade is the valid case but needs evict dir from cluster axiom.
