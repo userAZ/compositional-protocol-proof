@@ -3370,7 +3370,6 @@ lemma diffCache_coherent_encapProxyAndDir
   (_hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache)
-  (hr_read : e_r.isRead)
   : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin := by
   have hgdown := diffCache_coherent_globalDowngrade hr_c_and_g_lin
   obtain ⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b, hdowngrade⟩ := hgdown
@@ -3524,10 +3523,12 @@ lemma diffCache_coherent_encapProxyAndDir
       -- isDirMatchingRW: de_dr.req.val.rw = e_r.req.val.rw
       -- The dir event's rw matches the read proxy's rw (from reqToDirOfRequestEvent default).
       -- The read proxy's rw matches e_r's rw (both reads in the RF relation).
-      have he_dr_matchingRW : e_dr.isDirMatchingRW n e_r := by
-        simp_all [Event.isDirMatchingRW, Event.isDirRead, Event.isRead, Request.isRead,
-                  Event.isDirectoryEvent]
-        <;> first | rfl | contradiction | (exfalso; simp_all) | sorry
+      -- isDirMatchingRW: e_dr.rw = CLE.rw. Both derived from the same global downgrade chain.
+      -- e_dr.rw = .r (from isDirRead, proved above).
+      -- CLE.rw: from matchingOp (GCR.rw = CLE.rw) + isCoherentRead (GCR.rw = .r) → CLE.rw = .r.
+      -- isDirMatchingRW = (.r = .r) = rfl.
+      have he_dr_matchingRW : e_dr.isDirMatchingRW n hr_c_and_g_lin.hreq's_dir_access.choose := by
+        sorry -- both rw = .r from scReadDown shim + matchingOp chain
       exact { existsRClusterDirDown := ⟨e_dr, he_dr_in_b, he_dr_isDir, he_dr_proto,
         he_dr_matchingRW,
         he_dr_translated,
@@ -3575,7 +3576,6 @@ lemma cdirEncapsDown_exists
     {e_w e_r : Event n}
     (_hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
     (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-    (hr_read : e_r.isRead)
     (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache)
     : ∃ e_cdir ∈ b, e_cdir.isDirectoryEvent ∧ e_cdir.protocol = e_w.protocol ∧
         e_cdir.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧

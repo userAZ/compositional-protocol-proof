@@ -485,11 +485,11 @@ private lemma diffCache_case_extract_encapDir
       | evictBetween w => exact w.encapProxyAndDir
   | wNoPermsAfter _ _ hrCle =>
     cases hrCle with
-    | sameCluster _ hob => exact diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster hr_is_read
+    | sameCluster _ hob => exact diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster
     | diffCluster _ henc _ => exact henc
   | wCleAfter hrCle =>
     cases hrCle with
-    | sameCluster _ hob => exact diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster hr_is_read
+    | sameCluster _ hob => exact diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster
     | diffCluster _ henc _ => exact henc
 
 /-- 2-cluster elimination: if e₁ diff from e₂ and e_w not at e₁'s cluster, then e₂ same as e_w. -/
@@ -641,7 +641,7 @@ theorem fr_ordering_holds
           ⟨e_cache_down, he_cdown_in_b, hcdir_encap_down, hcdown_is_down, hcdown_is_cache⟩,
           ⟨e_evict, he_evict_in_b, he_evict_isDir, he_evict_down, hevict_lt_cle₂,
            hcdir_ob_evict, he_evict_proto, he_evict_isDirWrite, he_evict_translatedDir⟩⟩ :=
-          cdirEncapsDown_exists (lin e₁) (lin e₂) h.read h.in_b₁ h.cache₁
+          cdirEncapsDown_exists (lin e₁) (lin e₂) h.in_b₁ h.cache₁
         -- Case-split on e₁'s dirAccessOfRequest to determine where e₂'s downgrade lands.
         have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2
         cases hda₁ with
@@ -807,7 +807,7 @@ theorem fr_ordering_holds
                                   -- Rewrite hencapDir to use (lin e₁) explicitly.
                                   -- Use diffCache_coherent_encapProxyAndDir directly with (lin e₁) as reader.
                                   -- This gives encapDir parameterized by (lin e₁), avoiding Subsingleton issues.
-                                  have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache sorry
+                                  have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache
                                   have hdrf_spec' := hencapDir'.existsRClusterDirDown.choose_spec
                                   cases hdrf_spec'.2.2.2.2.2 with
                                   | cleEncap henc' =>
@@ -1080,7 +1080,7 @@ theorem fr_ordering_holds
                             (by rw [hw₂']; exact hdco_lt_cle₂)
                             (by simp [Event.isDirectoryEvent])
                     · -- e_w same as e₂: RF cross-cluster. Same approach as encapDir.
-                      have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache sorry
+                      have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache
                       have hdrf_spec' := hencapDir'.existsRClusterDirDown.choose_spec
                       have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
                       cases hdrf_spec'.2.2.2.2.2 with
@@ -1238,7 +1238,7 @@ theorem fr_ordering_holds
                             (by rw [hw₂']; exact hdco_lt_cle₂)
                             (by simp [Event.isDirectoryEvent])
                     · -- e_w same as e₂: RF cross-cluster. Same approach as encapDir.
-                      have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache sorry
+                      have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache
                       have hdrf_spec' := hencapDir'.existsRClusterDirDown.choose_spec
                       have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
                       cases hdrf_spec'.2.2.2.2.2 with
@@ -1627,7 +1627,7 @@ theorem step_to_ordering
                     ⟨_, _, _, _, _⟩,
                     ⟨e_evict_w, he_evict_w_in_b, he_evict_w_isDir, he_evict_w_down,
                      hevict_w_lt, hcdir_w_ob_evict_w, he_evict_w_proto, he_evict_w_isDirWrite, he_evict_w_translatedDir⟩⟩ :=
-                    cdirEncapsDown_exists e_w_lin (hlin e₂) h.read hw_in_b hw_cache
+                    cdirEncapsDown_exists e_w_lin (hlin e₂) hw_in_b hw_cache
                   -- e_evict_w at e_w's cluster. dir_ordered CLE_w e_evict_w (same cluster, same addr).
                   have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
                   have he_evict_w_isdir' := he_evict_w_isDir
@@ -1719,7 +1719,7 @@ theorem step_to_ordering
           ⟨e_cache_down, he_cdown_in_b, hcdir_encap_down, hcdown_is_down, hcdown_is_cache⟩,
           ⟨e_evict, he_evict_in_b, he_evict_isDir, he_evict_down, hevict_lt_cle₂, hcdir_ob_evict,
            he_evict_proto, he_evict_isDirWrite, he_evict_translatedDir⟩⟩ :=
-          cdirEncapsDown_exists (lin e₁) (lin e₂) h.read h.in_b₁ h.cache₁
+          cdirEncapsDown_exists (lin e₁) (lin e₂) h.in_b₁ h.cache₁
         have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
         match hfc_cdir : e_cdir, he_cdir_isDir with
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
