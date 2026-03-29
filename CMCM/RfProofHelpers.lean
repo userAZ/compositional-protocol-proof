@@ -3763,4 +3763,10 @@ lemma cdirEncapsDown_exists
           ⟨e_down, he_down_in_b, hencap, hdown_is_down, h_dpow.downgradePrevOwner.downAtCache⟩,
           sorry⟩ -- scReadDown: evict directory event (same structure as scWriteDown)
   | noCoherentRead hcorrespond _ downTranslation =>
-    sorry -- No coherent read case
+    -- noCoherentRead: case-split downTranslation. scWriteDowngrade is vacuous (same as scWriteDown).
+    -- scReadDowngrade is the valid case but needs evict dir from cluster axiom.
+    cases downTranslation with
+    | scWriteDowngrade hwrite_down _ =>
+      exact absurd hwrite_down (diffCache_coherent_globalDowngrade_not_scWrite hr_c_and_g_lin hdowngrade)
+    | scReadDowngrade _ _ _ =>
+      sorry -- noCoherentRead.scReadDowngrade: needs evict dir from cluster axiom
