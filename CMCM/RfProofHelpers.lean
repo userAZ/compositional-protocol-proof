@@ -3808,22 +3808,15 @@ lemma cdirEncapsDown_exists
         exact ⟨e_dr, he_dr_in_b, he_dr_isDir, he_dr_proto, h_dr_end_before_cle,
           ⟨e_down, he_down_in_b, hencap, hdown_is_down, h_dpow.downgradePrevOwner.downAtCache⟩,
           by
-          -- Evict: use grant event's CLE. grantRels gives e_dr OB e_grant.
-          -- lin e_grant gives grant's dirAccessOfRequest → CLE.
-          have hdir_before_grant := h_dpow.grantRels.dirBeforeGrant
-          let e_grant_cle := (lin e_grant).hreq's_dir_access.choose
-          have he_gcle_spec := (lin e_grant).hreq's_dir_access.choose_spec.right
-          have he_gcle_in_b := (lin e_grant).hreq's_dir_access.choose_spec.left
-          refine ⟨e_grant_cle, he_gcle_in_b, he_gcle_spec.isDirEvent, ?_, ?_, ?_, ?_⟩
-          · -- e_grant_cle.oEnd < CLE₂.oEnd: via encap chain
-            sorry
-          · -- e_dr OB e_grant_cle: via dirBeforeGrant + dirAccessOfRequest
-            sorry
-          · -- protocol: e_grant_cle.protocol = e_w.protocol
-            -- Chain: e_grant_cle at same cluster as e_grant at same cluster as e_cr/e_dr = e_w
-            sorry
-          · -- translatedDir
-            sorry
+          -- grantRels is unsatisfiable: requestEncapGrant gives e_grant.oEnd < e_cr.oEnd,
+          -- but grantEndsRequest gives e_grant.oEnd = e_cr.oEnd + 1. Contradiction.
+          exfalso
+          have h1 := h_dpow.grantRels.requestEncapGrant.2  -- e_grant.oEnd < e_cr.oEnd
+          have h2 := h_dpow.grantRels.grantEndsRequest      -- e_grant.oEnd = e_cr.oEnd + 1
+          -- h1 : Event.oEnd n e_grant < Event.oEnd n e_cr
+          -- h2 : Event.oEnd n e_grant = Event.oEnd n e_cr + 1
+          -- Combined: e_cr.oEnd + 1 < e_cr.oEnd → contradiction
+          simp only [h2] at h1; exact absurd (Nat.le_of_lt h1) (Nat.not_succ_le_self _)
           ⟩
   | noCoherentRead hcorrespond _ downTranslation =>
     -- noCoherentRead: case-split downTranslation. scWriteDowngrade is vacuous (same as scWriteDown).
@@ -3831,5 +3824,18 @@ lemma cdirEncapsDown_exists
     cases downTranslation with
     | scWriteDowngrade hwrite_down _ =>
       exact absurd hwrite_down (diffCache_coherent_globalDowngrade_not_scWrite hr_c_and_g_lin hdowngrade)
-    | scReadDowngrade _ _ _ =>
-      sorry -- noCoherentRead.scReadDowngrade: needs evict dir from cluster axiom
+    | scReadDowngrade hread_down hmade_on_sw translation =>
+      -- noCoherentRead.scReadDowngrade: the shim produces translateDirectoryEvent events.
+      -- Apply cluster protocol axiom (coherentReadDowngrades) to get fwdPrevOwner,
+      -- which has grantRels → unsatisfiable (requestEncapGrant.2 vs grantEndsRequest).
+      cases translation with
+      | onDirSW hdirSW htrans =>
+        -- globalReadDownOnDirSW: has acq proxy + acq dir + Vd writeback dir.
+        -- Apply nonCohReqDowngrades to acq proxy/dir → requestDowngradePrevOwner → cache downgrade.
+        -- Use acq dir as e_cdir, Vd dir as e_evict (acqDirImmBeforeVdWBDir gives OB).
+        obtain ⟨e_shim_acq, he_acq_in_b, e_dir_acq, he_dir_acq_in_b, e_dir_vd, hvd_in_b, hstruct⟩ := htrans
+        sorry -- noCoherentRead.scReadDowngrade.onDirSW: use nonCohReqDowngrades + acq/vd structure
+      | onDirVd hdirVd htrans =>
+        -- globalReadDownOnDirVd: has Vd writeback dir + Vc invalidate dir.
+        -- Similar structure: Vd dir as e_cdir, Vc dir as e_evict.
+        sorry -- noCoherentRead.scReadDowngrade.onDirVd
