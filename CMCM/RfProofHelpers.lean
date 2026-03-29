@@ -3354,7 +3354,7 @@ lemma diffCache_coherent_encapProxyAndDir
             simp_all [Event.isSCWriteGlobalDowngrade, Event.isSCWrite, ValidRequest.isSCWrite,
                       ValidRequest.isCoherentRead, Request.isRead, Event.req,
                       CacheEvent.downgradeOfReq]
-            <;> sorry -- simp_all reduces to ReadWrite goal that should be decidable
+            <;> first | rfl | contradiction | (exfalso; simp_all)
           · simp_all
         | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
       | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
