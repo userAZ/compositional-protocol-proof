@@ -3566,6 +3566,28 @@ lemma diffCache_coherent_encapProxyAndDir
       he_dir_translated,
       Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩ }
 
+/-- Bridge lemma: for a dir event encapsulated by a global cache event,
+    the directory state before the dir event (from stateBefore) equals
+    the clusterDirStateBefore (from latestDirectoryState.Before.GlobalCache).
+    Both compute the same directory entry state: the state after the latest
+    non-encapsulated directory event at the corresponding cluster. -/
+private lemma clusterDirStateBefore_eq_stateBefore_of_encap
+    {b : Behaviour n} {init : InitialSystemState n}
+    {e_gdown e_dir : Event n}
+    (hgdown_in_b : e_gdown ∈ b) (hdir_in_b : e_dir ∈ b)
+    (hgdown_is_global : e_gdown.isGlobalDowngrade)
+    (hencap : e_gdown.Encapsulates n e_dir)
+    (hdir_is_dir : e_dir.isDirectoryEvent)
+    (hfwd_translation : Event.Shim.Global.ToCluster.noCoherentRead.globalReadDownOnDirVd n b init e_gdown e_dir)
+    : (Behaviour.latestDirectoryState.Before.GlobalCache n b init e_gdown).state =
+      (b.stateBefore n (init.stateAt n e_dir) e_dir).state := by
+  -- Pattern from Lemma 6 (Lemma6GlobalWriteDowngrade.lean:2112-2175):
+  -- 1. Establish immediateFinishesBeforeAtClusterDirectory for e_dir
+  -- 2. Use event_immediate_finish_before_gdown_singleton to collapse to singleton
+  -- 3. Rewrite stateOfSubsingletonEventSet to extract state
+  -- The NotEncap variant excludes e_dir itself, giving the state BEFORE e_dir processes.
+  sorry
+
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit
     existential witness. This avoids Exists.choose issues by never going through
@@ -3866,14 +3888,19 @@ lemma cdirEncapsDown_exists
           e_shim_acq he_acq_in_b e_dir_vd hvd_in_b
         have hdir_sw := hncAxiom.reqDirOnSW  -- (b.stateBefore ...).state = SW
         -- hdirVd: (latestDirectoryState.Before.GlobalCache ...).state = Vd
-        -- Bridge: these compute the same dir state.
-        -- Pattern from Lemma 6: use cluster_dir_vd_downgrade_event_immediately_finish_before_of_global_write_downgrade'
-        -- to establish e_dir_vd immediately finishes before e_r_gdown, then
-        -- event_immediate_finish_before_gdown_singleton' to collapse to singleton,
-        -- then stateOfSubsingletonEventSet to extract state = stateAfter(latest_non_encap_dir).
-        -- Since e_dir_vd is the only dir event inside e_r_gdown (onlyVdDir), and it's encapsulated,
-        -- the latest non-encap dir event determines latestDirectoryState.Before.GlobalCache.
-        -- The state before e_dir_vd = state after the latest non-encap dir event.
-        -- Combined: SW = Vd → contradiction.
-        -- TODO: write bridge lemma following Lemma 6 pattern (lines 2112-2175 of Lemma6GlobalWriteDowngrade.lean)
-        sorry
+        -- Bridge: clusterDirStateBefore = stateBefore via bridge lemma
+        have hgdown_is_global : e_r_gdown.isGlobalDowngrade := by
+          exact ⟨hread_down.isGlobalDown, by sorry⟩ -- e_r_gdown.down from downgrade chain
+        have hbridge := clusterDirStateBefore_eq_stateBefore_of_encap
+          he_r_gdown_in_b hvd_in_b hgdown_is_global
+          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap
+          hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir
+          hstruct
+        -- hdirVd: clusterDirStateBefore = Vd. Unfold to get latestDirectoryState form.
+        unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
+        -- Now hdirVd: (latestDirectoryState.Before.GlobalCache ...).state = Vd
+        -- hbridge: same = (b.stateBefore ...).state
+        -- hdir_sw: (b.stateBefore ...).state = SW
+        rw [hbridge] at hdirVd; rw [hdir_sw] at hdirVd
+        -- hdirVd: SW = Vd
+        exact absurd hdirVd (by decide)
