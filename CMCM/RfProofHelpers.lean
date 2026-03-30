@@ -3685,17 +3685,34 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
       -- s.state for .inl is the cache state; SucceedingState for dir event uses s.directory = panic.
       sorry -- impossible: dir events at dir entries only
     | .inr ds =>
-      simp only [Event.SucceedingState, EntryState.state, EntryState.directory] at hs_Vd hs_ne_Vd
-      -- hs_Vd : (de_trans.SucceedingState n ds).toState = Vd
-      -- hs_ne_Vd : ds.toState ≠ Vd
+      simp only [Event.SucceedingState, EntryState.state, EntryState.directory] at hs_Vd
+      -- hs_Vd : (de_trans.SucceedingState n ds).toState = Vd (via EntryState.state of .inr)
+      have hs_ne_Vd' : DirectoryState.toState n ds ≠ Vd := by
+        simp only [EntryState.state] at hs_ne_Vd; exact hs_ne_Vd
+      -- h_ne_Vd_dir: ds can't be Vd (from hs_ne_Vd')
       have h_ne_Vd_dir : ∀ sv, ds ≠ DirectoryState.Vd sv := by
-        intro sv h; exact hs_ne_Vd (by rw [h]; rfl)
-      -- Convert hs_Vd from toState form to DirectoryState.Vd form
+        intro sv h; exact absurd (show DirectoryState.toState n ds = Vd by rw [h]; rfl) hs_ne_Vd'
+      -- h_not_down: down must be false (down=true + non-Vd input can't produce Vd output)
+      -- Combined with hs_Vd' conversion and dir_transition application
+      have h_not_down : de_trans.down = false := by
+        by_contra h
+        have hd : de_trans.down = true := by
+          match hdd : de_trans.down, h with
+          | true, _ => rfl
+          | false, h => exact absurd rfl h
+        -- Case-split on ds: Vd excluded, others with down=true can't produce Vd output
+        match hds : ds with
+        | .Vd vd => exact absurd rfl (h_ne_Vd_dir vd)
+        | .SW _ _ | .MR _ _ | .Vc _ | .I _ => all_goals (
+          subst hds
+          simp only [DirectoryEvent.SucceedingState, hd] at hs_Vd
+          revert hs_Vd; split <;> (try split) <;> (try split) <;> intro hh <;>
+            simp_all [DirectoryState.toState])
+      -- Convert hs_Vd to DirectoryState.Vd form
       have hs_Vd' : ∃ sv, de_trans.SucceedingState n ds = DirectoryState.Vd sv := by
         match hres : de_trans.SucceedingState n ds with
         | .SW _ _ | .MR _ _ | .Vc _ | .I _ => simp [hres, DirectoryState.toState] at hs_Vd
         | .Vd sv => exact ⟨sv, rfl⟩
-      have h_not_down : de_trans.down = false := by sorry -- down=true can't produce Vd from non-Vd
       have ⟨h_rw_w, h_coh_false⟩ := dir_transition_to_Vd_implies_ncWrite h_not_down h_ne_Vd_dir hs_Vd'
       -- de_trans ∈ b (from eventsUpToEvent)
       have hde_trans_in_b : (Event.directoryEvent de_trans) ∈ b := by
