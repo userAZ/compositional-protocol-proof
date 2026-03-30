@@ -1640,7 +1640,13 @@ theorem step_to_ordering
                     ⟨e_evict_w, he_evict_w_in_b, he_evict_w_isDir, he_evict_w_down,
                      hevict_w_lt, hcdir_w_ob_evict_w, he_evict_w_proto, he_evict_w_isDirWrite, he_evict_w_translatedDir⟩⟩ :=
                     cdirEncapsDown_exists e_w_lin (hlin e₂) hw_in_b hw_cache hw_not_down hlin
-                      (fun hdown => sorry) -- h_dir_ne_Vd: from NIW
+                      (fun hdown hdirVd => by
+                        unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
+                        unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
+                        simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToEntryState] at hdirVd
+                        split at hdirVd
+                        · sorry -- none: initial dir state ≠ Vd
+                        · sorry) -- some: stateAfter = Vd → NIW contradiction
                   -- e_evict_w at e_w's cluster. dir_ordered CLE_w e_evict_w (same cluster, same addr).
                   have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
                   have he_evict_w_isdir' := he_evict_w_isDir
