@@ -655,6 +655,10 @@ theorem fr_ordering_holds
                 have hinit := b.initDirStateIsI init
                 simp [hinit, DirI, DirectoryState.toState, I, Vd] at hdirVd
               · -- some e_d case: stateAfter(e_d) = Vd → e_d triggered by NC write → NIW
+                -- After split, hdirVd : (b.stateAfter n (init.stateAt n e_d) e_d).state = Vd
+                -- where e_d is the dir event from the NotEncap set.
+                -- e_d triggered by non-coherent cache write → intervening write → NIW
+                rename_i e_d _
                 sorry)
         -- Case-split on e₁'s dirAccessOfRequest to determine where e₂'s downgrade lands.
         have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2
