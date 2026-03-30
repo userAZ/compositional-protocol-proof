@@ -4258,13 +4258,18 @@ lemma cdirEncapsDown_exists
           obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache,
             he_nc_proto, he_nc_lt⟩ :=
             stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin
-              sorry -- h_dir_req: Axiom 3 (requestDirectoryEvent) for de.eReq and de
-              sorry -- h_eReq_in_b: de.eReq ∈ b
+              (sorry : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
+                b.requestDirectoryEvent n (init.stateAt n (Event.cacheEvent de.eReq)) true
+                  (Event.cacheEvent de.eReq) (Event.directoryEvent de))
               (fun de hde_in_b => by
-                -- h_cle_is_de: CLE of de.eReq = de, from dirAccessUnique (TODO: remove)
-                -- lin gives dirAccessOfRequest with some CLE. dirAccessUnique says CLE is unique.
-                -- Need to construct a second dirAccessOfRequest with de as the dir event.
+                -- h_eReq_in_b: from lin + dirAccessUnique (h_cle_is_de)
+                -- All dirAccessOfRequest cases have reqInB or equivalent.
+                -- encapDir: hencap.reqInB directly
+                -- orderBeforeDir: hpred.dirOfReq gives predecessor = de.eReq, then reqInB
+                -- orderAfterDir: similar
                 sorry)
+              (sorry : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
+                (lin (Event.cacheEvent de.eReq)).hreq's_dir_access.choose = Event.directoryEvent de)
 
               h_not_global'
               (fun de hde_in_b h_rw h_coh h_nd h_not_write => by
