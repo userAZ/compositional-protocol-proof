@@ -1672,20 +1672,28 @@ theorem step_to_ordering
                             e_w_lin.hreq's_dir_access.choose (lin e₁).hreq's_dir_access.choose :=
                           ⟨by rw [hfcw, hfc_evict_w]; exact hob_w_evict,
                            by rw [hfc_evict_w, hfc₁]; exact hevict_w_ob_cle₁⟩
-                        -- Apply diffClusterNotBetweenCles_sameCache
-                        exact absurd ⟨e_evict_w, by rw [hfc_evict_w]; exact he_evict_w_in_b,
-                          { interDiffProtocol := by intro heq; exact h_ew_prot heq
-                            downToW := by
-                              show e_evict_w.protocol = e_w.protocol
-                              rw [hfc_evict_w]; exact he_evict_w_proto
-                            downIsDown := by
-                              -- e_evict.down: true for noCoherentRead/onDirSW (translateDirectoryEvent.downgrade),
-                              -- false for bothCoherentWriteAndRead/cReadOnSW (non-downgrade proxy).
-                              -- For the false case, use diffClusterNotBetweenCles_sameCacheWrite instead.
-                              sorry
-                            isDir := by rw [hfc_evict_w]; simp [Event.isDirectoryEvent]
-                            translatedDir := by rw [hfc_evict_w]; exact he_evict_w_translatedDir
-                          }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCache
+                        -- Branch on e_evict.down: sameCacheConstraints vs sameCacheWriteConstraints
+                        by_cases hevict_down : e_evict_w.down
+                        · -- down=true: use diffClusterNotBetweenCles_sameCache
+                          exact absurd ⟨e_evict_w, by rw [hfc_evict_w]; exact he_evict_w_in_b,
+                            { interDiffProtocol := by intro heq; exact h_ew_prot heq
+                              downToW := by
+                                show e_evict_w.protocol = e_w.protocol
+                                rw [hfc_evict_w]; exact he_evict_w_proto
+                              downIsDown := hevict_down
+                              isDir := by rw [hfc_evict_w]; simp [Event.isDirectoryEvent]
+                              translatedDir := by rw [hfc_evict_w]; exact he_evict_w_translatedDir
+                            }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCache
+                        · -- down=false: use diffClusterNotBetweenCles_sameCacheWrite
+                          exact absurd ⟨e_evict_w, by rw [hfc_evict_w]; exact he_evict_w_in_b,
+                            { interDiffProtocol := by intro heq; exact h_ew_prot heq
+                              downToW := by
+                                show e_evict_w.protocol = e_w.protocol
+                                rw [hfc_evict_w]; exact he_evict_w_proto
+                              notDown := by simp [Bool.eq_false_iff] at hevict_down; exact hevict_down
+                              isDir := by rw [hfc_evict_w]; simp [Event.isDirectoryEvent]
+                              translatedDir := by rw [hfc_evict_w]; exact he_evict_w_translatedDir
+                            }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCacheWrite
                       | inr hob_evict_w =>
                         -- evict_w OB CLE_w. Also e_cdir_w OB evict_w (from cdirEncapsDown).
                         -- Use dir_ordered CLE_w e_cdir_w: if CLE_w OB cdir_w → temporal contradiction.
@@ -1782,18 +1790,27 @@ theorem step_to_ordering
                             (lin e₁).hreq's_dir_access.choose :=
                           ⟨by rw [hfcw, hfc_evict]; exact hob_w_evict,
                            by rw [hfc_evict, hfc_cle₁]; exact hob_evict_cle₁⟩
-                        exact absurd ⟨e_evict, by rw [hfc_evict]; exact he_evict_in_b,
-                          { interDiffProtocol := by
-                              intro heq; exact h_same_prot (h_ew_prot.trans heq.symm)
-                            downToW := by
-                              show e_evict.protocol = e_w.protocol
-                              rw [hfc_evict]; exact he_evict_proto.trans h_ew_prot
-                            downIsDown := by
-                              -- Same case split needed as call site 2: down/not-down
-                              sorry
-                            isDir := by rw [hfc_evict]; simp [Event.isDirectoryEvent]
-                            translatedDir := by rw [hfc_evict]; exact he_evict_translatedDir
-                          }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCache
+                        by_cases hevict_down : e_evict.down
+                        · exact absurd ⟨e_evict, by rw [hfc_evict]; exact he_evict_in_b,
+                            { interDiffProtocol := by
+                                intro heq; exact h_same_prot (h_ew_prot.trans heq.symm)
+                              downToW := by
+                                show e_evict.protocol = e_w.protocol
+                                rw [hfc_evict]; exact he_evict_proto.trans h_ew_prot
+                              downIsDown := hevict_down
+                              isDir := by rw [hfc_evict]; simp [Event.isDirectoryEvent]
+                              translatedDir := by rw [hfc_evict]; exact he_evict_translatedDir
+                            }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCache
+                        · exact absurd ⟨e_evict, by rw [hfc_evict]; exact he_evict_in_b,
+                            { interDiffProtocol := by
+                                intro heq; exact h_same_prot (h_ew_prot.trans heq.symm)
+                              downToW := by
+                                show e_evict.protocol = e_w.protocol
+                                rw [hfc_evict]; exact he_evict_proto.trans h_ew_prot
+                              notDown := by simp [Bool.eq_false_iff] at hevict_down; exact hevict_down
+                              isDir := by rw [hfc_evict]; simp [Event.isDirectoryEvent]
+                              translatedDir := by rw [hfc_evict]; exact he_evict_translatedDir
+                            }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCacheWrite
                       | inr hob_evict_w =>
                         -- e_evict OB CLE_w: evict before write CLE.
                         -- Contradiction: co chain + encap chain → CLE_w OB evict,
