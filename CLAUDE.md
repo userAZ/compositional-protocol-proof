@@ -46,15 +46,18 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **Non-lazy PPOi**: `h_non_lazy_ppoi` hypothesis excludes lazy RCC.
 - **Dead code**: CLE-to-compound_lin bridge removed. `ppoi_diff_addr_step_ordering` deleted.
 - **`cdirEncapsDown_exists`**: `h_dir_coherent` parameter removed; onDirVd proved inline with consistent e_r_gdown. sameProtocol chain proved via `correspondingCluster_protocol_eq`. Proof.lean call sites cleaned.
-- **3 sorry-using declarations** total: `BehaviourHelpers` (Lemma 6 Acquire→Vc), `event_Vd_transition_implies_ncWrite_in_b`, `cdirEncapsDown_exists`.
-- **Proof.lean sorry's (5)**: All in `co_chain_cross_cluster_downgrade` (CO diff-cluster case). 2× `downIsDown` (need down/not-down case split on shim — `sameCacheConstraints` vs `sameCacheWriteConstraints`), 2× deeper protocol (cdir OB CLE_w), 1× CLE_w OB evict from co+encap chain.
+- **4 sorry-using declarations** total: `BehaviourHelpers` (Lemma 6 Acquire→Vc), `event_Vd_transition_implies_ncWrite_in_b`, `cdirEncapsDown_exists`, `fr_ordering_holds`.
+- **Proof.lean sorry's (6)**: 3 NIW callbacks + 3 deeper protocol (cdir OB CLE_w, diff-cluster chain).
 
 ### TODO
-1. **`event_Vd_transition_implies_ncWrite_in_b`** (1 sorry, directoryEvent case): Extract cache event `de_trans.eReq` from dir event and prove isWrite, ¬down, isClusterCache, sameProtocol, oEnd < e_d.oEnd. cacheEvent case proved (vacuous via struct mismatch).
-2. **`cdirEncapsDown_exists` onDirVd** (1 sorry): NIW contradiction — need `h_niw` (not available in helper; need to pass or restructure). sameProtocol already proved.
-3. **`diffCache_coherent_encapProxyAndDir`** (RfProofHelpers line ~3868): shim sorry for rw/down/correspondingDir translation.
-4. **Proof.lean `downIsDown`** (2 sorry's): `e_evict.down` not always true — scReadDown/cReadOnSW has `down=false`. Need to case-split: use `sameCacheConstraints` (down=true) for noCoherentRead cases, `sameCacheWriteConstraints` (¬down) for bothCoherentWriteAndRead cases.
-5. **Proof.lean deeper protocol** (3 sorry's): cdir_w OB CLE_w arguments + diff-cluster CLE_w OB evict chain.
+1. **`event_Vd_transition_implies_ncWrite_in_b`** (8 sorry's in directoryEvent case):
+   - **Root cause**: `e_cdir_ce` (CLE from `dirAccessOfRequest` for `de_trans.eReq`) might not equal `Event.directoryEvent de_trans`. If equal, all properties transfer trivially.
+   - **Fix**: Use `dirAccessUnique` to prove `e_cdir_ce = Event.directoryEvent de_trans` by constructing a second `dirAccessOfRequest` instance. Or add as hypothesis.
+   - **Proved**: h_not_down (down=false), h_ne_Vd_dir, hs_Vd' (toState→Vd conversion), cacheEvent case (vacuous), ¬down (for noPerms cases), sameProtocol, isClusterCache (modulo global pInst), hde_trans_in_b.
+   - **Sorry's**: s=.inl (well-formedness), downgrade sameDown, hce_proto (e_cdir_ce protocol), isWrite, global pInst, oEnd temporal bound, orderBeforeDir/orderAfterDir ∈ b.
+2. **`cdirEncapsDown_exists` onDirVd** (1 sorry): temporal bound `CLE_nc.oEnd < CLE_r.oEnd` in callback invocation.
+3. **Proof.lean NIW callbacks** (3 sorry's): Need to apply `h_no_between` from RF/CO evidence to the NC write provided by the callback.
+4. **Proof.lean deeper protocol** (3 sorry's): cdir_w OB CLE_w arguments + diff-cluster CLE_w OB evict chain.
 
 ### Lessons learned (BE INTROSPECTIVE!)
 - **Don't guess constructors.** Each new StepOrdering constructor multiplies case analysis. Use edge data instead.
