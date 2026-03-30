@@ -3736,22 +3736,60 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
             sorry -- contradicts h_not_down via sameDown chain
           | noPermsForNonNcRelAcqWeakWrite hnot_down _ _ => exact hnot_down
           | ncRelAcqWeakWriteNotOnCoherentState hnot_down _ _ => exact hnot_down
+        -- sameProtocol between de_trans and e_d: both at same dir entry → same struct → same protocol
+        have hde_trans_same_proto : (Event.directoryEvent de_trans).sameProtocol n e_d := by
+          cases List.mem_append.mp he_in_list with
+          | inl h_in_up =>
+            have hat := b.eventsUpToEntry_at_e_entry (n := n) e_d _ h_in_up
+            -- hat.eAtStruct gives same struct. For dir events, struct = .directory pInst.
+            -- Same struct → same pInst → same protocol.
+            unfold Event.sameProtocol
+            have hstruct := hat.eAtStruct
+            -- (.directoryEvent de_trans).struct = e_d.struct
+            -- (.directoryEvent de_trans).protocol = de_trans.pInst
+            -- If e_d = .directoryEvent de_d, then e_d.struct = .directory de_d.pInst, e_d.protocol = de_d.pInst
+            -- Same struct → .directory de_trans.pInst = .directory de_d.pInst → de_trans.pInst = de_d.pInst
+            cases e_d with
+            | cacheEvent _ => simp [Event.isDirectoryEvent] at he_d_isDir
+            | directoryEvent de_d =>
+              simp only [Event.struct, Struct.directory.injEq] at hstruct
+              simp only [Event.protocol]; exact hstruct
+          | inr h_in_tail =>
+            have heq := List.mem_singleton.mp h_in_tail
+            unfold Event.sameProtocol; rw [← heq]
+        -- cache event protocol = dir event protocol (from hencap.sameProtocol)
+        have hce_proto : (Event.cacheEvent de_trans.eReq).protocol =
+            (Event.directoryEvent de_trans).protocol := by
+          rw [hencap.sameProtocol]
+          -- e_cdir_ce.protocol = de_trans.protocol: both are dir events at same entry
+          -- e_cdir_ce is the CLE for de_trans.eReq, at the same dir entry
+          sorry -- e_cdir_ce.protocol = de_trans.pInst
         refine ⟨Event.cacheEvent de_trans.eReq, hencap.reqInB, ?_, ?_, ?_, ?_, ?_⟩
-        · -- isWrite
+        · -- isWrite: de_trans.eReq.req.val.isWrite
+          -- h_rw_w : de_trans.req.val.rw = .w (dir event's request)
+          -- hencap.dirCorresponds.dirReq relates e_cdir_ce.req to de_trans.eReq.req via reqToDirOfRequestEvent
+          -- But e_cdir_ce might not be de_trans. Need to show de_trans.eReq.req.val.rw = .w.
           sorry
-        · -- ¬ down
-          exact hce_not_down
-        · -- isClusterCache: cache event at cluster protocol
+        · exact hce_not_down
+        · -- isClusterCache
           constructor
           · simp [Event.isCacheEvent]
           · -- protocol is cluster1 or cluster2
-            simp [Event.protocol]
-            -- de_trans is a dir event at a cluster → protocol ≠ global
-            -- de_trans.eReq at same protocol as e_cdir_ce (from hencap.sameProtocol)
-            -- e_cdir_ce is a dir event (from hencap.isDir) → protocol is cluster
-            sorry
-        · -- sameProtocol: de_trans.eReq at same protocol as e_d
-          sorry
+            have hproto_eq : (Event.cacheEvent de_trans.eReq).protocol = e_d.protocol := by
+              rw [hce_proto]; exact hde_trans_same_proto
+            rw [hproto_eq]
+            cases e_d with
+            | cacheEvent _ => simp [Event.isDirectoryEvent] at he_d_isDir
+            | directoryEvent de_d =>
+              show de_d.pInst = .cluster1 ∨ de_d.pInst = .cluster2
+              cases de_d.pInst with
+              | cluster1 => left; rfl
+              | cluster2 => right; rfl
+              | global => sorry -- dir events at global protocol shouldn't happen
+        · -- sameProtocol
+          show (Event.cacheEvent de_trans.eReq).protocol = e_d.protocol
+          rw [hce_proto]
+          exact hde_trans_same_proto
         · -- oEnd < e_d.oEnd
           sorry
       | orderBeforeDir _ _ _ _ _ _ _ _ => sorry
