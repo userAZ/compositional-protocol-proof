@@ -652,8 +652,7 @@ theorem fr_ordering_holds
                 simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
                 have := b.initDirStateIsI init
                 simp_all [DirI, DirectoryState.toState, I, Vd]
-              · -- some e_d: stateAfter(e_d) = Vd
-                -- e_d ∈ b and e_d.isDir: from NotEncap set membership (sorry for now)
+              · -- some e_d: stateAfter(e_d) = Vd → NC write → NIW contradiction
                 sorry)
         -- Case-split on e₁'s dirAccessOfRequest to determine where e₂'s downgrade lands.
         have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2
@@ -1651,9 +1650,21 @@ theorem step_to_ordering
                 simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
                 have := b.initDirStateIsI init
                 simp_all [DirI, DirectoryState.toState, I, Vd]
-              · -- some e_d: stateAfter(e_d) = Vd
-                -- e_d ∈ b and e_d.isDir: from NotEncap set membership (sorry for now)
+              · -- some e_d: stateAfter(e_d) = Vd → NC write → NIW contradiction
                 sorry)
+              · -- Nonempty: Set.toOption = some h_nonempty.some
+                rw [show s.toOption = some h_nonempty.some.val from by
+                  simp [Set.toOption, h_nonempty]] at hdirVd
+                -- h_nonempty.some.prop gives membership: .1 = ∈ b, .2 = P
+                have he_d_in_b : h_nonempty.some.val ∈ b := h_nonempty.some.prop.1
+                sorry -- continue with stateAfter_Vd + NIW
+              · -- ¬Nonempty: Set.toOption = none → initial state
+                rw [show s.toOption = none from by
+                  simp [Set.toOption, h_nonempty]] at hdirVd
+                -- hdirVd: init state = Vd. But init = I ≠ Vd.
+                simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
+                have := b.initDirStateIsI init
+                simp_all [DirI, DirectoryState.toState, I, Vd])
                   -- e_evict_w at e_w's cluster. dir_ordered CLE_w e_evict_w (same cluster, same addr).
                   have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
                   have he_evict_w_isdir' := he_evict_w_isDir
@@ -1756,9 +1767,21 @@ theorem step_to_ordering
                 simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
                 have := b.initDirStateIsI init
                 simp_all [DirI, DirectoryState.toState, I, Vd]
-              · -- some e_d: stateAfter(e_d) = Vd
-                -- e_d ∈ b and e_d.isDir: from NotEncap set membership (sorry for now)
+              · -- some e_d: stateAfter(e_d) = Vd → NC write → NIW contradiction
                 sorry)
+              · -- Nonempty: Set.toOption = some h_nonempty.some
+                rw [show s.toOption = some h_nonempty.some.val from by
+                  simp [Set.toOption, h_nonempty]] at hdirVd
+                -- h_nonempty.some.prop gives membership: .1 = ∈ b, .2 = P
+                have he_d_in_b : h_nonempty.some.val ∈ b := h_nonempty.some.prop.1
+                sorry -- continue with stateAfter_Vd + NIW
+              · -- ¬Nonempty: Set.toOption = none → initial state
+                rw [show s.toOption = none from by
+                  simp [Set.toOption, h_nonempty]] at hdirVd
+                -- hdirVd: init state = Vd. But init = I ≠ Vd.
+                simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
+                have := b.initDirStateIsI init
+                simp_all [DirI, DirectoryState.toState, I, Vd])
         have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
         match hfc_cdir : e_cdir, he_cdir_isDir with
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
