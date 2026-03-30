@@ -3894,9 +3894,10 @@ lemma cdirEncapsDown_exists
             -- changes dir to Vd requires Axiom 12 downgrade → contradicts encapDir.
             sorry
           | orderBeforeDir hreq_has_perms hexists_pred hpred_dir hinter_state_w hpred_proto hnot_down' hpred_leaves hpred_not_down =>
-            -- predecessor established coherent perms. hinter_state_w constrains events
-            -- between predecessor and e_w. Any dir event that changes dir to Vd triggers
-            -- Axiom 12 downgrade of SW owner → lowers cache → contradicts hinter_state_w.
+            -- e_d is at e_w's cluster with stateAfter = Vd. e_d's CLE (from lin) tells us
+            -- about e_d's triggering cache event. The state machine case analysis on e_d
+            -- shows the triggering event is NC. Apply hinter_state_w or hmade_on_sw.
+            -- For now: this needs the dir state machine property + temporal chain.
             sorry
           | orderAfterDir hweak_on_vd _ _ _ =>
             -- e_w is NC weak on Vd. hmade_on_sw says global = SW.
