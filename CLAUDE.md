@@ -45,19 +45,16 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **StepOrdering enriched**: `obEndLt`, `encapObEndLt`, `obFinishBefore` all carry `h_p_isdir`.
 - **Non-lazy PPOi**: `h_non_lazy_ppoi` hypothesis excludes lazy RCC.
 - **Dead code**: CLE-to-compound_lin bridge removed. `ppoi_diff_addr_step_ordering` deleted.
+- **`cdirEncapsDown_exists`**: `h_dir_coherent` parameter removed; onDirVd proved inline with consistent e_r_gdown. sameProtocol chain proved via `correspondingCluster_protocol_eq`. Proof.lean call sites cleaned.
+- **3 sorry-using declarations** total: `BehaviourHelpers` (Lemma 6 Acquire→Vc), `event_Vd_transition_implies_ncWrite_in_b`, `cdirEncapsDown_exists`.
+- **Proof.lean sorry's (5)**: All in `co_chain_cross_cluster_downgrade` (CO diff-cluster case). 2× `downIsDown` (need down/not-down case split on shim — `sameCacheConstraints` vs `sameCacheWriteConstraints`), 2× deeper protocol (cdir OB CLE_w), 1× CLE_w OB evict from co+encap chain.
 
 ### TODO
-1. **RfProofHelpers: `event_Vd_transition_implies_ncWrite_in_b`** (1 sorry): Model-level bridge from state transition (non-Vd→Vd) to ∃ cluster cache NC write in b. Requires protocol axioms (CompoundProtocol / cacheEncapsulatesCorrespondingDirEvent) not in current hypotheses. The list induction part (`list_stateAfter_exists_transition`) and the top-level `stateAfter_Vd_implies_exists_ncWrite` are sorry-free.
-2. **1 sorry-using declaration** (`cdirEncapsDown_exists`), 3 sub-sorry's in `onDirVd` case:
-   - `encapDir`: e_w's dir establishes SW → transition to Vd requires Axiom 12 downgrade → contradicts cache ≥ SW + global SW
-   - `orderBeforeDir`: predecessor established SW → same Axiom 12 argument
-   - `orderAfterDir`: NC weak on Vd + global SW → need contradiction
-   - **Architecture**: 3 helper lemmas (`orderBeforeDir_clusterDirState_ne_Vd`, `encapDir_clusterDirState_ne_Vd`, `orderAfterDir_clusterDirState_ne_Vd`) with `hw_cle_lt_gdown` temporal hypothesis.
-   - **Remaining sorry's**: (a) `hw_cle_lt_gdown` derivation via dir_ordered + encapsulation chain, (b) 3 helper lemma bodies showing `latestDirectoryState.Before.GlobalCache ≠ Vd` using the Lemma 6 singleton pattern.
-   - **RESOLVED**: isDirMatchingRW replaced with isDirDownRW (readDown/writeDown inductive). scReadDown.cReadOnSW evict fixed via e_cdir=e_evict.
-2. **Named structures**: Replace `.2.2.2.1.2` tuple access patterns with named structure fields.
-3. **Sub-lemma extraction**: Continue decomposing large theorems.
-4. **Clean up block comments**: Remove old vacuous-proof block comments in cdirEncapsDown_exists and old FR proof in Proof.lean.
+1. **`event_Vd_transition_implies_ncWrite_in_b`** (1 sorry, directoryEvent case): Extract cache event `de_trans.eReq` from dir event and prove isWrite, ¬down, isClusterCache, sameProtocol, oEnd < e_d.oEnd. cacheEvent case proved (vacuous via struct mismatch).
+2. **`cdirEncapsDown_exists` onDirVd** (1 sorry): NIW contradiction — need `h_niw` (not available in helper; need to pass or restructure). sameProtocol already proved.
+3. **`diffCache_coherent_encapProxyAndDir`** (RfProofHelpers line ~3868): shim sorry for rw/down/correspondingDir translation.
+4. **Proof.lean `downIsDown`** (2 sorry's): `e_evict.down` not always true — scReadDown/cReadOnSW has `down=false`. Need to case-split: use `sameCacheConstraints` (down=true) for noCoherentRead cases, `sameCacheWriteConstraints` (¬down) for bothCoherentWriteAndRead cases.
+5. **Proof.lean deeper protocol** (3 sorry's): cdir_w OB CLE_w arguments + diff-cluster CLE_w OB evict chain.
 
 ### Lessons learned (BE INTROSPECTIVE!)
 - **Don't guess constructors.** Each new StepOrdering constructor multiplies case analysis. Use edge data instead.
