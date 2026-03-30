@@ -1681,7 +1681,21 @@ theorem step_to_ordering
                 rename_i h_nonempty
                 simp only [Behaviour.eventToEntryState] at hdirVd
                 have he_d_in_b : (h_nonempty.some : Event n) ∈ b := h_nonempty.some.prop.1
-                sorry -- NC write extraction + NIW
+                have he_d_isDir : (h_nonempty.some : Event n).isDirectoryEvent := by
+                  exact Behaviour.reqAtCorrespondingGCacheOfCDir_is_directory_event n
+                    h_nonempty.some.prop.2.finishBefore.gCacheOfCDir
+                have h_init_ne_Vd : (init.stateAt n (h_nonempty.some : Event n)).state ≠ Vd := by
+                  match he : (h_nonempty.some : Event n) with
+                  | .directoryEvent de =>
+                    simp only [InitialSystemState.stateAt, EntryState.state]
+                    sorry -- init dir state I ≠ Vd
+                  | .cacheEvent ce =>
+                    rw [he] at he_d_isDir; simp [Event.isDirectoryEvent] at he_d_isDir
+                obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, _, _⟩ :=
+                  stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin hdirVd h_init_ne_Vd
+                obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
+                have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
+                exact absurd sorry h_niw.notBetweenGles
               · -- ¬Nonempty: init state = I ≠ Vd
                 rename_i h_not_nonempty
                 simp only [Behaviour.eventToEntryState] at hdirVd
@@ -1791,7 +1805,21 @@ theorem step_to_ordering
                 rename_i h_nonempty
                 simp only [Behaviour.eventToEntryState] at hdirVd
                 have he_d_in_b : (h_nonempty.some : Event n) ∈ b := h_nonempty.some.prop.1
-                sorry -- NC write extraction + NIW
+                have he_d_isDir : (h_nonempty.some : Event n).isDirectoryEvent := by
+                  exact Behaviour.reqAtCorrespondingGCacheOfCDir_is_directory_event n
+                    h_nonempty.some.prop.2.finishBefore.gCacheOfCDir
+                have h_init_ne_Vd : (init.stateAt n (h_nonempty.some : Event n)).state ≠ Vd := by
+                  match he : (h_nonempty.some : Event n) with
+                  | .directoryEvent de =>
+                    simp only [InitialSystemState.stateAt, EntryState.state]
+                    sorry -- init dir state I ≠ Vd
+                  | .cacheEvent ce =>
+                    rw [he] at he_d_isDir; simp [Event.isDirectoryEvent] at he_d_isDir
+                obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, _, _⟩ :=
+                  stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin hdirVd h_init_ne_Vd
+                obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
+                have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
+                exact absurd sorry h_niw.notBetweenGles
               · -- ¬Nonempty: init state = I ≠ Vd
                 rename_i h_not_nonempty
                 simp only [Behaviour.eventToEntryState] at hdirVd
