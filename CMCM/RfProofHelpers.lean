@@ -3720,16 +3720,55 @@ private lemma dir_event_properties_from_lin
     cases hda with
     | encapDir _ hencap => exact hencap.dirCorresponds
     | orderBeforeDir _ hexists_pred hpred _ _ _ _ _ =>
-      -- hpred.dirCorresponds links hexists_pred.choose to de.
-      -- dirOfReq gives de.eReq = hexists_pred.choose (as cache event).
-      -- So hpred.dirCorresponds IS requestDirectoryEvent for (de.eReq, de).
-      sorry
-    | orderAfterDir _ _ _ _ => sorry
+      -- hpred.dirOfReq : (.directoryEvent de).dirEventOfReqEvent n hexists_pred.choose
+      -- For dir+cache: de.matchesCacheEvent ce → de.eReq = ce → hexists_pred.choose = .cacheEvent de.eReq
+      -- Use dirEventOfReqEvent_unique to get predecessor = de.eReq, then substitute.
+      -- Since matchesCacheEvent gives de.eReq = ce, the predecessor IS .cacheEvent de.eReq.
+      have hdirOfReq := hpred.dirOfReq
+      -- hdirOfReq type depends on hexists_pred.choose being a cache event.
+      -- dirEventOfReqEvent for (.directoryEvent de, e) is only true when e = .cacheEvent de.eReq.
+      -- So we can derive hexists_pred.choose = .cacheEvent de.eReq from hdirOfReq.
+      have hpred_eq : hexists_pred.choose = Event.cacheEvent de.eReq := by
+        unfold Event.dirEventOfReqEvent at hdirOfReq
+        match hexists_pred.choose, hdirOfReq with
+        | .cacheEvent ce, h =>
+          simp [DirectoryEvent.matchesCacheEvent] at h
+          rw [h.1]
+        | .directoryEvent _, h => simp [Event.dirEventOfReqEvent] at h
+      rw [hpred_eq] at hpred; exact hpred.dirCorresponds
+    | orderAfterDir _ hsucc _ _ =>
+      have hencap_corr := hsucc.choose_spec.right.satisfyP.encapCorresponding
+      have hdirOfReq := hencap_corr.dirOfReq
+      have hsucc_eq : hsucc.choose = Event.cacheEvent de.eReq := by
+        unfold Event.dirEventOfReqEvent at hdirOfReq
+        match hsucc.choose, hdirOfReq with
+        | .cacheEvent ce, h =>
+          simp [DirectoryEvent.matchesCacheEvent] at h
+          rw [h.1]
+        | .directoryEvent _, h => simp [Event.dirEventOfReqEvent] at h
+      rw [hsucc_eq] at hencap_corr; exact hencap_corr.dirCorresponds
   · -- reqInB: from each case
     cases hda with
     | encapDir _ hencap => exact hencap.reqInB
-    | orderBeforeDir _ _ hpred _ _ _ _ _ => sorry
-    | orderAfterDir _ _ _ _ => sorry
+    | orderBeforeDir _ hexists_pred hpred _ _ _ _ _ =>
+      have hdirOfReq := hpred.dirOfReq
+      have hpred_eq : hexists_pred.choose = Event.cacheEvent de.eReq := by
+        unfold Event.dirEventOfReqEvent at hdirOfReq
+        match hexists_pred.choose, hdirOfReq with
+        | .cacheEvent ce, h =>
+          simp [DirectoryEvent.matchesCacheEvent] at h; rw [h.1]
+        | .directoryEvent _, h => simp [Event.dirEventOfReqEvent] at h
+      rw [hpred_eq] at hpred; exact hpred.reqInB
+    | orderAfterDir _ hsucc _ _ =>
+      have hencap_corr := hsucc.choose_spec.right.satisfyP.encapCorresponding
+      have hdirOfReq := hencap_corr.dirOfReq
+      have hsucc_eq : hsucc.choose = Event.cacheEvent de.eReq := by
+        unfold Event.dirEventOfReqEvent at hdirOfReq
+        match hsucc.choose, hdirOfReq with
+        | .cacheEvent ce, h =>
+          simp [DirectoryEvent.matchesCacheEvent] at h; rw [h.1]
+        | .directoryEvent _, h => simp [Event.dirEventOfReqEvent] at h
+      rw [hsucc_eq] at hencap_corr; exact hencap_corr.reqInB
 
 -- Helper: SucceedingState with down=true on non-Vd dir state can't produce Vd.
 private lemma dirEvent_down_true_ne_Vd_of_ne_Vd
