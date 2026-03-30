@@ -3719,12 +3719,14 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
     (he_in_list : e_trans ∈ b.eventsUpToEvent n e_d ++ [e_d])
     (he_d_in_b : e_d ∈ b) (he_d_isDir : e_d.isDirectoryEvent)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
-    -- Protocol property: each dir event de in b has cacheEncapsulatesCorrespondingDirEvent
-    -- linking de.eReq to de. Gives reqInB, sameDown, dirReq, sameProtocol, reqEncapDir.
-    -- Derivable from Protocol.dirAccessOfRequest (Axiom 6) for de.eReq.
-    (h_dir_encap : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
-        b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n (Event.cacheEvent de.eReq)) true
+    -- Protocol property: each dir event de in b has requestDirectoryEvent (Axiom 3)
+    -- linking de.eReq to de. Gives sameDown, dirReq, sameProtocol.
+    (h_dir_req : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
+        b.requestDirectoryEvent n (init.stateAt n (Event.cacheEvent de.eReq)) true
           (Event.cacheEvent de.eReq) (Event.directoryEvent de))
+    -- Each dir event's eReq is in b
+    (h_eReq_in_b : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
+        Event.cacheEvent de.eReq ∈ b)
     -- CLE identity: de.eReq's CLE = de. TODO: remove dirAccessUnique dependency.
     (h_cle_is_de : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
         (lin (Event.cacheEvent de.eReq)).hreq's_dir_access.choose = Event.directoryEvent de)
@@ -3795,8 +3797,8 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
           exact (b.eventsUpToEntry_at_e_entry (n := n) e_d _ h_in_up).eInB
         | inr h_in_tail => exact (List.mem_singleton.mp h_in_tail) ▸ he_d_in_b
       -- Witness: Event.cacheEvent de_trans.eReq
-      -- Get cacheEncapsulatesCorrespondingDirEvent directly from h_dir_encap
-      have hencap := h_dir_encap de_trans hde_trans_in_b
+      -- Get requestDirectoryEvent from h_dir_req
+      have hdir_req_de := h_dir_req de_trans hde_trans_in_b
       -- sameProtocol between de_trans and e_d: same dir entry
       have hde_trans_same_proto : (Event.directoryEvent de_trans).sameProtocol n e_d := by
         cases List.mem_append.mp he_in_list with
@@ -3812,14 +3814,14 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
         | inr h_in_tail => unfold Event.sameProtocol; rw [← List.mem_singleton.mp h_in_tail]
       -- Properties from hencap
       have hce_not_down : ¬ (Event.cacheEvent de_trans.eReq).down := by
-        have hsameDown := hencap.dirCorresponds.sameDown
+        have hsameDown := hdir_req_de.sameDown
         simp only [Event.down] at hsameDown ⊢; rw [← hsameDown, h_not_down]; decide
       have hce_proto : (Event.cacheEvent de_trans.eReq).protocol =
-          (Event.directoryEvent de_trans).protocol := hencap.sameProtocol
+          (Event.directoryEvent de_trans).protocol := hdir_req_de.sameProtocol
       -- Check if de_trans.eReq is a write; if not, use h_ncRead_prior_write
       by_cases hisW : de_trans.eReq.req.val.isWrite
       · -- de_trans.eReq IS a write: use it as witness
-        refine ⟨Event.cacheEvent de_trans.eReq, hencap.reqInB, ?_, hce_not_down, ?_, ?_, ?_⟩
+        refine ⟨Event.cacheEvent de_trans.eReq, h_eReq_in_b de_trans hde_trans_in_b, ?_, hce_not_down, ?_, ?_, ?_⟩
         · simp [Event.isWrite, Request.isWrite]; exact hisW
         · constructor
           · simp [Event.isCacheEvent]
@@ -3860,9 +3862,11 @@ lemma stateAfter_Vd_implies_exists_ncWrite
     {e_d : Event n} (he_d_in_b : e_d ∈ b) (he_d_isDir : e_d.isDirectoryEvent)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
     -- Protocol properties derivable from protocol axioms:
-    (h_dir_encap : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
-        b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n (Event.cacheEvent de.eReq)) true
+    (h_dir_req : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
+        b.requestDirectoryEvent n (init.stateAt n (Event.cacheEvent de.eReq)) true
           (Event.cacheEvent de.eReq) (Event.directoryEvent de))
+    (h_eReq_in_b : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
+        Event.cacheEvent de.eReq ∈ b)
     (h_cle_is_de : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
         (lin (Event.cacheEvent de.eReq)).hreq's_dir_access.choose = Event.directoryEvent de)
     (h_not_global : e_d.protocol ≠ .global)
@@ -3913,8 +3917,8 @@ lemma stateAfter_Vd_implies_exists_ncWrite
     (Q := EntryState.isDirectoryState n)
     hQ_init hQ_pres hstate_Vd h_init_ne_Vd
   obtain ⟨e_trans, he_in_list, s, h_s_dir, hs_ne_Vd, hs_Vd⟩ := h_transition
-  exact event_Vd_transition_implies_ncWrite_in_b he_in_list he_d_in_b he_d_isDir lin h_dir_encap
-    h_cle_is_de h_s_dir h_not_global h_ncRead_prior_write hs_ne_Vd hs_Vd
+  exact event_Vd_transition_implies_ncWrite_in_b he_in_list he_d_in_b he_d_isDir lin h_dir_req
+    h_eReq_in_b h_cle_is_de h_s_dir h_not_global h_ncRead_prior_write hs_ne_Vd hs_Vd
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit
@@ -4254,10 +4258,17 @@ lemma cdirEncapsDown_exists
           obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache,
             he_nc_proto, he_nc_lt⟩ :=
             stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin
-              sorry -- h_dir_encap: cacheEncapsulatesCorrespondingDirEvent for each dir event
-              sorry -- h_cle_is_de: CLE identity (TODO: remove dirAccessUnique)
+              sorry -- h_dir_req: Axiom 3 (requestDirectoryEvent) for de.eReq and de
+              sorry -- h_eReq_in_b: de.eReq ∈ b
+              sorry -- h_cle_is_de: dirAccessUnique (TODO: remove)
+
               h_not_global'
-              sorry -- h_ncRead_prior_write: NC read on Vd → prior NC write
+              (fun de hde_in_b h_rw h_coh h_nd h_not_write => by
+                -- h_ncRead_prior_write: cache state Vd ← prior NC write
+                -- From cache state machine: only NC writes produce Vd.
+                -- Initial cache state is I (initCacheStateIsI). So some prior event at
+                -- the same cache entry transitioned to Vd via NC write.
+                sorry)
               hdirVd h_init_ne_Vd
           -- sameProtocol: e_nc at e_w's cluster via correspondingCluster_protocol_eq
           have h_gCacheOfCDir := h_nonempty.some.prop.2.finishBefore.gCacheOfCDir
