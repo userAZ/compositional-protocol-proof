@@ -677,10 +677,11 @@ theorem fr_ordering_holds
                 -- Apply NIW
                 obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
                 have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
-                -- Use interSameProtocolAsWNotBetweenCleWAndCleR:
-                -- e_nc same protocol as e_w_rf → CLE(e_nc) NOT between CLE(e_w_rf) and CLE(e₁).
-                -- Need: e_nc.sameProtocol e_w_rf, CLE(e_nc).isDirWrite, and
-                -- CLE(e_nc) IS between (from dir_ordered at same cluster).
+                -- Use interSameProtocolAsWNotBetweenCleWAndDowngrade:
+                -- e_nc is at same cluster as e_w_rf → CLE(e_nc) NOT between
+                -- CLE(e_w_rf) and the shim dir event from e₂'s downgrade.
+                -- Re-derive shim dir event from hdown.
+                -- TODO: extract shim dir event, show CLE(e_nc) IS between via dir_ordered
                 sorry
               · -- ¬Nonempty: eventToEntryState of none → init state
                 rename_i h_not_nonempty
@@ -1699,10 +1700,11 @@ theorem step_to_ordering
                   stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin hdirVd h_init_ne_Vd
                 obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
                 have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
-                -- Use interSameProtocolAsWNotBetweenCleWAndCleR:
-                -- e_nc same protocol as e_w_rf → CLE(e_nc) NOT between CLE(e_w_rf) and CLE(e₁).
-                -- Need: e_nc.sameProtocol e_w_rf, CLE(e_nc).isDirWrite, and
-                -- CLE(e_nc) IS between (from dir_ordered at same cluster).
+                -- Use interSameProtocolAsWNotBetweenCleWAndDowngrade:
+                -- e_nc is at same cluster as e_w_rf → CLE(e_nc) NOT between
+                -- CLE(e_w_rf) and the shim dir event from e₂'s downgrade.
+                -- Re-derive shim dir event from hdown.
+                -- TODO: extract shim dir event, show CLE(e_nc) IS between via dir_ordered
                 sorry
               · -- ¬Nonempty: init state = I ≠ Vd
                 rename_i h_not_nonempty
@@ -1827,10 +1829,11 @@ theorem step_to_ordering
                   stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin hdirVd h_init_ne_Vd
                 obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
                 have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
-                -- Use interSameProtocolAsWNotBetweenCleWAndCleR:
-                -- e_nc same protocol as e_w_rf → CLE(e_nc) NOT between CLE(e_w_rf) and CLE(e₁).
-                -- Need: e_nc.sameProtocol e_w_rf, CLE(e_nc).isDirWrite, and
-                -- CLE(e_nc) IS between (from dir_ordered at same cluster).
+                -- Use interSameProtocolAsWNotBetweenCleWAndDowngrade:
+                -- e_nc is at same cluster as e_w_rf → CLE(e_nc) NOT between
+                -- CLE(e_w_rf) and the shim dir event from e₂'s downgrade.
+                -- Re-derive shim dir event from hdown.
+                -- TODO: extract shim dir event, show CLE(e_nc) IS between via dir_ordered
                 sorry
               · -- ¬Nonempty: init state = I ≠ Vd
                 rename_i h_not_nonempty
