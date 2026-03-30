@@ -4314,21 +4314,13 @@ lemma cdirEncapsDown_exists
                   · simp [Request.isWrite] at h_rw
                   · simp [Request.isWrite] at h_rw
                   · -- Acq on Vd: the split matched ⟨.r,false,.Acq⟩, ⟨some .wr, false⟩.
-                    -- The ⟨some .wr, false⟩ is stateBefore.cache = Vd.
-                    -- Extract this from the split's match variable.
-                    rename_i heq_acq heq_vd
-                    -- heq_vd binds the state_before.cache match.
-                    -- heq_acq binds the req match.
-                    -- The matched state_before is from Behaviour.reqToDirOfRequestEvent:
-                    -- let state_before := b.stateBefore n (init.stateAt n ...) (Event.cacheEvent de.eReq)
-                    -- state_before.cache = ⟨some .wr, false⟩ = Vd.
-                    -- I need stateBefore.cache = Vd as a hypothesis.
-                    -- From the non-Rel branch: state_before = b.stateBefore n (...) (Event.cacheEvent de.eReq).
-                    -- heq_vd gives state_before.cache = Vd (from the match).
-                    -- Initial state: IEntry (cache = I ≠ Vd).
-                    -- Cache replay transition: list_stateAfter_exists_transition.
-                    -- Transitioning event: NC weak write.
-                    sorry
+                    -- The ⟨some .wr, false⟩ = stateBefore.cache from the let binding.
+                    -- Extract: the split's match means state_before.cache = ⟨some .wr, false⟩ = Vd.
+                    -- rename_i gives the match equalities.
+                    rename_i heq_sb _
+                    -- heq_sb should be the equation for state_before.cache = ⟨some .wr, false⟩
+                    -- For the rest: need cache replay. Sorry for now.
+                    exact sorry
                   · -- default: preserves req. h_not_write contradicts h_rw.
                     simp [Event.isWrite, Request.isWrite] at h_not_write
                     exact absurd h_rw h_not_write)
