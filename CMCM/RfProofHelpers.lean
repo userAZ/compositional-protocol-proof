@@ -4373,8 +4373,14 @@ lemma cdirEncapsDown_exists
             -- hdowngrade chain: e_r_gdown inside e_gcache (reqEncapDir → e_r_gdown.oEnd < e_gcache.oEnd)
             -- gcache_oEnd_lt_cle: e_gcache.oEnd < CLE_r.oEnd
             have h1 := hfb.endBefore  -- e_d.oEnd < e_r_gdown.oEnd
-            have h2 := hdowngrade.downgradePrevOwner.reqEncapDir.2  -- e_r_gdown.oEnd < e_gcache_req.oEnd
-            sorry -- chain h1, h2, gcache_oEnd_lt_cle
+            -- e_gcache encapsulates e_r_gdown via reqEncapDir + dirEncapDowngrade
+            have h_gcache_encap_gdown : (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
+                (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)).Encapsulates n e_r_gdown :=
+              Trans.trans hdowngrade.downgradePrevOwner.reqEncapDir
+                hdowngrade.downgradePrevOwner.dirEncapDowngrade
+            have h2 := h_gcache_encap_gdown.2  -- e_r_gdown.oEnd < e_gcache.oEnd
+            have h3 := gcache_oEnd_lt_cle hr_c_and_g_lin  -- e_gcache.oEnd < CLE_r.oEnd
+            exact Nat.lt_trans h1 (Nat.lt_trans h2 h3)
           exact h_nc_write_absurd e_nc he_nc_in_b he_nc_write he_nc_not_down he_nc_cache
             he_nc_sameProto_w (Nat.lt_of_le_of_lt he_nc_lt h_ed_lt_cle)
         · -- ¬Nonempty: init state = I ≠ Vd
