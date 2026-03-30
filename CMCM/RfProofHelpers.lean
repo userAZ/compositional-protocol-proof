@@ -4309,21 +4309,114 @@ lemma cdirEncapsDown_exists
                     simp [Event.isWrite, Request.isWrite] at h_not_write
                     exact absurd h_rw h_not_write
                 · -- Non-Rel branch: reqToDirOfRequestEvent on stateBefore.cache
+                  -- Save stateBefore.cache for later use (before split consumes it)
+                  set sb_cache := (b.stateBefore n (init.stateAt n (Event.cacheEvent de.eReq))
+                    (Event.cacheEvent de.eReq)).cache with h_sb_cache_def
+                  -- h_rw is now about Event.reqToDirOfRequestEvent ... stateBefore.cache
+                  -- Instead of split, case-analyze de.eReq.req to determine which arm matched.
+                  -- h_not_write : ¬ de.eReq.req.val.isWrite means de.eReq.req.val.rw ≠ .w
+                  -- h_rw says the result .rw = .w
+                  -- reqToDirOfRequestEvent default preserves req → would give .rw ≠ .w → contradiction
+                  -- Non-default cases: NC write on I (→ .r), NC write on I' (→ .r), Acq on Vd (→ .w)
+                  -- Only Acq on Vd produces .w from non-.w input.
+                  -- So de.eReq.req.val = ⟨.r, false, .Acq⟩ and stateBefore.cache = Vd.
                   simp only [Event.reqToDirOfRequestEvent] at h_rw
+                  -- h_rw now has the match on (de.eReq.req, stateBefore.cache, de.eReq.down)
+                  -- The only way to get .w output with non-.w input is the Acq-on-Vd arm.
+                  -- All other arms either produce .r or preserve the original (which is not .w).
+                  -- Since h_not_write says de.eReq is not a write, the default arm contradicts h_rw.
+                  -- NC-write-on-I arms produce .r which contradicts h_rw (.w).
+                  -- So the Acq-on-Vd arm must have matched.
+                  -- This means stateBefore.cache = ⟨some .wr, false⟩ = Vd.
+                  -- But I can't extract this from the split context.
+                  -- Use: if de.eReq.req.val.rw = .w, h_not_write gives False. So de.eReq.req.val.rw = .r.
+                  have h_eReq_read : de.eReq.req.val.rw = .r := by
+                    cases hrw : de.eReq.req.val.rw with
+                    | w => simp [Event.isWrite, Request.isWrite, hrw] at h_not_write
+                    | r => rfl
+                  -- Now: reqToDirOfRequestEvent with .r input can only produce .w in Acq-on-Vd case.
+                  -- With .r and non-default: only ⟨.r, false, .Acq⟩, ⟨some .wr, false⟩ gives ⟨.w, false, .Weak⟩.
+                  -- All other cases preserve req (which has .r ≠ .w) or produce .r.
                   split at h_rw
+                  · simp [Request.isWrite] at h_rw -- NC write on I: .rw = .r → contradiction
                   · simp [Request.isWrite] at h_rw
-                  · simp [Request.isWrite] at h_rw
-                  · -- Acq on Vd: the split matched ⟨.r,false,.Acq⟩, ⟨some .wr, false⟩.
-                    -- The ⟨some .wr, false⟩ = stateBefore.cache from the let binding.
-                    -- Extract: the split's match means state_before.cache = ⟨some .wr, false⟩ = Vd.
-                    -- rename_i gives the match equalities.
-                    rename_i heq_sb _
-                    -- heq_sb should be the equation for state_before.cache = ⟨some .wr, false⟩
-                    -- For the rest: need cache replay. Sorry for now.
-                    exact sorry
-                  · -- default: preserves req. h_not_write contradicts h_rw.
-                    simp [Event.isWrite, Request.isWrite] at h_not_write
-                    exact absurd h_rw h_not_write)
+                  · -- Acq on Vd. sb_cache = ⟨some .wr, false⟩ from the match.
+                    rename_i heq_acq heq_vd
+                    -- heq_vd should give sb_cache = ⟨some .wr, false⟩
+                    have h_sb_vd : sb_cache = Vd := by
+                      simp_all [Vd]
+                    -- stateBefore.cache = Vd. Initial = I ≠ Vd. Cache replay → NC write.
+                    have h_init_cache := b.initCacheStateIsI (Event.cacheEvent de.eReq) init
+                      (by simp [Event.isCacheEvent])
+                    -- h_init_cache : init.stateAt ... = IEntry = .inl I
+                    -- stateBefore = stateAfter(eventsUpToEvent, init.stateAt)
+                    -- stateAfter.cache = sb_cache = Vd (from h_sb_vd + h_sb_cache_def)
+                    -- I.cache = I ≠ Vd
+                    -- list_stateAfter_exists_transition with P s := s.cache = Vd
+                    have h_init_ne_Vd_cache : (init.stateAt n (Event.cacheEvent de.eReq)).cache ≠ Vd := by
+                      rw [h_init_cache]; simp [IEntry, EntryState.cache, I, Vd]
+                    -- stateBefore.cache = Vd
+                    have h_sb_eq_Vd : (b.stateBefore n (init.stateAt n (Event.cacheEvent de.eReq))
+                        (Event.cacheEvent de.eReq)).cache = Vd := by
+                      rw [← h_sb_cache_def]; exact h_sb_vd
+                    -- stateBefore = stateAfter of eventsUpToEvent
+                    -- b.stateBefore unfolds to stateAfter of eventsUpToEvent
+                    -- Need: stateAfter(eventsUpToEvent, init).cache = Vd
+                    -- From stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore:
+                    -- stateAfter(eventsUpToEvent ++ [e], init) = stateAfter([e], stateBefore)
+                    -- So stateBefore = stateAfter(eventsUpToEvent, init).
+                    -- Unfold stateBefore to get stateAfter(eventsUpToEvent, init)
+                    unfold Behaviour.stateBefore at h_sb_eq_Vd
+                    -- h_sb_eq_Vd : (stateAfter(eventsUpToEvent, init.stateAt)).cache = Vd
+                    -- Apply list_stateAfter_exists_transition with P s := s.cache = Vd
+                    have h_transition := list_stateAfter_exists_transition
+                      (P := fun s => s.cache = Vd)
+                      h_sb_eq_Vd h_init_ne_Vd_cache
+                    obtain ⟨e_trans_c, he_trans_in_up, s_c, hs_c_ne_Vd, hs_c_Vd⟩ := h_transition
+                    -- e_trans_c transitions cache state from non-Vd to Vd.
+                    -- e_trans_c ∈ eventsUpToEvent for cache event → in b.
+                    -- It must be a cache event (at cache entry).
+                    -- CacheEvent.SucceedingState: only NC weak write → Vd.
+                    -- This is the NC write witness.
+                    have he_trans_in_b : e_trans_c ∈ b :=
+                      b.eventsUpToEvent_in_b n (Event.cacheEvent de.eReq) e_trans_c he_trans_in_up
+                    -- e_trans_c is a cache event (same entry as de.eReq)
+                    have he_trans_cache : e_trans_c.isCacheEvent := by
+                      exact b.eventsUpToEvent_at_cache_all_cache n (Event.cacheEvent de.eReq)
+                        (by simp [Event.isCacheEvent]) e_trans_c he_trans_in_up
+                    -- Now case-split e_trans_c to get the cache event
+                    match he_tc : e_trans_c, he_trans_cache with
+                    | .directoryEvent _, h => simp [Event.isCacheEvent] at h
+                    | .cacheEvent ce_trans, _ =>
+                      -- ce_trans transitions cache from non-Vd to Vd.
+                      -- Witness: Event.cacheEvent ce_trans with isWrite, ¬down, isClusterCache, sameProtocol.
+                      -- SucceedingState analysis + temporal bound.
+                      -- hs_c_Vd : (.cacheEvent ce_trans).SucceedingState ... = Vd (on cache side)
+                      -- Need: ce_trans is NC weak write (isWrite + ¬down)
+                      -- SucceedingState for cache on .inl: .inl (ce.SucceedingState s.cache)
+                      -- ce.SucceedingState: down=false → req.RequestState, down=true → req.DowngradeState
+                      -- RequestState: only NC weak write (.w, false, .Weak) → Vd from non-Vd
+                      -- DowngradeState: never produces Vd from non-Vd
+                      -- So ce_trans.down = false and ce_trans.req = NC weak write.
+                      -- Extract from hs_c_Vd by case analysis on ce_trans.down.
+                      -- hs_c_Vd after he_tc and match: about ce_trans and s_c.
+                      simp only [he_tc, Event.SucceedingState, EntryState.cache] at hs_c_Vd hs_c_ne_Vd
+                      -- Now hs_c_Vd : ce_trans.SucceedingState n s_c.cache = Vd (or similar)
+                      -- hs_c_ne_Vd : s_c.cache ≠ Vd
+                      refine ⟨Event.cacheEvent ce_trans, he_trans_in_b, ?_, ?_, ?_, ?_, ?_⟩
+                      · -- isWrite
+                        sorry
+                      · -- ¬ down
+                        sorry
+                      · -- isClusterCache
+                        sorry
+                      · -- sameProtocol
+                        sorry
+                      · -- CLE.oEnd ≤ e_d.oEnd
+                        sorry
+                  · -- Default: preserves req. h_eReq_read gives .r ≠ .w.
+                    simp [Event.req] at h_rw
+                    rw [h_eReq_read] at h_rw; simp at h_rw)
               hdirVd h_init_ne_Vd
           -- sameProtocol: e_nc at e_w's cluster via correspondingCluster_protocol_eq
           have h_gCacheOfCDir := h_nonempty.some.prop.2.finishBefore.gCacheOfCDir
