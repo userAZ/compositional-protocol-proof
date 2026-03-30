@@ -3584,9 +3584,14 @@ private lemma dir_transition_to_Vd_implies_ncWrite
     (h_before_ne_Vd : ∀ s, ds ≠ DirectoryState.Vd s)
     (h_after_Vd : ∃ s, de.SucceedingState n ds = DirectoryState.Vd s)
     : de.req.val.rw = ReadWrite.w ∧ de.req.val.coherent = false := by
-  -- Verified manually: the only non-downgrade transition from non-Vd to Vd is NC write.
-  -- Lean proof needs careful handling of DirectoryEvent.SucceedingState pattern matching.
-  sorry
+  obtain ⟨s, hs⟩ := h_after_Vd
+  -- Unfold SucceedingState: it matches on de.down then de.req.val
+  -- Use simp to reduce the match on de.down = false
+  simp only [DirectoryEvent.SucceedingState, h_not_down, ↓reduceIte, Bool.false_eq_true] at hs
+  -- Now hs is about the match on de.req.val (down=false case).
+  -- Split on the request type match.
+  split at hs
+  all_goals (first | exact ⟨rfl, rfl⟩ | (cases ds <;> (first | exact absurd rfl (h_before_ne_Vd _) | simp_all)))
 -- If dir = Vd, extract the non-coherent cache write that caused it, show it's between
 -- CLE_w and CLE_r, then NIW gives contradiction. For now, h_dir_ne_Vd uses sorry at call sites.
 
