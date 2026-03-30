@@ -668,7 +668,7 @@ theorem fr_ordering_holds
                   match he : (h_nonempty.some : Event n) with
                   | .directoryEvent de =>
                     simp only [InitialSystemState.stateAt, EntryState.state]
-                    sorry -- init dir state I ≠ Vd (simp issue)
+                    rw [b.initDirStateIsI init de.pInst]; nofun
                   | .cacheEvent ce =>
                     rw [he] at he_d_isDir; simp [Event.isDirectoryEvent] at he_d_isDir
                 -- NC write from stateAfter = Vd
@@ -1688,7 +1688,7 @@ theorem step_to_ordering
                   match he : (h_nonempty.some : Event n) with
                   | .directoryEvent de =>
                     simp only [InitialSystemState.stateAt, EntryState.state]
-                    sorry -- init dir state I ≠ Vd
+                    rw [b.initDirStateIsI init de.pInst]; nofun
                   | .cacheEvent ce =>
                     rw [he] at he_d_isDir; simp [Event.isDirectoryEvent] at he_d_isDir
                 obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, _, _⟩ :=
@@ -1812,7 +1812,7 @@ theorem step_to_ordering
                   match he : (h_nonempty.some : Event n) with
                   | .directoryEvent de =>
                     simp only [InitialSystemState.stateAt, EntryState.state]
-                    sorry -- init dir state I ≠ Vd
+                    rw [b.initDirStateIsI init de.pInst]; nofun
                   | .cacheEvent ce =>
                     rw [he] at he_d_isDir; simp [Event.isDirectoryEvent] at he_d_isDir
                 obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, _, _⟩ :=
