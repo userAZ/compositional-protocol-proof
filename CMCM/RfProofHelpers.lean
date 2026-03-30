@@ -3767,11 +3767,39 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
           -- Since h_rw_w says result is .w, original must also be .w
           simp only [Event.isWrite, Request.isWrite]
           simp only [Event.req] at hdirReq
-          -- hdirReq : de_trans.req = reqToDirOfRequestEvent ... (Event.cacheEvent de_trans.eReq)
-          -- h_rw_w : de_trans.req.val.rw = .w
-          -- Need: de_trans.eReq.req.val.rw = .w
-          -- Case-split on reqToDirOfRequestEvent to show it preserves .w
-          sorry -- reqToDirOfRequestEvent case analysis
+          rw [hdirReq] at h_rw_w
+          -- h_rw_w : (Behaviour.reqToDirOfRequestEvent ...).val.rw = .w
+          -- Unfold and case-split. Non-default cases (NC write on I → .r, Acq on Vd → .w)
+          -- are excluded: I→Vd? No (nc write on I → Weak read at dir → NOT .w case).
+          -- Acq on Vd: state_before = Vd, but ds ≠ Vd (h_ne_Vd_dir), so this can't arise.
+          -- Default case: preserves req → de_trans.eReq.req.val.rw = .w.
+          simp only [Behaviour.reqToDirOfRequestEvent] at h_rw_w
+          split at h_rw_w
+          · -- Rel writeback case: reqToDirOfRequestEvent n Vd
+            simp only [Event.reqToDirOfRequestEvent] at h_rw_w
+            split at h_rw_w
+            · simp [Request.isWrite] at h_rw_w -- NC write on I → .r → contradiction with .w
+            · simp [Request.isWrite] at h_rw_w
+            · -- Acq on Vd: dir req = ⟨.w,false,.Weak⟩, h_rw_w is True.
+              -- But cache event is Acq = ⟨.r,...⟩. This case means de_trans.eReq is Acq, not write.
+              -- However, the Rel condition says e_req.req.val = ⟨.w, false, .Rel⟩ AND rel_wb.
+              -- An Acq can't have req.val = ⟨.w, false, .Rel⟩ (it's ⟨.r, false, .Acq⟩).
+              -- So this Acq sub-case is actually unreachable given the outer Rel condition.
+              rename_i hrel _
+              simp [Event.req] at hrel
+              -- hrel.1 : de_trans.eReq.req.val = ⟨.w, false, .Rel⟩ — contradicts Acq match
+              sorry -- should be closeable from hrel
+            · simp only [Event.req] at h_rw_w; exact h_rw_w
+          · -- Non-Rel case: reqToDirOfRequestEvent n stateBefore.cache
+            simp only [Event.reqToDirOfRequestEvent] at h_rw_w
+            split at h_rw_w
+            · simp [Request.isWrite] at h_rw_w
+            · simp [Request.isWrite] at h_rw_w
+            · -- Acq on Vd: but stateBefore.cache = Vd contradicts ds ≠ Vd
+              -- Actually stateBefore is computed from the behaviour, not ds directly.
+              -- This case might be valid but the cache event is a read.
+              sorry -- Acq on Vd: cache event is read, not write
+            · simp only [Event.req] at h_rw_w; exact h_rw_w
         · exact hce_not_down
         · -- isClusterCache
           constructor
