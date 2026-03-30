@@ -3640,16 +3640,24 @@ private lemma list_stateAfter_exists_transition
       obtain ⟨e, he_in_tl, s, hs_neg, hs_pos⟩ := ih h_result h_after_hd
       exact ⟨e, List.mem_cons_of_mem _ he_in_tl, s, hs_neg, hs_pos⟩
 
-/-- Model-level bridge: an event that transitions the entry state from non-Vd to Vd
-    at some entry of b implies a cluster cache NC write event exists in b at the same protocol.
-    This requires protocol axioms not available from Behaviour alone:
-    - For directory events: de.eReq (the triggering cache request) must be in b, share
-      the request properties (isWrite via dirReq, ¬down via sameDown), be at a cluster
-      protocol (isClusterCache), and have oEnd < e_d.oEnd (from encapsulation).
-    - For cache events: the event itself is the witness, but we need sameProtocol and
-      isClusterCache (requires knowing the entry is at a cluster struct).
-    Completing this sorry requires adding CompoundProtocol / Protocol.reqAxioms to the
-    hypotheses, or restructuring to use the cacheEncapsulatesCorrespondingDirEvent bridge. -/
+set_option maxHeartbeats 400000
+
+-- Helper: SucceedingState with down=true on non-Vd dir state can't produce Vd.
+private lemma dirEvent_down_true_ne_Vd_of_ne_Vd
+    {de : DirectoryEvent n} {ds : DirectoryState n}
+    (hd : de.down = true)
+    (h_ne_Vd_dir : ∀ sv, ds ≠ DirectoryState.Vd sv)
+    (hs_Vd : DirectoryState.toState n (de.SucceedingState n ds) = Vd) : False := by
+  match hds : ds with
+  | .Vd vd => exact absurd rfl (h_ne_Vd_dir vd)
+  | .SW _ _ | .MR _ _ | .Vc _ | .I _ => all_goals (
+    subst hds
+    simp only [DirectoryEvent.SucceedingState, hd] at hs_Vd
+    revert hs_Vd; split <;> (try split) <;> (try split) <;> intro hh <;>
+      (try simp only [DirectoryState.toState, DirectoryState.Vd.injEq] at hh) <;>
+      (try exact absurd hh (by simp [DirectoryState.toState])) <;>
+      (try simp [DirectoryState.toState] at hh))
+
 private lemma event_Vd_transition_implies_ncWrite_in_b
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     {e_d e_trans : Event n} {s : EntryState n}
@@ -3667,6 +3675,14 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
     (h_s_dir : s.isDirectoryState)
     -- (4) Directory events are at cluster protocols
     (h_not_global : e_d.protocol ≠ .global)
+    -- (5) If a dir event's req comes from reqToDirOfRequestEvent transforming a NC read on Vd
+    -- (non-default case), there exists a prior NC write at the same cluster in b.
+    -- Derivable from: cache state Vd ← prior NC weak write (Axiom 7 / state machine).
+    (h_ncRead_prior_write : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
+        de.req.val.rw = .w → de.req.val.coherent = false → de.down = false →
+        ¬ de.eReq.req.val.isWrite →
+        ∃ e_nc ∈ b, e_nc.isWrite ∧ ¬ e_nc.down ∧ e_nc.isClusterCache ∧
+          e_nc.sameProtocol n e_d ∧ (lin e_nc).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd)
     (hs_ne_Vd : s.state ≠ Vd)
     (hs_Vd : (e_trans.SucceedingState n s).state = Vd)
     -- Return: NC write with CLE.oEnd ≤ e_d.oEnd (not e_nc.oEnd — the cache event extends past the CLE)
@@ -3707,19 +3723,8 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
       have h_not_down : de_trans.down = false := by
         by_contra h
         have hd : de_trans.down = true := by
-          match hdd : de_trans.down, h with
-          | true, _ => rfl
-          | false, h => exact absurd rfl h
-        -- Case-split on ds: Vd excluded, others with down=true can't produce Vd output
-        match hds : ds with
-        | .Vd vd => exact absurd rfl (h_ne_Vd_dir vd)
-        | .SW _ _ | .MR _ _ | .Vc _ | .I _ => all_goals (
-          subst hds
-          simp only [DirectoryEvent.SucceedingState, hd] at hs_Vd
-          revert hs_Vd; split <;> (try split) <;> (try split) <;> intro hh <;>
-            (try simp only [DirectoryState.toState, DirectoryState.Vd.injEq] at hh) <;>
-            (try exact absurd hh hs_ne_Vd') <;>
-            (try simp [DirectoryState.toState] at hh))
+          match de_trans.down, h with | true, _ => rfl | false, h => exact absurd rfl h
+        exact dirEvent_down_true_ne_Vd_of_ne_Vd hd h_ne_Vd_dir hs_Vd
       -- Convert hs_Vd to DirectoryState.Vd form
       have hs_Vd' : ∃ sv, de_trans.SucceedingState n ds = DirectoryState.Vd sv := by
         match hres : de_trans.SucceedingState n ds with
@@ -3738,128 +3743,101 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
       -- Get dirAccessOfRequest with the CLE = de_trans
       have hda_ce := (lin (Event.cacheEvent de_trans.eReq)).hreq's_dir_access.choose_spec.2
       rw [h_cle_eq] at hda_ce
-      -- Now hda_ce : dirAccessOfRequest (.cacheEvent de_trans.eReq) (.directoryEvent de_trans)
+      -- sameProtocol between de_trans and e_d: same dir entry (independent of dirAccessOfRequest case)
+      have hde_trans_same_proto : (Event.directoryEvent de_trans).sameProtocol n e_d := by
+        cases List.mem_append.mp he_in_list with
+        | inl h_in_up =>
+          unfold Event.sameProtocol
+          have hat := b.eventsUpToEntry_at_e_entry (n := n) e_d _ h_in_up
+          cases e_d with
+          | cacheEvent _ => simp [Event.isDirectoryEvent] at he_d_isDir
+          | directoryEvent de_d =>
+            have hstr := hat.eAtStruct
+            simp only [Event.struct, Struct.directory.injEq] at hstr
+            simp only [Event.protocol]; exact hstr
+        | inr h_in_tail => unfold Event.sameProtocol; rw [← List.mem_singleton.mp h_in_tail]
+      -- Now case-split on dirAccessOfRequest
       cases hda_ce with
       | encapDir hreq_missing hencap =>
-        -- hencap now links de_trans.eReq ↔ de_trans directly
-        -- sameDown: de_trans.down = de_trans.eReq.down
-        have hsameDown := hencap.dirCorresponds.sameDown
-        -- hsameDown : (.directoryEvent de_trans).down = (.cacheEvent de_trans.eReq).down
-        -- i.e., de_trans.down = de_trans.eReq.down
         have hce_not_down : ¬ (Event.cacheEvent de_trans.eReq).down := by
+          have hsameDown := hencap.dirCorresponds.sameDown
           simp only [Event.down] at hsameDown ⊢; rw [← hsameDown, h_not_down]; decide
-        -- dirReq: de_trans.req = reqToDirOfRequestEvent ... de_trans.eReq
-        have hdirReq := hencap.dirCorresponds.dirReq
-        -- hdirReq : (.directoryEvent de_trans).req = reqToDirOfRequestEvent ...
-        -- sameProtocol between de_trans and e_d: same dir entry
-        have hde_trans_same_proto : (Event.directoryEvent de_trans).sameProtocol n e_d := by
-          cases List.mem_append.mp he_in_list with
-          | inl h_in_up =>
-            unfold Event.sameProtocol
-            have hat := b.eventsUpToEntry_at_e_entry (n := n) e_d _ h_in_up
-            cases e_d with
-            | cacheEvent _ => simp [Event.isDirectoryEvent] at he_d_isDir
-            | directoryEvent de_d =>
-              have hstr := hat.eAtStruct
-              simp only [Event.struct, Struct.directory.injEq] at hstr
-              simp only [Event.protocol]; exact hstr
-          | inr h_in_tail => unfold Event.sameProtocol; rw [← List.mem_singleton.mp h_in_tail]
-        -- hce_proto: now trivial since e_cdir_ce = de_trans
         have hce_proto : (Event.cacheEvent de_trans.eReq).protocol =
-            (Event.directoryEvent de_trans).protocol := by
-          exact hencap.sameProtocol
-        refine ⟨Event.cacheEvent de_trans.eReq, hencap.reqInB, ?_, ?_, ?_, ?_, ?_⟩
-        · -- isWrite: from hdirReq + h_rw_w
-          -- de_trans.req = reqToDirOfRequestEvent ... → de_trans.req.val.rw = .w (h_rw_w)
-          -- reqToDirOfRequestEvent only changes .w→.r for NC write on I state (returns ⟨.r,false,.Weak⟩)
-          -- Since h_rw_w says result is .w, original must also be .w
-          simp only [Event.isWrite, Request.isWrite]
-          simp only [Event.req] at hdirReq
-          rw [hdirReq] at h_rw_w
-          -- h_rw_w : (Behaviour.reqToDirOfRequestEvent ...).val.rw = .w
-          -- Unfold and case-split. Non-default cases (NC write on I → .r, Acq on Vd → .w)
-          -- are excluded: I→Vd? No (nc write on I → Weak read at dir → NOT .w case).
-          -- Acq on Vd: state_before = Vd, but ds ≠ Vd (h_ne_Vd_dir), so this can't arise.
-          -- Default case: preserves req → de_trans.eReq.req.val.rw = .w.
-          simp only [Behaviour.reqToDirOfRequestEvent] at h_rw_w
-          split at h_rw_w
-          · -- Rel writeback case: reqToDirOfRequestEvent n Vd
-            simp only [Event.reqToDirOfRequestEvent] at h_rw_w
-            split at h_rw_w
-            · simp [Request.isWrite] at h_rw_w -- NC write on I → .r → contradiction with .w
-            · simp [Request.isWrite] at h_rw_w
-            · -- Acq on Vd: dir req = ⟨.w,false,.Weak⟩, h_rw_w is True.
-              -- But cache event is Acq = ⟨.r,...⟩. This case means de_trans.eReq is Acq, not write.
-              -- However, the Rel condition says e_req.req.val = ⟨.w, false, .Rel⟩ AND rel_wb.
-              -- An Acq can't have req.val = ⟨.w, false, .Rel⟩ (it's ⟨.r, false, .Acq⟩).
-              -- So this Acq sub-case is actually unreachable given the outer Rel condition.
-              -- Rel condition says req.val = ⟨.w, false, .Rel⟩, but Acq match requires ⟨.r, false, .Acq⟩.
-              -- Rel condition: req.val = ⟨.w, false, .Rel⟩. Acq match: req.val.rw = .r.
-              -- These contradict (.w ≠ .r).
-              exfalso; simp_all [Event.req]
-            · simp only [Event.req] at h_rw_w; exact h_rw_w
-          · -- Non-Rel case: reqToDirOfRequestEvent n stateBefore.cache
-            simp only [Event.reqToDirOfRequestEvent] at h_rw_w
-            split at h_rw_w
-            · simp [Request.isWrite] at h_rw_w
-            · simp [Request.isWrite] at h_rw_w
-            · -- Acq on Vd: cache event is Acq (read), not a write. de_trans.eReq is wrong witness.
-              -- reqToDirOfRequestEvent transforms Acq on Vd → Weak Write at dir level.
-              -- Need different witness for this case (the Acq itself isn't a write).
-              sorry
-            · simp only [Event.req] at h_rw_w; exact h_rw_w
-        · exact hce_not_down
-        · -- isClusterCache
-          constructor
-          · simp [Event.isCacheEvent]
-          · rw [hce_proto, (show (Event.directoryEvent de_trans).protocol = e_d.protocol from hde_trans_same_proto)]
-            cases e_d with
-            | cacheEvent _ => simp [Event.isDirectoryEvent] at he_d_isDir
-            | directoryEvent de_d =>
-              show de_d.pInst = .cluster1 ∨ de_d.pInst = .cluster2
-              match hpi : de_d.pInst with
-              | .cluster1 => left; rfl
-              | .cluster2 => right; rfl
-              | .global =>
-                have : Event.protocol n (Event.directoryEvent de_d) = .global := by
-                  show de_d.pInst = .global; exact hpi
-                exact absurd this h_not_global
-        · -- sameProtocol
-          show (Event.cacheEvent de_trans.eReq).protocol = e_d.protocol
-          rw [hce_proto]; exact hde_trans_same_proto
-        · -- oEnd < e_d.oEnd: hencap.reqEncapDir gives de_trans.eReq encapsulates de_trans
-          -- Encapsulates: de_trans.eReq.oStart < de_trans.oStart ∧ de_trans.oEnd < de_trans.eReq.oEnd
-          -- So de_trans.eReq.oEnd > de_trans.oEnd. But need de_trans.eReq.oEnd < e_d.oEnd.
-          -- This requires: de_trans.eReq finishes before e_d. From protocol: cache events
-          -- CLE.oEnd ≤ e_d.oEnd: CLE = de_trans (from h_cle_is_de).
-          -- For de_trans ∈ eventsUpToEvent: de_trans OB e_d → de_trans.oEnd < e_d.oStart ≤ e_d.oEnd
-          -- For de_trans = e_d: de_trans.oEnd = e_d.oEnd → ≤ trivially
-          show (lin (Event.cacheEvent de_trans.eReq)).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd
-          rw [h_cle_eq]
-          cases List.mem_append.mp he_in_list with
-          | inl h_in_up =>
-            -- de_trans is before e_d in the replay → OB → oEnd < oStart ≤ oEnd
-            sorry -- eventsUpToEvent sorted → de_trans OB e_d → de_trans.oEnd < e_d.oStart ≤ e_d.oEnd
-          | inr h_in_tail =>
-            -- de_trans = e_d → oEnd ≤ oEnd
-            rw [List.mem_singleton.mp h_in_tail]
-      | orderBeforeDir _ _ hpred_dir _ _ hnot_down _ _ =>
-        -- de_trans.eReq has permissions. hnot_down : ¬ (Event.cacheEvent de_trans.eReq).down
-        -- hpred_dir : cacheEncapsulatesCorrespondingDirEvent ... predecessor (Event.directoryEvent de_trans)
-        -- Use h_eReq_in_b for ∈ b, hpred_dir.dirCorresponds.sameDown for sameDown
+            (Event.directoryEvent de_trans).protocol := hencap.sameProtocol
+        -- Check if de_trans.eReq is a write; if not, use h_ncRead_prior_write
+        by_cases hisW : de_trans.eReq.req.val.isWrite
+        · -- de_trans.eReq IS a write: use it as witness
+          refine ⟨Event.cacheEvent de_trans.eReq, hencap.reqInB, ?_, hce_not_down, ?_, ?_, ?_⟩
+          · simp [Event.isWrite, Request.isWrite]; exact hisW
+          · constructor
+            · simp [Event.isCacheEvent]
+            · have hproto_eq : (Event.cacheEvent de_trans.eReq).protocol = e_d.protocol := by
+                rw [hce_proto]; exact hde_trans_same_proto
+              rw [hproto_eq]
+              cases e_d with
+              | cacheEvent _ => simp [Event.isDirectoryEvent] at he_d_isDir
+              | directoryEvent de_d =>
+                show de_d.pInst = .cluster1 ∨ de_d.pInst = .cluster2
+                match hpi : de_d.pInst with
+                | .cluster1 => left; rfl
+                | .cluster2 => right; rfl
+                | .global =>
+                  exact absurd (show Event.protocol n (Event.directoryEvent de_d) = .global by
+                    show de_d.pInst = .global; exact hpi) h_not_global
+          · show (Event.cacheEvent de_trans.eReq).protocol = e_d.protocol
+            rw [hce_proto]; exact hde_trans_same_proto
+          · show (lin (Event.cacheEvent de_trans.eReq)).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd
+            rw [h_cle_eq]
+            cases List.mem_append.mp he_in_list with
+            | inl h_in_up => sorry -- eventsUpToEvent → OB → oEnd ≤ e_d.oEnd
+            | inr h_in_tail => rw [List.mem_singleton.mp h_in_tail]
+        · -- de_trans.eReq NOT a write: use prior NC write from h_ncRead_prior_write
+          exact h_ncRead_prior_write de_trans hde_trans_in_b h_rw_w h_coh_false h_not_down
+            (by simp [Event.isWrite, Request.isWrite]; exact hisW)
+      | orderBeforeDir _ hexists_pred hpred_dir _ hpred_same_proto hnot_down _ _ =>
+        -- Check if de_trans.eReq is a write; if not, use h_ncRead_prior_write
+        by_cases hisW : de_trans.eReq.req.val.isWrite
+        · -- de_trans.eReq IS a write: use it as witness
+          have hce_in_b := h_eReq_in_b de_trans hde_trans_in_b
+          have hce_proto : (Event.cacheEvent de_trans.eReq).protocol =
+              (Event.directoryEvent de_trans).protocol :=
+            hpred_same_proto.symm.trans hpred_dir.sameProtocol
+          refine ⟨Event.cacheEvent de_trans.eReq, hce_in_b, ?_, hnot_down, ?_, ?_, ?_⟩
+          · simp [Event.isWrite, Request.isWrite]; exact hisW
+          · have hproto_eq : (Event.cacheEvent de_trans.eReq).protocol = e_d.protocol := by
+              rw [hce_proto]; exact hde_trans_same_proto
+            constructor
+            · simp [Event.isCacheEvent]
+            · rw [hproto_eq]
+              cases e_d with
+              | cacheEvent _ => simp [Event.isDirectoryEvent] at he_d_isDir
+              | directoryEvent de_d =>
+                show de_d.pInst = .cluster1 ∨ de_d.pInst = .cluster2
+                match hpi : de_d.pInst with
+                | .cluster1 => left; rfl
+                | .cluster2 => right; rfl
+                | .global =>
+                  exact absurd (show Event.protocol n (Event.directoryEvent de_d) = .global by
+                    show de_d.pInst = .global; exact hpi) h_not_global
+          · show (Event.cacheEvent de_trans.eReq).protocol = e_d.protocol
+            rw [hce_proto]; exact hde_trans_same_proto
+          · show (lin (Event.cacheEvent de_trans.eReq)).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd
+            rw [h_cle_eq]
+            cases List.mem_append.mp he_in_list with
+            | inl h_in_up => sorry -- eventsUpToEvent → OB → oEnd ≤ e_d.oEnd
+            | inr h_in_tail => rw [List.mem_singleton.mp h_in_tail]
+        · -- de_trans.eReq NOT a write: use prior NC write from h_ncRead_prior_write
+          exact h_ncRead_prior_write de_trans hde_trans_in_b h_rw_w h_coh_false h_not_down
+            (by simp [Event.isWrite, Request.isWrite]; exact hisW)
+      | orderAfterDir _ _ hsucc_same_proto hnot_down =>
         have hce_in_b := h_eReq_in_b de_trans hde_trans_in_b
-        refine ⟨Event.cacheEvent de_trans.eReq, hce_in_b, ?_, hnot_down, ?_, ?_, ?_⟩
-        · sorry -- isWrite: from hpred_dir.dirCorresponds.dirReq + h_rw_w
-        · sorry -- isClusterCache
-        · sorry -- sameProtocol
-        · sorry -- oEnd < e_d.oEnd
-      | orderAfterDir _ _ _ hnot_down =>
-        have hce_in_b := h_eReq_in_b de_trans hde_trans_in_b
-        refine ⟨Event.cacheEvent de_trans.eReq, hce_in_b, ?_, hnot_down, ?_, ?_, ?_⟩
-        · sorry -- isWrite
-        · sorry -- isClusterCache
-        · sorry -- sameProtocol
-        · sorry -- oEnd < e_d.oEnd
+        -- orderAfterDir: de_trans.eReq is a NC weak read on Vd.
+        -- hsucc_same_proto links successor to de_trans.eReq.
+        -- For isWrite: same reqToDirOfRequestEvent analysis.
+        -- This case means de_trans.eReq is a NC weak read — NOT a write.
+        -- Use h_ncRead_prior_write to get the prior NC write.
+        exact h_ncRead_prior_write de_trans hde_trans_in_b h_rw_w h_coh_false h_not_down
+          (by simp [Event.isWrite, Request.isWrite, Event.req]; sorry)
 
 /-- If the directory state after a sequence of events is Vd, and the initial state was not Vd,
     then some event in the sequence is a non-coherent write (non-downgrade) that transitioned
@@ -3887,7 +3865,7 @@ lemma stateAfter_Vd_implies_exists_ncWrite
   exact event_Vd_transition_implies_ncWrite_in_b he_in_list he_d_in_b he_d_isDir lin h_cle_is_de
     h_eReq_in_b
     sorry -- h_s_dir: s.isDirectoryState (replay invariant)
-    h_not_global hs_ne_Vd hs_Vd
+    h_not_global sorry hs_ne_Vd hs_Vd
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit
