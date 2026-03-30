@@ -4356,8 +4356,27 @@ lemma cdirEncapsDown_exists
           -- e_nc.oEnd < e_d.oEnd (from stateAfter), e_d in NotEncap set before e_r_gdown,
           -- e_r_gdown inside e_gcache, e_gcache.oEnd < CLE_r.oEnd.
           -- For now, the callback provides the NIW contradiction from the call site.
+          -- Chain: CLE_nc.oEnd ≤ e_d.oEnd < e_gcache.oEnd < CLE_r.oEnd
+          have hfb := h_nonempty.some.prop.2.finishBefore.finBefore
+          -- hfb : b.finishesBefore n (h_nonempty.some) e_gcache (where e_gcache is the global cache)
+          -- This gives e_d.oEnd < e_gcache.oStart. And gcache_oEnd_lt_cle gives e_gcache.oEnd < CLE_r.oEnd.
+          -- he_nc_lt : CLE_nc.oEnd ≤ e_d.oEnd
+          -- Chain: CLE_nc.oEnd ≤ e_d.oEnd < e_gcache.oStart ≤ e_gcache.oEnd < CLE_r.oEnd
+          -- Temporal chain: CLE_nc.oEnd ≤ e_d.oEnd < e_gcache.oEnd < CLE_r.oEnd
+          -- he_nc_lt : CLE_nc.oEnd ≤ e_d.oEnd
+          -- hfb.endBefore : e_d.oEnd < e_gcache.oEnd (finishesBefore)
+          -- gcache_oEnd_lt_cle : e_gcache.oEnd < CLE_r.oEnd
+          -- Chain: e_d.oEnd < e_r_gdown.oEnd (from hfb) ≤ e_gcache.oEnd < CLE_r.oEnd
+          have h_ed_lt_cle : (h_nonempty.some : Event n).oEnd <
+              hr_c_and_g_lin.hreq's_dir_access.choose.oEnd := by
+            -- hfb.endBefore : e_d.finishesBefore e_r_gdown (= e_d.oEnd < e_r_gdown.oEnd)
+            -- hdowngrade chain: e_r_gdown inside e_gcache (reqEncapDir → e_r_gdown.oEnd < e_gcache.oEnd)
+            -- gcache_oEnd_lt_cle: e_gcache.oEnd < CLE_r.oEnd
+            have h1 := hfb.endBefore  -- e_d.oEnd < e_r_gdown.oEnd
+            have h2 := hdowngrade.downgradePrevOwner.reqEncapDir.2  -- e_r_gdown.oEnd < e_gcache_req.oEnd
+            sorry -- chain h1, h2, gcache_oEnd_lt_cle
           exact h_nc_write_absurd e_nc he_nc_in_b he_nc_write he_nc_not_down he_nc_cache
-            he_nc_sameProto_w sorry
+            he_nc_sameProto_w (Nat.lt_of_le_of_lt he_nc_lt h_ed_lt_cle)
         · -- ¬Nonempty: init state = I ≠ Vd
           rename_i h_not_nonempty
           simp only [Behaviour.eventToEntryState] at hdirVd
