@@ -642,66 +642,6 @@ theorem fr_ordering_holds
           ⟨e_evict, he_evict_in_b, he_evict_isDir, hevict_lt_cle₂,
            hcdir_ob_evict, he_evict_proto, he_evict_translatedDir⟩⟩ :=
           cdirEncapsDown_exists (lin e₁) (lin e₂) h.in_b₁ h.cache₁ h.notDown₁ lin
-            (fun _ hdirVd => by
-              -- dir ≠ Vd: only NC writes produce Vd, and NIW forbids them.
-              unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
-              unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
-              unfold Behaviour.stateOfSubsingletonEventSet at hdirVd
-              -- hdirVd now has: (eventToEntryState ... (Set.toOption s) ...).state = Vd
-              -- Unfold Set.toOption to expose dite
-              simp only [Set.toOption] at hdirVd
-              -- Now hdirVd has dite (Nonempty s) ...
-              -- split on the dite
-              split at hdirVd
-              · -- Nonempty case: h.some is in the set → in b
-                rename_i h_nonempty
-                -- eventToEntryState of some h_nonempty.some.val
-                simp only [Behaviour.eventToEntryState] at hdirVd
-                -- h_nonempty.some : subtype {e // e ∈ b ∧ P e}
-                -- h_nonempty.some.prop.1 : h_nonempty.some.val ∈ b
-                have he_d_in_b : (h_nonempty.some : Event n) ∈ b := h_nonempty.some.prop.1
-                have he_d_isDir : (h_nonempty.some : Event n).isDirectoryEvent := by
-                  exact Behaviour.reqAtCorrespondingGCacheOfCDir_is_directory_event n
-                    h_nonempty.some.prop.2.finishBefore.gCacheOfCDir
-                -- Initial state ≠ Vd
-                have h_init_ne_Vd : (init.stateAt n (h_nonempty.some : Event n)).state ≠ Vd := by
-                  match he : (h_nonempty.some : Event n) with
-                  | .directoryEvent de =>
-                    simp only [InitialSystemState.stateAt, EntryState.state]
-                    rw [b.initDirStateIsI init de.pInst]; nofun
-                  | .cacheEvent ce =>
-                    rw [he] at he_d_isDir; simp [Event.isDirectoryEvent] at he_d_isDir
-                -- NC write from stateAfter = Vd
-                obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache,
-                  he_nc_proto, he_nc_lt⟩ :=
-                  stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin hdirVd h_init_ne_Vd
-                obtain ⟨e_w_rf, _, e_w_rf_lin, _, _, h_no_between, _, _, _, _⟩ := h.comm
-                have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
-                -- Get encapDir evidence (re-derive, same as cdirEncapsDown_exists does)
-                have hencap := diffCache_coherent_encapProxyAndDir (lin e₁) (lin e₂) h.in_b₁ h.cache₁
-                let e_cdir_down := hencap.existsRClusterDirDown.choose
-                have hcdir_spec := hencap.existsRClusterDirDown.choose_spec
-                -- hcdir_spec : e_cdir_down ∈ b ∧ isDir ∧ proto = e₁.protocol ∧ ...
-                have he_cdir_isDir := hcdir_spec.2.1
-                have he_cdir_proto := hcdir_spec.2.2.1
-                -- Derive e_nc.sameProtocol n e₁ via protocol chain
-                have h_gCacheOfCDir := h_nonempty.some.prop.2.finishBefore.gCacheOfCDir
-                have h_corr_ed := Behaviour.event_reqAtCorrespondingGCacheOfCDir_is_correspondingClusterOfGlobalCache h_gCacheOfCDir
-                have h_cdir_translated := hcdir_spec.2.2.2.2.1
-                obtain ⟨_, _, _, _, _, h_corr_cdir⟩ := h_cdir_translated.existsGlobalDownTranslation
-                have h_proto_eq := correspondingCluster_protocol_eq h_corr_ed h_corr_cdir.clusterMatch.atCorrCluster
-                have he_nc_same_r : e_nc.sameProtocol n e₁ := by
-                  unfold Event.sameProtocol at he_nc_proto ⊢
-                  rw [he_nc_proto, h_proto_eq, he_cdir_proto]
-                exact absurd sorry
-                  (h_niw.interSameProtocolAsRNotBetweenCleWAndDowngrade he_nc_same_r
-                    e_cdir_down he_cdir_isDir he_cdir_proto)
-              · -- ¬Nonempty: eventToEntryState of none → init state
-                rename_i h_not_nonempty
-                simp only [Behaviour.eventToEntryState] at hdirVd
-                simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
-                have := b.initDirStateIsI init
-                simp_all [DirI, DirectoryState.toState, I, Vd])
         -- Case-split on e₁'s dirAccessOfRequest to determine where e₂'s downgrade lands.
         have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2
         cases hda₁ with
@@ -1685,51 +1625,9 @@ theorem step_to_ordering
                   -- then diffClusterNotBetweenCles_sameCache or .obEndLt.
                   obtain ⟨e_cdir_w, he_cdir_w_in_b, he_cdir_w_isDir, _, hcdir_w_lt,
                     ⟨_, _, _, _, _⟩,
-                    ⟨e_evict_w, he_evict_w_in_b, he_evict_w_isDir, he_evict_w_down,
-                     hevict_w_lt, hcdir_w_ob_evict_w, he_evict_w_proto, he_evict_w_isDirWrite, he_evict_w_translatedDir⟩⟩ :=
+                    ⟨e_evict_w, he_evict_w_in_b, he_evict_w_isDir,
+                     hevict_w_lt, hcdir_w_ob_evict_w, he_evict_w_proto, he_evict_w_translatedDir⟩⟩ :=
                     cdirEncapsDown_exists e_w_lin (hlin e₂) hw_in_b hw_cache hw_not_down hlin
-                      (fun _ hdirVd => by
-              -- dir ≠ Vd: only NC writes produce Vd, and NIW forbids them.
-              unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
-              unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
-              unfold Behaviour.stateOfSubsingletonEventSet at hdirVd
-              simp only [Set.toOption] at hdirVd
-              split at hdirVd
-              · -- Nonempty: e_d in set → e_d ∈ b
-                rename_i h_nonempty
-                simp only [Behaviour.eventToEntryState] at hdirVd
-                have he_d_in_b : (h_nonempty.some : Event n) ∈ b := h_nonempty.some.prop.1
-                have he_d_isDir : (h_nonempty.some : Event n).isDirectoryEvent := by
-                  exact Behaviour.reqAtCorrespondingGCacheOfCDir_is_directory_event n
-                    h_nonempty.some.prop.2.finishBefore.gCacheOfCDir
-                have h_init_ne_Vd : (init.stateAt n (h_nonempty.some : Event n)).state ≠ Vd := by
-                  match he : (h_nonempty.some : Event n) with
-                  | .directoryEvent de =>
-                    simp only [InitialSystemState.stateAt, EntryState.state]
-                    rw [b.initDirStateIsI init de.pInst]; nofun
-                  | .cacheEvent ce =>
-                    rw [he] at he_d_isDir; simp [Event.isDirectoryEvent] at he_d_isDir
-                obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, _, _⟩ :=
-                  stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin hdirVd h_init_ne_Vd
-                obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
-                have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
-                have hencap := diffCache_coherent_encapProxyAndDir (lin e₁) (lin e₂) h.in_b₁ h.cache₁
-                let e_cdir_down := hencap.existsRClusterDirDown.choose
-                have hcdir_spec := hencap.existsRClusterDirDown.choose_spec
-                have he_cdir_isDir := hcdir_spec.2.1
-                have he_cdir_proto := hcdir_spec.2.2.1
-                have he_nc_same_r : e_nc.sameProtocol n e₁ := by
-                  -- e_nc.sameProtocol e_d (from helper) + e_d.protocol = e₁.protocol (from NotEncap set)
-                  sorry
-                exact absurd sorry
-                  (h_niw.interSameProtocolAsRNotBetweenCleWAndDowngrade he_nc_same_r
-                    e_cdir_down he_cdir_isDir he_cdir_proto)
-              · -- ¬Nonempty: init state = I ≠ Vd
-                rename_i h_not_nonempty
-                simp only [Behaviour.eventToEntryState] at hdirVd
-                simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
-                have := b.initDirStateIsI init
-                simp_all [DirI, DirectoryState.toState, I, Vd])
                   -- e_evict_w at e_w's cluster. dir_ordered CLE_w e_evict_w (same cluster, same addr).
                   have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
                   have he_evict_w_isdir' := he_evict_w_isDir
@@ -1780,8 +1678,11 @@ theorem step_to_ordering
                             downToW := by
                               show e_evict_w.protocol = e_w.protocol
                               rw [hfc_evict_w]; exact he_evict_w_proto
-                            isDirWrite := by rw [hfc_evict_w]; exact he_evict_w_isDirWrite
-                            downIsDown := by rw [hfc_evict_w]; exact he_evict_w_down
+                            downIsDown := by
+                              -- e_evict.down: true for noCoherentRead/onDirSW (translateDirectoryEvent.downgrade),
+                              -- false for bothCoherentWriteAndRead/cReadOnSW (non-downgrade proxy).
+                              -- For the false case, use diffClusterNotBetweenCles_sameCacheWrite instead.
+                              sorry
                             isDir := by rw [hfc_evict_w]; simp [Event.isDirectoryEvent]
                             translatedDir := by rw [hfc_evict_w]; exact he_evict_w_translatedDir
                           }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCache
@@ -1820,50 +1721,8 @@ theorem step_to_ordering
         obtain ⟨e_cdir, he_cdir_in_b, he_cdir_isDir, he_cdir_proto, hcdir_lt_cle₂,
           ⟨e_cache_down, he_cdown_in_b, hcdir_encap_down, hcdown_is_down, hcdown_is_cache⟩,
           ⟨e_evict, he_evict_in_b, he_evict_isDir, hevict_lt_cle₂, hcdir_ob_evict,
-           he_evict_proto, he_evict_isDirWrite, he_evict_translatedDir⟩⟩ :=
+           he_evict_proto, he_evict_translatedDir⟩⟩ :=
           cdirEncapsDown_exists (lin e₁) (lin e₂) h.in_b₁ h.cache₁ h.notDown₁ lin
-            (fun _ hdirVd => by
-              -- dir ≠ Vd: only NC writes produce Vd, and NIW forbids them.
-              unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
-              unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
-              unfold Behaviour.stateOfSubsingletonEventSet at hdirVd
-              simp only [Set.toOption] at hdirVd
-              split at hdirVd
-              · -- Nonempty: e_d in set → e_d ∈ b
-                rename_i h_nonempty
-                simp only [Behaviour.eventToEntryState] at hdirVd
-                have he_d_in_b : (h_nonempty.some : Event n) ∈ b := h_nonempty.some.prop.1
-                have he_d_isDir : (h_nonempty.some : Event n).isDirectoryEvent := by
-                  exact Behaviour.reqAtCorrespondingGCacheOfCDir_is_directory_event n
-                    h_nonempty.some.prop.2.finishBefore.gCacheOfCDir
-                have h_init_ne_Vd : (init.stateAt n (h_nonempty.some : Event n)).state ≠ Vd := by
-                  match he : (h_nonempty.some : Event n) with
-                  | .directoryEvent de =>
-                    simp only [InitialSystemState.stateAt, EntryState.state]
-                    rw [b.initDirStateIsI init de.pInst]; nofun
-                  | .cacheEvent ce =>
-                    rw [he] at he_d_isDir; simp [Event.isDirectoryEvent] at he_d_isDir
-                obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, _, _⟩ :=
-                  stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin hdirVd h_init_ne_Vd
-                obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
-                have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
-                have hencap := diffCache_coherent_encapProxyAndDir (lin e₁) (lin e₂) h.in_b₁ h.cache₁
-                let e_cdir_down := hencap.existsRClusterDirDown.choose
-                have hcdir_spec := hencap.existsRClusterDirDown.choose_spec
-                have he_cdir_isDir := hcdir_spec.2.1
-                have he_cdir_proto := hcdir_spec.2.2.1
-                have he_nc_same_r : e_nc.sameProtocol n e₁ := by
-                  -- e_nc.sameProtocol e_d (from helper) + e_d.protocol = e₁.protocol (from NotEncap set)
-                  sorry
-                exact absurd sorry
-                  (h_niw.interSameProtocolAsRNotBetweenCleWAndDowngrade he_nc_same_r
-                    e_cdir_down he_cdir_isDir he_cdir_proto)
-              · -- ¬Nonempty: init state = I ≠ Vd
-                rename_i h_not_nonempty
-                simp only [Behaviour.eventToEntryState] at hdirVd
-                simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
-                have := b.initDirStateIsI init
-                simp_all [DirI, DirectoryState.toState, I, Vd])
         have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
         match hfc_cdir : e_cdir, he_cdir_isDir with
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
@@ -1929,8 +1788,9 @@ theorem step_to_ordering
                             downToW := by
                               show e_evict.protocol = e_w.protocol
                               rw [hfc_evict]; exact he_evict_proto.trans h_ew_prot
-                            isDirWrite := by rw [hfc_evict]; exact he_evict_isDirWrite
-                            downIsDown := by rw [hfc_evict]; exact he_evict_down
+                            downIsDown := by
+                              -- Same case split needed as call site 2: down/not-down
+                              sorry
                             isDir := by rw [hfc_evict]; simp [Event.isDirectoryEvent]
                             translatedDir := by rw [hfc_evict]; exact he_evict_translatedDir
                           }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCache

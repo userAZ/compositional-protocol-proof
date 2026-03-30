@@ -3592,6 +3592,32 @@ private lemma dir_transition_to_Vd_implies_ncWrite
   -- Split on the request type match.
   split at hs
   all_goals (first | exact ⟨rfl, rfl⟩ | (cases ds <;> (first | exact absurd rfl (h_before_ne_Vd _) | simp_all)))
+/-- Derive sameProtocol between an NC write (from stateAfter computation) and e_w (= e₁)
+    using the protocol correspondence chain through the NotEncap set and encapDir evidence. -/
+lemma ncWrite_sameProtocol_of_notEncap_and_encapDir
+    {n : ℕ} {b : Behaviour n} {cmp : CompoundProtocol n} {init : InitialSystemState n}
+    {e_w e_r e_nc : Event n}
+    (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
+    (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+    (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache)
+    -- e_nc.sameProtocol with the NotEncap set element
+    {e_d : Event n}
+    (he_nc_proto : e_nc.sameProtocol n e_d)
+    -- gCacheOfCDir from NotEncap set, parameterized by explicit e_gdown
+    {e_gdown : Event n}
+    (h_gCacheOfCDir : Event.reqAtCorrespondingGCacheOfCDir n e_d e_gdown)
+    -- correspondingClusterOfGlobalCache for e_gdown (from shim or encapDir)
+    {e_cdir_down : Event n}
+    (h_cdir_proto : e_cdir_down.protocol = e_w.protocol)
+    (h_corr_cdir : Event.Shim.Global.ToCluster.correspondingDirectoryEvent n e_gdown e_cdir_down)
+    : e_nc.sameProtocol n e_w := by
+  have h_corr_ed := Behaviour.event_reqAtCorrespondingGCacheOfCDir_is_correspondingClusterOfGlobalCache (n := n) h_gCacheOfCDir
+  have h_proto_eq := @correspondingCluster_protocol_eq n e_gdown
+    (Event n) (Event n) e_d e_cdir_down (Event.protocol n) (Event.protocol n)
+    h_corr_ed h_corr_cdir.clusterMatch.atCorrCluster
+  unfold Event.sameProtocol at he_nc_proto ⊢
+  rw [he_nc_proto, h_proto_eq, h_cdir_proto]
+
 /-- List induction helper: if a property P is false on init but true on the final state
     after replaying a list of events, then some event in the list transitions P from false
     to true. Returns the event, the state before it, and the transition proof. -/
@@ -3638,15 +3664,18 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
   -- Case-split on e_trans: must be dir event (cache events produce Sum.inl, not Vd dir state).
   match he_trans : e_trans with
   | .cacheEvent ce =>
-    -- Cache event SucceedingState produces Sum.inl (cache state).
-    -- (Sum.inl _).state = cache_state. For this to equal Vd = ⟨some .wr, false⟩,
-    -- the cache succeeding state must be Vd. But Vd as a cache state means
-    -- the cache is at Vd — which IS possible. However, the entry is a dir entry
-    -- (since e_d is a dir event). Cache events at dir entries... let's check if
-    -- this case can arise. Events in eventsUpToEvent are at the same struct as e_d.
-    -- If e_d is a dir event, only dir events should be in the replay.
-    -- For now, sorry this impossible case.
-    sorry
+    -- Vacuous: e_trans (cache) can't be at the same entry as e_d (dir).
+    exfalso
+    cases List.mem_append.mp he_in_list with
+    | inl h_in_up =>
+      have hat := b.eventsUpToEntry_at_e_entry (n := n) e_d _ h_in_up
+      have hstruct := hat.eAtStruct
+      match e_d, he_d_isDir with
+      | .directoryEvent _, _ => simp [Event.struct] at hstruct
+    | inr h_in_tail =>
+      have heq := List.mem_singleton.mp h_in_tail
+      rw [← heq] at he_d_isDir
+      simp [Event.isDirectoryEvent] at he_d_isDir
   | .directoryEvent de_trans =>
     -- de_trans transitions dir state from non-Vd to Vd.
     simp only [Event.SucceedingState, EntryState.state, EntryState.directory] at hs_Vd
@@ -3687,12 +3716,6 @@ lemma cdirEncapsDown_exists
     (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
     (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache) (hw_not_down : ¬ e_w.down)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
-    -- onDirVd elimination: cluster dir ≠ Vd before the global downgrade.
-    -- Derivable at call sites from NIW + dir_transition_to_Vd_implies_ncWrite.
-    (h_dir_coherent : ∀ {e_gdown e_grant : Event n},
-        Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init
-          hr_c_and_g_lin e_gdown e_grant →
-        ¬ Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_gdown Vd)
     : ∃ e_cdir ∈ b, e_cdir.isDirectoryEvent ∧ e_cdir.protocol = e_w.protocol ∧
         e_cdir.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧
         (∃ e_cache_down ∈ b,
@@ -3975,4 +3998,42 @@ lemma cdirEncapsDown_exists
       | onDirVd hdirVd _ =>
         -- onDirVd vacuous: the dir can't be Vd.
         -- Unfold hdirVd and case-split on the NotEncap set.
-        exact absurd hdirVd (h_dir_coherent hdowngrade)
+        -- onDirVd: prove dir ≠ Vd inline using consistent hdowngrade + shim
+        -- The hdowngrade and hg2c use the SAME e_r_gdown (no Exists.choose mismatch)
+        exfalso
+        unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
+        unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
+        unfold Behaviour.stateOfSubsingletonEventSet at hdirVd
+        simp only [Set.toOption] at hdirVd
+        split at hdirVd
+        · -- Nonempty: e_d in set with stateAfter = Vd
+          rename_i h_nonempty
+          simp only [Behaviour.eventToEntryState] at hdirVd
+          have he_d_in_b : (h_nonempty.some : Event n) ∈ b := h_nonempty.some.prop.1
+          have he_d_isDir : (h_nonempty.some : Event n).isDirectoryEvent := by
+            exact Behaviour.reqAtCorrespondingGCacheOfCDir_is_directory_event n
+              h_nonempty.some.prop.2.finishBefore.gCacheOfCDir
+          have h_init_ne_Vd : (init.stateAt n (h_nonempty.some : Event n)).state ≠ Vd := by
+            match he : (h_nonempty.some : Event n) with
+            | .directoryEvent de =>
+              simp only [InitialSystemState.stateAt, EntryState.state]
+              rw [b.initDirStateIsI init de.pInst]; nofun
+            | .cacheEvent ce =>
+              rw [he] at he_d_isDir; simp [Event.isDirectoryEvent] at he_d_isDir
+          obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache,
+            he_nc_proto, he_nc_lt⟩ :=
+            stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin hdirVd h_init_ne_Vd
+          -- sameProtocol: e_nc at e_w's cluster via correspondingCluster_protocol_eq
+          have h_gCacheOfCDir := h_nonempty.some.prop.2.finishBefore.gCacheOfCDir
+          have h_corr_ed := Behaviour.event_reqAtCorrespondingGCacheOfCDir_is_correspondingClusterOfGlobalCache (n := n) h_gCacheOfCDir
+          have he_d_proto : (h_nonempty.some : Event n).protocol = e_w.protocol :=
+            (correspondingCluster_protocol_eq hcorrespond h_corr_ed).symm.trans hp_eq
+          have he_nc_sameProto_w : e_nc.sameProtocol n e_w := by
+            unfold Event.sameProtocol at he_nc_proto ⊢; rw [he_nc_proto, he_d_proto]
+          sorry -- NIW contradiction: e_nc is an intervening write forbidden by NoInterveningWrites
+        · -- ¬Nonempty: init state = I ≠ Vd
+          rename_i h_not_nonempty
+          simp only [Behaviour.eventToEntryState] at hdirVd
+          simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
+          have := b.initDirStateIsI init
+          simp_all [DirI, DirectoryState.toState, I, Vd]
