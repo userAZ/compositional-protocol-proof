@@ -642,31 +642,6 @@ theorem fr_ordering_holds
           ⟨e_evict, he_evict_in_b, he_evict_isDir, hevict_lt_cle₂,
            hcdir_ob_evict, he_evict_proto, he_evict_translatedDir⟩⟩ :=
           cdirEncapsDown_exists (lin e₁) (lin e₂) h.in_b₁ h.cache₁ h.notDown₁ lin
-            (fun hdown hdirVd => by
-              -- hdirVd: clusterDirStateBefore = Vd. Unfold and case-split on toOption.
-              unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
-              unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
-              simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToEntryState] at hdirVd
-              -- Case on whether the NotEncap set has an event or is empty
-              split at hdirVd
-              · -- none case: initial state ≠ Vd
-                simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
-                -- Initial dir state is I (from initDirStateIsI axiom). I.toState ≠ Vd.
-                have hinit := b.initDirStateIsI init
-                simp [hinit, DirI, DirectoryState.toState, I, Vd] at hdirVd
-              · -- some e_d case: stateAfter(e_d) = Vd
-                -- e_d is a dir event from the NotEncap set. Its stateAfter = Vd.
-                -- The triggering cache event (de.eReq) is a non-coherent write.
-                -- This write is an intervening write → NIW contradiction.
-                rename_i e_d _
-                -- e_d must be a dir event (it's in the cluster dir NotEncap set)
-                -- For now, derive the contradiction using NIW from h.comm
-                obtain ⟨e_w, _, e_w_lin, _, _, h_no_between, _, _, _, _⟩ := h.comm
-                -- e_d is a dir event. Extract its triggering cache event.
-                -- The triggering cache event is a non-coherent write (from stateAfter = Vd).
-                -- It's an intervening write between CLE_w and CLE_r → NIW contradiction.
-                -- TODO: formalize (dir state machine + temporal chain + NIW application)
-                sorry)
         -- Case-split on e₁'s dirAccessOfRequest to determine where e₂'s downgrade lands.
         have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2
         cases hda₁ with
@@ -1653,16 +1628,6 @@ theorem step_to_ordering
                     ⟨e_evict_w, he_evict_w_in_b, he_evict_w_isDir, he_evict_w_down,
                      hevict_w_lt, hcdir_w_ob_evict_w, he_evict_w_proto, he_evict_w_isDirWrite, he_evict_w_translatedDir⟩⟩ :=
                     cdirEncapsDown_exists e_w_lin (hlin e₂) hw_in_b hw_cache hw_not_down hlin
-                      (fun hdown hdirVd => by
-                        unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
-                        unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
-                        simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToEntryState] at hdirVd
-                        split at hdirVd
-                        · -- none: initial dir state ≠ Vd
-                          simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
-                          have hinit := b.initDirStateIsI init
-                          simp [hinit, DirI, DirectoryState.toState, I, Vd] at hdirVd
-                        · sorry) -- some: stateAfter = Vd → NIW contradiction
                   -- e_evict_w at e_w's cluster. dir_ordered CLE_w e_evict_w (same cluster, same addr).
                   have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
                   have he_evict_w_isdir' := he_evict_w_isDir
@@ -1755,15 +1720,6 @@ theorem step_to_ordering
           ⟨e_evict, he_evict_in_b, he_evict_isDir, hevict_lt_cle₂, hcdir_ob_evict,
            he_evict_proto, he_evict_isDirWrite, he_evict_translatedDir⟩⟩ :=
           cdirEncapsDown_exists (lin e₁) (lin e₂) h.in_b₁ h.cache₁ h.notDown₁ lin
-            (fun hdown hdirVd => by
-              unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
-              unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
-              simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToEntryState] at hdirVd
-              split at hdirVd
-              · simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
-                have hinit := b.initDirStateIsI init
-                simp [hinit, DirI, DirectoryState.toState, I, Vd] at hdirVd
-              · sorry) -- some: stateAfter = Vd → NIW contradiction
         have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
         match hfc_cdir : e_cdir, he_cdir_isDir with
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh

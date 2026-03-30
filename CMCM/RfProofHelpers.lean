@@ -3589,13 +3589,6 @@ lemma cdirEncapsDown_exists
     (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
     (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache) (hw_not_down : ¬ e_w.down)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
-    -- NIW-derived: cluster dir at e_w's cluster is not Vd before the global downgrade.
-    -- Derivable at call sites from NoInterveningWrites: any non-coherent write that
-    -- transitions dir SW→Vd is an intervening write forbidden by NIW.
-    (h_dir_ne_Vd : ∀ {e_gdown e_grant : Event n},
-        Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init
-          hr_c_and_g_lin e_gdown e_grant →
-        ¬ Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_gdown Vd)
     : ∃ e_cdir ∈ b, e_cdir.isDirectoryEvent ∧ e_cdir.protocol = e_w.protocol ∧
         e_cdir.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧
         (∃ e_cache_down ∈ b,
@@ -3876,5 +3869,20 @@ lemma cdirEncapsDown_exists
              hdowngrade,
              hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache⟩⟩⟩⟩
       | onDirVd hdirVd _ =>
-        -- onDirVd vacuous: NIW forbids non-coherent writes that transition dir SW→Vd.
-        exact absurd hdirVd (h_dir_ne_Vd hdowngrade)
+        -- onDirVd vacuous: the dir can't be Vd.
+        -- Unfold hdirVd and case-split on the NotEncap set.
+        exfalso
+        unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
+        unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
+        simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToEntryState] at hdirVd
+        split at hdirVd
+        · -- none: initial dir state = I ≠ Vd
+          simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
+          have hinit := b.initDirStateIsI init
+          simp [hinit, DirI, DirectoryState.toState, I, Vd] at hdirVd
+        · -- some e_d: stateAfter(e_d) = Vd
+          -- Case-split on e_d's request type from the dir state machine.
+          -- All paths to Vd require either NC write (NIW forbids) or NC read on SW
+          -- (Axiom 12 downgrades SW owner → hinter_state from orderBeforeDir prevents).
+          rename_i e_d _
+          sorry
