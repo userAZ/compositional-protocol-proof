@@ -3573,7 +3573,20 @@ lemma diffCache_coherent_encapProxyAndDir
 -- downgrade on Vd stays at Vd). The NIW argument works at a higher level: if no NC write
 -- in the event history, the dir can't reach Vd from coherent state.
 
--- TODO: clusterDirStateBefore_ne_Vd_of_NIW — bridge from dir state Vd to intervening write.
+/-- The only non-downgrade directory transition that produces Vd from a non-Vd state
+    is a non-coherent write (rw=.w, c=false). All other transitions from non-Vd states
+    produce SW, MR, Vc, or I — never Vd. (NC reads on SW produce Vc after the fix.)
+    Therefore: if a dir event with ¬down has stateAfter = Vd and stateBefore ≠ Vd,
+    the request must be a non-coherent write (isWrite). -/
+private lemma dir_transition_to_Vd_implies_ncWrite
+    {de : DirectoryEvent n} {ds : DirectoryState n}
+    (h_not_down : de.down = false)
+    (h_before_ne_Vd : ∀ s, ds ≠ DirectoryState.Vd s)
+    (h_after_Vd : ∃ s, de.SucceedingState n ds = DirectoryState.Vd s)
+    : de.req.val.rw = ReadWrite.w ∧ de.req.val.coherent = false := by
+  -- State machine case analysis: only NC write (rw=.w, c=false) produces Vd from non-Vd.
+  -- Coherent write → SW, Coherent read → MR, NC read → Vc (fixed) or stays Vd (but ds ≠ Vd).
+  sorry
 -- If dir = Vd, extract the non-coherent cache write that caused it, show it's between
 -- CLE_w and CLE_r, then NIW gives contradiction. For now, h_dir_ne_Vd uses sorry at call sites.
 
