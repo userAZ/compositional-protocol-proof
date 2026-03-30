@@ -4291,19 +4291,24 @@ lemma cdirEncapsDown_exists
 
               h_not_global'
               (fun de hde_in_b h_rw h_coh h_nd h_not_write => by
-                -- h_ncRead_prior_write: de.eReq is a NC read on Vd cache state.
-                -- reqToDirOfRequestEvent transformed it to .w at dir level.
-                -- The Vd cache state requires a prior NC write at the same cache entry.
-                -- Proof plan:
-                -- 1. From h_rw + h_coh + h_not_write: de.eReq is NC read, dir req is .w
-                --    → reqToDirOfRequestEvent non-default case (Acq on Vd or NC write on I)
-                --    → since result is .w and NC-write-on-I gives .r, must be Acq on Vd
-                --    → stateBefore of de.eReq at cache entry = Vd
-                -- 2. Cache state Vd requires prior NC write: initial cache state = I,
-                --    CacheEvent.SucceedingState only produces Vd for NC writes (rw=.w, c=false)
-                -- 3. That prior NC write is in b, at same cluster, before de.eReq
-                -- 4. Its CLE.oEnd ≤ e_d.oEnd (from temporal chain)
-                -- Needs: cache state replay analysis (parallel to dir state replay).
+                -- de.eReq is a NC read on Vd cache state. Need prior NC write.
+                -- The cache stateBefore of de.eReq is Vd (from reqToDirOfRequestEvent non-default).
+                -- Initial cache state is I. Some prior cache event at the same entry → Vd.
+                -- That prior event is the NC write witness.
+                --
+                -- Step 1: Get cache stateBefore = Vd from h_dir_req + h_rw + h_not_write.
+                -- h_dir_req gives de.req = reqToDirOfRequestEvent ... de.eReq.
+                -- h_rw says de.req.val.rw = .w. h_not_write says de.eReq.req.val.rw ≠ .w.
+                -- reqToDirOfRequestEvent produces .w from non-.w only for Acq on Vd cache state.
+                -- So stateBefore.cache = Vd.
+                --
+                -- Step 2: Cache state replay. stateAfter for cache entry starts from I.
+                -- Only NC writes (rw=.w, c=false, down=false) produce Vd in CacheEvent.SucceedingState.
+                -- So there exists a prior NC write cache event at the same entry.
+                --
+                -- Step 3: That NC write is in b, isWrite, ¬down, isClusterCache (same cid),
+                -- sameProtocol (same cluster as de → same as e_d).
+                -- CLE bound: sorry (depends on sorry #1 / dir_event_properties_from_lin).
                 sorry)
               hdirVd h_init_ne_Vd
           -- sameProtocol: e_nc at e_w's cluster via correspondingCluster_protocol_eq
