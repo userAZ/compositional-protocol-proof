@@ -152,12 +152,17 @@ structure NoInterveningWrites.constraints
         ¬ hinter_c_and_g_lin.hreq's_dir_access.choose.OrderedBetween n
             hw_c_and_g_lin.hreq's_dir_access.choose
             hencap.existsRClusterDirDown.choose
---   sameCacheNoInterWrite:
---     e_w.sameStructure n e_r →
---       ∀ e_inter_w ∈ b, e_inter_w.isClusterCache → e_inter_w.isWrite →
---         ¬ e_inter_w.sameStructure n e_w ∨
---         ¬ e_inter_w.sameStructure n e_r ∨
---         ¬ (hknow_dir_access cmp b init e_inter_w e_inter_w.isClusterCache (¬ e_inter_w.down)).hreq's_dir_access.choose.OrderedBetween n hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose
+  /-- Same-cluster-as-writer intervening write: if e_w_inter is at the same cluster as e_w,
+      its dir write CLE can't be between CLE_w and CLE_r. This constrains NC writes at
+      e_w's cluster that could change the directory state (e.g., from SW to Vd).
+      Unlike notBetweenCles (which requires same protocol as BOTH CLEs), this only
+      requires same protocol as e_w. -/
+  interSameProtocolAsWNotBetweenCleWAndCleR :
+    e_w_inter.sameProtocol n e_w →
+    hinter_c_and_g_lin.hreq's_dir_access.choose.isDirWrite →
+    ¬ hinter_c_and_g_lin.hreq's_dir_access.choose.OrderedBetween n
+        hw_c_and_g_lin.hreq's_dir_access.choose
+        hr_c_and_g_lin.hreq's_dir_access.choose
 
 def NoInterveningWrites
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}

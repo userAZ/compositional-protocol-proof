@@ -677,7 +677,11 @@ theorem fr_ordering_holds
                 -- Apply NIW
                 obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
                 have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
-                exact absurd sorry h_niw.notBetweenGles
+                -- Use interSameProtocolAsWNotBetweenCleWAndCleR:
+                -- e_nc same protocol as e_w_rf → CLE(e_nc) NOT between CLE(e_w_rf) and CLE(e₁).
+                -- Need: e_nc.sameProtocol e_w_rf, CLE(e_nc).isDirWrite, and
+                -- CLE(e_nc) IS between (from dir_ordered at same cluster).
+                sorry
               · -- ¬Nonempty: eventToEntryState of none → init state
                 rename_i h_not_nonempty
                 simp only [Behaviour.eventToEntryState] at hdirVd
@@ -1695,7 +1699,11 @@ theorem step_to_ordering
                   stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin hdirVd h_init_ne_Vd
                 obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
                 have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
-                exact absurd sorry h_niw.notBetweenGles
+                -- Use interSameProtocolAsWNotBetweenCleWAndCleR:
+                -- e_nc same protocol as e_w_rf → CLE(e_nc) NOT between CLE(e_w_rf) and CLE(e₁).
+                -- Need: e_nc.sameProtocol e_w_rf, CLE(e_nc).isDirWrite, and
+                -- CLE(e_nc) IS between (from dir_ordered at same cluster).
+                sorry
               · -- ¬Nonempty: init state = I ≠ Vd
                 rename_i h_not_nonempty
                 simp only [Behaviour.eventToEntryState] at hdirVd
@@ -1819,7 +1827,11 @@ theorem step_to_ordering
                   stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin hdirVd h_init_ne_Vd
                 obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
                 have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
-                exact absurd sorry h_niw.notBetweenGles
+                -- Use interSameProtocolAsWNotBetweenCleWAndCleR:
+                -- e_nc same protocol as e_w_rf → CLE(e_nc) NOT between CLE(e_w_rf) and CLE(e₁).
+                -- Need: e_nc.sameProtocol e_w_rf, CLE(e_nc).isDirWrite, and
+                -- CLE(e_nc) IS between (from dir_ordered at same cluster).
+                sorry
               · -- ¬Nonempty: init state = I ≠ Vd
                 rename_i h_not_nonempty
                 simp only [Behaviour.eventToEntryState] at hdirVd
