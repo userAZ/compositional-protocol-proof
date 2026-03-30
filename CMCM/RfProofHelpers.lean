@@ -3721,29 +3721,41 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
           exact (b.eventsUpToEntry_at_e_entry (n := n) e_d _ h_in_up).eInB
         | inr h_in_tail => exact (List.mem_singleton.mp h_in_tail) ▸ he_d_in_b
       -- Witness: Event.cacheEvent de_trans.eReq
-      -- Get ∈ b from lin's dirAccessOfRequest
+      -- Use lin to get dirAccessOfRequest, then extract all properties from encapDir case.
       have hlin_ce := lin (Event.cacheEvent de_trans.eReq)
       obtain ⟨e_cdir_ce, _, hda_ce⟩ := hlin_ce.hreq's_dir_access
-      have hce_in_b : (Event.cacheEvent de_trans.eReq) ∈ b := by
-        cases hda_ce with
-        | encapDir _ hencap => exact hencap.reqInB
-        | orderBeforeDir _ hpred hpred_dir _ _ _ _ _ => sorry -- reqHasPerms → ∈ b
-        | orderAfterDir _ _ _ _ => sorry -- ncWeakReqOnVd → ∈ b
-      refine ⟨Event.cacheEvent de_trans.eReq, hce_in_b, ?_, ?_, ?_, ?_, ?_⟩
-      · -- isWrite: de_trans.eReq.req.val.isWrite
-        simp [Event.isWrite, Request.isWrite]
-        sorry -- need de_trans.eReq.req.val.rw = .w from dirReq correspondence
-      · -- ¬ down: de_trans.eReq.down = false (= de_trans.down from DirectoryEvent structure)
-        simp [Event.down]
-        -- de_trans.down = de_trans.eReq.down (this is a property of the protocol model:
-        -- matchesCacheEvent.sameDown). Using h_not_down directly since de_trans.down = false.
-        sorry -- need de_trans.eReq.down = de_trans.down
-      · -- isClusterCache
-        sorry -- de_trans.eReq at cluster protocol (from de_trans at cluster dir)
-      · -- sameProtocol: same protocol as e_d (both at same dir entry)
-        sorry -- from eventsUpToEntry_at_e_entry → same struct → same protocol
-      · -- oEnd < e_d.oEnd: eReq encapsulates de_trans, de_trans is before e_d in replay
-        sorry -- temporal chain: eReq.oEnd ≥ de_trans.oEnd, de_trans before e_d
+      cases hda_ce with
+      | encapDir hreq_missing hencap =>
+        -- Extract ¬ down from reqMissingPerms: the non-downgrade cases give ¬ e_req.down
+        have hce_not_down : ¬ (Event.cacheEvent de_trans.eReq).down := by
+          cases hreq_missing with
+          | downgrade hdown _ =>
+            -- downgrade case: cache event has down=true. But dir event has down=false (h_not_down).
+            -- Protocol sameDown says they should match — contradiction.
+            -- e_cdir_ce.down = cache.down (from hencap.dirCorresponds.sameDown)
+            sorry -- contradicts h_not_down via sameDown chain
+          | noPermsForNonNcRelAcqWeakWrite hnot_down _ _ => exact hnot_down
+          | ncRelAcqWeakWriteNotOnCoherentState hnot_down _ _ => exact hnot_down
+        refine ⟨Event.cacheEvent de_trans.eReq, hencap.reqInB, ?_, ?_, ?_, ?_, ?_⟩
+        · -- isWrite
+          sorry
+        · -- ¬ down
+          exact hce_not_down
+        · -- isClusterCache: cache event at cluster protocol
+          constructor
+          · simp [Event.isCacheEvent]
+          · -- protocol is cluster1 or cluster2
+            simp [Event.protocol]
+            -- de_trans is a dir event at a cluster → protocol ≠ global
+            -- de_trans.eReq at same protocol as e_cdir_ce (from hencap.sameProtocol)
+            -- e_cdir_ce is a dir event (from hencap.isDir) → protocol is cluster
+            sorry
+        · -- sameProtocol: de_trans.eReq at same protocol as e_d
+          sorry
+        · -- oEnd < e_d.oEnd
+          sorry
+      | orderBeforeDir _ _ _ _ _ _ _ _ => sorry
+      | orderAfterDir _ _ _ _ => sorry
 
 /-- If the directory state after a sequence of events is Vd, and the initial state was not Vd,
     then some event in the sequence is a non-coherent write (non-downgrade) that transitioned
