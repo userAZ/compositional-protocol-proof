@@ -3885,4 +3885,19 @@ lemma cdirEncapsDown_exists
           -- All paths to Vd require either NC write (NIW forbids) or NC read on SW
           -- (Axiom 12 downgrades SW owner → hinter_state from orderBeforeDir prevents).
           rename_i e_d _
-          sorry
+          -- e_d is a dir event whose stateAfter = Vd. Use e_w's dirAccessOfRequest
+          -- to derive that no dir event between CLE_w and e_r_gdown could produce Vd.
+          have hda_w := hw_c_and_g_lin.hreq's_dir_access.choose_spec.2
+          cases hda_w with
+          | encapDir hreq_missing hencap =>
+            -- e_w encaps its CLE. Between CLE and e_r_gdown, any event that
+            -- changes dir to Vd requires Axiom 12 downgrade → contradicts encapDir.
+            sorry
+          | orderBeforeDir hreq_has_perms hexists_pred hpred_dir hinter_state_w hpred_proto hnot_down' hpred_leaves hpred_not_down =>
+            -- predecessor established coherent perms. hinter_state_w constrains events
+            -- between predecessor and e_w. Any dir event that changes dir to Vd triggers
+            -- Axiom 12 downgrade of SW owner → lowers cache → contradicts hinter_state_w.
+            sorry
+          | orderAfterDir hweak_on_vd _ _ _ =>
+            -- e_w is NC weak on Vd. hmade_on_sw says global = SW.
+            sorry
