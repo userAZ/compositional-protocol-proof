@@ -642,7 +642,18 @@ theorem fr_ordering_holds
           ⟨e_evict, he_evict_in_b, he_evict_isDir, hevict_lt_cle₂,
            hcdir_ob_evict, he_evict_proto, he_evict_translatedDir⟩⟩ :=
           cdirEncapsDown_exists (lin e₁) (lin e₂) h.in_b₁ h.cache₁ h.notDown₁ lin
-            (fun hdown => sorry) -- h_dir_ne_Vd: from NIW (no intervening non-coherent write)
+            (fun hdown hdirVd => by
+              -- hdirVd: clusterDirStateBefore = Vd. Unfold and case-split on toOption.
+              unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
+              unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
+              simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToEntryState] at hdirVd
+              -- Case on whether the NotEncap set has an event or is empty
+              split at hdirVd
+              · -- none case: initial state ≠ Vd
+                simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
+                sorry -- initial dir state ≠ Vd
+              · -- some e_d case: stateAfter(e_d) = Vd → e_d triggered by NC write → NIW
+                sorry)
         -- Case-split on e₁'s dirAccessOfRequest to determine where e₂'s downgrade lands.
         have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2
         cases hda₁ with
