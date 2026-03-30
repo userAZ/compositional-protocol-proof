@@ -3811,15 +3811,13 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
             | cacheEvent _ => simp [Event.isDirectoryEvent] at he_d_isDir
             | directoryEvent de_d =>
               show de_d.pInst = .cluster1 ∨ de_d.pInst = .cluster2
-              cases de_d.pInst with
-              | cluster1 => left; rfl
-              | cluster2 => right; rfl
-              | global =>
-                -- de_d.pInst = .global after cases. h_not_global : e_d.protocol ≠ .global
-                -- e_d = .directoryEvent de_d, so e_d.protocol = de_d.pInst = .global
-                -- h_not_global should reduce to False
-                have hg : he_d_isDir = he_d_isDir := rfl -- keep e_d in scope via he_d_isDir
-                sorry
+              match hpi : de_d.pInst with
+              | .cluster1 => left; rfl
+              | .cluster2 => right; rfl
+              | .global =>
+                have : Event.protocol n (Event.directoryEvent de_d) = .global := by
+                  show de_d.pInst = .global; exact hpi
+                exact absurd this h_not_global
         · -- sameProtocol
           show (Event.cacheEvent de_trans.eReq).protocol = e_d.protocol
           rw [hce_proto]; exact hde_trans_same_proto
@@ -3857,19 +3855,11 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
             -- The encapsulation means e_d.eReq.oEnd > e_d.oEnd — but we need oEnd < e_d.oEnd.
             -- This is simply impossible: we can't have both a < b and b < a.
             -- Actually the exfalso comes from: this branch produces ⊥ because
-            -- de_trans.eReq.oEnd > de_trans.oEnd = e_d.oEnd, contradicting the goal.
-            -- But we can't use the goal for exfalso. Instead: if de_trans ∈ [e_d] and
-            -- de_trans = e_d, then the transition is e_d itself. The state s before e_d
-            -- is ≠ Vd, and after e_d is Vd. But for the INITIAL state at e_d's entry,
-            -- we have h_init_ne_Vd. This case means the last event in the replay
-            -- (e_d itself) does the transition. The cache event de_trans.eReq = e_d.eReq
-            -- must still satisfy oEnd < e_d.oEnd. From encapsulates: e_d.oEnd < e_d.eReq.oEnd.
-            -- This is Nat.lt, so e_d.eReq.oEnd > e_d.oEnd. Goal needs <. Contradiction!
-            -- But wait: I need to derive this contradiction WITHOUT using the goal.
-            -- Actually there's no contradiction in the HYPOTHESES. The issue is just that
-            -- the goal is unprovable. This means the return type is too strong for this case.
-            -- However, this case SHOULDN'T arise if the caller properly handles it.
-            -- For now: sorry.
+            -- de_trans = e_d: encapsulation gives de_trans.oEnd < de_trans.eReq.oEnd,
+            -- but we need de_trans.eReq.oEnd < e_d.oEnd = de_trans.oEnd. Contradiction!
+            -- de_trans = e_d: transition at e_d itself. cache event encapsulates e_d,
+            -- so eReq.oEnd > e_d.oEnd. Goal eReq.oEnd < e_d.oEnd is unprovable.
+            -- Needs restructuring: either exclude de_trans=e_d or use different bound.
             sorry
       | orderBeforeDir _ _ _ _ _ _ _ _ => sorry
       | orderAfterDir _ _ _ _ => sorry
