@@ -3712,7 +3712,15 @@ private lemma dir_event_properties_from_lin
   -- From dirAccessUnique: CLE = de for all dirAccessOfRequest cases
   have h_cle_eq : (lin (Event.cacheEvent de.eReq)).hreq's_dir_access.choose =
       Event.directoryEvent de := by
-    sorry -- dirAccessUnique (TODO: remove)
+    -- TODO: Replace dirAccessUnique with RF/CO linearization events + CompoundMCM.
+    -- Plan: change return type to not reference lin. Return de_trans.oEnd ≤ e_d.oEnd
+    -- instead of (lin e_nc).CLE.oEnd ≤ e_d.oEnd. Caller chains independently.
+    --
+    -- Uses dirAccessUnique. TODO: replace with RF/CO linearization + CompoundMCM.
+    -- The dirOfReq substitution pattern (used below for requestDirectoryEvent/reqInB)
+    -- requires h_cle_eq to specialize hda to de. Without dirAccessUnique, decouple
+    -- the return type from lin: return de_trans.oEnd ≤ e_d.oEnd instead of CLE.oEnd.
+    sorry
   have hda := (lin (Event.cacheEvent de.eReq)).hreq's_dir_access.choose_spec.2
   rw [h_cle_eq] at hda
   refine ⟨?_, ?_, h_cle_eq⟩
