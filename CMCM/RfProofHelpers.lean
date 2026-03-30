@@ -3697,6 +3697,34 @@ private lemma eventsUpToEvent_oEnd_le {b : Behaviour n} {e e' : Event n}
   -- hob : e'.OrderedBefore n e, i.e., e'.oEnd < e.oStart
   exact Nat.le_of_lt (Nat.lt_of_lt_of_le hob (Nat.le_of_lt (Event.oWellFormed n e)))
 
+-- Helper: if CacheEvent.SucceedingState produces Vd from non-Vd, the event is an NC weak write.
+set_option maxHeartbeats 800000 in
+private lemma cacheEvent_Vd_transition_isNcWeakWrite
+    {ce : CacheEvent n} {s : State}
+    (hs_ne_Vd : s ≠ Vd)
+    (hs_Vd : ce.SucceedingState n s = Vd)
+    : ce.req.val.rw = .w ∧ ce.req.val.coherent = false ∧ ce.down = false := by
+  -- Case split on ce.down: down=true → DowngradeState never → Vd from non-Vd.
+  -- down=false → RequestState: only NC weak write → Vd from non-Vd.
+  simp only [CacheEvent.SucceedingState] at hs_Vd
+  match hd : ce.down with
+  | true =>
+    exfalso; simp [hd] at hs_Vd
+    -- DowngradeState never produces Vd from non-Vd.
+    -- Exhaustive case split on coherent, consistency, NC types.
+    -- Each case: DowngradeState gives Vc/I/s/MRS, none = Vd when s ≠ Vd.
+    sorry
+  | false =>
+    simp [hd] at hs_Vd
+    simp only [ValidRequest.RequestState] at hs_Vd
+    -- RequestState with down=false. Only NC weak write → Vd from non-Vd.
+    -- Coherent: gives s or MRS, MRS ≠ Vd for coherent (MRS.c = true, Vd.c = false).
+    -- NC weak read: gives s or MRS, MRS for NC read ≠ Vd.
+    -- NC rel write: gives Vc, ≠ Vd.
+    -- NC weak write: gives Vd (for non-SW) or s (for SW). Only Vd from non-Vd for non-SW.
+    -- So ce.req.val = ⟨.w, false, .Weak⟩.
+    sorry
+
 -- Helper: derive dir event properties from dirAccessUnique + lin.
 -- For a dir event de in b, dirAccessOfRequest for de.eReq with CLE = de (via dirAccessUnique)
 -- gives requestDirectoryEvent, reqInB, and CLE identity.
@@ -4403,16 +4431,22 @@ lemma cdirEncapsDown_exists
                       simp only [he_tc, Event.SucceedingState, EntryState.cache] at hs_c_Vd hs_c_ne_Vd
                       -- Now hs_c_Vd : ce_trans.SucceedingState n s_c.cache = Vd (or similar)
                       -- hs_c_ne_Vd : s_c.cache ≠ Vd
+                      have ⟨h_rw_w_ce, _, h_nd_ce⟩ :=
+                        cacheEvent_Vd_transition_isNcWeakWrite hs_c_ne_Vd hs_c_Vd
                       refine ⟨Event.cacheEvent ce_trans, he_trans_in_b, ?_, ?_, ?_, ?_, ?_⟩
-                      · -- isWrite
+                      · simp [Event.isWrite, Request.isWrite]; exact h_rw_w_ce
+                      · simp [Event.down]; exact h_nd_ce
+                      · -- isClusterCache: same cache entry as de.eReq → same cluster
+                        constructor
+                        · simp [Event.isCacheEvent]
+                        · -- ce_trans at same struct as de.eReq (from eventsUpToEntry)
+                          have hat := b.eventsUpToEntry_at_e_entry (n := n)
+                            (Event.cacheEvent de.eReq) _ he_trans_in_up
+                          simp only [Event.protocol, he_tc] at hat ⊢
+                          sorry -- extract cluster protocol from same struct as de.eReq
+                      · -- sameProtocol: chain ce_trans → de.eReq → de → e_d
                         sorry
-                      · -- ¬ down
-                        sorry
-                      · -- isClusterCache
-                        sorry
-                      · -- sameProtocol
-                        sorry
-                      · -- CLE.oEnd ≤ e_d.oEnd
+                      · -- CLE.oEnd ≤ e_d.oEnd: depends on sorry #1
                         sorry
                   · -- Default: preserves req. h_eReq_read gives .r ≠ .w.
                     simp [Event.req] at h_rw
