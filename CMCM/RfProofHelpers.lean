@@ -3890,14 +3890,41 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
         · -- de_trans.eReq NOT a write: use prior NC write from h_ncRead_prior_write
           exact h_ncRead_prior_write de_trans hde_trans_in_b h_rw_w h_coh_false h_not_down
             (by simp [Event.isWrite, Request.isWrite]; exact hisW)
-      | orderAfterDir hweak_req _ hsucc_same_proto hnot_down =>
+      | orderAfterDir hweak_req hsucc_encap hsucc_same_proto hnot_down =>
         by_cases hisW : de_trans.eReq.req.val.isWrite
         · -- NC weak write on Vd: use de_trans.eReq as witness
           have hce_in_b := h_eReq_in_b de_trans hde_trans_in_b
+          -- Protocol chain: successor.protocol = de_trans.eReq.protocol (hsucc_same_proto)
+          -- successor encapsulates de_trans → successor.protocol = de_trans.pInst
+          -- From hsucc_encap: successor has encapCorresponding with de_trans
+          have hce_proto : (Event.cacheEvent de_trans.eReq).protocol =
+              (Event.directoryEvent de_trans).protocol := by
+            -- hsucc_same_proto : hsucc_encap.choose.protocol = de_trans.eReq.protocol
+            -- hsucc_encap.choose_spec.satisfyP.encapCorresponding.sameProtocol :
+            --   hsucc_encap.choose.protocol = de_trans.pInst
+            have hsucc_de := hsucc_encap.choose_spec.right.satisfyP.encapCorresponding.sameProtocol
+            -- hsucc_de : hsucc_encap.choose.protocol = de_trans.pInst
+            rw [← hsucc_same_proto, hsucc_de]
           refine ⟨Event.cacheEvent de_trans.eReq, hce_in_b, ?_, hnot_down, ?_, ?_, ?_⟩
           · simp [Event.isWrite, Request.isWrite]; exact hisW
-          · sorry -- isClusterCache (same pattern as orderBeforeDir)
-          · sorry -- sameProtocol
+          · -- isClusterCache
+            have hproto_eq : (Event.cacheEvent de_trans.eReq).protocol = e_d.protocol := by
+              rw [hce_proto]; exact hde_trans_same_proto
+            constructor
+            · simp [Event.isCacheEvent]
+            · rw [hproto_eq]
+              cases e_d with
+              | cacheEvent _ => simp [Event.isDirectoryEvent] at he_d_isDir
+              | directoryEvent de_d =>
+                show de_d.pInst = .cluster1 ∨ de_d.pInst = .cluster2
+                match hpi : de_d.pInst with
+                | .cluster1 => left; rfl
+                | .cluster2 => right; rfl
+                | .global =>
+                  exact absurd (show Event.protocol n (Event.directoryEvent de_d) = .global by
+                    show de_d.pInst = .global; exact hpi) h_not_global
+          · show (Event.cacheEvent de_trans.eReq).protocol = e_d.protocol
+            rw [hce_proto]; exact hde_trans_same_proto
           · show (lin (Event.cacheEvent de_trans.eReq)).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd
             rw [h_cle_eq]
             cases List.mem_append.mp he_in_list with
