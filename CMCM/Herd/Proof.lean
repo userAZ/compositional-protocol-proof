@@ -683,12 +683,16 @@ theorem fr_ordering_holds
                 have hcdir_spec := hencap.existsRClusterDirDown.choose_spec
                 -- hcdir_spec : e_cdir_down ∈ b ∧ isDir ∧ proto = e₁.protocol ∧ ...
                 have he_cdir_isDir := hcdir_spec.2.1
-                have he_cdir_proto := hcdir_spec.2.2.1 -- protocol = e₁.protocol (e_w in encapDir = e₁)
-                -- e_nc.sameProtocol n e₁
+                have he_cdir_proto := hcdir_spec.2.2.1
+                -- Derive e_nc.sameProtocol n e₁ via protocol chain
+                have h_gCacheOfCDir := h_nonempty.some.prop.2.finishBefore.gCacheOfCDir
+                have h_corr_ed := Behaviour.event_reqAtCorrespondingGCacheOfCDir_is_correspondingClusterOfGlobalCache h_gCacheOfCDir
+                have h_cdir_translated := hcdir_spec.2.2.2.2.1
+                obtain ⟨_, _, _, _, _, h_corr_cdir⟩ := h_cdir_translated.existsGlobalDownTranslation
+                have h_proto_eq := correspondingCluster_protocol_eq h_corr_ed h_corr_cdir.clusterMatch.atCorrCluster
                 have he_nc_same_r : e_nc.sameProtocol n e₁ := by
-                  -- e_nc.sameProtocol e_d (from helper) + e_d.protocol = e₁.protocol (from NotEncap set)
-                  sorry
-                -- Apply NIW: CLE(e_nc) NOT between CLE(e_w_rf) and e_cdir_down
+                  unfold Event.sameProtocol at he_nc_proto ⊢
+                  rw [he_nc_proto, h_proto_eq, he_cdir_proto]
                 exact absurd sorry
                   (h_niw.interSameProtocolAsRNotBetweenCleWAndDowngrade he_nc_same_r
                     e_cdir_down he_cdir_isDir he_cdir_proto)
