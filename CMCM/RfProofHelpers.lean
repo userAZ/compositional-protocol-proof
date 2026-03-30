@@ -3640,6 +3640,26 @@ private lemma list_stateAfter_exists_transition
       obtain ⟨e, he_in_tl, s, hs_neg, hs_pos⟩ := ih h_result h_after_hd
       exact ⟨e, List.mem_cons_of_mem _ he_in_tl, s, hs_neg, hs_pos⟩
 
+-- Variant of list_stateAfter_exists_transition that preserves an invariant Q on intermediate states.
+private lemma list_stateAfter_exists_transition_with_inv
+    {es : List (Event n)} {init : EntryState n}
+    {P : EntryState n → Prop} {Q : EntryState n → Prop}
+    (hQ_init : Q init)
+    (hQ_pres : ∀ e ∈ es, ∀ s, Q s → Q (e.SucceedingState n s))
+    (h_result : P (es.stateAfter n init))
+    (h_init : ¬ P init)
+    : ∃ e ∈ es, ∃ s : EntryState n, Q s ∧ ¬ P s ∧ P (e.SucceedingState n s) := by
+  induction es generalizing init with
+  | nil => simp [List.stateAfter] at h_result; exact absurd h_result h_init
+  | cons hd tl ih =>
+    simp only [List.stateAfter] at h_result
+    by_cases h_after_hd : P (hd.SucceedingState n init)
+    · exact ⟨hd, .head _, init, hQ_init, h_init, h_after_hd⟩
+    · have hQ_next := hQ_pres hd (.head _) init hQ_init
+      obtain ⟨e, he_in_tl, s, hs_Q, hs_neg, hs_pos⟩ := ih hQ_next
+        (fun e he s hq => hQ_pres e (.tail _ he) s hq) h_result h_after_hd
+      exact ⟨e, .tail _ he_in_tl, s, hs_Q, hs_neg, hs_pos⟩
+
 set_option maxHeartbeats 400000
 
 -- Helper: events in eventsUpToEvent have oEnd ≤ e.oEnd (they come before e in sorted order).
@@ -3882,14 +3902,44 @@ lemma stateAfter_Vd_implies_exists_ncWrite
         e_nc.sameProtocol n e_d ∧
         (lin e_nc).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd := by
   unfold Behaviour.stateAfter at hstate_Vd
-  have h_transition := list_stateAfter_exists_transition
+  -- Use the invariant-preserving variant: Q = isDirectoryState
+  have hQ_init : (init.stateAt n e_d).isDirectoryState := by
+    cases e_d with
+    | cacheEvent _ => simp [Event.isDirectoryEvent] at he_d_isDir
+    | directoryEvent de_d => simp [InitialSystemState.stateAt, EntryState.isDirectoryState]
+  have hQ_pres : ∀ e ∈ b.eventsUpToEvent n e_d ++ [e_d], ∀ s,
+      s.isDirectoryState → (e.SucceedingState n s).isDirectoryState := by
+    intro e he_in s hs
+    -- All events in the replay are dir events (at e_d's dir entry).
+    -- Show e is a dir event:
+    have he_dir : e.isDirectoryEvent := by
+      cases List.mem_append.mp he_in with
+      | inl h_up =>
+        have hat := b.eventsUpToEntry_at_e_entry (n := n) e_d _ h_up
+        cases he : e with
+        | directoryEvent _ => simp [Event.isDirectoryEvent]
+        | cacheEvent ce =>
+          exfalso
+          have hstr := hat.eAtStruct
+          cases e_d with
+          | cacheEvent _ => simp [Event.isDirectoryEvent] at he_d_isDir
+          | directoryEvent _ => simp_all [Event.struct]
+      | inr h_tail =>
+        have heq := List.mem_singleton.mp h_tail
+        rw [heq]; exact he_d_isDir
+    -- e is dir event → SucceedingState on .inr gives .inr
+    cases e with
+    | directoryEvent _ => cases s with
+      | inr _ => simp [Event.SucceedingState, EntryState.isDirectoryState]
+      | inl _ => exact hs.elim
+    | cacheEvent _ => simp [Event.isDirectoryEvent] at he_dir
+  have h_transition := list_stateAfter_exists_transition_with_inv
     (P := fun s => s.state = Vd)
-    hstate_Vd h_init_ne_Vd
-  obtain ⟨e_trans, he_in_list, s, hs_ne_Vd, hs_Vd⟩ := h_transition
+    (Q := EntryState.isDirectoryState n)
+    hQ_init hQ_pres hstate_Vd h_init_ne_Vd
+  obtain ⟨e_trans, he_in_list, s, h_s_dir, hs_ne_Vd, hs_Vd⟩ := h_transition
   exact event_Vd_transition_implies_ncWrite_in_b he_in_list he_d_in_b he_d_isDir lin h_cle_is_de
-    h_eReq_in_b
-    sorry -- h_s_dir: s.isDirectoryState (replay invariant)
-    h_not_global sorry hs_ne_Vd hs_Vd
+    h_eReq_in_b h_s_dir h_not_global sorry hs_ne_Vd hs_Vd
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit
