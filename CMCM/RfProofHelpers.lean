@@ -3566,23 +3566,8 @@ lemma diffCache_coherent_encapProxyAndDir
       he_dir_translated,
       Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩ }
 
-/-- If the global cache state is SW (coherent), the cluster directory state cannot be Vd
-    (non-coherent). Protocol argument: any transition from coherent (SW) to non-coherent (Vd)
-    at the cluster directory requires Axiom 12 (nonCohReqDowngrades) to downgrade the prior
-    SW owner. This downgrade propagates to the global level through the ClusterToGlobal shim,
-    lowering the global cache from SW. So if the global cache is still SW at e_gdown,
-    no such transition occurred, and the directory cannot be at Vd. -/
-private lemma global_cache_sw_cluster_dir_ne_Vd
-    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
-    {e_gdown : Event n}
-    (he_gdown_in_b : e_gdown ∈ b)
-    (hmade_on_sw : b.cacheStateMadeOn n init e_gdown = SW)
-    : ¬ Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_gdown Vd := by
-  intro hdirVd
-  unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
-  -- hmade_on_sw: global cache state = SW (c=true). hdirVd: cluster dir state = Vd (c=false).
-  -- Protocol: SW→Vd at cluster dir requires Axiom 12 downgrade, propagating to global → not SW.
-  sorry
+-- onDirVd is eliminated via h_dir_ne_Vd parameter (from NIW at call sites):
+-- Any non-coherent write that transitions dir SW→Vd is an intervening write forbidden by NIW.
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit
@@ -3596,6 +3581,13 @@ lemma cdirEncapsDown_exists
     (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
     (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache) (hw_not_down : ¬ e_w.down)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    -- NIW-derived: cluster dir at e_w's cluster is not Vd before the global downgrade.
+    -- Derivable at call sites from NoInterveningWrites: any non-coherent write that
+    -- transitions dir SW→Vd is an intervening write forbidden by NIW.
+    (h_dir_ne_Vd : ∀ {e_gdown e_grant : Event n},
+        Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init
+          hr_c_and_g_lin e_gdown e_grant →
+        ¬ Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_gdown Vd)
     : ∃ e_cdir ∈ b, e_cdir.isDirectoryEvent ∧ e_cdir.protocol = e_w.protocol ∧
         e_cdir.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧
         (∃ e_cache_down ∈ b,
@@ -3876,5 +3868,5 @@ lemma cdirEncapsDown_exists
              hdowngrade,
              hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache⟩⟩⟩⟩
       | onDirVd hdirVd _ =>
-        -- onDirVd vacuous: global cache = SW → cluster dir ≠ Vd.
-        exact absurd hdirVd (global_cache_sw_cluster_dir_ne_Vd (cmp := cmp) he_r_gdown_in_b hmade_on_sw)
+        -- onDirVd vacuous: NIW forbids non-coherent writes that transition dir SW→Vd.
+        exact absurd hdirVd (h_dir_ne_Vd hdowngrade)
