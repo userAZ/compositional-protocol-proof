@@ -652,32 +652,9 @@ theorem fr_ordering_holds
                 simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
                 have := b.initDirStateIsI init
                 simp_all [DirI, DirectoryState.toState, I, Vd]
-              · -- some e_d: stateAfter(e_d) = Vd → NC write → NIW contradiction
-                rename_i e_d _
-                -- Initial state ≠ Vd (all entries start at I)
-                have h_init_ne_Vd : (init.stateAt n e_d).state ≠ Vd := by
-                  match he : e_d with
-                  | .directoryEvent de =>
-                    simp only [InitialSystemState.stateAt, EntryState.state]
-                    rw [b.initDirStateIsI init de.pInst]
-                    simp [DirI, DirectoryState.toState]
-                  | .cacheEvent ce =>
-                    rw [show InitialSystemState.stateAt n init (Event.cacheEvent ce) =
-                      Sum.inl (init.cacheStates ce.cid) from rfl]
-                    simp only [EntryState.state, I, Vd]
-                    rw [show init.cacheStates ce.cid = I from by
-                      have := b.initCacheStateIsI (.cacheEvent ce) init (by simp [Event.isCacheEvent])
-                      simp [InitialSystemState.stateAt, IEntry] at this; exact this]
-                    simp [I, Vd]
-                -- stateAfter = Vd → ∃ NC write. NIW (notBetweenGles) forbids it.
-                obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, _, _⟩ :=
-                  stateAfter_Vd_implies_exists_ncWrite sorry sorry lin hdirVd h_init_ne_Vd
-                obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
-                have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
-                -- h_niw.notBetweenGles: GLE_nc NOT between GLE_w and GLE_r.
-                -- Need: GLE_nc IS between GLE_w and GLE_r (from temporal chain).
-                -- e_nc happened during the replay → GLE_nc between GLE_w and GLE_r.
-                exact absurd sorry h_niw.notBetweenGles)
+              · -- some e_d: stateAfter(e_d) = Vd
+                -- e_d ∈ b and e_d.isDir: from NotEncap set membership (sorry for now)
+                sorry)
         -- Case-split on e₁'s dirAccessOfRequest to determine where e₂'s downgrade lands.
         have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2
         cases hda₁ with
@@ -1674,32 +1651,9 @@ theorem step_to_ordering
                 simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
                 have := b.initDirStateIsI init
                 simp_all [DirI, DirectoryState.toState, I, Vd]
-              · -- some e_d: stateAfter(e_d) = Vd → NC write → NIW contradiction
-                rename_i e_d _
-                -- Initial state ≠ Vd (all entries start at I)
-                have h_init_ne_Vd : (init.stateAt n e_d).state ≠ Vd := by
-                  match he : e_d with
-                  | .directoryEvent de =>
-                    simp only [InitialSystemState.stateAt, EntryState.state]
-                    rw [b.initDirStateIsI init de.pInst]
-                    simp [DirI, DirectoryState.toState]
-                  | .cacheEvent ce =>
-                    rw [show InitialSystemState.stateAt n init (Event.cacheEvent ce) =
-                      Sum.inl (init.cacheStates ce.cid) from rfl]
-                    simp only [EntryState.state, I, Vd]
-                    rw [show init.cacheStates ce.cid = I from by
-                      have := b.initCacheStateIsI (.cacheEvent ce) init (by simp [Event.isCacheEvent])
-                      simp [InitialSystemState.stateAt, IEntry] at this; exact this]
-                    simp [I, Vd]
-                -- stateAfter = Vd → ∃ NC write. NIW (notBetweenGles) forbids it.
-                obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, _, _⟩ :=
-                  stateAfter_Vd_implies_exists_ncWrite sorry sorry lin hdirVd h_init_ne_Vd
-                obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
-                have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
-                -- h_niw.notBetweenGles: GLE_nc NOT between GLE_w and GLE_r.
-                -- Need: GLE_nc IS between GLE_w and GLE_r (from temporal chain).
-                -- e_nc happened during the replay → GLE_nc between GLE_w and GLE_r.
-                exact absurd sorry h_niw.notBetweenGles)
+              · -- some e_d: stateAfter(e_d) = Vd
+                -- e_d ∈ b and e_d.isDir: from NotEncap set membership (sorry for now)
+                sorry)
                   -- e_evict_w at e_w's cluster. dir_ordered CLE_w e_evict_w (same cluster, same addr).
                   have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
                   have he_evict_w_isdir' := he_evict_w_isDir
@@ -1802,32 +1756,9 @@ theorem step_to_ordering
                 simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
                 have := b.initDirStateIsI init
                 simp_all [DirI, DirectoryState.toState, I, Vd]
-              · -- some e_d: stateAfter(e_d) = Vd → NC write → NIW contradiction
-                rename_i e_d _
-                -- Initial state ≠ Vd (all entries start at I)
-                have h_init_ne_Vd : (init.stateAt n e_d).state ≠ Vd := by
-                  match he : e_d with
-                  | .directoryEvent de =>
-                    simp only [InitialSystemState.stateAt, EntryState.state]
-                    rw [b.initDirStateIsI init de.pInst]
-                    simp [DirI, DirectoryState.toState]
-                  | .cacheEvent ce =>
-                    rw [show InitialSystemState.stateAt n init (Event.cacheEvent ce) =
-                      Sum.inl (init.cacheStates ce.cid) from rfl]
-                    simp only [EntryState.state, I, Vd]
-                    rw [show init.cacheStates ce.cid = I from by
-                      have := b.initCacheStateIsI (.cacheEvent ce) init (by simp [Event.isCacheEvent])
-                      simp [InitialSystemState.stateAt, IEntry] at this; exact this]
-                    simp [I, Vd]
-                -- stateAfter = Vd → ∃ NC write. NIW (notBetweenGles) forbids it.
-                obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, _, _⟩ :=
-                  stateAfter_Vd_implies_exists_ncWrite sorry sorry lin hdirVd h_init_ne_Vd
-                obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
-                have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
-                -- h_niw.notBetweenGles: GLE_nc NOT between GLE_w and GLE_r.
-                -- Need: GLE_nc IS between GLE_w and GLE_r (from temporal chain).
-                -- e_nc happened during the replay → GLE_nc between GLE_w and GLE_r.
-                exact absurd sorry h_niw.notBetweenGles)
+              · -- some e_d: stateAfter(e_d) = Vd
+                -- e_d ∈ b and e_d.isDir: from NotEncap set membership (sorry for now)
+                sorry)
         have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
         match hfc_cdir : e_cdir, he_cdir_isDir with
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
