@@ -3662,6 +3662,15 @@ private lemma list_stateAfter_exists_transition_with_inv
 
 set_option maxHeartbeats 400000
 
+-- Helper: a bottom event in b is in its own eventsAtEventEntry list.
+private lemma bottom_event_mem_eventsAtEventEntry {b : Behaviour n} {e : Event n}
+    (he_in_b : e ∈ b) (he_bottom : b.IsBottomEvent n e) : e ∈ b.eventsAtEventEntry n e := by
+  simp only [Behaviour.eventsAtEventEntry]
+  have hmem := b.bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents n e.struct e.addr e
+    he_in_b he_bottom rfl rfl
+  rw [List.mem_map]
+  exact ⟨⟨e, ⟨he_in_b, rfl, rfl⟩⟩, hmem, rfl⟩
+
 -- Helper: events in eventsUpToEvent have oEnd ≤ e.oEnd (they come before e in sorted order).
 private lemma eventsUpToEvent_oEnd_le {b : Behaviour n} {e e' : Event n}
     (he_in_entry : e ∈ b.eventsAtEventEntry n e)
@@ -3835,7 +3844,10 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
           · show (lin (Event.cacheEvent de_trans.eReq)).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd
             rw [h_cle_eq]
             cases List.mem_append.mp he_in_list with
-            | inl h_in_up => exact eventsUpToEvent_oEnd_le sorry h_in_up
+            | inl h_in_up =>
+              exact eventsUpToEvent_oEnd_le
+                (bottom_event_mem_eventsAtEventEntry he_d_in_b
+                  (b.directory_event_is_bottom n e_d he_d_isDir)) h_in_up
             | inr h_in_tail => rw [List.mem_singleton.mp h_in_tail]
         · -- de_trans.eReq NOT a write: use prior NC write from h_ncRead_prior_write
           exact h_ncRead_prior_write de_trans hde_trans_in_b h_rw_w h_coh_false h_not_down
@@ -3870,7 +3882,10 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
           · show (lin (Event.cacheEvent de_trans.eReq)).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd
             rw [h_cle_eq]
             cases List.mem_append.mp he_in_list with
-            | inl h_in_up => exact eventsUpToEvent_oEnd_le sorry h_in_up
+            | inl h_in_up =>
+              exact eventsUpToEvent_oEnd_le
+                (bottom_event_mem_eventsAtEventEntry he_d_in_b
+                  (b.directory_event_is_bottom n e_d he_d_isDir)) h_in_up
             | inr h_in_tail => rw [List.mem_singleton.mp h_in_tail]
         · -- de_trans.eReq NOT a write: use prior NC write from h_ncRead_prior_write
           exact h_ncRead_prior_write de_trans hde_trans_in_b h_rw_w h_coh_false h_not_down
@@ -3886,7 +3901,10 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
           · show (lin (Event.cacheEvent de_trans.eReq)).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd
             rw [h_cle_eq]
             cases List.mem_append.mp he_in_list with
-            | inl h_in_up => exact eventsUpToEvent_oEnd_le sorry h_in_up
+            | inl h_in_up =>
+              exact eventsUpToEvent_oEnd_le
+                (bottom_event_mem_eventsAtEventEntry he_d_in_b
+                  (b.directory_event_is_bottom n e_d he_d_isDir)) h_in_up
             | inr h_in_tail => rw [List.mem_singleton.mp h_in_tail]
         · -- NC weak read on Vd: use prior NC write from h_ncRead_prior_write
           exact h_ncRead_prior_write de_trans hde_trans_in_b h_rw_w h_coh_false h_not_down
