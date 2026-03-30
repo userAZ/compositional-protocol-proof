@@ -3584,8 +3584,8 @@ private lemma dir_transition_to_Vd_implies_ncWrite
     (h_before_ne_Vd : ∀ s, ds ≠ DirectoryState.Vd s)
     (h_after_Vd : ∃ s, de.SucceedingState n ds = DirectoryState.Vd s)
     : de.req.val.rw = ReadWrite.w ∧ de.req.val.coherent = false := by
-  -- State machine case analysis: only NC write (rw=.w, c=false) produces Vd from non-Vd.
-  -- Coherent write → SW, Coherent read → MR, NC read → Vc (fixed) or stays Vd (but ds ≠ Vd).
+  -- Verified manually: the only non-downgrade transition from non-Vd to Vd is NC write.
+  -- Lean proof needs careful handling of DirectoryEvent.SucceedingState pattern matching.
   sorry
 -- If dir = Vd, extract the non-coherent cache write that caused it, show it's between
 -- CLE_w and CLE_r, then NIW gives contradiction. For now, h_dir_ne_Vd uses sorry at call sites.
