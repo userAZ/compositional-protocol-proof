@@ -3569,6 +3569,10 @@ lemma diffCache_coherent_encapProxyAndDir
 -- onDirVd is eliminated via h_dir_ne_Vd parameter (from NIW at call sites):
 -- Any non-coherent write that transitions dir SW→Vd is an intervening write forbidden by NIW.
 
+-- TODO: clusterDirStateBefore_ne_Vd_of_NIW — bridge from dir state Vd to intervening write.
+-- If dir = Vd, extract the non-coherent cache write that caused it, show it's between
+-- CLE_w and CLE_r, then NIW gives contradiction. For now, h_dir_ne_Vd uses sorry at call sites.
+
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit
     existential witness. This avoids Exists.choose issues by never going through
