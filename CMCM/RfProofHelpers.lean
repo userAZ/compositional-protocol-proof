@@ -4260,7 +4260,11 @@ lemma cdirEncapsDown_exists
             stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin
               sorry -- h_dir_req: Axiom 3 (requestDirectoryEvent) for de.eReq and de
               sorry -- h_eReq_in_b: de.eReq ∈ b
-              sorry -- h_cle_is_de: dirAccessUnique (TODO: remove)
+              (fun de hde_in_b => by
+                -- h_cle_is_de: CLE of de.eReq = de, from dirAccessUnique (TODO: remove)
+                -- lin gives dirAccessOfRequest with some CLE. dirAccessUnique says CLE is unique.
+                -- Need to construct a second dirAccessOfRequest with de as the dir event.
+                sorry)
 
               h_not_global'
               (fun de hde_in_b h_rw h_coh h_nd h_not_write => by
