@@ -646,14 +646,27 @@ theorem fr_ordering_holds
               -- dir ≠ Vd: only NC writes produce Vd, and NIW forbids them.
               unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
               unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
-              simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToEntryState] at hdirVd
+              unfold Behaviour.stateOfSubsingletonEventSet at hdirVd
+              -- hdirVd now has: (eventToEntryState ... (Set.toOption s) ...).state = Vd
+              -- Unfold Set.toOption to expose dite
+              simp only [Set.toOption] at hdirVd
+              -- Now hdirVd has dite (Nonempty s) ...
+              -- split on the dite
               split at hdirVd
-              · -- none: initial dir state = I ≠ Vd
+              · -- Nonempty case: h.some is in the set → in b
+                rename_i h_nonempty
+                -- eventToEntryState of some h_nonempty.some.val
+                simp only [Behaviour.eventToEntryState] at hdirVd
+                -- h_nonempty.some : subtype {e // e ∈ b ∧ P e}
+                -- h_nonempty.some.prop.1 : h_nonempty.some.val ∈ b
+                have he_d_in_b : (h_nonempty.some : Event n) ∈ b := h_nonempty.some.prop.1
+                sorry -- continue with NC write extraction + NIW
+              · -- ¬Nonempty: eventToEntryState of none → init state
+                rename_i h_not_nonempty
+                simp only [Behaviour.eventToEntryState] at hdirVd
                 simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
                 have := b.initDirStateIsI init
-                simp_all [DirI, DirectoryState.toState, I, Vd]
-              · -- some e_d: stateAfter(e_d) = Vd → NC write → NIW contradiction
-                sorry)
+                simp_all [DirI, DirectoryState.toState, I, Vd])
         -- Case-split on e₁'s dirAccessOfRequest to determine where e₂'s downgrade lands.
         have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2
         cases hda₁ with
