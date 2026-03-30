@@ -3614,10 +3614,28 @@ private lemma list_stateAfter_exists_transition
       obtain ⟨e, he_in_tl, s, hs_neg, hs_pos⟩ := ih h_result h_after_hd
       exact ⟨e, List.mem_cons_of_mem _ he_in_tl, s, hs_neg, hs_pos⟩
 
+/-- Model-level bridge: an event that transitions the entry state from non-Vd to Vd
+    at some entry of b implies a cluster cache NC write event exists in b at the same protocol.
+    This requires protocol axioms not available from Behaviour alone:
+    - For directory events: de.eReq (the triggering cache request) must be in b, share
+      the request properties (isWrite via dirReq, ¬down via sameDown), be at a cluster
+      protocol (isClusterCache), and have oEnd < e_d.oEnd (from encapsulation).
+    - For cache events: the event itself is the witness, but we need sameProtocol and
+      isClusterCache (requires knowing the entry is at a cluster struct).
+    Completing this sorry requires adding CompoundProtocol / Protocol.reqAxioms to the
+    hypotheses, or restructuring to use the cacheEncapsulatesCorrespondingDirEvent bridge. -/
+private lemma event_Vd_transition_implies_ncWrite_in_b
+    {b : Behaviour n} {e_d e_trans : Event n} {s : EntryState n}
+    (he_in_list : e_trans ∈ b.eventsUpToEvent n e_d ++ [e_d])
+    (hs_ne_Vd : s.state ≠ Vd)
+    (hs_Vd : (e_trans.SucceedingState n s).state = Vd)
+    : ∃ e_nc ∈ b, e_nc.isWrite ∧ ¬ e_nc.down ∧ e_nc.isClusterCache ∧
+        e_nc.sameProtocol n e_d ∧ e_nc.oEnd < e_d.oEnd := by
+  sorry
+
 /-- If the directory state after a sequence of events is Vd, and the initial state was not Vd,
     then some event in the sequence is a non-coherent write (non-downgrade) that transitioned
-    the state to Vd. This is the "intervening NC write" that NIW forbids.
-    Contrapositive: if no NC write exists in the sequence, the state can't be Vd. -/
+    the state to Vd. This is the "intervening NC write" that NIW forbids. -/
 lemma stateAfter_Vd_implies_exists_ncWrite
     {b : Behaviour n} {init : InitialSystemState n}
     {e_d : Event n}
@@ -3632,29 +3650,8 @@ lemma stateAfter_Vd_implies_exists_ncWrite
     (P := fun s => s.state = Vd)
     hstate_Vd h_init_ne_Vd
   obtain ⟨e_trans, he_in_list, s, hs_ne_Vd, hs_Vd⟩ := h_transition
-  -- e_trans is in eventsUpToEvent ++ [e_d]. It's either in eventsUpToEvent or is e_d itself.
-  simp only [List.mem_append, List.mem_singleton] at he_in_list
-  -- The transitioning event must produce Vd from a non-Vd state via SucceedingState.
-  -- Case split: is e_trans a cache event or directory event?
-  match hfc : e_trans with
-  | .cacheEvent ce_trans =>
-    -- Cache event case: the cache event itself transitions state to Vd.
-    -- ce_trans.SucceedingState produces Vd, and ce_trans is an NC write.
-    -- Need: ce_trans ∈ b, isWrite, ¬down, isClusterCache, sameProtocol, oEnd < e_d.oEnd
-    -- ce_trans is in eventsUpToEvent (hence in b) or is e_d.
-    -- Sorry: extracting the full set of properties requires showing the cache event
-    -- that transitions to Vd is a non-coherent write (via RequestState/DowngradeState analysis)
-    -- and that it shares protocol with e_d.
-    sorry
-  | .directoryEvent de_trans =>
-    -- Directory event case: de_trans transitions directory state to Vd.
-    -- By dir_transition_to_Vd_implies_ncWrite (when ¬down), de_trans.req is NC write.
-    -- The witness e_nc should be Event.cacheEvent de_trans.eReq (the triggering cache request).
-    -- Sorry: showing de_trans.eReq ∈ b requires protocol axioms (dirAccessOfRequest or
-    -- cacheEncapsulatesCorrespondingDirEvent) not available in the current hypotheses.
-    -- Also need: de_trans.eReq.isWrite, ¬de_trans.eReq.down, de_trans.eReq.isClusterCache,
-    -- de_trans.eReq.sameProtocol n e_d, de_trans.eReq.oEnd < e_d.oEnd.
-    sorry
+  -- Use the model-level bridge to extract the cluster cache NC write
+  exact event_Vd_transition_implies_ncWrite_in_b he_in_list hs_ne_Vd hs_Vd
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit
