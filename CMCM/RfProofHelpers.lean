@@ -3950,6 +3950,12 @@ lemma stateAfter_Vd_implies_exists_ncWrite
     (h_eReq_in_b : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
         Event.cacheEvent de.eReq ∈ b)
     (h_not_global : e_d.protocol ≠ .global)
+    -- NC read on Vd cache state → prior NC write exists
+    (h_ncRead_prior_write : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
+        de.req.val.rw = .w → de.req.val.coherent = false → de.down = false →
+        ¬ de.eReq.req.val.isWrite →
+        ∃ e_nc ∈ b, e_nc.isWrite ∧ ¬ e_nc.down ∧ e_nc.isClusterCache ∧
+          e_nc.sameProtocol n e_d ∧ (lin e_nc).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd)
     (hstate_Vd : (b.stateAfter n (init.stateAt n e_d) e_d).state = Vd)
     (h_init_ne_Vd : (init.stateAt n e_d).state ≠ Vd)
     : ∃ e_nc ∈ b, e_nc.isWrite ∧ ¬ e_nc.down ∧ e_nc.isClusterCache ∧
@@ -3993,7 +3999,7 @@ lemma stateAfter_Vd_implies_exists_ncWrite
     hQ_init hQ_pres hstate_Vd h_init_ne_Vd
   obtain ⟨e_trans, he_in_list, s, h_s_dir, hs_ne_Vd, hs_Vd⟩ := h_transition
   exact event_Vd_transition_implies_ncWrite_in_b he_in_list he_d_in_b he_d_isDir lin h_cle_is_de
-    h_eReq_in_b h_s_dir h_not_global sorry hs_ne_Vd hs_Vd
+    h_eReq_in_b h_s_dir h_not_global h_ncRead_prior_write hs_ne_Vd hs_Vd
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit
@@ -4320,7 +4326,7 @@ lemma cdirEncapsDown_exists
               rw [he] at he_d_isDir; simp [Event.isDirectoryEvent] at he_d_isDir
           obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache,
             he_nc_proto, he_nc_lt⟩ :=
-            stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin sorry sorry sorry hdirVd h_init_ne_Vd
+            stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin sorry sorry sorry sorry hdirVd h_init_ne_Vd
           -- sameProtocol: e_nc at e_w's cluster via correspondingCluster_protocol_eq
           have h_gCacheOfCDir := h_nonempty.some.prop.2.finishBefore.gCacheOfCDir
           have h_corr_ed := Behaviour.event_reqAtCorrespondingGCacheOfCDir_is_correspondingClusterOfGlobalCache (n := n) h_gCacheOfCDir
