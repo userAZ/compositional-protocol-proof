@@ -3789,7 +3789,9 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
           · show (lin (Event.cacheEvent de_trans.eReq)).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd
             rw [h_cle_eq]
             cases List.mem_append.mp he_in_list with
-            | inl h_in_up => sorry -- eventsUpToEvent → OB → oEnd ≤ e_d.oEnd
+            | inl h_in_up =>
+              -- eventsUpToEvent sorted → de_trans before e_d → de_trans.oEnd ≤ e_d.oEnd
+              sorry
             | inr h_in_tail => rw [List.mem_singleton.mp h_in_tail]
         · -- de_trans.eReq NOT a write: use prior NC write from h_ncRead_prior_write
           exact h_ncRead_prior_write de_trans hde_trans_in_b h_rw_w h_coh_false h_not_down
@@ -3824,20 +3826,20 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
           · show (lin (Event.cacheEvent de_trans.eReq)).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd
             rw [h_cle_eq]
             cases List.mem_append.mp he_in_list with
-            | inl h_in_up => sorry -- eventsUpToEvent → OB → oEnd ≤ e_d.oEnd
+            | inl h_in_up =>
+              -- eventsUpToEvent sorted → de_trans before e_d → de_trans.oEnd ≤ e_d.oEnd
+              sorry
             | inr h_in_tail => rw [List.mem_singleton.mp h_in_tail]
         · -- de_trans.eReq NOT a write: use prior NC write from h_ncRead_prior_write
           exact h_ncRead_prior_write de_trans hde_trans_in_b h_rw_w h_coh_false h_not_down
             (by simp [Event.isWrite, Request.isWrite]; exact hisW)
-      | orderAfterDir _ _ hsucc_same_proto hnot_down =>
-        have hce_in_b := h_eReq_in_b de_trans hde_trans_in_b
-        -- orderAfterDir: de_trans.eReq is a NC weak read on Vd.
-        -- hsucc_same_proto links successor to de_trans.eReq.
-        -- For isWrite: same reqToDirOfRequestEvent analysis.
-        -- This case means de_trans.eReq is a NC weak read — NOT a write.
-        -- Use h_ncRead_prior_write to get the prior NC write.
-        exact h_ncRead_prior_write de_trans hde_trans_in_b h_rw_w h_coh_false h_not_down
-          (by simp [Event.isWrite, Request.isWrite, Event.req]; sorry)
+      | orderAfterDir hweak_req _ hsucc_same_proto hnot_down =>
+        by_cases hisW : de_trans.eReq.req.val.isWrite
+        · -- NC weak write on Vd: use de_trans.eReq as witness
+          sorry -- same witness construction pattern as orderBeforeDir isWrite=true
+        · -- NC weak read on Vd: use prior NC write from h_ncRead_prior_write
+          exact h_ncRead_prior_write de_trans hde_trans_in_b h_rw_w h_coh_false h_not_down
+            (by simp [Event.isWrite, Request.isWrite]; exact hisW)
 
 /-- If the directory state after a sequence of events is Vd, and the initial state was not Vd,
     then some event in the sequence is a non-coherent write (non-downgrade) that transitioned
