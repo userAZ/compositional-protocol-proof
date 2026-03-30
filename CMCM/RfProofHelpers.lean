@@ -3709,12 +3709,19 @@ private lemma dir_event_properties_from_lin
         (Event.cacheEvent de.eReq) (Event.directoryEvent de)
       ∧ Event.cacheEvent de.eReq ∈ b
       ∧ (lin (Event.cacheEvent de.eReq)).hreq's_dir_access.choose = Event.directoryEvent de := by
-  -- CLE = de: needs the protocol to confirm de.eReq's dir access IS de.
-  -- dirAccessUnique says all dir accesses for de.eReq are the same event.
-  -- But we still need ONE dirAccessOfRequest that gives de specifically.
-  -- This is a protocol model property: "∀ de ∈ b, dirAccessOfRequest de.eReq de".
-  -- TODO: Either add as protocol axiom, or derive from RF/CO linearization + CompoundMCM
-  -- by decoupling the return type from lin (return de.oEnd instead of CLE.oEnd).
+  -- This lemma needs: ∀ de ∈ b, dirAccessOfRequest de.eReq de.
+  -- The DirectoryEvent.eReq field gives the cache event that triggered de,
+  -- but no existing axiom explicitly says dirAccessOfRequest de.eReq de holds.
+  -- dirAccessUnique says all dir accesses for de.eReq give the SAME dir event,
+  -- but without one instance giving de specifically, we can't identify CLE = de.
+  --
+  -- Resolution options:
+  -- (a) Add protocol axiom: ∀ de ∈ b, dirAccessOfRequest de.eReq de
+  -- (b) Decouple return type from lin (return de.oEnd instead of CLE.oEnd)
+  -- (c) Derive from requestAccessesDirectory (Axiom 6) applied to de.eReq
+  --     This gives cacheEncapsulatesCorrespondingDirEvent for SOME dir event d.
+  --     If d = de, then dirAccessOfRequest.encapDir gives what we need.
+  --     But d = de requires showing the protocol picks de when processing de.eReq.
   exact sorry
 
 -- Helper: SucceedingState with down=true on non-Vd dir state can't produce Vd.
