@@ -3697,6 +3697,40 @@ private lemma eventsUpToEvent_oEnd_le {b : Behaviour n} {e e' : Event n}
   -- hob : e'.OrderedBefore n e, i.e., e'.oEnd < e.oStart
   exact Nat.le_of_lt (Nat.lt_of_lt_of_le hob (Nat.le_of_lt (Event.oWellFormed n e)))
 
+-- Helper: derive dir event properties from dirAccessUnique + lin.
+-- For a dir event de in b, dirAccessOfRequest for de.eReq with CLE = de (via dirAccessUnique)
+-- gives requestDirectoryEvent, reqInB, and CLE identity.
+-- TODO: remove dirAccessUnique dependency by decoupling return type from lin.
+private lemma dir_event_properties_from_lin
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    (de : DirectoryEvent n) (hde_in_b : Event.directoryEvent de ∈ b)
+    : b.requestDirectoryEvent n (init.stateAt n (Event.cacheEvent de.eReq)) true
+        (Event.cacheEvent de.eReq) (Event.directoryEvent de)
+      ∧ Event.cacheEvent de.eReq ∈ b
+      ∧ (lin (Event.cacheEvent de.eReq)).hreq's_dir_access.choose = Event.directoryEvent de := by
+  -- From dirAccessUnique: CLE = de for all dirAccessOfRequest cases
+  have h_cle_eq : (lin (Event.cacheEvent de.eReq)).hreq's_dir_access.choose =
+      Event.directoryEvent de := by
+    sorry -- dirAccessUnique (TODO: remove)
+  have hda := (lin (Event.cacheEvent de.eReq)).hreq's_dir_access.choose_spec.2
+  rw [h_cle_eq] at hda
+  refine ⟨?_, ?_, h_cle_eq⟩
+  · -- requestDirectoryEvent: from dirCorresponds in each case
+    cases hda with
+    | encapDir _ hencap => exact hencap.dirCorresponds
+    | orderBeforeDir _ hexists_pred hpred _ _ _ _ _ =>
+      -- hpred.dirCorresponds links hexists_pred.choose to de.
+      -- dirOfReq gives de.eReq = hexists_pred.choose (as cache event).
+      -- So hpred.dirCorresponds IS requestDirectoryEvent for (de.eReq, de).
+      sorry
+    | orderAfterDir _ _ _ _ => sorry
+  · -- reqInB: from each case
+    cases hda with
+    | encapDir _ hencap => exact hencap.reqInB
+    | orderBeforeDir _ _ hpred _ _ _ _ _ => sorry
+    | orderAfterDir _ _ _ _ => sorry
+
 -- Helper: SucceedingState with down=true on non-Vd dir state can't produce Vd.
 private lemma dirEvent_down_true_ne_Vd_of_ne_Vd
     {de : DirectoryEvent n} {ds : DirectoryState n}
@@ -4258,18 +4292,9 @@ lemma cdirEncapsDown_exists
           obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache,
             he_nc_proto, he_nc_lt⟩ :=
             stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin
-              (sorry : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
-                b.requestDirectoryEvent n (init.stateAt n (Event.cacheEvent de.eReq)) true
-                  (Event.cacheEvent de.eReq) (Event.directoryEvent de))
-              (fun de hde_in_b => by
-                -- h_eReq_in_b: from lin + dirAccessUnique (h_cle_is_de)
-                -- All dirAccessOfRequest cases have reqInB or equivalent.
-                -- encapDir: hencap.reqInB directly
-                -- orderBeforeDir: hpred.dirOfReq gives predecessor = de.eReq, then reqInB
-                -- orderAfterDir: similar
-                sorry)
-              (sorry : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
-                (lin (Event.cacheEvent de.eReq)).hreq's_dir_access.choose = Event.directoryEvent de)
+              (fun de hde_in_b => (dir_event_properties_from_lin lin de hde_in_b).1)
+              (fun de hde_in_b => (dir_event_properties_from_lin lin de hde_in_b).2.1)
+              (fun de hde_in_b => (dir_event_properties_from_lin lin de hde_in_b).2.2)
 
               h_not_global'
               (fun de hde_in_b h_rw h_coh h_nd h_not_write => by
