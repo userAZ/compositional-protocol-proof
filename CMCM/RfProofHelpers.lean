@@ -3634,14 +3634,28 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
     (hs_Vd : (e_trans.SucceedingState n s).state = Vd)
     : ∃ e_nc ∈ b, e_nc.isWrite ∧ ¬ e_nc.down ∧ e_nc.isClusterCache ∧
         e_nc.sameProtocol n e_d ∧ e_nc.oEnd < e_d.oEnd := by
-  -- e_trans is in the replay for e_d. It transitions state from non-Vd to Vd.
-  -- e_trans must be a dir event (events in the replay are at the same entry as e_d).
-  -- For dir events: SucceedingState produces Sum.inr. For Vd: de.SucceedingState = Vd.
-  -- By dir_transition_to_Vd_implies_ncWrite: de.req is NC write (rw=.w, c=false, down=false).
-  -- The witness is Event.cacheEvent de.eReq — the triggering cache event.
-  -- Properties: isWrite (from req matching), ¬down (from sameDown), isClusterCache, sameProtocol,
-  -- oEnd < e_d.oEnd (from encapsulation: eReq encapsulates de which is before e_d).
-  sorry
+  -- e_trans transitions state from non-Vd to Vd.
+  -- Case-split on e_trans: must be dir event (cache events produce Sum.inl, not Vd dir state).
+  match he_trans : e_trans with
+  | .cacheEvent ce =>
+    -- Cache event SucceedingState produces Sum.inl (cache state).
+    -- (Sum.inl _).state = cache_state. For this to equal Vd = ⟨some .wr, false⟩,
+    -- the cache succeeding state must be Vd. But Vd as a cache state means
+    -- the cache is at Vd — which IS possible. However, the entry is a dir entry
+    -- (since e_d is a dir event). Cache events at dir entries... let's check if
+    -- this case can arise. Events in eventsUpToEvent are at the same struct as e_d.
+    -- If e_d is a dir event, only dir events should be in the replay.
+    -- For now, sorry this impossible case.
+    sorry
+  | .directoryEvent de_trans =>
+    -- de_trans transitions dir state from non-Vd to Vd.
+    simp only [Event.SucceedingState, EntryState.state, EntryState.directory] at hs_Vd
+    -- de_trans.down must be false (downgrades on non-Vd don't produce Vd).
+    -- dir_transition_to_Vd_implies_ncWrite gives: rw=.w, c=false.
+    -- Witness: Event.cacheEvent de_trans.eReq
+    -- For now: sorry the full witness construction.
+    -- Need: de_trans.eReq ∈ b, isWrite, ¬down, isClusterCache, sameProtocol, oEnd < e_d.oEnd.
+    sorry
 
 /-- If the directory state after a sequence of events is Vd, and the initial state was not Vd,
     then some event in the sequence is a non-coherent write (non-downgrade) that transitioned
