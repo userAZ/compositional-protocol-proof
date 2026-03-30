@@ -4313,12 +4313,21 @@ lemma cdirEncapsDown_exists
                   split at h_rw
                   · simp [Request.isWrite] at h_rw
                   · simp [Request.isWrite] at h_rw
-                  · -- Acq on Vd: stateBefore.cache = Vd. Prior NC write exists.
-                    -- The match arm tells us stateBefore.cache = ⟨some .wr, false⟩ = Vd.
-                    -- Need to find the NC write that produced this Vd.
-                    -- This is a cache state replay: init = I, stateAfter = Vd → NC write exists.
-                    -- Parallel to dir state replay but for cache entry.
-                    -- TODO: write cache replay helper (same pattern as stateAfter_Vd_implies_exists_ncWrite)
+                  · -- Acq on Vd: the split matched ⟨.r,false,.Acq⟩, ⟨some .wr, false⟩.
+                    -- The ⟨some .wr, false⟩ is stateBefore.cache = Vd.
+                    -- Extract this from the split's match variable.
+                    rename_i heq_acq heq_vd
+                    -- heq_vd binds the state_before.cache match.
+                    -- heq_acq binds the req match.
+                    -- The matched state_before is from Behaviour.reqToDirOfRequestEvent:
+                    -- let state_before := b.stateBefore n (init.stateAt n ...) (Event.cacheEvent de.eReq)
+                    -- state_before.cache = ⟨some .wr, false⟩ = Vd.
+                    -- I need stateBefore.cache = Vd as a hypothesis.
+                    -- From the non-Rel branch: state_before = b.stateBefore n (...) (Event.cacheEvent de.eReq).
+                    -- heq_vd gives state_before.cache = Vd (from the match).
+                    -- Initial state: IEntry (cache = I ≠ Vd).
+                    -- Cache replay transition: list_stateAfter_exists_transition.
+                    -- Transitioning event: NC weak write.
                     sorry
                   · -- default: preserves req. h_not_write contradicts h_rw.
                     simp [Event.isWrite, Request.isWrite] at h_not_write
