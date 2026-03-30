@@ -3878,7 +3878,16 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
       | orderAfterDir hweak_req _ hsucc_same_proto hnot_down =>
         by_cases hisW : de_trans.eReq.req.val.isWrite
         · -- NC weak write on Vd: use de_trans.eReq as witness
-          sorry -- same witness construction pattern as orderBeforeDir isWrite=true
+          have hce_in_b := h_eReq_in_b de_trans hde_trans_in_b
+          refine ⟨Event.cacheEvent de_trans.eReq, hce_in_b, ?_, hnot_down, ?_, ?_, ?_⟩
+          · simp [Event.isWrite, Request.isWrite]; exact hisW
+          · sorry -- isClusterCache (same pattern as orderBeforeDir)
+          · sorry -- sameProtocol
+          · show (lin (Event.cacheEvent de_trans.eReq)).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd
+            rw [h_cle_eq]
+            cases List.mem_append.mp he_in_list with
+            | inl h_in_up => exact eventsUpToEvent_oEnd_le sorry h_in_up
+            | inr h_in_tail => rw [List.mem_singleton.mp h_in_tail]
         · -- NC weak read on Vd: use prior NC write from h_ncRead_prior_write
           exact h_ncRead_prior_write de_trans hde_trans_in_b h_rw_w h_coh_false h_not_down
             (by simp [Event.isWrite, Request.isWrite]; exact hisW)
