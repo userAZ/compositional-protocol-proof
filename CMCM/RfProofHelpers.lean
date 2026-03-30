@@ -3592,8 +3592,20 @@ private lemma dir_transition_to_Vd_implies_ncWrite
   -- Split on the request type match.
   split at hs
   all_goals (first | exact ⟨rfl, rfl⟩ | (cases ds <;> (first | exact absurd rfl (h_before_ne_Vd _) | simp_all)))
--- If dir = Vd, extract the non-coherent cache write that caused it, show it's between
--- CLE_w and CLE_r, then NIW gives contradiction. For now, h_dir_ne_Vd uses sorry at call sites.
+/-- If the directory state after a sequence of events is Vd, and the initial state was not Vd,
+    then some event in the sequence is a non-coherent write (non-downgrade) that transitioned
+    the state to Vd. This is the "intervening NC write" that NIW forbids. -/
+lemma stateAfter_Vd_implies_exists_ncWrite
+    {b : Behaviour n} {init : InitialSystemState n}
+    {e_d : Event n}
+    (hstate_Vd : (b.stateAfter n (init.stateAt n e_d) e_d).state = Vd)
+    (h_init_ne_Vd : (init.stateAt n e_d).state ≠ Vd)
+    : ∃ e_nc ∈ b, e_nc.isWrite ∧ ¬ e_nc.down ∧ e_nc.isClusterCache ∧
+        e_nc.sameProtocol n e_d := by
+  -- Induction over the event replay: if init state ≠ Vd and final state = Vd,
+  -- some event in the replay transitions from non-Vd to Vd.
+  -- By dir_transition_to_Vd_implies_ncWrite, that event is an NC write.
+  sorry
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit
