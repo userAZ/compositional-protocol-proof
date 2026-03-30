@@ -3594,17 +3594,15 @@ private lemma dir_transition_to_Vd_implies_ncWrite
   all_goals (first | exact ⟨rfl, rfl⟩ | (cases ds <;> (first | exact absurd rfl (h_before_ne_Vd _) | simp_all)))
 /-- If the directory state after a sequence of events is Vd, and the initial state was not Vd,
     then some event in the sequence is a non-coherent write (non-downgrade) that transitioned
-    the state to Vd. This is the "intervening NC write" that NIW forbids. -/
+    the state to Vd. This is the "intervening NC write" that NIW forbids.
+    Contrapositive: if no NC write exists in the sequence, the state can't be Vd. -/
 lemma stateAfter_Vd_implies_exists_ncWrite
     {b : Behaviour n} {init : InitialSystemState n}
     {e_d : Event n}
     (hstate_Vd : (b.stateAfter n (init.stateAt n e_d) e_d).state = Vd)
     (h_init_ne_Vd : (init.stateAt n e_d).state ≠ Vd)
     : ∃ e_nc ∈ b, e_nc.isWrite ∧ ¬ e_nc.down ∧ e_nc.isClusterCache ∧
-        e_nc.sameProtocol n e_d := by
-  -- Induction over the event replay: if init state ≠ Vd and final state = Vd,
-  -- some event in the replay transitions from non-Vd to Vd.
-  -- By dir_transition_to_Vd_implies_ncWrite, that event is an NC write.
+        e_nc.sameProtocol n e_d ∧ e_nc.oEnd < e_d.oEnd := by
   sorry
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the

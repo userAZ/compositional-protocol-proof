@@ -669,10 +669,18 @@ theorem fr_ordering_holds
                       have := b.initCacheStateIsI (.cacheEvent ce) init (by simp [Event.isCacheEvent])
                       simp [InitialSystemState.stateAt, IEntry] at this; exact this]
                     simp [I, Vd]
-                -- Extract NC write from state computation
-                obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, he_nc_proto⟩ :=
+                -- stateAfter = Vd → ∃ NC write in b. NIW forbids it.
+                obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, _, _⟩ :=
                   stateAfter_Vd_implies_exists_ncWrite hdirVd h_init_ne_Vd
-                -- Apply NIW: e_nc is an intervening write → contradiction
+                -- e_nc is an intervening write. Apply NIW from h.comm.
+                obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
+                have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
+                -- h_niw gives NoInterveningWrites.constraints.
+                -- One of its fields contradicts e_nc's existence.
+                -- e_nc is at same protocol as e₁ (from sameProtocol via e_d).
+                -- interSameProtocolAsWNotBetweenCleAndDrf: if same proto as e_w,
+                -- CLE_nc can't be between CLE_w and drf.
+                -- But we need to show CLE_nc IS between CLE_w and drf... still need temporal.
                 sorry)
         -- Case-split on e₁'s dirAccessOfRequest to determine where e₂'s downgrade lands.
         have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2
@@ -1687,10 +1695,18 @@ theorem step_to_ordering
                       have := b.initCacheStateIsI (.cacheEvent ce) init (by simp [Event.isCacheEvent])
                       simp [InitialSystemState.stateAt, IEntry] at this; exact this]
                     simp [I, Vd]
-                -- Extract NC write from state computation
-                obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, he_nc_proto⟩ :=
+                -- stateAfter = Vd → ∃ NC write in b. NIW forbids it.
+                obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, _, _⟩ :=
                   stateAfter_Vd_implies_exists_ncWrite hdirVd h_init_ne_Vd
-                -- Apply NIW: e_nc is an intervening write → contradiction
+                -- e_nc is an intervening write. Apply NIW from h.comm.
+                obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
+                have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
+                -- h_niw gives NoInterveningWrites.constraints.
+                -- One of its fields contradicts e_nc's existence.
+                -- e_nc is at same protocol as e₁ (from sameProtocol via e_d).
+                -- interSameProtocolAsWNotBetweenCleAndDrf: if same proto as e_w,
+                -- CLE_nc can't be between CLE_w and drf.
+                -- But we need to show CLE_nc IS between CLE_w and drf... still need temporal.
                 sorry)
                   -- e_evict_w at e_w's cluster. dir_ordered CLE_w e_evict_w (same cluster, same addr).
                   have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
@@ -1811,10 +1827,18 @@ theorem step_to_ordering
                       have := b.initCacheStateIsI (.cacheEvent ce) init (by simp [Event.isCacheEvent])
                       simp [InitialSystemState.stateAt, IEntry] at this; exact this]
                     simp [I, Vd]
-                -- Extract NC write from state computation
-                obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, he_nc_proto⟩ :=
+                -- stateAfter = Vd → ∃ NC write in b. NIW forbids it.
+                obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, _, _⟩ :=
                   stateAfter_Vd_implies_exists_ncWrite hdirVd h_init_ne_Vd
-                -- Apply NIW: e_nc is an intervening write → contradiction
+                -- e_nc is an intervening write. Apply NIW from h.comm.
+                obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
+                have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
+                -- h_niw gives NoInterveningWrites.constraints.
+                -- One of its fields contradicts e_nc's existence.
+                -- e_nc is at same protocol as e₁ (from sameProtocol via e_d).
+                -- interSameProtocolAsWNotBetweenCleAndDrf: if same proto as e_w,
+                -- CLE_nc can't be between CLE_w and drf.
+                -- But we need to show CLE_nc IS between CLE_w and drf... still need temporal.
                 sorry)
         have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
         match hfc_cdir : e_cdir, he_cdir_isDir with
