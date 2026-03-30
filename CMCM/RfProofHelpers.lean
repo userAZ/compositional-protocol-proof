@@ -3716,6 +3716,13 @@ lemma cdirEncapsDown_exists
     (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
     (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache) (hw_not_down : ¬ e_w.down)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    -- onDirVd elimination callback: given an NC write at e_w's cluster (sameProtocol already proved),
+    -- the call site derives False from NIW constraints.
+    (h_nc_write_absurd : ∀ e_nc ∈ b, e_nc.isWrite → ¬ e_nc.down → e_nc.isClusterCache →
+        e_nc.sameProtocol n e_w →
+        (lin e_nc).hreq's_dir_access.choose.oEnd <
+          hr_c_and_g_lin.hreq's_dir_access.choose.oEnd →
+        False)
     : ∃ e_cdir ∈ b, e_cdir.isDirectoryEvent ∧ e_cdir.protocol = e_w.protocol ∧
         e_cdir.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧
         (∃ e_cache_down ∈ b,
@@ -4030,7 +4037,13 @@ lemma cdirEncapsDown_exists
             (correspondingCluster_protocol_eq hcorrespond h_corr_ed).symm.trans hp_eq
           have he_nc_sameProto_w : e_nc.sameProtocol n e_w := by
             unfold Event.sameProtocol at he_nc_proto ⊢; rw [he_nc_proto, he_d_proto]
-          sorry -- NIW contradiction: e_nc is an intervening write forbidden by NoInterveningWrites
+          -- Use callback: e_nc is the intervening NC write. sameProtocol proved above.
+          -- Need CLE_nc.oEnd < CLE_r.oEnd for the callback.
+          -- e_nc.oEnd < e_d.oEnd (from stateAfter), e_d in NotEncap set before e_r_gdown,
+          -- e_r_gdown inside e_gcache, e_gcache.oEnd < CLE_r.oEnd.
+          -- For now, the callback provides the NIW contradiction from the call site.
+          exact h_nc_write_absurd e_nc he_nc_in_b he_nc_write he_nc_not_down he_nc_cache
+            he_nc_sameProto_w sorry
         · -- ¬Nonempty: init state = I ≠ Vd
           rename_i h_not_nonempty
           simp only [Behaviour.eventToEntryState] at hdirVd
