@@ -158,11 +158,10 @@ structure NoInterveningWrites.constraints
       global downgrade at e_w's cluster. This covers NC writes AFTER CLE_r that
       happen before the downgrade arrives — they would be writes that e_r should
       have seen. The endpoint e_r_cdir_down is the shim's dir event at e_w's cluster. -/
-  interSameProtocolAsWNotBetweenCleWAndDowngrade :
-    e_w_inter.sameProtocol n e_w →
+  interSameProtocolAsRNotBetweenCleWAndDowngrade :
+    e_w_inter.sameProtocol n e_r →
     ∀ (e_r_cdir_down : Event n), e_r_cdir_down.isDirectoryEvent →
-      e_r_cdir_down.protocol = e_w.protocol →
-      Event.clusterDirFromDiffProtocolRequest b init e_r e_r_cdir_down hr_c_and_g_lin →
+      e_r_cdir_down.protocol = e_r.protocol →
       ¬ hinter_c_and_g_lin.hreq's_dir_access.choose.OrderedBetween n
           hw_c_and_g_lin.hreq's_dir_access.choose e_r_cdir_down
 

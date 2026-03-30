@@ -672,17 +672,24 @@ theorem fr_ordering_holds
                   | .cacheEvent ce =>
                     rw [he] at he_d_isDir; simp [Event.isDirectoryEvent] at he_d_isDir
                 -- NC write from stateAfter = Vd
-                obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, _, _⟩ :=
+                obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache,
+                  he_nc_proto, he_nc_lt⟩ :=
                   stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin hdirVd h_init_ne_Vd
-                -- Apply NIW
-                obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
+                obtain ⟨e_w_rf, _, e_w_rf_lin, _, _, h_no_between, _, _, _, _⟩ := h.comm
                 have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
-                -- Use interSameProtocolAsWNotBetweenCleWAndDowngrade:
-                -- e_nc is at same cluster as e_w_rf → CLE(e_nc) NOT between
-                -- CLE(e_w_rf) and the shim dir event from e₂'s downgrade.
-                -- Re-derive shim dir event from hdown.
-                -- TODO: extract shim dir event, show CLE(e_nc) IS between via dir_ordered
-                sorry
+                -- Get encapDir evidence (re-derive, same as cdirEncapsDown_exists does)
+                have hencap := diffCache_coherent_encapProxyAndDir (lin e₁) (lin e₂) h.in_b₁ h.cache₁
+                let e_cdir_down := hencap.existsRClusterDirDown.choose
+                have hcdir_spec := hencap.existsRClusterDirDown.choose_spec
+                -- hcdir_spec : e_cdir_down ∈ b ∧ isDir ∧ proto = e₁.protocol ∧ ...
+                have he_cdir_isDir := hcdir_spec.2.1
+                have he_cdir_proto := hcdir_spec.2.2.1 -- protocol = e₁.protocol (e_w in encapDir = e₁)
+                -- e_nc.sameProtocol n e₁
+                have he_nc_same_r : e_nc.sameProtocol n e₁ := by sorry
+                -- Apply NIW: CLE(e_nc) NOT between CLE(e_w_rf) and e_cdir_down
+                exact absurd sorry
+                  (h_niw.interSameProtocolAsRNotBetweenCleWAndDowngrade he_nc_same_r
+                    e_cdir_down he_cdir_isDir he_cdir_proto)
               · -- ¬Nonempty: eventToEntryState of none → init state
                 rename_i h_not_nonempty
                 simp only [Behaviour.eventToEntryState] at hdirVd
