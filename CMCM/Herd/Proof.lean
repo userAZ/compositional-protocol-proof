@@ -642,6 +642,7 @@ theorem fr_ordering_holds
           ⟨e_evict, he_evict_in_b, he_evict_isDir, hevict_lt_cle₂,
            hcdir_ob_evict, he_evict_proto, he_evict_translatedDir⟩⟩ :=
           cdirEncapsDown_exists (lin e₁) (lin e₂) h.in_b₁ h.cache₁ h.notDown₁ lin
+            (fun _ hdirVd => sorry) -- h_dir_coherent: dir ≠ Vd from NIW
         -- Case-split on e₁'s dirAccessOfRequest to determine where e₂'s downgrade lands.
         have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2
         cases hda₁ with
@@ -1628,6 +1629,7 @@ theorem step_to_ordering
                     ⟨e_evict_w, he_evict_w_in_b, he_evict_w_isDir, he_evict_w_down,
                      hevict_w_lt, hcdir_w_ob_evict_w, he_evict_w_proto, he_evict_w_isDirWrite, he_evict_w_translatedDir⟩⟩ :=
                     cdirEncapsDown_exists e_w_lin (hlin e₂) hw_in_b hw_cache hw_not_down hlin
+                      (fun _ hdirVd => sorry) -- h_dir_coherent: dir ≠ Vd from NIW
                   -- e_evict_w at e_w's cluster. dir_ordered CLE_w e_evict_w (same cluster, same addr).
                   have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
                   have he_evict_w_isdir' := he_evict_w_isDir
@@ -1720,6 +1722,7 @@ theorem step_to_ordering
           ⟨e_evict, he_evict_in_b, he_evict_isDir, hevict_lt_cle₂, hcdir_ob_evict,
            he_evict_proto, he_evict_isDirWrite, he_evict_translatedDir⟩⟩ :=
           cdirEncapsDown_exists (lin e₁) (lin e₂) h.in_b₁ h.cache₁ h.notDown₁ lin
+            (fun _ hdirVd => sorry) -- h_dir_coherent: dir ≠ Vd from NIW
         have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
         match hfc_cdir : e_cdir, he_cdir_isDir with
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh

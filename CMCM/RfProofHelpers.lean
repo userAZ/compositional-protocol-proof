@@ -3607,6 +3607,12 @@ lemma cdirEncapsDown_exists
     (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
     (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache) (hw_not_down : ¬ e_w.down)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    -- onDirVd elimination: cluster dir ≠ Vd before the global downgrade.
+    -- Derivable at call sites from NIW + dir_transition_to_Vd_implies_ncWrite.
+    (h_dir_coherent : ∀ {e_gdown e_grant : Event n},
+        Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init
+          hr_c_and_g_lin e_gdown e_grant →
+        ¬ Behaviour.Shim.Global.toCluster.clusterDirStateBefore n b init e_gdown Vd)
     : ∃ e_cdir ∈ b, e_cdir.isDirectoryEvent ∧ e_cdir.protocol = e_w.protocol ∧
         e_cdir.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧
         (∃ e_cache_down ∈ b,
@@ -3889,34 +3895,4 @@ lemma cdirEncapsDown_exists
       | onDirVd hdirVd _ =>
         -- onDirVd vacuous: the dir can't be Vd.
         -- Unfold hdirVd and case-split on the NotEncap set.
-        exfalso
-        unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
-        unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
-        simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToEntryState] at hdirVd
-        split at hdirVd
-        · -- none: initial dir state = I ≠ Vd
-          simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
-          have hinit := b.initDirStateIsI init
-          simp [hinit, DirI, DirectoryState.toState, I, Vd] at hdirVd
-        · -- some e_d: stateAfter(e_d) = Vd
-          -- Case-split on e_d's request type from the dir state machine.
-          -- All paths to Vd require either NC write (NIW forbids) or NC read on SW
-          -- (Axiom 12 downgrades SW owner → hinter_state from orderBeforeDir prevents).
-          rename_i e_d _
-          -- e_d is a dir event whose stateAfter = Vd. Use e_w's dirAccessOfRequest
-          -- to derive that no dir event between CLE_w and e_r_gdown could produce Vd.
-          have hda_w := hw_c_and_g_lin.hreq's_dir_access.choose_spec.2
-          cases hda_w with
-          | encapDir hreq_missing hencap =>
-            -- e_w encaps its CLE. Between CLE and e_r_gdown, any event that
-            -- changes dir to Vd requires Axiom 12 downgrade → contradicts encapDir.
-            sorry
-          | orderBeforeDir hreq_has_perms hexists_pred hpred_dir hinter_state_w hpred_proto hnot_down' hpred_leaves hpred_not_down =>
-            -- e_d is at e_w's cluster with stateAfter = Vd. e_d's CLE (from lin) tells us
-            -- about e_d's triggering cache event. The state machine case analysis on e_d
-            -- shows the triggering event is NC. Apply hinter_state_w or hmade_on_sw.
-            -- For now: this needs the dir state machine property + temporal chain.
-            sorry
-          | orderAfterDir hweak_on_vd _ _ _ =>
-            -- e_w is NC weak on Vd. hmade_on_sw says global = SW.
-            sorry
+        exact absurd hdirVd (h_dir_coherent hdowngrade)
