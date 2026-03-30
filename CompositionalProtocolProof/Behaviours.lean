@@ -13,6 +13,11 @@ def InitialSystemState.ofCacheStateIsI : Prop :=
   ∀ e : Event n, ∀ init : InitialSystemState n,
     e.isCacheEvent → (InitialSystemState.stateAt n init e) = IEntry n
 
+/-- Initial directory state is I (Invalid). All directory entries start at state I. -/
+def InitialSystemState.ofDirStateIsI : Prop :=
+  ∀ init : InitialSystemState n, ∀ pi : ProtocolInstance,
+    init.directoryStates pi = DirI n
+
 /-- New Axiom 2.
 Use lemma `Behaviour.orderedBottomCacheEntries` to show two bottom cache events are
 Totally Ordered. -/
@@ -28,6 +33,7 @@ structure Behaviour where
   orderedAtEntry : Event.AtEntryOrdered n
   initCacheStateIsCache : InitialSystemState.ofCacheStateIsCacheState n
   initCacheStateIsI : InitialSystemState.ofCacheStateIsI n
+  initDirStateIsI : InitialSystemState.ofDirStateIsI n
 instance : Membership (Event n) (Behaviour n) := ⟨fun b e => e ∈ b.es⟩
 
 def Behaviour.OrderedBetween : (Behaviour n) → (Event n) → (Event n) → Set (Event n)
