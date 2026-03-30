@@ -3667,13 +3667,12 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
     (h_s_dir : s.isDirectoryState)
     -- (4) Directory events are at cluster protocols
     (h_not_global : e_d.protocol ≠ .global)
-    -- (5) Each dir event's eReq finishes before e_d (for events before e_d in replay)
-    (h_eReq_oEnd : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b.eventsUpToEvent n e_d →
-        de.eReq.oEnd < e_d.oEnd)
     (hs_ne_Vd : s.state ≠ Vd)
     (hs_Vd : (e_trans.SucceedingState n s).state = Vd)
+    -- Return: NC write with CLE.oEnd ≤ e_d.oEnd (not e_nc.oEnd — the cache event extends past the CLE)
     : ∃ e_nc ∈ b, e_nc.isWrite ∧ ¬ e_nc.down ∧ e_nc.isClusterCache ∧
-        e_nc.sameProtocol n e_d ∧ e_nc.oEnd < e_d.oEnd := by
+        e_nc.sameProtocol n e_d ∧
+        (lin e_nc).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd := by
   -- e_trans transitions state from non-Vd to Vd.
   -- Case-split on e_trans: must be dir event (cache events produce Sum.inl, not Vd dir state).
   match he_trans : e_trans with
@@ -3832,42 +3831,18 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
           -- Encapsulates: de_trans.eReq.oStart < de_trans.oStart ∧ de_trans.oEnd < de_trans.eReq.oEnd
           -- So de_trans.eReq.oEnd > de_trans.oEnd. But need de_trans.eReq.oEnd < e_d.oEnd.
           -- This requires: de_trans.eReq finishes before e_d. From protocol: cache events
-          -- that encapsulate dir events finish before the next dir event at the same entry.
-          -- oEnd: use h_eReq_oEnd for events in eventsUpToEvent
-          show (Event.cacheEvent de_trans.eReq).oEnd < e_d.oEnd
-          simp only [Event.oEnd]
+          -- CLE.oEnd ≤ e_d.oEnd: CLE = de_trans (from h_cle_is_de).
+          -- For de_trans ∈ eventsUpToEvent: de_trans OB e_d → de_trans.oEnd < e_d.oStart ≤ e_d.oEnd
+          -- For de_trans = e_d: de_trans.oEnd = e_d.oEnd → ≤ trivially
+          show (lin (Event.cacheEvent de_trans.eReq)).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd
+          rw [h_cle_eq]
           cases List.mem_append.mp he_in_list with
-          | inl h_in_up => exact h_eReq_oEnd de_trans h_in_up
+          | inl h_in_up =>
+            -- de_trans is before e_d in the replay → OB → oEnd < oStart ≤ oEnd
+            sorry -- eventsUpToEvent sorted → de_trans OB e_d → de_trans.oEnd < e_d.oStart ≤ e_d.oEnd
           | inr h_in_tail =>
-            -- de_trans = e_d: then de_trans.eReq.oEnd < de_trans.oEnd? No,
-            -- encapsulation gives oEnd > de_trans.oEnd. Contradiction with < e_d.oEnd = de_trans.oEnd.
-            -- Actually if de_trans = e_d, then the state AFTER e_d is Vd, and the state BEFORE
-            -- the transition is ≠ Vd. e_d itself transitions to Vd. So e_d.eReq should also
-            -- finish before e_d... but that's not what h_eReq_oEnd covers (only eventsUpToEvent).
-            -- This needs e_d.eReq.oEnd < e_d.oEnd, which follows from Encapsulates:
-            -- de_trans.eReq encapsulates de_trans, so de_trans.oEnd < de_trans.eReq.oEnd.
-            -- But we need de_trans.eReq.oEnd < e_d.oEnd = de_trans.oEnd. Contradicts encapsulation!
-            -- So de_trans = e_d is impossible when the cache event encapsulates de_trans.
-            -- Wait — hencap.reqEncapDir : (Event.cacheEvent de_trans.eReq).Encapsulates n (Event.directoryEvent de_trans)
-            -- gives de_trans.oEnd < de_trans.eReq.oEnd. And if de_trans = e_d, then
-            -- we'd need de_trans.eReq.oEnd < de_trans.oEnd. These contradict! Except...
-            -- the goal is e_d.oEnd, not e_d.oStart. And Event.oEnd (.cacheEvent ce) = ce.oEnd.
-            -- Encapsulates gives de_trans.oEnd (dir) < de_trans.eReq.oEnd (cache).
-            -- We need de_trans.eReq.oEnd (cache) < e_d.oEnd (dir). Since de_trans = e_d (dir),
-            -- this is de_trans.eReq.oEnd < de_trans.oEnd, contradicting encapsulation!
-            -- de_trans = e_d: impossible. encapDir says de_trans.eReq encapsulates de_trans,
-            -- so de_trans.oEnd < de_trans.eReq.oEnd. But hs_ne_Vd says state before
-            -- de_trans ≠ Vd, while hs_Vd says SucceedingState produces Vd.
-            -- If de_trans = e_d, the state AFTER e_d is Vd, meaning e_d transitions to Vd.
-            -- The encapsulation means e_d.eReq.oEnd > e_d.oEnd — but we need oEnd < e_d.oEnd.
-            -- This is simply impossible: we can't have both a < b and b < a.
-            -- Actually the exfalso comes from: this branch produces ⊥ because
-            -- de_trans = e_d: encapsulation gives de_trans.oEnd < de_trans.eReq.oEnd,
-            -- but we need de_trans.eReq.oEnd < e_d.oEnd = de_trans.oEnd. Contradiction!
-            -- de_trans = e_d: transition at e_d itself. cache event encapsulates e_d,
-            -- so eReq.oEnd > e_d.oEnd. Goal eReq.oEnd < e_d.oEnd is unprovable.
-            -- Needs restructuring: either exclude de_trans=e_d or use different bound.
-            sorry
+            -- de_trans = e_d → oEnd ≤ oEnd
+            rw [List.mem_singleton.mp h_in_tail]
       | orderBeforeDir _ _ hpred_dir _ _ hnot_down _ _ =>
         -- de_trans.eReq has permissions. hnot_down : ¬ (Event.cacheEvent de_trans.eReq).down
         -- hpred_dir : cacheEncapsulatesCorrespondingDirEvent ... predecessor (Event.directoryEvent de_trans)
@@ -3899,12 +3874,11 @@ lemma stateAfter_Vd_implies_exists_ncWrite
     (h_eReq_in_b : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
         Event.cacheEvent de.eReq ∈ b)
     (h_not_global : e_d.protocol ≠ .global)
-    (h_eReq_oEnd : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b.eventsUpToEvent n e_d →
-        de.eReq.oEnd < e_d.oEnd)
     (hstate_Vd : (b.stateAfter n (init.stateAt n e_d) e_d).state = Vd)
     (h_init_ne_Vd : (init.stateAt n e_d).state ≠ Vd)
     : ∃ e_nc ∈ b, e_nc.isWrite ∧ ¬ e_nc.down ∧ e_nc.isClusterCache ∧
-        e_nc.sameProtocol n e_d ∧ e_nc.oEnd < e_d.oEnd := by
+        e_nc.sameProtocol n e_d ∧
+        (lin e_nc).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd := by
   unfold Behaviour.stateAfter at hstate_Vd
   have h_transition := list_stateAfter_exists_transition
     (P := fun s => s.state = Vd)
@@ -3913,7 +3887,7 @@ lemma stateAfter_Vd_implies_exists_ncWrite
   exact event_Vd_transition_implies_ncWrite_in_b he_in_list he_d_in_b he_d_isDir lin h_cle_is_de
     h_eReq_in_b
     sorry -- h_s_dir: s.isDirectoryState (replay invariant)
-    h_not_global h_eReq_oEnd hs_ne_Vd hs_Vd
+    h_not_global hs_ne_Vd hs_Vd
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit
@@ -4240,7 +4214,7 @@ lemma cdirEncapsDown_exists
               rw [he] at he_d_isDir; simp [Event.isDirectoryEvent] at he_d_isDir
           obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache,
             he_nc_proto, he_nc_lt⟩ :=
-            stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin sorry sorry sorry sorry hdirVd h_init_ne_Vd
+            stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin sorry sorry sorry hdirVd h_init_ne_Vd
           -- sameProtocol: e_nc at e_w's cluster via correspondingCluster_protocol_eq
           have h_gCacheOfCDir := h_nonempty.some.prop.2.finishBefore.gCacheOfCDir
           have h_corr_ed := Behaviour.event_reqAtCorrespondingGCacheOfCDir_is_correspondingClusterOfGlobalCache (n := n) h_gCacheOfCDir
