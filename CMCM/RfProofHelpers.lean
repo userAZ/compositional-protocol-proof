@@ -3716,11 +3716,13 @@ private lemma dir_event_properties_from_lin
     -- Plan: change return type to not reference lin. Return de_trans.oEnd ≤ e_d.oEnd
     -- instead of (lin e_nc).CLE.oEnd ≤ e_d.oEnd. Caller chains independently.
     --
-    -- Uses dirAccessUnique. TODO: replace with RF/CO linearization + CompoundMCM.
-    -- The dirOfReq substitution pattern (used below for requestDirectoryEvent/reqInB)
-    -- requires h_cle_eq to specialize hda to de. Without dirAccessUnique, decouple
-    -- the return type from lin: return de_trans.oEnd ≤ e_d.oEnd instead of CLE.oEnd.
-    sorry
+    -- TODO: Replace dirAccessUnique with RF/CO linearization + CompoundMCM.
+    -- Plan: decouple return type from lin (return de_trans.oEnd instead of CLE.oEnd).
+    -- Requires dirAccessUnique or equivalent to identify CLE = de.
+    -- The circular dependency: proving de.eReq ∈ b needs h_cle_eq, which needs dirAccessUnique.
+    -- To break: add dirAccessOfRequest for (de.eReq, de) as a protocol axiom,
+    -- or derive from lin + dirAccessUnique.
+    exact sorry
   have hda := (lin (Event.cacheEvent de.eReq)).hreq's_dir_access.choose_spec.2
   rw [h_cle_eq] at hda
   refine ⟨?_, ?_, h_cle_eq⟩
