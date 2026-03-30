@@ -4324,9 +4324,26 @@ lemma cdirEncapsDown_exists
               rw [b.initDirStateIsI init de.pInst]; nofun
             | .cacheEvent ce =>
               rw [he] at he_d_isDir; simp [Event.isDirectoryEvent] at he_d_isDir
+          -- Derive h_not_global before calling stateAfter
+          have h_gCacheOfCDir' := h_nonempty.some.prop.2.finishBefore.gCacheOfCDir
+          have h_corr_ed' := Behaviour.event_reqAtCorrespondingGCacheOfCDir_is_correspondingClusterOfGlobalCache (n := n) h_gCacheOfCDir'
+          have he_d_proto : (h_nonempty.some : Event n).protocol = e_w.protocol :=
+            (correspondingCluster_protocol_eq hcorrespond h_corr_ed').symm.trans hp_eq
+          have h_not_global' : (h_nonempty.some : Event n).protocol ≠ .global := by
+            intro heq
+            rw [he_d_proto] at heq
+            -- heq : e_w.protocol = .global. But e_w is cluster cache → protocol ≠ .global
+            cases hw_cluster.eCluster with
+            | inl h => simp_all
+            | inr h => simp_all
           obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache,
             he_nc_proto, he_nc_lt⟩ :=
-            stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin sorry sorry sorry sorry hdirVd h_init_ne_Vd
+            stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin
+              sorry -- h_cle_is_de
+              sorry -- h_eReq_in_b
+              h_not_global'
+              sorry -- h_ncRead_prior_write
+              hdirVd h_init_ne_Vd
           -- sameProtocol: e_nc at e_w's cluster via correspondingCluster_protocol_eq
           have h_gCacheOfCDir := h_nonempty.some.prop.2.finishBefore.gCacheOfCDir
           have h_corr_ed := Behaviour.event_reqAtCorrespondingGCacheOfCDir_is_correspondingClusterOfGlobalCache (n := n) h_gCacheOfCDir
