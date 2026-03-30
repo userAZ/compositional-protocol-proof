@@ -685,7 +685,9 @@ theorem fr_ordering_holds
                 have he_cdir_isDir := hcdir_spec.2.1
                 have he_cdir_proto := hcdir_spec.2.2.1 -- protocol = e₁.protocol (e_w in encapDir = e₁)
                 -- e_nc.sameProtocol n e₁
-                have he_nc_same_r : e_nc.sameProtocol n e₁ := by sorry
+                have he_nc_same_r : e_nc.sameProtocol n e₁ := by
+                  -- e_nc.sameProtocol e_d (from helper) + e_d.protocol = e₁.protocol (from NotEncap set)
+                  sorry
                 -- Apply NIW: CLE(e_nc) NOT between CLE(e_w_rf) and e_cdir_down
                 exact absurd sorry
                   (h_niw.interSameProtocolAsRNotBetweenCleWAndDowngrade he_nc_same_r
@@ -1712,7 +1714,9 @@ theorem step_to_ordering
                 have hcdir_spec := hencap.existsRClusterDirDown.choose_spec
                 have he_cdir_isDir := hcdir_spec.2.1
                 have he_cdir_proto := hcdir_spec.2.2.1
-                have he_nc_same_r : e_nc.sameProtocol n e₁ := by sorry
+                have he_nc_same_r : e_nc.sameProtocol n e₁ := by
+                  -- e_nc.sameProtocol e_d (from helper) + e_d.protocol = e₁.protocol (from NotEncap set)
+                  sorry
                 exact absurd sorry
                   (h_niw.interSameProtocolAsRNotBetweenCleWAndDowngrade he_nc_same_r
                     e_cdir_down he_cdir_isDir he_cdir_proto)
@@ -1844,7 +1848,9 @@ theorem step_to_ordering
                 have hcdir_spec := hencap.existsRClusterDirDown.choose_spec
                 have he_cdir_isDir := hcdir_spec.2.1
                 have he_cdir_proto := hcdir_spec.2.2.1
-                have he_nc_same_r : e_nc.sameProtocol n e₁ := by sorry
+                have he_nc_same_r : e_nc.sameProtocol n e₁ := by
+                  -- e_nc.sameProtocol e_d (from helper) + e_d.protocol = e₁.protocol (from NotEncap set)
+                  sorry
                 exact absurd sorry
                   (h_niw.interSameProtocolAsRNotBetweenCleWAndDowngrade he_nc_same_r
                     e_cdir_down he_cdir_isDir he_cdir_proto)
