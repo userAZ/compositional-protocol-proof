@@ -1657,24 +1657,17 @@ theorem step_to_ordering
               -- dir ≠ Vd: only NC writes produce Vd, and NIW forbids them.
               unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
               unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
-              simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToEntryState] at hdirVd
+              unfold Behaviour.stateOfSubsingletonEventSet at hdirVd
+              simp only [Set.toOption] at hdirVd
               split at hdirVd
-              · -- none: initial dir state = I ≠ Vd
-                simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
-                have := b.initDirStateIsI init
-                simp_all [DirI, DirectoryState.toState, I, Vd]
-              · -- some e_d: stateAfter(e_d) = Vd → NC write → NIW contradiction
-                sorry)
-              · -- Nonempty: Set.toOption = some h_nonempty.some
-                rw [show s.toOption = some h_nonempty.some.val from by
-                  simp [Set.toOption, h_nonempty]] at hdirVd
-                -- h_nonempty.some.prop gives membership: .1 = ∈ b, .2 = P
-                have he_d_in_b : h_nonempty.some.val ∈ b := h_nonempty.some.prop.1
-                sorry -- continue with stateAfter_Vd + NIW
-              · -- ¬Nonempty: Set.toOption = none → initial state
-                rw [show s.toOption = none from by
-                  simp [Set.toOption, h_nonempty]] at hdirVd
-                -- hdirVd: init state = Vd. But init = I ≠ Vd.
+              · -- Nonempty: e_d in set → e_d ∈ b
+                rename_i h_nonempty
+                simp only [Behaviour.eventToEntryState] at hdirVd
+                have he_d_in_b : (h_nonempty.some : Event n) ∈ b := h_nonempty.some.prop.1
+                sorry -- NC write extraction + NIW
+              · -- ¬Nonempty: init state = I ≠ Vd
+                rename_i h_not_nonempty
+                simp only [Behaviour.eventToEntryState] at hdirVd
                 simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
                 have := b.initDirStateIsI init
                 simp_all [DirI, DirectoryState.toState, I, Vd])
@@ -1774,24 +1767,17 @@ theorem step_to_ordering
               -- dir ≠ Vd: only NC writes produce Vd, and NIW forbids them.
               unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
               unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
-              simp only [Behaviour.stateOfSubsingletonEventSet, Behaviour.eventToEntryState] at hdirVd
+              unfold Behaviour.stateOfSubsingletonEventSet at hdirVd
+              simp only [Set.toOption] at hdirVd
               split at hdirVd
-              · -- none: initial dir state = I ≠ Vd
-                simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
-                have := b.initDirStateIsI init
-                simp_all [DirI, DirectoryState.toState, I, Vd]
-              · -- some e_d: stateAfter(e_d) = Vd → NC write → NIW contradiction
-                sorry)
-              · -- Nonempty: Set.toOption = some h_nonempty.some
-                rw [show s.toOption = some h_nonempty.some.val from by
-                  simp [Set.toOption, h_nonempty]] at hdirVd
-                -- h_nonempty.some.prop gives membership: .1 = ∈ b, .2 = P
-                have he_d_in_b : h_nonempty.some.val ∈ b := h_nonempty.some.prop.1
-                sorry -- continue with stateAfter_Vd + NIW
-              · -- ¬Nonempty: Set.toOption = none → initial state
-                rw [show s.toOption = none from by
-                  simp [Set.toOption, h_nonempty]] at hdirVd
-                -- hdirVd: init state = Vd. But init = I ≠ Vd.
+              · -- Nonempty: e_d in set → e_d ∈ b
+                rename_i h_nonempty
+                simp only [Behaviour.eventToEntryState] at hdirVd
+                have he_d_in_b : (h_nonempty.some : Event n) ∈ b := h_nonempty.some.prop.1
+                sorry -- NC write extraction + NIW
+              · -- ¬Nonempty: init state = I ≠ Vd
+                rename_i h_not_nonempty
+                simp only [Behaviour.eventToEntryState] at hdirVd
                 simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
                 have := b.initDirStateIsI init
                 simp_all [DirI, DirectoryState.toState, I, Vd])
