@@ -3678,52 +3678,55 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
       simp [Event.isDirectoryEvent] at he_d_isDir
   | .directoryEvent de_trans =>
     -- de_trans transitions dir state from non-Vd to Vd.
-    simp only [Event.SucceedingState, EntryState.state, EntryState.directory] at hs_Vd
-    -- Witness: Event.cacheEvent de_trans.eReq (the cache event that requested this dir access).
-    -- Get dir_transition_to_Vd_implies_ncWrite properties from the dir event.
-    -- First derive de_trans.down = false: downgrades on non-Vd can't produce Vd.
-    -- hs_Vd is about de_trans.SucceedingState n s.directory. If de_trans.down were true,
-    -- SucceedingState (down=true) cases produce I/MR/SW/ds/Vd/Vc but not Vd from non-Vd.
-    -- For now, use the dir properties to construct the cache event witness.
-    -- The cacheEncapsulatesCorrespondingDirEvent from lin gives reqInB.
-    -- de_trans ∈ b (from eventsUpToEvent)
-    have hde_trans_in_b : (Event.directoryEvent de_trans) ∈ b := by
-      cases List.mem_append.mp he_in_list with
-      | inl h_in_up =>
-        exact (b.eventsUpToEntry_at_e_entry (n := n) e_d _ h_in_up).eInB
-      | inr h_in_tail =>
-        have heq := List.mem_singleton.mp h_in_tail
-        exact heq ▸ he_d_in_b
-    -- Use lin to get the CLE for de_trans.eReq → dirAccessOfRequest → reqInB
-    -- lin gives globalLinearizationEventOfRequest for any event
-    have hlin_ce := lin (Event.cacheEvent de_trans.eReq)
-    obtain ⟨e_cdir_ce, _, hda_ce⟩ := hlin_ce.hreq's_dir_access
-    -- From dirAccessOfRequest, extract that Event.cacheEvent de_trans.eReq ∈ b
-    -- Also extract cacheEncapsulatesCorrespondingDirEvent for further properties.
-    have ⟨hce_in_b, hce_encap⟩ : (Event.cacheEvent de_trans.eReq) ∈ b ∧
-        ∃ e_cdir' ∈ b, b.cacheEncapsulatesCorrespondingDirEvent n
-          (init.stateAt n (Event.cacheEvent de_trans.eReq)) true
-          (Event.cacheEvent de_trans.eReq) e_cdir' := by
-      cases hda_ce with
-      | encapDir _ hencap =>
-        exact ⟨hencap.reqInB, e_cdir_ce, ‹_›, hencap⟩
-      | orderBeforeDir _ hpred hpred_dir _ _ _ _ _ =>
-        exact ⟨sorry, sorry⟩ -- reqHasPerms ∈ b: needs e_req ∈ b from stateBefore computation
-      | orderAfterDir _ _ _ _ =>
-        exact ⟨sorry, sorry⟩ -- ncWeakReqOnVd ∈ b
-    -- Construct the witness: Event.cacheEvent de_trans.eReq
-    refine ⟨Event.cacheEvent de_trans.eReq, hce_in_b, ?_, ?_, ?_, ?_, ?_⟩
-    · -- isWrite: de_trans.req.val.rw = .w → de_trans.eReq.req.val.rw = .w
-      -- From the dir→cache request correspondence.
-      sorry
-    · -- ¬ down: de_trans.down = false from SucceedingState analysis
-      sorry
-    · -- isClusterCache: de_trans.eReq is a cluster cache event
-      sorry
-    · -- sameProtocol: Event.cacheEvent de_trans.eReq same protocol as e_d
-      sorry
-    · -- oEnd < e_d.oEnd: de_trans.eReq encapsulates de_trans, de_trans before e_d
-      sorry
+    -- Case-split s first to get concrete DirectoryState before simp.
+    match hs_match : s with
+    | .inl _ =>
+      -- s is cache state — dir events shouldn't operate on cache entries.
+      -- s.state for .inl is the cache state; SucceedingState for dir event uses s.directory = panic.
+      sorry -- impossible: dir events at dir entries only
+    | .inr ds =>
+      simp only [Event.SucceedingState, EntryState.state, EntryState.directory] at hs_Vd hs_ne_Vd
+      -- hs_Vd : (de_trans.SucceedingState n ds).toState = Vd
+      -- hs_ne_Vd : ds.toState ≠ Vd
+      have h_ne_Vd_dir : ∀ sv, ds ≠ DirectoryState.Vd sv := by
+        intro sv h; exact hs_ne_Vd (by rw [h]; rfl)
+      -- Convert hs_Vd from toState form to DirectoryState.Vd form
+      have hs_Vd' : ∃ sv, de_trans.SucceedingState n ds = DirectoryState.Vd sv := by
+        match hres : de_trans.SucceedingState n ds with
+        | .SW _ _ | .MR _ _ | .Vc _ | .I _ => simp [hres, DirectoryState.toState] at hs_Vd
+        | .Vd sv => exact ⟨sv, rfl⟩
+      have h_not_down : de_trans.down = false := by sorry -- down=true can't produce Vd from non-Vd
+      have ⟨h_rw_w, h_coh_false⟩ := dir_transition_to_Vd_implies_ncWrite h_not_down h_ne_Vd_dir hs_Vd'
+      -- de_trans ∈ b (from eventsUpToEvent)
+      have hde_trans_in_b : (Event.directoryEvent de_trans) ∈ b := by
+        cases List.mem_append.mp he_in_list with
+        | inl h_in_up =>
+          exact (b.eventsUpToEntry_at_e_entry (n := n) e_d _ h_in_up).eInB
+        | inr h_in_tail => exact (List.mem_singleton.mp h_in_tail) ▸ he_d_in_b
+      -- Witness: Event.cacheEvent de_trans.eReq
+      -- Get ∈ b from lin's dirAccessOfRequest
+      have hlin_ce := lin (Event.cacheEvent de_trans.eReq)
+      obtain ⟨e_cdir_ce, _, hda_ce⟩ := hlin_ce.hreq's_dir_access
+      have hce_in_b : (Event.cacheEvent de_trans.eReq) ∈ b := by
+        cases hda_ce with
+        | encapDir _ hencap => exact hencap.reqInB
+        | orderBeforeDir _ hpred hpred_dir _ _ _ _ _ => sorry -- reqHasPerms → ∈ b
+        | orderAfterDir _ _ _ _ => sorry -- ncWeakReqOnVd → ∈ b
+      refine ⟨Event.cacheEvent de_trans.eReq, hce_in_b, ?_, ?_, ?_, ?_, ?_⟩
+      · -- isWrite: de_trans.eReq.req.val.isWrite
+        simp [Event.isWrite, Request.isWrite]
+        sorry -- need de_trans.eReq.req.val.rw = .w from dirReq correspondence
+      · -- ¬ down: de_trans.eReq.down = false (= de_trans.down from DirectoryEvent structure)
+        simp [Event.down]
+        -- de_trans.down = de_trans.eReq.down (this is a property of the protocol model:
+        -- matchesCacheEvent.sameDown). Using h_not_down directly since de_trans.down = false.
+        sorry -- need de_trans.eReq.down = de_trans.down
+      · -- isClusterCache
+        sorry -- de_trans.eReq at cluster protocol (from de_trans at cluster dir)
+      · -- sameProtocol: same protocol as e_d (both at same dir entry)
+        sorry -- from eventsUpToEntry_at_e_entry → same struct → same protocol
+      · -- oEnd < e_d.oEnd: eReq encapsulates de_trans, de_trans is before e_d in replay
+        sorry -- temporal chain: eReq.oEnd ≥ de_trans.oEnd, de_trans before e_d
 
 /-- If the directory state after a sequence of events is Vd, and the initial state was not Vd,
     then some event in the sequence is a non-coherent write (non-downgrade) that transitioned
