@@ -3625,33 +3625,41 @@ private lemma list_stateAfter_exists_transition
     Completing this sorry requires adding CompoundProtocol / Protocol.reqAxioms to the
     hypotheses, or restructuring to use the cacheEncapsulatesCorrespondingDirEvent bridge. -/
 private lemma event_Vd_transition_implies_ncWrite_in_b
-    {b : Behaviour n} {e_d e_trans : Event n} {s : EntryState n}
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    {e_d e_trans : Event n} {s : EntryState n}
     (he_in_list : e_trans ∈ b.eventsUpToEvent n e_d ++ [e_d])
+    (he_d_in_b : e_d ∈ b) (he_d_isDir : e_d.isDirectoryEvent)
+    (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
     (hs_ne_Vd : s.state ≠ Vd)
     (hs_Vd : (e_trans.SucceedingState n s).state = Vd)
     : ∃ e_nc ∈ b, e_nc.isWrite ∧ ¬ e_nc.down ∧ e_nc.isClusterCache ∧
         e_nc.sameProtocol n e_d ∧ e_nc.oEnd < e_d.oEnd := by
+  -- e_trans is in the replay for e_d. It transitions state from non-Vd to Vd.
+  -- e_trans must be a dir event (events in the replay are at the same entry as e_d).
+  -- For dir events: SucceedingState produces Sum.inr. For Vd: de.SucceedingState = Vd.
+  -- By dir_transition_to_Vd_implies_ncWrite: de.req is NC write (rw=.w, c=false, down=false).
+  -- The witness is Event.cacheEvent de.eReq — the triggering cache event.
+  -- Properties: isWrite (from req matching), ¬down (from sameDown), isClusterCache, sameProtocol,
+  -- oEnd < e_d.oEnd (from encapsulation: eReq encapsulates de which is before e_d).
   sorry
 
 /-- If the directory state after a sequence of events is Vd, and the initial state was not Vd,
     then some event in the sequence is a non-coherent write (non-downgrade) that transitioned
     the state to Vd. This is the "intervening NC write" that NIW forbids. -/
 lemma stateAfter_Vd_implies_exists_ncWrite
-    {b : Behaviour n} {init : InitialSystemState n}
-    {e_d : Event n}
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    {e_d : Event n} (he_d_in_b : e_d ∈ b) (he_d_isDir : e_d.isDirectoryEvent)
+    (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
     (hstate_Vd : (b.stateAfter n (init.stateAt n e_d) e_d).state = Vd)
     (h_init_ne_Vd : (init.stateAt n e_d).state ≠ Vd)
     : ∃ e_nc ∈ b, e_nc.isWrite ∧ ¬ e_nc.down ∧ e_nc.isClusterCache ∧
         e_nc.sameProtocol n e_d ∧ e_nc.oEnd < e_d.oEnd := by
-  -- Unfold Behaviour.stateAfter to get the list replay
   unfold Behaviour.stateAfter at hstate_Vd
-  -- Apply list induction: find the event that transitions state to Vd
   have h_transition := list_stateAfter_exists_transition
     (P := fun s => s.state = Vd)
     hstate_Vd h_init_ne_Vd
   obtain ⟨e_trans, he_in_list, s, hs_ne_Vd, hs_Vd⟩ := h_transition
-  -- Use the model-level bridge to extract the cluster cache NC write
-  exact event_Vd_transition_implies_ncWrite_in_b he_in_list hs_ne_Vd hs_Vd
+  exact event_Vd_transition_implies_ncWrite_in_b he_in_list he_d_in_b he_d_isDir lin hs_ne_Vd hs_Vd
 
 /-- Combined lemma: constructs both the cluster directory downgrade event and the
     cache downgrade it encapsulates, returning the directory event as an explicit

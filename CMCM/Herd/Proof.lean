@@ -671,7 +671,7 @@ theorem fr_ordering_holds
                     simp [I, Vd]
                 -- stateAfter = Vd → ∃ NC write. NIW (notBetweenGles) forbids it.
                 obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, _, _⟩ :=
-                  stateAfter_Vd_implies_exists_ncWrite hdirVd h_init_ne_Vd
+                  stateAfter_Vd_implies_exists_ncWrite sorry sorry lin hdirVd h_init_ne_Vd
                 obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
                 have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
                 -- h_niw.notBetweenGles: GLE_nc NOT between GLE_w and GLE_r.
@@ -1693,7 +1693,7 @@ theorem step_to_ordering
                     simp [I, Vd]
                 -- stateAfter = Vd → ∃ NC write. NIW (notBetweenGles) forbids it.
                 obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, _, _⟩ :=
-                  stateAfter_Vd_implies_exists_ncWrite hdirVd h_init_ne_Vd
+                  stateAfter_Vd_implies_exists_ncWrite sorry sorry lin hdirVd h_init_ne_Vd
                 obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
                 have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
                 -- h_niw.notBetweenGles: GLE_nc NOT between GLE_w and GLE_r.
@@ -1821,7 +1821,7 @@ theorem step_to_ordering
                     simp [I, Vd]
                 -- stateAfter = Vd → ∃ NC write. NIW (notBetweenGles) forbids it.
                 obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache, _, _⟩ :=
-                  stateAfter_Vd_implies_exists_ncWrite hdirVd h_init_ne_Vd
+                  stateAfter_Vd_implies_exists_ncWrite sorry sorry lin hdirVd h_init_ne_Vd
                 obtain ⟨_, _, _, _, _, h_no_between, _, _, _, _⟩ := h.comm
                 have h_niw := h_no_between e_nc he_nc_in_b he_nc_cache he_nc_write he_nc_not_down (lin e_nc)
                 -- h_niw.notBetweenGles: GLE_nc NOT between GLE_w and GLE_r.
