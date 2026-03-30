@@ -3644,8 +3644,29 @@ set_option maxHeartbeats 400000
 
 -- Helper: events in eventsUpToEvent have oEnd ≤ e.oEnd (they come before e in sorted order).
 private lemma eventsUpToEvent_oEnd_le {b : Behaviour n} {e e' : Event n}
+    (he_in_entry : e ∈ b.eventsAtEventEntry n e)
     (h : e' ∈ b.eventsUpToEvent n e) : e'.oEnd ≤ e.oEnd := by
-  sorry -- Needs: eventsUpToEvent sorted by OB → e'.oEnd < e.oStart ≤ e.oEnd
+  -- e' ∈ take (idxOf e) (eventsAtEventEntry e). The full list is sorted by OrderedBefore.
+  -- e' at index i < idxOf e, e at index idxOf e → sorted gives e' OB e → oEnd < oStart ≤ oEnd.
+  simp only [Behaviour.eventsUpToEvent, List.upToEvent] at h
+  rw [List.mem_take_iff_getElem] at h
+  obtain ⟨i, hi_lt, he'_eq⟩ := h
+  have hsorted := b.eventsAtEventEntry_ordered_before_sorted n e
+  simp only [List.Sorted] at hsorted
+  rw [List.pairwise_iff_getElem] at hsorted
+  -- Need: idxOf e < list length (e is in the list)
+  let idx := (b.eventsAtEventEntry n e).idxOf e
+  have hidx_lt : idx < (b.eventsAtEventEntry n e).length :=
+    List.idxOf_lt_length_of_mem he_in_entry
+  have hob := hsorted i idx (by omega) hidx_lt (by omega)
+  -- hob : OrderedBefore (list[i]) (list[idxOf e])
+  -- list[i] = e' (from he'_eq), list[idxOf e] = e (from getElem_idxOf)
+  rw [he'_eq] at hob
+  have hob_e : (b.eventsAtEventEntry n e)[(b.eventsAtEventEntry n e).idxOf e] = e := by
+    exact List.getElem_idxOf hidx_lt
+  rw [hob_e] at hob
+  -- hob : e'.OrderedBefore n e, i.e., e'.oEnd < e.oStart
+  exact Nat.le_of_lt (Nat.lt_of_lt_of_le hob (Nat.le_of_lt (Event.oWellFormed n e)))
 
 -- Helper: SucceedingState with down=true on non-Vd dir state can't produce Vd.
 private lemma dirEvent_down_true_ne_Vd_of_ne_Vd
@@ -3794,7 +3815,7 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
           · show (lin (Event.cacheEvent de_trans.eReq)).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd
             rw [h_cle_eq]
             cases List.mem_append.mp he_in_list with
-            | inl h_in_up => exact eventsUpToEvent_oEnd_le h_in_up
+            | inl h_in_up => exact eventsUpToEvent_oEnd_le sorry h_in_up
             | inr h_in_tail => rw [List.mem_singleton.mp h_in_tail]
         · -- de_trans.eReq NOT a write: use prior NC write from h_ncRead_prior_write
           exact h_ncRead_prior_write de_trans hde_trans_in_b h_rw_w h_coh_false h_not_down
@@ -3829,7 +3850,7 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
           · show (lin (Event.cacheEvent de_trans.eReq)).hreq's_dir_access.choose.oEnd ≤ e_d.oEnd
             rw [h_cle_eq]
             cases List.mem_append.mp he_in_list with
-            | inl h_in_up => exact eventsUpToEvent_oEnd_le h_in_up
+            | inl h_in_up => exact eventsUpToEvent_oEnd_le sorry h_in_up
             | inr h_in_tail => rw [List.mem_singleton.mp h_in_tail]
         · -- de_trans.eReq NOT a write: use prior NC write from h_ncRead_prior_write
           exact h_ncRead_prior_write de_trans hde_trans_in_b h_rw_w h_coh_false h_not_down
