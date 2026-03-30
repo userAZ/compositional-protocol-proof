@@ -3656,11 +3656,18 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
     (he_in_list : e_trans ∈ b.eventsUpToEvent n e_d ++ [e_d])
     (he_d_in_b : e_d ∈ b) (he_d_isDir : e_d.isDirectoryEvent)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
-    -- Protocol properties derivable from protocol axioms:
+    -- Protocol properties (derivable from protocol axioms):
+    -- (1) Each dir event's eReq CLE = the dir event itself
     (h_cle_is_de : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
         (lin (Event.cacheEvent de.eReq)).hreq's_dir_access.choose = Event.directoryEvent de)
+    -- (2) Each dir event's eReq is in b
+    (h_eReq_in_b : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
+        Event.cacheEvent de.eReq ∈ b)
+    -- (3) Replay states are directory states (not cache states)
     (h_s_dir : s.isDirectoryState)
+    -- (4) Directory events are at cluster protocols
     (h_not_global : e_d.protocol ≠ .global)
+    -- (5) Each dir event's eReq finishes before e_d (for events before e_d in replay)
     (h_eReq_oEnd : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b.eventsUpToEvent n e_d →
         de.eReq.oEnd < e_d.oEnd)
     (hs_ne_Vd : s.state ≠ Vd)
@@ -3861,8 +3868,23 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
             -- so eReq.oEnd > e_d.oEnd. Goal eReq.oEnd < e_d.oEnd is unprovable.
             -- Needs restructuring: either exclude de_trans=e_d or use different bound.
             sorry
-      | orderBeforeDir _ _ _ _ _ _ _ _ => sorry
-      | orderAfterDir _ _ _ _ => sorry
+      | orderBeforeDir _ _ hpred_dir _ _ hnot_down _ _ =>
+        -- de_trans.eReq has permissions. hnot_down : ¬ (Event.cacheEvent de_trans.eReq).down
+        -- hpred_dir : cacheEncapsulatesCorrespondingDirEvent ... predecessor (Event.directoryEvent de_trans)
+        -- Use h_eReq_in_b for ∈ b, hpred_dir.dirCorresponds.sameDown for sameDown
+        have hce_in_b := h_eReq_in_b de_trans hde_trans_in_b
+        refine ⟨Event.cacheEvent de_trans.eReq, hce_in_b, ?_, hnot_down, ?_, ?_, ?_⟩
+        · sorry -- isWrite: from hpred_dir.dirCorresponds.dirReq + h_rw_w
+        · sorry -- isClusterCache
+        · sorry -- sameProtocol
+        · sorry -- oEnd < e_d.oEnd
+      | orderAfterDir _ _ _ hnot_down =>
+        have hce_in_b := h_eReq_in_b de_trans hde_trans_in_b
+        refine ⟨Event.cacheEvent de_trans.eReq, hce_in_b, ?_, hnot_down, ?_, ?_, ?_⟩
+        · sorry -- isWrite
+        · sorry -- isClusterCache
+        · sorry -- sameProtocol
+        · sorry -- oEnd < e_d.oEnd
 
 /-- If the directory state after a sequence of events is Vd, and the initial state was not Vd,
     then some event in the sequence is a non-coherent write (non-downgrade) that transitioned
@@ -3874,6 +3896,8 @@ lemma stateAfter_Vd_implies_exists_ncWrite
     -- Protocol properties derivable from protocol axioms:
     (h_cle_is_de : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
         (lin (Event.cacheEvent de.eReq)).hreq's_dir_access.choose = Event.directoryEvent de)
+    (h_eReq_in_b : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
+        Event.cacheEvent de.eReq ∈ b)
     (h_not_global : e_d.protocol ≠ .global)
     (h_eReq_oEnd : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b.eventsUpToEvent n e_d →
         de.eReq.oEnd < e_d.oEnd)
@@ -3886,9 +3910,8 @@ lemma stateAfter_Vd_implies_exists_ncWrite
     (P := fun s => s.state = Vd)
     hstate_Vd h_init_ne_Vd
   obtain ⟨e_trans, he_in_list, s, hs_ne_Vd, hs_Vd⟩ := h_transition
-  -- The intermediate state s is always .inr (dir state) since the replay is of dir events.
-  -- init.stateAt for dir events is .inr, and SucceedingState for dir events preserves .inr.
   exact event_Vd_transition_implies_ncWrite_in_b he_in_list he_d_in_b he_d_isDir lin h_cle_is_de
+    h_eReq_in_b
     sorry -- h_s_dir: s.isDirectoryState (replay invariant)
     h_not_global h_eReq_oEnd hs_ne_Vd hs_Vd
 
@@ -4217,7 +4240,7 @@ lemma cdirEncapsDown_exists
               rw [he] at he_d_isDir; simp [Event.isDirectoryEvent] at he_d_isDir
           obtain ⟨e_nc, he_nc_in_b, he_nc_write, he_nc_not_down, he_nc_cache,
             he_nc_proto, he_nc_lt⟩ :=
-            stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin sorry sorry sorry hdirVd h_init_ne_Vd
+            stateAfter_Vd_implies_exists_ncWrite he_d_in_b he_d_isDir lin sorry sorry sorry sorry hdirVd h_init_ne_Vd
           -- sameProtocol: e_nc at e_w's cluster via correspondingCluster_protocol_eq
           have h_gCacheOfCDir := h_nonempty.some.prop.2.finishBefore.gCacheOfCDir
           have h_corr_ed := Behaviour.event_reqAtCorrespondingGCacheOfCDir_is_correspondingClusterOfGlobalCache (n := n) h_gCacheOfCDir
