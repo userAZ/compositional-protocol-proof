@@ -654,11 +654,18 @@ theorem fr_ordering_holds
                 -- Initial dir state is I (from initDirStateIsI axiom). I.toState ≠ Vd.
                 have hinit := b.initDirStateIsI init
                 simp [hinit, DirI, DirectoryState.toState, I, Vd] at hdirVd
-              · -- some e_d case: stateAfter(e_d) = Vd → e_d triggered by NC write → NIW
-                -- After split, hdirVd : (b.stateAfter n (init.stateAt n e_d) e_d).state = Vd
-                -- where e_d is the dir event from the NotEncap set.
-                -- e_d triggered by non-coherent cache write → intervening write → NIW
+              · -- some e_d case: stateAfter(e_d) = Vd
+                -- e_d is a dir event from the NotEncap set. Its stateAfter = Vd.
+                -- The triggering cache event (de.eReq) is a non-coherent write.
+                -- This write is an intervening write → NIW contradiction.
                 rename_i e_d _
+                -- e_d must be a dir event (it's in the cluster dir NotEncap set)
+                -- For now, derive the contradiction using NIW from h.comm
+                obtain ⟨e_w, _, e_w_lin, _, _, h_no_between, _, _, _, _⟩ := h.comm
+                -- e_d is a dir event. Extract its triggering cache event.
+                -- The triggering cache event is a non-coherent write (from stateAfter = Vd).
+                -- It's an intervening write between CLE_w and CLE_r → NIW contradiction.
+                -- TODO: formalize (dir state machine + temporal chain + NIW application)
                 sorry)
         -- Case-split on e₁'s dirAccessOfRequest to determine where e₂'s downgrade lands.
         have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2
