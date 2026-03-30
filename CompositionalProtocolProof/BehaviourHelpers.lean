@@ -194,9 +194,11 @@ lemma Behaviour.directory_acq_from_sw_state_eq_stateAfter_vd_append_rest
     simp[Event.req, ValidRequest.isAcquire, ValidRequest.isNcWeakWrite] at hacq_is_acq_or_weak_write
     cases hacq_is_acq_or_weak_write
     . case inl hacq_is_acq =>
-      -- resolve to case where we apply a Vd downgrade at the directory
+      -- After NC read on SW fix: Acquire on SW → Vc, not Vd.
+      -- This lemma needs splitting: Acquire → Vc, NC weak write → Vd.
+      -- TODO: refactor this lemma and its call sites in Lemma 6.
       simp[hacq_is_acq]
-      simp[EntryState.directory]
+      sorry -- Acquire on SW now produces Vc, not Vd
     . case inr hacq_is_nc_weak_write =>
       -- resolve to case where we apply a Vd downgrade at the directory
       simp[hacq_is_nc_weak_write]
