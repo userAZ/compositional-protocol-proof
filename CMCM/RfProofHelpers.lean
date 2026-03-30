@@ -4291,25 +4291,38 @@ lemma cdirEncapsDown_exists
 
               h_not_global'
               (fun de hde_in_b h_rw h_coh h_nd h_not_write => by
-                -- de.eReq is a NC read on Vd cache state. Need prior NC write.
-                -- The cache stateBefore of de.eReq is Vd (from reqToDirOfRequestEvent non-default).
-                -- Initial cache state is I. Some prior cache event at the same entry → Vd.
-                -- That prior event is the NC write witness.
-                --
-                -- Step 1: Get cache stateBefore = Vd from h_dir_req + h_rw + h_not_write.
-                -- h_dir_req gives de.req = reqToDirOfRequestEvent ... de.eReq.
-                -- h_rw says de.req.val.rw = .w. h_not_write says de.eReq.req.val.rw ≠ .w.
-                -- reqToDirOfRequestEvent produces .w from non-.w only for Acq on Vd cache state.
-                -- So stateBefore.cache = Vd.
-                --
-                -- Step 2: Cache state replay. stateAfter for cache entry starts from I.
-                -- Only NC writes (rw=.w, c=false, down=false) produce Vd in CacheEvent.SucceedingState.
-                -- So there exists a prior NC write cache event at the same entry.
-                --
-                -- Step 3: That NC write is in b, isWrite, ¬down, isClusterCache (same cid),
-                -- sameProtocol (same cluster as de → same as e_d).
-                -- CLE bound: sorry (depends on sorry #1 / dir_event_properties_from_lin).
-                sorry)
+                have ⟨h_dir_req_de, _, _⟩ := dir_event_properties_from_lin lin de hde_in_b
+                have hdirReq := h_dir_req_de.dirReq
+                simp only [Event.req] at hdirReq
+                rw [hdirReq] at h_rw
+                simp only [Behaviour.reqToDirOfRequestEvent] at h_rw
+                split at h_rw
+                · -- Rel branch: reqToDirOfRequestEvent on Vd
+                  simp only [Event.reqToDirOfRequestEvent] at h_rw
+                  split at h_rw <;> simp only [Event.req] at h_rw
+                  · simp [Request.isWrite] at h_rw -- NC write on I → .r
+                  · simp [Request.isWrite] at h_rw
+                  · -- Acq on Vd: produces .w. But Rel condition says req = ⟨.w,.Rel⟩.
+                    -- Acq has req = ⟨.r,.Acq⟩. Contradiction.
+                    exfalso; simp_all [Event.req]
+                  · -- default: preserves req. h_not_write says ¬isWrite. h_rw says .w.
+                    simp [Event.isWrite, Request.isWrite] at h_not_write
+                    exact absurd h_rw h_not_write
+                · -- Non-Rel branch: reqToDirOfRequestEvent on stateBefore.cache
+                  simp only [Event.reqToDirOfRequestEvent] at h_rw
+                  split at h_rw
+                  · simp [Request.isWrite] at h_rw
+                  · simp [Request.isWrite] at h_rw
+                  · -- Acq on Vd: stateBefore.cache = Vd. Prior NC write exists.
+                    -- The match arm tells us stateBefore.cache = ⟨some .wr, false⟩ = Vd.
+                    -- Need to find the NC write that produced this Vd.
+                    -- This is a cache state replay: init = I, stateAfter = Vd → NC write exists.
+                    -- Parallel to dir state replay but for cache entry.
+                    -- TODO: write cache replay helper (same pattern as stateAfter_Vd_implies_exists_ncWrite)
+                    sorry
+                  · -- default: preserves req. h_not_write contradicts h_rw.
+                    simp [Event.isWrite, Request.isWrite] at h_not_write
+                    exact absurd h_rw h_not_write)
               hdirVd h_init_ne_Vd
           -- sameProtocol: e_nc at e_w's cluster via correspondingCluster_protocol_eq
           have h_gCacheOfCDir := h_nonempty.some.prop.2.finishBefore.gCacheOfCDir
