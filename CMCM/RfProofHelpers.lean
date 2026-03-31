@@ -3698,56 +3698,89 @@ private lemma eventsUpToEvent_oEnd_le {b : Behaviour n} {e e' : Event n}
   exact Nat.le_of_lt (Nat.lt_of_lt_of_le hob (Nat.le_of_lt (Event.oWellFormed n e)))
 
 -- Helper: if CacheEvent.SucceedingState produces Vd from non-Vd, the event is an NC weak write.
+-- Strategy: match on ce.down then on ce.req (ValidRequest Subtype) to let
+-- RequestState/DowngradeState/MRS reduce. Only NCWeakWrite (false, .w, false, .Weak) produces Vd.
 set_option maxHeartbeats 800000 in
 private lemma cacheEvent_Vd_transition_isNcWeakWrite
     {ce : CacheEvent n} {s : State}
     (hs_ne_Vd : s ≠ Vd)
     (hs_Vd : ce.SucceedingState n s = Vd)
     : ce.req.val.rw = .w ∧ ce.req.val.coherent = false ∧ ce.down = false := by
-  -- Case split on ce.down: down=true → DowngradeState never → Vd from non-Vd.
-  -- down=false → RequestState: only NC weak write → Vd from non-Vd.
   simp only [CacheEvent.SucceedingState] at hs_Vd
   match hd : ce.down with
-  | true =>
-    exfalso; simp [hd] at hs_Vd
-    -- hs_Vd : ce.req.DowngradeState s = Vd, hs_ne_Vd : s ≠ Vd.
-    -- DowngradeState never produces Vd from non-Vd.
-    -- Case split on ce.req.val.coherent, then sub-cases.
-    cases hcoh : ce.req.val.coherent with
-    | true =>
-      cases hcon : ce.req.val.consistency with
-      | Rel | Weak | Acq => all_goals (
-        simp only [ValidRequest.DowngradeState, hcoh, hcon, ↓reduceIte] at hs_Vd
-        split at hs_Vd
-        · exact hs_ne_Vd hs_Vd  -- result = s
-        · simp [Vc, Vd] at hs_Vd)  -- result = Vc
-      | SC =>
-        simp only [ValidRequest.DowngradeState, hcoh, hcon, ↓reduceIte] at hs_Vd
-        split at hs_Vd
-        · -- I ≠ Vd or Vc ≠ Vd
-          cases hs_Vd  -- result = I
-        · -- MRS = Vd. MRS.c = true for coherent. Vd.c = false. Contradiction.
-          -- hs_Vd : ce.req.MRS = Vd. Extract .c: ce.req.MRS.c = false.
-          -- But ce.req.MRS.c = true for coherent (hcoh).
-          have h_c_false := congr_arg State.c hs_Vd  -- ce.req.MRS.c = Vd.c
-          simp only [Vd] at h_c_false  -- ce.req.MRS.c = false
-          -- ce.req.MRS.c = true:
-          have h_c_true : (ce.req.MRS).c = true := by
-            -- MRS.c = true for coherent request. Use congr on hs_Vd instead.
-            exact sorry
-          rw [h_c_true] at h_c_false; exact absurd h_c_false (by decide)
-    | false => sorry
   | false =>
-    simp [hd] at hs_Vd
-    simp only [ValidRequest.RequestState] at hs_Vd
-    -- RequestState with down=false. Only NC weak write → Vd from non-Vd.
-    -- Coherent: gives s or MRS, MRS ≠ Vd for coherent (MRS.c = true, Vd.c = false).
-    -- NC weak read: gives s or MRS, MRS for NC read ≠ Vd.
-    -- NC rel write: gives Vc, ≠ Vd.
-    -- NC weak write: gives Vd (for non-SW) or s (for SW). Only Vd from non-Vd for non-SW.
-    -- So ce.req.val = ⟨.w, false, .Weak⟩.
-    sorry
-
+    simp only [hd] at hs_Vd
+    -- Match on the ValidRequest Subtype so RequestState/MRS reduce
+    match hvr : ce.req with
+    | ⟨⟨.w, false, .Weak⟩, _⟩ => exact ⟨rfl, rfl, rfl⟩
+    | ⟨⟨_, true, .SC⟩, _⟩ =>
+      exfalso; rw [hvr] at hs_Vd; simp only [ValidRequest.RequestState, ValidRequest.MRS] at hs_Vd
+      split at hs_Vd
+      · exact hs_ne_Vd hs_Vd
+      · simp_all [Vd]
+    | ⟨⟨.w, true, .Rel⟩, _⟩ =>
+      exfalso; rw [hvr] at hs_Vd; simp only [ValidRequest.RequestState, ValidRequest.MRS] at hs_Vd
+      split at hs_Vd
+      · exact hs_ne_Vd hs_Vd
+      · simp_all [Vd, SW]
+    | ⟨⟨.w, true, .Weak⟩, _⟩ =>
+      exfalso; rw [hvr] at hs_Vd; simp only [ValidRequest.RequestState, ValidRequest.MRS] at hs_Vd
+      split at hs_Vd
+      · exact hs_ne_Vd hs_Vd
+      · simp_all [Vd, SW]
+    | ⟨⟨.r, false, .Weak⟩, _⟩ =>
+      exfalso; rw [hvr] at hs_Vd; simp only [ValidRequest.RequestState, ValidRequest.MRS] at hs_Vd
+      split at hs_Vd
+      · exact hs_ne_Vd hs_Vd
+      · simp_all [Vd, Vc]
+    | ⟨⟨.w, false, .Rel⟩, _⟩ =>
+      exfalso; rw [hvr] at hs_Vd; simp only [ValidRequest.RequestState] at hs_Vd
+      split at hs_Vd <;> simp_all [Vd, Vc, SW]
+    | ⟨⟨.r, false, .Acq⟩, _⟩ =>
+      exfalso; rw [hvr] at hs_Vd; simp only [ValidRequest.RequestState] at hs_Vd
+      simp_all [Vd, Vc]
+  | true =>
+    exfalso
+    simp only [hd] at hs_Vd
+    -- Match on ValidRequest so DowngradeState/MRS reduce
+    match hvr : ce.req with
+    | ⟨⟨_, true, .SC⟩, _⟩ =>
+      rw [hvr] at hs_Vd; simp only [ValidRequest.DowngradeState, ValidRequest.MRS] at hs_Vd
+      split at hs_Vd
+      · simp [Vd, I] at hs_Vd
+      · simp_all [Vd]
+    | ⟨⟨.w, true, .Rel⟩, _⟩ =>
+      rw [hvr] at hs_Vd; simp only [ValidRequest.DowngradeState] at hs_Vd
+      split at hs_Vd
+      · exact hs_ne_Vd hs_Vd
+      · simp [Vd, Vc] at hs_Vd
+    | ⟨⟨.w, true, .Weak⟩, _⟩ =>
+      rw [hvr] at hs_Vd; simp only [ValidRequest.DowngradeState] at hs_Vd
+      split at hs_Vd
+      · exact hs_ne_Vd hs_Vd
+      · simp [Vd, Vc] at hs_Vd
+    | ⟨⟨.r, false, .Weak⟩, _⟩ =>
+      rw [hvr] at hs_Vd; simp [ValidRequest.DowngradeState] at hs_Vd
+      -- hs_Vd : (if s = Vc then I else s) = Vd
+      split at hs_Vd
+      · simp [Vd, I] at hs_Vd
+      · exact hs_ne_Vd hs_Vd
+    | ⟨⟨.w, false, .Weak⟩, _⟩ =>
+      rw [hvr] at hs_Vd; simp [ValidRequest.DowngradeState] at hs_Vd
+      -- hs_Vd : (if s = Vd then Vc else s) = Vd
+      split at hs_Vd
+      · simp [Vd, Vc] at hs_Vd
+      · exact hs_ne_Vd hs_Vd
+    | ⟨⟨.w, false, .Rel⟩, _⟩ =>
+      rw [hvr] at hs_Vd; simp [ValidRequest.DowngradeState] at hs_Vd
+      -- hs_Vd : (if s = Vd then Vc else s) = Vd
+      split at hs_Vd
+      · simp [Vd, Vc] at hs_Vd
+      · exact hs_ne_Vd hs_Vd
+    | ⟨⟨.r, false, .Acq⟩, _⟩ =>
+      rw [hvr] at hs_Vd; simp [ValidRequest.DowngradeState] at hs_Vd
+      -- hs_Vd : s = Vd (all ifs evaluate to else)
+      exact hs_ne_Vd hs_Vd
 -- Helper: derive dir event properties from dirAccessUnique + lin.
 -- For a dir event de in b, dirAccessOfRequest for de.eReq with CLE = de (via dirAccessUnique)
 -- gives requestDirectoryEvent, reqInB, and CLE identity.
