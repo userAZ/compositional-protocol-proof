@@ -135,17 +135,61 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
       -- compoundLin = hcache.choose = e (via atCache.e_creq_is_e_glin).
       -- Use dirAccessOfRequest to relate CLE to e.
       have hda := lin.hreq's_dir_access.choose_spec.2
+      -- dirAccessOfRequest determines CLE relationship to e.
+      -- requestLin → reqHasPerms → dirAccessOfRequest must be orderBeforeDir.
+      -- encapDir and orderAfterDir are vacuous (reqMissingPerms contradicts reqHasPerms).
+      have hda := lin.hreq's_dir_access.choose_spec.2
+      have h_reqHasPerms := hreqlin.choose_spec.2.reqHasPerms
       cases hda with
-      | encapDir hno_perms _ =>
-        -- reqMissingPerms contradicts reqHasPerms
-        sorry
       | orderBeforeDir _ hexists_pred hpred_accesses_dir _ _ _ _ _ =>
         -- CLE inside predecessor, predecessor OB e → CLE OB e = CLE OB compoundLin
         apply compoundLin_cle_rel.cle_ob_compoundLin
-        sorry
-      | orderAfterDir hweak _ _ _ =>
-        -- ncWeakReqOnVd contradicts reqHasPerms
-        sorry
+        -- Step 1: compoundLin = hcache.choose = e (via atCache.e_creq_is_e_glin)
+        -- Step 2: CLE inside predecessor (hpred_accesses_dir.reqEncapDir)
+        -- Step 3: predecessor OB e (from hexists_pred)
+        -- Step 4: CLE.oEnd < pred.oEnd < e.oStart → CLE OB e
+        --
+        -- Extract pred OB e from hexists_pred:
+        -- hexists_pred : reqHasPermsSoDirPred = ∃ e_pred ∈ b.es, immBottomPredHasNoPermsAndLeavesStateAtLeast
+        have hpred_spec := hexists_pred.choose_spec.2
+        -- hpred_spec : immBottomPredHasNoPermsAndLeavesStateAtLeast
+        -- = ImmediateBottomPredSatisfyingProp = IsImmediateBottomPredSatisfyingProp
+        -- .isImmPred.bPred.isPred gives pred OB e
+        have hpred_ob_e : hexists_pred.choose.OrderedBefore n e :=
+          hpred_spec.isImmPred.bPred.isPred
+        -- CLE inside predecessor:
+        have hcle_inside_pred := hpred_accesses_dir.reqEncapDir
+        -- hcle_inside_pred : hexists_pred.choose.Encapsulates CLE
+        -- So CLE.oEnd < hexists_pred.choose.oEnd < e.oStart
+        -- → CLE.oEnd < e.oStart → CLE OB e
+        have hcle_ob_e : lin.hreq's_dir_access.choose.OrderedBefore n e :=
+          Nat.lt_trans hcle_inside_pred.right hpred_ob_e
+        -- compoundLin = e: need to show CLE OB compoundLin
+        -- compoundLin unfolds to ClusterRequestLinearizationEvent.linearizationEvent of clusterCacheLin
+        -- which is hcache.choose, and hcache.choose = e by atCache.e_creq_is_e_glin
+        -- compoundLin in the goal is:
+        -- (cmp.compoundLinearizationEvent ... (.requestLin hreqlin)).linearizationEvent
+        -- After cases hcmp, this is (.clusterCacheLin hcache).linearizationEvent = hcache.choose
+        -- hcache.choose = e by atCache.e_creq_is_e_glin
+        -- So the goal should be: CLE OB hcache.choose, which is CLE OB e.
+        -- The `cases hcmp` should have rewritten compoundLin in the goal already.
+        -- Let's see if `exact hcle_ob_e` works after rewriting:
+        -- Goal: CLE OB lin.compoundLin. Show lin.compoundLin = e.
+        -- lin.compoundLin = (cmp.compoundLinearizationEvent ... (cmp.linearizationOfEvent ...)).linearizationEvent
+        -- After cases hlin_ev: linearizationOfEvent = .requestLin hreqlin
+        -- After cases hcmp: compoundLinearizationEvent ... (.requestLin hreqlin) = .clusterCacheLin hcache
+        -- linearizationEvent of .clusterCacheLin hcache = hcache.choose
+        -- hcache.choose = e by atCache.e_creq_is_e_glin
+        -- Need: CLE OB lin.compoundLin. We know lin.compoundLin = e.
+        -- Dependent type rewriting issue: compoundLin depends on linearizationOfEvent.
+        -- Use native_decide or sorry for the compoundLin = e bridge.
+        sorry -- TODO: prove lin.compoundLin = e (dependent type rewriting)
+      | encapDir hno_perms _ =>
+        -- Vacuous: reqMissingPerms contradicts reqHasPerms
+        sorry -- TODO: reqHasPerms_not_reqMissingPerms lemma
+      | orderAfterDir _ _ _ _ =>
+        -- Vacuous: orderAfterDir implies reqMissingPerms-like conditions
+        sorry -- TODO: ncWeakReqOnVd contradicts reqHasPerms
     | clusterDirLin hdir_case =>
       -- clusterDirLin requires reqLinearizesAtDir. But we're in requestLin → reqLinearizesAtCache.
       -- atDirectoryOrBeyond has lin_at_dir : reqLinearizesAtDir ... (.requestLin _) which is False.
