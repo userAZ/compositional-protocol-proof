@@ -61,6 +61,10 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 ### Lessons learned (BE INTROSPECTIVE!)
 - **Don't guess constructors.** Each new StepOrdering constructor multiplies case analysis. Use edge data instead.
 - **Information loss is the enemy.** `step_to_ordering` strips rich edge evidence. Keep original edge data available.
+- **Sorry checklist (RUN THIS FIRST before any sorry fix)**:
+  1. Is it a bug introduced by a previous commit? Check git history — revert if so.
+  2. Is the issue resolved by looking at the upper level theorem context? Does the caller actually need this?
+  3. Are you stuck in a rabbit hole? If >15 min without code progress, STOP, draw a picture, explain simply.
 - **`by_cases protocol` is the universal first move.** Same → dir_ordered. Diff → .obFinishBefore.
 - **Derive equalities BEFORE matches.** After `match hfc : l₁, ...`, rw fails on pre-match hypotheses.
 - **Don't expand wildcards without a closure plan.** Creates MORE sorry's.

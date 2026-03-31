@@ -1411,15 +1411,12 @@ theorem step_to_ordering
                         (by simp [Event.isDirectoryEvent])
                     | inr hob_dir =>
                       -- cdir OB CLE_w: temporal contradiction.
-                      -- From noEvictBetween: e_w OB e_r_down (cache events).
-                      -- From encapDir: CLE_w inside e_w (e_w encapsulates CLE_w).
-                      -- From hob_dir: de_cdir OB de_cle.
-                      -- Chain: de_cle.oEnd < e₁.oEnd < e_r_down.oStart ≤ e_r_down.oEnd
-                      --        < de_cdir.oEnd < de_cle.oStart → contradiction.
-                      -- The step e_r_down.oEnd < de_cdir.oEnd needs de_cdir encapsulates e_r_down.
-                      -- This comes from the protocol (dirEncapDowngrade) but connecting the
-                      -- existential witnesses requires explicit fields in encapProxyAndDirAndCDown.
-                      -- TODO: restructure encapProxyAndDirAndCDown to use explicit event fields.
+                      -- hob_dir: de_cdir.oEnd < de_cle.oStart (cdir before CLE_w).
+                      -- This should be contradictory: the reader's downgrade (cdir) at e_w's
+                      -- cluster should happen AFTER the writer's CLE (CLE_w), not before.
+                      -- The chain needs e_r_down inside de_cdir (dirEncapDowngrade from protocol),
+                      -- but the encapProxyAndDirAndCDown witnesses are independent existentials.
+                      -- TODO: provide e_r_down from the same protocol axiom call as de_cdir.
                       exfalso; exact sorry
               | evictBetween evict =>
                 exact from_encap_wob evict.encapProxyAndDir evict.evictBetween.wObRDown
