@@ -53,13 +53,15 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **Proof.lean sorry's (5)**: All in `co_chain_cross_cluster_downgrade` (CO diff-cluster case).
 
 ### TODO
-1. **`dir_event_properties_from_lin`** (1 sorry, RfProofHelpers line ~3809): CLE = de identity.
-   - **Root cause**: CLE from `dirAccessOfRequest` is NOT always `de`. For `encapDir`, CLE = de. For `orderBeforeDir`/`orderAfterDir`, CLE is a different dir event.
-   - **Key insight**: `dirAccessUnique` can't help without a second `dirAccessOfRequest de.eReq de` instance.
-   - **Fix options**: (a) Add axiom `∀ de ∈ b, dirAccessOfRequest de.eReq de`, (b) decouple return type from `lin` — use `de.oEnd` bound instead of `CLE.oEnd`, (c) derive from `requestAccessesDirectory` (Axiom 6). Option (b) is cleanest.
-2. **`cdirEncapsDown_exists` onDirVd callback CLE.oEnd** (1 sorry, line ~4539): CLE(ce_trans).oEnd ≤ e_d.oEnd. Depends on TODO #1.
-3. **Proof.lean sorry's (5)**: All in `co_chain_cross_cluster_downgrade`. 2× `downIsDown`, 2× cdir OB CLE_w, 1× diff-cluster chain.
-4. **BehaviourHelpers Lemma 6 Acquire→Vc**: Separate, independent sorry.
+1. **`cdirEncapsDown_exists` onDirVd** (2 sorry's in RfProofHelpers): Eliminate `dir_event_properties_from_lin` and `DirectoryEvent.eReq` usage entirely.
+   - **Context**: `cdirEncapsDown_exists` constructs the cluster directory downgrade for the diff-cluster case. `e_w` is the writer, `e_r` is the reader, `e_gdown` is the global downgrade at `e_w`'s cluster. The `translateDirectoryEvent` gives onDirVd when directory state at `e_w`'s cluster is Vd.
+   - **Why onDirVd is contradictory**: If the directory state is Vd at the time of the downgrade, an NC write must have set it. This NC write is an intervening write between e_w and e_r, violating NIW.
+   - **Approach (1)**: `by_cases` on whether there's an intervening write cache event after e_w, before e_gdown. If YES → NIW contradiction. If NO → directory state ≠ Vd (no write modified it from SW), so onDirVd is vacuous.
+   - **Approach (2)**: Find an event whose CLE sets the dir state to Vd. Its predecessor at the cache entry is an NC write on Vd cache state (provable by `reverseRecOn` on `eventsUpTo`). Use `cacheEvent_Vd_transition_isNcWeakWrite` for the transition proof. No `DirectoryEvent.eReq` needed.
+   - **Key rule**: Use `Event n` with `isDirectoryEvent` prop, NEVER `DirectoryEvent` directly. Don't use `DirectoryEvent.eReq` — use CLE/lin infrastructure instead. Match existing Behaviour proof patterns.
+   - **ALWAYS document WHY a sublemma exists**: what protocol argument it serves, what terms it uses (e_w, e_gdown, CLE_r, etc.).
+2. **Proof.lean sorry's (5)**: All in `co_chain_cross_cluster_downgrade`. 2× `downIsDown`, 2× cdir OB CLE_w, 1× diff-cluster chain.
+3. **BehaviourHelpers Lemma 6 Acquire→Vc**: Separate, independent sorry.
 
 ### Lessons learned (BE INTROSPECTIVE!)
 - **Don't guess constructors.** Each new StepOrdering constructor multiplies case analysis. Use edge data instead.
@@ -87,6 +89,8 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **Read definitions immediately, don't guess.** `reqToDirOfRequestEvent` is 5 lines — read it instead of speculating about what it does. `grep -rn 'def ...'` is faster than reasoning from names.
 - **Search the codebase aggressively for existing lemmas.** Key finds: `directory_event_is_bottom`, `bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents`, `eventsUpToEvent_ordered_before_sorted`, `eventsUpToEntry_at_e_entry`. Always search before writing new code.
 - **Extract helper lemmas proactively for heartbeat management.** `dirEvent_down_true_ne_Vd_of_ne_Vd` extraction solved a timeout. `list_stateAfter_exists_transition_with_inv` carried the invariant cleanly. Don't let proofs grow past ~30 lines without extracting.
+- **NEVER use `DirectoryEvent` directly or `DirectoryEvent.eReq`**: Use `Event n` with `isDirectoryEvent` prop, matching the rest of the codebase. The `eReq` field has NO axioms linking it to the dir event's properties (no sameProtocol, no sameDown, no Encapsulates). Use CLE/lin infrastructure instead to get corresponding cache events with full protocol properties via `cacheEncapsulatesCorrespondingDirEvent.dirCorresponds`. I wasted an entire session going down the `eReq` rabbit hole.
+- **ALWAYS document WHY a sublemma exists**: Write the protocol argument (e.g., "onDirVd is contradictory because an NC write between e_w and e_gdown violates NIW") BEFORE writing code. Include key terms (e_w, e_gdown, CLE_r, etc.). Without this, context is lost across sessions and you go in circles.
 - **Add all needed hypotheses upfront, prune later.** When writing a lemma, aggressively add protocol hypotheses from the call site context. It's easy to remove unused params; it's painful to discover mid-proof that a hypothesis is missing. The `h_dir_req`, `h_eReq_in_b`, `h_cle_is_de`, `h_ncRead_prior_write`, `h_not_global`, `h_s_dir` parameters to `event_Vd_transition_implies_ncWrite_in_b` should have been added in the first draft.
 - **`by_cases` on Bool fields is powerful.** `by_cases hisW : de_trans.eReq.req.val.isWrite` cleanly splits NC-read-on-Vd from NC-write cases. `by_cases hevict_down : e_evict.down` cleanly splits `sameCacheConstraints` vs `sameCacheWriteConstraints`.
 - **Temporal chains through encapsulation**: `Encapsulates.2` gives `inner.oEnd < outer.oEnd`. Chain with `finishesBefore.endBefore` and `gcache_oEnd_lt_cle` for full CLE temporal bounds.
