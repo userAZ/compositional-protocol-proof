@@ -596,8 +596,6 @@ inductive Behaviour.dirAccessOfRequest (b : Behaviour n) (init : InitialSystemSt
     directory request (de.eReq = ce uniquely determines de).
     TODO: Replace with a proper proof derived from requestDirectoryEvent/matchesCacheEvent
     uniqueness, or unify Herd and CompoundMCM CLE definitions to share linearizationEventOfRequest. -/
--- dirAccessOfRequest uniqueness: see CompoundProtocol.dirAccessUnique field
-
 def Behaviour.dirAccessOfRequest.isDirEvent {b : Behaviour n} {init : InitialSystemState n} {e_req e_dir : Event n} (h : b.dirAccessOfRequest n init e_req e_dir) : e_dir.isDirectoryEvent :=
   match h with
   | .encapDir _ hencap_dir => hencap_dir.isDir

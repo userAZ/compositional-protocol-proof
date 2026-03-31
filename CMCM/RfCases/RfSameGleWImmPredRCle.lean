@@ -46,7 +46,7 @@ lemma CMCM.rf.sameGle.wImmPredRCle
       -- In the sameGle case, e_w and e_r are in the same cluster, so this must be .sameCluster
       match hw_imm_pred_r_cle with
       | .sameCluster _ hw_ob_r_cle => exact hw_ob_r_cle
-      | .diffCluster hdiff_prot _ =>
+      | .diffCluster hdiff_prot _ _ =>
         -- Contradiction: sameGle implies same protocol, but diffCluster says different
         have hsame_prot := same_gle_implies_same_protocol hw_c_and_g_lin hr_c_and_g_lin hsame_gle
         exact absurd hsame_prot hdiff_prot

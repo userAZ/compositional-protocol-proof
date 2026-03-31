@@ -29,7 +29,7 @@ lemma CMCM.rf.wObRGle.sameCluster.wImmPredRCle
   have hw_cle_ob : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose :=
     match hw_imm_pred_r_cle with
     | .sameCluster _ hw_ob_r_cle => hw_ob_r_cle
-    | .diffCluster hdiff_prot _ => absurd hsame_cluster hdiff_prot
+    | .diffCluster hdiff_prot _ _ => absurd hsame_cluster hdiff_prot
   refine .sameCluster hsame_cluster ⟨hw_cle_ob, ?_⟩
   -- Same/diff cache case split
   by_cases hsame_cache : e_w.struct = e_r.struct

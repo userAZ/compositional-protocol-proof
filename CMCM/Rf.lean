@@ -86,11 +86,20 @@ A cluster request `e_creq` has a CLE `e_creq_lin` that linearizes `e_creq` in it
 -/
 structure CompoundProtocol.globalLinearizationEventOfRequest (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
   (e_creq : Event n) where
-  -- The "Cluster Memory Order, CMO"
+  -- The "Cluster Memory Order, CMO" — CLE (cluster linearization event, a directory event)
   hreq's_dir_access : ∃ e_cdir ∈ b, b.dirAccessOfRequest n init e_creq e_cdir
-  -- The "Global Memory Order, GMO"
+  -- The "Global Memory Order, GMO" — GLE (global linearization event)
   hreq's_global_lin : ∃ e_gdir ∈ b, b.dirAccessOfRequest n init
     (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init hreq's_dir_access) e_gdir
+
+/-- CompoundMCM linearization event for a request. Deterministic function (not existential).
+    Either the cache event itself (requestLin: has perms) or the CLE (dirLin: no perms).
+    Used for the ranking function in acyclicity proof alongside CLE/GLE. -/
+noncomputable def CompoundProtocol.globalLinearizationEventOfRequest.compoundLin
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (_ : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e) : Event n :=
+  (cmp.compoundLinearizationEvent cmp.shimAxioms b init e
+    (cmp.linearizationOfEvent b init e)).linearizationEvent
 
 def CompoundProtocol.globalLinearizationEventOfRequest.wrapper :=
   ∀ cmp : CompoundProtocol n, ∀ b : Behaviour n, ∀ init : InitialSystemState n,

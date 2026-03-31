@@ -35,7 +35,9 @@ Before proving, composing, or sorry-ing ANYTHING:
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-29)
+### Status (updated 2026-03-31)
+- **ZERO SORRY'S, ZERO ERRORS** in entire CMCM module and full project build.
+- **`dirAccessUnique` REMOVED** from `CompoundProtocol` — it was unused.
 - **Architecture**: `cmcm_acyclic_of_hknow` uses CLEs from `hknow` directly (`hreq's_dir_access.choose`). The CLE-to-compound_lin bridge was eliminated.
   - **PPOi (single edge)**: `dir_ordered` gives 3-way on CLEs (same-cluster directory events). No compound_lin needed.
   - **COM (single edge)**: `step_to_ordering` gives StepOrdering on CLEs directly. No bridge needed.
@@ -46,16 +48,14 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **Non-lazy PPOi**: `h_non_lazy_ppoi` hypothesis excludes lazy RCC.
 - **Dead code**: CLE-to-compound_lin bridge removed. `ppoi_diff_addr_step_ordering` deleted.
 - **`cdirEncapsDown_exists`**: `h_dir_coherent` parameter removed; onDirVd proved inline with consistent e_r_gdown. sameProtocol chain proved via `correspondingCluster_protocol_eq`. Proof.lean call sites cleaned.
-- **3 sorry-using declarations** total: `BehaviourHelpers` (Lemma 6 Acquire→Vc), `cdirEncapsDown_exists` (2 sorry's), Proof.lean `fr_ordering_holds` (5 sorry's).
 - **`cacheEvent_Vd_transition_isNcWeakWrite`**: SORRY-FREE via ValidRequest Subtype match.
-- **`event_Vd_transition_implies_ncWrite_in_b`**: SORRY-FREE.
-- **`stateAfter_Vd_implies_exists_ncWrite`**: SORRY-FREE.
-- **Proof.lean sorry's (5)**: All in `co_chain_cross_cluster_downgrade` (CO diff-cluster case).
+- **RfCase files**: Fixed `rCleOrDownAtWAfterWCle.diffCluster` pattern match (missing 3rd field after `wObRDown` was added).
 
 ### TODO
-1. **CO Theorem**: Implement a CO theorem analogous to `RfTheorem.lean`. Currently `co.ordering` is assumed in the `co` structure's `comm` field. Should be derived from SWMR protocol axioms + directory serialization, similar to how `RfTheorem` derives `readsFrom.cases` from protocol axioms + NIW.
-2. **Dead code cleanup**: Remove marked-as-DEAD functions in RfProofHelpers.lean (`event_Vd_transition_implies_ncWrite_in_b`, `stateAfter_Vd_implies_exists_ncWrite`).
-3. **Key rule**: Use `Event n` with `isDirectoryEvent` prop, NEVER `DirectoryEvent` directly. Don't use `DirectoryEvent.eReq`. Match existing Behaviour proof patterns. ALWAYS document WHY a sublemma exists.
+1. **CO Theorem**: Implement a CO theorem that PROVES `co.ordering` from protocol axioms. Note: this is NOT a carbon copy of `RfTheorem` — `readsFrom.cases` requires `isRead` for the second event, but CO has two writes. The CO theorem needs its own type structure. `CoTheorem.lean` is currently a placeholder.
+2. **Dead code cleanup**: Remove marked-as-DEAD functions in RfProofHelpers.lean.
+3. **Linearization event refactor (DEFERRED)**: Replacing CLE (`hreq's_dir_access.choose`) with `compoundLin` in CO/FR definitions was attempted and reverted. The fundamental issue: `dir_ordered` (universal fallback for StepOrdering composition) requires both events to be directory events. CLEs are always directory events, but `compoundLin` can be cache events (in the `requestLin` case). This would require rewriting `compose_three`. Not needed for current proof correctness.
+4. **Key rule**: Use `Event n` with `isDirectoryEvent` prop, NEVER `DirectoryEvent` directly. Don't use `DirectoryEvent.eReq`. Match existing Behaviour proof patterns. ALWAYS document WHY a sublemma exists.
 
 ### Lessons learned (BE INTROSPECTIVE!)
 - **Don't guess constructors.** Each new StepOrdering constructor multiplies case analysis. Use edge data instead.
@@ -98,6 +98,9 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **Temporal chains through encapsulation**: `Encapsulates.2` gives `inner.oEnd < outer.oEnd`. Chain with `finishesBefore.endBefore` and `gcache_oEnd_lt_cle` for full CLE temporal bounds.
 - **`list_stateAfter_exists_transition_with_inv`**: When the plain `list_stateAfter_exists_transition` loses context (like `s.isDirectoryState`), use the invariant-preserving variant. The invariant `Q` is preserved through the induction and returned with the transition evidence.
 - **NC read on Vd → prior NC write**: If a `reqToDirOfRequestEvent` transforms a NC read (Acq/Weak) on Vd cache state to a Weak Write at the dir level, the cache event is a READ, not a write. The actual NC write is a PRIOR event that left the cache at Vd. Use `h_ncRead_prior_write` to delegate to the caller.
+- **Check if a field is actually USED before refactoring to remove it.** `dirAccessUnique` was declared in `CompoundProtocol` but never referenced in any proof. I assumed it was needed based on its name and wrote that assumption into CLAUDE.md — then built a 55-error refactoring on top of that false premise. One `grep` would have shown it was unused. **Root cause**: I reasoned about what the field SHOULD do instead of checking what it ACTUALLY does. This is the same failure as "don't guess constructors" — verify before acting.
+- **`compoundLin` refactor breaks `dir_ordered` fallback**: `dir_ordered` requires BOTH events to be directory events. CLEs are always directory events (by construction). But `compoundLin e` can be a cache event (when `requestLin`: the event has perms, so it linearizes at the cache, not the directory). This means `compose_three`'s universal fallback wouldn't work. The CLE-based approach is correct for the Herd proof.
+- **CO ≠ RF carbon copy**: `readsFrom.cases` and `NoInterveningWrites` require `isRead` for the second event. CO has two writes. A CO theorem needs its own types (`co.ordering` is already defined). Don't blindly copy RF infrastructure for CO.
 
 ## Detailed documentation (read when needed)
 - `docs/compose-three-analysis.md` — Detailed sorry analysis, junction compatibility table, protocol extraction patterns
