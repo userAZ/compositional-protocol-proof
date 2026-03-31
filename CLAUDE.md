@@ -54,9 +54,8 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 ### TODO
 1. **CO Theorem**: Implement a CO theorem analogous to `RfTheorem.lean`. Currently `co.ordering` is assumed in the `co` structure's `comm` field. Should be derived from SWMR protocol axioms + directory serialization, similar to how `RfTheorem` derives `readsFrom.cases` from protocol axioms + NIW.
-2. **RF Case Helper sorry's (2)**: `cdirEncapsDown` field in `RfSameGleWImmPredRCleHelpers.lean:79` and `RfSameGleSameClusterEvictOrReadBetweenHelpers.lean:56`. Need `encapDir.existsRClusterDirDown.choose.Encapsulates existsRDownAtW.choose`. **Root cause**: two opaque `Exists.choose` witnesses from independent existentials. `Exists.choose` uses `Classical.choice` and won't reduce even when constructed with explicit witnesses. **Fix**: restructure `encapProxyAndDirAndCDown` to use EXPLICIT EVENT FIELDS instead of `Exists.choose`. Replace `existsRClusterDirDown : ∃ ...` and `existsRDownAtW : ∃ ...` with explicit `e_cdir : Event n` + `e_cache_down : Event n` + property fields. This eliminates all `.choose` opacity. Requires updating Proof.lean destructuring patterns (cascading but mechanical). Attempted bundling into the existential but Proof.lean `cases` on `encapDirRelation` broke — the tuple nesting changed.
-3. **Lemma6 sorry (1)**: `Lemma6GlobalWriteDowngrade.lean:1778`. Non-Vd cache states in acquire case — dir req becomes acquire (rw=.r) which gives Vc not Vd from SW dir state. May be unreachable in `globalReadDownOnDirSW` context (dir state SW may imply cache state is Vd for the NC read downgrade scenario).
-4. **Key rule**: Use `Event n` with `isDirectoryEvent` prop, NEVER `DirectoryEvent` directly. Don't use `DirectoryEvent.eReq`. Match existing Behaviour proof patterns. ALWAYS document WHY a sublemma exists.
+2. **Dead code cleanup**: Remove marked-as-DEAD functions in RfProofHelpers.lean (`event_Vd_transition_implies_ncWrite_in_b`, `stateAfter_Vd_implies_exists_ncWrite`).
+3. **Key rule**: Use `Event n` with `isDirectoryEvent` prop, NEVER `DirectoryEvent` directly. Don't use `DirectoryEvent.eReq`. Match existing Behaviour proof patterns. ALWAYS document WHY a sublemma exists.
 
 ### Lessons learned (BE INTROSPECTIVE!)
 - **Don't guess constructors.** Each new StepOrdering constructor multiplies case analysis. Use edge data instead.
