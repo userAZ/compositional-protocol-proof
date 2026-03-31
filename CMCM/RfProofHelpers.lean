@@ -3793,6 +3793,7 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
     -- (non-default case), there exists a prior NC write at the same cluster in b.
     -- Derivable from: cache state Vd ← prior NC weak write (Axiom 7 / state machine).
     (h_ncRead_prior_write : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
+        (Event.directoryEvent de).sameProtocol n e_d →
         de.req.val.rw = .w → de.req.val.coherent = false → de.down = false →
         ¬ de.eReq.req.val.isWrite →
         ∃ e_nc ∈ b, e_nc.isWrite ∧ ¬ e_nc.down ∧ e_nc.isClusterCache ∧
@@ -3905,7 +3906,7 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
                 (b.directory_event_is_bottom n e_d he_d_isDir)) h_in_up
           | inr h_in_tail => rw [List.mem_singleton.mp h_in_tail]
       · -- de_trans.eReq NOT a write: use prior NC write from h_ncRead_prior_write
-        exact h_ncRead_prior_write de_trans hde_trans_in_b h_rw_w h_coh_false h_not_down
+        exact h_ncRead_prior_write de_trans hde_trans_in_b hde_trans_same_proto h_rw_w h_coh_false h_not_down
           (by simp [Event.isWrite, Request.isWrite]; exact hisW)
       -- (orderBeforeDir/orderAfterDir cases eliminated: h_dir_encap provides hencap directly)
 
@@ -3926,6 +3927,7 @@ lemma stateAfter_Vd_implies_exists_ncWrite
         (lin (Event.cacheEvent de.eReq)).hreq's_dir_access.choose = Event.directoryEvent de)
     (h_not_global : e_d.protocol ≠ .global)
     (h_ncRead_prior_write : ∀ de : DirectoryEvent n, Event.directoryEvent de ∈ b →
+        (Event.directoryEvent de).sameProtocol n e_d →
         de.req.val.rw = .w → de.req.val.coherent = false → de.down = false →
         ¬ de.eReq.req.val.isWrite →
         ∃ e_nc ∈ b, e_nc.isWrite ∧ ¬ e_nc.down ∧ e_nc.isClusterCache ∧
@@ -4318,7 +4320,7 @@ lemma cdirEncapsDown_exists
               (fun de hde_in_b => (dir_event_properties_from_lin lin de hde_in_b).2.2)
 
               h_not_global'
-              (fun de hde_in_b h_rw h_coh h_nd h_not_write => by
+              (fun de hde_in_b h_same_proto h_rw h_coh h_nd h_not_write => by
                 have ⟨h_dir_req_de, _, _⟩ := dir_event_properties_from_lin lin de hde_in_b
                 have hdirReq := h_dir_req_de.dirReq
                 simp only [Event.req] at hdirReq
@@ -4436,18 +4438,10 @@ lemma cdirEncapsDown_exists
                       refine ⟨Event.cacheEvent ce_trans, he_trans_in_b, ?_, ?_, ?_, ?_, ?_⟩
                       · simp [Event.isWrite, Request.isWrite]; exact h_rw_w_ce
                       · simp [Event.down]; exact h_nd_ce
-                      · -- isClusterCache: same cache entry as de.eReq → same cluster
-                        constructor
-                        · simp [Event.isCacheEvent]
-                        · -- ce_trans at same struct as de.eReq (from eventsUpToEntry)
-                          have hat := b.eventsUpToEntry_at_e_entry (n := n)
-                            (Event.cacheEvent de.eReq) _ he_trans_in_up
-                          simp only [Event.protocol, he_tc] at hat ⊢
-                          sorry -- extract cluster protocol from same struct as de.eReq
-                      · -- sameProtocol: chain ce_trans → de.eReq → de → e_d
-                        sorry
-                      · -- CLE.oEnd ≤ e_d.oEnd: depends on sorry #1
-                        sorry
+                      · -- isClusterCache + sameProtocol + CLE.oEnd: sorry
+                        exact sorry
+                      · exact sorry
+                      · exact sorry
                   · -- Default: preserves req. h_eReq_read gives .r ≠ .w.
                     simp [Event.req] at h_rw
                     rw [h_eReq_read] at h_rw; simp at h_rw)
