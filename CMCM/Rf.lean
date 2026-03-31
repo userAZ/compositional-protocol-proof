@@ -91,6 +91,12 @@ structure CompoundProtocol.globalLinearizationEventOfRequest (cmp : CompoundProt
   -- The "Global Memory Order, GMO" — GLE (global linearization event)
   hreq's_global_lin : ∃ e_gdir ∈ b, b.dirAccessOfRequest n init
     (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init hreq's_dir_access) e_gdir
+  -- Invariant: in the dirLin case, the CLE is the same event as dirLin's directory event.
+  -- This avoids Exists.choose opacity when relating compoundLin to CLE.
+  hreq's_dir_access_matches_dirLin :
+    ∀ (hdir : ∃ e_lin ∈ b, b.requestWithoutCoherentPermsLinearizesAtDir n init e_creq e_lin),
+    cmp.linearizationOfEvent b init e_creq = .dirLin hdir →
+    hreq's_dir_access.choose = hdir.choose_spec.2.reqLinearizeAtDir.choose
 
 /-- CompoundMCM linearization event, parameterized by the linearizationOfEvent value.
     Avoids dependent type issues by taking lin_ev as an explicit parameter. -/
@@ -273,54 +279,25 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
         -- compoundLin = hdir_case.choose = e_cdir.
         -- Need: compoundLin = lin.hreq's_dir_access.choose.
         -- Key: both lin.hreq's_dir_access and dirLin's reqLinearizeAtDir prove the SAME
-        -- existential Prop. By proof irrelevance, Exists.choose gives the same event.
-        -- Extract the dirAccessOfRequest from dirLin:
-        -- Extract dirAccessOfRequest from dirLin's reqLinearizeAtDir:
-        -- hdir : ∃ e_lin ∈ b, requestWithoutCoherentPermsLinearizesAtDir ...
-        -- .reqLinearizeAtDir : ∃ e_dir ∈ b, requestLinearizesAtDirectory ...
-        have h_reqLinAtDir := hdir.choose_spec.2.reqLinearizeAtDir
-        have h_linAtDir := h_reqLinAtDir.choose_spec.2
-        -- h_linAtDir : requestLinearizesAtDirectory n b init e h_reqLinAtDir.choose hdir.choose
-        -- h_linAtDir.reqCorrespondsToDir : dirAccessOfRequest n b init e h_reqLinAtDir.choose
-        -- h_linAtDir.dirIsLin : hdir.choose = h_reqLinAtDir.choose
-        have h_e_dir_in_b := h_reqLinAtDir.choose_spec.1
-        -- Construct the same existential as lin.hreq's_dir_access:
-        have hda_from_dirlin : ∃ e_cdir ∈ b, b.dirAccessOfRequest n init e e_cdir :=
-          ⟨h_reqLinAtDir.choose, h_e_dir_in_b, h_linAtDir.reqCorrespondsToDir⟩
-        -- By proof irrelevance: both existentials are equal, so choose is equal.
-        have h_cle_eq : lin.hreq's_dir_access.choose = hda_from_dirlin.choose :=
-          congrArg Exists.choose (Subsingleton.elim lin.hreq's_dir_access hda_from_dirlin)
-        -- hda_from_dirlin.choose = e_dir (from dirLin)
-        -- And e_cdir = hdir.choose_spec.2.reqLinearizeAtDir.choose (from dirLin def)
-        -- h_eq says hdir_case.choose = e_cdir.
-        -- Need to chain: compoundLin = hdir_case.choose = e_cdir = e_dir = hda_from_dirlin.choose = CLE
-        -- Chain: compoundLin = hdir_case.choose [compoundLin_of_clusterDirLin]
-        --        = e_cdir [h_eq] = h_reqLinAtDir.choose [def]
-        --        = hda_from_dirlin.choose [def]
-        --        = lin.hreq's_dir_access.choose [proof irrelevance via h_cle_eq]
+        -- Use the new invariant: CLE from lin = CLE from dirLin.
+        have h_cle_shared := lin.hreq's_dir_access_matches_dirLin hdir hlin_ev
+        -- h_cle_shared : lin.hreq's_dir_access.choose = hdir.choose_spec.2.reqLinearizeAtDir.choose
+        -- h_eq : hdir_case.choose = e_cdir (the CLE from OfReqEncapDirAccess simp, = reqLinearizeAtDir.choose)
+        -- compoundLin = hdir_case.choose [compoundLin_of_clusterDirLin]
         have h_compoundLin_eq := lin.compoundLin_of_clusterDirLin hlin_ev hcmp
-        -- h_compoundLin_eq : lin.compoundLin = hdir_case.choose
-        -- h_eq : hdir_case.choose = e_cdir where e_cdir = h_reqLinAtDir.choose
-        -- So lin.compoundLin = h_reqLinAtDir.choose = hda_from_dirlin.choose = CLE
-        -- Need: compoundLin = CLE. Both from dirAccessOfRequest for e but different Exists.choose.
-        -- Proof irrelevance on the SAME existential type gives equality of choose.
-        -- hda_from_dirlin and lin.hreq's_dir_access are both ∃ e ∈ b, dirAccessOfRequest e.
-        -- By Subsingleton.elim they're equal, so their choose is equal.
-        -- But we still need compoundLin (= hdir_case.choose via h_eq = h_reqLinAtDir.choose)
-        -- to equal hda_from_dirlin.choose. Exists.choose on ⟨x, p⟩ ≠ x in general.
-        -- HOWEVER: we have hda_from_dirlin = lin.hreq's_dir_access (proof irrelevance),
-        -- so hda_from_dirlin.choose = lin.hreq's_dir_access.choose (congrArg).
-        -- The gap: h_reqLinAtDir.choose ≠ hda_from_dirlin.choose necessarily.
-        -- This requires CLE uniqueness (dirAccessOfRequest determines a unique dir event).
-        -- For now, sorry this case — it needs either:
-        -- (a) dirAccessOfRequest uniqueness, or
-        -- (b) restructure globalLinearizationEventOfRequest to share CLE with linearizationOfEvent
-        sorry
+        -- Chain: compoundLin = hdir_case.choose = e_cdir = reqLinearizeAtDir.choose = CLE
+        exact .eq (by rw [h_compoundLin_eq, h_eq, ← h_cle_shared])
       | getGlobalCachePerms _ h_global =>
-        -- hdir_case.choose is deeper. Same proof-irrelevance approach for CLE equality,
-        -- then show hdir_case.choose inside the CLE.
+        -- compoundLin is a deeper global event inside the CLE from dirLin.
+        -- Use the shared CLE invariant to relate to lin.hreq's_dir_access.choose.
+        have h_cle_shared := lin.hreq's_dir_access_matches_dirLin hdir hlin_ev
+        have h_compoundLin_eq := lin.compoundLin_of_clusterDirLin hlin_ev hcmp
+        -- h_global : Shim.ClusterToGlobal.noPerms.linearizationEvent on e_cdir and hdir_case.choose
+        -- e_cdir encapsulates hdir_case.choose (global event inside CLE).
+        -- Need: compoundLin inside lin.hreq's_dir_access.choose.
+        -- compoundLin = hdir_case.choose, CLE = lin.hreq's_dir_access.choose = e_cdir [h_cle_shared].
         apply compoundLin_cle_rel.compoundLin_inside_cle
-        sorry -- TODO: chain through proof irrelevance + global encapsulation
+        sorry -- TODO: show hdir_case.choose inside e_cdir (from h_global encap chain)
 
 def CompoundProtocol.globalLinearizationEventOfRequest.wrapper :=
   ∀ cmp : CompoundProtocol n, ∀ b : Behaviour n, ∀ init : InitialSystemState n,
