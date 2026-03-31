@@ -3710,9 +3710,8 @@ private lemma cacheEvent_Vd_transition_isNcWeakWrite
   match hd : ce.down with
   | true =>
     exfalso; simp [hd] at hs_Vd
-    -- DowngradeState never produces Vd from non-Vd.
-    -- Exhaustive case split on coherent, consistency, NC types.
-    -- Each case: DowngradeState gives Vc/I/s/MRS, none = Vd when s ≠ Vd.
+    -- hs_Vd : ce.req.DowngradeState s = Vd, hs_ne_Vd : s ≠ Vd.
+    -- DowngradeState never produces Vd from non-Vd. Exhaustive sorry.
     sorry
   | false =>
     simp [hd] at hs_Vd
