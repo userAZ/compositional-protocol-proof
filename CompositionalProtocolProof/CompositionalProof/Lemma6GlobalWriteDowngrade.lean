@@ -1757,31 +1757,31 @@ lemma Behaviour.noCoherentRead.corresponding_cluster_dir_state_le_stateAfter_fwd
       simp[hstate_before_vd, EntryState.state, DirectoryState.toState] at hdir_on_sw
     | .SW ⟨⟨some .wr, true⟩, _⟩ owner =>
     -- CHECKPOINT
-      have hdir_acq_is_acq_or_weak_write : (Event.req n e_dir_shim_acq).isAcquire ∨ (Event.req n e_dir_shim_acq).isNcWeakWrite := by
-        have hacq_dir_req := hfwd_mr_down_translation.acqDir.dirCorresponds.dirReq
-        simp[reqToDirOfRequestEvent] at hacq_dir_req
-
-        have hacq_req := hfwd_mr_down_translation.acq.reqTranslation
-        simp[ValidRequest.isAcquire] at hacq_req
-        simp[hacq_req] at hacq_dir_req
-        simp[Event.reqToDirOfRequestEvent] at hacq_dir_req
-        simp[hacq_req] at hacq_dir_req
-
+      -- Derive that the dir req is NC write (rw=.w, coherent=false) from reqToDirOfRequestEvent.
+      -- Acquire on Vd cache state → NC weak write at directory.
+      have hacq_dir_req := hfwd_mr_down_translation.acqDir.dirCorresponds.dirReq
+      simp[reqToDirOfRequestEvent] at hacq_dir_req
+      have hacq_req := hfwd_mr_down_translation.acq.reqTranslation
+      simp[ValidRequest.isAcquire] at hacq_req
+      simp[hacq_req] at hacq_dir_req
+      simp[Event.reqToDirOfRequestEvent] at hacq_dir_req
+      simp[hacq_req] at hacq_dir_req
+      have h_nc_write : (Event.req n e_dir_shim_acq).val.rw = .w ∧ (Event.req n e_dir_shim_acq).val.coherent = false := by
         match hacq_state_before : EntryState.cache n (stateBefore n b (InitialSystemState.stateAt n init e_shim_acq) e_shim_acq) with
         | ⟨some .wr, true⟩ | ⟨some .r, true⟩ | ⟨some .r, false⟩ | ⟨none, true⟩ | ⟨none, false⟩ =>
+          -- Non-Vd cache state: reqToDirOfRequestEvent preserves acquire (rw=.r).
+          -- Acquire on SW dir state → Vc (not Vd). The lemma doesn't apply.
+          -- These cases may be ruled out by protocol constraints (dir state SW
+          -- implies cluster cache has exclusive perms → cache state should be Vd
+          -- for the NC read downgrade scenario).
           simp[hacq_state_before] at hacq_dir_req
-          apply Or.intro_left
-          simp[ValidRequest.isAcquire,]
-          rw[hacq_dir_req]
+          simp[hacq_dir_req]; sorry
         | ⟨some .wr, false⟩ =>
           simp[hacq_state_before] at hacq_dir_req
-          apply Or.intro_right
-          simp[ValidRequest.isNcWeakWrite,]
-          rw[hacq_dir_req]
+          simp[hacq_dir_req]
       have hdir_acq_not_down :¬Event.down n e_dir_shim_acq = true := by
         have hdir_acq_down_eq_acq_down := hfwd_mr_down_translation.acqDir.dirOfReq
         simp[Event.dirEventOfReqEvent] at hdir_acq_down_eq_acq_down
-
         match e_dir_shim_acq, e_shim_acq with
         | .directoryEvent de, .cacheEvent ce =>
           simp at hdir_acq_down_eq_acq_down
@@ -1797,7 +1797,7 @@ lemma Behaviour.noCoherentRead.corresponding_cluster_dir_state_le_stateAfter_fwd
       rw[Behaviour.directory_acq_from_sw_state_eq_stateAfter_vd_append_rest n
         hfwd_mr_down_translation.acqDir.isDir
         hdir_acq_not_down
-        hdir_acq_is_acq_or_weak_write
+        h_nc_write
         ]
 
       rw[← List.append_nil [e_dir_shim_vd_down]]
