@@ -235,6 +235,7 @@ structure WriteRead.noEvictBetween.cond (b : Behaviour n) (init : InitialSystemS
   noWriteBtn : Event.Between.noWrite b init e_w e_r_down e_w_cle e_r_cle
   noEvictBtn : Event.Between.noEvict b e_w e_r_down
   wObRDown : e_w.OrderedBefore n e_r_down
+  wCleObCdir : e_w_cle.OrderedBefore n e_r_cle
 
 def Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)

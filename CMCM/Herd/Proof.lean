@@ -1385,93 +1385,10 @@ theorem step_to_ordering
             | notImmPred hasPermsCase =>
               cases hasPermsCase with
               | noEvictBetween w =>
-                -- noEvictBetween: use encapDir + dir_ordered for CLE_w OB cdir_down
-                have hPDC := w.gdownEncapProxyAndDirAndCDown
-                have hcdir_spec := hPDC.encapDir.existsRClusterDirDown.choose_spec
-                have hencap_rel := hcdir_spec.2.2.2.2.2
-                -- Both CLE_w and cdir_down are directory events
-                have hcdir_isdir := hcdir_spec.2.1
-                have hcle_isdir := h.w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-                -- Extract DirectoryEvent from both, use dir_ordered
-                match h_cdir_ev : hPDC.encapDir.existsRClusterDirDown.choose, hcdir_isdir with
-                | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
-                | .directoryEvent de_cdir, _ =>
-                  match h_cle_ev : h.w_lin.hreq's_dir_access.choose, hcle_isdir with
-                  | .cacheEvent _, h => simp [Event.isDirectoryEvent] at h
-                  | .directoryEvent de_cle, _ =>
-                    cases (b.orderedAtEntry.dir_ordered de_cle de_cdir).ordered with
-                    | inl hob_dir =>
-                      -- CLE_w OB cdir_down (as DirectoryEvent.OrderedBefore = Nat inequality)
-                      -- Construct obEncap directly on the matched terms
-                      exact .obEndLt (.directoryEvent de_cdir)
-                        (show (Event.directoryEvent de_cle).OrderedBefore n (.directoryEvent de_cdir) from hob_dir)
-                        (by rw [← hw₂, ← h_cdir_ev]; cases hencap_rel with
-                            | cleEncap henc => exact henc.right
-                            | gcacheEncap _ hlt => exact hlt)
-                        (by simp [Event.isDirectoryEvent])
-                    | inr hob_dir =>
-                      -- cdir OB CLE_w: derive False via lin(cdir).
-                      -- cdir is a directory event. If down=true, dirAccessOfRequest is vacuous.
-                      -- Check if cdir has down=true from the translateDirectoryEvent structure.
-                      exfalso
-                      -- Try: lin(cdir) for the directory event. If all dirAccessOfRequest
-                      -- cases are vacuous (like onDirVd), we get False directly.
-                      have hda_cdir := (h.hknow_dir_access compound b init
-                        (Event.directoryEvent de_cdir)).hreq's_dir_access.choose_spec.2
-                      cases hda_cdir with
-                      | encapDir _ hencap_cdir =>
-                        -- dirOfReq for (dir, dir) = False
-                        have := hencap_cdir.dirOfReq
-                        match (h.hknow_dir_access compound b init (Event.directoryEvent de_cdir)).hreq's_dir_access.choose, hencap_cdir.isDir with
-                        | .directoryEvent _, _ =>
-                          simp [Event.isDirEventOfReqEvent, Event.dirEventOfReqEvent] at this
-                        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-                      | orderBeforeDir _ hexists_pred hpred_enc _ _ _ _ _ =>
-                        -- dirOfReq : CLE.isDirEventOfReqEvent hexists_pred.choose.
-                        -- CLE is a dir event (from hpred_enc.isDir).
-                        -- hexists_pred.choose is the predecessor of de_cdir at the same
-                        -- directory entry → it's a directory event.
-                        -- isDirEventOfReqEvent(dir_CLE, dir_predecessor) = False → contradiction.
-                        have hdr := hpred_enc.dirOfReq
-                        -- The predecessor is at de_cdir's entry (from ImmediateBottomPred).
-                        -- de_cdir is a directory event → directory entry → predecessor is directory.
-                        -- If predecessor were a cache event, its struct (Struct.cache) wouldn't
-                        -- match de_cdir's struct (Struct.directory) → contradiction with same entry.
-                        have hpred_spec := hexists_pred.choose_spec
-                        have hpred_is_bottom := hpred_spec.2.isBottomPred
-                        -- The predecessor is a bottom event at de_cdir's entry.
-                        -- From IsBottomEvent: eventAtEntry → eAtStruct gives same struct as de_cdir.
-                        -- de_cdir struct = Struct.directory → predecessor struct = Struct.directory → dir event.
-                        match hpred_ev : hexists_pred.choose with
-                        | .directoryEvent _ =>
-                          exfalso
-                          match (h.hknow_dir_access compound b init (Event.directoryEvent de_cdir)).hreq's_dir_access.choose, hpred_enc.isDir with
-                          | .directoryEvent _, _ =>
-                            simp [Event.dirEventOfReqEvent, hpred_ev] at hdr
-                          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-                        | .cacheEvent ce_pred =>
-                          -- predecessor is cache at a directory entry → contradiction.
-                          -- The predecessor and de_cdir are at the same entry (from ImmediateBottomPred).
-                          -- de_cdir has directory struct. Cache events have cache struct.
-                          -- struct mismatch → contradiction.
-                          exfalso
-                          -- dirOfReq(dir_CLE, cache_pred) = matchesCacheEvent.
-                          -- matchesCacheEvent requires CLE.eReq = ce_pred.
-                          -- The CLE is from lin(de_cdir). Its eReq is... opaque.
-                          -- Simpler: just use simp on hdr with the matched terms.
-                          match (h.hknow_dir_access compound b init (Event.directoryEvent de_cdir)).hreq's_dir_access.choose, hpred_enc.isDir with
-                          | .directoryEvent _, _ =>
-                            -- orderBeforeDir sub-case: CLE is dir, predecessor is cache.
-                            -- dirOfReq(dir, cache) = matchesCacheEvent — might hold.
-                            -- Fix: add CLE_w OB cdir field to noEvictBetween.cond.wrapper
-                            -- (like evictBetween.cond has wObRDown : CLE_w OB cdir).
-                            -- Then dir_ordered is unnecessary and this case doesn't arise.
-                            exact sorry
-                          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-                      | orderAfterDir hweak_cdir _ _ _ =>
-                        -- reqCache for dir event = False
-                        exact absurd (show Event.isCacheEvent n (Event.directoryEvent de_cdir) from hweak_cdir.reqCache)
-                          (by simp [Event.isCacheEvent])
+                -- noEvictBetween: CLE_w OB cdir from wCleObCdir field.
+                -- Use from_encap_wob directly — no dir_ordered needed.
+                exact from_encap_wob w.gdownEncapProxyAndDirAndCDown.encapDir
+                  w.noEvictBetween.wCleObCdir
               | evictBetween evict =>
                 exact from_encap_wob evict.encapProxyAndDir evict.evictBetween.wObRDown
           | wNoPermsAfter _ _ rCle =>
