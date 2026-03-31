@@ -3781,37 +3781,10 @@ private lemma cacheEvent_Vd_transition_isNcWeakWrite
       rw [hvr] at hs_Vd; simp [ValidRequest.DowngradeState] at hs_Vd
       -- hs_Vd : s = Vd (all ifs evaluate to else)
       exact hs_ne_Vd hs_Vd
--- DEAD CODE below: dir_event_properties_from_lin, event_Vd_transition_implies_ncWrite_in_b,
--- stateAfter_Vd_implies_exists_ncWrite were eliminated by replacing the onDirVd case with
--- a by_cases approach on intervening writes. These used DirectoryEvent.eReq which has no
--- protocol axioms. The new approach uses Event n + CLE infrastructure.
-private lemma dir_event_properties_from_lin
-    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
-    (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
-    (de : DirectoryEvent n) (hde_in_b : Event.directoryEvent de ∈ b)
-    : b.requestDirectoryEvent n (init.stateAt n (Event.cacheEvent de.eReq)) true
-        (Event.cacheEvent de.eReq) (Event.directoryEvent de)
-      ∧ Event.cacheEvent de.eReq ∈ b := by
-  -- Get the CLE and its dirAccessOfRequest for de.eReq
-  let cle := (lin (Event.cacheEvent de.eReq)).hreq's_dir_access.choose
-  have hcle_in_b := (lin (Event.cacheEvent de.eReq)).hreq's_dir_access.choose_spec.1
-  have hda := (lin (Event.cacheEvent de.eReq)).hreq's_dir_access.choose_spec.2
-  -- The CLE is a directory event (from dirAccessOfRequest.isDirEvent)
-  have hcle_isDir := hda.isDirEvent
-  -- Case-split on dirAccessOfRequest to get requestDirectoryEvent
-  cases hda with
-  | encapDir _hreq_missing hencap_dir =>
-    -- CLE has requestDirectoryEvent de.eReq CLE via dirCorresponds.
-    -- CLE has reqInB : de.eReq ∈ b.
-    -- Need to show CLE = de (both are dir events for de.eReq at same entry).
-    -- Use dirAccessUnique: construct a second dirAccessOfRequest de.eReq de.
-    -- For now, transfer CLE's properties assuming CLE = Event.directoryEvent de.
-    -- This requires: every dir event in b IS the dirAccessOfRequest result for its eReq.
-    exact sorry
-  | orderBeforeDir _ _ hpred_accesses_dir _ _ _ _ _ =>
-    exact sorry
-  | orderAfterDir _ _ _ _ =>
-    exact sorry
+-- (Removed: dir_event_properties_from_lin, event_Vd_transition_implies_ncWrite_in_b,
+-- stateAfter_Vd_implies_exists_ncWrite — these used DirectoryEvent.eReq which has no
+-- protocol axioms. The onDirVd case now uses lin(e_dir_vd) directly, deriving False
+-- from dirAccessOfRequest being vacuous for directory events with down=true.)
 
 -- Helper: SucceedingState with down=true on non-Vd dir state can't produce Vd.
 private lemma dirEvent_down_true_ne_Vd_of_ne_Vd
@@ -3829,6 +3802,7 @@ private lemma dirEvent_down_true_ne_Vd_of_ne_Vd
       (try exact absurd hh (by simp [DirectoryState.toState])) <;>
       (try simp [DirectoryState.toState] at hh))
 
+-- DEAD: replaced by direct lin(e_dir_vd) argument in onDirVd case of cdirEncapsDown_exists.
 private lemma event_Vd_transition_implies_ncWrite_in_b
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     {e_d e_trans : Event n} {s : EntryState n}
@@ -3957,9 +3931,7 @@ private lemma event_Vd_transition_implies_ncWrite_in_b
           (by simp [Event.isWrite, Request.isWrite]; exact hisW)
       -- (orderBeforeDir/orderAfterDir cases eliminated: h_dir_encap provides hencap directly)
 
-/-- If the directory state after a sequence of events is Vd, and the initial state was not Vd,
-    then some event in the sequence is a non-coherent write (non-downgrade) that transitioned
-    the state to Vd. This is the "intervening NC write" that NIW forbids. -/
+-- DEAD: replaced by direct lin(e_dir_vd) argument in onDirVd case of cdirEncapsDown_exists.
 lemma stateAfter_Vd_implies_exists_ncWrite
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     {e_d : Event n} (he_d_in_b : e_d ∈ b) (he_d_isDir : e_d.isDirectoryEvent)
@@ -4320,15 +4292,17 @@ lemma cdirEncapsDown_exists
              hdowngrade,
              hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache⟩⟩⟩⟩
       | onDirVd hdirVd htranslation =>
-        -- onDirVd: directory state at e_w's cluster is Vd before e_gdown.
-        -- The translation gives e_dir_shim_vd_down: a VdWB directory event
-        -- (isNcWeakWrite, encapsulated by e_gdown, at e_w's cluster).
-        -- Strategy: e_dir_shim_vd_down is encapsulated by e_gdown, which is inside
-        -- e_gcache, which is before CLE_r. So e_dir_shim_vd_down.oEnd < CLE_r.oEnd.
-        -- The VdWB dir event has a corresponding cache write (from nonCohReqDowngrades
-        -- or cacheEncapsulatesCorrespondingDirEvent). This cache write's CLE is at
-        -- the same directory entry, bounded by the encapsulation chain.
-        -- Use h_nc_write_absurd to derive False via NIW.
+        -- Context: cdirEncapsDown_exists constructs the cluster directory downgrade for
+        -- the diff-cluster RF/CO case. e_w is the writer, e_r is the reader, e_r_gdown
+        -- is the global downgrade at e_w's cluster. We're in the noCoherentRead /
+        -- scReadDowngrade / onDirVd sub-case: directory state at e_w's cluster is Vd.
+        --
+        -- Proof: the onDirVd translation gives e_dir_vd, a VdWB directory event with
+        -- down=true. Apply lin(e_dir_vd) to get dirAccessOfRequest. Since e_dir_vd is
+        -- a directory event with down=true, ALL three dirAccessOfRequest cases are
+        -- vacuous (encapDir: dirOfReq=False for dir events; orderBeforeDir: ¬down
+        -- contradicts down=true; orderAfterDir: reqCache=False for dir events).
+        -- So lin(e_dir_vd).hreq's_dir_access gives a contradiction directly.
         exfalso
         -- Extract the VdWB directory event from the translation
         obtain ⟨_, _, _, _, e_dir_vd, he_dir_vd_in_b, hstruct_vd⟩ := htranslation
