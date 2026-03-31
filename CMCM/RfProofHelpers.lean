@@ -3711,7 +3711,15 @@ private lemma cacheEvent_Vd_transition_isNcWeakWrite
   | true =>
     exfalso; simp [hd] at hs_Vd
     -- hs_Vd : ce.req.DowngradeState s = Vd, hs_ne_Vd : s ≠ Vd.
-    -- DowngradeState never produces Vd from non-Vd. Exhaustive sorry.
+    simp only [ValidRequest.DowngradeState] at hs_Vd
+    -- Exhaustive: all cases give s, Vc, I, or MRS. None = Vd when s ≠ Vd.
+    -- DowngradeState case analysis: all branches give s, Vc, I, or MRS(c=true).
+    -- None = Vd when s ≠ Vd. Vc.p≠Vd.p. I.p≠Vd.p. MRS.c=true≠Vd.c=false.
+    -- Coherent Rel/Weak/Acq: if s ≤ Vc then s else Vc → both ≠ Vd.
+    -- Coherent SC: if s ≤ MRS then I else MRS → I≠Vd, MRS.c=true≠Vd.c=false.
+    -- NC weak read: if s = Vc then I else s → I≠Vd, s≠Vd.
+    -- NC weak write/Rel: if s = Vd then Vc else s → Vc≠Vd, s≠Vd.
+    -- Default: s≠Vd.
     sorry
   | false =>
     simp [hd] at hs_Vd
