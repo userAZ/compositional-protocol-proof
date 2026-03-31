@@ -200,7 +200,54 @@ lemma Behaviour.directory_acq_from_sw_state_eq_stateAfter_vd_append_rest
   | .cacheEvent _ =>
     simp[Event.isDirectoryEvent] at hacq_is_dir
 
-/- Something like this is probably the best way to break down the 3 lemmas -/
+-- Acquire (rw=.r, coherent=false, not downgrade) on SW dir state → Vc.
+-- DirectoryEvent.SucceedingState: down=false, ⟨.r, false, _⟩ → NC read → on SW → Vc.
+lemma Behaviour.directory_acq_from_sw_state_eq_stateAfter_vc_append_rest
+  {es : List (Event n)} {e_dir_shim_acq : Event n}
+  (hacq_is_dir : e_dir_shim_acq.isDirectoryEvent)
+  (hacq_not_down : ¬ e_dir_shim_acq.down)
+  (h_acq : e_dir_shim_acq.req.isAcquire)
+  :
+  List.stateAfter n ([e_dir_shim_acq] ++ es) (Sum.inr (DirectoryState.SW ⟨SW, by simp⟩ owner)) = List.stateAfter n es (Sum.inr (DirectoryState.Vc ⟨Vc, by simp⟩))
+  := by
+  rw[List.stateAfter.eq_def]
+  simp[Event.SucceedingState]
+  match e_dir_shim_acq with
+  | .directoryEvent de_shim_acq =>
+    simp [DirectoryEvent.SucceedingState]
+    simp[Event.down] at hacq_not_down
+    simp[hacq_not_down]
+    simp[Event.req, ValidRequest.isAcquire] at h_acq
+    simp[h_acq]
+    simp[EntryState.directory]
+  | .cacheEvent _ =>
+    simp[Event.isDirectoryEvent] at hacq_is_dir
+
+-- VdWB downgrade (NCWeakWrite, down=true) on Vc dir state → Vc (identity).
+-- DirectoryEvent.SucceedingState: down=true → DowngradeState.
+-- DowngradeState NCWeakWrite on Vc: coherent=false → if NCWeakWrite∨RelWrite → if s=Vd then Vc else s.
+-- s=Vc ≠ Vd → result = s = Vc.
+lemma Behaviour.directory_vd_downgrade_from_vc_state_eq_stateAfter_vc_append_rest
+  {es : List (Event n)} {e_dir_shim_vd_down : Event n}
+  (hvd_is_dir : e_dir_shim_vd_down.isDirectoryEvent)
+  (hvd_is_down : e_dir_shim_vd_down.down)
+  (hvd_is_nc_weak_write : e_dir_shim_vd_down.req.isNcWeakWrite)
+  :
+  List.stateAfter n ([e_dir_shim_vd_down] ++ es) (Sum.inr (DirectoryState.Vc ⟨Vc, by simp⟩)) = List.stateAfter n es (Sum.inr (DirectoryState.Vc ⟨Vc, by simp⟩))
+  := by
+  rw[List.stateAfter.eq_def]
+  simp[Event.SucceedingState]
+  match e_dir_shim_vd_down with
+  | .directoryEvent de =>
+    simp [DirectoryEvent.SucceedingState]
+    simp[Event.down] at hvd_is_down
+    simp[hvd_is_down]
+    simp[Event.req, ValidRequest.isNcWeakWrite] at hvd_is_nc_weak_write
+    simp[hvd_is_nc_weak_write]
+    simp[EntryState.directory]
+  | .cacheEvent _ =>
+    simp[Event.isDirectoryEvent] at hvd_is_dir
+
 lemma Behaviour.directory_vd_downgrade_from_vd_state_eq_stateAfter_vc_append_rest
   {es : List (Event n)} {e_dir_shim_vd_down : Event n}
   (hvd_is_dir : e_dir_shim_vd_down.isDirectoryEvent)

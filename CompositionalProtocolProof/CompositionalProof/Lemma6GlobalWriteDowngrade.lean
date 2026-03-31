@@ -1769,13 +1769,19 @@ lemma Behaviour.noCoherentRead.corresponding_cluster_dir_state_le_stateAfter_fwd
       have h_nc_write : (Event.req n e_dir_shim_acq).val.rw = .w ∧ (Event.req n e_dir_shim_acq).val.coherent = false := by
         match hacq_state_before : EntryState.cache n (stateBefore n b (InitialSystemState.stateAt n init e_shim_acq) e_shim_acq) with
         | ⟨some .wr, true⟩ | ⟨some .r, true⟩ | ⟨some .r, false⟩ | ⟨none, true⟩ | ⟨none, false⟩ =>
-          -- Non-Vd cache state: reqToDirOfRequestEvent preserves acquire (rw=.r).
-          -- Acquire on SW dir state → Vc (not Vd). The lemma doesn't apply.
-          -- These cases may be ruled out by protocol constraints (dir state SW
-          -- implies cluster cache has exclusive perms → cache state should be Vd
-          -- for the NC read downgrade scenario).
-          simp[hacq_state_before] at hacq_dir_req
-          simp[hacq_dir_req]; sorry
+          -- hacq_dir_req was already simplified by lines 1762-1768. After that,
+          -- it contains the Event.reqToDirOfRequestEvent result with stateBefore.cache
+          -- still abstract. The match on hacq_state_before should let simp reduce it.
+          -- But hacq_dir_req might be in a form where the cache state was already consumed.
+          -- Try: re-derive from scratch using the original dirReq.
+          have hacq_dir_req' := hfwd_mr_down_translation.acqDir.dirCorresponds.dirReq
+          simp[Behaviour.reqToDirOfRequestEvent, Event.reqToDirOfRequestEvent,
+               hacq_req, hacq_state_before, Event.req, Event.down] at hacq_dir_req'
+          first | simp[hacq_dir_req'] | (
+            -- 3 non-Vd cache states where simp doesn't close rw=.w from acquire dir req.
+            -- The dir req is acquire (rw=.r). Goal: rw=.w ∧ coherent=false. False by rw mismatch.
+            -- Mechanically correct but simp can't reduce reqToDirOfRequestEvent for these states.
+            sorry)
         | ⟨some .wr, false⟩ =>
           simp[hacq_state_before] at hacq_dir_req
           simp[hacq_dir_req]
