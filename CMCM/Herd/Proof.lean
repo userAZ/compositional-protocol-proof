@@ -1460,31 +1460,12 @@ theorem step_to_ordering
                           -- The CLE is from lin(de_cdir). Its eReq is... opaque.
                           -- Simpler: just use simp on hdr with the matched terms.
                           match (h.hknow_dir_access compound b init (Event.directoryEvent de_cdir)).hreq's_dir_access.choose, hpred_enc.isDir with
-                          | .directoryEvent de_cle_cdir, _ =>
-                            -- hdr says de_cle_cdir.matchesCacheEvent ce_pred.
-                            -- From matchesCacheEvent.correspondingCE: de_cle_cdir.eReq = ce_pred.
-                            -- But de_cle_cdir is from lin(de_cdir) → it's at the directory.
-                            -- ce_pred is a cache event. The matchesCacheEvent says the dir event's
-                            -- eReq field equals ce_pred. This is about the DirectoryEvent.eReq
-                            -- field, which exists structurally. So this CAN be true.
-                            -- The contradiction must come from elsewhere.
-                            -- Use: hpred_enc.reqEncapDir says hexists_pred.choose.Encapsulates CLE.
-                            -- hexists_pred.choose = .cacheEvent ce_pred (from hpred_ev).
-                            -- So ce_pred.Encapsulates de_cle_cdir. This means a cache event
-                            -- encapsulates a directory event — possible in the protocol.
-                            -- This sub-case might actually be reachable! The predecessor is a
-                            -- cache event whose CLE (de_cle_cdir) matches. In orderBeforeDir,
-                            -- the predecessor obtained perms for de_cdir.
-                            -- But de_cdir is a DIRECTORY EVENT → reqHasPerms evaluated on dir
-                            -- state gives junk → this whole orderBeforeDir case is suspect.
-                            -- Use lin(de_cdir) vacuity: de_cdir is a directory event.
-                            -- Actually we already established hda_cdir = orderBeforeDir.
-                            -- But for a directory event, reqHasPerms requires cache state
-                            -- which is junk (panic) for directory entries.
-                            -- The reqHasPerms might be vacuously true or false from junk.
-                            -- If false → reqMissingPerms → should have been encapDir case.
-                            -- If true → orderBeforeDir can hold. The predecessor CAN be cache.
-                            -- This is genuinely hard. Use sorry.
+                          | .directoryEvent _, _ =>
+                            -- orderBeforeDir sub-case: CLE is dir, predecessor is cache.
+                            -- dirOfReq(dir, cache) = matchesCacheEvent — might hold.
+                            -- Fix: add CLE_w OB cdir field to noEvictBetween.cond.wrapper
+                            -- (like evictBetween.cond has wObRDown : CLE_w OB cdir).
+                            -- Then dir_ordered is unnecessary and this case doesn't arise.
                             exact sorry
                           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                       | orderAfterDir hweak_cdir _ _ _ =>
