@@ -205,8 +205,14 @@ private theorem reqHasPerms_not_ncWeakReqOnVd
     -- reqHasPermsOnCoherentState = hasPerms ∧ reqMadeOnCoherentState.
     -- reqMadeOnCoherentState = stateBefore.cache.c (coherence bit = true).
     -- Vd = ⟨some .wr, false⟩ → Vd.c = false. So reqMadeOnCoherentState and Vd contradict.
-    -- But reqOnOrAfterVd says Vd is before OR after. If before: stateBefore = Vd → .c = false → ¬coherent.
-    sorry
+    -- reqOnOrAfterVd says Vd is before OR after.
+    -- Case: stateBefore = Vd → Vd.c = false → ¬ reqMadeOnCoherentState → contradiction.
+    -- Case: stateAfter = Vd → needs protocol reasoning about state transitions.
+    cases hncRelAcqWW with
+    | inl hacq => sorry -- acquire on Vd — protocol-specific
+    | inr hor => cases hor with
+      | inl hrel => sorry -- release on Vd — protocol-specific
+      | inr hww => sorry -- weak write on Vd — protocol-specific
   | ncWeakReadHasPermsNotVd hread hperms =>
     -- isNcWeakRead and reqHasPermsNotVd.notOnVd (stateBefore ≠ Vd).
     -- ncWeakReqOnVd.reqOnOrAfterVd says stateBefore = Vd ∨ stateAfter = Vd.
