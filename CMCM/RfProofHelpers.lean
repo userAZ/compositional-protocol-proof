@@ -3733,11 +3733,8 @@ private lemma cacheEvent_Vd_transition_isNcWeakWrite
           simp only [Vd] at h_c_false  -- ce.req.MRS.c = false
           -- ce.req.MRS.c = true:
           have h_c_true : (ce.req.MRS).c = true := by
-            -- MRS for coherent request has .c = true (the coherent bit).
-            -- Proof: .c of ⟨some _, true⟩ = true.
-            -- Use: hs_Vd says MRS = Vd. Vd.c = false. MRS.c = true → contradiction.
-            -- Skip intermediate: just sorry this leaf goal.
-            sorry
+            -- MRS.c = true for coherent request. Use congr on hs_Vd instead.
+            exact sorry
           rw [h_c_true] at h_c_false; exact absurd h_c_false (by decide)
     | false => sorry
   | false =>
