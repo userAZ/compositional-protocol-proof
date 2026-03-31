@@ -72,18 +72,15 @@ lemma wimmpredrCle_diff_cache_choose_case
     -- cache downgrade, bundled so the encapsulation is preserved (no Exists.choose mismatch).
     have hw_leaves_SW : b.reqLeavesStateAtLeast n e_w init SW :=
       coherent_write_leaves_at_least_SW hw_is_write hw_coherent hw_not_down hw_cluster.eAtCache
-    have hlin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e :=
-      fun e => hknow_dir_access cmp b init e
-    -- Get dir event + cache downgrade from cdirEncapsDown_exists (both from same source)
-    obtain ⟨e_cdir, he_cdir_in_b, he_cdir_isDir, he_cdir_proto, hcdir_lt_cle,
-      ⟨e_cache_down, he_cdown_in_b, hcdir_encap_down, hcdown_is_down, hcdown_is_cache⟩,
-      ⟨e_evict, he_evict_in_b, he_evict_isDir, hevict_lt_cle,
-       hcdir_ob_evict, he_evict_proto, he_evict_translatedDir⟩⟩ :=
-      cdirEncapsDown_exists hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster hw_not_down hlin
-    -- Construct encapProxyAndDirAndCDown using the bundled witnesses.
-    -- Both existsRClusterDirDown and existsRDownAtW use events from cdirEncapsDown_exists.
-    -- cdirEncapsDown: the encapsulation between e_cdir and e_cache_down comes from the same call.
-    sorry
+    have hencapPD := diffCache_coherent_encapProxyAndDir hw_c_and_g_lin hr_c_and_g_lin hw_in_b hw_cluster
+    by_cases hcdown : ∃ e_r_down ∈ b,
+      e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down
+    · -- Cache-level downgrade exists → use immPred
+      have hencapPDC : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin :=
+        { encapDir := hencapPD, existsRDownAtW := hcdown }
+      exact .wHasPermsAfter hw_leaves_SW (.immPred hw_imm_pred_r_cle hencapPDC)
+    · -- No cache-level downgrade → fall back to wCleAfter
+      exact .wCleAfter hr_cle_after
   · -- Non-coherent write: use rCleAfterWCle for the new constructors
     have hw_nc : e_w.isNonCoherent := isNonCoherent_of_not_isCoherent_write hw_is_write hw_coherent
     -- dirAccessOfRequest determines whether write has missing perms

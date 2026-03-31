@@ -318,12 +318,6 @@ structure Behaviour.clusterDown.encapDir (cmp : CompoundProtocol n) (b : Behavio
     ∧ e_r_cdir_down.isDirDownRW
       ∧ Event.clusterDirFromDiffProtocolRequest b init e_r e_r_cdir_down hr_c_and_g_lin
       ∧ Behaviour.clusterDown.encapDirRelation hr_c_and_g_lin e_r_cdir_down
-  /-- Cache downgrade encapsulated by the cluster directory downgrade.
-      Bundled here so both witnesses come from the same protocol axiom call
-      (avoiding opaque Exists.choose mismatch). From cdirEncapsDown_exists. -/
-  existsCacheDown :
-    ∃ e_cache_down ∈ b, existsRClusterDirDown.choose.Encapsulates n e_cache_down ∧
-      e_cache_down.down ∧ e_cache_down.isCacheEvent
 
 structure Behaviour.clusterDown.encapProxyAndDirAndCDown {cmp : CompoundProtocol n}
   {b : Behaviour n} {init : InitialSystemState n}
@@ -333,10 +327,6 @@ structure Behaviour.clusterDown.encapProxyAndDirAndCDown {cmp : CompoundProtocol
   encapDir : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin
   existsRDownAtW :
     ∃ e_r_down ∈ b, e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down
-  /-- The cluster directory downgrade encapsulates the cache downgrade.
-      From encapDir.existsCacheDown — both witnesses bundled at construction. -/
-  cdirEncapsDown :
-    encapDir.existsRClusterDirDown.choose.Encapsulates n existsRDownAtW.choose
 
 /-- An intervening directory write from a different-cluster cache write.
     The chain goes: e_w_inter (diff cluster) → CLE → global cache (ClusterToGlobal shim)

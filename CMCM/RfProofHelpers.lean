@@ -3524,8 +3524,7 @@ lemma diffCache_coherent_encapProxyAndDir
       exact {
         existsRClusterDirDown := ⟨e_dr, he_dr_in_b, he_dr_isDir, he_dr_proto,
           .readDown he_dr_isDirRead, he_dr_translated,
-          Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dr h_dr_end_before_cle⟩
-        existsCacheDown := sorry /- from coherentReadDowngrades.fwdPrevOwner.dirEncapDowngrade -/ }
+          Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dr h_dr_end_before_cle⟩ }
   | noCoherentRead hcorrespond _ downTranslation =>
     -- noCoherentRead: inline case analysis to preserve translateDirectoryEvent evidence.
     -- For onDirSW/onDirVd: the Vd dir event has isNcWeakWrite → isDirWrite.
@@ -3565,8 +3564,7 @@ lemma diffCache_coherent_encapProxyAndDir
     exact {
       existsRClusterDirDown := ⟨e_dir, he_dir_in_b, he_dir_isDir, he_dir_proto,
         he_dir_downRW, he_dir_translated,
-        Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩
-      existsCacheDown := sorry /- from cluster protocol axiom fwdPrevOwner.dirEncapDowngrade -/ }
+        Behaviour.clusterDown.encapDirRelation.gcacheEncap h_gcache_encap_dir h_dir_end_before_cle⟩ }
 
 -- onDirVd is eliminated via h_dir_ne_Vd parameter (from NIW at call sites):
 -- Any non-coherent write that transitions dir SW→Vd is an intervening write forbidden by NIW.

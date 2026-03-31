@@ -52,8 +52,7 @@ lemma evictOrReadBtn_diff_cache_choose_case
       by_cases hcdown : ∃ e_r_down ∈ b,
         e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down
       · have hencapPDC : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin :=
-          { encapDir := hencapPD, existsRDownAtW := hcdown,
-            cdirEncapsDown := sorry /- cluster-level requestDowngradePrevOwner.dirEncapDowngrade -/ }
+          { encapDir := hencapPD, existsRDownAtW := hcdown }
         exact .wHasPermsAfter hw_leaves_SW (.immPred h_imm hencapPDC)
       · exact .wCleAfter hr_cle_after
     · -- notImmPred: fall back to wCleAfter (no need for noEvict/noWrite/wObRDown)

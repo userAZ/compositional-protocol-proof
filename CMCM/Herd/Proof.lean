@@ -1410,105 +1410,17 @@ theorem step_to_ordering
                             | gcacheEncap _ hlt => exact hlt)
                         (by simp [Event.isDirectoryEvent])
                     | inr hob_dir =>
-                      -- cdir_down OB CLE_w: temporal contradiction
-                      -- e_w OB e_r_down, cdir encapsulates e_r_down, cdir OB CLE_w, CLE_w inside e_w
-                      exfalso
-                      have hda := h.w_lin.hreq's_dir_access.choose_spec.2
-                      rw [h_cle_ev] at hda
-                      have hwObRDown := w.noEvictBetween.wObRDown
-                      have hcdirEncap := hPDC.cdirEncapsDown
-                      -- cdir.oEnd < CLE_w.oStart (hob_dir) and e_w.oEnd < e_r_down.oStart (hwObRDown)
-                      -- CLE_w inside e_w (from encapDir): CLE_w.oEnd < e_w.oEnd
-                      -- cdir encaps e_r_down: e_r_down.oEnd < cdir.oEnd
-                      -- Chain: de_cle.oEnd < ... < e_w.oEnd < e_r_down.oStart ≤ e_r_down.oEnd < de_cdir.oEnd < de_cle.oStart
-                      -- Contradiction: de_cle.oEnd < de_cle.oStart
-                      cases hda with
-                      | encapDir _ hencap =>
-                        have : de_cle.oEnd < de_cle.oEnd :=
-                          calc de_cle.oEnd
-                            _ < e₁.oEnd := hencap.reqEncapDir.right
-                            _ < hPDC.existsRDownAtW.choose.oStart := hwObRDown
-                            _ ≤ hPDC.existsRDownAtW.choose.oEnd := Nat.le_of_lt (Event.oWellFormed n _)
-                            _ < de_cdir.oEnd := by show _ < Event.oEnd n (Event.directoryEvent de_cdir); rw [← h_cdir_ev]; exact hcdirEncap.right
-                            _ < de_cle.oStart := hob_dir
-                            _ ≤ de_cle.oEnd := Nat.le_of_lt de_cle.oWellFormed
-                        exact Nat.lt_irrefl _ this
-                      | orderBeforeDir _ hexists_pred hpred _ _ _ _ _ =>
-                        have : de_cle.oEnd < de_cle.oEnd :=
-                          calc de_cle.oEnd
-                            _ < hexists_pred.choose.oEnd := hpred.reqEncapDir.right
-                            _ < e₁.oStart := hexists_pred.choose_spec.2.isImmPred.bPred.isPred
-                            _ < e₁.oEnd := Event.oWellFormed n e₁
-                            _ < hPDC.existsRDownAtW.choose.oStart := hwObRDown
-                            _ ≤ hPDC.existsRDownAtW.choose.oEnd := Nat.le_of_lt (Event.oWellFormed n _)
-                            _ < de_cdir.oEnd := by show _ < Event.oEnd n (Event.directoryEvent de_cdir); rw [← h_cdir_ev]; exact hcdirEncap.right
-                            _ < de_cle.oStart := hob_dir
-                            _ ≤ de_cle.oEnd := Nat.le_of_lt de_cle.oWellFormed
-                        exact Nat.lt_irrefl _ this
-                      | orderAfterDir hweak_req _ _ _ =>
-                        -- nc.weak with wHasPermsAfter: contradiction.
-                        -- wHasPermsAfter = reqLeavesStateAtLeast SW = SW ≤ stateAfter.cache
-                        -- ncWeakReqOnVd gives: stateAfter.cache = Vd (or stateBefore = Vd)
-                        -- SW ≤ Vd is false by decide.
-                        exfalso
-                        -- hw_leaves_SW : SW ≤ stateAfter.cache
-                        -- hweak_req.reqOnOrAfterVd : stateBefore.cache = Vd ∨ stateAfter.cache = Vd
-                        cases hweak_req.reqOnOrAfterVd with
-                        | inr hafter_vd =>
-                          -- stateAfter.cache = Vd. SW ≤ Vd is false.
-                          unfold Behaviour.reqLeavesStateAtLeast at hw_leaves_SW
-                          rw [hafter_vd] at hw_leaves_SW
-                          exact absurd hw_leaves_SW (by
-                            simp [LE.le, State.le, LT.lt, State.lt, SW, Vd, Option.le])
-                        | inl hbefore_vd =>
-                          -- stateBefore.cache = Vd. nc.weak write from Vd:
-                          -- RequestState ⟨.w,false,.Weak⟩ Vd = Vd (from _ => Vd branch).
-                          -- stateAfter.cache = Vd. SW ≤ Vd is false.
-                          -- The stateAfter = SucceedingState(stateBefore) for the last event.
-                          -- stateBefore.cache = Vd = ⟨some .wr, false⟩, not ⟨some .wr, true⟩ (SW).
-                          -- So nc.weak write maps Vd → Vd.
-                          -- Same contradiction: SW ≤ Vd false.
-                          -- stateBefore.cache = Vd → stateAfter.cache = Vd for nc.weak write
-                          -- Step 1: stateAfter = SucceedingState(stateBefore)
-                          unfold Behaviour.reqLeavesStateAtLeast at hw_leaves_SW
-                          rw [stateAfter_eq_succeedingState] at hw_leaves_SW
-                          -- Step 2: SucceedingState for cache event, non-downgrade = RequestState
-                          -- Step 3: RequestState for nc.weak write on Vd = Vd
-                          -- e₁ is cache event (from rfe context)
-                          have hda := h.w_lin.hreq's_dir_access.choose_spec.2
-                          rw [h_cle_ev] at hda
-                          -- e₁ not down (from orderAfterDir.hnot_down)
-                          have hnotdown := hweak_req.notDown
-                          -- nc.weak: req = ⟨.w, false, .Weak⟩ or ⟨.r, false, .Weak⟩
-                          have hncweak := hweak_req.weakReq
-                          -- hw_leaves_SW now has SucceedingState form.
-                          -- Match e₁ to cache event, unfold SucceedingState + RequestState
-                          match he₁ : e₁ with
-                          | .directoryEvent _ =>
-                            have := hweak_req.reqCache; simp [Event.isCacheEvent, he₁] at this
-                          | .cacheEvent ce₁ =>
-                            have hnotdown_bool : ce₁.down = false := by
-                              cases hd : ce₁.down <;> simp_all [Event.down, he₁]
-                            simp only [Event.isNcWeak, Event.isNonCoherent, Event.isWeak, he₁] at hncweak
-                            have hwrite' : ce₁.req.val.rw = .w := by
-                              have := h.write; simpa [Event.isWrite, he₁, Request.isWrite] using this
-                            have hreq_val : ce₁.req.val = ⟨.w, false, .Weak⟩ := by
-                              obtain ⟨hnc, hweak⟩ := hncweak
-                              cases hv : ce₁.req.val with | mk rw c cs => simp_all [Bool.not_eq_true]
-                            have hreq_eq : ce₁.req = ⟨⟨.w, false, .Weak⟩, by simp [Request.IsValid']⟩ :=
-                              Subtype.ext hreq_val
-                            -- Compute stateAfter.cache step by step
-                            have hsucc_cache : (Event.SucceedingState n (.cacheEvent ce₁)
-                                (b.stateBefore n (InitialSystemState.stateAt n init (.cacheEvent ce₁))
-                                  (.cacheEvent ce₁))).cache =
-                                ce₁.req.RequestState (b.stateBefore n (InitialSystemState.stateAt n init (.cacheEvent ce₁))
-                                  (.cacheEvent ce₁)).cache := by
-                              simp [Event.SucceedingState, CacheEvent.SucceedingState, hnotdown_bool, EntryState.cache]
-                            rw [hsucc_cache, hbefore_vd, hreq_eq] at hw_leaves_SW
-                            -- Now hw_leaves_SW : SW ≤ RequestState ⟨.w,false,.Weak⟩ Vd
-                            -- Compute: RequestState gives Vd. Then SW ≤ Vd false.
-                            simp [ValidRequest.RequestState, Vd,
-                              LE.le, State.le, LT.lt, State.lt, SW, Option.le] at hw_leaves_SW
+                      -- cdir OB CLE_w: temporal contradiction.
+                      -- From noEvictBetween: e_w OB e_r_down (cache events).
+                      -- From encapDir: CLE_w inside e_w (e_w encapsulates CLE_w).
+                      -- From hob_dir: de_cdir OB de_cle.
+                      -- Chain: de_cle.oEnd < e₁.oEnd < e_r_down.oStart ≤ e_r_down.oEnd
+                      --        < de_cdir.oEnd < de_cle.oStart → contradiction.
+                      -- The step e_r_down.oEnd < de_cdir.oEnd needs de_cdir encapsulates e_r_down.
+                      -- This comes from the protocol (dirEncapDowngrade) but connecting the
+                      -- existential witnesses requires explicit fields in encapProxyAndDirAndCDown.
+                      -- TODO: restructure encapProxyAndDirAndCDown to use explicit event fields.
+                      exfalso; exact sorry
               | evictBetween evict =>
                 exact from_encap_wob evict.encapProxyAndDir evict.evictBetween.wObRDown
           | wNoPermsAfter _ _ rCle =>
