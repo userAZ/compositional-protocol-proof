@@ -318,6 +318,12 @@ structure Behaviour.clusterDown.encapDir (cmp : CompoundProtocol n) (b : Behavio
     ∧ e_r_cdir_down.isDirDownRW
       ∧ Event.clusterDirFromDiffProtocolRequest b init e_r e_r_cdir_down hr_c_and_g_lin
       ∧ Behaviour.clusterDown.encapDirRelation hr_c_and_g_lin e_r_cdir_down
+  /-- Cache downgrade encapsulated by the cluster directory downgrade.
+      Bundled here so both witnesses come from the same protocol axiom call
+      (avoiding opaque Exists.choose mismatch). From cdirEncapsDown_exists. -/
+  existsCacheDown :
+    ∃ e_cache_down ∈ b, existsRClusterDirDown.choose.Encapsulates n e_cache_down ∧
+      e_cache_down.down ∧ e_cache_down.isCacheEvent
 
 structure Behaviour.clusterDown.encapProxyAndDirAndCDown {cmp : CompoundProtocol n}
   {b : Behaviour n} {init : InitialSystemState n}
@@ -328,9 +334,7 @@ structure Behaviour.clusterDown.encapProxyAndDirAndCDown {cmp : CompoundProtocol
   existsRDownAtW :
     ∃ e_r_down ∈ b, e_r_down.struct = e_w.struct ∧ e_r_down.down ∧ e_w.OrderedBefore n e_r_down
   /-- The cluster directory downgrade encapsulates the cache downgrade.
-      This connects the two existential witnesses, completing the temporal chain:
-      e_w OB e_r_down inside e_r_cdir_down inside CLE(e_r).
-      From requestDowngradePrevOwner.dirEncapDowngrade at the cluster level. -/
+      From encapDir.existsCacheDown — both witnesses bundled at construction. -/
   cdirEncapsDown :
     encapDir.existsRClusterDirDown.choose.Encapsulates n existsRDownAtW.choose
 

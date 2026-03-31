@@ -76,7 +76,7 @@ lemma wimmpredrCle_diff_cache_choose_case
     · -- Cache-level downgrade exists → use immPred
       have hencapPDC : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin :=
         { encapDir := hencapPD, existsRDownAtW := hcdown,
-          cdirEncapsDown := sorry /- cluster-level requestDowngradePrevOwner.dirEncapDowngrade -/ }
+          cdirEncapsDown := sorry /- TODO: connect hencapPD.existsCacheDown to hcdown witness -/ }
       exact .wHasPermsAfter hw_leaves_SW (.immPred hw_imm_pred_r_cle hencapPDC)
     · -- No cache-level downgrade → fall back to wCleAfter
       exact .wCleAfter hr_cle_after
