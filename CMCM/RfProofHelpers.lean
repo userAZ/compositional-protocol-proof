@@ -4319,27 +4319,56 @@ lemma cdirEncapsDown_exists
            ⟨⟨e_r_gdown, he_r_gdown_in_b, e_r_grant, _he_r_grant_in_b,
              hdowngrade,
              hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache⟩⟩⟩⟩
-      | onDirVd hdirVd _ =>
-        -- onDirVd vacuous: the dir can't be Vd.
-        -- Unfold hdirVd and case-split on the NotEncap set.
-        -- onDirVd: prove dir ≠ Vd inline using consistent hdowngrade + shim
-        -- The hdowngrade and hg2c use the SAME e_r_gdown (no Exists.choose mismatch)
+      | onDirVd hdirVd htranslation =>
+        -- onDirVd: directory state at e_w's cluster is Vd before e_gdown.
+        -- The translation gives e_dir_shim_vd_down: a VdWB directory event
+        -- (isNcWeakWrite, encapsulated by e_gdown, at e_w's cluster).
+        -- Strategy: e_dir_shim_vd_down is encapsulated by e_gdown, which is inside
+        -- e_gcache, which is before CLE_r. So e_dir_shim_vd_down.oEnd < CLE_r.oEnd.
+        -- The VdWB dir event has a corresponding cache write (from nonCohReqDowngrades
+        -- or cacheEncapsulatesCorrespondingDirEvent). This cache write's CLE is at
+        -- the same directory entry, bounded by the encapsulation chain.
+        -- Use h_nc_write_absurd to derive False via NIW.
         exfalso
-        unfold Behaviour.Shim.Global.toCluster.clusterDirStateBefore at hdirVd
-        unfold Behaviour.latestDirectoryState.Before.GlobalCache at hdirVd
-        unfold Behaviour.stateOfSubsingletonEventSet at hdirVd
-        simp only [Set.toOption] at hdirVd
-        split at hdirVd
-        · -- Nonempty: e_d in set with stateAfter = Vd
-          -- Approach: by_cases on intervening write between e_w and e_gdown.
-          -- If YES → NIW contradiction.
-          -- If NO → directory state can't be Vd (e_w left it at SW, nothing changed it).
-          -- For now, sorry — to be filled with the by_cases argument.
-          -- Key: do NOT use DirectoryEvent.eReq. Use Event n + lin CLE infrastructure.
-          exact sorry
-        · -- ¬Nonempty: init state = I ≠ Vd
-          rename_i h_not_nonempty
-          simp only [Behaviour.eventToEntryState] at hdirVd
-          simp [InitialSystemState.entryStateAtStruct, EntryState.state] at hdirVd
-          have := b.initDirStateIsI init
-          simp_all [DirI, DirectoryState.toState, I, Vd]
+        -- Extract the VdWB directory event from the translation
+        obtain ⟨_, _, _, _, e_dir_vd, he_dir_vd_in_b, hstruct_vd⟩ := htranslation
+        -- e_dir_vd is a directory event at e_w's cluster, encapsulated by e_gdown
+        have he_dir_vd_encap := hstruct_vd.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap
+        have he_dir_vd_isDir := hstruct_vd.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir
+        -- e_dir_vd.oEnd < CLE_r.oEnd (chain: e_dir_vd < e_gdown < e_gcache < CLE_r)
+        have h_dir_vd_lt_cle : e_dir_vd.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd :=
+          Nat.lt_trans (gcache_encap_dir_chain hr_c_and_g_lin hdowngrade he_dir_vd_encap).2
+            (gcache_oEnd_lt_cle hr_c_and_g_lin)
+        -- Protocol: e_dir_vd is at e_w's cluster (from correspondingCluster)
+        have he_dir_vd_proto : e_dir_vd.protocol = e_w.protocol := by
+          have := hstruct_vd.gDownEncapVdWBDir.dirCorrespondToGlobalCache.clusterMatch.atCorrCluster
+          exact (correspondingCluster_protocol_eq hcorrespond this).symm.trans hp_eq
+        -- lin(e_dir_vd) gives dirAccessOfRequest for a directory event with down=true.
+        -- ALL cases of dirAccessOfRequest are vacuous:
+        --   encapDir: dirOfReq = False for directory events
+        --   orderBeforeDir: hnot_down contradicts down=true
+        --   orderAfterDir: ncWeakReqOnVd requires stateBefore = inl Vd, but dir events have inr
+        -- lin(e_dir_vd) for this directory event with down=true:
+        -- All dirAccessOfRequest cases are vacuous → False.
+        have hdown_true : e_dir_vd.down = true := of_eq_true hstruct_vd.gDownEncapVdWBDir.downgrade
+        have hda_vd := (lin e_dir_vd).hreq's_dir_access.choose_spec.2
+        cases hda_vd with
+        | encapDir _ hencap_vd =>
+          -- dirOfReq : CLE.isDirEventOfReqEvent e_dir_vd. For dir events this is False.
+          have hdr := hencap_vd.dirOfReq
+          match e_dir_vd, he_dir_vd_isDir with
+          | .directoryEvent _, _ =>
+            match (lin (Event.directoryEvent _)).hreq's_dir_access.choose, hencap_vd.isDir with
+            | .directoryEvent _, _ =>
+              simp [Event.isDirEventOfReqEvent, Event.dirEventOfReqEvent] at hdr
+            | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+        | orderBeforeDir _ _ _ _ _ hnot_down _ _ =>
+          exact hnot_down hdown_true
+        | orderAfterDir hweak _ _ _ =>
+          -- ncWeakReqOnVd.reqCache requires isCacheEvent. Dir events aren't cache events.
+          match e_dir_vd, he_dir_vd_isDir with
+          | .directoryEvent _, _ =>
+            exact absurd (show Event.isCacheEvent n (Event.directoryEvent _) from hweak.reqCache)
+              (by simp [Event.isCacheEvent])
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
