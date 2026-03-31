@@ -206,10 +206,11 @@ inductive CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_rel
       so compoundLin is a deeper global event encapsulated by the CLE. -/
   | compoundLin_inside_cle (h : lin.compoundLin.EncapsulatedBy n lin.hreq's_dir_access.choose)
 
-/-- Every request's compoundLin relates to its CLE in one of the three ways. -/
+/-- Every non-downgrade request's compoundLin relates to its CLE in one of these ways. -/
 theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
     (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    (hnotdown : ¬ e.down)
     : lin.compoundLin_cle_rel := by
   -- Case-split on linearizationOfEvent — this directly determines the compoundLinearizationEvent case.
   -- Then use dirAccessOfRequest to connect to the CLE.
@@ -251,12 +252,7 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
         -- Actually, extract ¬down: if down=true, the event is a downgrade.
         -- requestLin carries requestWithCoherentPermsLinearizes which doesn't exclude down.
         -- Use by_cases:
-        by_cases hdown : e.down
-        · -- down=true + encapDir + reqHasPerms: protocol-level contradiction.
-          -- A downgrade event that encapsulates a dir event AND has coherent perms.
-          -- This is protocol-impossible but requires domain reasoning about downgrades.
-          sorry -- TODO: downgrades with reqHasPerms contradict encapDir (protocol axiom)
-        · exact absurd h_reqHasPerms (reqHasPerms_not_reqMissingPerms hno_perms hdown)
+        exact absurd h_reqHasPerms (reqHasPerms_not_reqMissingPerms hno_perms hnotdown)
       | orderAfterDir hweak hsucc_encap _ _ =>
         -- orderAfterDir: CLE at successor of e. compoundLin = e (from clusterCacheLin).
         -- e OB successor, CLE inside successor → e OB CLE → compoundLin OB CLE.
@@ -333,8 +329,99 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
         -- e_cdir encapsulates hdir_case.choose (global event inside CLE).
         -- Need: compoundLin inside lin.hreq's_dir_access.choose.
         -- compoundLin = hdir_case.choose, CLE = lin.hreq's_dir_access.choose = e_cdir [h_cle_shared].
-        apply compoundLin_cle_rel.compoundLin_inside_cle
-        sorry -- TODO: show hdir_case.choose inside e_cdir (from h_global encap chain)
+        -- Need: compoundLin EncapsulatedBy CLE.
+        -- compoundLin = hdir_case.choose [compoundLin_of_clusterDirLin].
+        -- CLE = e_cdir [h_cle_shared: lin.hreq's_dir_access.choose = e_cdir].
+        -- h_global : noPerms.linearizationEvent on e_cdir and hdir_case.choose.
+        -- This gives e_cdir encapsulates hdir_case.choose through the global cache chain.
+        -- Use request_encapsulates_compound_linearization_event-like reasoning.
+        --
+        -- Actually: the existing lemma proves e.Encapsulates e_glin (through e→cdir→gcache→gdir).
+        -- I need cdir.Encapsulates e_glin (just cdir→gcache→gdir, omitting the first step).
+        -- The key evidence is in h_global after simp:
+        -- h_global unfolds to ∃ gcache_lin, globalCacheNoPermsReqDirectory gcache_lin hdir_case.choose
+        -- with encapGlobalCache giving cdir.Encapsulates gcache.
+        -- And in the dirLin case, gcache's dir event (= hdir_case.choose) is inside gcache.
+        --
+        -- For the EncapsulatedBy direction: hdir_case.choose inside CLE.
+        have h_cdir_isdir : (hdir.choose_spec.2.reqLinearizeAtDir.choose).isDirectoryEvent :=
+          hdir.choose_spec.2.reqLinearizeAtDir.choose_spec.2.isDir
+        -- Use request_encapsulates_compound_linearization_event but adapted for cdir.
+        -- Actually, let me simp h_global and extract the chain manually.
+        simp [Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent, h_cdir_isdir] at h_global
+        split at h_global
+        · -- noGlobalCache: False
+          exact absurd h_global (by simp)
+        · -- encapGlobalCache: extract gcache and chain
+          rename_i _ _ htranslation _
+          obtain ⟨hgcache_lin, hgcache_lin_cases⟩ := h_global
+          simp [Behaviour.compoundLinearizationEvent.globalCacheNoPermsReqDirectory] at hgcache_lin_cases
+          split at hgcache_lin_cases
+          · -- dirLin: hdir_case.choose = gdir. Chain: cdir encap gcache encap gdir.
+            rename_i hgcache_lin_ev hat_dir
+            apply compoundLin_cle_rel.compoundLin_inside_cle
+            -- Need: hdir_case.choose EncapsulatedBy CLE
+            -- hdir_case.choose = hat_dir.choose (from hgcache_lin_cases)
+            -- hat_dir : requestLinearizesAtDirectory → reqCorrespondsToDir : dirAccessOfRequest
+            -- In the encapDir case: gcache.Encapsulates gdir.
+            -- And cdir.Encapsulates gcache (from htranslation.encapGlobalCache).
+            -- Chain: gdir inside gcache inside cdir → gdir EncapsulatedBy cdir.
+            -- hgcache_lin_cases : hdir_case.choose = hat_dir.choose
+            -- hat_dir : ∃ e_lin ∈ b, requestWithoutCoherentPermsLinearizesAtDir ...
+            -- hat_dir.choose_spec.2.reqLinearizeAtDir : ∃ e_dir, requestLinearizesAtDirectory ...
+            -- requestLinearizesAtDirectory.reqCorrespondsToDir : dirAccessOfRequest
+            -- In encapDir case: gcache.Encapsulates gdir.
+            -- htranslation : clusterDirEncapCorrespondingGlobalCache → .encapGlobalCache : cdir.Encap gcache
+            -- Chain: cdir encap gcache encap gdir → gdir EncapsulatedBy cdir.
+            have h_cdir_encap_gcache := htranslation.choose_spec.right.encapGlobalCache
+            have h_gdir_lin := hat_dir.choose_spec.2.reqLinearizeAtDir.choose_spec.2
+            -- h_gdir_lin : requestLinearizesAtDirectory
+            -- h_gdir_lin.dirIsLin : hat_dir.choose = e_gdir (the global dir event)
+            -- h_gdir_lin.reqCorrespondsToDir : dirAccessOfRequest gcache e_gdir
+            cases h_gdir_lin.reqCorrespondsToDir with
+            | encapDir _ hgcache_encap_gdir =>
+              -- gcache.Encapsulates gdir. Chain with cdir.Encapsulates gcache.
+              have h_cdir_encap_gdir := Event.encap_encap_trans n h_cdir_encap_gcache hgcache_encap_gdir.reqEncapDir
+              -- h_cdir_encap_gdir : cdir.Encapsulates gdir
+              -- Need: hdir_case.choose EncapsulatedBy CLE
+              -- hdir_case.choose = hat_dir.choose (hgcache_lin_cases)
+              -- hat_dir.choose = gdir (h_gdir_lin.dirIsLin)
+              -- CLE = cdir (h_cle_shared)
+              -- So: gdir EncapsulatedBy cdir.
+              show lin.compoundLin.EncapsulatedBy n lin.hreq's_dir_access.choose
+              rw [h_compoundLin_eq, hgcache_lin_cases, h_gdir_lin.dirIsLin, h_cle_shared]
+              exact ⟨h_cdir_encap_gdir.left, h_cdir_encap_gdir.right⟩
+            | orderBeforeDir hgcache_has_perms _ _ _ _ _ _ _ =>
+              -- gcache has perms contradicts hat_dir having reqMissingPerms
+              exact absurd hgcache_has_perms (by
+                have := hat_dir.choose_spec.2.reqHasNoPerms
+                intro h; exact absurd h (reqHasPerms_not_reqMissingPerms this
+                  htranslation.choose_spec.right.gReqOfCDir.notDowngrade))
+            | orderAfterDir hweak_vd _ _ _ =>
+              -- Contradictory: global cache event's request is SC (from matchingOp),
+              -- but ncWeakReqOnVd.weakReq says it's ncWeak (non-coherent, weak).
+              -- matchingOp says req = ⟨rw, true, .SC⟩ (coherent=true, SC).
+              -- ncWeak says coherent=false, consistency=.Weak.
+              exfalso
+              have hmatch := htranslation.choose_spec.right.gReqOfCDir.matchingOp
+              have hweak := hweak_vd.weakReq
+              -- hweak : htranslation.choose.isNcWeak = isNonCoherent ∧ isWeak
+              -- hmatch : htranslation.choose.req = ⟨⟨_, true, .SC⟩, _⟩
+              -- isNonCoherent needs coherent=false, hmatch gives coherent=true.
+              -- Global cache event can't be ncWeak (matchingOp gives coherent=true, SC).
+              have htrans := htranslation.choose_spec.right
+              have hweak_req := hweak_vd.weakReq
+              -- Derive after matching on the event type:
+              match hge : htranslation.choose with
+              | .directoryEvent _ =>
+                simp [Event.isNcWeak, Event.isNonCoherent, hge] at hweak_req
+              | .cacheEvent ce =>
+                simp [Event.isNcWeak, Event.isNonCoherent, Event.isWeak, hge] at hweak_req
+                have hgreq_req := htrans.gReqOfCDir.matchingOp
+                simp [Event.req, hge] at hgreq_req
+                simp [hgreq_req] at hweak_req
+          · -- requestLin: False
+            exact absurd hgcache_lin_cases (by simp)
 
 def CompoundProtocol.globalLinearizationEventOfRequest.wrapper :=
   ∀ cmp : CompoundProtocol n, ∀ b : Behaviour n, ∀ init : InitialSystemState n,
