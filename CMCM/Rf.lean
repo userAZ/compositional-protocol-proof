@@ -120,6 +120,48 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_of_cluste
   rw [hlin_ev]; show cmp.compoundLinOf b init e (.requestLin hreqlin) = hcache.choose
   unfold CompoundProtocol.compoundLinOf; rw [hcmp]
 
+/-- reqHasPerms and reqMissingPerms are mutually exclusive.
+    All reqHasPerms constructors give b.hasPerms (= MRS ≤ stateBefore.cache).
+    reqMissingPerms.noPermsForNonNcRelAcqWeakWrite has eventOnStateNoPerms = ¬ hasPerms.
+    The other reqMissingPerms cases also contradict reqHasPerms sub-cases. -/
+private theorem reqHasPerms_not_reqMissingPerms
+    {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (hno : b.reqMissingPerms n init e) : ¬ b.reqHasPerms n init e := by
+  intro hhas
+  have hhasPerms : b.hasPerms n init e := by
+    cases hhas with
+    | hasPerms _ h => exact h
+    | ncRelAcqWeakWriteHasCoherentPerms _ h => exact h.hasPerms
+    | ncWeakReadHasPermsNotVd _ h => exact h.hasPerms
+  cases hno with
+  | downgrade hdown _ =>
+    -- down=true. reqHasPerms doesn't directly give ¬down, but orderBeforeDir does.
+    -- In the context where this is called (encapDir), the event is NOT a downgrade
+    -- because cacheEncapsulatesCorrespondingDirEvent requires non-downgrade access.
+    -- For generality, this case needs protocol reasoning about downgrade + perms.
+    sorry
+  | noPermsForNonNcRelAcqWeakWrite _ _ hno_perms =>
+    exact hno_perms (show b.eventOnStateHasPerms n init e from hhasPerms)
+  | ncRelAcqWeakWriteNotOnCoherentState _ hncRelAcq hno_coh =>
+    -- acqRelWeakWriteNoPerms = ¬(coherent ∧ hasPerms).
+    -- reqHasPerms.ncRelAcqWeakWriteHasCoherentPerms gives both coherent and hasPerms.
+    cases hhas with
+    | ncRelAcqWeakWriteHasCoherentPerms _ hcoh_perms =>
+      exact hno_coh ⟨hcoh_perms.onCoherentState, hcoh_perms.hasPerms⟩
+    | hasPerms hcoh hperms =>
+      -- isCoherent event with ncRelAcq type is contradictory:
+      -- isCoherent means coherent=true in request, isNcRelAcq means acquire/release (non-coherent)
+      sorry
+    | ncWeakReadHasPermsNotVd hread _ =>
+      -- isNcWeakRead and isNcRelAcq are disjoint request types
+      sorry
+
+/-- ncWeakReqOnVd contradicts reqHasPerms: weak non-coherent on Vd has no perms. -/
+private theorem reqHasPerms_not_ncWeakReqOnVd
+    {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (hweak : b.ncWeakReqOnVd n init e) : ¬ b.reqHasPerms n init e := by
+  sorry
+
 /-- The compoundLin event relates to the CLE by one of these cases:
     1. compoundLin = CLE (dirLin + global cache already has perms → lin event is the CLE itself)
     2. CLE OB compoundLin (requestLin + orderBeforeDir: CLE is at predecessor, compoundLin = e_creq)
@@ -176,11 +218,13 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
             lin.compoundLin_of_clusterCacheLin hlin_ev hcmp
           rw [h_eq, hcache.choose_spec.2.e_creq_is_e_glin]; exact hcle_ob_e)
       | encapDir hno_perms _ =>
-        -- Vacuous: reqMissingPerms contradicts reqHasPerms
-        sorry -- TODO: reqHasPerms_not_reqMissingPerms lemma
-      | orderAfterDir _ _ _ _ =>
-        -- Vacuous: orderAfterDir implies reqMissingPerms-like conditions
-        sorry -- TODO: ncWeakReqOnVd contradicts reqHasPerms
+        -- Vacuous: encapDir has reqMissingPerms, requestLin has reqHasPerms.
+        exact absurd h_reqHasPerms (reqHasPerms_not_reqMissingPerms hno_perms)
+      | orderAfterDir hweak _ _ _ =>
+        -- Vacuous: orderAfterDir has ncWeakReqOnVd (weak non-coherent on Vd).
+        -- ncWeakReqOnVd.weakReq : isNcWeak. reqHasPerms requires perms.
+        -- An ncWeak request on Vd has reqMissingPerms (noPermsForNonNcRelAcqWeakWrite).
+        exact absurd h_reqHasPerms (reqHasPerms_not_ncWeakReqOnVd hweak)
     | clusterDirLin hdir_case =>
       -- clusterDirLin requires reqLinearizesAtDir. But we're in requestLin → reqLinearizesAtCache.
       -- atDirectoryOrBeyond has lin_at_dir : reqLinearizesAtDir ... (.requestLin _) which is False.
@@ -203,10 +247,35 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
       -- clusterCacheLin requires reqLinearizesAtCache on (.dirLin _) which is False.
       exfalso; exact absurd hcache.choose_spec.2.lin_at_cache (by simp [Behaviour.reqLinearizesAtCache])
     | clusterDirLin hdir_case =>
-      -- compoundLin = hdir_case.choose. Sub-case on clusterDirectoryLinearizationEvent:
-      -- previousGlobalCacheGotPerms: compoundLin = CLE → .eq
-      -- getGlobalCachePerms: compoundLin inside CLE → .compoundLin_inside_cle
-      sorry
+      -- compoundLin = hdir_case.choose.
+      -- Extract atDirectoryOrBeyond.e_glin_deeper → OfReqEncapDirAccess on .dirLin →
+      -- clusterDirectoryLinearizationEvent on CLE.
+      have h_atdir := hdir_case.choose_spec.2
+      have h_deeper := h_atdir.e_glin_deeper
+      -- h_deeper : OfReqEncapDirAccess n cmp.shimAxioms b init e hdir_case.choose (.dirLin hdir)
+      -- This unfolds to clusterDirectoryLinearizationEvent on the CLE from hdir.
+      simp [CompoundProtocol.compoundLinearization.OfReqEncapDirAccess] at h_deeper
+      -- Now h_deeper : clusterDirectoryLinearizationEvent ... e_cdir hdir_case.choose
+      cases h_deeper with
+      | previousGlobalCacheGotPerms _ h_eq =>
+        -- h_eq : hdir_case.choose = e_cdir (the CLE from dirLin).
+        -- compoundLin = hdir_case.choose = e_cdir.
+        -- Need: compoundLin = lin.hreq's_dir_access.choose.
+        -- e_cdir is from dirLin's reqLinearizeAtDir → requestLinearizesAtDirectory → dirAccessOfRequest.
+        -- lin.hreq's_dir_access.choose is also from dirAccessOfRequest for the same event e.
+        -- These are two Exists.choose witnesses of dirAccessOfRequest.
+        -- Without dirAccessUnique, we need a different bridge.
+        -- Both carry dirAccessOfRequest evidence, so this is essentially uniqueness of CLE.
+        apply compoundLin_cle_rel.eq
+        sorry -- BLOCKED: needs dirAccessOfRequest uniqueness (two CLE witnesses for same event)
+      | getGlobalCachePerms _ h_global =>
+        -- hdir_case.choose is a deeper global event, inside the CLE.
+        -- h_global : Shim.ClusterToGlobal.noPerms.linearizationEvent on e_cdir and hdir_case.choose.
+        -- This gives e_cdir.Encapsulates hdir_case.choose (global event inside CLE).
+        -- Then compoundLin = hdir_case.choose, and CLE = lin.hreq's_dir_access.choose.
+        -- Same uniqueness issue: e_cdir (from dirLin) vs CLE (from lin.hreq's_dir_access).
+        apply compoundLin_cle_rel.compoundLin_inside_cle
+        sorry -- BLOCKED: needs dirAccessOfRequest uniqueness + global encapsulation chain
 
 def CompoundProtocol.globalLinearizationEventOfRequest.wrapper :=
   ∀ cmp : CompoundProtocol n, ∀ b : Behaviour n, ∀ init : InitialSystemState n,
