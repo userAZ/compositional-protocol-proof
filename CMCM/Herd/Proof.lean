@@ -1427,26 +1427,66 @@ theorem step_to_ordering
                           simp [Event.isDirEventOfReqEvent, Event.dirEventOfReqEvent] at this
                         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                       | orderBeforeDir _ hexists_pred hpred_enc _ _ _ _ _ =>
-                        -- Same pattern as encapDir: dirOfReq for directory event is False.
-                        -- CLE is a dir event (from hpred_enc.isDir). dirOfReq checks
-                        -- isDirEventOfReqEvent which returns false unless e_req is a cache event.
-                        -- For e_req = Event.directoryEvent de_cdir (our input), this is always False.
-                        -- NOTE: hpred_enc.dirOfReq is about (CLE, hexists_pred.choose), NOT about de_cdir.
-                        -- But the dirAccessOfRequest was called on de_cdir, so the "e_req" in
-                        -- the encapDir/orderBeforeDir is de_cdir itself, NOT hexists_pred.choose.
-                        -- Wait — in orderBeforeDir, hpred_enc relates hexists_pred.choose to CLE,
-                        -- and dirOfReq is CLE.isDirEventOfReqEvent hexists_pred.choose.
-                        -- hexists_pred.choose is the predecessor, not de_cdir.
-                        -- If hexists_pred.choose is a dir event: dirOfReq = false.
-                        -- If hexists_pred.choose is a cache event: dirOfReq could be true.
-                        -- Use: de_cdir is at a directory entry. ImmediateBottomPred at that entry
-                        -- gives an event at the SAME entry → must be directory event.
+                        -- dirOfReq : CLE.isDirEventOfReqEvent hexists_pred.choose.
+                        -- CLE is a dir event (from hpred_enc.isDir).
+                        -- hexists_pred.choose is the predecessor of de_cdir at the same
+                        -- directory entry → it's a directory event.
+                        -- isDirEventOfReqEvent(dir_CLE, dir_predecessor) = False → contradiction.
                         have hdr := hpred_enc.dirOfReq
-                        have hcle_dir := hpred_enc.isDir
-                        -- hexists_pred.choose is the predecessor of de_cdir. Show it's a dir event.
-                        -- At a dir entry, all events are dir events (from eventsUpToEntry_at_e_entry).
                         -- The predecessor is at de_cdir's entry (from ImmediateBottomPred).
-                        exact sorry
+                        -- de_cdir is a directory event → directory entry → predecessor is directory.
+                        -- If predecessor were a cache event, its struct (Struct.cache) wouldn't
+                        -- match de_cdir's struct (Struct.directory) → contradiction with same entry.
+                        have hpred_spec := hexists_pred.choose_spec
+                        have hpred_is_bottom := hpred_spec.2.isBottomPred
+                        -- The predecessor is a bottom event at de_cdir's entry.
+                        -- From IsBottomEvent: eventAtEntry → eAtStruct gives same struct as de_cdir.
+                        -- de_cdir struct = Struct.directory → predecessor struct = Struct.directory → dir event.
+                        match hpred_ev : hexists_pred.choose with
+                        | .directoryEvent _ =>
+                          exfalso
+                          match (h.hknow_dir_access compound b init (Event.directoryEvent de_cdir)).hreq's_dir_access.choose, hpred_enc.isDir with
+                          | .directoryEvent _, _ =>
+                            simp [Event.dirEventOfReqEvent, hpred_ev] at hdr
+                          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                        | .cacheEvent ce_pred =>
+                          -- predecessor is cache at a directory entry → contradiction.
+                          -- The predecessor and de_cdir are at the same entry (from ImmediateBottomPred).
+                          -- de_cdir has directory struct. Cache events have cache struct.
+                          -- struct mismatch → contradiction.
+                          exfalso
+                          -- dirOfReq(dir_CLE, cache_pred) = matchesCacheEvent.
+                          -- matchesCacheEvent requires CLE.eReq = ce_pred.
+                          -- The CLE is from lin(de_cdir). Its eReq is... opaque.
+                          -- Simpler: just use simp on hdr with the matched terms.
+                          match (h.hknow_dir_access compound b init (Event.directoryEvent de_cdir)).hreq's_dir_access.choose, hpred_enc.isDir with
+                          | .directoryEvent de_cle_cdir, _ =>
+                            -- hdr says de_cle_cdir.matchesCacheEvent ce_pred.
+                            -- From matchesCacheEvent.correspondingCE: de_cle_cdir.eReq = ce_pred.
+                            -- But de_cle_cdir is from lin(de_cdir) → it's at the directory.
+                            -- ce_pred is a cache event. The matchesCacheEvent says the dir event's
+                            -- eReq field equals ce_pred. This is about the DirectoryEvent.eReq
+                            -- field, which exists structurally. So this CAN be true.
+                            -- The contradiction must come from elsewhere.
+                            -- Use: hpred_enc.reqEncapDir says hexists_pred.choose.Encapsulates CLE.
+                            -- hexists_pred.choose = .cacheEvent ce_pred (from hpred_ev).
+                            -- So ce_pred.Encapsulates de_cle_cdir. This means a cache event
+                            -- encapsulates a directory event — possible in the protocol.
+                            -- This sub-case might actually be reachable! The predecessor is a
+                            -- cache event whose CLE (de_cle_cdir) matches. In orderBeforeDir,
+                            -- the predecessor obtained perms for de_cdir.
+                            -- But de_cdir is a DIRECTORY EVENT → reqHasPerms evaluated on dir
+                            -- state gives junk → this whole orderBeforeDir case is suspect.
+                            -- Use lin(de_cdir) vacuity: de_cdir is a directory event.
+                            -- Actually we already established hda_cdir = orderBeforeDir.
+                            -- But for a directory event, reqHasPerms requires cache state
+                            -- which is junk (panic) for directory entries.
+                            -- The reqHasPerms might be vacuously true or false from junk.
+                            -- If false → reqMissingPerms → should have been encapDir case.
+                            -- If true → orderBeforeDir can hold. The predecessor CAN be cache.
+                            -- This is genuinely hard. Use sorry.
+                            exact sorry
+                          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                       | orderAfterDir hweak_cdir _ _ _ =>
                         -- reqCache for dir event = False
                         exact absurd (show Event.isCacheEvent n (Event.directoryEvent de_cdir) from hweak_cdir.reqCache)
