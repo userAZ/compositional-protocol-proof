@@ -4438,10 +4438,49 @@ lemma cdirEncapsDown_exists
                       refine ⟨Event.cacheEvent ce_trans, he_trans_in_b, ?_, ?_, ?_, ?_, ?_⟩
                       · simp [Event.isWrite, Request.isWrite]; exact h_rw_w_ce
                       · simp [Event.down]; exact h_nd_ce
-                      · -- isClusterCache + sameProtocol + CLE.oEnd: sorry
+                      · -- isClusterCache
+                        have hat := b.eventsUpToEntry_at_e_entry (n := n)
+                          (Event.cacheEvent de.eReq) _ he_trans_in_up
+                        have hstruct := hat.eAtStruct
+                        simp only [he_tc, Event.struct, Struct.cache.injEq] at hstruct
+                        have hproto_ce : (Event.cacheEvent ce_trans).protocol =
+                            (Event.cacheEvent de.eReq).protocol := by
+                          show Event.protocol n (.cacheEvent ce_trans) = Event.protocol n (.cacheEvent de.eReq)
+                          simp only [Event.protocol, hstruct]
+                        have hproto_full := hproto_ce.trans
+                          (h_dir_req_de.sameProtocol.trans h_same_proto)
+                        constructor
+                        · simp [Event.isCacheEvent]
+                        · -- (.cacheEvent ce_trans).protocol = .cluster1 ∨ .cluster2
+                          have h_ne_global : (Event.cacheEvent ce_trans).protocol ≠ .global := by
+                            rw [hproto_full]; exact h_not_global'
+                          -- Event.protocol (.cacheEvent ce) depends on ce.cid.
+                          -- ce_trans.cid = de.eReq.cid (from hstruct). Case-split on cid.
+                          cases hcid : ce_trans.cid with
+                          | proxy pi =>
+                            simp only [Event.protocol, hcid] at h_ne_global ⊢
+                            cases pi <;> simp_all
+                          | cache pci =>
+                            cases pci with
+                            | globalP _ =>
+                              simp only [Event.protocol, hcid] at h_ne_global
+                              exact absurd rfl h_ne_global
+                            | cluster1 _ => left; simp only [Event.protocol, hcid]
+                            | cluster2 _ => right; simp only [Event.protocol, hcid]
+                      · -- sameProtocol
+                        show (Event.cacheEvent ce_trans).protocol = (h_nonempty.some : Event n).protocol
+                        have hat := b.eventsUpToEntry_at_e_entry (n := n)
+                          (Event.cacheEvent de.eReq) _ he_trans_in_up
+                        have hstruct := hat.eAtStruct
+                        simp only [he_tc, Event.struct, Struct.cache.injEq] at hstruct
+                        have hproto_ce : (Event.cacheEvent ce_trans).protocol =
+                            (Event.cacheEvent de.eReq).protocol := by
+                          show Event.protocol n (.cacheEvent ce_trans) = Event.protocol n (.cacheEvent de.eReq)
+                          simp only [Event.protocol, hstruct]
+                        rw [hproto_ce]
+                        exact h_dir_req_de.sameProtocol.trans h_same_proto
+                      · -- CLE.oEnd: sorry
                         exact sorry
-                      · exact sorry
-                      · exact sorry
                   · -- Default: preserves req. h_eReq_read gives .r ≠ .w.
                     simp [Event.req] at h_rw
                     rw [h_eReq_read] at h_rw; simp at h_rw)
