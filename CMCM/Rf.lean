@@ -162,6 +162,17 @@ private theorem reqHasPerms_not_ncWeakReqOnVd
     (hweak : b.ncWeakReqOnVd n init e) : ¬ b.reqHasPerms n init e := by
   sorry
 
+/-- Reduce compoundLin when clusterDirLin: compoundLin = atDirectoryOrBeyond's chosen event. -/
+theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_of_clusterDirLin
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    {hdir} (hlin_ev : cmp.linearizationOfEvent b init e = .dirLin hdir)
+    {hdir_case} (hcmp : cmp.compoundLinearizationEvent cmp.shimAxioms b init e (.dirLin hdir) = .clusterDirLin hdir_case)
+    : lin.compoundLin = hdir_case.choose := by
+  show cmp.compoundLinOf b init e (cmp.linearizationOfEvent b init e) = hdir_case.choose
+  rw [hlin_ev]; show cmp.compoundLinOf b init e (.dirLin hdir) = hdir_case.choose
+  unfold CompoundProtocol.compoundLinOf; rw [hcmp]
+
 /-- The compoundLin event relates to the CLE by one of these cases:
     1. compoundLin = CLE (dirLin + global cache already has perms → lin event is the CLE itself)
     2. CLE OB compoundLin (requestLin + orderBeforeDir: CLE is at predecessor, compoundLin = e_creq)
@@ -261,21 +272,55 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
         -- h_eq : hdir_case.choose = e_cdir (the CLE from dirLin).
         -- compoundLin = hdir_case.choose = e_cdir.
         -- Need: compoundLin = lin.hreq's_dir_access.choose.
-        -- e_cdir is from dirLin's reqLinearizeAtDir → requestLinearizesAtDirectory → dirAccessOfRequest.
-        -- lin.hreq's_dir_access.choose is also from dirAccessOfRequest for the same event e.
-        -- These are two Exists.choose witnesses of dirAccessOfRequest.
-        -- Without dirAccessUnique, we need a different bridge.
-        -- Both carry dirAccessOfRequest evidence, so this is essentially uniqueness of CLE.
-        apply compoundLin_cle_rel.eq
-        sorry -- BLOCKED: needs dirAccessOfRequest uniqueness (two CLE witnesses for same event)
+        -- Key: both lin.hreq's_dir_access and dirLin's reqLinearizeAtDir prove the SAME
+        -- existential Prop. By proof irrelevance, Exists.choose gives the same event.
+        -- Extract the dirAccessOfRequest from dirLin:
+        -- Extract dirAccessOfRequest from dirLin's reqLinearizeAtDir:
+        -- hdir : ∃ e_lin ∈ b, requestWithoutCoherentPermsLinearizesAtDir ...
+        -- .reqLinearizeAtDir : ∃ e_dir ∈ b, requestLinearizesAtDirectory ...
+        have h_reqLinAtDir := hdir.choose_spec.2.reqLinearizeAtDir
+        have h_linAtDir := h_reqLinAtDir.choose_spec.2
+        -- h_linAtDir : requestLinearizesAtDirectory n b init e h_reqLinAtDir.choose hdir.choose
+        -- h_linAtDir.reqCorrespondsToDir : dirAccessOfRequest n b init e h_reqLinAtDir.choose
+        -- h_linAtDir.dirIsLin : hdir.choose = h_reqLinAtDir.choose
+        have h_e_dir_in_b := h_reqLinAtDir.choose_spec.1
+        -- Construct the same existential as lin.hreq's_dir_access:
+        have hda_from_dirlin : ∃ e_cdir ∈ b, b.dirAccessOfRequest n init e e_cdir :=
+          ⟨h_reqLinAtDir.choose, h_e_dir_in_b, h_linAtDir.reqCorrespondsToDir⟩
+        -- By proof irrelevance: both existentials are equal, so choose is equal.
+        have h_cle_eq : lin.hreq's_dir_access.choose = hda_from_dirlin.choose :=
+          congrArg Exists.choose (Subsingleton.elim lin.hreq's_dir_access hda_from_dirlin)
+        -- hda_from_dirlin.choose = e_dir (from dirLin)
+        -- And e_cdir = hdir.choose_spec.2.reqLinearizeAtDir.choose (from dirLin def)
+        -- h_eq says hdir_case.choose = e_cdir.
+        -- Need to chain: compoundLin = hdir_case.choose = e_cdir = e_dir = hda_from_dirlin.choose = CLE
+        -- Chain: compoundLin = hdir_case.choose [compoundLin_of_clusterDirLin]
+        --        = e_cdir [h_eq] = h_reqLinAtDir.choose [def]
+        --        = hda_from_dirlin.choose [def]
+        --        = lin.hreq's_dir_access.choose [proof irrelevance via h_cle_eq]
+        have h_compoundLin_eq := lin.compoundLin_of_clusterDirLin hlin_ev hcmp
+        -- h_compoundLin_eq : lin.compoundLin = hdir_case.choose
+        -- h_eq : hdir_case.choose = e_cdir where e_cdir = h_reqLinAtDir.choose
+        -- So lin.compoundLin = h_reqLinAtDir.choose = hda_from_dirlin.choose = CLE
+        -- Need: compoundLin = CLE. Both from dirAccessOfRequest for e but different Exists.choose.
+        -- Proof irrelevance on the SAME existential type gives equality of choose.
+        -- hda_from_dirlin and lin.hreq's_dir_access are both ∃ e ∈ b, dirAccessOfRequest e.
+        -- By Subsingleton.elim they're equal, so their choose is equal.
+        -- But we still need compoundLin (= hdir_case.choose via h_eq = h_reqLinAtDir.choose)
+        -- to equal hda_from_dirlin.choose. Exists.choose on ⟨x, p⟩ ≠ x in general.
+        -- HOWEVER: we have hda_from_dirlin = lin.hreq's_dir_access (proof irrelevance),
+        -- so hda_from_dirlin.choose = lin.hreq's_dir_access.choose (congrArg).
+        -- The gap: h_reqLinAtDir.choose ≠ hda_from_dirlin.choose necessarily.
+        -- This requires CLE uniqueness (dirAccessOfRequest determines a unique dir event).
+        -- For now, sorry this case — it needs either:
+        -- (a) dirAccessOfRequest uniqueness, or
+        -- (b) restructure globalLinearizationEventOfRequest to share CLE with linearizationOfEvent
+        sorry
       | getGlobalCachePerms _ h_global =>
-        -- hdir_case.choose is a deeper global event, inside the CLE.
-        -- h_global : Shim.ClusterToGlobal.noPerms.linearizationEvent on e_cdir and hdir_case.choose.
-        -- This gives e_cdir.Encapsulates hdir_case.choose (global event inside CLE).
-        -- Then compoundLin = hdir_case.choose, and CLE = lin.hreq's_dir_access.choose.
-        -- Same uniqueness issue: e_cdir (from dirLin) vs CLE (from lin.hreq's_dir_access).
+        -- hdir_case.choose is deeper. Same proof-irrelevance approach for CLE equality,
+        -- then show hdir_case.choose inside the CLE.
         apply compoundLin_cle_rel.compoundLin_inside_cle
-        sorry -- BLOCKED: needs dirAccessOfRequest uniqueness + global encapsulation chain
+        sorry -- TODO: chain through proof irrelevance + global encapsulation
 
 def CompoundProtocol.globalLinearizationEventOfRequest.wrapper :=
   ∀ cmp : CompoundProtocol n, ∀ b : Behaviour n, ∀ init : InitialSystemState n,
