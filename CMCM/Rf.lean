@@ -123,50 +123,55 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
     (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
     : lin.compoundLin_cle_rel := by
-  -- Get the dirAccessOfRequest evidence for the CLE
-  have hda := lin.hreq's_dir_access.choose_spec.2
-  -- Case-split on dirAccessOfRequest: the discriminator is reqHasPerms vs reqMissingPerms
-  cases hda with
-  | encapDir hno_perms hencap =>
-    -- reqMissingPerms → linearizationOfEvent = dirLin → compoundLinearizationEvent = clusterDirLin
-    -- compoundLin is a global-level event. Sub-case on clusterDirectoryLinearizationEvent:
+  -- Case-split on linearizationOfEvent — this directly determines the compoundLinearizationEvent case.
+  -- Then use dirAccessOfRequest to connect to the CLE.
+  cases hlin_ev : cmp.linearizationOfEvent b init e with
+  | requestLin hreqlin =>
+    -- requestLin: reqHasPerms. compoundLin = e via atCache.e_creq_is_e_glin.
+    -- CLE (from dirAccessOfRequest) is OB e since orderBeforeDir puts CLE at predecessor.
+    -- compoundLin: case-split on compoundLinearizationEvent to reduce
+    cases hcmp : cmp.compoundLinearizationEvent cmp.shimAxioms b init e (.requestLin hreqlin) with
+    | clusterCacheLin hcache =>
+      -- compoundLin = hcache.choose = e (via atCache.e_creq_is_e_glin).
+      -- Use dirAccessOfRequest to relate CLE to e.
+      have hda := lin.hreq's_dir_access.choose_spec.2
+      cases hda with
+      | encapDir hno_perms _ =>
+        -- reqMissingPerms contradicts reqHasPerms
+        sorry
+      | orderBeforeDir _ hexists_pred hpred_accesses_dir _ _ _ _ _ =>
+        -- CLE inside predecessor, predecessor OB e → CLE OB e = CLE OB compoundLin
+        apply compoundLin_cle_rel.cle_ob_compoundLin
+        sorry
+      | orderAfterDir hweak _ _ _ =>
+        -- ncWeakReqOnVd contradicts reqHasPerms
+        sorry
+    | clusterDirLin hdir_case =>
+      -- clusterDirLin requires reqLinearizesAtDir. But we're in requestLin → reqLinearizesAtCache.
+      -- atDirectoryOrBeyond has lin_at_dir : reqLinearizesAtDir ... (.requestLin _) which is False.
+      exfalso
+      have := hdir_case.choose_spec.2.lin_at_dir
+      simp [Behaviour.reqLinearizesAtDir] at this
+  | dirLin hdir =>
+    -- dirLin: hdir carries requestWithoutCoherentPermsLinearizesAtDir which has:
+    --   reqLinearizeAtDir : ∃ e_dir ∈ b, requestLinearizesAtDirectory ... e_dir e_lin
+    --   requestLinearizesAtDirectory has reqCorrespondsToDir : dirAccessOfRequest e_req e_dir
+    -- So the CLE from dirLin and the CLE from lin.hreq's_dir_access are both dirAccessOfRequest
+    -- witnesses for the same event e.
+    --
+    -- compoundLinearizationEvent on (.dirLin hdir) gives clusterDirLin.
+    -- Sub-case on clusterDirectoryLinearizationEvent:
     -- - previousGlobalCacheGotPerms: compoundLin = CLE → .eq
     -- - getGlobalCachePerms: compoundLin inside CLE → .compoundLin_inside_cle
-    sorry
-  | orderBeforeDir hhas_perms hexists_pred hpred_accesses_dir _ _ _ _ _ =>
-    -- reqHasPerms → linearizationOfEvent = requestLin → compoundLinearizationEvent = clusterCacheLin
-    -- compoundLin = e (the cache event). CLE is at predecessor, OB e.
-    -- CLE is inside predecessor (from hpred_accesses_dir), predecessor OB e.
-    -- So CLE.oEnd < pred.oEnd < e.oStart, giving CLE OB e = CLE OB compoundLin.
-    apply compoundLin_cle_rel.cle_ob_compoundLin
-    -- Need: CLE OB compoundLin
-    -- compoundLin unfolds through compoundLinearizationEvent.
-    -- Case-split on the result to get the concrete linearizationEvent.
-    show lin.hreq's_dir_access.choose.OrderedBefore n lin.compoundLin
-    unfold compoundLin
-    -- Case-split on compoundLinearizationEvent result
-    cases hcmp : cmp.compoundLinearizationEvent cmp.shimAxioms b init e (cmp.linearizationOfEvent b init e) with
+    cases hcmp : cmp.compoundLinearizationEvent cmp.shimAxioms b init e (.dirLin hdir) with
     | clusterCacheLin hcache =>
-      -- compoundLin = hcache.choose, and atCache.e_creq_is_e_glin says hcache.choose = e
-      simp [ClusterRequestLinearizationEvent.linearizationEvent, hcmp]
-      have hatcache := hcache.choose_spec.2
-      rw [hatcache.e_creq_is_e_glin]
-      -- Now need: CLE OB e
-      -- CLE inside predecessor (hpred_accesses_dir), predecessor OB e (from reqHasPermsSoDirPred)
-      have hpred_encap_cle := hpred_accesses_dir.reqEncapDir
-      -- hpred_encap_cle : hexists_pred.choose.Encapsulates CLE
-      -- CLE.oEnd < hexists_pred.choose.oEnd
-      -- hexists_pred is the predecessor that is OB e
+      -- clusterCacheLin requires reqLinearizesAtCache on (.dirLin _) which is False.
+      exfalso; exact absurd hcache.choose_spec.2.lin_at_cache (by simp [Behaviour.reqLinearizesAtCache])
+    | clusterDirLin hdir_case =>
+      -- compoundLin = hdir_case.choose. Sub-case on clusterDirectoryLinearizationEvent:
+      -- previousGlobalCacheGotPerms: compoundLin = CLE → .eq
+      -- getGlobalCachePerms: compoundLin inside CLE → .compoundLin_inside_cle
       sorry
-    | clusterDirLin hdir =>
-      -- This case shouldn't happen: reqHasPerms should give clusterCacheLin, not clusterDirLin.
-      -- clusterDirLin requires reqLinearizesAtDir, but reqHasPerms gives reqLinearizesAtCache.
-      simp [ClusterRequestLinearizationEvent.linearizationEvent, hcmp]
-      sorry
-  | orderAfterDir _ _ _ _ =>
-    -- orderAfterDir: NC weak on Vd. Still has reqMissingPerms.
-    -- Same as encapDir: dirLin → clusterDirLin → sub-case.
-    sorry
 
 def CompoundProtocol.globalLinearizationEventOfRequest.wrapper :=
   ∀ cmp : CompoundProtocol n, ∀ b : Behaviour n, ∀ init : InitialSystemState n,
