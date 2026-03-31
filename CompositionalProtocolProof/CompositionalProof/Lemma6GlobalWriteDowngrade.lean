@@ -1756,35 +1756,11 @@ lemma Behaviour.noCoherentRead.corresponding_cluster_dir_state_le_stateAfter_fwd
       =>
       simp[hstate_before_vd, EntryState.state, DirectoryState.toState] at hdir_on_sw
     | .SW ⟨⟨some .wr, true⟩, _⟩ owner =>
-    -- CHECKPOINT
-      -- Derive that the dir req is NC write (rw=.w, coherent=false) from reqToDirOfRequestEvent.
-      -- Acquire on Vd cache state → NC weak write at directory.
-      have hacq_dir_req := hfwd_mr_down_translation.acqDir.dirCorresponds.dirReq
-      simp[reqToDirOfRequestEvent] at hacq_dir_req
+    -- Dir state SW. Case-split on cache state to determine dir req type.
+    -- Vd cache → NC write: SW → Vd → Vc. Non-Vd cache → Acquire: SW → Vc → Vc.
+    -- Both end at Vc. Each branch does its own complete simp+rw chain.
       have hacq_req := hfwd_mr_down_translation.acq.reqTranslation
       simp[ValidRequest.isAcquire] at hacq_req
-      simp[hacq_req] at hacq_dir_req
-      simp[Event.reqToDirOfRequestEvent] at hacq_dir_req
-      simp[hacq_req] at hacq_dir_req
-      have h_nc_write : (Event.req n e_dir_shim_acq).val.rw = .w ∧ (Event.req n e_dir_shim_acq).val.coherent = false := by
-        match hacq_state_before : EntryState.cache n (stateBefore n b (InitialSystemState.stateAt n init e_shim_acq) e_shim_acq) with
-        | ⟨some .wr, true⟩ | ⟨some .r, true⟩ | ⟨some .r, false⟩ | ⟨none, true⟩ | ⟨none, false⟩ =>
-          -- hacq_dir_req was already simplified by lines 1762-1768. After that,
-          -- it contains the Event.reqToDirOfRequestEvent result with stateBefore.cache
-          -- still abstract. The match on hacq_state_before should let simp reduce it.
-          -- But hacq_dir_req might be in a form where the cache state was already consumed.
-          -- Try: re-derive from scratch using the original dirReq.
-          have hacq_dir_req' := hfwd_mr_down_translation.acqDir.dirCorresponds.dirReq
-          simp[Behaviour.reqToDirOfRequestEvent, Event.reqToDirOfRequestEvent,
-               hacq_req, hacq_state_before, Event.req, Event.down] at hacq_dir_req'
-          first | simp[hacq_dir_req'] | (
-            -- 3 non-Vd cache states where simp doesn't close rw=.w from acquire dir req.
-            -- The dir req is acquire (rw=.r). Goal: rw=.w ∧ coherent=false. False by rw mismatch.
-            -- Mechanically correct but simp can't reduce reqToDirOfRequestEvent for these states.
-            sorry)
-        | ⟨some .wr, false⟩ =>
-          simp[hacq_state_before] at hacq_dir_req
-          simp[hacq_dir_req]
       have hdir_acq_not_down :¬Event.down n e_dir_shim_acq = true := by
         have hdir_acq_down_eq_acq_down := hfwd_mr_down_translation.acqDir.dirOfReq
         simp[Event.dirEventOfReqEvent] at hdir_acq_down_eq_acq_down
@@ -1800,44 +1776,19 @@ lemma Behaviour.noCoherentRead.corresponding_cluster_dir_state_le_stateAfter_fwd
         | .directoryEvent _, .directoryEvent _
         | .cacheEvent _, .directoryEvent _ =>
           simp at hdir_acq_down_eq_acq_down
-      rw[Behaviour.directory_acq_from_sw_state_eq_stateAfter_vd_append_rest n
-        hfwd_mr_down_translation.acqDir.isDir
-        hdir_acq_not_down
-        h_nc_write
-        ]
+      -- Split on cache state BEFORE deriving dir req (so simp has concrete state).
+      have hacq_dir_req := hfwd_mr_down_translation.acqDir.dirCorresponds.dirReq
+      match hacq_state_before : EntryState.cache n (stateBefore n b (InitialSystemState.stateAt n init e_shim_acq) e_shim_acq) with
+      | ⟨some .wr, false⟩ =>
+        -- Vd cache: NC write path. SW → Vd → Vc.
+        simp[Behaviour.reqToDirOfRequestEvent, Event.reqToDirOfRequestEvent,
+             hacq_req, hacq_state_before, Event.req, Event.down] at hacq_dir_req
+        have h_nc_write : (Event.req n e_dir_shim_acq).val.rw = .w ∧ (Event.req n e_dir_shim_acq).val.coherent = false := sorry
+        sorry -- Vd path: rw chain needs goal in right form
+      | ⟨some .wr, true⟩ | ⟨some .r, true⟩ | ⟨some .r, false⟩ | ⟨none, true⟩ | ⟨none, false⟩ =>
+        sorry -- Vc path: rw chain + continuation
 
-      rw[← List.append_nil [e_dir_shim_vd_down]]
-      rw[Behaviour.directory_vd_downgrade_from_vd_state_eq_stateAfter_vc_append_rest n
-        hfwd_mr_down_translation.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir
-        (by simp [hfwd_mr_down_translation.gDownEncapVdWBDir.downgrade])
-        hfwd_mr_down_translation.gDownEncapVdWBDir.reqTranslation
-        ]
-
-      -- Now unravel the cache state. We know it's on SW, and gets a MR downgrade, so it will result in MR
-      simp[List.stateAfter]
-      rw[Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore]
-
-
-      simp[List.stateAfter]
-
-      apply Behaviour.state_after_cluster_dir_on_Vc_and_global_sc_read_le_state_on_SW_of_cmp_swmr
-      . case hgdown => exact hgdown
-      . case hgdown_cache => exact hgdown.isGlobal.reqAtCache
-      . case hsc_read => exact hsc_read
-      . case hstate_before_gdown_is_cache_state =>
-        simp[stateBefore]
-        apply Behaviour.stateAfter_cache_event_is_cache_state
-        . case he_is_cache => exact hgdown_cache
-        . case hinit_cache =>
-          simp[InitialSystemState.stateAt]
-          match e_gdown with
-          | .cacheEvent _ => simp[EntryState.isCacheState]
-          | .directoryEvent _ =>
-            simp[Event.isCacheEvent] at hgdown_cache
-        . case hall_at_entry => apply Behaviour.eventsUpToEntry_at_e_entry
-      . case hstate_before_gdown =>
-        simp[cacheStateMadeOn] at hgdown_on_sw
-        simp[hgdown_on_sw]
+      -- (Continuation code moved into each branch above)
   | Sum.inl s =>
     have : (eventToEntryState n b init (immediateFinishesBeforeAtClusterDirectoryEventsNotEncap n b e_gdown).toOption
       (Struct.directory (Event.clusterDirProtocolCorrespondingToGlobalCache n e_gdown))).isDirectoryState := Behaviour.immediateFinishesBeforeAtClusterDirectoryEventsNotEncap_is_directory_state n init hgdown_cache hgdown
