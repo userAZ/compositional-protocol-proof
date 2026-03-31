@@ -4005,13 +4005,6 @@ lemma cdirEncapsDown_exists
     (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
     (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache) (hw_not_down : ¬ e_w.down)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
-    -- onDirVd elimination callback: given an NC write at e_w's cluster (sameProtocol already proved),
-    -- the call site derives False from NIW constraints.
-    (h_nc_write_absurd : ∀ e_nc ∈ b, e_nc.isWrite → ¬ e_nc.down → e_nc.isClusterCache →
-        e_nc.sameProtocol n e_w →
-        (lin e_nc).hreq's_dir_access.choose.oEnd <
-          hr_c_and_g_lin.hreq's_dir_access.choose.oEnd →
-        False)
     : ∃ e_cdir ∈ b, e_cdir.isDirectoryEvent ∧ e_cdir.protocol = e_w.protocol ∧
         e_cdir.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧
         (∃ e_cache_down ∈ b,
