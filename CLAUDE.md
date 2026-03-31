@@ -46,18 +46,20 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **Non-lazy PPOi**: `h_non_lazy_ppoi` hypothesis excludes lazy RCC.
 - **Dead code**: CLE-to-compound_lin bridge removed. `ppoi_diff_addr_step_ordering` deleted.
 - **`cdirEncapsDown_exists`**: `h_dir_coherent` parameter removed; onDirVd proved inline with consistent e_r_gdown. sameProtocol chain proved via `correspondingCluster_protocol_eq`. Proof.lean call sites cleaned.
-- **4 sorry-using declarations** total: `BehaviourHelpers` (Lemma 6 Acquire→Vc), `event_Vd_transition_implies_ncWrite_in_b`, `cdirEncapsDown_exists`, `fr_ordering_holds`.
-- **Proof.lean sorry's (6)**: 3 NIW callbacks + 3 deeper protocol (cdir OB CLE_w, diff-cluster chain).
+- **3 sorry-using declarations** total: `BehaviourHelpers` (Lemma 6 Acquire→Vc), `cdirEncapsDown_exists` (2 sorry's), Proof.lean `fr_ordering_holds` (5 sorry's).
+- **`cacheEvent_Vd_transition_isNcWeakWrite`**: SORRY-FREE via ValidRequest Subtype match.
+- **`event_Vd_transition_implies_ncWrite_in_b`**: SORRY-FREE.
+- **`stateAfter_Vd_implies_exists_ncWrite`**: SORRY-FREE.
+- **Proof.lean sorry's (5)**: All in `co_chain_cross_cluster_downgrade` (CO diff-cluster case).
 
 ### TODO
-1. **`event_Vd_transition_implies_ncWrite_in_b`** (8 sorry's in directoryEvent case):
-   - **Root cause**: `e_cdir_ce` (CLE from `dirAccessOfRequest` for `de_trans.eReq`) might not equal `Event.directoryEvent de_trans`. If equal, all properties transfer trivially.
-   - **Fix**: Use `dirAccessUnique` to prove `e_cdir_ce = Event.directoryEvent de_trans` by constructing a second `dirAccessOfRequest` instance. Or add as hypothesis.
-   - **Proved**: h_not_down (down=false), h_ne_Vd_dir, hs_Vd' (toState→Vd conversion), cacheEvent case (vacuous), ¬down (for noPerms cases), sameProtocol, isClusterCache (modulo global pInst), hde_trans_in_b.
-   - **Sorry's**: s=.inl (well-formedness), downgrade sameDown, hce_proto (e_cdir_ce protocol), isWrite, global pInst, oEnd temporal bound, orderBeforeDir/orderAfterDir ∈ b.
-2. **`cdirEncapsDown_exists` onDirVd** (1 sorry): temporal bound `CLE_nc.oEnd < CLE_r.oEnd` in callback invocation.
-3. **Proof.lean NIW callbacks** (3 sorry's): Need to apply `h_no_between` from RF/CO evidence to the NC write provided by the callback.
-4. **Proof.lean deeper protocol** (3 sorry's): cdir_w OB CLE_w arguments + diff-cluster CLE_w OB evict chain.
+1. **`dir_event_properties_from_lin`** (1 sorry, RfProofHelpers line ~3809): CLE = de identity.
+   - **Root cause**: CLE from `dirAccessOfRequest` is NOT always `de`. For `encapDir`, CLE = de. For `orderBeforeDir`/`orderAfterDir`, CLE is a different dir event.
+   - **Key insight**: `dirAccessUnique` can't help without a second `dirAccessOfRequest de.eReq de` instance.
+   - **Fix options**: (a) Add axiom `∀ de ∈ b, dirAccessOfRequest de.eReq de`, (b) decouple return type from `lin` — use `de.oEnd` bound instead of `CLE.oEnd`, (c) derive from `requestAccessesDirectory` (Axiom 6). Option (b) is cleanest.
+2. **`cdirEncapsDown_exists` onDirVd callback CLE.oEnd** (1 sorry, line ~4539): CLE(ce_trans).oEnd ≤ e_d.oEnd. Depends on TODO #1.
+3. **Proof.lean sorry's (5)**: All in `co_chain_cross_cluster_downgrade`. 2× `downIsDown`, 2× cdir OB CLE_w, 1× diff-cluster chain.
+4. **BehaviourHelpers Lemma 6 Acquire→Vc**: Separate, independent sorry.
 
 ### Lessons learned (BE INTROSPECTIVE!)
 - **Don't guess constructors.** Each new StepOrdering constructor multiplies case analysis. Use edge data instead.
@@ -80,6 +82,8 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **`isDirDownRW` replaces `isDirMatchingRW`**: Inductive with `readDown` (dir rw=.r) and `writeDown` (dir rw=.w, Vd writeback). Provable by case-splitting on dir event's rw. The old `isDirMatchingRW` (exact equality with CLE) was unprovable in `noGlobalCache` case because CLE.rw comes from a predecessor that could be a write.
 - **`Vd ≤ SW` is TRUE** (same perms `some .wr`, different coherence `false ≤ true`). Cannot derive dir ≠ Vd from simple `≤` comparison with SW cache. Need coherence BIT argument: coherent perms require `c=true`, Vd has `c=false`.
 - **Write code first, analyze later.** When facing a sorry, just try to fill it with code, build, iterate. Don't write paragraphs theorizing about feasibility. Most sorry's are mechanical once you start writing.
+- **Match on ValidRequest (Subtype), not on individual fields**: `RequestState`/`DowngradeState`/`MRS` match on the full `ValidRequest` Subtype `⟨⟨rw, coh, con⟩, hv⟩`, NOT on individual fields. Matching on `ce.req.val.rw`, `ce.req.val.coherent` etc. separately doesn't give Lean enough info to reduce the Subtype match. **Fix**: `match hvr : ce.req with | ⟨⟨.w, false, .Weak⟩, _⟩ => ...` then `rw [hvr] at hs_Vd` to substitute before `simp [ValidRequest.RequestState]`. Lean uses `IsValid'` for exhaustiveness — invalid request patterns (like `⟨_, false, .SC⟩`) are auto-excluded.
+- **`simp only` vs `simp` for `if` reduction**: `simp only [...]` does NOT include `ite_true`/`ite_false`, so `if True then x else y` won't reduce. Use `simp [...]` (without `only`) to include default simp lemmas, or add `ite_true`/`ite_false` explicitly.
 - **Read definitions immediately, don't guess.** `reqToDirOfRequestEvent` is 5 lines — read it instead of speculating about what it does. `grep -rn 'def ...'` is faster than reasoning from names.
 - **Search the codebase aggressively for existing lemmas.** Key finds: `directory_event_is_bottom`, `bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents`, `eventsUpToEvent_ordered_before_sorted`, `eventsUpToEntry_at_e_entry`. Always search before writing new code.
 - **Extract helper lemmas proactively for heartbeat management.** `dirEvent_down_true_ne_Vd_of_ne_Vd` extraction solved a timeout. `list_stateAfter_exists_transition_with_inv` carried the invariant cleanly. Don't let proofs grow past ~30 lines without extracting.
