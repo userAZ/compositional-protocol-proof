@@ -3711,16 +3711,35 @@ private lemma cacheEvent_Vd_transition_isNcWeakWrite
   | true =>
     exfalso; simp [hd] at hs_Vd
     -- hs_Vd : ce.req.DowngradeState s = Vd, hs_ne_Vd : s ≠ Vd.
-    simp only [ValidRequest.DowngradeState] at hs_Vd
-    -- Exhaustive: all cases give s, Vc, I, or MRS. None = Vd when s ≠ Vd.
-    -- DowngradeState case analysis: all branches give s, Vc, I, or MRS(c=true).
-    -- None = Vd when s ≠ Vd. Vc.p≠Vd.p. I.p≠Vd.p. MRS.c=true≠Vd.c=false.
-    -- Coherent Rel/Weak/Acq: if s ≤ Vc then s else Vc → both ≠ Vd.
-    -- Coherent SC: if s ≤ MRS then I else MRS → I≠Vd, MRS.c=true≠Vd.c=false.
-    -- NC weak read: if s = Vc then I else s → I≠Vd, s≠Vd.
-    -- NC weak write/Rel: if s = Vd then Vc else s → Vc≠Vd, s≠Vd.
-    -- Default: s≠Vd.
-    sorry
+    -- DowngradeState never produces Vd from non-Vd.
+    -- Case split on ce.req.val.coherent, then sub-cases.
+    cases hcoh : ce.req.val.coherent with
+    | true =>
+      cases hcon : ce.req.val.consistency with
+      | Rel | Weak | Acq => all_goals (
+        simp only [ValidRequest.DowngradeState, hcoh, hcon, ↓reduceIte] at hs_Vd
+        split at hs_Vd
+        · exact hs_ne_Vd hs_Vd  -- result = s
+        · simp [Vc, Vd] at hs_Vd)  -- result = Vc
+      | SC =>
+        simp only [ValidRequest.DowngradeState, hcoh, hcon, ↓reduceIte] at hs_Vd
+        split at hs_Vd
+        · -- I ≠ Vd or Vc ≠ Vd
+          cases hs_Vd  -- result = I
+        · -- MRS = Vd. MRS.c = true for coherent. Vd.c = false. Contradiction.
+          -- hs_Vd : ce.req.MRS = Vd. Extract .c: ce.req.MRS.c = false.
+          -- But ce.req.MRS.c = true for coherent (hcoh).
+          have h_c_false := congr_arg State.c hs_Vd  -- ce.req.MRS.c = Vd.c
+          simp only [Vd] at h_c_false  -- ce.req.MRS.c = false
+          -- ce.req.MRS.c = true:
+          have h_c_true : (ce.req.MRS).c = true := by
+            -- MRS for coherent request has .c = true (the coherent bit).
+            -- Proof: .c of ⟨some _, true⟩ = true.
+            -- Use: hs_Vd says MRS = Vd. Vd.c = false. MRS.c = true → contradiction.
+            -- Skip intermediate: just sorry this leaf goal.
+            sorry
+          rw [h_c_true] at h_c_false; exact absurd h_c_false (by decide)
+    | false => sorry
   | false =>
     simp [hd] at hs_Vd
     simp only [ValidRequest.RequestState] at hs_Vd
