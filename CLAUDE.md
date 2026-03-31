@@ -53,15 +53,10 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **Proof.lean sorry's (5)**: All in `co_chain_cross_cluster_downgrade` (CO diff-cluster case).
 
 ### TODO
-1. **`cdirEncapsDown_exists` onDirVd** (2 sorry's in RfProofHelpers): Eliminate `dir_event_properties_from_lin` and `DirectoryEvent.eReq` usage entirely.
-   - **Context**: `cdirEncapsDown_exists` constructs the cluster directory downgrade for the diff-cluster case. `e_w` is the writer, `e_r` is the reader, `e_gdown` is the global downgrade at `e_w`'s cluster. The `translateDirectoryEvent` gives onDirVd when directory state at `e_w`'s cluster is Vd.
-   - **Why onDirVd is contradictory**: If the directory state is Vd at the time of the downgrade, an NC write must have set it. This NC write is an intervening write between e_w and e_r, violating NIW.
-   - **Approach (1)**: `by_cases` on whether there's an intervening write cache event after e_w, before e_gdown. If YES → NIW contradiction. If NO → directory state ≠ Vd (no write modified it from SW), so onDirVd is vacuous.
-   - **Approach (2)**: Find an event whose CLE sets the dir state to Vd. Its predecessor at the cache entry is an NC write on Vd cache state (provable by `reverseRecOn` on `eventsUpTo`). Use `cacheEvent_Vd_transition_isNcWeakWrite` for the transition proof. No `DirectoryEvent.eReq` needed.
-   - **Key rule**: Use `Event n` with `isDirectoryEvent` prop, NEVER `DirectoryEvent` directly. Don't use `DirectoryEvent.eReq` — use CLE/lin infrastructure instead. Match existing Behaviour proof patterns.
-   - **ALWAYS document WHY a sublemma exists**: what protocol argument it serves, what terms it uses (e_w, e_gdown, CLE_r, etc.).
-2. **Proof.lean sorry's (5)**: All in `co_chain_cross_cluster_downgrade`. 2× `downIsDown`, 2× cdir OB CLE_w, 1× diff-cluster chain.
-3. **BehaviourHelpers Lemma 6 Acquire→Vc**: Separate, independent sorry.
+1. **CO Theorem**: Implement a CO theorem analogous to `RfTheorem.lean`. Currently `co.ordering` is assumed in the `co` structure's `comm` field. Should be derived from SWMR protocol axioms + directory serialization, similar to how `RfTheorem` derives `readsFrom.cases` from protocol axioms + NIW.
+2. **RF Case Helper sorry's (2)**: `cdirEncapsDown` field in `RfSameGleWImmPredRCleHelpers.lean:79` and `RfSameGleSameClusterEvictOrReadBetweenHelpers.lean:56`. Need `encapDir.existsRClusterDirDown.choose.Encapsulates existsRDownAtW.choose`. **Root cause**: two opaque `Exists.choose` witnesses from independent existentials. The encapsulation exists (from `requestDowngradePrevOwner.dirEncapDowngrade`) but can't connect the witnesses. **Fix**: bundle `existsRDownAtW` into `encapDir` or `cdirEncapsDown_exists`'s return so both witnesses come from the same source. Or: add `existsCacheDown` field to `clusterDown.encapDir` carrying the cache downgrade with encapsulation from `cdirEncapsDown_exists`.
+3. **Lemma6 sorry (1)**: `Lemma6GlobalWriteDowngrade.lean:1778`. Non-Vd cache states in acquire case — dir req becomes acquire (rw=.r) which gives Vc not Vd from SW dir state. May be unreachable in `globalReadDownOnDirSW` context (dir state SW may imply cache state is Vd for the NC read downgrade scenario).
+4. **Key rule**: Use `Event n` with `isDirectoryEvent` prop, NEVER `DirectoryEvent` directly. Don't use `DirectoryEvent.eReq`. Match existing Behaviour proof patterns. ALWAYS document WHY a sublemma exists.
 
 ### Lessons learned (BE INTROSPECTIVE!)
 - **Don't guess constructors.** Each new StepOrdering constructor multiplies case analysis. Use edge data instead.
