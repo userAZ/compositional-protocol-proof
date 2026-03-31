@@ -132,7 +132,7 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_of_cluste
     The other reqMissingPerms cases also contradict reqHasPerms sub-cases. -/
 private theorem reqHasPerms_not_reqMissingPerms
     {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
-    (hno : b.reqMissingPerms n init e) : ¬ b.reqHasPerms n init e := by
+    (hno : b.reqMissingPerms n init e) (hnotdown : ¬ e.down) : ¬ b.reqHasPerms n init e := by
   intro hhas
   have hhasPerms : b.hasPerms n init e := by
     cases hhas with
@@ -140,12 +140,7 @@ private theorem reqHasPerms_not_reqMissingPerms
     | ncRelAcqWeakWriteHasCoherentPerms _ h => exact h.hasPerms
     | ncWeakReadHasPermsNotVd _ h => exact h.hasPerms
   cases hno with
-  | downgrade hdown _ =>
-    -- down=true. reqHasPerms doesn't directly give ¬down, but orderBeforeDir does.
-    -- In the context where this is called (encapDir), the event is NOT a downgrade
-    -- because cacheEncapsulatesCorrespondingDirEvent requires non-downgrade access.
-    -- For generality, this case needs protocol reasoning about downgrade + perms.
-    sorry
+  | downgrade hdown _ => exact absurd hdown hnotdown
   | noPermsForNonNcRelAcqWeakWrite _ _ hno_perms =>
     exact hno_perms (show b.eventOnStateHasPerms n init e from hhasPerms)
   | ncRelAcqWeakWriteNotOnCoherentState _ hncRelAcq hno_coh =>
@@ -155,18 +150,72 @@ private theorem reqHasPerms_not_reqMissingPerms
     | ncRelAcqWeakWriteHasCoherentPerms _ hcoh_perms =>
       exact hno_coh ⟨hcoh_perms.onCoherentState, hcoh_perms.hasPerms⟩
     | hasPerms hcoh hperms =>
-      -- isCoherent event with ncRelAcq type is contradictory:
-      -- isCoherent means coherent=true in request, isNcRelAcq means acquire/release (non-coherent)
-      sorry
+      -- isCoherent means coherent=true. isNcRelAcq = isAcquire ∨ isNcRelease, both have coherent=false.
+      cases e with
+      | directoryEvent _ => simp [Event.isCoherent] at hcoh
+      | cacheEvent ce =>
+        simp [Event.isCoherent, ValidRequest.isCoherent, Request.isCoherent] at hcoh
+        simp [Event.isNcRelAcq, Event.isAcquire, Event.isNcRelease,
+              CacheEvent.isAcquire, CacheEvent.isNcRelease,
+              ValidRequest.isAcquire, ValidRequest.isNcRelease] at hncRelAcq
+        cases hncRelAcq with
+        | inl hacq => rw [hacq] at hcoh; exact absurd hcoh (by decide)
+        | inr hrel => rw [hrel] at hcoh; exact absurd hcoh (by decide)
     | ncWeakReadHasPermsNotVd hread _ =>
-      -- isNcWeakRead and isNcRelAcq are disjoint request types
-      sorry
+      -- isNcWeakRead = ⟨.r, false, .Weak⟩. isNcRelAcq = isAcquire ∨ isNcRelease.
+      -- isAcquire = ⟨.r, false, .Acq⟩, isNcRelease = ⟨.w, false, .Rel⟩. All distinct.
+      cases e with
+      | directoryEvent _ => simp [Event.isNcWeakRead] at hread
+      | cacheEvent ce =>
+        simp [Event.isNcWeakRead, CacheEvent.isNcWeakRead, ValidRequest.isNcWeakRead] at hread
+        simp [Event.isNcRelAcq, Event.isAcquire, Event.isNcRelease,
+              CacheEvent.isAcquire, CacheEvent.isNcRelease,
+              ValidRequest.isAcquire, ValidRequest.isNcRelease] at hncRelAcq
+        cases hncRelAcq with
+        | inl hacq => rw [hread] at hacq; exact absurd hacq (by decide)
+        | inr hrel => rw [hread] at hrel; exact absurd hrel (by decide)
 
 /-- ncWeakReqOnVd contradicts reqHasPerms: weak non-coherent on Vd has no perms. -/
 private theorem reqHasPerms_not_ncWeakReqOnVd
     {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
     (hweak : b.ncWeakReqOnVd n init e) : ¬ b.reqHasPerms n init e := by
-  sorry
+  intro hhas
+  -- hweak.weakReq : isNcWeak = isNonCoherent ∧ isWeak (coherent=false, consistency=.Weak)
+  -- hweak.notDown : ¬ down
+  -- Cases of reqHasPerms:
+  cases hhas with
+  | hasPerms hcoh _ =>
+    -- isCoherent needs coherent=true. isNcWeak gives coherent=false. Contradiction.
+    cases e with
+    | directoryEvent _ => simp [Event.isCoherent] at hcoh
+    | cacheEvent ce =>
+      simp [Event.isCoherent, ValidRequest.isCoherent, Request.isCoherent] at hcoh
+      have hncoh := hweak.weakReq.1
+      simp [Event.isNonCoherent, CacheEvent.isNonCoherent, ValidRequest.isNonCoherent,
+            ValidRequest.NonCoherent, Request.nonCoherent] at hncoh
+      rw [hncoh] at hcoh; exact absurd hcoh (by decide)
+  | ncRelAcqWeakWriteHasCoherentPerms hncRelAcqWW _ =>
+    -- isNcRelAcqWeakWrite = isAcquire ∨ isNcRelease ∨ isNcWeakWrite.
+    -- isNcWeak = isNonCoherent ∧ isWeak. isNcWeak covers weak read AND weak write.
+    -- isNcRelAcqWeakWrite covers acquire, release, weak write — NOT weak read.
+    -- So if the event is a weak READ, it's isNcWeak but not isNcRelAcqWeakWrite.
+    -- But if it's a weak WRITE, it IS both isNcWeak and isNcRelAcqWeakWrite.
+    -- So this case IS consistent — ncWeakReqOnVd with ncRelAcqWeakWriteHasCoherentPerms.
+    -- The contradiction must come from ncWeakReqOnVd.reqOnOrAfterVd vs coherent perms.
+    -- reqHasPermsOnCoherentState = hasPerms ∧ reqMadeOnCoherentState.
+    -- reqMadeOnCoherentState = stateBefore.cache.c (coherence bit = true).
+    -- Vd = ⟨some .wr, false⟩ → Vd.c = false. So reqMadeOnCoherentState and Vd contradict.
+    -- But reqOnOrAfterVd says Vd is before OR after. If before: stateBefore = Vd → .c = false → ¬coherent.
+    sorry
+  | ncWeakReadHasPermsNotVd hread hperms =>
+    -- isNcWeakRead and reqHasPermsNotVd.notOnVd (stateBefore ≠ Vd).
+    -- ncWeakReqOnVd.reqOnOrAfterVd says stateBefore = Vd ∨ stateAfter = Vd.
+    -- If stateBefore = Vd: contradicts notOnVd.
+    -- If stateAfter = Vd: doesn't directly contradict stateBefore ≠ Vd.
+    -- But a weak READ on non-Vd state that transitions TO Vd... is that possible?
+    -- Weak read doesn't change state to Vd. Weak reads leave cache state unchanged or reduce.
+    -- This needs protocol reasoning about state transitions.
+    sorry
 
 /-- Reduce compoundLin when clusterDirLin: compoundLin = atDirectoryOrBeyond's chosen event. -/
 theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_of_clusterDirLin
@@ -236,7 +285,17 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
           rw [h_eq, hcache.choose_spec.2.e_creq_is_e_glin]; exact hcle_ob_e)
       | encapDir hno_perms _ =>
         -- Vacuous: encapDir has reqMissingPerms, requestLin has reqHasPerms.
-        exact absurd h_reqHasPerms (reqHasPerms_not_reqMissingPerms hno_perms)
+        -- Need ¬down. Case-split on reqMissingPerms: downgrade has down=true,
+        -- but requestLin.hasPerms requires isCoherent/isNcRelAcqWeakWrite/isNcWeakRead (not a downgrade).
+        -- Actually, extract ¬down: if down=true, the event is a downgrade.
+        -- requestLin carries requestWithCoherentPermsLinearizes which doesn't exclude down.
+        -- Use by_cases:
+        by_cases hdown : e.down
+        · -- down=true + encapDir + reqHasPerms: protocol-level contradiction.
+          -- A downgrade event that encapsulates a dir event AND has coherent perms.
+          -- This is protocol-impossible but requires domain reasoning about downgrades.
+          sorry -- TODO: downgrades with reqHasPerms contradict encapDir (protocol axiom)
+        · exact absurd h_reqHasPerms (reqHasPerms_not_reqMissingPerms hno_perms hdown)
       | orderAfterDir hweak _ _ _ =>
         -- Vacuous: orderAfterDir has ncWeakReqOnVd (weak non-coherent on Vd).
         -- ncWeakReqOnVd.weakReq : isNcWeak. reqHasPerms requires perms.
