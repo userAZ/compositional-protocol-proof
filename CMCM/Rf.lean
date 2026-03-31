@@ -175,54 +175,6 @@ private theorem reqHasPerms_not_reqMissingPerms
         | inl hacq => rw [hread] at hacq; exact absurd hacq (by decide)
         | inr hrel => rw [hread] at hrel; exact absurd hrel (by decide)
 
-/-- ncWeakReqOnVd contradicts reqHasPerms: weak non-coherent on Vd has no perms. -/
-private theorem reqHasPerms_not_ncWeakReqOnVd
-    {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
-    (hweak : b.ncWeakReqOnVd n init e) : ¬ b.reqHasPerms n init e := by
-  intro hhas
-  -- hweak.weakReq : isNcWeak = isNonCoherent ∧ isWeak (coherent=false, consistency=.Weak)
-  -- hweak.notDown : ¬ down
-  -- Cases of reqHasPerms:
-  cases hhas with
-  | hasPerms hcoh _ =>
-    -- isCoherent needs coherent=true. isNcWeak gives coherent=false. Contradiction.
-    cases e with
-    | directoryEvent _ => simp [Event.isCoherent] at hcoh
-    | cacheEvent ce =>
-      simp [Event.isCoherent, ValidRequest.isCoherent, Request.isCoherent] at hcoh
-      have hncoh := hweak.weakReq.1
-      simp [Event.isNonCoherent, CacheEvent.isNonCoherent, ValidRequest.isNonCoherent,
-            ValidRequest.NonCoherent, Request.nonCoherent] at hncoh
-      rw [hncoh] at hcoh; exact absurd hcoh (by decide)
-  | ncRelAcqWeakWriteHasCoherentPerms hncRelAcqWW _ =>
-    -- isNcRelAcqWeakWrite = isAcquire ∨ isNcRelease ∨ isNcWeakWrite.
-    -- isNcWeak = isNonCoherent ∧ isWeak. isNcWeak covers weak read AND weak write.
-    -- isNcRelAcqWeakWrite covers acquire, release, weak write — NOT weak read.
-    -- So if the event is a weak READ, it's isNcWeak but not isNcRelAcqWeakWrite.
-    -- But if it's a weak WRITE, it IS both isNcWeak and isNcRelAcqWeakWrite.
-    -- So this case IS consistent — ncWeakReqOnVd with ncRelAcqWeakWriteHasCoherentPerms.
-    -- The contradiction must come from ncWeakReqOnVd.reqOnOrAfterVd vs coherent perms.
-    -- reqHasPermsOnCoherentState = hasPerms ∧ reqMadeOnCoherentState.
-    -- reqMadeOnCoherentState = stateBefore.cache.c (coherence bit = true).
-    -- Vd = ⟨some .wr, false⟩ → Vd.c = false. So reqMadeOnCoherentState and Vd contradict.
-    -- reqOnOrAfterVd says Vd is before OR after.
-    -- Case: stateBefore = Vd → Vd.c = false → ¬ reqMadeOnCoherentState → contradiction.
-    -- Case: stateAfter = Vd → needs protocol reasoning about state transitions.
-    cases hncRelAcqWW with
-    | inl hacq => sorry -- acquire on Vd — protocol-specific
-    | inr hor => cases hor with
-      | inl hrel => sorry -- release on Vd — protocol-specific
-      | inr hww => sorry -- weak write on Vd — protocol-specific
-  | ncWeakReadHasPermsNotVd hread hperms =>
-    -- isNcWeakRead and reqHasPermsNotVd.notOnVd (stateBefore ≠ Vd).
-    -- ncWeakReqOnVd.reqOnOrAfterVd says stateBefore = Vd ∨ stateAfter = Vd.
-    -- If stateBefore = Vd: contradicts notOnVd.
-    -- If stateAfter = Vd: doesn't directly contradict stateBefore ≠ Vd.
-    -- But a weak READ on non-Vd state that transitions TO Vd... is that possible?
-    -- Weak read doesn't change state to Vd. Weak reads leave cache state unchanged or reduce.
-    -- This needs protocol reasoning about state transitions.
-    sorry
-
 /-- Reduce compoundLin when clusterDirLin: compoundLin = atDirectoryOrBeyond's chosen event. -/
 theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_of_clusterDirLin
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
@@ -247,6 +199,9 @@ inductive CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_rel
   /-- CLE finishes before compoundLin starts: request has perms (orderBeforeDir),
       so compoundLin = e_creq and CLE is at a predecessor event. -/
   | cle_ob_compoundLin (h : lin.hreq's_dir_access.choose.OrderedBefore n lin.compoundLin)
+  /-- compoundLin OB CLE: request has perms but CLE is at successor (orderAfterDir).
+      compoundLin = e_creq, CLE at successor of e_creq. -/
+  | compoundLin_ob_cle (h : lin.compoundLin.OrderedBefore n lin.hreq's_dir_access.choose)
   /-- compoundLin inside CLE: request linearizes at directory and global cache needs perms,
       so compoundLin is a deeper global event encapsulated by the CLE. -/
   | compoundLin_inside_cle (h : lin.compoundLin.EncapsulatedBy n lin.hreq's_dir_access.choose)
@@ -302,11 +257,28 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
           -- This is protocol-impossible but requires domain reasoning about downgrades.
           sorry -- TODO: downgrades with reqHasPerms contradict encapDir (protocol axiom)
         · exact absurd h_reqHasPerms (reqHasPerms_not_reqMissingPerms hno_perms hdown)
-      | orderAfterDir hweak _ _ _ =>
-        -- Vacuous: orderAfterDir has ncWeakReqOnVd (weak non-coherent on Vd).
-        -- ncWeakReqOnVd.weakReq : isNcWeak. reqHasPerms requires perms.
-        -- An ncWeak request on Vd has reqMissingPerms (noPermsForNonNcRelAcqWeakWrite).
-        exact absurd h_reqHasPerms (reqHasPerms_not_ncWeakReqOnVd hweak)
+      | orderAfterDir hweak hsucc_encap _ _ =>
+        -- orderAfterDir: CLE at successor of e. compoundLin = e (from clusterCacheLin).
+        -- e OB successor, CLE inside successor → e OB CLE → compoundLin OB CLE.
+        apply compoundLin_cle_rel.compoundLin_ob_cle
+        -- Need: compoundLin OB CLE.
+        -- compoundLin = hcache.choose = e [compoundLin_of_clusterCacheLin + atCache].
+        -- CLE inside successor (hsucc_encap). e OB successor (from immBottomSucc evidence).
+        -- e.oEnd < successor.oStart < CLE.oStart → e OB CLE.
+        -- hsucc_encap : immBottomSuccOnVdEncapCorrDir → has successor info.
+        have h_compoundLin_eq := lin.compoundLin_of_clusterCacheLin hlin_ev hcmp
+        rw [h_compoundLin_eq, hcache.choose_spec.2.e_creq_is_e_glin]
+        -- Goal: e OB CLE.
+        -- hsucc_encap : immBottomSuccOnVdEncapCorrDir = ∃ e_succ, ImmediateBottomSuccSatP ...
+        -- e OB successor:
+        have h_e_ob_succ : e.OrderedBefore n hsucc_encap.choose :=
+          hsucc_encap.choose_spec.2.isImmBottomSucc.isSucc
+        -- successor encapsulates CLE:
+        have h_sat := hsucc_encap.choose_spec.2.satisfyP
+        simp [Event.PropOnEvent, Behaviour.succOnVdWithCorrespondingDir] at h_sat
+        have h_succ_encap_cle := h_sat.encapCorresponding.reqEncapDir
+        -- Chain: e.oEnd < succ.oStart < CLE.oStart
+        exact Nat.lt_trans h_e_ob_succ h_succ_encap_cle.left
     | clusterDirLin hdir_case =>
       -- clusterDirLin requires reqLinearizesAtDir. But we're in requestLin → reqLinearizesAtCache.
       -- atDirectoryOrBeyond has lin_at_dir : reqLinearizesAtDir ... (.requestLin _) which is False.
