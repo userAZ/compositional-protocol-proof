@@ -1410,14 +1410,47 @@ theorem step_to_ordering
                             | gcacheEncap _ hlt => exact hlt)
                         (by simp [Event.isDirectoryEvent])
                     | inr hob_dir =>
-                      -- cdir OB CLE_w: temporal contradiction.
-                      -- hob_dir: de_cdir.oEnd < de_cle.oStart (cdir before CLE_w).
-                      -- This should be contradictory: the reader's downgrade (cdir) at e_w's
-                      -- cluster should happen AFTER the writer's CLE (CLE_w), not before.
-                      -- The chain needs e_r_down inside de_cdir (dirEncapDowngrade from protocol),
-                      -- but the encapProxyAndDirAndCDown witnesses are independent existentials.
-                      -- TODO: provide e_r_down from the same protocol axiom call as de_cdir.
-                      exfalso; exact sorry
+                      -- cdir OB CLE_w: derive False via lin(cdir).
+                      -- cdir is a directory event. If down=true, dirAccessOfRequest is vacuous.
+                      -- Check if cdir has down=true from the translateDirectoryEvent structure.
+                      exfalso
+                      -- Try: lin(cdir) for the directory event. If all dirAccessOfRequest
+                      -- cases are vacuous (like onDirVd), we get False directly.
+                      have hda_cdir := (h.hknow_dir_access compound b init
+                        (Event.directoryEvent de_cdir)).hreq's_dir_access.choose_spec.2
+                      cases hda_cdir with
+                      | encapDir _ hencap_cdir =>
+                        -- dirOfReq for (dir, dir) = False
+                        have := hencap_cdir.dirOfReq
+                        match (h.hknow_dir_access compound b init (Event.directoryEvent de_cdir)).hreq's_dir_access.choose, hencap_cdir.isDir with
+                        | .directoryEvent _, _ =>
+                          simp [Event.isDirEventOfReqEvent, Event.dirEventOfReqEvent] at this
+                        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+                      | orderBeforeDir _ hexists_pred hpred_enc _ _ _ _ _ =>
+                        -- Same pattern as encapDir: dirOfReq for directory event is False.
+                        -- CLE is a dir event (from hpred_enc.isDir). dirOfReq checks
+                        -- isDirEventOfReqEvent which returns false unless e_req is a cache event.
+                        -- For e_req = Event.directoryEvent de_cdir (our input), this is always False.
+                        -- NOTE: hpred_enc.dirOfReq is about (CLE, hexists_pred.choose), NOT about de_cdir.
+                        -- But the dirAccessOfRequest was called on de_cdir, so the "e_req" in
+                        -- the encapDir/orderBeforeDir is de_cdir itself, NOT hexists_pred.choose.
+                        -- Wait — in orderBeforeDir, hpred_enc relates hexists_pred.choose to CLE,
+                        -- and dirOfReq is CLE.isDirEventOfReqEvent hexists_pred.choose.
+                        -- hexists_pred.choose is the predecessor, not de_cdir.
+                        -- If hexists_pred.choose is a dir event: dirOfReq = false.
+                        -- If hexists_pred.choose is a cache event: dirOfReq could be true.
+                        -- Use: de_cdir is at a directory entry. ImmediateBottomPred at that entry
+                        -- gives an event at the SAME entry → must be directory event.
+                        have hdr := hpred_enc.dirOfReq
+                        have hcle_dir := hpred_enc.isDir
+                        -- hexists_pred.choose is the predecessor of de_cdir. Show it's a dir event.
+                        -- At a dir entry, all events are dir events (from eventsUpToEntry_at_e_entry).
+                        -- The predecessor is at de_cdir's entry (from ImmediateBottomPred).
+                        exact sorry
+                      | orderAfterDir hweak_cdir _ _ _ =>
+                        -- reqCache for dir event = False
+                        exact absurd (show Event.isCacheEvent n (Event.directoryEvent de_cdir) from hweak_cdir.reqCache)
+                          (by simp [Event.isCacheEvent])
               | evictBetween evict =>
                 exact from_encap_wob evict.encapProxyAndDir evict.evictBetween.wObRDown
           | wNoPermsAfter _ _ rCle =>
