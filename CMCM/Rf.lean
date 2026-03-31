@@ -92,14 +92,33 @@ structure CompoundProtocol.globalLinearizationEventOfRequest (cmp : CompoundProt
   hreq's_global_lin : ∃ e_gdir ∈ b, b.dirAccessOfRequest n init
     (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init hreq's_dir_access) e_gdir
 
+/-- CompoundMCM linearization event, parameterized by the linearizationOfEvent value.
+    Avoids dependent type issues by taking lin_ev as an explicit parameter. -/
+noncomputable def CompoundProtocol.compoundLinOf
+    (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (e : Event n)
+    (lin_ev : Behaviour.linearizationEventOfRequest n b init e) : Event n :=
+  match cmp.compoundLinearizationEvent cmp.shimAxioms b init e lin_ev with
+  | .clusterCacheLin lin_e => lin_e.choose
+  | .clusterDirLin lin_e => lin_e.choose
+
 /-- CompoundMCM linearization event for a request. Deterministic function (not existential).
     Either the cache event itself (requestLin: has perms) or the CLE (dirLin: no perms).
     Used for the ranking function in acyclicity proof alongside CLE/GLE. -/
 noncomputable def CompoundProtocol.globalLinearizationEventOfRequest.compoundLin
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
     (_ : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e) : Event n :=
-  (cmp.compoundLinearizationEvent cmp.shimAxioms b init e
-    (cmp.linearizationOfEvent b init e)).linearizationEvent
+  cmp.compoundLinOf b init e (cmp.linearizationOfEvent b init e)
+
+/-- Reduce compoundLin when clusterCacheLin: compoundLin = atCache's chosen event. -/
+theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_of_clusterCacheLin
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    {hreqlin} (hlin_ev : cmp.linearizationOfEvent b init e = .requestLin hreqlin)
+    {hcache} (hcmp : cmp.compoundLinearizationEvent cmp.shimAxioms b init e (.requestLin hreqlin) = .clusterCacheLin hcache)
+    : lin.compoundLin = hcache.choose := by
+  show cmp.compoundLinOf b init e (cmp.linearizationOfEvent b init e) = hcache.choose
+  rw [hlin_ev]; show cmp.compoundLinOf b init e (.requestLin hreqlin) = hcache.choose
+  unfold CompoundProtocol.compoundLinOf; rw [hcmp]
 
 /-- The compoundLin event relates to the CLE by one of these cases:
     1. compoundLin = CLE (dirLin + global cache already has perms → lin event is the CLE itself)
@@ -142,48 +161,20 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
       have h_reqHasPerms := hreqlin.choose_spec.2.reqHasPerms
       cases hda with
       | orderBeforeDir _ hexists_pred hpred_accesses_dir _ _ _ _ _ =>
-        -- CLE inside predecessor, predecessor OB e → CLE OB e = CLE OB compoundLin
-        apply compoundLin_cle_rel.cle_ob_compoundLin
-        -- Step 1: compoundLin = hcache.choose = e (via atCache.e_creq_is_e_glin)
-        -- Step 2: CLE inside predecessor (hpred_accesses_dir.reqEncapDir)
-        -- Step 3: predecessor OB e (from hexists_pred)
-        -- Step 4: CLE.oEnd < pred.oEnd < e.oStart → CLE OB e
-        --
-        -- Extract pred OB e from hexists_pred:
-        -- hexists_pred : reqHasPermsSoDirPred = ∃ e_pred ∈ b.es, immBottomPredHasNoPermsAndLeavesStateAtLeast
-        have hpred_spec := hexists_pred.choose_spec.2
-        -- hpred_spec : immBottomPredHasNoPermsAndLeavesStateAtLeast
-        -- = ImmediateBottomPredSatisfyingProp = IsImmediateBottomPredSatisfyingProp
-        -- .isImmPred.bPred.isPred gives pred OB e
-        have hpred_ob_e : hexists_pred.choose.OrderedBefore n e :=
-          hpred_spec.isImmPred.bPred.isPred
-        -- CLE inside predecessor:
-        have hcle_inside_pred := hpred_accesses_dir.reqEncapDir
-        -- hcle_inside_pred : hexists_pred.choose.Encapsulates CLE
-        -- So CLE.oEnd < hexists_pred.choose.oEnd < e.oStart
-        -- → CLE.oEnd < e.oStart → CLE OB e
+        -- CLE inside predecessor, predecessor OB e → CLE OB e = CLE OB compoundLin.
+        -- compoundLin = e (via clusterCacheLin + atCache.e_creq_is_e_glin).
+        -- Extract CLE OB e:
         have hcle_ob_e : lin.hreq's_dir_access.choose.OrderedBefore n e :=
-          Nat.lt_trans hcle_inside_pred.right hpred_ob_e
-        -- compoundLin = e: need to show CLE OB compoundLin
-        -- compoundLin unfolds to ClusterRequestLinearizationEvent.linearizationEvent of clusterCacheLin
-        -- which is hcache.choose, and hcache.choose = e by atCache.e_creq_is_e_glin
-        -- compoundLin in the goal is:
-        -- (cmp.compoundLinearizationEvent ... (.requestLin hreqlin)).linearizationEvent
-        -- After cases hcmp, this is (.clusterCacheLin hcache).linearizationEvent = hcache.choose
-        -- hcache.choose = e by atCache.e_creq_is_e_glin
-        -- So the goal should be: CLE OB hcache.choose, which is CLE OB e.
-        -- The `cases hcmp` should have rewritten compoundLin in the goal already.
-        -- Let's see if `exact hcle_ob_e` works after rewriting:
-        -- Goal: CLE OB lin.compoundLin. Show lin.compoundLin = e.
-        -- lin.compoundLin = (cmp.compoundLinearizationEvent ... (cmp.linearizationOfEvent ...)).linearizationEvent
-        -- After cases hlin_ev: linearizationOfEvent = .requestLin hreqlin
-        -- After cases hcmp: compoundLinearizationEvent ... (.requestLin hreqlin) = .clusterCacheLin hcache
-        -- linearizationEvent of .clusterCacheLin hcache = hcache.choose
-        -- hcache.choose = e by atCache.e_creq_is_e_glin
-        -- Need: CLE OB lin.compoundLin. We know lin.compoundLin = e.
-        -- Dependent type rewriting issue: compoundLin depends on linearizationOfEvent.
-        -- Use native_decide or sorry for the compoundLin = e bridge.
-        sorry -- TODO: prove lin.compoundLin = e (dependent type rewriting)
+          Nat.lt_trans hpred_accesses_dir.reqEncapDir.right
+            hexists_pred.choose_spec.2.isImmPred.bPred.isPred
+        -- Construct .cle_ob_compoundLin without apply (to avoid dependent goal):
+        exact .cle_ob_compoundLin (show lin.hreq's_dir_access.choose.OrderedBefore n lin.compoundLin by
+          -- compoundLin = e: reduce through definitions.
+          -- OrderedBefore is Nat.lt on oEnd/oStart. compoundLin and e are the same Event.
+          -- Use congrArg to transport through the definition chain.
+          have h_eq : lin.compoundLin = hcache.choose :=
+            lin.compoundLin_of_clusterCacheLin hlin_ev hcmp
+          rw [h_eq, hcache.choose_spec.2.e_creq_is_e_glin]; exact hcle_ob_e)
       | encapDir hno_perms _ =>
         -- Vacuous: reqMissingPerms contradicts reqHasPerms
         sorry -- TODO: reqHasPerms_not_reqMissingPerms lemma
