@@ -2595,7 +2595,32 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
 /-- sameLin always gives .ob between compoundLin events via the encap+OB chain:
     CLE₁.oEnd < e₁'.oEnd (enc₁) < e₂'.oStart (OB) < CLE₂.oStart (enc₂)
     ≤ CLE₂.oEnd (oWellFormed). Any compoundLin₁ with oEnd ≤ CLE₁.oEnd chains
-    forward, and any compoundLin₂ with oStart ≥ CLE₂.oStart chains forward. -/
+    forward, and any compoundLin₂ with oStart ≥ CLE₂.oStart chains forward.
+-/
+
+-- If CLEs have different protocols, compoundLin events also have different protocols.
+private theorem compoundLin_diff_protocol
+    {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (hdiff : Event.protocol n lin₁.hreq's_dir_access.choose ≠ Event.protocol n lin₂.hreq's_dir_access.choose)
+    (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
+    : Event.protocol n lin₁.compoundLin ≠ Event.protocol n lin₂.compoundLin := by
+  have hprot₁ := write_cle_protocol_eq_write_protocol lin₁
+  have hprot₂ := write_cle_protocol_eq_write_protocol lin₂
+  -- compoundLin.protocol relates to e.protocol via compoundLin_eq_event or compoundLin = CLE.
+  -- Case-split on linearizationOfEvent for each event.
+  cases hlin₁ : compound.linearizationOfEvent b init e₁ with
+  | requestLin _ =>
+    rw [lin₁.compoundLin_eq_event_of_requestLin hlin₁]
+    -- compoundLin₁ = e₁. Need e₁.prot ≠ compoundLin₂.prot.
+    -- e₁.prot = CLE₁.prot (hprot₁.symm). CLE₁.prot ≠ CLE₂.prot (hdiff).
+    cases hlin₂ : compound.linearizationOfEvent b init e₂ with
+    | requestLin _ =>
+      rw [lin₂.compoundLin_eq_event_of_requestLin hlin₂]
+      exact fun h => hdiff (hprot₁.trans (h.trans hprot₂.symm))
+    | dirLin _ => sorry
+  | dirLin _ => sorry
+
 private theorem sameLin_gives_ob {e₁' e₂' : Event n}
     (henc₁ : l₁.EncapsulatedBy n e₁') (hob : e₁'.OrderedBefore n e₂')
     (henc₂ : l₂.EncapsulatedBy n e₂')
@@ -2665,13 +2690,7 @@ theorem step_ordering_cle_to_compoundLin
         -- And compoundLin₂.prot = e₂.prot (from compoundLin_eq_event if requestLin).
         -- Since ha₂ arises from cle_ob (requestLin), compoundLin₂.prot = e₂.prot.
         -- diff_prot: case-split on linearizationOfEvent to relate compoundLin₂.prot to CLE₂.prot.
-        have hdiff' : Event.protocol n lin₁.hreq's_dir_access.choose ≠ Event.protocol n lin₂.compoundLin := by
-          cases hlin₂ : compound.linearizationOfEvent b init e₂ with
-          | requestLin _ =>
-            rw [(lin₂).compoundLin_eq_event_of_requestLin hlin₂]
-            exact fun h => hdiff (h.trans hprot₂.symm)
-          | dirLin _ => sorry
-        exact .obFinishBefore p (Trans.trans hob ha₂) hlt hdiff' hisdir
+        exact .obFinishBefore p (Trans.trans hob ha₂) hlt (ha₁ ▸ compoundLin_diff_protocol hdiff h₁_notdown h₂_notdown) hisdir
       | obProxy p₁ p₂ h₁_ob h_so h₂_ob =>
         -- CLE₁ = compoundLin₁ (eq ha₁), CLE₂ OB compoundLin₂ (cle_ob ha₂).
         -- obProxy: CLE₁ OB p₁, SO p₁ p₂, CLE₂ OB p₂.
@@ -2697,7 +2716,7 @@ theorem step_ordering_cle_to_compoundLin
         sorry
       | obFinishBefore p hob hlt hdiff hisdir =>
         -- p OB CLE₂, compoundLin₂ inside CLE₂ → p.oEnd < CLE₂.oStart < compoundLin₂.oStart.
-        exact .obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (sorry) hisdir
+        exact .obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (ha₁ ▸ compoundLin_diff_protocol hdiff h₁_notdown h₂_notdown) hisdir
       | encapObEndLt q p hqenc hqob hlt hisdir =>
         -- q inside CLE₁, q OB p, p.oEnd < CLE₂.oEnd, compoundLin₂.oEnd < CLE₂.oEnd.
         -- Unknown p vs compoundLin₂. But encapOb gives q OB p.
