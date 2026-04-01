@@ -2709,17 +2709,38 @@ theorem step_ordering_cle_to_compoundLin
     cases hrel₂ with
     | eq ha₂ => rw [ha₂]; exact .stepProxyL _ ha₁ h
     | cle_ob_compoundLin ha₂ =>
-      -- CLE₂ OB compoundLin₂ (compoundLin₂ after CLE₂). Chain forward.
-      -- StepOrdering CLE₁ CLE₂, CLE₂ OB compoundLin₂.
-      -- Inner: StepOrdering CLE₁ compoundLin₂ by chaining h with ha₂.
-      -- Then .stepProxyL wraps with ha₁.
-      -- For .ob: chain directly. For others: use stepProxyR? No — stepProxyR is for l₂ OB p₂, wrong direction.
-      -- Actually just compose h with .ob ha₂ somehow. The bridge eq+cle_ob case handles this!
-      sorry
+      -- CLE₁ OB compoundLin₁ (ha₁), CLE₂ OB compoundLin₂ (ha₂), StepOrdering CLE₁ CLE₂ (h).
+      -- Chain: stepProxyL CLE₁ ha₁ (inner: StepOrdering CLE₁ compoundLin₂).
+      -- Inner: chain h with ha₂ for each constructor.
+      cases h with
+      | ob hob => exact .stepProxyL _ ha₁ (.ob (Trans.trans hob ha₂))
+      | eq heq => exact .stepProxyL _ ha₁ (.ob (heq ▸ ha₂))
+      | obEndLt p hob hlt hisdir =>
+        exact .stepProxyL _ ha₁ (.obEndLt p hob (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir)
+      | encapOb p henc hob => exact .stepProxyL _ ha₁ (.encapOb p henc (Trans.trans hob ha₂))
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        exact .stepProxyL _ ha₁ (.ob (Nat.lt_trans henc₁.right (Nat.lt_trans hob
+          (Nat.lt_trans henc₂.left (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂)))))
+      | proxyPair q p hqenc hqob hpob => exact .stepProxyL _ ha₁ (.proxyPair q p hqenc hqob (Trans.trans hpob ha₂))
+      | encapObEndLt q p hqenc hqob hlt hisdir =>
+        exact .stepProxyL _ ha₁ (.encapObEndLt q p hqenc hqob (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir)
+      | _ => sorry
     | compoundLin_ob_cle ha₂ =>
       -- compoundLin₂ OB CLE₂ (compoundLin₂ before CLE₂). Use stepProxyR.
       exact .stepProxyL _ ha₁ (.stepProxyR _ h ha₂)
-    | compoundLin_inside_cle ha₂ => sorry
+    | compoundLin_inside_cle ha₂ =>
+      -- CLE₁ OB compoundLin₁, compoundLin₂ inside CLE₂. StepOrdering CLE₁ CLE₂.
+      -- Use stepProxyL CLE₁ ha₁ (inner: StepOrdering CLE₁ compoundLin₂).
+      -- Inner: chain h with ha₂ (eq+inside logic).
+      cases h with
+      | ob hob => exact .stepProxyL _ ha₁ (.ob (Nat.lt_trans hob ha₂.left))
+      | eq heq => exact .stepProxyL _ ha₁ (.encap ⟨heq ▸ ha₂.left, heq ▸ ha₂.right⟩)
+      | encap henc => exact .stepProxyL _ ha₁ (.encap ⟨Nat.lt_trans henc.left ha₂.left, Nat.lt_trans ha₂.right henc.right⟩)
+      | encapOb p henc hob => exact .stepProxyL _ ha₁ (.encapOb p henc (Nat.lt_trans hob ha₂.left))
+      | proxyPair q p hqenc hqob hpob => exact .stepProxyL _ ha₁ (.proxyPair q p hqenc hqob (Nat.lt_trans hpob ha₂.left))
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        exact .stepProxyL _ ha₁ (.ob (Nat.lt_trans henc₁.right (Nat.lt_trans hob (Nat.lt_trans henc₂.left ha₂.left))))
+      | _ => sorry
   | compoundLin_ob_cle ha₁ =>
     cases hrel₂ with
     | eq ha₂ => rw [ha₂]; cases h with
@@ -2783,11 +2804,16 @@ theorem step_ordering_cle_to_compoundLin
       -- compoundLin₁ inside CLE₁, StepOrdering CLE₁ CLE₂.
       -- The bridge's inside+eq case handles StepOrdering compoundLin₁ CLE₂ for .ob.
       -- Use stepProxyR with inner StepOrdering from inside+eq logic.
-      -- Use stepProxyR: need StepOrdering compoundLin₁ CLE₂.
-      -- compoundLin₁.oEnd < CLE₁.oEnd (ha₁.right), then chain through h to CLE₂.
-      -- For .ob: CLE₁.oEnd < CLE₂.oStart → compoundLin₁.oEnd < CLE₂.oStart → .ob.
-      -- General: need to extract StepOrdering compoundLin₁ CLE₂ from inside+eq sub-case.
-      sorry
+      -- Use stepProxyR: StepOrdering compoundLin₁ CLE₂, then compoundLin₂ OB CLE₂.
+      -- Inner: chain ha₁.right (compoundLin₁.oEnd < CLE₁.oEnd) through h to CLE₂.
+      cases h with
+      | ob hob => exact .stepProxyR _ (.ob (Nat.lt_trans ha₁.right hob)) ha₂
+      | eq heq => sorry
+      | obEndLt p hob hlt hisdir => exact .stepProxyR _ (.obEndLt p (Nat.lt_trans ha₁.right hob) hlt hisdir) ha₂
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        exact .stepProxyR _ (.ob (Nat.lt_trans ha₁.right (Nat.lt_trans henc₁.right (Nat.lt_trans hob henc₂.left)))) ha₂
+      | encapOb p henc hob => sorry
+      | _ => sorry
     | compoundLin_inside_cle ha₂ =>
       cases h with
       | ob hob => exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans hob ha₂.left))
