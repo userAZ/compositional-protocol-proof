@@ -2601,37 +2601,44 @@ theorem step_to_ordering_compoundLin
         (compound.linearizationOfEvent b init a₂)).linearizationEvent)
     (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
     : @StepOrdering n (lin e₁).compoundLin (lin e₂).compoundLin := by
-  -- Get CLE-based StepOrdering from existing proof.
   have h_cle := step_to_ordering h lin h_non_lazy_ppoi
-  -- Get compoundLin_cle relationships.
   have hrel₁ := (lin e₁).compoundLin_cle h₁_notdown
   have hrel₂ := (lin e₂).compoundLin_cle h₂_notdown
-  -- For most cases, use the generic bridge.
-  -- For cle_ob (orderBeforeDir) with same_protocol, use COM-specific evidence.
-  -- Strategy: case-split on the COM edge type for specific temporal evidence.
-  cases h with
-  | co hco =>
-    -- co.sameCache: e₁ OB e₂. compoundLin depends on compoundLin_cle_rel.
-    -- co.sameClusDiffCache: CLE ordering from dir.
-    -- co.diffClus: diff_protocol available for obFinishBefore.
-    cases hco.comm with
-    | sameCache same_cle cache_ob =>
-      exact step_ordering_cle_to_compoundLin
-        (step_to_ordering (.co hco) lin h_non_lazy_ppoi) h₁_notdown h₂_notdown
-    | sameClusDiffCache same_prot cle_ordering =>
-      exact step_ordering_cle_to_compoundLin
-        (step_to_ordering (.co hco) lin h_non_lazy_ppoi) h₁_notdown h₂_notdown
-    | diffClus diff_prot cle_ordering =>
-      -- diff_protocol available. Delegate to step_to_ordering for CLE ordering,
-      -- then use generic bridge step_ordering_cle_to_compoundLin.
-      exact step_ordering_cle_to_compoundLin
-        (step_to_ordering (.co hco) lin h_non_lazy_ppoi) h₁_notdown h₂_notdown
-  | rfe hrfe =>
-    exact step_ordering_cle_to_compoundLin
-      (step_to_ordering (.rfe hrfe) lin h_non_lazy_ppoi) h₁_notdown h₂_notdown
-  | fr hfr =>
-    exact step_ordering_cle_to_compoundLin
-      (step_to_ordering (.fr hfr) lin h_non_lazy_ppoi) h₁_notdown h₂_notdown
+  -- Handle ob_cle event 2 and cle_ob event 1 using COM evidence.
+  -- For these cases, compoundLin = e (requestLin), and we need e₁/e₂ temporal info.
+  -- For all other cases, delegate to the generic bridge.
+  cases hrel₂ with
+  | compoundLin_ob_cle ha₂ =>
+    -- compoundLin₂ OB CLE₂ → requestLin → compoundLin₂ = e₂.
+    -- Need to case-split on linearizationOfEvent to get compoundLin₂ = e₂.
+    cases hlin₂ : compound.linearizationOfEvent b init e₂ with
+    | requestLin hreqlin₂ =>
+      have hcl₂ := (lin e₂).compoundLin_eq_event_of_requestLin hlin₂
+      rw [hcl₂]
+      -- Now goal: StepOrdering compoundLin₁ e₂.
+      -- compoundLin₁ relates to CLE₁ via hrel₁.
+      -- CLE₁ relates to CLE₂ via h_cle (StepOrdering).
+      -- CLE₂ is AFTER e₂ (orderAfterDir). So CLE₂.oStart > e₂.oEnd.
+      -- Need: compoundLin₁ OB e₂ or similar.
+      -- Key: from the COM edge, extract e₁/e₂ temporal relationship.
+      -- For co: e₁ OB e₂ (sameCache), or downgrade chain.
+      -- For rfe/fr: similar.
+      sorry
+    | dirLin hdir₂ =>
+      -- dirLin + compoundLin_ob_cle: this should be vacuous.
+      -- dirLin gives reqMissingPerms. compoundLin_ob_cle arises from requestLin + orderAfterDir.
+      -- requestLin needs reqHasPerms. Contradiction with dirLin's reqMissingPerms.
+      -- But compoundLin_ob_cle doesn't carry requestLin evidence directly...
+      sorry
+  | _ =>
+    -- For eq, cle_ob, inside: delegate to generic bridge.
+    cases hrel₁ with
+    | cle_ob_compoundLin ha₁ =>
+      -- cle_ob event 1: similar handling needed.
+      sorry
+    | _ =>
+      -- All remaining cases: generic bridge handles them.
+      exact step_ordering_cle_to_compoundLin h_cle h₁_notdown h₂_notdown
 
 /-- Acyclicity given that every event has a linearization.
     Invariant: `StepOrdering (cle a) (cle c) ∨ cle a = cle c ∨ (cle c).OrderedBefore n (cle a)`
