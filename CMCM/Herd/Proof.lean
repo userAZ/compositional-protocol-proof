@@ -2220,11 +2220,7 @@ theorem step_ordering_cle_to_compoundLin
       | obEndLt p hob hlt hisdir => sorry
       | _ => sorry
 
-/-- Map a COM edge to StepOrdering between compoundLin events.
-    Uses COM edge evidence directly + compoundLin_cle bridge.
-    - sameCache: e₁ OB e₂ gives compoundLin ordering directly
-    - sameClusDiffCache: downgrade chain evidence + bridge
-
+-- dir_ordered on CLEs, lifted to compoundLin via bridge.
 theorem step_ordering_dir_ordered_3way_compoundLin
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n} (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
@@ -2247,7 +2243,7 @@ theorem step_ordering_dir_ordered_3way_compoundLin
       exact Or.inr (Or.inr (step_ordering_cle_to_compoundLin (.ob hob_rev) h₂_notdown h₁_notdown))
 
 
-    - diffClus: bridge + obFinishBefore (diff_protocol available) -/
+-- COM → StepOrdering on compoundLin events.
 theorem step_to_ordering_compoundLin
     (h : com compound b init e₁ e₂)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
@@ -3000,7 +2996,8 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
   -- Mirrors compose_three but uses compoundLin instead of CLEs.
   -- Fallback: step_ordering_dir_ordered_3way_compoundLin gives 3-way on any pair of events.
   have fallback_1_3 : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ ∨ @StepOrdering n l₃ l₁ := by
-    rw [hl₁, hl₃]; exact step_ordering_dir_ordered_3way_compoundLin h₁_notdown h₃_notdown hdir
+    rw [hl₁, hl₃]
+    exact @step_ordering_dir_ordered_3way_compoundLin n compound b init hknow e₁ e₃ h₁_notdown h₃_notdown hdir
   -- Case-split on h₁: eq/reverse or StepOrdering from prefix.
   cases h₁ with
   | inr hr₁ =>
@@ -3011,7 +3008,7 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
       | inl hppoi_edge =>
         -- PPOi: use dir_ordered on compoundLin events.
         rw [heq₁, hl₂, hl₃]
-        exact step_ordering_dir_ordered_3way_compoundLin h₂_notdown h₃_notdown hdir
+        exact @step_ordering_dir_ordered_3way_compoundLin n compound b init hknow e₂ e₃ h₂_notdown h₃_notdown hdir
       | inr hcom_edge =>
         -- COM: step_to_ordering_compoundLin gives StepOrdering.
         rw [heq₁, hl₂, hl₃]
@@ -3025,7 +3022,7 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
   | inl hppoi_edge =>
     -- PPOi(e₂, e₃): get 3-way on l₂, l₃ via compoundLin.
     have h₂₃_3way : @StepOrdering n l₂ l₃ ∨ l₂ = l₃ ∨ @StepOrdering n l₃ l₂ := by
-      rw [hl₂, hl₃]; exact step_ordering_dir_ordered_3way_compoundLin h₂_notdown h₃_notdown hdir
+      rw [hl₂, hl₃]; exact @step_ordering_dir_ordered_3way_compoundLin n compound b init hknow e₂ e₃ h₂_notdown h₃_notdown hdir
     cases h₂₃_3way with
     | inl hso₂ =>
       -- StepOrdering l₂ l₃: compose hso₁ with hso₂.

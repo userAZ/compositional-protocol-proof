@@ -7,11 +7,6 @@ defaultTargets = ["CompositionalProtocolProof", "CMCM"]
 # git = "https://github.com/JOSHCLUNE/LeanHammer"
 # rev = "temp-v4.21.0-rc3"
 
-[[require]]
-name = "mathlib"
-scope = "leanprover-community"
-rev = "v4.29.0-rc3"
-
 # [[require]]
 # name = "Canonical"
 # scope = "chasenorman"
@@ -32,3 +27,8 @@ name = "CompositionalProtocolProof"
 
 [[lean_lib]]
 name = "CMCM"
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "v4.29.0-rc3"
