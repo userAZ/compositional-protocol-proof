@@ -2983,7 +2983,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     - `hl₂`/`hl₃` point to `compoundLin` instead of `hreq's_dir_access.choose`
     - `h₁_notdown`/`h₂_notdown`/`h₃_notdown` replace `h₁_isdir` (compoundLin may be a cache event) -/
 private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event n}
-    (h₁ : @StepOrdering n l₁ l₂ ∨ l₁ = l₂ ∨ @StepOrdering n l₂ l₁)
+    (h₁ : @StepOrdering n l₁ l₂ ∨ l₁ = l₂)
     (hedge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₂ e₃)
     (h_prefix_edge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₁ e₂)
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
@@ -2995,7 +2995,7 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
         (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
       (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
         (compound.linearizationOfEvent b init a₂)).linearizationEvent)
-    : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ ∨ @StepOrdering n l₃ l₁ := by
+    : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ := by
   sorry
 
 /-- Acyclicity given that every event has a linearization.
@@ -3121,51 +3121,10 @@ theorem cmcm_acyclic_of_hknow_compoundLin
   suffices h_ind : ∀ a c, Relation.TransGen R a c →
       (∃ b_prev, R b_prev c) ∧
       (@StepOrdering n (hknow a).compoundLin (hknow c).compoundLin ∨
-       (hknow a).compoundLin = (hknow c).compoundLin ∨
-       ((hknow c).compoundLin).OrderedBefore n (hknow a).compoundLin) by
+       (hknow a).compoundLin = (hknow c).compoundLin) by
     have ⟨_, hresult⟩ := h_ind e e hcycle
-    -- Irreflexivity: same as CLE version — all constructors give contradiction.
-    cases hresult with
-    | inl hso =>
-      cases hso with
-      | ob h => exact Event.contradiction_of_reflexive_ordered_before n h
-      | obEndLt p h_ob h_lt _ =>
-        exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans h_ob (Event.oWellFormed n p)) h_lt)
-      | encapOb p h_enc h_ob =>
-        exact Nat.lt_irrefl _ (Nat.lt_trans h_enc.left (Nat.lt_trans (Event.oWellFormed n p) h_ob))
-      | obFinishBefore _ _ _ h_diff _ => exact absurd rfl h_diff
-      | sameLin e₁' e₂' _ h_enc₁ h_ob h_enc₂ =>
-        exact Nat.lt_irrefl _ (calc Event.oEnd n (cl e)
-          _ < Event.oEnd n e₁' := h_enc₁.right
-          _ < Event.oStart n e₂' := h_ob
-          _ < Event.oStart n (cl e) := h_enc₂.left
-          _ ≤ Event.oEnd n (cl e) := Nat.le_of_lt (Event.oWellFormed n _))
-      | proxyPair q p h_q_enc h_q_ob h_p_ob =>
-        exact Nat.lt_irrefl _ (calc Event.oEnd n p
-          _ < Event.oStart n (cl e) := h_p_ob
-          _ < Event.oStart n q := h_q_enc.left
-          _ ≤ Event.oEnd n q := Nat.le_of_lt (Event.oWellFormed n q)
-          _ < Event.oStart n p := h_q_ob
-          _ ≤ Event.oEnd n p := Nat.le_of_lt (Event.oWellFormed n p))
-      | encap henc => exact Nat.lt_irrefl _ henc.left
-      | eq _ =>
-        -- compoundLin(e) = compoundLin(e): derive contradiction via CLE.
-        -- compoundLin(e) relates to CLE(e) (dir event) via compoundLin_cle.
-        -- Use dir_ordered on CLE(e) to get CLE OB CLE → False.
-        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
-      | encapObEndLt q p h_q_enc h_q_ob h_p_lt _ =>
-        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
-      | obProxy p₁ p₂ h₁_ob h_so h₂_ob =>
-        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
-      | stepProxyL p₁ h₁_ob h_so =>
-        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
-      | stepProxyR p₂ h_so h₂_ob =>
-        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
-      | obStepL p₁ h₁_ob h_so =>
-        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
-    | inr hr => cases hr with
-      | inl heq => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
-      | inr hob_rev => exact Event.contradiction_of_reflexive_ordered_before n hob_rev
+    -- Both alternatives at cycle closure give contradiction via cle_self_ordering_false.
+    exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
   intro a c hpath
   induction hpath with
   | single h =>

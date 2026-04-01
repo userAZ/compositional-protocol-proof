@@ -70,7 +70,7 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 1. **CO Theorem**: Implement a CO theorem that PROVES `co.ordering` from protocol axioms. Note: this is NOT a carbon copy of `RfTheorem` — `readsFrom.cases` requires `isRead` for the second event, but CO has two writes. The CO theorem needs its own type structure. `CoTheorem.lean` is currently a placeholder.
 2. **Dead code cleanup**: Remove marked-as-DEAD functions in RfProofHelpers.lean.
 3. **CompoundLin lifting (IN PROGRESS)**: Framework done (compoundLin def, bridge, proxy constructors). Next: finish bridge sorry's → compose_three_compoundLin → cmcm_acyclic_compoundLin. Key: compoundLin always related to CLE via compoundLin_cle_rel; dir_ordered goes through CLEs.
-4. **TODO: Remove reverseOB from compose_three_compoundLin**: The 3-way invariant's reverseOB case comes from dir_ordered giving wrong direction. For compose_three_compoundLin, if all composition can be done without dir_ordered fallback (using proxy constructors instead), reverseOB is unnecessary. This would simplify the invariant to 2-way: `StepOrdering ∨ eq`. Investigate whether all composition cases can be handled without dir_ordered fallback.
+4. **compose_three_compoundLin**: Write with 2-way invariant (`StepOrdering ∨ eq`, no reverse case). Handle all composition pairs explicitly. Use `step_ordering_dir_ordered_3way_compoundLin` for forward+eq only. Sorry's for stuck pairs indicate genuine gaps needing protocol evidence, not band-aid reverse propagation.
 5. **Key rule**: Use `Event n` with `isDirectoryEvent` prop, NEVER `DirectoryEvent` directly. Don't use `DirectoryEvent.eReq`. Match existing Behaviour proof patterns. ALWAYS document WHY a sublemma exists.
 
 ### Lessons learned (BE INTROSPECTIVE!)
