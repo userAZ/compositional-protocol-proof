@@ -2620,10 +2620,46 @@ theorem step_to_ordering_compoundLin
       -- CLE₁ relates to CLE₂ via h_cle (StepOrdering).
       -- CLE₂ is AFTER e₂ (orderAfterDir). So CLE₂.oStart > e₂.oEnd.
       -- Need: compoundLin₁ OB e₂ or similar.
-      -- Key: from the COM edge, extract e₁/e₂ temporal relationship.
-      -- For co: e₁ OB e₂ (sameCache), or downgrade chain.
-      -- For rfe/fr: similar.
-      sorry
+      -- Protocol context: compoundLin₂ = e₂ (requestLin). e₂ has perms (reqHasPerms).
+      -- e₂ OB CLE₂ (orderAfterDir). CLE₂ at successor of e₂.
+      -- For compoundLin₁: relates to CLE₁ via hrel₁ (eq/cle_ob/ob_cle/inside).
+      -- StepOrdering CLE₁ CLE₂ from h_cle.
+      -- Need: StepOrdering compoundLin₁ e₂.
+      --
+      -- For hrel₁ cases:
+      -- eq: compoundLin₁ = CLE₁. Need CLE₁ OB e₂? Not directly available.
+      --   But CLE₁.oEnd < CLE₂.oStart (from .ob h_cle) and e₂.oEnd < CLE₂.oStart (ha₂).
+      --   Both before CLE₂. Need COM evidence for CLE₁ vs e₂.
+      -- ob_cle: compoundLin₁ = e₁ (requestLin). For co.sameCache: e₁ OB e₂ → .ob.
+      -- inside: compoundLin₁ inside CLE₁. Same issue as eq.
+      -- cle_ob: compoundLin₁ after CLE₁. Even harder.
+      --
+      -- Case-split on hrel₁ to handle ob_cle (= e₁) case directly:
+      cases hrel₁ with
+      | compoundLin_ob_cle ha₁_ob =>
+        -- compoundLin₁ = e₁ (requestLin + orderAfterDir). e₁ and e₂ are COM-related.
+        -- For co.sameCache: e₁ OB e₂ → compoundLin₁ OB e₂.
+        -- Need compoundLin₁ = e₁:
+        cases hlin₁ : compound.linearizationOfEvent b init e₁ with
+        | requestLin hreqlin₁ =>
+          have hcl₁ := (lin e₁).compoundLin_eq_event_of_requestLin hlin₁
+          rw [hcl₁]
+          -- Goal: StepOrdering e₁ e₂. Extract e₁ OB e₂ from COM edge.
+          cases h with
+          | co hco => cases hco.comm with
+            | sameCache _ cache_ob => exact .ob cache_ob
+            | sameClusDiffCache _ _ => sorry -- needs downgrade chain
+            | diffClus _ _ => sorry
+          | rfe _ => sorry
+          | fr _ => sorry
+        | dirLin _ => sorry -- vacuous: dirLin + ob_cle
+      | eq ha₁_eq =>
+        rw [ha₁_eq]
+        -- compoundLin₁ = CLE₁. Need StepOrdering CLE₁ e₂.
+        -- CLE₁ and e₂ both before CLE₂. Need COM evidence.
+        sorry
+      | cle_ob_compoundLin ha₁_ob => sorry
+      | compoundLin_inside_cle ha₁_enc => sorry
     | dirLin hdir₂ =>
       -- dirLin + compoundLin_ob_cle: this should be vacuous.
       -- dirLin gives reqMissingPerms. compoundLin_ob_cle arises from requestLin + orderAfterDir.

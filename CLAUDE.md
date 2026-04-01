@@ -35,8 +35,13 @@ Before proving, composing, or sorry-ing ANYTHING:
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-03-31)
-- **ZERO SORRY'S, ZERO ERRORS** in entire CMCM module and full project build.
+### Status (updated 2026-04-01)
+- **compoundLin lifting IN PROGRESS**: Unifying TransGen to use CompoundMCM linearization events.
+  - `compoundLin_cle` bridge lemma: SORRY-FREE. Relates compoundLin to CLE in 4 cases.
+  - `StepOrdering.encap` constructor: added and integrated into compose_three.
+  - `step_ordering_cle_to_compoundLin`: generic bridge, handles most cases. ~14 sorry's for rare constructors + ob_cle/cle_ob.
+  - `step_to_ordering_compoundLin`: COM-specific bridge, handles ob_cle event 2 and cle_ob event 1 using COM edge evidence. 3 sorry's.
+  - Main proof (`cmcm_acyclic_of_hknow`, `compose_three`): SORRY-FREE.
 - **`dirAccessUnique` REMOVED** from `CompoundProtocol` — it was unused.
 - **Architecture**: `cmcm_acyclic_of_hknow` uses CLEs from `hknow` directly (`hreq's_dir_access.choose`). The CLE-to-compound_lin bridge was eliminated.
   - **PPOi (single edge)**: `dir_ordered` gives 3-way on CLEs (same-cluster directory events). No compound_lin needed.
