@@ -1745,6 +1745,7 @@ private theorem stepOrdering_to_three {l₁ l₂ : Event n}
     : @LinLink n l₁ l₂ ∨ l₁ = l₂ ∨ l₁.protocol ≠ l₂.protocol := by
   cases h with
   | ob h => exact Or.inl (LinLink.single (.ob h))
+  | encap henc => exact Or.inl (LinLink.single (.encap henc))
   | obEndLt p h_ob h_lt _ =>
     -- l₁ OB p, p.oEnd < l₂.oEnd.
     -- Same protocol: dir_ordered gives p OB l₂ → ob chain → LinLink.
@@ -2078,6 +2079,8 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
         exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot_diff h_p₁_isdir)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
+      | encap henc =>
+        exact step_ordering_dir_ordered_3way h₁_isdir h₃_isdir hdir
     | inr hr₂ => cases hr₂ with
       | inl heq₂₃ =>
         -- l₂ = l₃: substitute in h₁
@@ -2106,6 +2109,9 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
           exact compose_obFinishBefore_com (e₁ := e₁) p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir hcom_edge hknow hl₂ hl₃ hdir h₁_isdir h_non_lazy_ppoi
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
+      | encap henc =>
+        exact step_ordering_dir_ordered_3way h₁_isdir
+          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
     | obEndLt p₂ hob₂ hlt₂ h_p₂_isdir =>
       cases hso₁ with
       | ob hob₁ => exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ hob₂) hlt₂ h_p₂_isdir)
@@ -2121,6 +2127,9 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | eq heq₁ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂ h_p₂_isdir)
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
           exact compose_obFinishBefore_com (e₁ := e₁) p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir hcom_edge hknow hl₂ hl₃ hdir h₁_isdir h_non_lazy_ppoi
+      | encap henc =>
+        exact step_ordering_dir_ordered_3way h₁_isdir
+          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
     | encapOb p₂ henc₂ hob₂ =>
       cases hso₁ with
       | ob hob₁ =>
@@ -2175,6 +2184,9 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
                     (Nat.lt_trans hob_rev dep₁.oWellFormed))
         exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob
           (Trans.trans (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hp₁_ob_l₂ henc₂.left) hob₂)))
+      | encap henc =>
+        exact step_ordering_dir_ordered_3way h₁_isdir
+          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
     | proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂ =>
       cases hso₁ with
       | ob hob₁ =>
@@ -2226,6 +2238,9 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
         exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob (Trans.trans
           (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp₁_ob_l₂ hq_enc₂.left)
           (Trans.trans hq_ob₂ hp_ob₂))))
+      | encap henc =>
+        exact step_ordering_dir_ordered_3way h₁_isdir
+          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
     | encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ h_p₂_isdir =>
       cases hso₁ with
       | ob hob₁ =>
@@ -2276,6 +2291,9 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
           hp_lt₂ h_p₂_isdir)
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
           exact compose_obFinishBefore_com (e₁ := e₁) p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir hcom_edge hknow hl₂ hl₃ hdir h₁_isdir h_non_lazy_ppoi
+      | encap henc =>
+        exact step_ordering_dir_ordered_3way h₁_isdir
+          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
     | obFinishBefore p₂ hob₂ hlt₂ hdiff₂ h_p₂_isdir =>
       cases hso₁ with
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obFinishBefore p₂ hob₂ hlt₂ hdiff₂ h_p₂_isdir)
@@ -2440,6 +2458,24 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
             | inr hob₃₁ => exact Or.inr (Or.inr hob₃₁)
     | sameLin _ _ heq₂ _ _ _ => exact Or.inl (heq₂ ▸ hso₁)
     | eq heq₂ => exact Or.inl (heq₂ ▸ hso₁)
+    | encap henc₂ =>
+      -- l₂ encapsulates l₃. Compose with hso₁.
+      cases hso₁ with
+      | ob hob₁ => exact Or.inl (.ob (Nat.lt_trans hob₁ henc₂.left))
+      | encapOb p₁ henc₁ hob₁ => exact Or.inl (.encapOb p₁ henc₁ (Nat.lt_trans hob₁ henc₂.left))
+      | proxyPair q₁ p₁ hq_enc hq_ob hp_ob => exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Nat.lt_trans hp_ob henc₂.left))
+      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encap henc₂)
+      | eq heq₁ => exact Or.inl (heq₁ ▸ .encap henc₂)
+      | encap henc₁ => exact Or.inl (.encap (Trans.trans henc₁ henc₂))
+      | obEndLt p₁ hob₁ hlt₁ h_p₁_isdir =>
+        -- p₁.oEnd < l₂.oEnd, l₃.oEnd < l₂.oEnd: use dir_ordered(l₁, l₃)
+        exact step_ordering_dir_ordered_3way h₁_isdir
+          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ h_p₁_isdir =>
+        exact step_ordering_dir_ordered_3way h₁_isdir
+          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+      | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
+          exact compose_obFinishBefore_com (e₁ := e₁) p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir hcom_edge hknow hl₂ hl₃ hdir h₁_isdir h_non_lazy_ppoi
 
 
 /-- Bridge: lift StepOrdering on CLEs to StepOrdering on compoundLin events.
@@ -2469,6 +2505,10 @@ theorem step_ordering_cle_to_compoundLin
       | eq heq => exact .ob (heq ▸ ha₂)
       | obEndLt p hob hlt hisdir => exact .obEndLt p hob (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir
       | encapOb p henc hob => exact .encapOb p henc (Trans.trans hob ha₂)
+      | encap henc =>
+        -- CLE₁ encapsulates CLE₂, CLE₂ OB compoundLin₂.
+        -- CLE₂ is inside CLE₁ = compoundLin₁. CLE₂ OB compoundLin₂. → .encapOb CLE₂.
+        exact .encapOb _ henc ha₂
       | obFinishBefore p hob hlt hdiff hisdir => sorry
       | sameLin e₁' e₂' heq henc₁ hob henc₂ => sorry
       | proxyPair q p hqenc hqob hpob => exact .proxyPair q p hqenc hqob (Trans.trans hpob ha₂)
@@ -2619,6 +2659,7 @@ theorem cmcm_acyclic_of_hknow
           _ ≤ Event.oEnd n q := Nat.le_of_lt (Event.oWellFormed n q)
           _ < Event.oStart n p := h_q_ob
           _ ≤ Event.oEnd n p := Nat.le_of_lt (Event.oWellFormed n p))
+      | encap henc => exact Nat.lt_irrefl _ henc.left
       | eq _ => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
       | encapObEndLt q p h_q_enc h_q_ob h_p_lt _ =>
         exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
