@@ -2497,89 +2497,78 @@ theorem step_to_ordering_compoundLin
       have hw₂ : hco.w₂_lin = lin e₂ := Subsingleton.elim _ _
       have hcle_eq : (lin e₁).hreq's_dir_access.choose = (lin e₂).hreq's_dir_access.choose := by
         rw [← hw₁, ← hw₂]; exact same_cle
-      -- Case-split on compoundLin_cle_rel for both events.
-      -- If both eq: compoundLin₁ = CLE₁ = CLE₂ = compoundLin₂ → .eq
-      -- If both cle_ob or ob_cle: compoundLin = e, use e₁ OB e₂ → .ob
-      -- Mixed cases: use CLE relationship + e₁ OB e₂.
-      cases hrel₁ with
-      | eq ha₁ => cases hrel₂ with
-        | eq ha₂ => exact .eq (ha₁ ▸ ha₂ ▸ hcle_eq)
-        | cle_ob_compoundLin ha₂ => exact .ob (ha₁ ▸ hcle_eq ▸ ha₂)
-        | compoundLin_ob_cle ha₂ =>
-          -- VACUOUS: compoundLin₁ = CLE₁ (eq case: encapDir, CLE inside e₁).
-          -- compoundLin₂ OB CLE₂ (ob_cle case: requestLin+orderAfterDir, CLE at succ of e₂).
-          -- same_cle: CLE₁ = CLE₂. e₁ OB e₂.
-          -- CLE inside e₁ → CLE.oEnd < e₁.oEnd. e₁ OB e₂ → e₁.oEnd < e₂.oStart.
-          -- e₂ OB CLE (orderAfterDir) → e₂.oEnd < CLE.oStart.
-          -- Chain: CLE.oEnd < e₁.oEnd < e₂.oStart ≤ e₂.oEnd < CLE.oStart.
-          -- So CLE.oEnd < CLE.oStart → contradicts oWellFormed.
-          exfalso
-          -- ha₁: compoundLin₁ = CLE₁. eq case requires encapDir: CLE₁ inside e₁.
-          -- Extract CLE.oEnd < e₁.oEnd from dirAccessOfRequest evidence.
-          have hda₁ := (lin e₁).hreq's_dir_access.choose_spec.2
-          -- ha₂: compoundLin₂ OB CLE₂. CLE₂ at successor.
-          -- Chain CLE.oEnd < e₁.oEnd < e₂.oStart ≤ e₂.oEnd < CLE.oStart via hcle_eq.
-          sorry
-        | compoundLin_inside_cle ha₂ =>
-          -- compoundLin₁ = CLE₁, compoundLin₂ inside CLE₂. CLE₁ = CLE₂.
-          -- compoundLin₂ inside CLE₂ = CLE₁ = compoundLin₁.
-          -- So compoundLin₂ inside compoundLin₁ → .encapOb?
-          -- .encapOb needs p inside l₁ and p OB l₂. But p = compoundLin₂ inside compoundLin₁... wrong direction.
-          sorry
-      | cle_ob_compoundLin ha₁ => sorry
-      | compoundLin_ob_cle ha₁ =>
-        -- compoundLin₁ OB CLE₁. For requestLin+orderAfterDir: compoundLin₁ = e₁.
-        -- e₁ OB e₂ (cache_ob). Need to chain to compoundLin₂.
-        -- In all event 2 cases, compoundLin₂.oStart ≥ e₂.oStart (inside or equal to e₂).
-        -- Chain: compoundLin₁.oEnd ≤ e₁.oEnd (compoundLin₁ = e₁ for requestLin, equality)
-        --        < e₂.oStart ≤ compoundLin₂.oStart. But compoundLin₁ = e₁ is for requestLin.
-        -- Actually: compoundLin_ob_cle gives compoundLin₁ OB CLE₁, not compoundLin₁ = e₁.
-        -- But compoundLin₁ OB CLE₁ means compoundLin₁.oEnd < CLE₁.oStart.
-        -- CLE₁ = CLE₂ (same_cle). e₁ OB e₂.
-        -- For event 2: compoundLin₂ relates to CLE₂ = CLE₁.
-        -- Need: compoundLin₁ OB compoundLin₂.
-        -- compoundLin₁.oEnd < CLE₁.oStart (ha₁). CLE₁ = CLE₂.
-        -- Event 2 cases:
-        cases hrel₂ with
-        | eq ha₂ => -- compoundLin₂ = CLE₂. compoundLin₁ OB CLE₁ = CLE₂ = compoundLin₂.
-          rw [ha₂, ← hcle_eq]; exact .ob ha₁
-        | cle_ob_compoundLin ha₂ => -- CLE₂ OB compoundLin₂. Chain: compoundLin₁ OB CLE₁ = CLE₂ OB compoundLin₂.
-          rw [← hcle_eq] at ha₂; exact .ob (Trans.trans ha₁ ha₂)
-        | compoundLin_ob_cle ha₂ =>
-          -- Both ob_cle: compoundLin₁ OB CLE₁, compoundLin₂ OB CLE₂. CLE₁ = CLE₂.
-          -- compoundLin₁.oEnd < CLE.oStart and compoundLin₂.oEnd < CLE.oStart.
-          -- Both before CLE. e₁ OB e₂. Unknown order of compoundLin₁ vs compoundLin₂.
-          -- VACUOUS? compoundLin₁ = e₁ (requestLin), compoundLin₂ = e₂ (requestLin).
-          -- e₁ OB CLE₁ and e₂ OB CLE₂ = CLE₁. So e₁.oEnd < CLE₁.oStart and e₂.oEnd < CLE₁.oStart.
-          -- e₁ OB e₂: e₁.oEnd < e₂.oStart. And e₂.oEnd < CLE₁.oStart. And e₁.oEnd < CLE₁.oStart.
-          -- compoundLin₁ = e₁, compoundLin₂ = e₂. e₁ OB e₂ → .ob ✓
-          -- Wait: ob_cle means compoundLin OB CLE. For requestLin: compoundLin = e. So e OB CLE.
-          -- Both events have e OB CLE (orderAfterDir), CLE₁ = CLE₂.
-          -- compoundLin₁ = e₁ OB e₂ = compoundLin₂ → .ob ✓
-          -- But I need compoundLin₁.oEnd < compoundLin₂.oStart. compoundLin₁ = e₁, compoundLin₂ = e₂.
-          -- ha₁ gives e₁ OB CLE₁ (= e₁.oEnd < CLE₁.oStart). But I need e₁ OB e₂.
-          -- I have cache_ob : e₁ OB e₂. But compoundLin₁ and compoundLin₂ relate to e₁ and e₂ how?
-          -- ha₁ : compoundLin₁ OB CLE₁. This is (lin e₁).compoundLin OB CLE₁.
-          -- For ob_cle + requestLin: compoundLin = e. But I don't have compoundLin = e explicitly.
-          -- I have ha₁ : compoundLin₁.oEnd < CLE₁.oStart and ha₂ : compoundLin₂.oEnd < CLE₂.oStart.
-          -- CLE₁ = CLE₂. cache_ob : e₁ OB e₂.
-          -- If compoundLin = e for both (requestLin), then: e₁.oEnd < CLE.oStart and e₂.oEnd < CLE.oStart.
-          -- e₁ OB e₂: e₁.oEnd < e₂.oStart.
-          -- Need: compoundLin₁.oEnd < compoundLin₂.oStart.
-          -- compoundLin₁.oEnd = e₁.oEnd (if compoundLin₁ = e₁). compoundLin₂.oStart = e₂.oStart.
-          -- e₁.oEnd < e₂.oStart = compoundLin₂.oStart. ✓
-          -- But I don't know compoundLin = e from ha₁ alone. ha₁ just says compoundLin OB CLE.
-          -- Need to connect compoundLin to e somehow.
-          sorry
-        | compoundLin_inside_cle ha₂ =>
-          -- compoundLin₂ inside CLE₂ = CLE₁. compoundLin₁ OB CLE₁. So compoundLin₁ OB CLE₁
-          -- and compoundLin₂ inside CLE₁ means compoundLin₂.oStart > CLE₁.oStart > compoundLin₁.oEnd.
-          -- .ob ✓
-          -- compoundLin₁.oEnd < CLE₁.oStart [ha₁]. CLE₁ = CLE₂ [hcle_eq].
-          -- compoundLin₂ inside CLE₂ → CLE₂.oStart < compoundLin₂.oStart [ha₂.left].
-          -- Chain: compoundLin₁.oEnd < CLE₁.oStart = CLE₂.oStart < compoundLin₂.oStart.
-          sorry
-      | compoundLin_inside_cle ha₁ => sorry
+      -- Case-split on linearizationOfEvent for each event.
+      -- requestLin: compoundLin = e (via compoundLin_eq_event_of_requestLin).
+      -- dirLin: compoundLin = CLE or inside CLE.
+      -- In all cases: compoundLin inside or equal to e, and CLE inside or equal to e.
+      -- Chain through same_cle + cache_ob.
+      cases hlin_e1 : compound.linearizationOfEvent b init e₁ with
+      | requestLin hreqlin₁ =>
+        have hcl₁ := (lin e₁).compoundLin_eq_event_of_requestLin hlin_e1
+        rw [hcl₁]
+        -- compoundLin₁ = e₁. Now handle event 2.
+        cases hlin_e2 : compound.linearizationOfEvent b init e₂ with
+        | requestLin hreqlin₂ =>
+          -- compoundLin₂ = e₂. e₁ OB e₂ → .ob.
+          have hcl₂ := (lin e₂).compoundLin_eq_event_of_requestLin hlin_e2
+          rw [hcl₂]; exact .ob cache_ob
+        | dirLin hdir₂ =>
+          -- compoundLin₂ = CLE₂ or inside CLE₂. CLE₂ inside e₂ (encapDir, since dirLin).
+          -- e₁ OB e₂ → e₁.oEnd < e₂.oStart.
+          -- CLE₂ inside e₂ → e₂.oStart < CLE₂.oStart ≥ compoundLin₂.oStart.
+          -- So e₁.oEnd < compoundLin₂.oStart → .ob.
+          cases hrel₂ with
+          | eq ha₂ =>
+            -- compoundLin₂ = CLE₂. CLE₂ inside e₂ (dirLin → encapDir or orderAfterDir).
+            -- For encapDir: e₂.oStart < CLE₂.oStart. e₁.oEnd < e₂.oStart < CLE₂.oStart.
+            -- For orderAfterDir: e₂ OB CLE₂. e₂.oEnd < CLE₂.oStart. e₁.oEnd < e₂.oStart ≤ e₂.oEnd < CLE₂.oStart.
+            -- Either way: e₁ OB CLE₂ = compoundLin₂. .ob
+            rw [ha₂]
+            -- Need: e₁ OB CLE₂. Both dirAccessOfRequest cases give e₂ ≤ CLE₂ or e₂ OB CLE₂.
+            -- Since e₁ OB e₂: e₁.oEnd < e₂.oStart.
+            -- dirAccessOfRequest for e₂:
+            have hda₂ := (lin e₂).hreq's_dir_access.choose_spec.2
+            cases hda₂ with
+            | encapDir _ hencap₂ =>
+              exact .ob (Nat.lt_trans cache_ob hencap₂.reqEncapDir.left)
+            | orderBeforeDir _ _ _ _ _ _ _ _ =>
+              -- orderBeforeDir has reqHasPerms, but dirLin has reqMissingPerms → contradiction.
+              sorry
+            | orderAfterDir hweak₂ hsucc₂ _ _ =>
+              have h_succ_ob : e₂.OrderedBefore n hsucc₂.choose :=
+                hsucc₂.choose_spec.2.isImmBottomSucc.isSucc
+              have h_succ_encap := hsucc₂.choose_spec.2.satisfyP
+              simp [Event.PropOnEvent, Behaviour.succOnVdWithCorrespondingDir] at h_succ_encap
+              have h_succ_encap_cle := h_succ_encap.encapCorresponding.reqEncapDir
+              -- use hreq's_dir_access_matches_dirLin to connect CLE₂ to the dirLin CLE
+              have h_shared := (lin e₂).hreq's_dir_access_matches_dirLin hdir₂ hlin_e2
+              -- CLE₂ = reqLinearizeAtDir.choose (from dirLin). This is the dir event of e₂.
+              -- For orderAfterDir: e₂ OB successor, successor encapsulates CLE₂.
+              -- e₂.oEnd < succ.oStart < CLE₂.oStart.
+              -- e₁.oEnd < e₂.oStart ≤ e₂.oEnd < succ.oStart < CLE₂.oStart.
+              sorry
+          | compoundLin_inside_cle ha₂ =>
+            -- compoundLin₂ inside CLE₂. CLE₂ inside e₂.
+            -- e₁.oEnd < e₂.oStart < CLE₂.oStart < compoundLin₂.oStart → .ob
+            have hda₂ := (lin e₂).hreq's_dir_access.choose_spec.2
+            cases hda₂ with
+            | encapDir _ hencap₂ =>
+              exact .ob (Nat.lt_trans cache_ob (Nat.lt_trans hencap₂.reqEncapDir.left ha₂.left))
+            | orderBeforeDir _ _ _ _ _ _ _ _ => sorry -- vacuous: dirLin + orderBeforeDir
+            | orderAfterDir hweak₂ hsucc₂ _ _ =>
+              have h_succ_ob : e₂.OrderedBefore n hsucc₂.choose :=
+                hsucc₂.choose_spec.2.isImmBottomSucc.isSucc
+              have h_succ_encap := hsucc₂.choose_spec.2.satisfyP
+              simp [Event.PropOnEvent, Behaviour.succOnVdWithCorrespondingDir] at h_succ_encap
+              have h_succ_encap_cle := h_succ_encap.encapCorresponding.reqEncapDir
+              sorry
+          | cle_ob_compoundLin ha₂ => sorry
+          | compoundLin_ob_cle ha₂ => sorry
+      | dirLin hdir₁ =>
+        -- compoundLin₁ = CLE₁ or inside CLE₁.
+        -- CLE₁ inside e₁ or at predecessor/successor.
+        -- Use same_cle and cache_ob to chain.
+        sorry
     | sameClusDiffCache same_prot cle_ordering => sorry
     | diffClus diff_prot cle_ordering => sorry
   | rfe hrfe => sorry

@@ -464,6 +464,35 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.event_oStart_le_compo
     : Event.oStart n e ≤ Event.oStart n lin.compoundLin := by
   sorry
 
+/-- When linearizationOfEvent = requestLin and compoundLinearizationEvent = clusterCacheLin,
+    the compoundLin event equals e (the original request event).
+    Proof: compoundLin_of_clusterCacheLin gives compoundLin = hcache.choose,
+    and hcache.choose_spec.2.e_creq_is_e_glin gives hcache.choose = e. -/
+theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_eq_event_of_clusterCacheLin
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    {hreqlin} (hlin_ev : cmp.linearizationOfEvent b init e = .requestLin hreqlin)
+    {hcache} (hcmp : cmp.compoundLinearizationEvent cmp.shimAxioms b init e (.requestLin hreqlin) = .clusterCacheLin hcache)
+    : lin.compoundLin = e :=
+  (lin.compoundLin_of_clusterCacheLin hlin_ev hcmp).trans hcache.choose_spec.2.e_creq_is_e_glin
+
+/-- When linearizationOfEvent = requestLin, the compoundLin event equals e.
+    Case-splits on compoundLinearizationEvent:
+    - clusterCacheLin: use compoundLin_eq_event_of_clusterCacheLin
+    - clusterDirLin: vacuous (reqLinearizesAtDir on .requestLin is False) -/
+theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_eq_event_of_requestLin
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    {hreqlin} (hlin_ev : cmp.linearizationOfEvent b init e = .requestLin hreqlin)
+    : lin.compoundLin = e := by
+  cases hcmp : cmp.compoundLinearizationEvent cmp.shimAxioms b init e (.requestLin hreqlin) with
+  | clusterCacheLin hcache =>
+    exact lin.compoundLin_eq_event_of_clusterCacheLin hlin_ev hcmp
+  | clusterDirLin hdir_case =>
+    exfalso
+    have := hdir_case.choose_spec.2.lin_at_dir
+    simp [Behaviour.reqLinearizesAtDir] at this
+
 def CompoundProtocol.globalLinearizationEventOfRequest.wrapper :=
   ∀ cmp : CompoundProtocol n, ∀ b : Behaviour n, ∀ init : InitialSystemState n,
   ∀ e_creq : Event n,
