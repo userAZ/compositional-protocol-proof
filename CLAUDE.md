@@ -35,7 +35,7 @@ Before proving, composing, or sorry-ing ANYTHING:
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-04-01)
+### Status (updated 2026-04-02)
 - **compoundLin lifting IN PROGRESS**: Unifying TransGen to use CompoundMCM linearization events.
   - `compoundLin_cle` bridge lemma: SORRY-FREE. Relates compoundLin to CLE in 4 cases.
   - `StepOrdering.encap` constructor: added and integrated into compose_three.
