@@ -1800,6 +1800,24 @@ private theorem stepOrdering_to_three {l₁ l₂ : Event n}
                 _ ≤ Event.oEnd n p := Nat.le_of_lt (Event.oWellFormed n p)
                 _ < de₂.oEnd := h_p_lt)
     · exact Or.inr (Or.inr h_prot)
+  | obProxy p₁ p₂ h₁_ob h_so h₂_ob =>
+    -- l₁ OB p₁, StepOrdering p₁ p₂, l₂ OB p₂. Both l₁, l₂ are dir events.
+    -- dir_ordered(l₁, l₂): if l₁ OB l₂ → LinLink. If l₂ OB l₁ → by_cases protocol.
+    by_cases h_prot : l₁.protocol = l₂.protocol
+    · match hfc₁ : l₁, h₁_isdir with
+      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+      | .directoryEvent de₁, _ =>
+        match hfc₂ : l₂, h₂_isdir with
+        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+        | .directoryEvent de₂, _ =>
+          cases (hdir de₁ de₂).ordered with
+          | inl h => exact Or.inl (LinLink.single (.ob h))
+          | inr h =>
+            -- l₂ OB l₁, same protocol. Inner StepOrdering p₁ p₂ provides evidence.
+            -- stepOrdering_to_three on inner h_so could resolve, but we don't have
+            -- p₁.isDirectoryEvent / p₂.isDirectoryEvent. Use sorry for this sub-case.
+            sorry
+    · exact Or.inr (Or.inr h_prot)
 
 /-- Key lemma: if StepOrdering l₂ l₃ holds at the same protocol, then l₃ OB l₂ is impossible.
     Proof: stepOrdering_to_three gives LinLink ∨ eq ∨ diff_prot. diff_prot contradicts same-prot.
@@ -2081,6 +2099,8 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
       | encap henc =>
         exact step_ordering_dir_ordered_3way h₁_isdir h₃_isdir hdir
+      | obProxy _ _ _ _ _ =>
+        exact step_ordering_dir_ordered_3way h₁_isdir h₃_isdir hdir
     | inr hr₂ => cases hr₂ with
       | inl heq₂₃ =>
         -- l₂ = l₃: substitute in h₁
@@ -2112,6 +2132,9 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | encap henc =>
         exact step_ordering_dir_ordered_3way h₁_isdir
           (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+      | obProxy _ _ _ _ _ =>
+        exact step_ordering_dir_ordered_3way h₁_isdir
+          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
     | obEndLt p₂ hob₂ hlt₂ h_p₂_isdir =>
       cases hso₁ with
       | ob hob₁ => exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ hob₂) hlt₂ h_p₂_isdir)
@@ -2128,6 +2151,9 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
           exact compose_obFinishBefore_com (e₁ := e₁) p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir hcom_edge hknow hl₂ hl₃ hdir h₁_isdir h_non_lazy_ppoi
       | encap henc =>
+        exact step_ordering_dir_ordered_3way h₁_isdir
+          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+      | obProxy _ _ _ _ _ =>
         exact step_ordering_dir_ordered_3way h₁_isdir
           (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
     | encapOb p₂ henc₂ hob₂ =>
@@ -2187,6 +2213,9 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | encap henc =>
         exact step_ordering_dir_ordered_3way h₁_isdir
           (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+      | obProxy _ _ _ _ _ =>
+        exact step_ordering_dir_ordered_3way h₁_isdir
+          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
     | proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂ =>
       cases hso₁ with
       | ob hob₁ =>
@@ -2241,6 +2270,9 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | encap henc =>
         exact step_ordering_dir_ordered_3way h₁_isdir
           (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+      | obProxy _ _ _ _ _ =>
+        exact step_ordering_dir_ordered_3way h₁_isdir
+          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
     | encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ h_p₂_isdir =>
       cases hso₁ with
       | ob hob₁ =>
@@ -2292,6 +2324,9 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
           exact compose_obFinishBefore_com (e₁ := e₁) p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir hcom_edge hknow hl₂ hl₃ hdir h₁_isdir h_non_lazy_ppoi
       | encap henc =>
+        exact step_ordering_dir_ordered_3way h₁_isdir
+          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+      | obProxy _ _ _ _ _ =>
         exact step_ordering_dir_ordered_3way h₁_isdir
           (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
     | obFinishBefore p₂ hob₂ hlt₂ hdiff₂ h_p₂_isdir =>
@@ -2476,6 +2511,13 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
           (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
           exact compose_obFinishBefore_com (e₁ := e₁) p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir hcom_edge hknow hl₂ hl₃ hdir h₁_isdir h_non_lazy_ppoi
+      | obProxy _ _ _ _ _ =>
+        exact step_ordering_dir_ordered_3way h₁_isdir
+          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+    | obProxy _ _ _ _ _ =>
+      -- obProxy as h₂: l₂ OB p₁, StepOrdering p₁ p₂, l₃ OB p₂. Use dir_ordered(l₁, l₃).
+      exact step_ordering_dir_ordered_3way h₁_isdir
+        (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
 
 
 /-- sameLin always gives .ob between compoundLin events via the encap+OB chain:
@@ -2526,6 +2568,14 @@ theorem step_ordering_cle_to_compoundLin
         exact .ob (Nat.lt_trans henc₁.right (Nat.lt_trans hob
           (Nat.lt_trans henc₂.left (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂))))
       | obFinishBefore p hob hlt hdiff hisdir => sorry
+      | obProxy p₁ p₂ h₁_ob h_so h₂_ob =>
+        -- CLE₁ = compoundLin₁ (eq ha₁), CLE₂ OB compoundLin₂ (cle_ob ha₂).
+        -- obProxy: CLE₁ OB p₁, SO p₁ p₂, CLE₂ OB p₂.
+        -- Chain: compoundLin₁ = CLE₁ OB p₁. p₁ has SO to p₂. CLE₂ OB p₂ and CLE₂ OB compoundLin₂.
+        -- Use .obProxy: compoundLin₁ OB p₁, SO p₁ p₂, compoundLin₂ OB p₂? No — compoundLin₂ is AFTER CLE₂.
+        -- compoundLin₂.oStart > CLE₂.oEnd (from cle_ob). CLE₂.oEnd < p₂.oStart (from h₂_ob).
+        -- So compoundLin₂.oStart > CLE₂.oEnd and p₂.oStart > CLE₂.oEnd. No ordering between compoundLin₂ and p₂.
+        sorry
     | compoundLin_ob_cle ha₂ => sorry
     | compoundLin_inside_cle ha₂ =>
       cases h with
@@ -2541,6 +2591,14 @@ theorem step_ordering_cle_to_compoundLin
         sorry
       | obFinishBefore p hob hlt hdiff hisdir => sorry
       | encapObEndLt q p hqenc hqob hlt hisdir => sorry
+      | obProxy p₁ p₂ h₁_ob h_so h₂_ob =>
+        -- compoundLin₁ = CLE₁ (eq), compoundLin₂ inside CLE₂ (inside).
+        -- obProxy: CLE₁ OB p₁, SO p₁ p₂, CLE₂ OB p₂.
+        -- compoundLin₂ inside CLE₂: CLE₂.oStart < compoundLin₂.oStart, compoundLin₂.oEnd < CLE₂.oEnd.
+        -- CLE₁ = compoundLin₁ OB p₁. compoundLin₂ inside CLE₂ OB p₂.
+        -- compoundLin₂.oEnd < CLE₂.oEnd and CLE₂.oEnd < p₂.oStart.
+        -- So compoundLin₂.oEnd < p₂.oStart. But p₁ → p₂ via SO. Complex.
+        sorry
   | cle_ob_compoundLin ha₁ => sorry
   | compoundLin_ob_cle ha₁ =>
     cases hrel₂ with
@@ -2560,7 +2618,8 @@ theorem step_ordering_cle_to_compoundLin
       | eq heq => exact .ob (Trans.trans ha₁ (heq ▸ ha₂))
       | obEndLt p hob hlt hisdir => exact .obEndLt p (Trans.trans ha₁ hob) (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir
       | _ => sorry
-    | compoundLin_ob_cle ha₂ => sorry
+    | compoundLin_ob_cle ha₂ =>
+      exact .obProxy _ _ ha₁ h ha₂
     | compoundLin_inside_cle ha₂ =>
       cases h with
       | ob hob => exact .ob (Nat.lt_trans (Nat.lt_of_lt_of_le ha₁ (Nat.le_of_lt (Event.oWellFormed n _))) (Nat.lt_trans hob ha₂.left))
@@ -2601,80 +2660,8 @@ theorem step_to_ordering_compoundLin
         (compound.linearizationOfEvent b init a₂)).linearizationEvent)
     (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
     : @StepOrdering n (lin e₁).compoundLin (lin e₂).compoundLin := by
-  have h_cle := step_to_ordering h lin h_non_lazy_ppoi
-  have hrel₁ := (lin e₁).compoundLin_cle h₁_notdown
-  have hrel₂ := (lin e₂).compoundLin_cle h₂_notdown
-  -- Handle ob_cle event 2 and cle_ob event 1 using COM evidence.
-  -- For these cases, compoundLin = e (requestLin), and we need e₁/e₂ temporal info.
-  -- For all other cases, delegate to the generic bridge.
-  cases hrel₂ with
-  | compoundLin_ob_cle ha₂ =>
-    -- compoundLin₂ OB CLE₂ → requestLin → compoundLin₂ = e₂.
-    -- Need to case-split on linearizationOfEvent to get compoundLin₂ = e₂.
-    cases hlin₂ : compound.linearizationOfEvent b init e₂ with
-    | requestLin hreqlin₂ =>
-      have hcl₂ := (lin e₂).compoundLin_eq_event_of_requestLin hlin₂
-      rw [hcl₂]
-      -- Now goal: StepOrdering compoundLin₁ e₂.
-      -- compoundLin₁ relates to CLE₁ via hrel₁.
-      -- CLE₁ relates to CLE₂ via h_cle (StepOrdering).
-      -- CLE₂ is AFTER e₂ (orderAfterDir). So CLE₂.oStart > e₂.oEnd.
-      -- Need: compoundLin₁ OB e₂ or similar.
-      -- Protocol context: compoundLin₂ = e₂ (requestLin). e₂ has perms (reqHasPerms).
-      -- e₂ OB CLE₂ (orderAfterDir). CLE₂ at successor of e₂.
-      -- For compoundLin₁: relates to CLE₁ via hrel₁ (eq/cle_ob/ob_cle/inside).
-      -- StepOrdering CLE₁ CLE₂ from h_cle.
-      -- Need: StepOrdering compoundLin₁ e₂.
-      --
-      -- For hrel₁ cases:
-      -- eq: compoundLin₁ = CLE₁. Need CLE₁ OB e₂? Not directly available.
-      --   But CLE₁.oEnd < CLE₂.oStart (from .ob h_cle) and e₂.oEnd < CLE₂.oStart (ha₂).
-      --   Both before CLE₂. Need COM evidence for CLE₁ vs e₂.
-      -- ob_cle: compoundLin₁ = e₁ (requestLin). For co.sameCache: e₁ OB e₂ → .ob.
-      -- inside: compoundLin₁ inside CLE₁. Same issue as eq.
-      -- cle_ob: compoundLin₁ after CLE₁. Even harder.
-      --
-      -- Case-split on hrel₁ to handle ob_cle (= e₁) case directly:
-      cases hrel₁ with
-      | compoundLin_ob_cle ha₁_ob =>
-        -- compoundLin₁ = e₁ (requestLin + orderAfterDir). e₁ and e₂ are COM-related.
-        -- For co.sameCache: e₁ OB e₂ → compoundLin₁ OB e₂.
-        -- Need compoundLin₁ = e₁:
-        cases hlin₁ : compound.linearizationOfEvent b init e₁ with
-        | requestLin hreqlin₁ =>
-          have hcl₁ := (lin e₁).compoundLin_eq_event_of_requestLin hlin₁
-          rw [hcl₁]
-          -- Goal: StepOrdering e₁ e₂. Extract e₁ OB e₂ from COM edge.
-          cases h with
-          | co hco => cases hco.comm with
-            | sameCache _ cache_ob => exact .ob cache_ob
-            | sameClusDiffCache _ _ => sorry -- needs downgrade chain
-            | diffClus _ _ => sorry
-          | rfe _ => sorry
-          | fr _ => sorry
-        | dirLin _ => sorry -- vacuous: dirLin + ob_cle
-      | eq ha₁_eq =>
-        rw [ha₁_eq]
-        -- compoundLin₁ = CLE₁. Need StepOrdering CLE₁ e₂.
-        -- CLE₁ and e₂ both before CLE₂. Need COM evidence.
-        sorry
-      | cle_ob_compoundLin ha₁_ob => sorry
-      | compoundLin_inside_cle ha₁_enc => sorry
-    | dirLin hdir₂ =>
-      -- dirLin + compoundLin_ob_cle: this should be vacuous.
-      -- dirLin gives reqMissingPerms. compoundLin_ob_cle arises from requestLin + orderAfterDir.
-      -- requestLin needs reqHasPerms. Contradiction with dirLin's reqMissingPerms.
-      -- But compoundLin_ob_cle doesn't carry requestLin evidence directly...
-      sorry
-  | _ =>
-    -- For eq, cle_ob, inside: delegate to generic bridge.
-    cases hrel₁ with
-    | cle_ob_compoundLin ha₁ =>
-      -- cle_ob event 1: similar handling needed.
-      sorry
-    | _ =>
-      -- All remaining cases: generic bridge handles them.
-      exact step_ordering_cle_to_compoundLin h_cle h₁_notdown h₂_notdown
+  exact step_ordering_cle_to_compoundLin
+    (step_to_ordering h lin h_non_lazy_ppoi) h₁_notdown h₂_notdown
 
 /-- Acyclicity given that every event has a linearization.
     Invariant: `StepOrdering (cle a) (cle c) ∨ cle a = cle c ∨ (cle c).OrderedBefore n (cle a)`
@@ -2732,6 +2719,14 @@ theorem cmcm_acyclic_of_hknow
       | encap henc => exact Nat.lt_irrefl _ henc.left
       | eq _ => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
       | encapObEndLt q p h_q_enc h_q_ob h_p_lt _ =>
+        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+      | obProxy p₁ p₂ h₁_ob h_so h₂_ob =>
+        -- cle(e) OB p₁, StepOrdering p₁ p₂, cle(e) OB p₂.
+        -- Use dir_ordered on cle(e) with itself — but that's cle_self_ordering_false.
+        -- Actually: cle(e).oEnd < p₁.oStart and cle(e).oEnd < p₂.oStart.
+        -- The inner StepOrdering p₁ p₂ doesn't directly contradict.
+        -- Delegate to dir_ordered fallback: use cle_self_ordering_false which shows
+        -- that ANY self-StepOrdering on cle(e) is contradictory (via dir_ordered on the dir event).
         exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
     | inr hr => cases hr with
       | inl heq =>

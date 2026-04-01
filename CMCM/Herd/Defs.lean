@@ -164,6 +164,14 @@ inductive StepOrdering : Event n → Event n → Prop where
       Irrefl: l encapsulates l → l.oStart < l.oStart → False.
       For compoundLin lifting: when CLE₁ = CLE₂ and compoundLin₂ inside CLE₂ = compoundLin₁. -/
   | encap (h_enc : l₁.Encapsulates n l₂) : StepOrdering l₁ l₂
+  /-- Both endpoints before their proxies, proxies have StepOrdering.
+      For compoundLin lifting when both events have orderAfterDir (CLE at successor):
+      compoundLin₁ OB CLE₁, StepOrdering CLE₁ CLE₂, compoundLin₂ OB CLE₂.
+      Irrefl: l OB p₁, SO p₁ p₂, l OB p₂. If p₁=p₂ in cycle → SO p p contradicts.
+      If p₁≠p₂: composition with other edges resolves. -/
+  | obProxy (p₁ p₂ : Event n) (h₁_ob : l₁.OrderedBefore n p₁)
+      (h_so : StepOrdering p₁ p₂) (h₂_ob : l₂.OrderedBefore n p₂)
+      : StepOrdering l₁ l₂
   /-- Encap-then-OB-then-oEnd: q inside l₁, q OB p, p.oEnd < l₂.oEnd.
       Composition of encapOb/proxyPair with obEndLt.
       Irrefl via dir_ordered: l₂ OB l₁ gives chain l₂.oEnd < l₁.oStart < q.oStart ≤
