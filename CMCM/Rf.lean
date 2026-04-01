@@ -493,9 +493,19 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_of_di
               -- Chain: cdir.oEnd < gdir.oStart ≤ gdir.oEnd < cdir.oEnd → cdir.oEnd < cdir.oEnd.
               rw [h_cl_eq, hgcache_lin_cases, h_gdir_lin.dirIsLin, h_cle_shared] at ha
               exact Nat.lt_irrefl _ (Nat.lt_trans ha (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) h_cdir_encap_gdir.right))
-            | orderBeforeDir _ _ _ _ _ _ _ _ => sorry -- vacuous: orderBeforeDir + getGlobalCachePerms
-            | orderAfterDir _ _ _ _ => sorry -- vacuous: orderAfterDir + getGlobalCachePerms
-          · sorry -- requestLin sub-case of globalCacheNoPermsReqDirectory
+            | orderBeforeDir hgcache_has_perms _ _ _ _ _ _ _ => exact absurd hgcache_has_perms (by have := hat_dir.choose_spec.2.reqHasNoPerms; intro h; exact absurd h (reqHasPerms_not_reqMissingPerms this htranslation.choose_spec.right.gReqOfCDir.notDowngrade))
+            | orderAfterDir hweak_vd _ _ _ =>
+              exfalso
+              have hweak_req := hweak_vd.weakReq
+              match hge : htranslation.choose with
+              | .directoryEvent _ =>
+                simp [Event.isNcWeak, Event.isNonCoherent, hge] at hweak_req
+              | .cacheEvent ce =>
+                simp [Event.isNcWeak, Event.isNonCoherent, Event.isWeak, hge] at hweak_req
+                have hgreq_req := htranslation.choose_spec.right.gReqOfCDir.matchingOp
+                simp [Event.req, hge] at hgreq_req
+                simp [hgreq_req] at hweak_req
+          · exact absurd hgcache_lin_cases (by simp)
   | compoundLin_ob_cle ha =>
     exfalso
     cases hcmp : cmp.compoundLinearizationEvent cmp.shimAxioms b init e (.dirLin hd) with
@@ -529,9 +539,19 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_of_di
               have h_cdir_encap_gdir := Event.encap_encap_trans n h_cdir_encap_gcache hgcache_encap_gdir.reqEncapDir
               rw [h_cl_eq, hgcache_lin_cases, h_gdir_lin.dirIsLin, h_cle_shared] at ha
               exact Nat.lt_irrefl _ (Nat.lt_trans ha (Nat.lt_trans h_cdir_encap_gdir.left (Event.oWellFormed n _)))
-            | orderBeforeDir _ _ _ _ _ _ _ _ => sorry
-            | orderAfterDir _ _ _ _ => sorry
-          · sorry
+            | orderBeforeDir hgcache_has_perms _ _ _ _ _ _ _ => exact absurd hgcache_has_perms (by have := hat_dir.choose_spec.2.reqHasNoPerms; intro h; exact absurd h (reqHasPerms_not_reqMissingPerms this htranslation.choose_spec.right.gReqOfCDir.notDowngrade))
+            | orderAfterDir hweak_vd _ _ _ =>
+              exfalso
+              have hweak_req := hweak_vd.weakReq
+              match hge : htranslation.choose with
+              | .directoryEvent _ =>
+                simp [Event.isNcWeak, Event.isNonCoherent, hge] at hweak_req
+              | .cacheEvent ce =>
+                simp [Event.isNcWeak, Event.isNonCoherent, Event.isWeak, hge] at hweak_req
+                have hgreq_req := htranslation.choose_spec.right.gReqOfCDir.matchingOp
+                simp [Event.req, hge] at hgreq_req
+                simp [hgreq_req] at hweak_req
+          · exact absurd hgcache_lin_cases (by simp)
 
 /-- When linearizationOfEvent = requestLin and compoundLinearizationEvent = clusterCacheLin,
     the compoundLin event equals e (the original request event).
