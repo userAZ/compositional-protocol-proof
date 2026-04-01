@@ -2222,8 +2222,8 @@ theorem step_ordering_cle_to_compoundLin
 
 -- dir_ordered on CLEs, lifted to compoundLin via bridge.
 theorem step_ordering_dir_ordered_3way_compoundLin
-    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
-    {e₁ e₂ : Event n} (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (e₁ e₂ : Event n) (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     : @StepOrdering n (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
       (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
@@ -3263,9 +3263,11 @@ theorem cmcm_acyclic_of_hknow_compoundLin
     constructor
     · exact ⟨a, h⟩
     · cases h with
-      | inl hppoi => exact sorry
-      | inr hcom =>
+      | inl hppoi =>
+        -- PPOi: use dir_ordered 3-way on compoundLin.
+        -- Need beta-reduction of lambda to get typed PPOi evidence.
         sorry
+      | inr hcom => sorry
   | tail hpath h ih =>
     constructor
     · exact ⟨_, h⟩
