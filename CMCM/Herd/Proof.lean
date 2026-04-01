@@ -3028,10 +3028,7 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
       -- StepOrdering l₂ l₃: compose hso₁ with hso₂.
       -- For most h₁ constructors, chaining OB works. For hard cases, fallback.
       cases hso₁ with
-      | ob hob₁ =>
-        -- l₁ OB l₂, StepOrdering l₂ l₃. Need OB l₂ l₃ to chain.
-        -- sorry for the OB extraction from StepOrdering (same_prot_dir_ordered_forward needs isdir).
-        sorry
+      | ob hob₁ => exact Or.inl (.obStepL _ hob₁ hso₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ hso₂)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ hso₂)
       | _ => exact fallback_1_3
@@ -3060,7 +3057,7 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
         exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
-      | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir => sorry -- obFinishBefore + ob
+      | obFinishBefore _ _ _ _ _ => exact fallback_1_3
       | _ => exact fallback_1_3
     | obEndLt p₂ hob₂ hlt₂ h_p₂_isdir =>
       cases hso₁ with
@@ -3075,7 +3072,7 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
         exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans hp_ob hob₂)) hlt₂ h_p₂_isdir)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂ h_p₂_isdir)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂ h_p₂_isdir)
-      | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir => sorry -- obFinishBefore + obEndLt
+      | obFinishBefore _ _ _ _ _ => exact fallback_1_3
       | _ => exact fallback_1_3
     | encapOb p₂ henc₂ hob₂ =>
       cases hso₁ with
@@ -3087,7 +3084,7 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
         exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hp_ob henc₂.left)) hob₂)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
-      | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir => sorry -- obFinishBefore + encapOb
+      | obFinishBefore _ _ _ _ _ => exact fallback_1_3 -- obFinishBefore + encapOb
       | _ => exact fallback_1_3
     | proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂ =>
       cases hso₁ with
@@ -3099,7 +3096,7 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
         exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp_ob hq_enc₂.left) hq_ob₂)) hp_ob₂)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
-      | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir => sorry -- obFinishBefore + proxyPair
+      | obFinishBefore _ _ _ _ _ => exact fallback_1_3 -- obFinishBefore + proxyPair
       | _ => exact fallback_1_3
     | encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ h_p₂_isdir =>
       cases hso₁ with
@@ -3111,7 +3108,7 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
         exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp_ob hq_enc₂.left) hq_ob₂)) hp_lt₂ h_p₂_isdir)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ h_p₂_isdir)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ h_p₂_isdir)
-      | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir => sorry -- obFinishBefore + encapObEndLt
+      | obFinishBefore _ _ _ _ _ => exact fallback_1_3 -- obFinishBefore + encapObEndLt
       | _ => exact fallback_1_3
     | obFinishBefore p₂ hob₂ hlt₂ hdiff₂ h_p₂_isdir =>
       -- obFinishBefore h₂: hard case. Fallback.
