@@ -39,8 +39,13 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **compoundLin lifting IN PROGRESS**: Unifying TransGen to use CompoundMCM linearization events.
   - `compoundLin_cle` bridge lemma: SORRY-FREE. Relates compoundLin to CLE in 4 cases.
   - `StepOrdering.encap` constructor: added and integrated into compose_three.
-  - `step_ordering_cle_to_compoundLin`: generic bridge, handles most cases. ~14 sorry's for rare constructors + ob_cle/cle_ob.
-  - `step_to_ordering_compoundLin`: COM-specific bridge, handles ob_cle event 2 and cle_ob event 1 using COM edge evidence. 3 sorry's.
+  - `StepOrdering.encap` constructor: added and integrated into compose_three.
+  - `StepOrdering.obProxy`: l₁ OB p₁, SO p₁ p₂, l₂ OB p₂. For ob_cle+ob_cle.
+  - `StepOrdering.stepProxyL/R`: proxy before/after endpoint. For cle_ob/ob_cle lifting.
+  - `StepOrdering.obStepL`: l₁ OB p₁, SO p₁ l₂. For ob_cle event 1 (compoundLin before CLE).
+  - `step_ordering_cle_to_compoundLin`: generic bridge, ~34 sorry's. ~9 dead code, ~15 obFinishBefore
+    diff_prot or proxy-vs-compoundLin relative order, ~5 inside edge cases, ~5 stepOrdering_to_three.
+  - `step_to_ordering_compoundLin`: one-liner delegating to generic bridge.
   - Main proof (`cmcm_acyclic_of_hknow`, `compose_three`): SORRY-FREE.
 - **`dirAccessUnique` REMOVED** from `CompoundProtocol` — it was unused.
 - **Architecture**: `cmcm_acyclic_of_hknow` uses CLEs from `hknow` directly (`hreq's_dir_access.choose`). The CLE-to-compound_lin bridge was eliminated.
