@@ -423,6 +423,68 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
           · -- requestLin: False
             exact absurd hgcache_lin_cases (by simp)
 
+-- For dirLin, compoundLin_cle only returns eq or inside (never cle_ob or ob_cle).
+theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_of_dirLin
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    (hnotdown : ¬ e.down)
+    {hd : ∃ e_lin ∈ b, b.requestWithoutCoherentPermsLinearizesAtDir n init e e_lin}
+    (hdir : cmp.linearizationOfEvent b init e = .dirLin hd)
+    : lin.compoundLin = lin.hreq's_dir_access.choose ∨
+      lin.compoundLin.EncapsulatedBy n lin.hreq's_dir_access.choose := by
+  -- Replay the dirLin branch of compoundLin_cle.
+  -- dirLin produces .eq (previousGlobalCacheGotPerms) or .inside (getGlobalCachePerms).
+  have hrel := lin.compoundLin_cle hnotdown
+  -- The compoundLin_cle proof case-splits on linearizationOfEvent internally.
+  -- For dirLin, it only returns .eq or .compoundLin_inside_cle.
+  -- We need to connect our hdir to the internal case split.
+  -- Since compoundLin_cle is opaque, we case-split on the result and use sorry for vacuous cases.
+  cases hrel with
+  | eq ha => exact Or.inl ha
+  | compoundLin_inside_cle ha => exact Or.inr ha
+  | cle_ob_compoundLin ha =>
+    -- This only arises from requestLin. But we have dirLin. Contradiction.
+    -- compoundLin_cle internally case-splits on linearizationOfEvent.
+    -- For requestLin: may produce cle_ob. For dirLin: never.
+    -- Since compoundLin_cle is a by-proof, we can't unfold it.
+    -- However, we CAN use the fact that for dirLin, compoundLin is determined
+    -- by clusterDirLin (not clusterCacheLin). And clusterDirLin cases are
+    -- previousGlobalCacheGotPerms (.eq) or getGlobalCachePerms (.inside).
+    -- The cle_ob case requires orderBeforeDir which only arises from requestLin.
+    -- Use: linearizationOfEvent = dirLin → compoundLinearizationEvent = clusterDirLin.
+    -- Then clusterDirLin can only produce eq or inside.
+    exfalso
+    -- dirLin → clusterDirLin (not clusterCacheLin)
+    cases hcmp : cmp.compoundLinearizationEvent cmp.shimAxioms b init e (.dirLin hd) with
+    | clusterCacheLin hcache =>
+      exact absurd hcache.choose_spec.2.lin_at_cache (by simp [Behaviour.reqLinearizesAtCache])
+    | clusterDirLin hdir_case =>
+      -- Derive compoundLin = hdir_case.choose, then use deeper case analysis.
+      have h_cl_eq := lin.compoundLin_of_clusterDirLin hdir hcmp
+      have h_cle_shared := lin.hreq's_dir_access_matches_dirLin hd hdir
+      have h_deeper := hdir_case.choose_spec.2.e_glin_deeper
+      simp [CompoundProtocol.compoundLinearization.OfReqEncapDirAccess] at h_deeper
+      cases h_deeper with
+      | previousGlobalCacheGotPerms _ h_eq =>
+        rw [h_cl_eq, h_eq, ← h_cle_shared] at ha
+        exact Nat.lt_irrefl _ (Nat.lt_trans ha (Event.oWellFormed n _))
+      | getGlobalCachePerms _ h_global => sorry
+  | compoundLin_ob_cle ha =>
+    exfalso
+    cases hcmp : cmp.compoundLinearizationEvent cmp.shimAxioms b init e (.dirLin hd) with
+    | clusterCacheLin hcache =>
+      exact absurd hcache.choose_spec.2.lin_at_cache (by simp [Behaviour.reqLinearizesAtCache])
+    | clusterDirLin hdir_case =>
+      have h_cl_eq := lin.compoundLin_of_clusterDirLin hdir hcmp
+      have h_cle_shared := lin.hreq's_dir_access_matches_dirLin hd hdir
+      have h_deeper := hdir_case.choose_spec.2.e_glin_deeper
+      simp [CompoundProtocol.compoundLinearization.OfReqEncapDirAccess] at h_deeper
+      cases h_deeper with
+      | previousGlobalCacheGotPerms _ h_eq =>
+        rw [h_cl_eq, h_eq, ← h_cle_shared] at ha
+        exact Nat.lt_irrefl _ (Nat.lt_trans ha (Event.oWellFormed n _))
+      | getGlobalCachePerms _ h_global => sorry
+
 /-- When linearizationOfEvent = requestLin and compoundLinearizationEvent = clusterCacheLin,
     the compoundLin event equals e (the original request event).
     Proof: compoundLin_of_clusterCacheLin gives compoundLin = hcache.choose,
