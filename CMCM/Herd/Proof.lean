@@ -1935,28 +1935,32 @@ private theorem compoundLin_diff_protocol
     | requestLin _ =>
       rw [lin₂.compoundLin_eq_event_of_requestLin hlin₂]
       exact fun h => hdiff (hprot₁.trans (h.trans hprot₂.symm))
-    | dirLin hdir₂ =>
-      -- compoundLin₁ = e₁ (requestLin). compoundLin₂ from dirLin.
-      -- compoundLin₂ = CLE₂ (eq) or inside CLE₂ (inside, global event).
-      -- For eq: CLE₂.prot = e₂.prot (hprot₂). e₁.prot ≠ CLE₂.prot follows from hdiff + hprot₁.
-      -- For inside: compoundLin₂ is global. Global prot ≠ cluster prot.
+    | dirLin _ =>
+      -- compoundLin₂ from dirLin: eq or inside. Case-split.
       cases lin₂.compoundLin_cle h₂_notdown with
       | eq ha₂ => rw [ha₂]; exact fun h => hdiff (hprot₁.trans h)
-      | cle_ob_compoundLin _ => sorry -- cle_ob shouldn't arise from dirLin
-      | compoundLin_ob_cle _ => sorry -- ob_cle shouldn't arise from dirLin
       | compoundLin_inside_cle _ => sorry -- global event protocol
-  | dirLin hdir₁ =>
-    -- compoundLin₁ from dirLin. Similar to above but for event 1.
-    cases lin₁.compoundLin_cle h₁_notdown with
-    | eq ha₁ => rw [ha₁]; cases hlin₂ : compound.linearizationOfEvent b init e₂ with
-      | requestLin _ =>
-        rw [lin₂.compoundLin_eq_event_of_requestLin hlin₂]
-        exact fun h => hdiff (h.trans hprot₂.symm)
-      | dirLin _ =>
-        cases lin₂.compoundLin_cle h₂_notdown with
+      | cle_ob_compoundLin _ => sorry -- vacuous: dirLin + cle_ob
+      | compoundLin_ob_cle _ => sorry -- vacuous: dirLin + ob_cle
+  | dirLin _ =>
+    cases hlin₂ : compound.linearizationOfEvent b init e₂ with
+    | requestLin _ =>
+      rw [lin₂.compoundLin_eq_event_of_requestLin hlin₂]
+      -- compoundLin₁ from dirLin, compoundLin₂ = e₂. Case-split on event 1.
+      cases lin₁.compoundLin_cle h₁_notdown with
+      | eq ha₁ => rw [ha₁]; exact fun h => hdiff (h.trans hprot₂.symm)
+      | compoundLin_inside_cle _ => sorry -- global event protocol
+      | cle_ob_compoundLin _ => sorry -- vacuous
+      | compoundLin_ob_cle _ => sorry -- vacuous
+    | dirLin _ =>
+      -- Both dirLin. Case-split on both compoundLin_cle.
+      cases lin₁.compoundLin_cle h₁_notdown with
+      | eq ha₁ => rw [ha₁]; cases lin₂.compoundLin_cle h₂_notdown with
         | eq ha₂ => rw [ha₂]; exact hdiff
+        | compoundLin_inside_cle _ => sorry
         | _ => sorry
-    | _ => sorry
+      | compoundLin_inside_cle _ => sorry
+      | _ => sorry
 
 -- CLE₁.prot ≠ compoundLin₂.prot from CLE₁.prot ≠ CLE₂.prot.
 -- For cle_ob/eq (compoundLin₂ = CLE₂ or e₂): chain through hprot₂.
@@ -1967,17 +1971,21 @@ private theorem cle_ne_compoundLin_prot
     (h₂_notdown : ¬ e₂.down)
     : Event.protocol n cle₁ ≠ Event.protocol n lin₂.compoundLin := by
   have hprot₂ := write_cle_protocol_eq_write_protocol lin₂
-  cases lin₂.compoundLin_cle h₂_notdown with
-  | eq ha₂ => rw [ha₂]; exact hdiff
-  | cle_ob_compoundLin _ =>
-    cases hlin₂ : compound.linearizationOfEvent b init e₂ with
-    | requestLin _ => rw [lin₂.compoundLin_eq_event_of_requestLin hlin₂]; exact fun h => hdiff (h.trans hprot₂.symm)
-    | dirLin _ => sorry -- vacuous: dirLin + cle_ob
-  | compoundLin_ob_cle _ =>
-    cases hlin₂ : compound.linearizationOfEvent b init e₂ with
-    | requestLin _ => rw [lin₂.compoundLin_eq_event_of_requestLin hlin₂]; exact fun h => hdiff (h.trans hprot₂.symm)
-    | dirLin _ => sorry -- vacuous: dirLin + ob_cle
-  | compoundLin_inside_cle _ => sorry -- global prot ≠ cluster prot
+  -- Case-split on linearizationOfEvent FIRST, then use compoundLin identity.
+  cases hlin₂ : compound.linearizationOfEvent b init e₂ with
+  | requestLin _ =>
+    -- compoundLin₂ = e₂. e₂.prot = CLE₂.prot (hprot₂).
+    rw [lin₂.compoundLin_eq_event_of_requestLin hlin₂]
+    exact fun h => hdiff (h.trans hprot₂.symm)
+  | dirLin _ =>
+    -- dirLin: compoundLin₂ = CLE₂ (eq) or inside CLE₂ (inside).
+    -- For eq: compoundLin₂.prot = CLE₂.prot → hdiff directly.
+    -- For inside: compoundLin₂ is global event. Global prot ≠ cluster prot.
+    cases lin₂.compoundLin_cle h₂_notdown with
+    | eq ha₂ => rw [ha₂]; exact hdiff
+    | compoundLin_inside_cle _ => sorry -- global prot ≠ cluster prot
+    | cle_ob_compoundLin _ => sorry -- vacuous but can't prove locally
+    | compoundLin_ob_cle _ => sorry -- vacuous but can't prove locally
 
 private theorem sameLin_gives_ob {e₁' e₂' : Event n}
     (henc₁ : l₁.EncapsulatedBy n e₁') (hob : e₁'.OrderedBefore n e₂')
