@@ -1915,6 +1915,275 @@ private theorem step_ordering_dir_ordered_3way {l₁ l₂ : Event n}
       | inr hob_rev => exact Or.inr (Or.inr hob_rev)
 
 -- compoundLin version of dir_ordered 3-way: extract CLEs, dir_ordered on CLEs, lift to compoundLin.
+
+private theorem compoundLin_diff_protocol
+    {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (hdiff : Event.protocol n lin₁.hreq's_dir_access.choose ≠ Event.protocol n lin₂.hreq's_dir_access.choose)
+    (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
+    : Event.protocol n lin₁.compoundLin ≠ Event.protocol n lin₂.compoundLin := by
+  have hprot₁ := write_cle_protocol_eq_write_protocol lin₁
+  have hprot₂ := write_cle_protocol_eq_write_protocol lin₂
+  -- compoundLin.protocol relates to e.protocol via compoundLin_eq_event or compoundLin = CLE.
+  -- Case-split on linearizationOfEvent for each event.
+  cases hlin₁ : compound.linearizationOfEvent b init e₁ with
+  | requestLin _ =>
+    rw [lin₁.compoundLin_eq_event_of_requestLin hlin₁]
+    -- compoundLin₁ = e₁. Need e₁.prot ≠ compoundLin₂.prot.
+    -- e₁.prot = CLE₁.prot (hprot₁.symm). CLE₁.prot ≠ CLE₂.prot (hdiff).
+    cases hlin₂ : compound.linearizationOfEvent b init e₂ with
+    | requestLin _ =>
+      rw [lin₂.compoundLin_eq_event_of_requestLin hlin₂]
+      exact fun h => hdiff (hprot₁.trans (h.trans hprot₂.symm))
+    | dirLin _ => sorry
+  | dirLin _ => sorry
+
+private theorem sameLin_gives_ob {e₁' e₂' : Event n}
+    (henc₁ : l₁.EncapsulatedBy n e₁') (hob : e₁'.OrderedBefore n e₂')
+    (henc₂ : l₂.EncapsulatedBy n e₂')
+    (h₁_oEnd_le : Event.oEnd n cl₁ ≤ Event.oEnd n l₁)
+    (h₂_oStart_ge : Event.oStart n l₂ ≤ Event.oStart n cl₂)
+    : cl₁.OrderedBefore n cl₂ :=
+  Nat.lt_of_le_of_lt h₁_oEnd_le (Nat.lt_trans henc₁.right (Nat.lt_trans hob
+    (Nat.lt_of_lt_of_le henc₂.left h₂_oStart_ge)))
+
+/-- Bridge: lift StepOrdering on CLEs to StepOrdering on compoundLin events.
+    Handles all compoundLin_cle_rel combinations for the main StepOrdering constructors.
+
+    Sorry's fall into categories:
+    - DEAD CODE (~15): obProxy/stepProxyL/stepProxyR/encap/proxyPair/encapObEndLt constructors
+      that step_to_ordering never produces. These sorry's are never reached at runtime.
+    - obFinishBefore diff_prot (~5): Need compoundLin.protocol = CLE.protocol. Partially proved
+      (requestLin case closed via compoundLin_eq_event_of_requestLin; dirLin+cle_ob vacuous).
+    - obEndLt/encapObEndLt + inside (~3): p.oEnd < CLE₂.oEnd but compoundLin₂.oEnd < CLE₂.oEnd;
+      unknown relative order. Would need COM-specific proxy-to-global-event ordering.
+    - stepOrdering_to_three (~3): Same-protocol reverse sub-cases for new constructors. -/
+theorem step_ordering_cle_to_compoundLin
+    {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (h : @StepOrdering n lin₁.hreq's_dir_access.choose lin₂.hreq's_dir_access.choose)
+    (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
+    : @StepOrdering n lin₁.compoundLin lin₂.compoundLin := by
+  have hrel₁ := lin₁.compoundLin_cle h₁_notdown
+  have hrel₂ := lin₂.compoundLin_cle h₂_notdown
+  -- Protocol facts: CLE.protocol = e.protocol
+  -- Protocol: CLE.prot = e.prot, so CLE₁.prot ≠ CLE₂.prot → CLE₁.prot ≠ compoundLin₂.prot
+  -- (for cle_ob/ob_cle: compoundLin = e, same prot as CLE; for inside: global event, sorry)
+  have hprot₁ := write_cle_protocol_eq_write_protocol lin₁
+  have hprot₂ := write_cle_protocol_eq_write_protocol lin₂
+  -- Case-split on both compoundLin_cle_rel cases.
+  -- For each StepOrdering constructor h, chain with the compoundLin ↔ CLE evidence.
+  -- Most cases resolve via .ob chaining. The cle_ob event 1 case uses .obFinishBefore
+  -- (when diff_prot) or needs COM-specific evidence (same_prot).
+  -- For each (hrel₁, hrel₂) combination × each StepOrdering constructor,
+  -- chain the temporal evidence. Use omega/sorry for hard cases.
+  cases hrel₁ with
+  | eq ha₁ => rw [ha₁]; cases hrel₂ with
+    | eq ha₂ => rw [ha₂]; exact h
+    | cle_ob_compoundLin ha₂ =>
+      cases h with
+      | ob hob => exact .ob (Trans.trans hob ha₂)
+      | eq heq => exact .ob (heq ▸ ha₂)
+      | encap henc => exact .encapOb _ henc ha₂
+      | obEndLt p hob hlt hisdir => exact .obEndLt p hob (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir
+      | encapOb p henc hob => exact .encapOb p henc (Trans.trans hob ha₂)
+      | proxyPair q p hqenc hqob hpob => exact .proxyPair q p hqenc hqob (Trans.trans hpob ha₂)
+      | encapObEndLt q p hqenc hqob hlt hisdir => exact .encapObEndLt q p hqenc hqob (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        -- CLE₁=CLE₂, CLE₁ EncBy e₁', e₁' OB e₂', CLE₂ EncBy e₂', CLE₂ OB compoundLin₂.
+        -- Chain: CLE₁.oEnd < e₁'.oEnd < e₂'.oStart, e₂'.oStart < CLE₂.oStart < CLE₂.oEnd < compoundLin₂.oStart
+        exact .ob (Nat.lt_trans henc₁.right (Nat.lt_trans hob
+          (Nat.lt_trans henc₂.left (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂))))
+      | obFinishBefore p hob hlt hdiff hisdir =>
+        -- p OB CLE₂, p.oEnd < CLE₁.oEnd, CLE₁.prot ≠ CLE₂.prot.
+        -- For cle_ob event 2: CLE₂ OB compoundLin₂. Chain p OB CLE₂ OB compoundLin₂.
+        -- diff_prot: CLE₁.prot ≠ compoundLin₂.prot (compoundLin₂ has same prot as CLE₂).
+        -- diff_prot: CLE₁.prot ≠ compoundLin₂.prot.
+        -- hdiff : CLE₁.prot ≠ CLE₂.prot. CLE₂.prot = e₂.prot (write_cle_protocol).
+        -- For cle_ob: compoundLin₂ is after CLE₂, same protocol as e₂.
+        -- compoundLin₂.prot = e₂.prot = CLE₂.prot (write_cle_protocol).
+        -- But we don't have compoundLin₂ = e₂ in scope directly.
+        -- Use: CLE₂.prot = e₂.prot from write_cle_protocol_eq_write_protocol lin₂.
+        -- And compoundLin₂.prot = e₂.prot (from compoundLin_eq_event if requestLin).
+        -- Since ha₂ arises from cle_ob (requestLin), compoundLin₂.prot = e₂.prot.
+        -- diff_prot: case-split on linearizationOfEvent to relate compoundLin₂.prot to CLE₂.prot.
+        exact .obFinishBefore p (Trans.trans hob ha₂) hlt (ha₁ ▸ compoundLin_diff_protocol hdiff h₁_notdown h₂_notdown) hisdir
+      | obProxy p₁ p₂ h₁_ob h_so h₂_ob =>
+        -- CLE₁ = compoundLin₁ (eq ha₁), CLE₂ OB compoundLin₂ (cle_ob ha₂).
+        -- obProxy: CLE₁ OB p₁, SO p₁ p₂, CLE₂ OB p₂.
+        -- Chain: compoundLin₁ = CLE₁ OB p₁. p₁ has SO to p₂. CLE₂ OB p₂ and CLE₂ OB compoundLin₂.
+        -- Use .obProxy: compoundLin₁ OB p₁, SO p₁ p₂, compoundLin₂ OB p₂? No — compoundLin₂ is AFTER CLE₂.
+        -- compoundLin₂.oStart > CLE₂.oEnd (from cle_ob). CLE₂.oEnd < p₂.oStart (from h₂_ob).
+        -- So compoundLin₂.oStart > CLE₂.oEnd and p₂.oStart > CLE₂.oEnd. No ordering between compoundLin₂ and p₂.
+        sorry
+      | stepProxyL _ _ _ => sorry
+      | stepProxyR _ _ _ => sorry
+      | obStepL _ _ _ => sorry
+    | compoundLin_ob_cle ha₂ => exact .stepProxyR _ h ha₂
+    | compoundLin_inside_cle ha₂ =>
+      cases h with
+      | ob hob => exact .ob (Nat.lt_trans hob ha₂.left)
+      | eq heq => exact .encap ⟨heq ▸ ha₂.left, heq ▸ ha₂.right⟩
+      | encap henc => exact .encap ⟨Nat.lt_trans henc.left ha₂.left, Nat.lt_trans ha₂.right henc.right⟩
+      | encapOb p henc hob => exact .encapOb p henc (Nat.lt_trans hob ha₂.left)
+      | proxyPair q p hqenc hqob hpob => exact .proxyPair q p hqenc hqob (Nat.lt_trans hpob ha₂.left)
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        exact .ob (Nat.lt_trans henc₁.right (Nat.lt_trans hob (Nat.lt_trans henc₂.left ha₂.left)))
+      | obEndLt p hob hlt hisdir =>
+        -- p.oEnd < CLE₂.oEnd. compoundLin₂.oEnd < CLE₂.oEnd. Unknown p vs compoundLin₂.
+        sorry
+      | obFinishBefore p hob hlt hdiff hisdir =>
+        -- p OB CLE₂, compoundLin₂ inside CLE₂ → p.oEnd < CLE₂.oStart < compoundLin₂.oStart.
+        exact .obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (ha₁ ▸ compoundLin_diff_protocol hdiff h₁_notdown h₂_notdown) hisdir
+      | encapObEndLt q p hqenc hqob hlt hisdir =>
+        -- q inside CLE₁, q OB p, p.oEnd < CLE₂.oEnd, compoundLin₂.oEnd < CLE₂.oEnd.
+        -- Unknown p vs compoundLin₂. But encapOb gives q OB p.
+        -- q inside CLE₁ = compoundLin₁ (eq). q OB p. p.oEnd < CLE₂.oEnd.
+        -- compoundLin₂ inside CLE₂ → compoundLin₂.oEnd < CLE₂.oEnd.
+        -- Use encapObEndLt: q inside compoundLin₁, q OB p, p.oEnd < compoundLin₂.oEnd?
+        -- p.oEnd < CLE₂.oEnd and compoundLin₂.oEnd < CLE₂.oEnd. Unknown.
+        sorry
+      | obProxy p₁ p₂ h₁_ob h_so h₂_ob =>
+        -- compoundLin₁ = CLE₁ (eq), compoundLin₂ inside CLE₂ (inside).
+        -- obProxy: CLE₁ OB p₁, SO p₁ p₂, CLE₂ OB p₂.
+        -- compoundLin₂ inside CLE₂: CLE₂.oStart < compoundLin₂.oStart, compoundLin₂.oEnd < CLE₂.oEnd.
+        -- CLE₁ = compoundLin₁ OB p₁. compoundLin₂ inside CLE₂ OB p₂.
+        -- compoundLin₂.oEnd < CLE₂.oEnd and CLE₂.oEnd < p₂.oStart.
+        -- So compoundLin₂.oEnd < p₂.oStart. But p₁ → p₂ via SO. Complex.
+        sorry
+      | stepProxyL _ _ _ => sorry
+      | stepProxyR _ _ _ => sorry
+      | obStepL _ _ _ => sorry
+  | cle_ob_compoundLin ha₁ =>
+    -- CLE₁ OB compoundLin₁. Use stepProxyL: proxy CLE₁ before compoundLin₁,
+    -- StepOrdering CLE₁ compoundLin₂ for the inner part.
+    -- For the inner part, case-split on hrel₂:
+    cases hrel₂ with
+    | eq ha₂ => rw [ha₂]; exact .stepProxyL _ ha₁ h
+    | cle_ob_compoundLin ha₂ =>
+      -- CLE₁ OB compoundLin₁ (ha₁), CLE₂ OB compoundLin₂ (ha₂), StepOrdering CLE₁ CLE₂ (h).
+      -- Chain: stepProxyL CLE₁ ha₁ (inner: StepOrdering CLE₁ compoundLin₂).
+      -- Inner: chain h with ha₂ for each constructor.
+      cases h with
+      | ob hob => exact .stepProxyL _ ha₁ (.ob (Trans.trans hob ha₂))
+      | eq heq => exact .stepProxyL _ ha₁ (.ob (heq ▸ ha₂))
+      | obEndLt p hob hlt hisdir =>
+        exact .stepProxyL _ ha₁ (.obEndLt p hob (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir)
+      | encapOb p henc hob => exact .stepProxyL _ ha₁ (.encapOb p henc (Trans.trans hob ha₂))
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        exact .stepProxyL _ ha₁ (.ob (Nat.lt_trans henc₁.right (Nat.lt_trans hob
+          (Nat.lt_trans henc₂.left (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂)))))
+      | proxyPair q p hqenc hqob hpob => exact .stepProxyL _ ha₁ (.proxyPair q p hqenc hqob (Trans.trans hpob ha₂))
+      | encapObEndLt q p hqenc hqob hlt hisdir =>
+        exact .stepProxyL _ ha₁ (.encapObEndLt q p hqenc hqob (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir)
+      | obFinishBefore p hob hlt hdiff hisdir =>
+        -- Inner: StepOrdering CLE₁ compoundLin₂. obFinishBefore needs CLE₁.prot ≠ compoundLin₂.prot.
+        -- From hdiff: CLE₁.prot ≠ CLE₂.prot. From hprot₂: CLE₂.prot = e₂.prot.
+        -- For cle_ob: compoundLin₂ = e₂ (requestLin). Chain.
+        exact .stepProxyL _ ha₁ (.obFinishBefore p (Trans.trans hob ha₂) hlt (sorry) hisdir)
+      | _ => sorry -- dead code
+    | compoundLin_ob_cle ha₂ =>
+      -- compoundLin₂ OB CLE₂ (compoundLin₂ before CLE₂). Use stepProxyR.
+      exact .stepProxyL _ ha₁ (.stepProxyR _ h ha₂)
+    | compoundLin_inside_cle ha₂ =>
+      -- CLE₁ OB compoundLin₁, compoundLin₂ inside CLE₂. StepOrdering CLE₁ CLE₂.
+      -- Use stepProxyL CLE₁ ha₁ (inner: StepOrdering CLE₁ compoundLin₂).
+      -- Inner: chain h with ha₂ (eq+inside logic).
+      cases h with
+      | ob hob => exact .stepProxyL _ ha₁ (.ob (Nat.lt_trans hob ha₂.left))
+      | eq heq => exact .stepProxyL _ ha₁ (.encap ⟨heq ▸ ha₂.left, heq ▸ ha₂.right⟩)
+      | encap henc => exact .stepProxyL _ ha₁ (.encap ⟨Nat.lt_trans henc.left ha₂.left, Nat.lt_trans ha₂.right henc.right⟩)
+      | encapOb p henc hob => exact .stepProxyL _ ha₁ (.encapOb p henc (Nat.lt_trans hob ha₂.left))
+      | proxyPair q p hqenc hqob hpob => exact .stepProxyL _ ha₁ (.proxyPair q p hqenc hqob (Nat.lt_trans hpob ha₂.left))
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        exact .stepProxyL _ ha₁ (.ob (Nat.lt_trans henc₁.right (Nat.lt_trans hob (Nat.lt_trans henc₂.left ha₂.left))))
+      | obFinishBefore p hob hlt hdiff hisdir =>
+        exact .stepProxyL _ ha₁ (.obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (sorry) hisdir)
+      | _ => sorry -- dead code
+  | compoundLin_ob_cle ha₁ =>
+    -- compoundLin₁ OB CLE₁ (ob_cle). Use obStepL for ALL event 2 cases:
+    -- .obStepL CLE₁ ha₁ (inner: StepOrdering CLE₁ compoundLin₂).
+    -- Inner comes from the eq event 1 case of the bridge or direct construction.
+    cases hrel₂ with
+    | eq ha₂ => rw [ha₂]; exact .obStepL _ ha₁ h
+    | cle_ob_compoundLin ha₂ =>
+      cases h with
+      | ob hob => exact .ob (Trans.trans ha₁ (Trans.trans hob ha₂))
+      | eq heq => exact .ob (Trans.trans ha₁ (heq ▸ ha₂))
+      | obEndLt p hob hlt hisdir => exact .obEndLt p (Trans.trans ha₁ hob) (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        exact .ob (Nat.lt_of_lt_of_le ha₁ (Nat.le_of_lt (Nat.lt_trans (Event.oWellFormed n _)
+          (Nat.lt_trans henc₁.right (Nat.lt_trans hob
+            (Nat.lt_trans henc₂.left (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂)))))))
+      | obFinishBefore p hob hlt hdiff hisdir =>
+        exact .obStepL _ ha₁ (.obFinishBefore p (Trans.trans hob ha₂) hlt (sorry) hisdir)
+      | _ => sorry -- dead code
+    | compoundLin_ob_cle ha₂ =>
+      exact .obProxy _ _ ha₁ h ha₂
+    | compoundLin_inside_cle ha₂ =>
+      -- ob_cle event 1 + inside event 2. Use obStepL with inner eq+inside bridge.
+      cases h with
+      | ob hob => exact .ob (Nat.lt_trans (Nat.lt_of_lt_of_le ha₁ (Nat.le_of_lt (Event.oWellFormed n _))) (Nat.lt_trans hob ha₂.left))
+      | eq heq => exact .ob (Nat.lt_trans ha₁ (heq ▸ ha₂.left))
+      | encap henc => exact .ob (Nat.lt_trans ha₁ (Nat.lt_trans henc.left ha₂.left))
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        exact .ob (Nat.lt_of_lt_of_le ha₁ (Nat.le_of_lt (Nat.lt_trans (Event.oWellFormed n _)
+          (Nat.lt_trans henc₁.right (Nat.lt_trans hob (Nat.lt_trans henc₂.left ha₂.left))))))
+      | obFinishBefore p hob hlt hdiff hisdir =>
+        exact .obStepL _ ha₁ (.obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (sorry) hisdir)
+      | _ => sorry -- dead code
+  | compoundLin_inside_cle ha₁ =>
+    cases hrel₂ with
+    | eq ha₂ => rw [ha₂]; cases h with
+      | ob hob => exact .ob (Nat.lt_trans ha₁.right hob)
+      | obEndLt p hob hlt hisdir => exact .obEndLt p (Nat.lt_trans ha₁.right hob) hlt hisdir
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans henc₁.right (Nat.lt_trans hob henc₂.left)))
+      | obFinishBefore p hob hlt hdiff hisdir =>
+        sorry
+      | _ => sorry
+    | cle_ob_compoundLin ha₂ =>
+      cases h with
+      | ob hob => exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans hob (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂)))
+      | obEndLt p hob hlt hisdir => exact .obEndLt p (Nat.lt_trans ha₁.right hob) (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans henc₁.right (Nat.lt_trans hob
+          (Nat.lt_trans henc₂.left (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂)))))
+      | obFinishBefore p hob hlt hdiff hisdir =>
+        sorry
+      | _ => sorry
+    | compoundLin_ob_cle ha₂ =>
+      -- inside event 1 + ob_cle event 2. Use stepProxyR for event 2.
+      -- Need StepOrdering compoundLin₁ CLE₂ for the inner part.
+      -- compoundLin₁ inside CLE₁, StepOrdering CLE₁ CLE₂.
+      -- The bridge's inside+eq case handles StepOrdering compoundLin₁ CLE₂ for .ob.
+      -- Use stepProxyR with inner StepOrdering from inside+eq logic.
+      -- Use stepProxyR: StepOrdering compoundLin₁ CLE₂, then compoundLin₂ OB CLE₂.
+      -- Inner: chain ha₁.right (compoundLin₁.oEnd < CLE₁.oEnd) through h to CLE₂.
+      cases h with
+      | ob hob => exact .stepProxyR _ (.ob (Nat.lt_trans ha₁.right hob)) ha₂
+      | eq heq => sorry
+      | obEndLt p hob hlt hisdir => exact .stepProxyR _ (.obEndLt p (Nat.lt_trans ha₁.right hob) hlt hisdir) ha₂
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        exact .stepProxyR _ (.ob (Nat.lt_trans ha₁.right (Nat.lt_trans henc₁.right (Nat.lt_trans hob henc₂.left)))) ha₂
+      | encapOb p henc hob => sorry
+      | _ => sorry
+    | compoundLin_inside_cle ha₂ =>
+      cases h with
+      | ob hob => exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans hob ha₂.left))
+      | encap henc => sorry
+      | encapOb p henc hob => sorry
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans henc₁.right (Nat.lt_trans hob (Nat.lt_trans henc₂.left ha₂.left))))
+      | obFinishBefore p hob hlt hdiff hisdir => sorry
+      | obEndLt p hob hlt hisdir => sorry
+      | _ => sorry
+
+/-- Map a COM edge to StepOrdering between compoundLin events.
+    Uses COM edge evidence directly + compoundLin_cle bridge.
+    - sameCache: e₁ OB e₂ gives compoundLin ordering directly
+    - sameClusDiffCache: downgrade chain evidence + bridge
+
 private theorem step_ordering_dir_ordered_3way_compoundLin
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n} (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
@@ -1927,9 +2196,31 @@ private theorem step_ordering_dir_ordered_3way_compoundLin
   have hcle₂_isdir := (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
   -- dir_ordered on CLEs gives 3-way
   have h3way := step_ordering_dir_ordered_3way hcle₁_isdir hcle₂_isdir hdir
-  -- Lift to compoundLin via the bridge
-  -- Lift to compoundLin via bridge (defined later — use sorry until integrated)
-  sorry
+  -- Lift to compoundLin via bridge (now defined before compose_three)
+  cases h3way with
+  | inl hso => exact Or.inl (step_ordering_cle_to_compoundLin hso h₁_notdown h₂_notdown)
+  | inr hr => cases hr with
+    | inl heq => exact Or.inl (step_ordering_cle_to_compoundLin (.eq heq) h₁_notdown h₂_notdown)
+    | inr hob_rev =>
+      -- CLE₂ OB CLE₁. Reverse: need compoundLin₂ "before" compoundLin₁.
+      -- Use bridge in reverse direction or sorry.
+      -- For the 3-way invariant, reverseOB is propagated until cycle closure.
+      sorry
+
+
+    - diffClus: bridge + obFinishBefore (diff_protocol available) -/
+theorem step_to_ordering_compoundLin
+    (h : com compound b init e₁ e₂)
+    (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
+        (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
+        (compound.linearizationOfEvent b init a₂)).linearizationEvent)
+    (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
+    : @StepOrdering n (lin e₁).compoundLin (lin e₂).compoundLin := by
+  exact step_ordering_cle_to_compoundLin
+    (step_to_ordering h lin h_non_lazy_ppoi) h₁_notdown h₂_notdown
 
 /-- Handle obFinishBefore h₁ + com edge directly.
     Case-splits on hcom_edge for full protocol evidence instead of going
@@ -2644,294 +2935,6 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       exact step_ordering_dir_ordered_3way h₁_isdir
         (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
 
-
-/-- sameLin always gives .ob between compoundLin events via the encap+OB chain:
-    CLE₁.oEnd < e₁'.oEnd (enc₁) < e₂'.oStart (OB) < CLE₂.oStart (enc₂)
-    ≤ CLE₂.oEnd (oWellFormed). Any compoundLin₁ with oEnd ≤ CLE₁.oEnd chains
-    forward, and any compoundLin₂ with oStart ≥ CLE₂.oStart chains forward.
--/
-
--- If CLEs have different protocols, compoundLin events also have different protocols.
-private theorem compoundLin_diff_protocol
-    {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
-    {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
-    (hdiff : Event.protocol n lin₁.hreq's_dir_access.choose ≠ Event.protocol n lin₂.hreq's_dir_access.choose)
-    (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
-    : Event.protocol n lin₁.compoundLin ≠ Event.protocol n lin₂.compoundLin := by
-  have hprot₁ := write_cle_protocol_eq_write_protocol lin₁
-  have hprot₂ := write_cle_protocol_eq_write_protocol lin₂
-  -- compoundLin.protocol relates to e.protocol via compoundLin_eq_event or compoundLin = CLE.
-  -- Case-split on linearizationOfEvent for each event.
-  cases hlin₁ : compound.linearizationOfEvent b init e₁ with
-  | requestLin _ =>
-    rw [lin₁.compoundLin_eq_event_of_requestLin hlin₁]
-    -- compoundLin₁ = e₁. Need e₁.prot ≠ compoundLin₂.prot.
-    -- e₁.prot = CLE₁.prot (hprot₁.symm). CLE₁.prot ≠ CLE₂.prot (hdiff).
-    cases hlin₂ : compound.linearizationOfEvent b init e₂ with
-    | requestLin _ =>
-      rw [lin₂.compoundLin_eq_event_of_requestLin hlin₂]
-      exact fun h => hdiff (hprot₁.trans (h.trans hprot₂.symm))
-    | dirLin _ => sorry
-  | dirLin _ => sorry
-
-private theorem sameLin_gives_ob {e₁' e₂' : Event n}
-    (henc₁ : l₁.EncapsulatedBy n e₁') (hob : e₁'.OrderedBefore n e₂')
-    (henc₂ : l₂.EncapsulatedBy n e₂')
-    (h₁_oEnd_le : Event.oEnd n cl₁ ≤ Event.oEnd n l₁)
-    (h₂_oStart_ge : Event.oStart n l₂ ≤ Event.oStart n cl₂)
-    : cl₁.OrderedBefore n cl₂ :=
-  Nat.lt_of_le_of_lt h₁_oEnd_le (Nat.lt_trans henc₁.right (Nat.lt_trans hob
-    (Nat.lt_of_lt_of_le henc₂.left h₂_oStart_ge)))
-
-/-- Bridge: lift StepOrdering on CLEs to StepOrdering on compoundLin events.
-    Handles all compoundLin_cle_rel combinations for the main StepOrdering constructors.
-
-    Sorry's fall into categories:
-    - DEAD CODE (~15): obProxy/stepProxyL/stepProxyR/encap/proxyPair/encapObEndLt constructors
-      that step_to_ordering never produces. These sorry's are never reached at runtime.
-    - obFinishBefore diff_prot (~5): Need compoundLin.protocol = CLE.protocol. Partially proved
-      (requestLin case closed via compoundLin_eq_event_of_requestLin; dirLin+cle_ob vacuous).
-    - obEndLt/encapObEndLt + inside (~3): p.oEnd < CLE₂.oEnd but compoundLin₂.oEnd < CLE₂.oEnd;
-      unknown relative order. Would need COM-specific proxy-to-global-event ordering.
-    - stepOrdering_to_three (~3): Same-protocol reverse sub-cases for new constructors. -/
-theorem step_ordering_cle_to_compoundLin
-    {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
-    {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
-    (h : @StepOrdering n lin₁.hreq's_dir_access.choose lin₂.hreq's_dir_access.choose)
-    (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
-    : @StepOrdering n lin₁.compoundLin lin₂.compoundLin := by
-  have hrel₁ := lin₁.compoundLin_cle h₁_notdown
-  have hrel₂ := lin₂.compoundLin_cle h₂_notdown
-  -- Protocol facts: CLE.protocol = e.protocol
-  -- Protocol: CLE.prot = e.prot, so CLE₁.prot ≠ CLE₂.prot → CLE₁.prot ≠ compoundLin₂.prot
-  -- (for cle_ob/ob_cle: compoundLin = e, same prot as CLE; for inside: global event, sorry)
-  have hprot₁ := write_cle_protocol_eq_write_protocol lin₁
-  have hprot₂ := write_cle_protocol_eq_write_protocol lin₂
-  -- Case-split on both compoundLin_cle_rel cases.
-  -- For each StepOrdering constructor h, chain with the compoundLin ↔ CLE evidence.
-  -- Most cases resolve via .ob chaining. The cle_ob event 1 case uses .obFinishBefore
-  -- (when diff_prot) or needs COM-specific evidence (same_prot).
-  -- For each (hrel₁, hrel₂) combination × each StepOrdering constructor,
-  -- chain the temporal evidence. Use omega/sorry for hard cases.
-  cases hrel₁ with
-  | eq ha₁ => rw [ha₁]; cases hrel₂ with
-    | eq ha₂ => rw [ha₂]; exact h
-    | cle_ob_compoundLin ha₂ =>
-      cases h with
-      | ob hob => exact .ob (Trans.trans hob ha₂)
-      | eq heq => exact .ob (heq ▸ ha₂)
-      | encap henc => exact .encapOb _ henc ha₂
-      | obEndLt p hob hlt hisdir => exact .obEndLt p hob (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir
-      | encapOb p henc hob => exact .encapOb p henc (Trans.trans hob ha₂)
-      | proxyPair q p hqenc hqob hpob => exact .proxyPair q p hqenc hqob (Trans.trans hpob ha₂)
-      | encapObEndLt q p hqenc hqob hlt hisdir => exact .encapObEndLt q p hqenc hqob (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir
-      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
-        -- CLE₁=CLE₂, CLE₁ EncBy e₁', e₁' OB e₂', CLE₂ EncBy e₂', CLE₂ OB compoundLin₂.
-        -- Chain: CLE₁.oEnd < e₁'.oEnd < e₂'.oStart, e₂'.oStart < CLE₂.oStart < CLE₂.oEnd < compoundLin₂.oStart
-        exact .ob (Nat.lt_trans henc₁.right (Nat.lt_trans hob
-          (Nat.lt_trans henc₂.left (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂))))
-      | obFinishBefore p hob hlt hdiff hisdir =>
-        -- p OB CLE₂, p.oEnd < CLE₁.oEnd, CLE₁.prot ≠ CLE₂.prot.
-        -- For cle_ob event 2: CLE₂ OB compoundLin₂. Chain p OB CLE₂ OB compoundLin₂.
-        -- diff_prot: CLE₁.prot ≠ compoundLin₂.prot (compoundLin₂ has same prot as CLE₂).
-        -- diff_prot: CLE₁.prot ≠ compoundLin₂.prot.
-        -- hdiff : CLE₁.prot ≠ CLE₂.prot. CLE₂.prot = e₂.prot (write_cle_protocol).
-        -- For cle_ob: compoundLin₂ is after CLE₂, same protocol as e₂.
-        -- compoundLin₂.prot = e₂.prot = CLE₂.prot (write_cle_protocol).
-        -- But we don't have compoundLin₂ = e₂ in scope directly.
-        -- Use: CLE₂.prot = e₂.prot from write_cle_protocol_eq_write_protocol lin₂.
-        -- And compoundLin₂.prot = e₂.prot (from compoundLin_eq_event if requestLin).
-        -- Since ha₂ arises from cle_ob (requestLin), compoundLin₂.prot = e₂.prot.
-        -- diff_prot: case-split on linearizationOfEvent to relate compoundLin₂.prot to CLE₂.prot.
-        exact .obFinishBefore p (Trans.trans hob ha₂) hlt (ha₁ ▸ compoundLin_diff_protocol hdiff h₁_notdown h₂_notdown) hisdir
-      | obProxy p₁ p₂ h₁_ob h_so h₂_ob =>
-        -- CLE₁ = compoundLin₁ (eq ha₁), CLE₂ OB compoundLin₂ (cle_ob ha₂).
-        -- obProxy: CLE₁ OB p₁, SO p₁ p₂, CLE₂ OB p₂.
-        -- Chain: compoundLin₁ = CLE₁ OB p₁. p₁ has SO to p₂. CLE₂ OB p₂ and CLE₂ OB compoundLin₂.
-        -- Use .obProxy: compoundLin₁ OB p₁, SO p₁ p₂, compoundLin₂ OB p₂? No — compoundLin₂ is AFTER CLE₂.
-        -- compoundLin₂.oStart > CLE₂.oEnd (from cle_ob). CLE₂.oEnd < p₂.oStart (from h₂_ob).
-        -- So compoundLin₂.oStart > CLE₂.oEnd and p₂.oStart > CLE₂.oEnd. No ordering between compoundLin₂ and p₂.
-        sorry
-      | stepProxyL _ _ _ => sorry
-      | stepProxyR _ _ _ => sorry
-      | obStepL _ _ _ => sorry
-    | compoundLin_ob_cle ha₂ => exact .stepProxyR _ h ha₂
-    | compoundLin_inside_cle ha₂ =>
-      cases h with
-      | ob hob => exact .ob (Nat.lt_trans hob ha₂.left)
-      | eq heq => exact .encap ⟨heq ▸ ha₂.left, heq ▸ ha₂.right⟩
-      | encap henc => exact .encap ⟨Nat.lt_trans henc.left ha₂.left, Nat.lt_trans ha₂.right henc.right⟩
-      | encapOb p henc hob => exact .encapOb p henc (Nat.lt_trans hob ha₂.left)
-      | proxyPair q p hqenc hqob hpob => exact .proxyPair q p hqenc hqob (Nat.lt_trans hpob ha₂.left)
-      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
-        exact .ob (Nat.lt_trans henc₁.right (Nat.lt_trans hob (Nat.lt_trans henc₂.left ha₂.left)))
-      | obEndLt p hob hlt hisdir =>
-        -- p.oEnd < CLE₂.oEnd. compoundLin₂.oEnd < CLE₂.oEnd. Unknown p vs compoundLin₂.
-        sorry
-      | obFinishBefore p hob hlt hdiff hisdir =>
-        -- p OB CLE₂, compoundLin₂ inside CLE₂ → p.oEnd < CLE₂.oStart < compoundLin₂.oStart.
-        exact .obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (ha₁ ▸ compoundLin_diff_protocol hdiff h₁_notdown h₂_notdown) hisdir
-      | encapObEndLt q p hqenc hqob hlt hisdir =>
-        -- q inside CLE₁, q OB p, p.oEnd < CLE₂.oEnd, compoundLin₂.oEnd < CLE₂.oEnd.
-        -- Unknown p vs compoundLin₂. But encapOb gives q OB p.
-        -- q inside CLE₁ = compoundLin₁ (eq). q OB p. p.oEnd < CLE₂.oEnd.
-        -- compoundLin₂ inside CLE₂ → compoundLin₂.oEnd < CLE₂.oEnd.
-        -- Use encapObEndLt: q inside compoundLin₁, q OB p, p.oEnd < compoundLin₂.oEnd?
-        -- p.oEnd < CLE₂.oEnd and compoundLin₂.oEnd < CLE₂.oEnd. Unknown.
-        sorry
-      | obProxy p₁ p₂ h₁_ob h_so h₂_ob =>
-        -- compoundLin₁ = CLE₁ (eq), compoundLin₂ inside CLE₂ (inside).
-        -- obProxy: CLE₁ OB p₁, SO p₁ p₂, CLE₂ OB p₂.
-        -- compoundLin₂ inside CLE₂: CLE₂.oStart < compoundLin₂.oStart, compoundLin₂.oEnd < CLE₂.oEnd.
-        -- CLE₁ = compoundLin₁ OB p₁. compoundLin₂ inside CLE₂ OB p₂.
-        -- compoundLin₂.oEnd < CLE₂.oEnd and CLE₂.oEnd < p₂.oStart.
-        -- So compoundLin₂.oEnd < p₂.oStart. But p₁ → p₂ via SO. Complex.
-        sorry
-      | stepProxyL _ _ _ => sorry
-      | stepProxyR _ _ _ => sorry
-      | obStepL _ _ _ => sorry
-  | cle_ob_compoundLin ha₁ =>
-    -- CLE₁ OB compoundLin₁. Use stepProxyL: proxy CLE₁ before compoundLin₁,
-    -- StepOrdering CLE₁ compoundLin₂ for the inner part.
-    -- For the inner part, case-split on hrel₂:
-    cases hrel₂ with
-    | eq ha₂ => rw [ha₂]; exact .stepProxyL _ ha₁ h
-    | cle_ob_compoundLin ha₂ =>
-      -- CLE₁ OB compoundLin₁ (ha₁), CLE₂ OB compoundLin₂ (ha₂), StepOrdering CLE₁ CLE₂ (h).
-      -- Chain: stepProxyL CLE₁ ha₁ (inner: StepOrdering CLE₁ compoundLin₂).
-      -- Inner: chain h with ha₂ for each constructor.
-      cases h with
-      | ob hob => exact .stepProxyL _ ha₁ (.ob (Trans.trans hob ha₂))
-      | eq heq => exact .stepProxyL _ ha₁ (.ob (heq ▸ ha₂))
-      | obEndLt p hob hlt hisdir =>
-        exact .stepProxyL _ ha₁ (.obEndLt p hob (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir)
-      | encapOb p henc hob => exact .stepProxyL _ ha₁ (.encapOb p henc (Trans.trans hob ha₂))
-      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
-        exact .stepProxyL _ ha₁ (.ob (Nat.lt_trans henc₁.right (Nat.lt_trans hob
-          (Nat.lt_trans henc₂.left (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂)))))
-      | proxyPair q p hqenc hqob hpob => exact .stepProxyL _ ha₁ (.proxyPair q p hqenc hqob (Trans.trans hpob ha₂))
-      | encapObEndLt q p hqenc hqob hlt hisdir =>
-        exact .stepProxyL _ ha₁ (.encapObEndLt q p hqenc hqob (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir)
-      | obFinishBefore p hob hlt hdiff hisdir =>
-        -- Inner: StepOrdering CLE₁ compoundLin₂. obFinishBefore needs CLE₁.prot ≠ compoundLin₂.prot.
-        -- From hdiff: CLE₁.prot ≠ CLE₂.prot. From hprot₂: CLE₂.prot = e₂.prot.
-        -- For cle_ob: compoundLin₂ = e₂ (requestLin). Chain.
-        exact .stepProxyL _ ha₁ (.obFinishBefore p (Trans.trans hob ha₂) hlt (sorry) hisdir)
-      | _ => sorry -- dead code
-    | compoundLin_ob_cle ha₂ =>
-      -- compoundLin₂ OB CLE₂ (compoundLin₂ before CLE₂). Use stepProxyR.
-      exact .stepProxyL _ ha₁ (.stepProxyR _ h ha₂)
-    | compoundLin_inside_cle ha₂ =>
-      -- CLE₁ OB compoundLin₁, compoundLin₂ inside CLE₂. StepOrdering CLE₁ CLE₂.
-      -- Use stepProxyL CLE₁ ha₁ (inner: StepOrdering CLE₁ compoundLin₂).
-      -- Inner: chain h with ha₂ (eq+inside logic).
-      cases h with
-      | ob hob => exact .stepProxyL _ ha₁ (.ob (Nat.lt_trans hob ha₂.left))
-      | eq heq => exact .stepProxyL _ ha₁ (.encap ⟨heq ▸ ha₂.left, heq ▸ ha₂.right⟩)
-      | encap henc => exact .stepProxyL _ ha₁ (.encap ⟨Nat.lt_trans henc.left ha₂.left, Nat.lt_trans ha₂.right henc.right⟩)
-      | encapOb p henc hob => exact .stepProxyL _ ha₁ (.encapOb p henc (Nat.lt_trans hob ha₂.left))
-      | proxyPair q p hqenc hqob hpob => exact .stepProxyL _ ha₁ (.proxyPair q p hqenc hqob (Nat.lt_trans hpob ha₂.left))
-      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
-        exact .stepProxyL _ ha₁ (.ob (Nat.lt_trans henc₁.right (Nat.lt_trans hob (Nat.lt_trans henc₂.left ha₂.left))))
-      | obFinishBefore p hob hlt hdiff hisdir =>
-        exact .stepProxyL _ ha₁ (.obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (sorry) hisdir)
-      | _ => sorry -- dead code
-  | compoundLin_ob_cle ha₁ =>
-    -- compoundLin₁ OB CLE₁ (ob_cle). Use obStepL for ALL event 2 cases:
-    -- .obStepL CLE₁ ha₁ (inner: StepOrdering CLE₁ compoundLin₂).
-    -- Inner comes from the eq event 1 case of the bridge or direct construction.
-    cases hrel₂ with
-    | eq ha₂ => rw [ha₂]; exact .obStepL _ ha₁ h
-    | cle_ob_compoundLin ha₂ =>
-      cases h with
-      | ob hob => exact .ob (Trans.trans ha₁ (Trans.trans hob ha₂))
-      | eq heq => exact .ob (Trans.trans ha₁ (heq ▸ ha₂))
-      | obEndLt p hob hlt hisdir => exact .obEndLt p (Trans.trans ha₁ hob) (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir
-      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
-        exact .ob (Nat.lt_of_lt_of_le ha₁ (Nat.le_of_lt (Nat.lt_trans (Event.oWellFormed n _)
-          (Nat.lt_trans henc₁.right (Nat.lt_trans hob
-            (Nat.lt_trans henc₂.left (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂)))))))
-      | obFinishBefore p hob hlt hdiff hisdir =>
-        exact .obStepL _ ha₁ (.obFinishBefore p (Trans.trans hob ha₂) hlt (sorry) hisdir)
-      | _ => sorry -- dead code
-    | compoundLin_ob_cle ha₂ =>
-      exact .obProxy _ _ ha₁ h ha₂
-    | compoundLin_inside_cle ha₂ =>
-      -- ob_cle event 1 + inside event 2. Use obStepL with inner eq+inside bridge.
-      cases h with
-      | ob hob => exact .ob (Nat.lt_trans (Nat.lt_of_lt_of_le ha₁ (Nat.le_of_lt (Event.oWellFormed n _))) (Nat.lt_trans hob ha₂.left))
-      | eq heq => exact .ob (Nat.lt_trans ha₁ (heq ▸ ha₂.left))
-      | encap henc => exact .ob (Nat.lt_trans ha₁ (Nat.lt_trans henc.left ha₂.left))
-      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
-        exact .ob (Nat.lt_of_lt_of_le ha₁ (Nat.le_of_lt (Nat.lt_trans (Event.oWellFormed n _)
-          (Nat.lt_trans henc₁.right (Nat.lt_trans hob (Nat.lt_trans henc₂.left ha₂.left))))))
-      | obFinishBefore p hob hlt hdiff hisdir =>
-        exact .obStepL _ ha₁ (.obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (sorry) hisdir)
-      | _ => sorry -- dead code
-  | compoundLin_inside_cle ha₁ =>
-    cases hrel₂ with
-    | eq ha₂ => rw [ha₂]; cases h with
-      | ob hob => exact .ob (Nat.lt_trans ha₁.right hob)
-      | obEndLt p hob hlt hisdir => exact .obEndLt p (Nat.lt_trans ha₁.right hob) hlt hisdir
-      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
-        exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans henc₁.right (Nat.lt_trans hob henc₂.left)))
-      | obFinishBefore p hob hlt hdiff hisdir =>
-        sorry
-      | _ => sorry
-    | cle_ob_compoundLin ha₂ =>
-      cases h with
-      | ob hob => exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans hob (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂)))
-      | obEndLt p hob hlt hisdir => exact .obEndLt p (Nat.lt_trans ha₁.right hob) (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir
-      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
-        exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans henc₁.right (Nat.lt_trans hob
-          (Nat.lt_trans henc₂.left (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂)))))
-      | obFinishBefore p hob hlt hdiff hisdir =>
-        sorry
-      | _ => sorry
-    | compoundLin_ob_cle ha₂ =>
-      -- inside event 1 + ob_cle event 2. Use stepProxyR for event 2.
-      -- Need StepOrdering compoundLin₁ CLE₂ for the inner part.
-      -- compoundLin₁ inside CLE₁, StepOrdering CLE₁ CLE₂.
-      -- The bridge's inside+eq case handles StepOrdering compoundLin₁ CLE₂ for .ob.
-      -- Use stepProxyR with inner StepOrdering from inside+eq logic.
-      -- Use stepProxyR: StepOrdering compoundLin₁ CLE₂, then compoundLin₂ OB CLE₂.
-      -- Inner: chain ha₁.right (compoundLin₁.oEnd < CLE₁.oEnd) through h to CLE₂.
-      cases h with
-      | ob hob => exact .stepProxyR _ (.ob (Nat.lt_trans ha₁.right hob)) ha₂
-      | eq heq => sorry
-      | obEndLt p hob hlt hisdir => exact .stepProxyR _ (.obEndLt p (Nat.lt_trans ha₁.right hob) hlt hisdir) ha₂
-      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
-        exact .stepProxyR _ (.ob (Nat.lt_trans ha₁.right (Nat.lt_trans henc₁.right (Nat.lt_trans hob henc₂.left)))) ha₂
-      | encapOb p henc hob => sorry
-      | _ => sorry
-    | compoundLin_inside_cle ha₂ =>
-      cases h with
-      | ob hob => exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans hob ha₂.left))
-      | encap henc => sorry
-      | encapOb p henc hob => sorry
-      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
-        exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans henc₁.right (Nat.lt_trans hob (Nat.lt_trans henc₂.left ha₂.left))))
-      | obFinishBefore p hob hlt hdiff hisdir => sorry
-      | obEndLt p hob hlt hisdir => sorry
-      | _ => sorry
-
-/-- Map a COM edge to StepOrdering between compoundLin events.
-    Uses COM edge evidence directly + compoundLin_cle bridge.
-    - sameCache: e₁ OB e₂ gives compoundLin ordering directly
-    - sameClusDiffCache: downgrade chain evidence + bridge
-    - diffClus: bridge + obFinishBefore (diff_protocol available) -/
-theorem step_to_ordering_compoundLin
-    (h : com compound b init e₁ e₂)
-    (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
-      (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
-        (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
-      (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
-        (compound.linearizationOfEvent b init a₂)).linearizationEvent)
-    (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
-    : @StepOrdering n (lin e₁).compoundLin (lin e₂).compoundLin := by
-  exact step_ordering_cle_to_compoundLin
-    (step_to_ordering h lin h_non_lazy_ppoi) h₁_notdown h₂_notdown
 
 /-- Acyclicity given that every event has a linearization.
     Invariant: `StepOrdering (cle a) (cle c) ∨ cle a = cle c ∨ (cle c).OrderedBefore n (cle a)`
