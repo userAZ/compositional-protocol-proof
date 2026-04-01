@@ -3266,12 +3266,14 @@ theorem cmcm_acyclic_of_hknow_compoundLin
       | inl hppoi =>
         -- PPOi: use dir_ordered 3-way on compoundLin.
         -- Need beta-reduction of lambda to get typed PPOi evidence.
-        sorry
-      | inr hcom => sorry
+        exact (step_ordering_dir_ordered_3way_compoundLin hknow a _ (sorry) (sorry) b.orderedAtEntry.dir_ordered)
+      | inr hcom =>
+        exact Or.inl (step_to_ordering_compoundLin hcom (fun e => hknow e) h_non_lazy_ppoi (sorry) (sorry))
   | tail hpath h ih =>
     constructor
     · exact ⟨_, h⟩
-    · sorry
+    · let ⟨⟨b_prev, h_last_prefix⟩, h3way_prefix⟩ := ih
+      sorry -- compose_three_compoundLin call blocked by implicit e₁ resolution
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
