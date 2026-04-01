@@ -2518,8 +2518,14 @@ theorem step_ordering_cle_to_compoundLin
       -- compoundLin₂ inside CLE₂. CLE₂.oStart < compoundLin₂.oStart.
       cases h with
       | ob hob => exact .ob (Nat.lt_trans hob ha₂.left)
-      | eq heq => sorry
-      | _ => sorry
+      | eq heq => exact .encap ⟨heq ▸ ha₂.left, heq ▸ ha₂.right⟩
+      | encap henc => exact .encap ⟨Nat.lt_trans henc.left ha₂.left, Nat.lt_trans ha₂.right henc.right⟩
+      | obEndLt p hob hlt hisdir => sorry
+      | encapOb p henc hob => exact .encapOb p henc (Nat.lt_trans hob ha₂.left)
+      | obFinishBefore p hob hlt hdiff hisdir => sorry
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ => sorry
+      | proxyPair q p hqenc hqob hpob => exact .proxyPair q p hqenc hqob (Nat.lt_trans hpob ha₂.left)
+      | encapObEndLt q p hqenc hqob hlt hisdir => sorry
   | cle_ob_compoundLin ha₁ =>
     -- CLE₁ OB compoundLin₁. Use obFinishBefore pattern.
     sorry -- needs diff_prot or COM-specific evidence
@@ -2539,14 +2545,16 @@ theorem step_ordering_cle_to_compoundLin
     | compoundLin_inside_cle ha₂ =>
       cases h with
       | ob hob => exact .ob (Nat.lt_trans (Nat.lt_of_lt_of_le ha₁ (Nat.le_of_lt (Event.oWellFormed n _))) (Nat.lt_trans hob ha₂.left))
-      | eq heq => sorry
+      | eq heq => exact .ob (Nat.lt_trans ha₁ (heq ▸ ha₂.left))
+      | encap henc => exact .ob (Nat.lt_trans ha₁ (Nat.lt_trans henc.left ha₂.left))
       | _ => sorry
   | compoundLin_inside_cle ha₁ =>
     -- compoundLin₁ inside CLE₁. compoundLin₁.oEnd < CLE₁.oEnd.
     cases hrel₂ with
     | eq ha₂ => rw [ha₂]; cases h with
       | ob hob => exact .ob (Nat.lt_trans ha₁.right hob)
-      | eq heq => sorry
+      | encap henc => sorry
+      | eq heq => sorry -- inside+eq: compoundLin₁ inside CLE = compoundLin₂. No forward SO.
       | _ => sorry
     | cle_ob_compoundLin ha₂ =>
       cases h with
@@ -2556,7 +2564,8 @@ theorem step_ordering_cle_to_compoundLin
     | compoundLin_inside_cle ha₂ =>
       cases h with
       | ob hob => exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans hob ha₂.left))
-      | eq heq => sorry -- both inside same CLE
+      | encap henc => sorry
+      | eq heq => sorry -- both inside same CLE: needs COM evidence for relative order
       | _ => sorry
 
 /-- Map a COM edge to StepOrdering between compoundLin events.
