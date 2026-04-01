@@ -2606,8 +2606,16 @@ private theorem sameLin_gives_ob {e₁' e₂' : Event n}
     (Nat.lt_of_lt_of_le henc₂.left h₂_oStart_ge)))
 
 /-- Bridge: lift StepOrdering on CLEs to StepOrdering on compoundLin events.
-    Handles all compoundLin_cle_rel combinations except cle_ob + same_protocol,
-    which requires COM-specific evidence (handled by step_to_ordering_compoundLin). -/
+    Handles all compoundLin_cle_rel combinations for the main StepOrdering constructors.
+
+    Sorry's fall into categories:
+    - DEAD CODE (~15): obProxy/stepProxyL/stepProxyR/encap/proxyPair/encapObEndLt constructors
+      that step_to_ordering never produces. These sorry's are never reached at runtime.
+    - obFinishBefore diff_prot (~5): Need compoundLin.protocol = CLE.protocol. Partially proved
+      (requestLin case closed via compoundLin_eq_event_of_requestLin; dirLin+cle_ob vacuous).
+    - obEndLt/encapObEndLt + inside (~3): p.oEnd < CLE₂.oEnd but compoundLin₂.oEnd < CLE₂.oEnd;
+      unknown relative order. Would need COM-specific proxy-to-global-event ordering.
+    - stepOrdering_to_three (~3): Same-protocol reverse sub-cases for new constructors. -/
 theorem step_ordering_cle_to_compoundLin
     {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
