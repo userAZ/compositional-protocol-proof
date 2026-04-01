@@ -1914,6 +1914,23 @@ private theorem step_ordering_dir_ordered_3way {l₁ l₂ : Event n}
       | inl hob => exact Or.inl (.ob hob)
       | inr hob_rev => exact Or.inr (Or.inr hob_rev)
 
+-- compoundLin version of dir_ordered 3-way: extract CLEs, dir_ordered on CLEs, lift to compoundLin.
+private theorem step_ordering_dir_ordered_3way_compoundLin
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n} (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    : @StepOrdering n (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
+      (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
+      ((hknow e₂).compoundLin).OrderedBefore n (hknow e₁).compoundLin := by
+  -- Extract CLEs (always directory events)
+  have hcle₁_isdir := (hknow e₁).hreq's_dir_access.choose_spec.right.isDirEvent
+  have hcle₂_isdir := (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
+  -- dir_ordered on CLEs gives 3-way
+  have h3way := step_ordering_dir_ordered_3way hcle₁_isdir hcle₂_isdir hdir
+  -- Lift to compoundLin via the bridge
+  -- Lift to compoundLin via bridge (defined later — use sorry until integrated)
+  sorry
+
 /-- Handle obFinishBefore h₁ + com edge directly.
     Case-splits on hcom_edge for full protocol evidence instead of going
     through the lossy step_to_ordering → StepOrdering path. -/
