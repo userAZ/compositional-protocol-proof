@@ -3034,7 +3034,7 @@ private theorem compose_three_compoundLin {e₁ e₂ e₃ : Event n}
       | _ => exact fallback_1_3
     | inr hr₂ => cases hr₂ with
       | inl heq₂₃ =>
-        exact sorry
+        exact Or.inl (@Eq.subst _ (fun x => StepOrdering (hknow e₁).compoundLin x) _ _ heq₂₃ hso₁)
       | inr _ =>
         -- StepOrdering l₃ l₂: use fallback
         exact fallback_1_3
@@ -3247,31 +3247,36 @@ theorem cmcm_acyclic_of_hknow_compoundLin
   let R := (fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init
   let cl := fun e => (hknow e).compoundLin
   suffices h_ind : ∀ a c, Relation.TransGen R a c →
-      (∃ b_prev, R b_prev c) ∧
+      (∃ b_prev, R b_prev c) ∧ ¬ a.down ∧
       (@StepOrdering n (hknow a).compoundLin (hknow c).compoundLin ∨
        (hknow a).compoundLin = (hknow c).compoundLin ∨
        @StepOrdering n (hknow c).compoundLin (hknow a).compoundLin) by
-    have ⟨_, hresult⟩ := h_ind e e hcycle
-    -- All three alternatives at cycle closure give contradiction via cle_self_ordering_false.
+    have ⟨_, _, hresult⟩ := h_ind e e hcycle
     exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+  -- Helper: extract notDown from any edge.
+  have edge_notDown₁ : ∀ x y, R x y → ¬ x.down := by
+    intro x y hxy; cases hxy with
+    | inl hp => exact hp.1.notDown₁
+    | inr hc => cases hc with
+      | rfe h => sorry | co h => exact h.notDown₁ | fr h => exact h.notDown₁
+  have edge_notDown₂ : ∀ x y, R x y → ¬ y.down := by
+    intro x y hxy; cases hxy with
+    | inl hp => exact hp.1.notDown₂
+    | inr hc => cases hc with
+      | rfe h => sorry | co h => exact h.notDown₂ | fr h => exact h.notDown₂
   intro a c hpath
   induction hpath with
   | single h =>
-    constructor
-    · exact ⟨a, h⟩
-    · cases h with
-      | inl hppoi =>
-        -- PPOi: use dir_ordered 3-way on compoundLin.
-        -- Need beta-reduction of lambda to get typed PPOi evidence.
-        exact (step_ordering_dir_ordered_3way_compoundLin hknow a _ (sorry) (sorry) b.orderedAtEntry.dir_ordered)
-      | inr hcom =>
-        exact Or.inl (step_to_ordering_compoundLin hcom (fun e => hknow e) h_non_lazy_ppoi (sorry) (sorry))
+    exact ⟨⟨a, h⟩, edge_notDown₁ _ _ h,
+      step_ordering_dir_ordered_3way_compoundLin hknow a _
+        (edge_notDown₁ _ _ h) (edge_notDown₂ _ _ h) b.orderedAtEntry.dir_ordered⟩
   | tail hpath h ih =>
-    constructor
-    · exact ⟨_, h⟩
-    · let ⟨⟨b_prev, h_last_prefix⟩, h3way_prefix⟩ := ih
-      exact compose_three_compoundLin hknow h3way_prefix h
-        b.orderedAtEntry.dir_ordered (sorry) (sorry) (sorry) h_non_lazy_ppoi
+    let ⟨⟨b_prev, h_last_prefix⟩, h_a_nd, h3way_prefix⟩ := ih
+    exact ⟨⟨_, h⟩, h_a_nd,
+      compose_three_compoundLin hknow h3way_prefix h
+        b.orderedAtEntry.dir_ordered
+        h_a_nd (edge_notDown₂ _ _ h_last_prefix)
+        (edge_notDown₂ _ _ h) h_non_lazy_ppoi⟩
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
