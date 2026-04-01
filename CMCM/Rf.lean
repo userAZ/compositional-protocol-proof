@@ -431,7 +431,8 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_of_di
     {hd : ∃ e_lin ∈ b, b.requestWithoutCoherentPermsLinearizesAtDir n init e e_lin}
     (hdir : cmp.linearizationOfEvent b init e = .dirLin hd)
     : lin.compoundLin = lin.hreq's_dir_access.choose ∨
-      lin.compoundLin.EncapsulatedBy n lin.hreq's_dir_access.choose := by
+      (lin.compoundLin.EncapsulatedBy n lin.hreq's_dir_access.choose ∧
+       lin.compoundLin.protocol = .global) := by
   -- Replay the dirLin branch of compoundLin_cle.
   -- dirLin produces .eq (previousGlobalCacheGotPerms) or .inside (getGlobalCachePerms).
   have hrel := lin.compoundLin_cle hnotdown
@@ -441,7 +442,7 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_of_di
   -- Since compoundLin_cle is opaque, we case-split on the result and use sorry for vacuous cases.
   cases hrel with
   | eq ha => exact Or.inl ha
-  | compoundLin_inside_cle ha => exact Or.inr ha
+  | compoundLin_inside_cle ha => exact Or.inr ⟨ha, sorry⟩ -- need compoundLin.protocol = .global
   | cle_ob_compoundLin ha =>
     -- This only arises from requestLin. But we have dirLin. Contradiction.
     -- compoundLin_cle internally case-splits on linearizationOfEvent.

@@ -1939,7 +1939,7 @@ private theorem compoundLin_diff_protocol
       -- compoundLin₂ from dirLin: eq or inside only (compoundLin_cle_of_dirLin).
       cases lin₂.compoundLin_cle_of_dirLin h₂_notdown hlin₂ with
       | inl ha₂ => rw [ha₂]; exact fun h => hdiff (hprot₁.trans h)
-      | inr _ => sorry -- global event protocol (inside)
+      | inr _ => sorry -- global event protocol
   | dirLin _ =>
     cases hlin₂ : compound.linearizationOfEvent b init e₂ with
     | requestLin _ =>
