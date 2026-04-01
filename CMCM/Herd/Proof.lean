@@ -2656,8 +2656,14 @@ theorem step_ordering_cle_to_compoundLin
         -- Use: CLE₂.prot = e₂.prot from write_cle_protocol_eq_write_protocol lin₂.
         -- And compoundLin₂.prot = e₂.prot (from compoundLin_eq_event if requestLin).
         -- Since ha₂ arises from cle_ob (requestLin), compoundLin₂.prot = e₂.prot.
-        -- For now: sorry the diff_prot. It's a protocol identity fact.
-        exact .obFinishBefore p (Trans.trans hob ha₂) hlt (sorry) hisdir
+        -- diff_prot: case-split on linearizationOfEvent to relate compoundLin₂.prot to CLE₂.prot.
+        have hdiff' : Event.protocol n lin₁.hreq's_dir_access.choose ≠ Event.protocol n lin₂.compoundLin := by
+          cases hlin₂ : compound.linearizationOfEvent b init e₂ with
+          | requestLin _ =>
+            rw [(lin₂).compoundLin_eq_event_of_requestLin hlin₂]
+            exact fun h => hdiff (h.trans hprot₂.symm)
+          | dirLin _ => sorry
+        exact .obFinishBefore p (Trans.trans hob ha₂) hlt hdiff' hisdir
       | obProxy p₁ p₂ h₁_ob h_so h₂_ob =>
         -- CLE₁ = compoundLin₁ (eq ha₁), CLE₂ OB compoundLin₂ (cle_ob ha₂).
         -- obProxy: CLE₁ OB p₁, SO p₁ p₂, CLE₂ OB p₂.
