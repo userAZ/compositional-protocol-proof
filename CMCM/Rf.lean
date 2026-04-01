@@ -442,7 +442,28 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_of_di
   -- Since compoundLin_cle is opaque, we case-split on the result and use sorry for vacuous cases.
   cases hrel with
   | eq ha => exact Or.inl ha
-  | compoundLin_inside_cle ha => exact Or.inr ⟨ha, sorry⟩ -- need compoundLin.protocol = .global
+  | compoundLin_inside_cle ha =>
+    -- compoundLin is inside CLE (from getGlobalCachePerms). Prove protocol = .global.
+    -- Trace: compoundLinearizationEvent(.dirLin hd) = clusterDirLin.
+    -- compoundLin = hdir_case.choose. For getGlobalCachePerms: this is a global dir event.
+    cases hcmp : cmp.compoundLinearizationEvent cmp.shimAxioms b init e (.dirLin hd) with
+    | clusterCacheLin hcache =>
+      exact absurd hcache.choose_spec.2.lin_at_cache (by simp [Behaviour.reqLinearizesAtCache])
+    | clusterDirLin hdir_case =>
+      have h_cl_eq := lin.compoundLin_of_clusterDirLin hdir hcmp
+      have h_deeper := hdir_case.choose_spec.2.e_glin_deeper
+      simp [CompoundProtocol.compoundLinearization.OfReqEncapDirAccess] at h_deeper
+      cases h_deeper with
+      | previousGlobalCacheGotPerms _ h_eq =>
+        -- compoundLin = CLE (eq case). But we matched compoundLin_inside_cle (inside).
+        -- compoundLin inside CLE means compoundLin.oStart > CLE.oStart.
+        -- compoundLin = CLE means compoundLin.oStart = CLE.oStart. Contradiction.
+        have h_cle_shared := lin.hreq's_dir_access_matches_dirLin hd hdir
+        rw [h_cl_eq, h_eq, ← h_cle_shared] at ha
+        exact absurd ha.left (Nat.lt_irrefl _)
+      | getGlobalCachePerms _ h_global =>
+        -- compoundLin is the global dir event. Prove its protocol = .global.
+        exact Or.inr ⟨ha, sorry⟩
   | cle_ob_compoundLin ha =>
     -- This only arises from requestLin. But we have dirLin. Contradiction.
     -- compoundLin_cle internally case-splits on linearizationOfEvent.
