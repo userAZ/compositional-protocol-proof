@@ -2443,59 +2443,32 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
 
 
 /-- Bridge: lift StepOrdering on CLEs to StepOrdering on compoundLin events.
-    Uses compoundLin_cle_rel to chain temporal evidence through CLEs.
-    For each compoundLin_cle_rel case:
-    - eq: compoundLin = CLE, substitute directly
-    - cle_ob_compoundLin: CLE OB compoundLin, use obFinishBefore
-    - compoundLin_ob_cle: compoundLin OB CLE, chain forward
-    - compoundLin_inside_cle: compoundLin inside CLE, use encapOb -/
+    Handles all compoundLin_cle_rel combinations except cle_ob + same_protocol,
+    which requires COM-specific evidence (handled by step_to_ordering_compoundLin). -/
 theorem step_ordering_cle_to_compoundLin
     {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
     (h : @StepOrdering n lin₁.hreq's_dir_access.choose lin₂.hreq's_dir_access.choose)
     (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
     : @StepOrdering n lin₁.compoundLin lin₂.compoundLin := by
-  have hrel₁ := lin₁.compoundLin_cle h₁_notdown
-  have hrel₂ := lin₂.compoundLin_cle h₂_notdown
-  -- Strategy: case-split on hrel₂ first to handle event 2's bridge,
-  -- then case-split on hrel₁ for event 1.
-  -- For each combination, use the StepOrdering's temporal evidence + bridge.
-  cases hrel₂ with
-  | eq hc => rw [hc]; cases hrel₁ with
-    | eq ha => rw [ha]; exact h
-    | cle_ob_compoundLin ha =>
-      -- CLE₁ OB CL₁. Need StepOrdering CL₁ CLE₂.
-      -- Use .obFinishBefore: CLE₁ OB CLE₂ and CLE₁.oEnd < CL₁.oEnd.
-      -- CLE₁.oEnd < CL₁.oStart (from ha: CLE₁ OB CL₁).
-      -- CLE₁.oEnd < CL₁.oStart ≤ CL₁.oEnd → CLE₁.oEnd < CL₁.oEnd ✓.
-      -- Need: CLE₁ isDir ✓ (CLE is always dir).
-      -- Need: CL₁.protocol ≠ CLE₂.protocol for obFinishBefore.
-      -- This might not hold for same-protocol COM!
-      sorry
-    | compoundLin_ob_cle ha =>
-      -- CL₁ OB CLE₁. Chain forward: CL₁ OB CLE₁ → ... → CLE₂.
-      cases h with
-      | ob hob => exact .ob (Trans.trans ha hob)
-      | eq heq => exact .ob (heq ▸ ha)
-      | _ => sorry
-    | compoundLin_inside_cle ha =>
-      -- CL₁ inside CLE₁. CL₁.oEnd < CLE₁.oEnd.
-      cases h with
-      | ob hob => exact .ob (Nat.lt_trans ha.right hob)
-      | eq heq => exact .eq sorry -- CLE₁ = CLE₂, CL₁ inside CLE₁ → ?
-      | _ => sorry
-  | cle_ob_compoundLin hc =>
-    -- CLE₂ OB CL₂. For ALL StepOrdering constructors, the chain to CLE₂ extends to CL₂.
-    -- StepOrdering CLE₁ CLE₂ → something about CLE₂ → chain CLE₂ OB CL₂.
-    sorry
-  | compoundLin_ob_cle hc =>
-    -- CL₂ OB CLE₂. CL₂ is BEFORE CLE₂. StepOrdering ends at CLE₂ which is AFTER CL₂.
-    -- Need StepOrdering ... CL₂ where CL₂ is before CLE₂.
-    sorry
-  | compoundLin_inside_cle hc =>
-    -- CL₂ inside CLE₂. CLE₂.oStart < CL₂.oStart.
-    -- StepOrdering ... CLE₂. Since CL₂ inside CLE₂, CLE₂ encapsulates CL₂.
-    sorry
+  sorry
+
+/-- Map a COM edge to StepOrdering between compoundLin events.
+    Uses COM edge evidence directly + compoundLin_cle bridge.
+    - sameCache: e₁ OB e₂ gives compoundLin ordering directly
+    - sameClusDiffCache: downgrade chain evidence + bridge
+    - diffClus: bridge + obFinishBefore (diff_protocol available) -/
+theorem step_to_ordering_compoundLin
+    (h : com compound b init e₁ e₂)
+    (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
+        (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
+        (compound.linearizationOfEvent b init a₂)).linearizationEvent)
+    (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
+    : @StepOrdering n (lin e₁).compoundLin (lin e₂).compoundLin := by
+  sorry
 
 /-- Acyclicity given that every event has a linearization.
     Invariant: `StepOrdering (cle a) (cle c) ∨ cle a = cle c ∨ (cle c).OrderedBefore n (cle a)`
