@@ -2483,96 +2483,22 @@ theorem step_to_ordering_compoundLin
     -- co.diffClus: diff_protocol available for obFinishBefore.
     cases hco.comm with
     | sameCache same_cle cache_ob =>
-      -- same_cle: CLE₁ = CLE₂. cache_ob: e₁ OB e₂.
-      -- Use same approach as co_step_to_ordering: case-split on dirAccessOfRequest.
-      -- For encapDir+encapDir: .sameLin (CLE inside both, e₁ OB e₂).
-      -- For any orderBeforeDir/orderAfterDir: .eq (same CLE).
-      -- These work for compoundLin too because:
-      -- - When both encapDir (dirLin): compoundLin relates to CLE which is same for both.
-      -- - When orderBefore/After (requestLin or orderAfterDir+dirLin): compoundLin relates to
-      --   CLE or e, and the shared CLE or e₁ OB e₂ gives the ordering.
-      --
-      -- Strategy: mirror co_step_to_ordering's sameCache case but for compoundLin.
-      have hw₁ : hco.w₁_lin = lin e₁ := Subsingleton.elim _ _
-      have hw₂ : hco.w₂_lin = lin e₂ := Subsingleton.elim _ _
-      have hcle_eq : (lin e₁).hreq's_dir_access.choose = (lin e₂).hreq's_dir_access.choose := by
-        rw [← hw₁, ← hw₂]; exact same_cle
-      -- Case-split on linearizationOfEvent for each event.
-      -- requestLin: compoundLin = e (via compoundLin_eq_event_of_requestLin).
-      -- dirLin: compoundLin = CLE or inside CLE.
-      -- In all cases: compoundLin inside or equal to e, and CLE inside or equal to e.
-      -- Chain through same_cle + cache_ob.
-      cases hlin_e1 : compound.linearizationOfEvent b init e₁ with
-      | requestLin hreqlin₁ =>
-        have hcl₁ := (lin e₁).compoundLin_eq_event_of_requestLin hlin_e1
-        rw [hcl₁]
-        -- compoundLin₁ = e₁. Now handle event 2.
-        cases hlin_e2 : compound.linearizationOfEvent b init e₂ with
-        | requestLin hreqlin₂ =>
-          -- compoundLin₂ = e₂. e₁ OB e₂ → .ob.
-          have hcl₂ := (lin e₂).compoundLin_eq_event_of_requestLin hlin_e2
-          rw [hcl₂]; exact .ob cache_ob
-        | dirLin hdir₂ =>
-          -- compoundLin₂ = CLE₂ or inside CLE₂. CLE₂ inside e₂ (encapDir, since dirLin).
-          -- e₁ OB e₂ → e₁.oEnd < e₂.oStart.
-          -- CLE₂ inside e₂ → e₂.oStart < CLE₂.oStart ≥ compoundLin₂.oStart.
-          -- So e₁.oEnd < compoundLin₂.oStart → .ob.
-          cases hrel₂ with
-          | eq ha₂ =>
-            -- compoundLin₂ = CLE₂. CLE₂ inside e₂ (dirLin → encapDir or orderAfterDir).
-            -- For encapDir: e₂.oStart < CLE₂.oStart. e₁.oEnd < e₂.oStart < CLE₂.oStart.
-            -- For orderAfterDir: e₂ OB CLE₂. e₂.oEnd < CLE₂.oStart. e₁.oEnd < e₂.oStart ≤ e₂.oEnd < CLE₂.oStart.
-            -- Either way: e₁ OB CLE₂ = compoundLin₂. .ob
-            rw [ha₂]
-            -- Need: e₁ OB CLE₂. Both dirAccessOfRequest cases give e₂ ≤ CLE₂ or e₂ OB CLE₂.
-            -- Since e₁ OB e₂: e₁.oEnd < e₂.oStart.
-            -- dirAccessOfRequest for e₂:
-            have hda₂ := (lin e₂).hreq's_dir_access.choose_spec.2
-            cases hda₂ with
-            | encapDir _ hencap₂ =>
-              exact .ob (Nat.lt_trans cache_ob hencap₂.reqEncapDir.left)
-            | orderBeforeDir _ _ _ _ _ _ _ _ =>
-              -- orderBeforeDir has reqHasPerms, but dirLin has reqMissingPerms → contradiction.
-              sorry
-            | orderAfterDir hweak₂ hsucc₂ _ _ =>
-              have h_succ_ob : e₂.OrderedBefore n hsucc₂.choose :=
-                hsucc₂.choose_spec.2.isImmBottomSucc.isSucc
-              have h_succ_encap := hsucc₂.choose_spec.2.satisfyP
-              simp [Event.PropOnEvent, Behaviour.succOnVdWithCorrespondingDir] at h_succ_encap
-              have h_succ_encap_cle := h_succ_encap.encapCorresponding.reqEncapDir
-              -- use hreq's_dir_access_matches_dirLin to connect CLE₂ to the dirLin CLE
-              have h_shared := (lin e₂).hreq's_dir_access_matches_dirLin hdir₂ hlin_e2
-              -- CLE₂ = reqLinearizeAtDir.choose (from dirLin). This is the dir event of e₂.
-              -- For orderAfterDir: e₂ OB successor, successor encapsulates CLE₂.
-              -- e₂.oEnd < succ.oStart < CLE₂.oStart.
-              -- e₁.oEnd < e₂.oStart ≤ e₂.oEnd < succ.oStart < CLE₂.oStart.
-              sorry
-          | compoundLin_inside_cle ha₂ =>
-            -- compoundLin₂ inside CLE₂. CLE₂ inside e₂.
-            -- e₁.oEnd < e₂.oStart < CLE₂.oStart < compoundLin₂.oStart → .ob
-            have hda₂ := (lin e₂).hreq's_dir_access.choose_spec.2
-            cases hda₂ with
-            | encapDir _ hencap₂ =>
-              exact .ob (Nat.lt_trans cache_ob (Nat.lt_trans hencap₂.reqEncapDir.left ha₂.left))
-            | orderBeforeDir _ _ _ _ _ _ _ _ => sorry -- vacuous: dirLin + orderBeforeDir
-            | orderAfterDir hweak₂ hsucc₂ _ _ =>
-              have h_succ_ob : e₂.OrderedBefore n hsucc₂.choose :=
-                hsucc₂.choose_spec.2.isImmBottomSucc.isSucc
-              have h_succ_encap := hsucc₂.choose_spec.2.satisfyP
-              simp [Event.PropOnEvent, Behaviour.succOnVdWithCorrespondingDir] at h_succ_encap
-              have h_succ_encap_cle := h_succ_encap.encapCorresponding.reqEncapDir
-              sorry
-          | cle_ob_compoundLin ha₂ => sorry
-          | compoundLin_ob_cle ha₂ => sorry
-      | dirLin hdir₁ =>
-        -- compoundLin₁ = CLE₁ or inside CLE₁.
-        -- CLE₁ inside e₁ or at predecessor/successor.
-        -- Use same_cle and cache_ob to chain.
-        sorry
-    | sameClusDiffCache same_prot cle_ordering => sorry
-    | diffClus diff_prot cle_ordering => sorry
-  | rfe hrfe => sorry
-  | fr hfr => sorry
+      exact step_ordering_cle_to_compoundLin
+        (step_to_ordering (.co hco) lin h_non_lazy_ppoi) h₁_notdown h₂_notdown
+    | sameClusDiffCache same_prot cle_ordering =>
+      exact step_ordering_cle_to_compoundLin
+        (step_to_ordering (.co hco) lin h_non_lazy_ppoi) h₁_notdown h₂_notdown
+    | diffClus diff_prot cle_ordering =>
+      -- diff_protocol available. Delegate to step_to_ordering for CLE ordering,
+      -- then use generic bridge step_ordering_cle_to_compoundLin.
+      exact step_ordering_cle_to_compoundLin
+        (step_to_ordering (.co hco) lin h_non_lazy_ppoi) h₁_notdown h₂_notdown
+  | rfe hrfe =>
+    exact step_ordering_cle_to_compoundLin
+      (step_to_ordering (.rfe hrfe) lin h_non_lazy_ppoi) h₁_notdown h₂_notdown
+  | fr hfr =>
+    exact step_ordering_cle_to_compoundLin
+      (step_to_ordering (.fr hfr) lin h_non_lazy_ppoi) h₁_notdown h₂_notdown
 
 /-- Acyclicity given that every event has a linearization.
     Invariant: `StepOrdering (cle a) (cle c) ∨ cle a = cle c ∨ (cle c).OrderedBefore n (cle a)`
