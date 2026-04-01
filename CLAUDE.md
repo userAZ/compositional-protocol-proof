@@ -141,7 +141,8 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 ## Common commands
 - `lake build CMCM.Herd.Proof` — build the proof file
-- `lake clean` — remove all build artifacts
+- **NEVER use `lake clean`** — rebuilding from scratch takes extremely long and lags the entire system. If the build cache is corrupted, ask the user first.
+- `lake build` — build entire project
 - `lake build` — build entire project
 
 ## Auto-habits
