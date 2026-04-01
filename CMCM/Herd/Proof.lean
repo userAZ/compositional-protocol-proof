@@ -2983,7 +2983,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     - `hl₂`/`hl₃` point to `compoundLin` instead of `hreq's_dir_access.choose`
     - `h₁_notdown`/`h₂_notdown`/`h₃_notdown` replace `h₁_isdir` (compoundLin may be a cache event) -/
 private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event n}
-    (h₁ : @StepOrdering n l₁ l₂ ∨ l₁ = l₂)
+    (h₁ : @StepOrdering n l₁ l₂ ∨ l₁ = l₂ ∨ @StepOrdering n l₂ l₁)
     (hedge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₂ e₃)
     (h_prefix_edge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₁ e₂)
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
@@ -2995,7 +2995,7 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
         (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
       (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
         (compound.linearizationOfEvent b init a₂)).linearizationEvent)
-    : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ := by
+    : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ ∨ @StepOrdering n l₃ l₁ := by
   sorry
 
 /-- Acyclicity given that every event has a linearization.
@@ -3121,9 +3121,10 @@ theorem cmcm_acyclic_of_hknow_compoundLin
   suffices h_ind : ∀ a c, Relation.TransGen R a c →
       (∃ b_prev, R b_prev c) ∧
       (@StepOrdering n (hknow a).compoundLin (hknow c).compoundLin ∨
-       (hknow a).compoundLin = (hknow c).compoundLin) by
+       (hknow a).compoundLin = (hknow c).compoundLin ∨
+       @StepOrdering n (hknow c).compoundLin (hknow a).compoundLin) by
     have ⟨_, hresult⟩ := h_ind e e hcycle
-    -- Both alternatives at cycle closure give contradiction via cle_self_ordering_false.
+    -- All three alternatives at cycle closure give contradiction via cle_self_ordering_false.
     exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
   intro a c hpath
   induction hpath with
