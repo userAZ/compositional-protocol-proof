@@ -3266,18 +3266,13 @@ theorem cmcm_acyclic_of_hknow_compoundLin
     constructor
     · exact ⟨a, h⟩
     · cases h with
-      | inl hppoi =>
-        -- PPOi: h_non_lazy_ppoi gives compoundLin₁ OB compoundLin₂ directly.
-        sorry -- need to connect h_non_lazy_ppoi to (hknow _).compoundLin
+      | inl hppoi => exact sorry
       | inr hcom =>
-        -- COM: step_to_ordering_compoundLin gives StepOrdering on compoundLin.
-        sorry -- need notDown from COM edge
+        sorry
   | tail hpath h ih =>
     constructor
     · exact ⟨_, h⟩
-    · let ⟨⟨b_prev, h_last_prefix⟩, h3way_prefix⟩ := ih
-      -- compose_three_compoundLin handles composition.
-      sorry -- need notDown from edges + compose_three_compoundLin
+    · sorry
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
