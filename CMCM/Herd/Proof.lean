@@ -2243,10 +2243,36 @@ private theorem step_ordering_dir_ordered_3way_compoundLin
   | inr hr => cases hr with
     | inl heq => exact Or.inl (step_ordering_cle_to_compoundLin (.eq heq) h₁_notdown h₂_notdown)
     | inr hob_rev =>
-      -- CLE₂ OB CLE₁. Reverse: need compoundLin₂ "before" compoundLin₁.
-      -- Use bridge in reverse direction or sorry.
-      -- For the 3-way invariant, reverseOB is propagated until cycle closure.
-      sorry
+      -- CLE₂ OB CLE₁: CLE₂.oEnd < CLE₁.oStart.
+      -- Need: compoundLin₂ OB compoundLin₁ (or eq or forward SO).
+      -- Case-split on compoundLin_cle_rel for both events.
+      have hrel₁ := (hknow e₁).compoundLin_cle h₁_notdown
+      have hrel₂ := (hknow e₂).compoundLin_cle h₂_notdown
+      cases hrel₂ with
+      | eq ha₂ => cases hrel₁ with
+        | eq ha₁ => exact Or.inr (Or.inr (ha₂ ▸ ha₁ ▸ hob_rev))
+        | cle_ob_compoundLin ha₁ =>
+          exact Or.inr (Or.inr (Nat.lt_trans (ha₂ ▸ hob_rev) (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₁)))
+        | compoundLin_ob_cle ha₁ => sorry -- CLE₁ after compoundLin₁
+        | compoundLin_inside_cle ha₁ =>
+          exact Or.inr (Or.inr (Nat.lt_trans (ha₂ ▸ hob_rev) ha₁.left))
+      | compoundLin_ob_cle ha₂ => cases hrel₁ with
+        | eq ha₁ =>
+          exact Or.inr (Or.inr (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Nat.lt_trans (Event.oWellFormed n _) (ha₁ ▸ hob_rev)))))
+        | cle_ob_compoundLin ha₁ =>
+          exact Or.inr (Or.inr (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Nat.lt_trans (Event.oWellFormed n _) (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₁)))))
+        | compoundLin_ob_cle ha₁ => sorry
+        | compoundLin_inside_cle ha₁ =>
+          exact Or.inr (Or.inr (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Nat.lt_trans (Event.oWellFormed n _) (Nat.lt_trans hob_rev ha₁.left)))))
+      | cle_ob_compoundLin ha₂ => sorry -- compoundLin₂ after CLE₂
+      | compoundLin_inside_cle ha₂ => cases hrel₁ with
+        | eq ha₁ =>
+          exact Or.inr (Or.inr (Nat.lt_trans ha₂.right (ha₁ ▸ hob_rev)))
+        | cle_ob_compoundLin ha₁ =>
+          exact Or.inr (Or.inr (Nat.lt_trans ha₂.right (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₁)))
+        | compoundLin_ob_cle ha₁ => sorry
+        | compoundLin_inside_cle ha₁ =>
+          exact Or.inr (Or.inr (Nat.lt_trans ha₂.right (Nat.lt_trans hob_rev ha₁.left)))
 
 
     - diffClus: bridge + obFinishBefore (diff_protocol available) -/
