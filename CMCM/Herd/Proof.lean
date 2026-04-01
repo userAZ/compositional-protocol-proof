@@ -2757,7 +2757,12 @@ theorem step_ordering_cle_to_compoundLin
       | proxyPair q p hqenc hqob hpob => exact .stepProxyL _ ha₁ (.proxyPair q p hqenc hqob (Trans.trans hpob ha₂))
       | encapObEndLt q p hqenc hqob hlt hisdir =>
         exact .stepProxyL _ ha₁ (.encapObEndLt q p hqenc hqob (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir)
-      | _ => sorry
+      | obFinishBefore p hob hlt hdiff hisdir =>
+        -- Inner: StepOrdering CLE₁ compoundLin₂. obFinishBefore needs CLE₁.prot ≠ compoundLin₂.prot.
+        -- From hdiff: CLE₁.prot ≠ CLE₂.prot. From hprot₂: CLE₂.prot = e₂.prot.
+        -- For cle_ob: compoundLin₂ = e₂ (requestLin). Chain.
+        exact .stepProxyL _ ha₁ (.obFinishBefore p (Trans.trans hob ha₂) hlt (sorry) hisdir)
+      | _ => sorry -- dead code
     | compoundLin_ob_cle ha₂ =>
       -- compoundLin₂ OB CLE₂ (compoundLin₂ before CLE₂). Use stepProxyR.
       exact .stepProxyL _ ha₁ (.stepProxyR _ h ha₂)
@@ -2773,7 +2778,9 @@ theorem step_ordering_cle_to_compoundLin
       | proxyPair q p hqenc hqob hpob => exact .stepProxyL _ ha₁ (.proxyPair q p hqenc hqob (Nat.lt_trans hpob ha₂.left))
       | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
         exact .stepProxyL _ ha₁ (.ob (Nat.lt_trans henc₁.right (Nat.lt_trans hob (Nat.lt_trans henc₂.left ha₂.left))))
-      | _ => sorry
+      | obFinishBefore p hob hlt hdiff hisdir =>
+        exact .stepProxyL _ ha₁ (.obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (sorry) hisdir)
+      | _ => sorry -- dead code
   | compoundLin_ob_cle ha₁ =>
     cases hrel₂ with
     | eq ha₂ => rw [ha₂]; cases h with
@@ -2785,7 +2792,15 @@ theorem step_ordering_cle_to_compoundLin
         -- compoundLin₁.oEnd < CLE₁.oStart ≤ CLE₁.oEnd < e₁'.oEnd < e₂'.oStart < CLE₂.oStart
         exact .ob (Nat.lt_of_lt_of_le ha₁ (Nat.le_of_lt (Nat.lt_trans (Event.oWellFormed n _)
           (Nat.lt_trans henc₁.right (Nat.lt_trans hob henc₂.left)))))
-      | _ => sorry
+      | obFinishBefore p hob hlt hdiff hisdir =>
+        -- p OB CLE₂ = compoundLin₂ (after rw ha₂). p.oEnd < CLE₁.oEnd.
+        -- compoundLin₁ OB CLE₁ (ha₁). Can't get p.oEnd < compoundLin₁.oEnd.
+        -- Use stepProxyL: wrap with ha₁, inner obFinishBefore targets CLE₁.
+        -- But after rw ha₂, l₂ = CLE₂ already. Inner: StepOrdering CLE₁ CLE₂.
+        -- obFinishBefore: p OB CLE₂, p.oEnd < CLE₁.oEnd → StepOrdering CLE₁ CLE₂. ✓
+        -- Then stepProxyL wraps: CLE₁ OB compoundLin₁, SO CLE₁ CLE₂ → SO compoundLin₁ CLE₂.
+        sorry
+      | _ => sorry -- dead code
     | cle_ob_compoundLin ha₂ =>
       cases h with
       | ob hob => exact .ob (Trans.trans ha₁ (Trans.trans hob ha₂))
