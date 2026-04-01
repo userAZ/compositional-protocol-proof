@@ -2491,8 +2491,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
         exact step_ordering_dir_ordered_3way h₁_isdir h₃_isdir hdir
     | inr hr₂ => cases hr₂ with
       | inl heq₂₃ =>
-        -- l₂ = l₃: substitute in h₁
-        exact heq₂₃ ▸ Or.inl hso₁
+        exact Or.inl (heq₂₃ ▸ hso₁)
       | inr hob_l₃_l₂ =>
         -- l₃ OB l₂: use dir_ordered on l₁ and l₃ for 3-way output
         exact step_ordering_dir_ordered_3way h₁_isdir (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
@@ -2978,13 +2977,12 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     Hypotheses mirror `compose_three` except:
     - `hl₂`/`hl₃` point to `compoundLin` instead of `hreq's_dir_access.choose`
     - `h₁_notdown`/`h₂_notdown`/`h₃_notdown` replace `h₁_isdir` (compoundLin may be a cache event) -/
-private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event n}
-    (h₁ : @StepOrdering n l₁ l₂ ∨ l₁ = l₂ ∨ @StepOrdering n l₂ l₁)
-    (hedge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₂ e₃)
-    (h_prefix_edge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₁ e₂)
+private theorem compose_three_compoundLin {e₁ e₂ e₃ : Event n}
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (hl₁ : l₁ = (hknow e₁).compoundLin)
-    (hl₂ : l₂ = (hknow e₂).compoundLin) (hl₃ : l₃ = (hknow e₃).compoundLin)
+    (h₁ : @StepOrdering n (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
+           (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
+           @StepOrdering n (hknow e₂).compoundLin (hknow e₁).compoundLin)
+    (hedge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₂ e₃)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down) (h₃_notdown : ¬ e₃.down)
     (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
@@ -2992,12 +2990,16 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
         (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
       (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
         (compound.linearizationOfEvent b init a₂)).linearizationEvent)
-    : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ ∨ @StepOrdering n l₃ l₁ := by
+    : @StepOrdering n (hknow e₁).compoundLin (hknow e₃).compoundLin ∨
+      (hknow e₁).compoundLin = (hknow e₃).compoundLin ∨
+      @StepOrdering n (hknow e₃).compoundLin (hknow e₁).compoundLin := by
+  let l₁ := (hknow e₁).compoundLin
+  let l₂ := (hknow e₂).compoundLin
+  let l₃ := (hknow e₃).compoundLin
   -- Mirrors compose_three but uses compoundLin instead of CLEs.
   -- Fallback: step_ordering_dir_ordered_3way_compoundLin gives 3-way on any pair of events.
-  have fallback_1_3 : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ ∨ @StepOrdering n l₃ l₁ := by
-    rw [hl₁, hl₃]
-    exact @step_ordering_dir_ordered_3way_compoundLin n compound b init hknow e₁ e₃ h₁_notdown h₃_notdown hdir
+  have fallback_1_3 : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ ∨ @StepOrdering n l₃ l₁ :=
+    step_ordering_dir_ordered_3way_compoundLin hknow e₁ e₃ h₁_notdown h₃_notdown hdir
   -- Case-split on h₁: eq/reverse or StepOrdering from prefix.
   cases h₁ with
   | inr hr₁ =>
@@ -3007,12 +3009,10 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
       cases hedge with
       | inl hppoi_edge =>
         -- PPOi: use dir_ordered on compoundLin events.
-        rw [heq₁, hl₂, hl₃]
-        exact @step_ordering_dir_ordered_3way_compoundLin n compound b init hknow e₂ e₃ h₂_notdown h₃_notdown hdir
+        exact heq₁ ▸ step_ordering_dir_ordered_3way_compoundLin hknow e₂ e₃ h₂_notdown h₃_notdown hdir
       | inr hcom_edge =>
         -- COM: step_to_ordering_compoundLin gives StepOrdering.
-        rw [heq₁, hl₂, hl₃]
-        exact Or.inl (step_to_ordering_compoundLin hcom_edge hknow h_non_lazy_ppoi h₂_notdown h₃_notdown)
+        exact heq₁ ▸ Or.inl (step_to_ordering_compoundLin hcom_edge hknow h_non_lazy_ppoi h₂_notdown h₃_notdown)
     | inr h_rev₁ =>
       -- StepOrdering l₂ l₁ (reverse): fallback on l₁, l₃.
       exact fallback_1_3
@@ -3021,8 +3021,8 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
   cases hedge with
   | inl hppoi_edge =>
     -- PPOi(e₂, e₃): get 3-way on l₂, l₃ via compoundLin.
-    have h₂₃_3way : @StepOrdering n l₂ l₃ ∨ l₂ = l₃ ∨ @StepOrdering n l₃ l₂ := by
-      rw [hl₂, hl₃]; exact @step_ordering_dir_ordered_3way_compoundLin n compound b init hknow e₂ e₃ h₂_notdown h₃_notdown hdir
+    have h₂₃_3way : @StepOrdering n l₂ l₃ ∨ l₂ = l₃ ∨ @StepOrdering n l₃ l₂ :=
+      step_ordering_dir_ordered_3way_compoundLin hknow e₂ e₃ h₂_notdown h₃_notdown hdir
     cases h₂₃_3way with
     | inl hso₂ =>
       -- StepOrdering l₂ l₃: compose hso₁ with hso₂.
@@ -3034,15 +3034,14 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
       | _ => exact fallback_1_3
     | inr hr₂ => cases hr₂ with
       | inl heq₂₃ =>
-        -- l₂ = l₃: substitute in h₁
-        exact heq₂₃ ▸ Or.inl hso₁
+        exact sorry
       | inr _ =>
         -- StepOrdering l₃ l₂: use fallback
         exact fallback_1_3
   | inr hcom_edge =>
     -- COM edge: derive h₂ via step_to_ordering_compoundLin, compose with h₁.
-    have h₂ : @StepOrdering n l₂ l₃ := by
-      rw [hl₂, hl₃]; exact step_to_ordering_compoundLin hcom_edge hknow h_non_lazy_ppoi h₂_notdown h₃_notdown
+    have h₂ : @StepOrdering n l₂ l₃ :=
+      step_to_ordering_compoundLin hcom_edge hknow h_non_lazy_ppoi h₂_notdown h₃_notdown
     -- Compose hso₁ with h₂. Case-split on h₂.
     cases h₂ with
     | ob hob₂ =>
@@ -3113,8 +3112,6 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
     | obFinishBefore p₂ hob₂ hlt₂ hdiff₂ h_p₂_isdir =>
       -- obFinishBefore h₂: hard case. Fallback.
       exact fallback_1_3
-    | sameLin _ _ heq₂ _ _ _ => exact Or.inl (heq₂ ▸ hso₁)
-    | eq heq₂ => exact Or.inl (heq₂ ▸ hso₁)
     | encap henc₂ =>
       -- l₂ encapsulates l₃: compose with hso₁.
       cases hso₁ with
@@ -3273,7 +3270,8 @@ theorem cmcm_acyclic_of_hknow_compoundLin
     constructor
     · exact ⟨_, h⟩
     · let ⟨⟨b_prev, h_last_prefix⟩, h3way_prefix⟩ := ih
-      sorry -- compose_three_compoundLin call blocked by implicit e₁ resolution
+      exact compose_three_compoundLin hknow h3way_prefix h
+        b.orderedAtEntry.dir_ordered (sorry) (sorry) (sorry) h_non_lazy_ppoi
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
