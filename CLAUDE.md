@@ -46,7 +46,12 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
   - `step_ordering_cle_to_compoundLin`: generic bridge, ~34 sorry's. ~9 dead code, ~15 obFinishBefore
     diff_prot or proxy-vs-compoundLin relative order, ~5 inside edge cases, ~5 stepOrdering_to_three.
   - `step_to_ordering_compoundLin`: one-liner delegating to generic bridge.
-  - Main proof (`cmcm_acyclic_of_hknow`, `compose_three`): SORRY-FREE.
+  - Main proof (`cmcm_acyclic_of_hknow`, `compose_three`): SORRY-FREE on CLEs.
+  - **FULL LIFTING BLOCKED**: Switching cycle invariant from CLE to compoundLin requires rewriting
+    `compose_three` (~500 lines) because `dir_ordered` fallback needs directory events but compoundLin
+    can be cache events. The new proxy constructors (obProxy/stepProxyL/R/obStepL) provide the tools
+    but compose_three would need `hknow` parameter to access CLEs for dir_ordered fallback.
+    Alternative: keep CLE invariant in compose_three, use bridge only for step_to_ordering.
 - **`dirAccessUnique` REMOVED** from `CompoundProtocol` — it was unused.
 - **Architecture**: `cmcm_acyclic_of_hknow` uses CLEs from `hknow` directly (`hreq's_dir_access.choose`). The CLE-to-compound_lin bridge was eliminated.
   - **PPOi (single edge)**: `dir_ordered` gives 3-way on CLEs (same-cluster directory events). No compound_lin needed.
