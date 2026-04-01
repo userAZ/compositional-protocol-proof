@@ -2639,7 +2639,11 @@ theorem step_ordering_cle_to_compoundLin
         -- Chain: CLE₁.oEnd < e₁'.oEnd < e₂'.oStart, e₂'.oStart < CLE₂.oStart < CLE₂.oEnd < compoundLin₂.oStart
         exact .ob (Nat.lt_trans henc₁.right (Nat.lt_trans hob
           (Nat.lt_trans henc₂.left (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂))))
-      | obFinishBefore p hob hlt hdiff hisdir => sorry
+      | obFinishBefore p hob hlt hdiff hisdir =>
+        -- p OB CLE₂, p.oEnd < CLE₁.oEnd, CLE₁.prot ≠ CLE₂.prot.
+        -- For cle_ob event 2: CLE₂ OB compoundLin₂. Chain p OB CLE₂ OB compoundLin₂.
+        -- diff_prot: CLE₁.prot ≠ compoundLin₂.prot (compoundLin₂ has same prot as CLE₂).
+        exact .obFinishBefore p (Trans.trans hob ha₂) hlt (sorry) hisdir
       | obProxy p₁ p₂ h₁_ob h_so h₂_ob =>
         -- CLE₁ = compoundLin₁ (eq ha₁), CLE₂ OB compoundLin₂ (cle_ob ha₂).
         -- obProxy: CLE₁ OB p₁, SO p₁ p₂, CLE₂ OB p₂.
@@ -2663,8 +2667,17 @@ theorem step_ordering_cle_to_compoundLin
       | obEndLt p hob hlt hisdir =>
         -- p.oEnd < CLE₂.oEnd. compoundLin₂.oEnd < CLE₂.oEnd. Unknown p vs compoundLin₂.
         sorry
-      | obFinishBefore p hob hlt hdiff hisdir => sorry
-      | encapObEndLt q p hqenc hqob hlt hisdir => sorry
+      | obFinishBefore p hob hlt hdiff hisdir =>
+        -- p OB CLE₂, compoundLin₂ inside CLE₂ → p.oEnd < CLE₂.oStart < compoundLin₂.oStart.
+        exact .obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (sorry) hisdir
+      | encapObEndLt q p hqenc hqob hlt hisdir =>
+        -- q inside CLE₁, q OB p, p.oEnd < CLE₂.oEnd, compoundLin₂.oEnd < CLE₂.oEnd.
+        -- Unknown p vs compoundLin₂. But encapOb gives q OB p.
+        -- q inside CLE₁ = compoundLin₁ (eq). q OB p. p.oEnd < CLE₂.oEnd.
+        -- compoundLin₂ inside CLE₂ → compoundLin₂.oEnd < CLE₂.oEnd.
+        -- Use encapObEndLt: q inside compoundLin₁, q OB p, p.oEnd < compoundLin₂.oEnd?
+        -- p.oEnd < CLE₂.oEnd and compoundLin₂.oEnd < CLE₂.oEnd. Unknown.
+        sorry
       | obProxy p₁ p₂ h₁_ob h_so h₂_ob =>
         -- compoundLin₁ = CLE₁ (eq), compoundLin₂ inside CLE₂ (inside).
         -- obProxy: CLE₁ OB p₁, SO p₁ p₂, CLE₂ OB p₂.
@@ -2710,6 +2723,12 @@ theorem step_ordering_cle_to_compoundLin
       | ob hob => exact .ob (Trans.trans ha₁ (Trans.trans hob ha₂))
       | eq heq => exact .ob (Trans.trans ha₁ (heq ▸ ha₂))
       | obEndLt p hob hlt hisdir => exact .obEndLt p (Trans.trans ha₁ hob) (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        exact .ob (Nat.lt_of_lt_of_le ha₁ (Nat.le_of_lt (Nat.lt_trans (Event.oWellFormed n _)
+          (Nat.lt_trans henc₁.right (Nat.lt_trans hob
+            (Nat.lt_trans henc₂.left (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂)))))))
+      | obFinishBefore p hob hlt hdiff hisdir =>
+        sorry
       | _ => sorry
     | compoundLin_ob_cle ha₂ =>
       exact .obProxy _ _ ha₁ h ha₂
@@ -2718,17 +2737,31 @@ theorem step_ordering_cle_to_compoundLin
       | ob hob => exact .ob (Nat.lt_trans (Nat.lt_of_lt_of_le ha₁ (Nat.le_of_lt (Event.oWellFormed n _))) (Nat.lt_trans hob ha₂.left))
       | eq heq => exact .ob (Nat.lt_trans ha₁ (heq ▸ ha₂.left))
       | encap henc => exact .ob (Nat.lt_trans ha₁ (Nat.lt_trans henc.left ha₂.left))
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        exact .ob (Nat.lt_of_lt_of_le ha₁ (Nat.le_of_lt (Nat.lt_trans (Event.oWellFormed n _)
+          (Nat.lt_trans henc₁.right (Nat.lt_trans hob (Nat.lt_trans henc₂.left ha₂.left))))))
+      | obFinishBefore p hob hlt hdiff hisdir =>
+        sorry
       | _ => sorry
   | compoundLin_inside_cle ha₁ =>
     cases hrel₂ with
     | eq ha₂ => rw [ha₂]; cases h with
       | ob hob => exact .ob (Nat.lt_trans ha₁.right hob)
       | obEndLt p hob hlt hisdir => exact .obEndLt p (Nat.lt_trans ha₁.right hob) hlt hisdir
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans henc₁.right (Nat.lt_trans hob henc₂.left)))
+      | obFinishBefore p hob hlt hdiff hisdir =>
+        sorry
       | _ => sorry
     | cle_ob_compoundLin ha₂ =>
       cases h with
       | ob hob => exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans hob (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂)))
       | obEndLt p hob hlt hisdir => exact .obEndLt p (Nat.lt_trans ha₁.right hob) (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans henc₁.right (Nat.lt_trans hob
+          (Nat.lt_trans henc₂.left (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂)))))
+      | obFinishBefore p hob hlt hdiff hisdir =>
+        sorry
       | _ => sorry
     | compoundLin_ob_cle ha₂ =>
       -- inside event 1 + ob_cle event 2. Use stepProxyR for event 2.
@@ -2745,6 +2778,10 @@ theorem step_ordering_cle_to_compoundLin
       cases h with
       | ob hob => exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans hob ha₂.left))
       | encap henc => sorry
+      | encapOb p henc hob => sorry
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
+        exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans henc₁.right (Nat.lt_trans hob (Nat.lt_trans henc₂.left ha₂.left))))
+      | obFinishBefore p hob hlt hdiff hisdir => sorry
       | obEndLt p hob hlt hisdir => sorry
       | _ => sorry
 
