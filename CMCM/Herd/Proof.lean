@@ -3258,12 +3258,12 @@ theorem cmcm_acyclic_of_hknow_compoundLin
     intro x y hxy; cases hxy with
     | inl hp => exact hp.1.notDown₁
     | inr hc => cases hc with
-      | rfe h => sorry | co h => exact h.notDown₁ | fr h => exact h.notDown₁
+      | rfe h => exact h.notDown₁ | co h => exact h.notDown₁ | fr h => exact h.notDown₁
   have edge_notDown₂ : ∀ x y, R x y → ¬ y.down := by
     intro x y hxy; cases hxy with
     | inl hp => exact hp.1.notDown₂
     | inr hc => cases hc with
-      | rfe h => sorry | co h => exact h.notDown₂ | fr h => exact h.notDown₂
+      | rfe h => exact h.notDown₂ | co h => exact h.notDown₂ | fr h => exact h.notDown₂
   intro a c hpath
   induction hpath with
   | single h =>
