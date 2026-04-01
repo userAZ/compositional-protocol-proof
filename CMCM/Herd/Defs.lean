@@ -183,6 +183,8 @@ inductive StepOrdering : Event n → Event n → Prop where
       StepOrdering CLE₁ CLE₂, compoundLin₂ OB CLE₂ → StepOrdering CLE₁ compoundLin₂.
       Also for event 1 = CLE (eq) or inside CLE combined with ob_cle event 2.
       Irrefl: StepOrdering p₂ p₂ from inner h_so → contradiction. -/
+  | obStepL (p₁ : Event n) (h₁_ob : l₁.OrderedBefore n p₁) (h_so : StepOrdering p₁ l₂)
+      : StepOrdering l₁ l₂
   | stepProxyR (p₂ : Event n) (h_so : StepOrdering l₁ p₂) (h₂_ob : l₂.OrderedBefore n p₂)
       : StepOrdering l₁ l₂
   /-- Encap-then-OB-then-oEnd: q inside l₁, q OB p, p.oEnd < l₂.oEnd.
