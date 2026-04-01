@@ -2451,7 +2451,73 @@ theorem step_ordering_cle_to_compoundLin
     (h : @StepOrdering n lin₁.hreq's_dir_access.choose lin₂.hreq's_dir_access.choose)
     (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
     : @StepOrdering n lin₁.compoundLin lin₂.compoundLin := by
-  sorry
+  have hrel₁ := lin₁.compoundLin_cle h₁_notdown
+  have hrel₂ := lin₂.compoundLin_cle h₂_notdown
+  -- Case-split on both compoundLin_cle_rel cases.
+  -- For each StepOrdering constructor h, chain with the compoundLin ↔ CLE evidence.
+  -- Most cases resolve via .ob chaining. The cle_ob event 1 case uses .obFinishBefore
+  -- (when diff_prot) or needs COM-specific evidence (same_prot).
+  cases hrel₁ with
+  | eq ha₁ => rw [ha₁]; cases hrel₂ with
+    | eq ha₂ => rw [ha₂]; exact h
+    | cle_ob_compoundLin ha₂ =>
+      -- CLE₁ = compoundLin₁ → CLE₂ → compoundLin₂.
+      -- Each SO constructor gives CLE₁ temporal relation to CLE₂.
+      -- Chain CLE₂ OB compoundLin₂ (ha₂) at end.
+      cases h with
+      | ob hob => exact .ob (Trans.trans hob ha₂)
+      | eq heq => exact .ob (heq ▸ ha₂)
+      | obEndLt p hob hlt hisdir => exact .obEndLt p hob (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir
+      | encapOb p henc hob => exact .encapOb p henc (Trans.trans hob ha₂)
+      | obFinishBefore p hob hlt hdiff hisdir => sorry
+      | sameLin e₁' e₂' heq henc₁ hob henc₂ => sorry
+      | proxyPair q p hqenc hqob hpob => exact .proxyPair q p hqenc hqob (Trans.trans hpob ha₂)
+      | encapObEndLt q p hqenc hqob hlt hisdir => exact .encapObEndLt q p hqenc hqob (Nat.lt_trans hlt (Nat.lt_of_lt_of_le ha₂ (Nat.le_of_lt (Event.oWellFormed n _)))) hisdir
+    | compoundLin_ob_cle ha₂ => sorry -- compoundLin₂ before CLE₂: hard case
+    | compoundLin_inside_cle ha₂ =>
+      -- compoundLin₂ inside CLE₂. CLE₂.oStart < compoundLin₂.oStart.
+      cases h with
+      | ob hob => exact .ob (Nat.lt_trans hob ha₂.left)
+      | eq heq => sorry
+      | _ => sorry
+  | cle_ob_compoundLin ha₁ =>
+    -- CLE₁ OB compoundLin₁. Use obFinishBefore pattern.
+    sorry -- needs diff_prot or COM-specific evidence
+  | compoundLin_ob_cle ha₁ =>
+    -- compoundLin₁ OB CLE₁. Chain forward: compoundLin₁ before CLE₁.
+    cases hrel₂ with
+    | eq ha₂ => rw [ha₂]; cases h with
+      | ob hob => exact .ob (Trans.trans ha₁ hob)
+      | eq heq => exact .ob (heq ▸ ha₁)
+      | _ => sorry
+    | cle_ob_compoundLin ha₂ =>
+      cases h with
+      | ob hob => exact .ob (Trans.trans ha₁ (Trans.trans hob ha₂))
+      | eq heq => exact .ob (Trans.trans ha₁ (heq ▸ ha₂))
+      | _ => sorry
+    | compoundLin_ob_cle ha₂ => sorry -- both before their CLEs
+    | compoundLin_inside_cle ha₂ =>
+      cases h with
+      | ob hob => exact .ob (Nat.lt_trans (Nat.lt_of_lt_of_le ha₁ (Nat.le_of_lt (Event.oWellFormed n _))) (Nat.lt_trans hob ha₂.left))
+      | eq heq => sorry
+      | _ => sorry
+  | compoundLin_inside_cle ha₁ =>
+    -- compoundLin₁ inside CLE₁. compoundLin₁.oEnd < CLE₁.oEnd.
+    cases hrel₂ with
+    | eq ha₂ => rw [ha₂]; cases h with
+      | ob hob => exact .ob (Nat.lt_trans ha₁.right hob)
+      | eq heq => sorry
+      | _ => sorry
+    | cle_ob_compoundLin ha₂ =>
+      cases h with
+      | ob hob => exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans hob (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂)))
+      | _ => sorry
+    | compoundLin_ob_cle ha₂ => sorry -- compoundLin₂ before CLE₂
+    | compoundLin_inside_cle ha₂ =>
+      cases h with
+      | ob hob => exact .ob (Nat.lt_trans ha₁.right (Nat.lt_trans hob ha₂.left))
+      | eq heq => sorry -- both inside same CLE
+      | _ => sorry
 
 /-- Map a COM edge to StepOrdering between compoundLin events.
     Uses COM edge evidence directly + compoundLin_cle bridge.
