@@ -2976,6 +2976,29 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       exact step_ordering_dir_ordered_3way h₁_isdir
         (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
 
+/-- Compose two 3-way disjunctions on **compoundLin** events (not CLEs).
+    Mechanical adaptation of `compose_three`: replaces CLE-specific
+    `h₁_isdir` / `isDirEvent` / `step_to_ordering` / `step_ordering_dir_ordered_3way`
+    with their compoundLin counterparts that operate via the CLE-to-compoundLin bridge.
+
+    Hypotheses mirror `compose_three` except:
+    - `hl₂`/`hl₃` point to `compoundLin` instead of `hreq's_dir_access.choose`
+    - `h₁_notdown`/`h₂_notdown`/`h₃_notdown` replace `h₁_isdir` (compoundLin may be a cache event) -/
+private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event n}
+    (h₁ : @StepOrdering n l₁ l₂ ∨ l₁ = l₂ ∨ l₂.OrderedBefore n l₁)
+    (hedge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₂ e₃)
+    (h_prefix_edge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₁ e₂)
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (hl₂ : l₂ = (hknow e₂).compoundLin) (hl₃ : l₃ = (hknow e₃).compoundLin)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down) (h₃_notdown : ¬ e₃.down)
+    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
+        (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
+        (compound.linearizationOfEvent b init a₂)).linearizationEvent)
+    : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ ∨ l₃.OrderedBefore n l₁ := by
+  sorry
 
 /-- Acyclicity given that every event has a linearization.
     Invariant: `StepOrdering (cle a) (cle c) ∨ cle a = cle c ∨ (cle c).OrderedBefore n (cle a)`
@@ -3081,6 +3104,20 @@ theorem cmcm_acyclic_of_hknow
         b.orderedAtEntry.dir_ordered
         ((hknow a).hreq's_dir_access.choose_spec.right.isDirEvent)
         h_non_lazy_ppoi
+
+/-- Acyclicity using compoundLin (linearization events) as the cycle invariant.
+    Same structure as cmcm_acyclic_of_hknow but tracks StepOrdering on compoundLin events.
+    Uses step_to_ordering_compoundLin for COM, h_non_lazy_ppoi for PPOi,
+    compose_three_compoundLin for composition. -/
+theorem cmcm_acyclic_of_hknow_compoundLin
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
+        (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
+      (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
+        (compound.linearizationOfEvent b init a₂)).linearizationEvent)
+    : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
+  sorry
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
