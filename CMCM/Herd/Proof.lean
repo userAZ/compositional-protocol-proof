@@ -1935,8 +1935,28 @@ private theorem compoundLin_diff_protocol
     | requestLin _ =>
       rw [lin₂.compoundLin_eq_event_of_requestLin hlin₂]
       exact fun h => hdiff (hprot₁.trans (h.trans hprot₂.symm))
-    | dirLin _ => sorry
-  | dirLin _ => sorry
+    | dirLin hdir₂ =>
+      -- compoundLin₁ = e₁ (requestLin). compoundLin₂ from dirLin.
+      -- compoundLin₂ = CLE₂ (eq) or inside CLE₂ (inside, global event).
+      -- For eq: CLE₂.prot = e₂.prot (hprot₂). e₁.prot ≠ CLE₂.prot follows from hdiff + hprot₁.
+      -- For inside: compoundLin₂ is global. Global prot ≠ cluster prot.
+      cases lin₂.compoundLin_cle h₂_notdown with
+      | eq ha₂ => rw [ha₂]; exact fun h => hdiff (hprot₁.trans h)
+      | cle_ob_compoundLin _ => sorry -- cle_ob shouldn't arise from dirLin
+      | compoundLin_ob_cle _ => sorry -- ob_cle shouldn't arise from dirLin
+      | compoundLin_inside_cle _ => sorry -- global event protocol
+  | dirLin hdir₁ =>
+    -- compoundLin₁ from dirLin. Similar to above but for event 1.
+    cases lin₁.compoundLin_cle h₁_notdown with
+    | eq ha₁ => rw [ha₁]; cases hlin₂ : compound.linearizationOfEvent b init e₂ with
+      | requestLin _ =>
+        rw [lin₂.compoundLin_eq_event_of_requestLin hlin₂]
+        exact fun h => hdiff (h.trans hprot₂.symm)
+      | dirLin _ =>
+        cases lin₂.compoundLin_cle h₂_notdown with
+        | eq ha₂ => rw [ha₂]; exact hdiff
+        | _ => sorry
+    | _ => sorry
 
 private theorem sameLin_gives_ob {e₁' e₂' : Event n}
     (henc₁ : l₁.EncapsulatedBy n e₁') (hob : e₁'.OrderedBefore n e₂')
