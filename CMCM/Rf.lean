@@ -462,8 +462,40 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_of_di
         rw [h_cl_eq, h_eq, ← h_cle_shared] at ha
         exact absurd ha.left (Nat.lt_irrefl _)
       | getGlobalCachePerms _ h_global =>
-        -- compoundLin is the global dir event. Prove its protocol = .global.
-        exact Or.inr ⟨ha, sorry⟩
+        -- Trace h_global to extract global cache event and its protocol.
+        have h_cdir_isdir : (hd.choose_spec.2.reqLinearizeAtDir.choose).isDirectoryEvent :=
+          hd.choose_spec.2.reqLinearizeAtDir.choose_spec.2.isDir
+        simp [Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent, h_cdir_isdir] at h_global
+        split at h_global
+        · exact absurd h_global (by simp)
+        · rename_i _ _ htranslation _
+          obtain ⟨hgcache_lin, hgcache_lin_cases⟩ := h_global
+          simp [Behaviour.compoundLinearizationEvent.globalCacheNoPermsReqDirectory] at hgcache_lin_cases
+          split at hgcache_lin_cases
+          · rename_i hgcache_lin_ev hat_dir
+            -- hat_dir : requestWithoutCoherentPermsLinearizesAtDir on global cache event.
+            -- hat_dir.choose_spec.2.reqLinearizeAtDir.choose_spec.2 : requestLinearizesAtDirectory.
+            -- reqCorrespondsToDir : dirAccessOfRequest.
+            -- sameProtocol: gcache.protocol = dir_event.protocol.
+            -- gcache.protocol = .global (from encap_gcache_req structure).
+            -- compoundLin = hdir_case.choose = hat_dir.choose [hgcache_lin_cases].
+            -- dir_event = reqLinearizeAtDir.choose.
+            -- Need: hat_dir.choose.protocol = .global.
+            -- Chain: hat_dir.choose = dir_glin (from requestWithoutCoherentPermsLinearizesAtDir).
+            -- dir_glin's protocol = gcache.protocol (sameProtocol from dirAccessOfRequest).
+            -- gcache.protocol = encap_gcache_req.choose.protocol.
+            -- encap_gcache_req.choose is a global cache event → protocol = .global.
+            -- gcache protocol from htranslation:
+            -- Global cache event has protocol .global.
+            have h_gcache_global := htranslation.choose_spec.right.gReqOfCDir.reqGlobalCache.reqGlobal
+            -- hat_dir.choose is the linearization point of the global cache event.
+            -- Its protocol = gcache.protocol (from dirAccessOfRequest.sameProtocol).
+            -- reqLinearizeAtDir gives dir access. Each dirAccessOfRequest has sameProtocol.
+            -- compoundLin.protocol = .global via:
+            -- hat_dir.choose = dir_event (dirIsLin), dir_event.prot = gcache.prot (sameProtocol),
+            -- gcache.prot = .global (h_gcache_global), compoundLin = hdir_case.choose = hat_dir.choose.
+            exact Or.inr ⟨ha, by rw [h_cl_eq]; sorry⟩
+          · exact absurd hgcache_lin_cases (by simp)
   | cle_ob_compoundLin ha =>
     -- This only arises from requestLin. But we have dirLin. Contradiction.
     -- compoundLin_cle internally case-splits on linearizationOfEvent.
