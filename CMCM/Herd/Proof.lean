@@ -2998,9 +2998,9 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
         (compound.linearizationOfEvent b init a₂)).linearizationEvent)
     : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ ∨ @StepOrdering n l₃ l₁ := by
   -- Mirrors compose_three but uses compoundLin instead of CLEs.
-  -- Fallback: sorry
+  -- Fallback: step_ordering_dir_ordered_3way_compoundLin gives 3-way on any pair of events.
   have fallback_1_3 : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ ∨ @StepOrdering n l₃ l₁ := by
-    rw [hl₁, hl₃]; exact sorry
+    rw [hl₁, hl₃]; exact Herd.step_ordering_dir_ordered_3way_compoundLin h₁_notdown h₃_notdown hdir
   -- Case-split on h₁: eq/reverse or StepOrdering from prefix.
   cases h₁ with
   | inr hr₁ =>
@@ -3011,7 +3011,7 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
       | inl hppoi_edge =>
         -- PPOi: use dir_ordered on compoundLin events.
         rw [heq₁, hl₂, hl₃]
-        exact sorry
+        exact Herd.step_ordering_dir_ordered_3way_compoundLin h₂_notdown h₃_notdown hdir
       | inr hcom_edge =>
         -- COM: step_to_ordering_compoundLin gives StepOrdering.
         rw [heq₁, hl₂, hl₃]
@@ -3025,7 +3025,7 @@ private theorem compose_three_compoundLin {l₁ l₂ l₃ : Event n} {e₁ e₂ 
   | inl hppoi_edge =>
     -- PPOi(e₂, e₃): get 3-way on l₂, l₃ via compoundLin.
     have h₂₃_3way : @StepOrdering n l₂ l₃ ∨ l₂ = l₃ ∨ @StepOrdering n l₃ l₂ := by
-      rw [hl₂, hl₃]; exact sorry
+      rw [hl₂, hl₃]; exact Herd.step_ordering_dir_ordered_3way_compoundLin h₂_notdown h₃_notdown hdir
     cases h₂₃_3way with
     | inl hso₂ =>
       -- StepOrdering l₂ l₃: compose hso₁ with hso₂.
