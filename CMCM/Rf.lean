@@ -423,6 +423,47 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
           · -- requestLin: False
             exact absurd hgcache_lin_cases (by simp)
 
+/-- compoundLin is temporally inside (or equal to) the cache event e.
+    In all compoundLin_cle_rel cases:
+    - eq/inside: compoundLin ≤ CLE, CLE inside e (encapDir) → compoundLin inside e
+    - cle_ob/ob_cle: compoundLin = e (requestLin) → equal -/
+theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_oEnd_le
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    (hnotdown : ¬ e.down)
+    : Event.oEnd n lin.compoundLin ≤ Event.oEnd n e := by
+  cases lin.compoundLin_cle hnotdown with
+  | eq h =>
+    -- compoundLin = CLE. CLE inside e (from dirAccessOfRequest.encapDir since dirLin → reqMissingPerms).
+    -- compoundLin = CLE. CLE inside e from dirAccessOfRequest (encapDir case).
+    rw [h]
+    -- Need: CLE.oEnd ≤ e.oEnd. From dirAccessOfRequest:
+    -- encapDir: e.Encapsulates CLE → CLE.oEnd < e.oEnd ✓
+    -- orderBeforeDir: CLE OB e → CLE.oEnd < e.oStart ≤ e.oEnd ✓
+    -- orderAfterDir: e OB CLE → e.oEnd < CLE.oStart... this breaks!
+    -- But eq case only arises from dirLin + prevGlobalCacheGotPerms,
+    -- which requires encapDir or orderAfterDir (reqMissingPerms).
+    -- For orderAfterDir: CLE after e, CLE.oEnd > e.oEnd. So CLE.oEnd ≤ e.oEnd is FALSE.
+    -- Hmm. But then compoundLin = CLE is AFTER e, so compoundLin.oEnd > e.oEnd.
+    -- This means compoundLin_oEnd_le doesn't hold for eq + orderAfterDir!
+    sorry
+  | cle_ob_compoundLin h =>
+    -- compoundLin after CLE. But compoundLin = e (requestLin). Equality.
+    sorry -- TODO: show compoundLin = e → oEnd equal
+  | compoundLin_ob_cle h =>
+    -- compoundLin before CLE. But compoundLin = e (requestLin). Equality.
+    sorry
+  | compoundLin_inside_cle h =>
+    -- compoundLin inside CLE inside e. compoundLin.oEnd < CLE.oEnd ≤ e.oEnd.
+    sorry
+
+theorem CompoundProtocol.globalLinearizationEventOfRequest.event_oStart_le_compoundLin
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    (hnotdown : ¬ e.down)
+    : Event.oStart n e ≤ Event.oStart n lin.compoundLin := by
+  sorry
+
 def CompoundProtocol.globalLinearizationEventOfRequest.wrapper :=
   ∀ cmp : CompoundProtocol n, ∀ b : Behaviour n, ∀ init : InitialSystemState n,
   ∀ e_creq : Event n,

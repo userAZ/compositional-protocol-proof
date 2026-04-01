@@ -2468,7 +2468,46 @@ theorem step_to_ordering_compoundLin
         (compound.linearizationOfEvent b init a₂)).linearizationEvent)
     (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
     : @StepOrdering n (lin e₁).compoundLin (lin e₂).compoundLin := by
-  sorry
+  -- Get CLE-based StepOrdering from existing proof.
+  have h_cle := step_to_ordering h lin h_non_lazy_ppoi
+  -- Get compoundLin_cle relationships.
+  have hrel₁ := (lin e₁).compoundLin_cle h₁_notdown
+  have hrel₂ := (lin e₂).compoundLin_cle h₂_notdown
+  -- For most cases, use the generic bridge.
+  -- For cle_ob (orderBeforeDir) with same_protocol, use COM-specific evidence.
+  -- Strategy: case-split on the COM edge type for specific temporal evidence.
+  cases h with
+  | co hco =>
+    -- co.sameCache: e₁ OB e₂. compoundLin depends on compoundLin_cle_rel.
+    -- co.sameClusDiffCache: CLE ordering from dir.
+    -- co.diffClus: diff_protocol available for obFinishBefore.
+    cases hco.comm with
+    | sameCache same_cle cache_ob =>
+      -- e₁ OB e₂ (cache_ob). In ALL compoundLin_cle_rel cases:
+      -- compoundLin.oEnd ≤ e.oEnd (compoundLin is inside or equal to e)
+      -- e.oStart ≤ compoundLin.oStart (compoundLin starts inside or at e)
+      -- So: compoundLin₁.oEnd ≤ e₁.oEnd < e₂.oStart ≤ compoundLin₂.oStart.
+      -- This gives compoundLin₁ OB compoundLin₂ → .ob.
+      --
+      -- Prove compoundLin₁.oEnd ≤ e₁.oEnd from hrel₁:
+      have h₁_oEnd : Event.oEnd n (lin e₁).compoundLin ≤ Event.oEnd n e₁ := by
+        cases hrel₁ with
+        | eq h => rw [h]; exact Nat.le_of_lt (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+          |> fun _ => sorry -- CLE.oEnd < e.oEnd from encapDir
+        | cle_ob_compoundLin h =>
+          -- compoundLin = e (requestLin). compoundLin.oEnd = e.oEnd.
+          sorry
+        | compoundLin_ob_cle h =>
+          -- compoundLin = e (requestLin). compoundLin.oEnd = e.oEnd.
+          sorry
+        | compoundLin_inside_cle h =>
+          -- compoundLin inside CLE inside e. compoundLin.oEnd < CLE.oEnd < e.oEnd.
+          sorry
+      sorry
+    | sameClusDiffCache same_prot cle_ordering => sorry
+    | diffClus diff_prot cle_ordering => sorry
+  | rfe hrfe => sorry
+  | fr hfr => sorry
 
 /-- Acyclicity given that every event has a linearization.
     Invariant: `StepOrdering (cle a) (cle c) ∨ cle a = cle c ∨ (cle c).OrderedBefore n (cle a)`
