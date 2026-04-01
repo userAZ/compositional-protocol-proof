@@ -3150,14 +3150,23 @@ theorem cmcm_acyclic_of_hknow_compoundLin
           _ < Event.oStart n p := h_q_ob
           _ ≤ Event.oEnd n p := Nat.le_of_lt (Event.oWellFormed n p))
       | encap henc => exact Nat.lt_irrefl _ henc.left
-      | eq _ => sorry -- compoundLin(e) = compoundLin(e): need self-ordering contradiction
-      | encapObEndLt q p h_q_enc h_q_ob h_p_lt _ => sorry
-      | obProxy p₁ p₂ h₁_ob h_so h₂_ob => sorry
-      | stepProxyL p₁ h₁_ob h_so => sorry
-      | stepProxyR p₂ h_so h₂_ob => sorry
-      | obStepL p₁ h₁_ob h_so => sorry
+      | eq _ =>
+        -- compoundLin(e) = compoundLin(e): derive contradiction via CLE.
+        -- compoundLin(e) relates to CLE(e) (dir event) via compoundLin_cle.
+        -- Use dir_ordered on CLE(e) to get CLE OB CLE → False.
+        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+      | encapObEndLt q p h_q_enc h_q_ob h_p_lt _ =>
+        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+      | obProxy p₁ p₂ h₁_ob h_so h₂_ob =>
+        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+      | stepProxyL p₁ h₁_ob h_so =>
+        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+      | stepProxyR p₂ h_so h₂_ob =>
+        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+      | obStepL p₁ h₁_ob h_so =>
+        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
     | inr hr => cases hr with
-      | inl heq => sorry -- compoundLin(e) = compoundLin(e): trivial eq
+      | inl heq => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
       | inr hob_rev => exact Event.contradiction_of_reflexive_ordered_before n hob_rev
   intro a c hpath
   induction hpath with
