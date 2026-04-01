@@ -3117,7 +3117,66 @@ theorem cmcm_acyclic_of_hknow_compoundLin
       (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
         (compound.linearizationOfEvent b init a₂)).linearizationEvent)
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
-  sorry
+  intro e hcycle
+  let R := (fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init
+  let cl := fun e => (hknow e).compoundLin
+  suffices h_ind : ∀ a c, Relation.TransGen R a c →
+      (∃ b_prev, R b_prev c) ∧
+      (@StepOrdering n (hknow a).compoundLin (hknow c).compoundLin ∨
+       (hknow a).compoundLin = (hknow c).compoundLin ∨
+       ((hknow c).compoundLin).OrderedBefore n (hknow a).compoundLin) by
+    have ⟨_, hresult⟩ := h_ind e e hcycle
+    -- Irreflexivity: same as CLE version — all constructors give contradiction.
+    cases hresult with
+    | inl hso =>
+      cases hso with
+      | ob h => exact Event.contradiction_of_reflexive_ordered_before n h
+      | obEndLt p h_ob h_lt _ =>
+        exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans h_ob (Event.oWellFormed n p)) h_lt)
+      | encapOb p h_enc h_ob =>
+        exact Nat.lt_irrefl _ (Nat.lt_trans h_enc.left (Nat.lt_trans (Event.oWellFormed n p) h_ob))
+      | obFinishBefore _ _ _ h_diff _ => exact absurd rfl h_diff
+      | sameLin e₁' e₂' _ h_enc₁ h_ob h_enc₂ =>
+        exact Nat.lt_irrefl _ (calc Event.oEnd n (cl e)
+          _ < Event.oEnd n e₁' := h_enc₁.right
+          _ < Event.oStart n e₂' := h_ob
+          _ < Event.oStart n (cl e) := h_enc₂.left
+          _ ≤ Event.oEnd n (cl e) := Nat.le_of_lt (Event.oWellFormed n _))
+      | proxyPair q p h_q_enc h_q_ob h_p_ob =>
+        exact Nat.lt_irrefl _ (calc Event.oEnd n p
+          _ < Event.oStart n (cl e) := h_p_ob
+          _ < Event.oStart n q := h_q_enc.left
+          _ ≤ Event.oEnd n q := Nat.le_of_lt (Event.oWellFormed n q)
+          _ < Event.oStart n p := h_q_ob
+          _ ≤ Event.oEnd n p := Nat.le_of_lt (Event.oWellFormed n p))
+      | encap henc => exact Nat.lt_irrefl _ henc.left
+      | eq _ => sorry -- compoundLin(e) = compoundLin(e): need self-ordering contradiction
+      | encapObEndLt q p h_q_enc h_q_ob h_p_lt _ => sorry
+      | obProxy p₁ p₂ h₁_ob h_so h₂_ob => sorry
+      | stepProxyL p₁ h₁_ob h_so => sorry
+      | stepProxyR p₂ h_so h₂_ob => sorry
+      | obStepL p₁ h₁_ob h_so => sorry
+    | inr hr => cases hr with
+      | inl heq => sorry -- compoundLin(e) = compoundLin(e): trivial eq
+      | inr hob_rev => exact Event.contradiction_of_reflexive_ordered_before n hob_rev
+  intro a c hpath
+  induction hpath with
+  | single h =>
+    constructor
+    · exact ⟨a, h⟩
+    · cases h with
+      | inl hppoi =>
+        -- PPOi: h_non_lazy_ppoi gives compoundLin₁ OB compoundLin₂ directly.
+        sorry -- need to connect h_non_lazy_ppoi to (hknow _).compoundLin
+      | inr hcom =>
+        -- COM: step_to_ordering_compoundLin gives StepOrdering on compoundLin.
+        sorry -- need notDown from COM edge
+  | tail hpath h ih =>
+    constructor
+    · exact ⟨_, h⟩
+    · let ⟨⟨b_prev, h_last_prefix⟩, h3way_prefix⟩ := ih
+      -- compose_three_compoundLin handles composition.
+      sorry -- need notDown from edges + compose_three_compoundLin
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
