@@ -2528,21 +2528,57 @@ theorem step_to_ordering_compoundLin
           sorry
       | cle_ob_compoundLin ha₁ => sorry
       | compoundLin_ob_cle ha₁ =>
-        -- compoundLin₁ = e₁. Cases for event 2:
+        -- compoundLin₁ OB CLE₁. For requestLin+orderAfterDir: compoundLin₁ = e₁.
+        -- e₁ OB e₂ (cache_ob). Need to chain to compoundLin₂.
+        -- In all event 2 cases, compoundLin₂.oStart ≥ e₂.oStart (inside or equal to e₂).
+        -- Chain: compoundLin₁.oEnd ≤ e₁.oEnd (compoundLin₁ = e₁ for requestLin, equality)
+        --        < e₂.oStart ≤ compoundLin₂.oStart. But compoundLin₁ = e₁ is for requestLin.
+        -- Actually: compoundLin_ob_cle gives compoundLin₁ OB CLE₁, not compoundLin₁ = e₁.
+        -- But compoundLin₁ OB CLE₁ means compoundLin₁.oEnd < CLE₁.oStart.
+        -- CLE₁ = CLE₂ (same_cle). e₁ OB e₂.
+        -- For event 2: compoundLin₂ relates to CLE₂ = CLE₁.
+        -- Need: compoundLin₁ OB compoundLin₂.
+        -- compoundLin₁.oEnd < CLE₁.oStart (ha₁). CLE₁ = CLE₂.
+        -- Event 2 cases:
         cases hrel₂ with
-        | eq ha₂ =>
-          -- compoundLin₁ = e₁, compoundLin₂ = CLE₂. e₁ OB e₂.
-          -- CLE₂ inside e₂ (encapDir) → CLE₂.oStart > e₂.oStart.
-          -- e₁.oEnd < e₂.oStart < CLE₂.oStart = compoundLin₂.oStart.
-          -- .ob ✓
-          sorry
-        | cle_ob_compoundLin ha₂ =>
-          -- compoundLin₁ = e₁, compoundLin₂ = e₂ (both requestLin). e₁ OB e₂. .ob ✓
-          sorry
+        | eq ha₂ => -- compoundLin₂ = CLE₂. compoundLin₁ OB CLE₁ = CLE₂ = compoundLin₂.
+          rw [ha₂, ← hcle_eq]; exact .ob ha₁
+        | cle_ob_compoundLin ha₂ => -- CLE₂ OB compoundLin₂. Chain: compoundLin₁ OB CLE₁ = CLE₂ OB compoundLin₂.
+          rw [← hcle_eq] at ha₂; exact .ob (Trans.trans ha₁ ha₂)
         | compoundLin_ob_cle ha₂ =>
-          -- compoundLin₁ = e₁, compoundLin₂ = e₂. e₁ OB e₂. .ob ✓
+          -- Both ob_cle: compoundLin₁ OB CLE₁, compoundLin₂ OB CLE₂. CLE₁ = CLE₂.
+          -- compoundLin₁.oEnd < CLE.oStart and compoundLin₂.oEnd < CLE.oStart.
+          -- Both before CLE. e₁ OB e₂. Unknown order of compoundLin₁ vs compoundLin₂.
+          -- VACUOUS? compoundLin₁ = e₁ (requestLin), compoundLin₂ = e₂ (requestLin).
+          -- e₁ OB CLE₁ and e₂ OB CLE₂ = CLE₁. So e₁.oEnd < CLE₁.oStart and e₂.oEnd < CLE₁.oStart.
+          -- e₁ OB e₂: e₁.oEnd < e₂.oStart. And e₂.oEnd < CLE₁.oStart. And e₁.oEnd < CLE₁.oStart.
+          -- compoundLin₁ = e₁, compoundLin₂ = e₂. e₁ OB e₂ → .ob ✓
+          -- Wait: ob_cle means compoundLin OB CLE. For requestLin: compoundLin = e. So e OB CLE.
+          -- Both events have e OB CLE (orderAfterDir), CLE₁ = CLE₂.
+          -- compoundLin₁ = e₁ OB e₂ = compoundLin₂ → .ob ✓
+          -- But I need compoundLin₁.oEnd < compoundLin₂.oStart. compoundLin₁ = e₁, compoundLin₂ = e₂.
+          -- ha₁ gives e₁ OB CLE₁ (= e₁.oEnd < CLE₁.oStart). But I need e₁ OB e₂.
+          -- I have cache_ob : e₁ OB e₂. But compoundLin₁ and compoundLin₂ relate to e₁ and e₂ how?
+          -- ha₁ : compoundLin₁ OB CLE₁. This is (lin e₁).compoundLin OB CLE₁.
+          -- For ob_cle + requestLin: compoundLin = e. But I don't have compoundLin = e explicitly.
+          -- I have ha₁ : compoundLin₁.oEnd < CLE₁.oStart and ha₂ : compoundLin₂.oEnd < CLE₂.oStart.
+          -- CLE₁ = CLE₂. cache_ob : e₁ OB e₂.
+          -- If compoundLin = e for both (requestLin), then: e₁.oEnd < CLE.oStart and e₂.oEnd < CLE.oStart.
+          -- e₁ OB e₂: e₁.oEnd < e₂.oStart.
+          -- Need: compoundLin₁.oEnd < compoundLin₂.oStart.
+          -- compoundLin₁.oEnd = e₁.oEnd (if compoundLin₁ = e₁). compoundLin₂.oStart = e₂.oStart.
+          -- e₁.oEnd < e₂.oStart = compoundLin₂.oStart. ✓
+          -- But I don't know compoundLin = e from ha₁ alone. ha₁ just says compoundLin OB CLE.
+          -- Need to connect compoundLin to e somehow.
           sorry
-        | compoundLin_inside_cle ha₂ => sorry
+        | compoundLin_inside_cle ha₂ =>
+          -- compoundLin₂ inside CLE₂ = CLE₁. compoundLin₁ OB CLE₁. So compoundLin₁ OB CLE₁
+          -- and compoundLin₂ inside CLE₁ means compoundLin₂.oStart > CLE₁.oStart > compoundLin₁.oEnd.
+          -- .ob ✓
+          -- compoundLin₁.oEnd < CLE₁.oStart [ha₁]. CLE₁ = CLE₂ [hcle_eq].
+          -- compoundLin₂ inside CLE₂ → CLE₂.oStart < compoundLin₂.oStart [ha₂.left].
+          -- Chain: compoundLin₁.oEnd < CLE₁.oStart = CLE₂.oStart < compoundLin₂.oStart.
+          sorry
       | compoundLin_inside_cle ha₁ => sorry
     | sameClusDiffCache same_prot cle_ordering => sorry
     | diffClus diff_prot cle_ordering => sorry
