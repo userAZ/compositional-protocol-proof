@@ -47,11 +47,11 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
     diff_prot or proxy-vs-compoundLin relative order, ~5 inside edge cases, ~5 stepOrdering_to_three.
   - `step_to_ordering_compoundLin`: one-liner delegating to generic bridge.
   - Main proof (`cmcm_acyclic_of_hknow`, `compose_three`): SORRY-FREE on CLEs.
-  - **FULL LIFTING BLOCKED**: Switching cycle invariant from CLE to compoundLin requires rewriting
-    `compose_three` (~500 lines) because `dir_ordered` fallback needs directory events but compoundLin
-    can be cache events. The new proxy constructors (obProxy/stepProxyL/R/obStepL) provide the tools
-    but compose_three would need `hknow` parameter to access CLEs for dir_ordered fallback.
-    Alternative: keep CLE invariant in compose_three, use bridge only for step_to_ordering.
+  - **FULL LIFTING APPROACH**: compoundLin events are always RELATED to CLEs (directory events)
+    via compoundLin_cle_rel. So dir_ordered fallback in compose_three can go through CLEs:
+    extract CLEs via hknow, dir_ordered on CLEs, chain back to compoundLin via proxy constructors.
+    Need: step_ordering_dir_ordered_3way_compoundLin helper that replaces dir_ordered calls.
+    compose_three rewrite is MECHANICAL — replace dir_ordered calls with compoundLin version.
 - **`dirAccessUnique` REMOVED** from `CompoundProtocol` — it was unused.
 - **Architecture**: `cmcm_acyclic_of_hknow` uses CLEs from `hknow` directly (`hreq's_dir_access.choose`). The CLE-to-compound_lin bridge was eliminated.
   - **PPOi (single edge)**: `dir_ordered` gives 3-way on CLEs (same-cluster directory events). No compound_lin needed.
@@ -99,6 +99,7 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **Dir state coherence from `dirAccessOfRequest`**: To prove dir state ≠ Vd (e.g., `onDirVd` vacuous), case-split on e_w's `dirAccessOfRequest`: `encapDir` → coherent request → dir at SW; `orderBeforeDir` → predecessor had perms, `hinter_leaves_state_at_least` prevents any intermediate event from downgrading coherent perms, so if anything changed dir to Vd it would have violated the state preservation; `orderAfterDir` → NC weak on Vd (implies NC weak READ, likely contradicts e_w.isWrite at call sites). Key insight: "if another access changed the directory to Vd, it would have downgraded the orderBeforeDir's coherent write permissions" — the `hinter_leaves_state_at_least` constraint is the proof mechanism.
 - **`isDirDownRW` replaces `isDirMatchingRW`**: Inductive with `readDown` (dir rw=.r) and `writeDown` (dir rw=.w, Vd writeback). Provable by case-splitting on dir event's rw. The old `isDirMatchingRW` (exact equality with CLE) was unprovable in `noGlobalCache` case because CLE.rw comes from a predecessor that could be a write.
 - **`Vd ≤ SW` is TRUE** (same perms `some .wr`, different coherence `false ≤ true`). Cannot derive dir ≠ Vd from simple `≤` comparison with SW cache. Need coherence BIT argument: coherent perms require `c=true`, Vd has `c=false`.
+- **compoundLin events are ALWAYS related to CLEs** via compoundLin_cle_rel (eq/cle_ob/ob_cle/inside). NEVER forget this when reasoning about compoundLin. dir_ordered can ALWAYS be applied to CLEs (directory events), then chained to compoundLin via proxy constructors. This is the FUNDAMENTAL technique for the compoundLin lifting.
 - **Write code first, analyze later.** When facing a sorry, just try to fill it with code, build, iterate. Don't write paragraphs theorizing about feasibility. Most sorry's are mechanical once you start writing.
 - **Match on ValidRequest (Subtype), not on individual fields**: `RequestState`/`DowngradeState`/`MRS` match on the full `ValidRequest` Subtype `⟨⟨rw, coh, con⟩, hv⟩`, NOT on individual fields. Matching on `ce.req.val.rw`, `ce.req.val.coherent` etc. separately doesn't give Lean enough info to reduce the Subtype match. **Fix**: `match hvr : ce.req with | ⟨⟨.w, false, .Weak⟩, _⟩ => ...` then `rw [hvr] at hs_Vd` to substitute before `simp [ValidRequest.RequestState]`. Lean uses `IsValid'` for exhaustiveness — invalid request patterns (like `⟨_, false, .SC⟩`) are auto-excluded.
 - **`simp only` vs `simp` for `if` reduction**: `simp only [...]` does NOT include `ite_true`/`ite_false`, so `if True then x else y` won't reduce. Use `simp [...]` (without `only`) to include default simp lemmas, or add `ite_true`/`ite_false` explicitly.
