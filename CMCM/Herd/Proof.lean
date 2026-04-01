@@ -1958,6 +1958,27 @@ private theorem compoundLin_diff_protocol
         | _ => sorry
     | _ => sorry
 
+-- CLE₁.prot ≠ compoundLin₂.prot from CLE₁.prot ≠ CLE₂.prot.
+-- For cle_ob/eq (compoundLin₂ = CLE₂ or e₂): chain through hprot₂.
+-- For inside (global): global prot ≠ cluster prot.
+private theorem cle_ne_compoundLin_prot
+    {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (hdiff : Event.protocol n cle₁ ≠ Event.protocol n lin₂.hreq's_dir_access.choose)
+    (h₂_notdown : ¬ e₂.down)
+    : Event.protocol n cle₁ ≠ Event.protocol n lin₂.compoundLin := by
+  have hprot₂ := write_cle_protocol_eq_write_protocol lin₂
+  cases lin₂.compoundLin_cle h₂_notdown with
+  | eq ha₂ => rw [ha₂]; exact hdiff
+  | cle_ob_compoundLin _ =>
+    cases hlin₂ : compound.linearizationOfEvent b init e₂ with
+    | requestLin _ => rw [lin₂.compoundLin_eq_event_of_requestLin hlin₂]; exact fun h => hdiff (h.trans hprot₂.symm)
+    | dirLin _ => sorry -- vacuous: dirLin + cle_ob
+  | compoundLin_ob_cle _ =>
+    cases hlin₂ : compound.linearizationOfEvent b init e₂ with
+    | requestLin _ => rw [lin₂.compoundLin_eq_event_of_requestLin hlin₂]; exact fun h => hdiff (h.trans hprot₂.symm)
+    | dirLin _ => sorry -- vacuous: dirLin + ob_cle
+  | compoundLin_inside_cle _ => sorry -- global prot ≠ cluster prot
+
 private theorem sameLin_gives_ob {e₁' e₂' : Event n}
     (henc₁ : l₁.EncapsulatedBy n e₁') (hob : e₁'.OrderedBefore n e₂')
     (henc₂ : l₂.EncapsulatedBy n e₂')
@@ -2100,7 +2121,7 @@ theorem step_ordering_cle_to_compoundLin
         -- Inner: StepOrdering CLE₁ compoundLin₂. obFinishBefore needs CLE₁.prot ≠ compoundLin₂.prot.
         -- From hdiff: CLE₁.prot ≠ CLE₂.prot. From hprot₂: CLE₂.prot = e₂.prot.
         -- For cle_ob: compoundLin₂ = e₂ (requestLin). Chain.
-        exact .stepProxyL _ ha₁ (.obFinishBefore p (Trans.trans hob ha₂) hlt (sorry) hisdir)
+        exact .stepProxyL _ ha₁ (.obFinishBefore p (Trans.trans hob ha₂) hlt (cle_ne_compoundLin_prot hdiff h₂_notdown) hisdir)
       | _ => sorry -- dead code
     | compoundLin_ob_cle ha₂ =>
       -- compoundLin₂ OB CLE₂ (compoundLin₂ before CLE₂). Use stepProxyR.
@@ -2118,7 +2139,7 @@ theorem step_ordering_cle_to_compoundLin
       | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
         exact .stepProxyL _ ha₁ (.ob (Nat.lt_trans henc₁.right (Nat.lt_trans hob (Nat.lt_trans henc₂.left ha₂.left))))
       | obFinishBefore p hob hlt hdiff hisdir =>
-        exact .stepProxyL _ ha₁ (.obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (sorry) hisdir)
+        exact .stepProxyL _ ha₁ (.obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (cle_ne_compoundLin_prot hdiff h₂_notdown) hisdir)
       | _ => sorry -- dead code
   | compoundLin_ob_cle ha₁ =>
     -- compoundLin₁ OB CLE₁ (ob_cle). Use obStepL for ALL event 2 cases:
@@ -2136,7 +2157,7 @@ theorem step_ordering_cle_to_compoundLin
           (Nat.lt_trans henc₁.right (Nat.lt_trans hob
             (Nat.lt_trans henc₂.left (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂)))))))
       | obFinishBefore p hob hlt hdiff hisdir =>
-        exact .obStepL _ ha₁ (.obFinishBefore p (Trans.trans hob ha₂) hlt (sorry) hisdir)
+        exact .obStepL _ ha₁ (.obFinishBefore p (Trans.trans hob ha₂) hlt (cle_ne_compoundLin_prot hdiff h₂_notdown) hisdir)
       | _ => sorry -- dead code
     | compoundLin_ob_cle ha₂ =>
       exact .obProxy _ _ ha₁ h ha₂
@@ -2150,7 +2171,7 @@ theorem step_ordering_cle_to_compoundLin
         exact .ob (Nat.lt_of_lt_of_le ha₁ (Nat.le_of_lt (Nat.lt_trans (Event.oWellFormed n _)
           (Nat.lt_trans henc₁.right (Nat.lt_trans hob (Nat.lt_trans henc₂.left ha₂.left))))))
       | obFinishBefore p hob hlt hdiff hisdir =>
-        exact .obStepL _ ha₁ (.obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (sorry) hisdir)
+        exact .obStepL _ ha₁ (.obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (cle_ne_compoundLin_prot hdiff h₂_notdown) hisdir)
       | _ => sorry -- dead code
   | compoundLin_inside_cle ha₁ =>
     cases hrel₂ with
