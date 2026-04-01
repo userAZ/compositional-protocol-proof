@@ -491,10 +491,34 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_of_di
             -- hat_dir.choose is the linearization point of the global cache event.
             -- Its protocol = gcache.protocol (from dirAccessOfRequest.sameProtocol).
             -- reqLinearizeAtDir gives dir access. Each dirAccessOfRequest has sameProtocol.
-            -- compoundLin.protocol = .global via:
-            -- hat_dir.choose = dir_event (dirIsLin), dir_event.prot = gcache.prot (sameProtocol),
-            -- gcache.prot = .global (h_gcache_global), compoundLin = hdir_case.choose = hat_dir.choose.
-            exact Or.inr ⟨ha, by rw [h_cl_eq]; sorry⟩
+            -- Prove compoundLin.protocol = .global
+            -- Step 1: gcache.protocol = .global
+            have h_gcache_is_global : htranslation.choose.isGlobalCache :=
+              htranslation.choose_spec.2.gReqOfCDir.reqGlobalCache
+            have h_gcache_prot : htranslation.choose.protocol = .global :=
+              h_gcache_is_global.reqGlobal
+            -- Step 2: dir_event = hat_dir.choose (dirIsLin)
+            have h_gdir_lin := hat_dir.choose_spec.2.reqLinearizeAtDir.choose_spec.2
+            -- Step 3: dir_event.prot = gcache.prot (sameProtocol from dirAccessOfRequest)
+            have h_dir_prot : hat_dir.choose.protocol = htranslation.choose.protocol := by
+              rw [h_gdir_lin.dirIsLin]
+              cases h_gdir_lin.reqCorrespondsToDir with
+              | encapDir _ hencap => exact hencap.sameProtocol.symm
+              | orderBeforeDir _ _ hpred _ hpred_same _ _ _ =>
+                exact (hpred_same.symm.trans hpred.sameProtocol).symm
+              | orderAfterDir _ hsucc hsucc_same _ =>
+                -- hsucc_same : successor.prot = gcache.prot.
+                -- hsucc.choose_spec.2 : ImmediateBottomSuccSatisfyingProp.
+                -- .hprop : succOnVdWithCorrespondingDir = reqOnVdWithCorrespondingDir.
+                -- .encapCorresponding.sameProtocol : successor.prot = dir_event.prot.
+                have hprop : Behaviour.reqOnVdWithCorrespondingDir n b init hsucc.choose _ :=
+                  hsucc.choose_spec.2.satisfyP
+                have h_succ_dir_prot := hprop.encapCorresponding.sameProtocol
+                -- h_succ_dir_prot : successor.prot = dir_event.prot.
+                -- hsucc_same : successor.prot = gcache.prot.
+                exact (hsucc_same.symm.trans h_succ_dir_prot).symm
+            -- Step 4: chain compoundLin = hdir_case.choose = hat_dir.choose
+            exact Or.inr ⟨ha, by rw [h_cl_eq, hgcache_lin_cases, h_dir_prot, h_gcache_prot]⟩
           · exact absurd hgcache_lin_cases (by simp)
   | cle_ob_compoundLin ha =>
     -- This only arises from requestLin. But we have dirLin. Contradiction.
