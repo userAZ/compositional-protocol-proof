@@ -2616,6 +2616,11 @@ theorem step_ordering_cle_to_compoundLin
     : @StepOrdering n lin₁.compoundLin lin₂.compoundLin := by
   have hrel₁ := lin₁.compoundLin_cle h₁_notdown
   have hrel₂ := lin₂.compoundLin_cle h₂_notdown
+  -- Protocol facts: CLE.protocol = e.protocol
+  -- Protocol: CLE.prot = e.prot, so CLE₁.prot ≠ CLE₂.prot → CLE₁.prot ≠ compoundLin₂.prot
+  -- (for cle_ob/ob_cle: compoundLin = e, same prot as CLE; for inside: global event, sorry)
+  have hprot₁ := write_cle_protocol_eq_write_protocol lin₁
+  have hprot₂ := write_cle_protocol_eq_write_protocol lin₂
   -- Case-split on both compoundLin_cle_rel cases.
   -- For each StepOrdering constructor h, chain with the compoundLin ↔ CLE evidence.
   -- Most cases resolve via .ob chaining. The cle_ob event 1 case uses .obFinishBefore
@@ -2643,6 +2648,15 @@ theorem step_ordering_cle_to_compoundLin
         -- p OB CLE₂, p.oEnd < CLE₁.oEnd, CLE₁.prot ≠ CLE₂.prot.
         -- For cle_ob event 2: CLE₂ OB compoundLin₂. Chain p OB CLE₂ OB compoundLin₂.
         -- diff_prot: CLE₁.prot ≠ compoundLin₂.prot (compoundLin₂ has same prot as CLE₂).
+        -- diff_prot: CLE₁.prot ≠ compoundLin₂.prot.
+        -- hdiff : CLE₁.prot ≠ CLE₂.prot. CLE₂.prot = e₂.prot (write_cle_protocol).
+        -- For cle_ob: compoundLin₂ is after CLE₂, same protocol as e₂.
+        -- compoundLin₂.prot = e₂.prot = CLE₂.prot (write_cle_protocol).
+        -- But we don't have compoundLin₂ = e₂ in scope directly.
+        -- Use: CLE₂.prot = e₂.prot from write_cle_protocol_eq_write_protocol lin₂.
+        -- And compoundLin₂.prot = e₂.prot (from compoundLin_eq_event if requestLin).
+        -- Since ha₂ arises from cle_ob (requestLin), compoundLin₂.prot = e₂.prot.
+        -- For now: sorry the diff_prot. It's a protocol identity fact.
         exact .obFinishBefore p (Trans.trans hob ha₂) hlt (sorry) hisdir
       | obProxy p₁ p₂ h₁_ob h_so h₂_ob =>
         -- CLE₁ = compoundLin₁ (eq ha₁), CLE₂ OB compoundLin₂ (cle_ob ha₂).
