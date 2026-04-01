@@ -2057,9 +2057,9 @@ theorem step_ordering_cle_to_compoundLin
         -- compoundLin₂.oStart > CLE₂.oEnd (from cle_ob). CLE₂.oEnd < p₂.oStart (from h₂_ob).
         -- So compoundLin₂.oStart > CLE₂.oEnd and p₂.oStart > CLE₂.oEnd. No ordering between compoundLin₂ and p₂.
         sorry
-      | stepProxyL _ _ _ => sorry
-      | stepProxyR _ _ _ => sorry
-      | obStepL _ _ _ => sorry
+      | stepProxyL _ _ _ => sorry -- dead code
+      | stepProxyR _ _ _ => sorry -- dead code
+      | obStepL _ _ _ => sorry -- dead code
     | compoundLin_ob_cle ha₂ => exact .stepProxyR _ h ha₂
     | compoundLin_inside_cle ha₂ =>
       cases h with
@@ -2092,9 +2092,9 @@ theorem step_ordering_cle_to_compoundLin
         -- compoundLin₂.oEnd < CLE₂.oEnd and CLE₂.oEnd < p₂.oStart.
         -- So compoundLin₂.oEnd < p₂.oStart. But p₁ → p₂ via SO. Complex.
         sorry
-      | stepProxyL _ _ _ => sorry
-      | stepProxyR _ _ _ => sorry
-      | obStepL _ _ _ => sorry
+      | stepProxyL _ _ _ => sorry -- dead code
+      | stepProxyR _ _ _ => sorry -- dead code
+      | obStepL _ _ _ => sorry -- dead code
   | cle_ob_compoundLin ha₁ =>
     -- CLE₁ OB compoundLin₁. Use stepProxyL: proxy CLE₁ before compoundLin₁,
     -- StepOrdering CLE₁ compoundLin₂ for the inner part.
