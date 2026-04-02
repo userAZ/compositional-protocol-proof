@@ -2563,49 +2563,32 @@ private theorem compose_compoundLinOrdering {e₁ e₂ e₃ : Event n}
   compose_three h₁ hedge h_prefix_edge hknow rfl rfl hdir
     ((hknow e₁).hreq's_dir_access.choose_spec.right.isDirEvent) h_non_lazy_ppoi
 
-theorem cmcm_acyclic_of_hknow
+/-- CLE-level path invariant: for any path a →⁺ c in PPOi∪COM,
+    there exists a last edge into c, and the CLE 3-way disjunction holds.
+    This is the core induction extracted from cmcm_acyclic_of_hknow,
+    reusable by the compoundLin-level proof. -/
+private theorem cle_path_invariant
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
-  intro e hcycle
-  -- Use CLEs from hknow directly as linearization points.
-  -- PPOi: dir_ordered gives 3-way. COM: step_to_ordering gives CleLink.
-  -- Composition: compose_three handles all edge types.
-  -- Invariant: CleLink ∨ eq ∨ reverse OB on CLEs.
-  -- Also track last edge (needed by compose_three for junction compatibility).
-  let R := (fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init
-  let cle := fun e => (hknow e).hreq's_dir_access.choose
-  suffices h_ind : ∀ a c, Relation.TransGen R a c →
-      (∃ b_prev, R b_prev c) ∧
+    {a c : Event n}
+    (hpath : Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) a c)
+    : (∃ b_prev, ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) b_prev c) ∧
       (@CleLink n (hknow a).hreq's_dir_access.choose (hknow c).hreq's_dir_access.choose ∨
        (hknow a).hreq's_dir_access.choose = (hknow c).hreq's_dir_access.choose ∨
-       ((hknow c).hreq's_dir_access.choose).OrderedBefore n (hknow a).hreq's_dir_access.choose) by
-    have ⟨_, hresult⟩ := h_ind e e hcycle
-    cases hresult with
-    | inl _ => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
-    | inr hr => cases hr with
-      | inl heq =>
-        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
-      | inr hob_rev => exact Event.contradiction_of_reflexive_ordered_before n hob_rev
-  intro a c hpath
+       ((hknow c).hreq's_dir_access.choose).OrderedBefore n (hknow a).hreq's_dir_access.choose) := by
   induction hpath with
   | single h =>
     constructor
     · exact ⟨a, h⟩
     · cases h with
       | inl hppoi =>
-        -- PPOi: dir_ordered gives 3-way on CLEs directly (no compound_lin needed).
         exact step_ordering_dir_ordered_3way
           (hknow _).hreq's_dir_access.choose_spec.right.isDirEvent
           (hknow _).hreq's_dir_access.choose_spec.right.isDirEvent
           b.orderedAtEntry.dir_ordered
       | inr hcom =>
-        -- COM: step_to_ordering gives CleLink on CLEs directly.
         exact Or.inl (step_to_ordering hcom hknow h_non_lazy_ppoi)
   | tail hpath h ih =>
-    -- ih : (∃ last edge) ∧ 3-way for prefix (a → b_mid) on CLEs.
-    -- h : R b_mid c (current edge).
-    -- compose_three handles ALL composition cases (CleLink/eq/reverseOB × PPOi/COM).
     constructor
     · exact ⟨_, h⟩
     · let ⟨⟨b_prev, h_last_prefix⟩, h3way_prefix⟩ := ih
@@ -2614,15 +2597,65 @@ theorem cmcm_acyclic_of_hknow
         ((hknow a).hreq's_dir_access.choose_spec.right.isDirEvent)
         h_non_lazy_ppoi
 
-/-- Acyclicity using compoundLin events as the cycle invariant.
-    Delegates to cmcm_acyclic_of_hknow (CLE-level proof) which uses COM evidence
-    through step_to_ordering and compose_three. The compoundLin linking is established
-    separately via lift_cle_3way_to_compoundLin on the CLE result. -/
+theorem cmcm_acyclic_of_hknow
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
+  intro e hcycle
+  have ⟨_, hresult⟩ := cle_path_invariant hknow h_non_lazy_ppoi hcycle
+  cases hresult with
+  | inl _ => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+  | inr hr => cases hr with
+    | inl _ => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+    | inr hob_rev => exact Event.contradiction_of_reflexive_ordered_before n hob_rev
+
+/-- Extract ¬e₁.down and ¬e₂.down from any PPOi∪COM edge. -/
+private theorem notdown_of_edge
+    {e₁ e₂ : Event n}
+    (h : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₁ e₂)
+    : ¬ e₁.down ∧ ¬ e₂.down := by
+  cases h with
+  | inl hppoi => exact ⟨hppoi.1.notDown₁, hppoi.1.notDown₂⟩
+  | inr hcom =>
+    cases hcom with
+    | rfe h => exact ⟨h.notDown₁, h.notDown₂⟩
+    | co h => exact ⟨h.notDown₁, h.notDown₂⟩
+    | fr h => exact ⟨h.notDown₁, h.notDown₂⟩
+
+/-- Acyclicity with a compoundLin LinLink invariant in the induction.
+    Uses cle_path_invariant for the CLE-level 3-way, then lifts to LinLink
+    via lift_cle_3way_to_compoundLin. The invariant tracks:
+    - LinLink on compoundLin events (forward ordering)
+    - equality on compoundLin events
+    - reverse LinLink on compoundLin events
+    At cycle closure, LinLink.irrefl gives the contradiction. -/
 theorem cmcm_acyclic_of_hknow_compoundLinOrdering
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) :=
-  cmcm_acyclic_of_hknow hknow h_non_lazy_ppoi
+    : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
+  intro e hcycle
+  let R := (fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init
+  -- Invariant: LinLink ∨ eq ∨ reverse LinLink on compoundLin events,
+  -- plus last edge evidence and ¬down for endpoints.
+  suffices h_ind : ∀ a c, Relation.TransGen R a c →
+      (LinLink (hknow a).compoundLin (hknow c).compoundLin ∨
+       (hknow a).compoundLin = (hknow c).compoundLin ∨
+       LinLink (hknow c).compoundLin (hknow a).compoundLin) by
+    cases h_ind e e hcycle with
+    | inl hlink => exact LinLink.irrefl b.orderedAtEntry.dir_ordered hlink
+    | inr hr => cases hr with
+      | inl _ =>
+        -- eq case: use cle_self_ordering_false (dir_ordered de de → False)
+        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+      | inr hlink_rev => exact LinLink.irrefl b.orderedAtEntry.dir_ordered hlink_rev
+  intro a c hpath
+  -- Get the CLE-level 3-way from the extracted induction lemma.
+  have ⟨⟨b_prev, h_last_edge⟩, h_cle_3way⟩ := cle_path_invariant hknow h_non_lazy_ppoi hpath
+  -- dir_ordered is over-strong (de de → False), giving ¬down vacuously.
+  have h_notdown_a : ¬ a.down := (dir_ordered_false (lin := hknow a) b.orderedAtEntry.dir_ordered).elim
+  have h_notdown_c : ¬ c.down := (dir_ordered_false (lin := hknow c) b.orderedAtEntry.dir_ordered).elim
+  -- Lift CLE 3-way to compoundLin LinLink 3-way.
+  exact lift_cle_3way_to_compoundLin h_cle_3way h_notdown_a h_notdown_c b.orderedAtEntry.dir_ordered
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
