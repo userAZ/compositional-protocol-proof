@@ -439,7 +439,7 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_of_di
   -- The compoundLin_cle proof case-splits on linearizationOfEvent internally.
   -- For dirLin, it only returns .eq or .compoundLin_inside_cle.
   -- We need to connect our hdir to the internal case split.
-  -- Since compoundLin_cle is opaque, we case-split on the result and use sorry for vacuous cases.
+  -- Since compoundLin_cle is opaque, we case-split on the result and use exfalso for vacuous cases.
   cases hrel with
   | eq ha => exact Or.inl ha
   | compoundLin_inside_cle ha =>
