@@ -2257,32 +2257,7 @@ theorem cmcm_acyclic_of_hknow
        ((hknow c).hreq's_dir_access.choose).OrderedBefore n (hknow a).hreq's_dir_access.choose) by
     have ⟨_, hresult⟩ := h_ind e e hcycle
     cases hresult with
-    | inl hso =>
-      -- StepOrdering cle(e) cle(e) → False.
-      cases hso with
-      | ob h => exact Event.contradiction_of_reflexive_ordered_before n h
-      | obEndLt p h_ob h_lt _ =>
-        exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans h_ob (Event.oWellFormed n p)) h_lt)
-      | encapOb p h_enc h_ob =>
-        exact Nat.lt_irrefl _ (Nat.lt_trans h_enc.left (Nat.lt_trans (Event.oWellFormed n p) h_ob))
-      | obFinishBefore _ _ _ h_diff _ => exact absurd rfl h_diff
-      | sameLin e₁' e₂' _ h_enc₁ h_ob h_enc₂ =>
-        exact Nat.lt_irrefl _ (calc Event.oEnd n (cle e)
-          _ < Event.oEnd n e₁' := h_enc₁.right
-          _ < Event.oStart n e₂' := h_ob
-          _ < Event.oStart n (cle e) := h_enc₂.left
-          _ ≤ Event.oEnd n (cle e) := Event.oStart_le_oEnd _)
-      | proxyPair q p h_q_enc h_q_ob h_p_ob =>
-        exact Nat.lt_irrefl _ (calc Event.oEnd n p
-          _ < Event.oStart n (cle e) := h_p_ob
-          _ < Event.oStart n q := h_q_enc.left
-          _ ≤ Event.oEnd n q := Event.oStart_le_oEnd q
-          _ < Event.oStart n p := h_q_ob
-          _ ≤ Event.oEnd n p := Event.oStart_le_oEnd p)
-      | encap henc => exact Nat.lt_irrefl _ henc.left
-      | eq _ => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
-      | _ =>
-        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+    | inl _ => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
     | inr hr => cases hr with
       | inl heq =>
         exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
