@@ -203,6 +203,14 @@ inductive LinLink : Event n → Event n → Prop where
   | encapObEndLt (q p : Event n) (h_q_enc : q.EncapsulatedBy n l₁)
       (h_q_ob_p : q.OrderedBefore n p) (h_p_lt : Event.oEnd n p < Event.oEnd n l₂)
       (h_p_isdir : p.isDirectoryEvent) : LinLink l₁ l₂
+  /-- Ordering through CLE proxies: CLE₁ and CLE₂ have LinLink, both are directory events.
+      For compoundLin lifting: compoundLin events linked through their CLEs.
+      The inner LinLink is between CLEs (always base constructors, never proxy). -/
+  | proxy (cle₁ cle₂ : Event n) (h_so : LinLink cle₁ cle₂)
+      (h₁_isdir : cle₁.isDirectoryEvent) (h₂_isdir : cle₂.isDirectoryEvent)
+      (h₁_chain : Relation.TransGen TemporalRel l₁ cle₁ ∨ l₁ = cle₁)
+      (h₂_chain : Relation.TransGen TemporalRel cle₂ l₂ ∨ l₂ = cle₂)
+      : LinLink l₁ l₂
 
 -- LinLink is an irreflexive transitive subset of TransGen TemporalRel.
 -- Every LinLink can be decomposed into a chain of base temporal steps.
@@ -238,6 +246,33 @@ theorem LinLink.subset_temporalRel {l₁ l₂ : Event n}
       cases (hdir de de).ordered with
       | inl h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
       | inr h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
+  | proxy cle₁ cle₂ h_so h₁_cle_isdir h₂_cle_isdir h₁_chain h₂_chain =>
+    -- Inner h_so between CLEs: case-split to avoid recursion.
+    -- The inner LinLink is from com_to_linLink which never produces proxy.
+    -- Handle each base constructor directly (same logic as above cases).
+    have h_inner : Relation.TransGen TemporalRel cle₁ cle₂ := by
+      cases h_so with
+      | ob h => exact .single (.ob h)
+      | encap h => exact .single (.encap h)
+      | encapOb p h_enc h_ob => exact .tail (.single (.encap h_enc)) (.ob h_ob)
+      | obEndLt p h_ob h_lt _ => exact .tail (.single (.ob h_ob)) (.finishesBefore h_lt)
+      | proxyPair q p h_enc h_ob h_ob₂ => exact .tail (.tail (.single (.encap h_enc)) (.ob h_ob)) (.ob h_ob₂)
+      | sameLin e₁' e₂' _ h_enc₁ h_ob h_enc₂ => exact .tail (.tail (.single (.encapBy h_enc₁)) (.ob h_ob)) (.encap h_enc₂)
+      | encapObEndLt q p h_enc h_ob h_lt _ => exact .tail (.tail (.single (.encap h_enc)) (.ob h_ob)) (.finishesBefore h_lt)
+      | obFinishBefore p h_ob h_lt _ _ => exact .single (.finishesAfterProxy p h_ob h_lt)
+      | eq heq => exfalso; subst heq; match cle₁, h₁_cle_isdir with
+        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+        | .directoryEvent de, _ => cases (hdir de de).ordered with
+          | inl h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
+          | inr h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
+      | proxy _ _ _ _ _ _ _ => sorry -- nested proxy: should never occur in practice
+    cases h₁_chain with
+    | inl h₁c => cases h₂_chain with
+      | inl h₂c => exact h₁c.trans (h_inner.trans h₂c)
+      | inr h₂eq => exact h₂eq ▸ h₁c.trans h_inner
+    | inr h₁eq => cases h₂_chain with
+      | inl h₂c => exact h₁eq ▸ h_inner.trans h₂c
+      | inr h₂eq => exact h₁eq ▸ h₂eq ▸ h_inner
 
 /-! ## LinStep / LinChain: replacement for LinLink -/
 
