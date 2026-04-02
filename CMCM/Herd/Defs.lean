@@ -139,6 +139,19 @@ structure co (e₁ e₂ : Event n) : Prop where
   notDown₂ : ¬ e₂.down
   comm : co.ordering w₁_lin w₂_lin
 
+-- Abbreviation for the non-lazy PPOi hypothesis type.
+-- "diff-addr PPOi events have compoundLin₁ OB compoundLin₂"
+-- oStart ≤ oEnd for any event (from oWellFormed: oStart < oEnd).
+theorem Event.oStart_le_oEnd (e : Event n) : Event.oStart n e ≤ Event.oEnd n e :=
+  Nat.le_of_lt (Event.oWellFormed n e)
+
+abbrev NonLazyPPOi (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) : Prop :=
+  ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
+    (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
+      (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
+    (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
+      (compound.linearizationOfEvent b init a₂)).linearizationEvent
+
 /-! ## StepOrdering: ordering between linearization points -/
 
 /-- StepOrdering between linearization events (CLEs). Each edge derives

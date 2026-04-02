@@ -1325,11 +1325,7 @@ theorem fr_ordering_holds
 theorem step_to_ordering
     (h : com compound b init e₁ e₂)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
-      (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
-        (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
-      (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
-        (compound.linearizationOfEvent b init a₂)).linearizationEvent)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : @StepOrdering n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose := by
   cases h with
     | rfe h =>
@@ -1469,7 +1465,7 @@ private theorem stepOrdering_to_three {l₁ l₂ : Event n}
                 _ < de₁.oStart := h
                 _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
                 _ < Event.oStart n p := h_ob
-                _ ≤ Event.oEnd n p := Nat.le_of_lt (Event.oWellFormed n p)
+                _ ≤ Event.oEnd n p := Event.oStart_le_oEnd p
                 _ < de₂.oEnd := h_lt)
     · exact Or.inr (Or.inr h_prot)
   | encapOb p h_enc h_ob =>
@@ -1498,9 +1494,9 @@ private theorem stepOrdering_to_three {l₁ l₂ : Event n}
               (calc de₂.oEnd
                 _ < de₁.oStart := h
                 _ < Event.oStart n q := h_q_enc.left
-                _ ≤ Event.oEnd n q := Nat.le_of_lt (Event.oWellFormed n q)
+                _ ≤ Event.oEnd n q := Event.oStart_le_oEnd q
                 _ < Event.oStart n p := h_q_ob
-                _ ≤ Event.oEnd n p := Nat.le_of_lt (Event.oWellFormed n p)
+                _ ≤ Event.oEnd n p := Event.oStart_le_oEnd p
                 _ < de₂.oEnd := h_p_lt)
     · exact Or.inr (Or.inr h_prot)
 
@@ -1644,11 +1640,7 @@ private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂
     (hl₂ : l₂ = (hknow e₂).hreq's_dir_access.choose) (hl₃ : l₃ = (hknow e₃).hreq's_dir_access.choose)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h₁_isdir : l₁.isDirectoryEvent)
-    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
-      (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
-        (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
-      (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
-        (compound.linearizationOfEvent b init a₂)).linearizationEvent)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ ∨ l₃.OrderedBefore n l₁ := by
   -- Same-cluster: l₂.prot = l₃.prot → l₁ ≠ l₃ → .obFinishBefore via OB chain
   by_cases he₂₃ : e₂.protocol = e₃.protocol
@@ -1739,11 +1731,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     (hl₂ : l₂ = (hknow e₂).hreq's_dir_access.choose) (hl₃ : l₃ = (hknow e₃).hreq's_dir_access.choose)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h₁_isdir : l₁.isDirectoryEvent)
-    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
-      (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
-        (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
-      (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
-        (compound.linearizationOfEvent b init a₂)).linearizationEvent)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ ∨ l₃.OrderedBefore n l₁ := by
   -- Helper: extract e₂'s read/write from edge, check junction compatibility.
   -- hedge constrains e₂ from the CURRENT edge. h_prefix_edge from the PREFIX.
@@ -2252,11 +2240,7 @@ private theorem compose_compoundLinOrdering {e₁ e₂ e₃ : Event n}
 
 theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
-      (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
-        (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
-      (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
-        (compound.linearizationOfEvent b init a₂)).linearizationEvent)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
   intro e hcycle
   -- Use CLEs from hknow directly as linearization points.
@@ -2287,14 +2271,14 @@ theorem cmcm_acyclic_of_hknow
           _ < Event.oEnd n e₁' := h_enc₁.right
           _ < Event.oStart n e₂' := h_ob
           _ < Event.oStart n (cle e) := h_enc₂.left
-          _ ≤ Event.oEnd n (cle e) := Nat.le_of_lt (Event.oWellFormed n _))
+          _ ≤ Event.oEnd n (cle e) := Event.oStart_le_oEnd _)
       | proxyPair q p h_q_enc h_q_ob h_p_ob =>
         exact Nat.lt_irrefl _ (calc Event.oEnd n p
           _ < Event.oStart n (cle e) := h_p_ob
           _ < Event.oStart n q := h_q_enc.left
-          _ ≤ Event.oEnd n q := Nat.le_of_lt (Event.oWellFormed n q)
+          _ ≤ Event.oEnd n q := Event.oStart_le_oEnd q
           _ < Event.oStart n p := h_q_ob
-          _ ≤ Event.oEnd n p := Nat.le_of_lt (Event.oWellFormed n p))
+          _ ≤ Event.oEnd n p := Event.oStart_le_oEnd p)
       | encap henc => exact Nat.lt_irrefl _ henc.left
       | eq _ => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
       | _ =>
@@ -2338,11 +2322,7 @@ theorem cmcm_acyclic_of_hknow
 -- Main acyclicity theorem using CompoundLinOrdering.
 theorem cmcm_acyclic_of_hknow_compoundLinOrdering
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
-      (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
-        (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
-      (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
-        (compound.linearizationOfEvent b init a₂)).linearizationEvent)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
   intro e hcycle
   let R := (fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init
@@ -2392,11 +2372,7 @@ theorem transgen_union_find_right {R₁ R₂ : α → α → Prop}
     | inr h => exact Or.inr h
 
 theorem cmcm_acyclic
-    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
-      (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
-        (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
-      (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
-        (compound.linearizationOfEvent b init a₂)).linearizationEvent)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
   intro e hcycle
   -- The cycle is either pure PPOi or has at least one com edge.
@@ -2410,22 +2386,14 @@ theorem cmcm_acyclic
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
-    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b' a₁ a₂ → a₁.addr ≠ a₂.addr →
-      (cmp.compoundLinearizationEvent cmp.shimAxioms b' init' a₁
-        (cmp.linearizationOfEvent b' init' a₁)).linearizationEvent.OrderedBefore n
-      (cmp.compoundLinearizationEvent cmp.shimAxioms b' init' a₂
-        (cmp.linearizationOfEvent b' init' a₂)).linearizationEvent)
+    (h_non_lazy_ppoi : NonLazyPPOi cmp b' init')
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b' e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com cmp b' init') :=
   @cmcm_acyclic n cmp b' init' h_non_lazy_ppoi
 
 /-! ## PartialOrder (consequence of acyclicity) -/
 
 noncomputable def eventPartialOrder
-    (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
-      (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
-        (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
-      (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
-        (compound.linearizationOfEvent b init a₂)).linearizationEvent)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : PartialOrder (Event n) := by
   let R := (fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init
   have hacyclic := @cmcm_acyclic n compound b init h_non_lazy_ppoi
