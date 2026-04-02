@@ -155,6 +155,16 @@ theorem Event.ob_of_lt_lt {e₁ e₂ : Event n} {p : ℕ}
 
 /-! ## LinLink: ordering between linearization points -/
 
+-- Base temporal relations between events.
+inductive TemporalRel {n : ℕ} : Event n → Event n → Prop
+| ob : l₁.OrderedBefore n l₂ → TemporalRel l₁ l₂
+| encap : l₁.Encapsulates n l₂ → TemporalRel l₁ l₂
+| encapBy : l₁.EncapsulatedBy n l₂ → TemporalRel l₁ l₂
+| finishesBefore : Event.oEnd n l₁ < Event.oEnd n l₂ → TemporalRel l₁ l₂
+| finishesAfterProxy (p : Event n) : p.OrderedBefore n l₂ → Event.oEnd n p < Event.oEnd n l₁ → TemporalRel l₁ l₂
+
+-- LinLink.subset_temporalRel theorem is defined after LinLink.
+
 /-- LinLink between linearization events (CLEs). Each edge derives
     `LinLink CLE₁ CLE₂` from communication evidence. A cycle gives
     `LinLink CLE CLE → False` via irreflexivity. -/
@@ -193,6 +203,41 @@ inductive LinLink : Event n → Event n → Prop where
   | encapObEndLt (q p : Event n) (h_q_enc : q.EncapsulatedBy n l₁)
       (h_q_ob_p : q.OrderedBefore n p) (h_p_lt : Event.oEnd n p < Event.oEnd n l₂)
       (h_p_isdir : p.isDirectoryEvent) : LinLink l₁ l₂
+
+-- LinLink is an irreflexive transitive subset of TransGen TemporalRel.
+-- Every LinLink can be decomposed into a chain of base temporal steps.
+theorem LinLink.subset_temporalRel {l₁ l₂ : Event n}
+    (h : LinLink l₁ l₂)
+    (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    : Relation.TransGen TemporalRel l₁ l₂ := by
+  cases h with
+  | ob h => exact .single (.ob h)
+  | encap h => exact .single (.encap h)
+  | encapOb p h_enc h_ob =>
+    -- l₁ encapsulates p (h_enc : p EncBy l₁ = l₁ Encap p), p OB l₂.
+    exact .tail (.single (.encap h_enc)) (.ob h_ob)
+  | obEndLt p h_ob h_lt _ =>
+    exact .tail (.single (.ob h_ob)) (.finishesBefore h_lt)
+  | proxyPair q p h_enc h_ob h_ob₂ =>
+    -- l₁ encapsulates q, q OB p, p OB l₂.
+    exact .tail (.tail (.single (.encap h_enc)) (.ob h_ob)) (.ob h_ob₂)
+  | sameLin e₁' e₂' _ h_enc₁ h_ob h_enc₂ =>
+    -- l₁ inside e₁' (l₁ EncBy e₁' = e₁' Encap l₁), e₁' OB e₂', l₂ inside e₂' (e₂' Encap l₂).
+    exact .tail (.tail (.single (.encapBy h_enc₁)) (.ob h_ob)) (.encap h_enc₂)
+  | encapObEndLt q p h_enc h_ob h_lt _ =>
+    exact .tail (.tail (.single (.encap h_enc)) (.ob h_ob)) (.finishesBefore h_lt)
+  | obFinishBefore p h_ob h_lt h_diff h_isdir =>
+    exact .single (.finishesAfterProxy p h_ob h_lt)
+  | eq heq =>
+    -- l₁ = l₂ with both dir events → dir_ordered de de → de OB de → False (vacuous).
+    exfalso; subst heq
+    match l₁, h₁_isdir with
+    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+    | .directoryEvent de, _ =>
+      cases (hdir de de).ordered with
+      | inl h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
+      | inr h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
 
 /-! ## LinStep / LinChain: replacement for LinLink -/
 
