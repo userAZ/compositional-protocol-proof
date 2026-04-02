@@ -1787,19 +1787,24 @@ theorem cle_to_compoundLinOrdering
             -- An NC weak write on SW: the state transition leaves it at... hmm.
             -- Actually, isNcRelAcqWeakWrite might be an impossible request type.
             -- Let me check: isNcRelAcqWeakWrite = non-coherent ∧ (release ∨ acquire) ∧ weak ∧ write.
-            -- With coherent state (c=true on state). But this might just work per the protocol...
-            sorry
+            -- reqMadeOnCoherentState: stateBefore.cache.c = true.
+            -- hweak.reqOnOrAfterVd: stateBefore.cache = Vd ∨ stateAfter.cache = Vd.
+            -- Vd.c = false. If stateBefore = Vd: c = false contradicts c = true.
+            cases hweak.reqOnOrAfterVd with
+            | inl h_before_vd =>
+              -- stateBefore.cache = Vd. reqMadeOnCoherentState = stateBefore.cache.c = Vd.c = false.
+              -- But h_perms_coh.onCoherentState says it's true.
+              have : (b.stateReqMadeOn n init e₂).c = false := by
+                simp [Behaviour.stateReqMadeOn, h_before_vd, Vd]
+              exact absurd h_perms_coh.onCoherentState (by simp [Behaviour.reqMadeOnCoherentState, this])
+            | inr h_after_vd => sorry -- stateAfter = Vd, write on coherent state
           | ncWeakReadHasPermsNotVd h_wr h_not_vd =>
-            -- h_not_vd.notOnVd : stateReqMadeOn ≠ Vd.
-            -- ncWeakReqOnVd.reqOnOrAfterVd: stateBefore.cache = Vd ∨ stateAfter.cache = Vd.
-            -- stateReqMadeOn = (stateBefore).cache. If = Vd → contradicts notOnVd.
-            -- If stateAfter = Vd but stateBefore ≠ Vd: notOnVd is satisfied, no contradiction.
-            -- But wait: isNcWeakRead AND stateBefore ≠ Vd AND stateAfter = Vd.
-            -- An NC weak read on a non-Vd state that transitions to Vd...
-            -- A read doesn't change state to Vd (reads don't modify data).
-            -- Vd means "valid dirty" = data was modified. A READ can't create dirty state.
-            -- This is a protocol invariant — but might not be directly available as an axiom.
-            sorry
+            -- h_not_vd.notOnVd : stateReqMadeOn ≠ Vd = stateBefore.cache ≠ Vd.
+            -- hweak.reqOnOrAfterVd : stateBefore.cache = Vd ∨ stateAfter.cache = Vd.
+            -- First disjunct contradicts notOnVd.
+            cases hweak.reqOnOrAfterVd with
+            | inl h_before_vd => exact absurd h_before_vd h_not_vd.notOnVd
+            | inr h_after_vd => sorry -- stateAfter = Vd but stateBefore ≠ Vd (read can't create Vd)
   exact .proxy _ _ h_saved
     lin₁.hreq's_dir_access.choose_spec.right.isDirEvent
     lin₂.hreq's_dir_access.choose_spec.right.isDirEvent
