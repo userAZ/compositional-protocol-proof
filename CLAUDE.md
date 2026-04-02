@@ -123,6 +123,16 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **`compoundLin` refactor breaks `dir_ordered` fallback**: `dir_ordered` requires BOTH events to be directory events. CLEs are always directory events (by construction). But `compoundLin e` can be a cache event (when `requestLin`: the event has perms, so it linearizes at the cache, not the directory). This means `compose_three`'s universal fallback wouldn't work. The CLE-based approach is correct for the Herd proof.
 - **CO ≠ RF carbon copy**: `readsFrom.cases` and `NoInterveningWrites` require `isRead` for the second event. CO has two writes. A CO theorem needs its own types (`co.ordering` is already defined). Don't blindly copy RF infrastructure for CO.
 
+### Key architectural insight: Why proxy constructors exist
+
+The compoundLin lifting needs to express ordering between compoundLin events that are on DIFFERENT temporal sides of their CLEs. For `orderAfterDir` (ob_cle): compoundLin is BEFORE its CLE. For `orderBeforeDir` (cle_ob): compoundLin is AFTER its CLE. When two compoundLin events are both before their respective CLEs (`ob_cle + ob_cle`), their CLEs are ordered (`CLE₁ OB CLE₂`) but the compoundLin events are NOT directly ordered — both end before `CLE₂.oStart` but in unknown relative order.
+
+The CLE proof avoids this because CLEs ARE the ordering events. The compoundLin proof hits it because compoundLin events can be temporally displaced from their CLEs.
+
+The proxy constructors (`obProxy`, `stepProxyL/R`, `obStepL`) solve this by storing CLE references and CLE-level StepOrdering inside the compoundLin-level StepOrdering. But they pollute the shared `StepOrdering` type and create sorry's in `stepOrdering_to_three` (which can't decompose proxy constructors into `LinLink`).
+
+**Clean solution**: Keep proxy constructors OUT of `StepOrdering`. Use them in a wrapper or handle the hard cases differently in the compoundLin proof.
+
 ## Detailed documentation (read when needed)
 - `docs/compose-three-analysis.md` — Detailed sorry analysis, junction compatibility table, protocol extraction patterns
 - `docs/dead-ends.md` — Failed approaches and WHY they failed (proxy protocol, temporal measures, LinLink+EncapBy, etc.)
