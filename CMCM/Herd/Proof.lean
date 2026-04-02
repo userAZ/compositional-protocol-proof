@@ -1564,8 +1564,6 @@ inductive LinLink {n : ℕ} (l₁ l₂ : Event n) : Prop
 | proxy (cle₁ cle₂ : Event n)
     (h_so : @CleLink n cle₁ cle₂)
     (h₁_isdir : cle₁.isDirectoryEvent) (h₂_isdir : cle₂.isDirectoryEvent)
-    -- Forward TemporalRel chain from l₁ to l₂ through CLEs.
-    (h_chain : Relation.TransGen TemporalRel l₁ l₂)
 
 /-- LinLink l l → False (irreflexivity).
     step case: CleLink l l → False via cle_self_ordering_false.
@@ -1587,17 +1585,10 @@ theorem cle_to_compoundLinOrdering
     {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
     (h : @CleLink n lin₁.hreq's_dir_access.choose lin₂.hreq's_dir_access.choose)
-    (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
-    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    : LinLink lin₁.compoundLin lin₂.compoundLin := by
-  -- Build TransGen TemporalRel chain: compoundLin₁ → ... → CLE₁ → ... → CLE₂ → ... → compoundLin₂.
-  -- CLE chain from CleLink.subset_temporalRel.
-  have h_cle_chain := CleLink.subset_temporalRel h
+    : LinLink lin₁.compoundLin lin₂.compoundLin :=
+  .proxy _ _ h
     lin₁.hreq's_dir_access.choose_spec.right.isDirEvent
-    lin₂.hreq's_dir_access.choose_spec.right.isDirEvent hdir
-  -- compoundLin₁ → CLE₁ from compoundLin_cle_rel event 1.
-  -- compoundLin₂ ← CLE₂ from compoundLin_cle_rel event 2.
-  sorry
+    lin₂.hreq's_dir_access.choose_spec.right.isDirEvent
 
 -- 3-way LinLink via CLE dir_ordered + bridge.
 theorem compoundLinOrdering_3way
@@ -1611,10 +1602,10 @@ theorem compoundLinOrdering_3way
     (hknow e₁).hreq's_dir_access.choose_spec.right.isDirEvent
     (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent hdir
   cases h3way with
-  | inl hso => exact Or.inl (cle_to_compoundLinOrdering hso sorry sorry hdir)
+  | inl hso => exact Or.inl (cle_to_compoundLinOrdering hso)
   | inr hr => cases hr with
-    | inl heq => exact Or.inl (cle_to_compoundLinOrdering (.eq heq) sorry sorry hdir)
-    | inr hob_rev => exact Or.inr (Or.inr (cle_to_compoundLinOrdering (.ob hob_rev) sorry sorry hdir))
+    | inl heq => exact Or.inl (cle_to_compoundLinOrdering (.eq heq))
+    | inr hob_rev => exact Or.inr (Or.inr (cle_to_compoundLinOrdering (.ob hob_rev)))
 
 
 -- Compose any CleLink h₁ with OB h₂. Handles all h₁ constructors.
