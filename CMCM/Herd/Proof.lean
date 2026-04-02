@@ -1564,17 +1564,6 @@ inductive LinLink {n : ℕ} (l₁ l₂ : Event n) : Prop
 | proxy (cle₁ cle₂ : Event n)
     (h_so : @CleLink n cle₁ cle₂)
     (h₁_isdir : cle₁.isDirectoryEvent) (h₂_isdir : cle₂.isDirectoryEvent)
-    (h_chain : Relation.TransGen TemporalRel l₁ l₂)
-
--- LinLink is a transitive irreflexive subset of TransGen TemporalRel.
-theorem LinLink.subset_temporalRel {l₁ l₂ : Event n}
-    (h : LinLink l₁ l₂)
-    (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
-    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    : Relation.TransGen TemporalRel l₁ l₂ := by
-  cases h with
-  | step h => exact CleLink.subset_temporalRel h h₁_isdir h₂_isdir hdir
-  | proxy _ _ _ _ _ h_chain => exact h_chain
 
 /-- LinLink l l → False (irreflexivity).
     step case: CleLink l l → False via cle_self_ordering_false.
@@ -1596,219 +1585,10 @@ theorem cle_to_compoundLinOrdering
     {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
     (h : @CleLink n lin₁.hreq's_dir_access.choose lin₂.hreq's_dir_access.choose)
-    (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
-    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    : LinLink lin₁.compoundLin lin₂.compoundLin := by
-  have h_saved := h  -- Save h before it gets consumed by cases
-  have h_cle_chain := CleLink.subset_temporalRel h
-    lin₁.hreq's_dir_access.choose_spec.right.isDirEvent
-    lin₂.hreq's_dir_access.choose_spec.right.isDirEvent hdir
-  have hrel₁ := lin₁.compoundLin_cle h₁_notdown
-  have hrel₂ := lin₂.compoundLin_cle h₂_notdown
-  -- Build chain: compoundLin₁ → ... → CLE₁ → ... → CLE₂ → ... → compoundLin₂.
-  -- Event 1: prepend compoundLin₁ → CLE₁ (or skip if eq).
-  have h_from₁ : Relation.TransGen TemporalRel lin₁.compoundLin lin₂.hreq's_dir_access.choose := by
-    cases hrel₁ with
-    | eq ha₁ => exact ha₁ ▸ h_cle_chain
-    | compoundLin_inside_cle ha₁ => exact (Relation.TransGen.single (.encapBy ha₁)).trans h_cle_chain
-    | compoundLin_ob_cle ha₁ => exact (Relation.TransGen.single (.ob ha₁)).trans h_cle_chain
-    | cle_ob_compoundLin ha₁ =>
-      -- CLE₁ OB compoundLin₁ means CLE₁.oEnd < compoundLin₁.oStart.
-      -- Key derived fact: CLE₁.oEnd < compoundLin₁.oEnd.
-      have h_cle1_end_lt : Event.oEnd n lin₁.hreq's_dir_access.choose < Event.oEnd n lin₁.compoundLin :=
-        Nat.lt_trans ha₁ (Event.oWellFormed n lin₁.compoundLin)
-      -- Case-split on h (the CleLink) to extract a proxy for finishesAfterProxy.
-      cases h with
-      | ob h_ob =>
-        -- Proxy = CLE₁, CLE₁ OB CLE₂, CLE₁.oEnd < compoundLin₁.oEnd.
-        exact .single (.finishesAfterProxy _ h_ob h_cle1_end_lt)
-      | obEndLt p h_ob h_lt _ =>
-        -- CLE₁ OB p, p.oEnd < CLE₂.oEnd.
-        -- Step 1: finishesAfterProxy CLE₁ (CLE₁ OB p) → compoundLin₁ → p.
-        -- Step 2: finishesBefore (p.oEnd < CLE₂.oEnd) → p → CLE₂.
-        exact .tail (.single (.finishesAfterProxy _ h_ob h_cle1_end_lt)) (.finishesBefore h_lt)
-      | encapOb p h_enc h_ob =>
-        -- p EncapsulatedBy CLE₁ → p.oEnd < CLE₁.oEnd. p OB CLE₂.
-        have h_p_end_lt : Event.oEnd n p < Event.oEnd n lin₁.compoundLin :=
-          Nat.lt_trans h_enc.right h_cle1_end_lt
-        exact .single (.finishesAfterProxy p h_ob h_p_end_lt)
-      | obFinishBefore p h_ob h_lt _ _ =>
-        -- p OB CLE₂, p.oEnd < CLE₁.oEnd → p.oEnd < compoundLin₁.oEnd.
-        have h_p_end_lt : Event.oEnd n p < Event.oEnd n lin₁.compoundLin :=
-          Nat.lt_trans h_lt h_cle1_end_lt
-        exact .single (.finishesAfterProxy p h_ob h_p_end_lt)
-      | proxyPair q p h_enc h_ob_qp h_ob_p =>
-        -- q EncBy CLE₁ → q.oEnd < CLE₁.oEnd. q OB p OB CLE₂.
-        have h_q_end_lt : Event.oEnd n q < Event.oEnd n lin₁.compoundLin :=
-          Nat.lt_trans h_enc.right h_cle1_end_lt
-        exact .single (.finishesAfterProxy q (Trans.trans h_ob_qp h_ob_p) h_q_end_lt)
-      | sameLin e₁' e₂' h_eq _ _ _ =>
-        -- CLE₁ = CLE₂. Both dir events → dir_ordered de de → exfalso.
-        exfalso
-        have h₁_isdir := lin₁.hreq's_dir_access.choose_spec.right.isDirEvent
-        rw [h_eq] at h₁_isdir
-        match lin₂.hreq's_dir_access.choose, h₁_isdir with
-        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-        | .directoryEvent de, _ =>
-          cases (hdir de de).ordered with
-          | inl h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
-          | inr h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
-      | eq h_eq =>
-        -- CLE₁ = CLE₂. Same as sameLin — exfalso from dir_ordered.
-        exfalso
-        have h₁_isdir := lin₁.hreq's_dir_access.choose_spec.right.isDirEvent
-        rw [h_eq] at h₁_isdir
-        match lin₂.hreq's_dir_access.choose, h₁_isdir with
-        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-        | .directoryEvent de, _ =>
-          cases (hdir de de).ordered with
-          | inl h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
-          | inr h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
-      | encap h_enc =>
-        -- CLE₁ Encapsulates CLE₂. Both dir events → dir_ordered gives OB, contradicts Encapsulates.
-        exfalso
-        have h₁_isdir := lin₁.hreq's_dir_access.choose_spec.right.isDirEvent
-        have h₂_isdir := lin₂.hreq's_dir_access.choose_spec.right.isDirEvent
-        match lin₁.hreq's_dir_access.choose, h₁_isdir, h_enc with
-        | .cacheEvent _, hh, _ => simp [Event.isDirectoryEvent] at hh
-        | .directoryEvent de₁, _, h_enc =>
-          match lin₂.hreq's_dir_access.choose, h₂_isdir, h_enc with
-          | .cacheEvent _, hh, _ => simp [Event.isDirectoryEvent] at hh
-          | .directoryEvent de₂, _, h_enc =>
-            -- h_enc : (.directoryEvent de₁).Encapsulates n (.directoryEvent de₂)
-            -- = de₁.oStart < de₂.oStart ∧ de₂.oEnd < de₁.oEnd (after reduction).
-            simp [Event.Encapsulates, Event.oStart, Event.oEnd] at h_enc
-            cases (hdir de₁ de₂).ordered with
-            | inl hob =>
-              exact Nat.lt_irrefl _ (Nat.lt_trans hob (Nat.lt_trans de₂.oWellFormed h_enc.right))
-            | inr hob =>
-              exact Nat.lt_irrefl _ (Nat.lt_trans hob (Nat.lt_trans h_enc.left de₂.oWellFormed))
-      | encapObEndLt q p h_enc h_ob h_lt _ =>
-        -- q EncBy CLE₁ → q.oEnd < CLE₁.oEnd. q OB p, p.oEnd < CLE₂.oEnd.
-        -- Step 1: finishesAfterProxy q (q OB p) (q.oEnd < compoundLin₁.oEnd) → compoundLin₁ → p.
-        -- Step 2: finishesBefore (p.oEnd < CLE₂.oEnd) → p → CLE₂.
-        have h_q_end_lt : Event.oEnd n q < Event.oEnd n lin₁.compoundLin :=
-          Nat.lt_trans h_enc.right h_cle1_end_lt
-        exact .tail (.single (.finishesAfterProxy q h_ob h_q_end_lt)) (.finishesBefore h_lt)
-  -- Event 2: append CLE₂ → compoundLin₂ (or skip if eq).
-  have h_full : Relation.TransGen TemporalRel lin₁.compoundLin lin₂.compoundLin := by
-    cases hrel₂ with
-    | eq ha₂ => exact ha₂ ▸ h_from₁
-    | cle_ob_compoundLin ha₂ => exact h_from₁.trans (Relation.TransGen.single (.ob ha₂))
-    | compoundLin_inside_cle ha₂ => exact h_from₁.trans (Relation.TransGen.single (.encap ha₂))
-    | compoundLin_ob_cle ha₂ =>
-      -- compoundLin₂ OB CLE₂. Show this is vacuous by case-splitting on linearizationOfEvent.
-      exfalso
-      cases hlin₂ : compound.linearizationOfEvent b init e₂ with
-      | dirLin hd =>
-        -- For dirLin, compoundLin_cle_of_dirLin gives only eq or inside.
-        have h_dir_rel := lin₂.compoundLin_cle_of_dirLin h₂_notdown hlin₂
-        cases h_dir_rel with
-        | inl heq =>
-          -- compoundLin₂ = CLE₂ → CLE₂ OB CLE₂ → lt_irrefl.
-          rw [heq] at ha₂
-          exact Event.contradiction_of_reflexive_ordered_before n ha₂
-        | inr h_inside =>
-          -- compoundLin₂ inside CLE₂: CLE₂.oStart < compoundLin₂.oStart.
-          -- ha₂: compoundLin₂.oEnd < CLE₂.oStart.
-          -- h_inside.1 : compoundLin₂.EncapsulatedBy CLE₂ = CLE₂.Encapsulates compoundLin₂
-          -- = CLE₂.oStart < compoundLin₂.oStart ∧ compoundLin₂.oEnd < CLE₂.oEnd
-          -- Chain: compoundLin₂.oEnd < CLE₂.oStart < compoundLin₂.oStart < compoundLin₂.oEnd → False.
-          have : Event.oEnd n lin₂.compoundLin < Event.oEnd n lin₂.compoundLin :=
-            Nat.lt_trans (Nat.lt_trans ha₂ h_inside.1.left) (Event.oWellFormed n lin₂.compoundLin)
-          exact Nat.lt_irrefl _ this
-      | requestLin hreqlin =>
-        -- compoundLin₂ = e₂ (via compoundLin_eq_event_of_requestLin).
-        have h_cl_eq := lin₂.compoundLin_eq_event_of_requestLin hlin₂
-        rw [h_cl_eq] at ha₂
-        -- ha₂ : e₂ OB CLE₂. reqHasPerms from requestLin.
-        have h_reqHasPerms := hreqlin.choose_spec.2.reqHasPerms
-        -- Case-split on lin₂'s dirAccessOfRequest.
-        cases hda₂ : lin₂.hreq's_dir_access.choose_spec.2 with
-        | encapDir hno_perms _ =>
-          exact absurd h_reqHasPerms (reqHasPerms_not_reqMissingPerms hno_perms h₂_notdown)
-        | orderBeforeDir _ hexists_pred hpred_accesses_dir _ _ _ _ _ =>
-          -- CLE₂ is at predecessor's dir event. CLE₂ OB e₂.
-          have hcle_ob_e₂ : lin₂.hreq's_dir_access.choose.OrderedBefore n e₂ :=
-            Nat.lt_trans hpred_accesses_dir.reqEncapDir.right
-              hexists_pred.choose_spec.2.isImmPred.bPred.isPred
-          -- ha₂ : e₂ OB CLE₂, hcle_ob_e₂ : CLE₂ OB e₂ → contradiction.
-          exact Event.contradiction_of_ordered_both_ways n hcle_ob_e₂ ha₂
-        | orderAfterDir hweak hsucc_encap _ _ =>
-          -- e₂ OB successor, CLE₂ inside successor → e₂ OB CLE₂.
-          -- This is the SAME direction as ha₂ — not directly contradictory.
-          -- But reqHasPerms contradicts ncWeakReqOnVd.
-          -- Case-split on reqHasPerms constructors.
-          cases h_reqHasPerms with
-          | hasPerms h_coh _ =>
-            -- isCoherent contradicts isNcWeak (non-coherent).
-            -- isCoherent: ce.req.val.coherent (= true).
-            -- isNcWeak.1 = isNonCoherent: ¬ ce.req.val.coherent.
-            have h_nc : Event.isNonCoherent n e₂ := hweak.weakReq.left
-            have h_coh' : Event.isCoherent n e₂ := h_coh
-            -- isCoherent is ce.req.val.isCoherent = ce.req.val.coherent (Bool coercion to Prop).
-            -- isNonCoherent is ¬ ce.req.val.coherent.
-            -- These directly contradict: coherent = true ∧ ¬ coherent.
-            match e₂ with
-            | .cacheEvent ce =>
-              simp [Event.isCoherent, Event.isNonCoherent, ValidRequest.isCoherent,
-                    Request.isCoherent] at h_coh' h_nc
-              -- h_coh' : coherent = true, h_nc : coherent = false.
-              rw [h_coh'] at h_nc; exact Bool.noConfusion h_nc
-            | .directoryEvent _ =>
-              simp [Event.isCoherent] at h_coh'
-          | ncRelAcqWeakWriteHasCoherentPerms _ h_perms_coh =>
-            -- reqHasPermsOnCoherentState.isCoherent requires stateReqMadeOn.c = true.
-            -- ncWeakReqOnVd.reqOnOrAfterVd: stateBefore.cache = Vd ∨ stateAfter.cache = Vd.
-            -- Need stateBefore.cache = Vd to contradict isCoherent.
-            -- The successor's stateBeforeAsVd gives succ's state before = Vd.
-            -- The successor is the IMMEDIATE bottom successor of e₂ on Vd.
-            -- immBottomSuccOnVdEncapCorrDir → successor satisfies succOnVdWithCorrespondingDir
-            -- → reqOnVdWithCorrespondingDir → stateBeforeAsVd : (stateBefore succ) = VdEntry.
-            -- Since succ is immediate bottom successor of e₂ on the SAME entry,
-            -- e₂'s stateAfter should relate to succ's stateBefore.
-            -- Actually: ncWeakReqOnVd has reqOnOrAfterVd.
-            -- For orderAfterDir in dirAccessOfRequest, the pattern is:
-            -- e₂ is on Vd (stateBefore = Vd), so stateReqMadeOn = Vd, Vd.c = false.
-            -- This contradicts isCoherent.
-            -- But reqOnOrAfterVd is a disjunction...
-            -- Use the STRONGER evidence from immBottomSuccOnVdEncapCorrDir:
-            -- The successor e_succ satisfies reqOnVdWithCorrespondingDir which requires
-            -- stateBeforeAsVd. If e_succ is immediate bottom successor of e₂,
-            -- and the successor's stateBefore = VdEntry, then since no events intervene
-            -- between e₂ and e_succ (immediate), e₂'s stateAfter = e_succ's stateBefore = VdEntry.
-            -- So stateAfter of e₂ = Vd. Combined with reqOnOrAfterVd, at least one holds.
-            -- But for the coherent state contradiction, we need stateBefore = Vd...
-            -- Try: the reqOnOrAfterVd from ncWeakReqOnVd + isNcRelAcqWeakWrite analysis.
-            -- isNcRelAcqWeakWrite: non-coherent request. On coherent state (h_perms_coh.isCoherent).
-            -- An NC request on a coherent state can only be if the state is SW or MR (coherent=true).
-            -- If stateBefore is SW/MR (coherent=true), stateAfter could become Vd.
-            -- But isNcRelAcqWeakWrite is a non-coherent release/acquire weak WRITE.
-            -- An NC weak write on SW: the state transition leaves it at... hmm.
-            -- Actually, isNcRelAcqWeakWrite might be an impossible request type.
-            -- Let me check: isNcRelAcqWeakWrite = non-coherent ∧ (release ∨ acquire) ∧ weak ∧ write.
-            -- reqMadeOnCoherentState: stateBefore.cache.c = true.
-            -- hweak.reqOnOrAfterVd: stateBefore.cache = Vd ∨ stateAfter.cache = Vd.
-            -- Vd.c = false. If stateBefore = Vd: c = false contradicts c = true.
-            cases hweak.reqOnOrAfterVd with
-            | inl h_before_vd =>
-              -- stateBefore.cache = Vd. reqMadeOnCoherentState = stateBefore.cache.c = Vd.c = false.
-              -- But h_perms_coh.onCoherentState says it's true.
-              have : (b.stateReqMadeOn n init e₂).c = false := by
-                simp [Behaviour.stateReqMadeOn, h_before_vd, Vd]
-              exact absurd h_perms_coh.onCoherentState (by simp [Behaviour.reqMadeOnCoherentState, this])
-            | inr h_after_vd => sorry -- stateAfter = Vd, write on coherent state
-          | ncWeakReadHasPermsNotVd h_wr h_not_vd =>
-            -- h_not_vd.notOnVd : stateReqMadeOn ≠ Vd = stateBefore.cache ≠ Vd.
-            -- hweak.reqOnOrAfterVd : stateBefore.cache = Vd ∨ stateAfter.cache = Vd.
-            -- First disjunct contradicts notOnVd.
-            cases hweak.reqOnOrAfterVd with
-            | inl h_before_vd => exact absurd h_before_vd h_not_vd.notOnVd
-            | inr h_after_vd => sorry -- stateAfter = Vd but stateBefore ≠ Vd (read can't create Vd)
-  exact .proxy _ _ h_saved
+    : LinLink lin₁.compoundLin lin₂.compoundLin :=
+  .proxy _ _ h
     lin₁.hreq's_dir_access.choose_spec.right.isDirEvent
     lin₂.hreq's_dir_access.choose_spec.right.isDirEvent
-    h_full
 
 -- 3-way LinLink via CLE dir_ordered + bridge.
 theorem compoundLinOrdering_3way
@@ -1822,10 +1602,10 @@ theorem compoundLinOrdering_3way
     (hknow e₁).hreq's_dir_access.choose_spec.right.isDirEvent
     (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent hdir
   cases h3way with
-  | inl hso => exact Or.inl (cle_to_compoundLinOrdering hso sorry sorry hdir)
+  | inl hso => exact Or.inl (cle_to_compoundLinOrdering hso)
   | inr hr => cases hr with
-    | inl heq => exact Or.inl (cle_to_compoundLinOrdering (.eq heq) sorry sorry hdir)
-    | inr hob_rev => exact Or.inr (Or.inr (cle_to_compoundLinOrdering (.ob hob_rev) sorry sorry hdir))
+    | inl heq => exact Or.inl (cle_to_compoundLinOrdering (.eq heq))
+    | inr hob_rev => exact Or.inr (Or.inr (cle_to_compoundLinOrdering (.ob hob_rev)))
 
 
 -- Compose any CleLink h₁ with OB h₂. Handles all h₁ constructors.
