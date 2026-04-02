@@ -153,7 +153,7 @@ theorem Event.ob_of_lt_lt {e₁ e₂ : Event n} {p : ℕ}
     (h₁ : Event.oEnd n e₁ < p) (h₂ : p < Event.oStart n e₂)
     : e₁.OrderedBefore n e₂ := Nat.lt_trans h₁ h₂
 
-/-! ## LinLink: ordering between linearization points -/
+/-! ## CleLink: ordering between linearization points -/
 
 -- Base temporal relations between events.
 inductive TemporalRel {n : ℕ} : Event n → Event n → Prop
@@ -163,59 +163,51 @@ inductive TemporalRel {n : ℕ} : Event n → Event n → Prop
 | finishesBefore : Event.oEnd n l₁ < Event.oEnd n l₂ → TemporalRel l₁ l₂
 | finishesAfterProxy (p : Event n) : p.OrderedBefore n l₂ → Event.oEnd n p < Event.oEnd n l₁ → TemporalRel l₁ l₂
 
--- LinLink.subset_temporalRel theorem is defined after LinLink.
+-- CleLink.subset_temporalRel theorem is defined after CleLink.
 
-/-- LinLink between linearization events (CLEs). Each edge derives
-    `LinLink CLE₁ CLE₂` from communication evidence. A cycle gives
-    `LinLink CLE CLE → False` via irreflexivity. -/
-inductive LinLink : Event n → Event n → Prop where
-  | ob (h : l₁.OrderedBefore n l₂) : LinLink l₁ l₂
+/-- CleLink between linearization events (CLEs). Each edge derives
+    `CleLink CLE₁ CLE₂` from communication evidence. A cycle gives
+    `CleLink CLE CLE → False` via irreflexivity. -/
+inductive CleLink : Event n → Event n → Prop where
+  | ob (h : l₁.OrderedBefore n l₂) : CleLink l₁ l₂
   | obEndLt (p : Event n) (h_ob : l₁.OrderedBefore n p) (h_lt : Event.oEnd n p < Event.oEnd n l₂)
-      (h_p_isdir : p.isDirectoryEvent) : LinLink l₁ l₂
+      (h_p_isdir : p.isDirectoryEvent) : CleLink l₁ l₂
   /-- Encap-then-OB: p inside l₁, p before l₂.
       Irrefl: p inside l₁ = l₂ and p OB l₂ → p.oEnd < l₂.oStart < p.oStart → False. -/
   | encapOb (p : Event n) (h_enc : p.EncapsulatedBy n l₁) (h_ob : p.OrderedBefore n l₂)
-      : LinLink l₁ l₂
+      : CleLink l₁ l₂
   /-- OB-then-finishBefore: p before l₂, p finishes before l₁.
       For cross-cluster FR with gcacheEncap/noGlobalCache: d_rf OB CLE₂ and d_rf.oEnd < CLE₁.oEnd.
       Not irreflexive alone — requires composition with other edges in a cycle. -/
   | obFinishBefore (p : Event n) (h_ob : p.OrderedBefore n l₂) (h_lt : Event.oEnd n p < Event.oEnd n l₁)
       (h_diff_prot : l₁.protocol ≠ l₂.protocol) (h_p_isdir : p.isDirectoryEvent)
-      : LinLink l₁ l₂
+      : CleLink l₁ l₂
   | sameLin (e₁' e₂' : Event n) (h_eq : l₁ = l₂)
       (h_enc₁ : l₁.EncapsulatedBy n e₁') (h_ob : e₁'.OrderedBefore n e₂')
-      (h_enc₂ : l₂.EncapsulatedBy n e₂') : LinLink l₁ l₂
+      (h_enc₂ : l₂.EncapsulatedBy n e₂') : CleLink l₁ l₂
   /-- Two-proxy chain: q inside l₁, q OB p, p OB l₂.
       For compositions of encapOb/obFinishBefore with obEndLt/encapOb/obFinishBefore.
       Irrefl: q inside l, q OB p, p OB l → p.oEnd < l.oStart < q.oStart → p.oEnd < q.oStart
       and q.oEnd < p.oStart → contradiction. -/
   | proxyPair (q p : Event n) (h_q_enc : q.EncapsulatedBy n l₁)
-      (h_q_ob_p : q.OrderedBefore n p) (h_p_ob : p.OrderedBefore n l₂) : LinLink l₁ l₂
-  | eq (h_eq : l₁ = l₂) : LinLink l₁ l₂
+      (h_q_ob_p : q.OrderedBefore n p) (h_p_ob : p.OrderedBefore n l₂) : CleLink l₁ l₂
+  | eq (h_eq : l₁ = l₂) : CleLink l₁ l₂
   /-- l₁ encapsulates l₂: l₁.oStart < l₂.oStart ∧ l₂.oEnd < l₁.oEnd.
       Irrefl: l encapsulates l → l.oStart < l.oStart → False.
       For compoundLin lifting: when CLE₁ = CLE₂ and compoundLin₂ inside CLE₂ = compoundLin₁. -/
-  | encap (h_enc : l₁.Encapsulates n l₂) : LinLink l₁ l₂
+  | encap (h_enc : l₁.Encapsulates n l₂) : CleLink l₁ l₂
   /-- Encap-then-OB-then-oEnd: q inside l₁, q OB p, p.oEnd < l₂.oEnd.
       Composition of encapOb/proxyPair with obEndLt.
       Irrefl via dir_ordered: l₂ OB l₁ gives chain l₂.oEnd < l₁.oStart < q.oStart ≤
       q.oEnd < p.oStart ≤ p.oEnd < l₂.oEnd → l₂.oEnd < l₂.oEnd → False. -/
   | encapObEndLt (q p : Event n) (h_q_enc : q.EncapsulatedBy n l₁)
       (h_q_ob_p : q.OrderedBefore n p) (h_p_lt : Event.oEnd n p < Event.oEnd n l₂)
-      (h_p_isdir : p.isDirectoryEvent) : LinLink l₁ l₂
-  /-- Ordering through CLE proxies: CLE₁ and CLE₂ have LinLink, both are directory events.
-      For compoundLin lifting: compoundLin events linked through their CLEs.
-      The inner LinLink is between CLEs (always base constructors, never proxy). -/
-  | proxy (cle₁ cle₂ : Event n) (h_so : LinLink cle₁ cle₂)
-      (h₁_isdir : cle₁.isDirectoryEvent) (h₂_isdir : cle₂.isDirectoryEvent)
-      (h₁_chain : Relation.TransGen TemporalRel l₁ cle₁ ∨ l₁ = cle₁)
-      (h₂_chain : Relation.TransGen TemporalRel cle₂ l₂ ∨ l₂ = cle₂)
-      : LinLink l₁ l₂
+      (h_p_isdir : p.isDirectoryEvent) : CleLink l₁ l₂
 
--- LinLink is an irreflexive transitive subset of TransGen TemporalRel.
--- Every LinLink can be decomposed into a chain of base temporal steps.
-theorem LinLink.subset_temporalRel {l₁ l₂ : Event n}
-    (h : LinLink l₁ l₂)
+-- CleLink is an irreflexive transitive subset of TransGen TemporalRel.
+-- Every CleLink can be decomposed into a chain of base temporal steps.
+theorem CleLink.subset_temporalRel {l₁ l₂ : Event n}
+    (h : CleLink l₁ l₂)
     (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     : Relation.TransGen TemporalRel l₁ l₂ := by
@@ -246,35 +238,8 @@ theorem LinLink.subset_temporalRel {l₁ l₂ : Event n}
       cases (hdir de de).ordered with
       | inl h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
       | inr h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
-  | proxy cle₁ cle₂ h_so h₁_cle_isdir h₂_cle_isdir h₁_chain h₂_chain =>
-    -- Inner h_so between CLEs: case-split to avoid recursion.
-    -- The inner LinLink is from com_to_linLink which never produces proxy.
-    -- Handle each base constructor directly (same logic as above cases).
-    have h_inner : Relation.TransGen TemporalRel cle₁ cle₂ := by
-      cases h_so with
-      | ob h => exact .single (.ob h)
-      | encap h => exact .single (.encap h)
-      | encapOb p h_enc h_ob => exact .tail (.single (.encap h_enc)) (.ob h_ob)
-      | obEndLt p h_ob h_lt _ => exact .tail (.single (.ob h_ob)) (.finishesBefore h_lt)
-      | proxyPair q p h_enc h_ob h_ob₂ => exact .tail (.tail (.single (.encap h_enc)) (.ob h_ob)) (.ob h_ob₂)
-      | sameLin e₁' e₂' _ h_enc₁ h_ob h_enc₂ => exact .tail (.tail (.single (.encapBy h_enc₁)) (.ob h_ob)) (.encap h_enc₂)
-      | encapObEndLt q p h_enc h_ob h_lt _ => exact .tail (.tail (.single (.encap h_enc)) (.ob h_ob)) (.finishesBefore h_lt)
-      | obFinishBefore p h_ob h_lt _ _ => exact .single (.finishesAfterProxy p h_ob h_lt)
-      | eq heq => exfalso; subst heq; match cle₁, h₁_cle_isdir with
-        | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-        | .directoryEvent de, _ => cases (hdir de de).ordered with
-          | inl h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
-          | inr h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
-      | proxy _ _ _ _ _ _ _ => sorry -- nested proxy: should never occur in practice
-    cases h₁_chain with
-    | inl h₁c => cases h₂_chain with
-      | inl h₂c => exact h₁c.trans (h_inner.trans h₂c)
-      | inr h₂eq => exact h₂eq ▸ h₁c.trans h_inner
-    | inr h₁eq => cases h₂_chain with
-      | inl h₂c => exact h₁eq ▸ h_inner.trans h₂c
-      | inr h₂eq => exact h₁eq ▸ h₂eq ▸ h_inner
 
-/-! ## LinStep / LinChain: replacement for LinLink -/
+/-! ## LinStep / LinChain: replacement for CleLink -/
 
 /-- Basic step between linearization events: OB, Encapsulates, EncapsulatedBy, or finishesBefore.
     Variable names use x/y to avoid shadowing the section variable `b : Behaviour n`. -/
@@ -350,7 +315,7 @@ theorem LinChain.irrefl {e : Event n} : ¬ @LinChain n e e :=
     where e₂'s downgrade lands (cache vs cluster directory).
 
     Each case carries DESCRIPTIVE evidence (protocol events, OB relationships),
-    NOT the conclusion (LinLink). LinLink is DERIVED from this evidence
+    NOT the conclusion (CleLink). CleLink is DERIVED from this evidence
     in step_to_ordering. -/
 inductive FrOrdering
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
@@ -360,14 +325,14 @@ inductive FrOrdering
     : Prop
   /-- Same cache e₁/e₂: both at the same cache, serialized by the cache.
       Same CLE (shared directory access) or CLE₁ OB CLE₂.
-      LinLink derived via .eq or .ob. -/
+      CleLink derived via .eq or .ob. -/
   | sameCache
     (same_cache : e₁.struct = e₂.struct)
     (cle_eq_or_ob : e₁_lin.hreq's_dir_access.choose = e₂_lin.hreq's_dir_access.choose ∨
         e₁_lin.hreq's_dir_access.choose.OrderedBefore n e₂_lin.hreq's_dir_access.choose)
   /-- Same cluster, different cache: cluster directory serializes the accesses.
       CLE₁ OB CLE₂ from dir_ordered + NIW (NoInterveningWrites eliminates wrong direction).
-      LinLink derived via .ob. -/
+      CleLink derived via .ob. -/
   | sameClusDiffCache
     (same_protocol : e₁.sameProtocol n e₂)
     (diff_cache : e₁.struct ≠ e₂.struct)
@@ -376,7 +341,7 @@ inductive FrOrdering
       so e₂'s overwrite triggers a downgrade at e₁'s CACHE.
       The cache downgrade is after e₁ (e₁ OB cache_down), encapsulated by a
       cluster dir event whose oEnd < CLE₂.oEnd.
-      LinLink derived via .obEndLt (CLE₁ OB proxy, proxy.oEnd < CLE₂.oEnd). -/
+      CleLink derived via .obEndLt (CLE₁ OB proxy, proxy.oEnd < CLE₂.oEnd). -/
   | diffCluster_coherent
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
@@ -386,7 +351,7 @@ inductive FrOrdering
   /-- Different cluster, e₁ coherent with evict: e₁ had coherent perms but
       evicted before e₂'s downgrade arrived. The downgrade goes to the cluster
       directory after the evict. Proxy is the evict directory event.
-      LinLink derived via .obEndLt. -/
+      CleLink derived via .obEndLt. -/
   | diffCluster_evict
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
@@ -396,7 +361,7 @@ inductive FrOrdering
   /-- Different cluster, e₁ non-coherent: e₁ doesn't have coherent perms,
       so e₂'s downgrade goes directly to e₁'s CLUSTER DIRECTORY.
       Proxy is the cluster dir downgrade event.
-      LinLink derived via .obEndLt. -/
+      CleLink derived via .obEndLt. -/
   | diffCluster_noncoherent
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
@@ -405,7 +370,7 @@ inductive FrOrdering
     (h_p_isdir : p.isDirectoryEvent)
   /-- Different cluster, RF cross-cluster: e_w at e₂'s cluster, RF gives
       proxy p at e_w's cluster INSIDE CLE₁ (from encapDirRelation) and OB CLE₂.
-      LinLink derived via .encapOb (p inside CLE₁, p OB CLE₂). -/
+      CleLink derived via .encapOb (p inside CLE₁, p OB CLE₂). -/
   | diffCluster_rfCrossCluster
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
@@ -413,7 +378,7 @@ inductive FrOrdering
     (p_ob_cle₂ : p.OrderedBefore n e₂_lin.hreq's_dir_access.choose)
   /-- Different cluster, RF cross-cluster with gcacheEncap/noGlobalCache:
       proxy p OB CLE₂ and p finishes before CLE₁ (p.oEnd < CLE₁.oEnd).
-      LinLink derived via .obFinishBefore. -/
+      CleLink derived via .obFinishBefore. -/
   | diffCluster_rfFinishBefore
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
@@ -433,7 +398,7 @@ inductive FrOrdering
     transitive chain of co steps, each carrying its own communication pattern.
 
     The `ordering` field carries descriptive evidence of the communication
-    mechanism, making LinLink directly extractable. -/
+    mechanism, making CleLink directly extractable. -/
 structure fr (e₁ e₂ : Event n) : Prop where
   read : e₁.isRead
   write : e₂.isWrite

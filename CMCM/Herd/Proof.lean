@@ -154,11 +154,11 @@ theorem ppoi_acyclic : Relation.Acyclic (@PPOi n b) := by
   exact Event.contradiction_of_reflexive_ordered_before n
     (transgen_ob_of_step_ob hcycle fun a b h => h.orderedBefore)
 
-/-! ## LinLink → LinChain: ordering between linearization points
+/-! ## CleLink → LinChain: ordering between linearization points
 
 Each cache event e has a linearization point `lin(e)` = CLE.
-Each edge derives `LinLink lin(e₁) lin(e₂)` from communication evidence,
-then converts to `LinChain ∨ eq` via `LinLink.toLinChainOrEq`.
+Each edge derives `CleLink lin(e₁) lin(e₂)` from communication evidence,
+then converts to `LinChain ∨ eq` via `CleLink.toLinChainOrEq`.
 
 LinChain = TransGen LinStep, where LinStep has 4 constructors:
   ob, encap, encapBy, finishesBefore.
@@ -168,14 +168,14 @@ Irreflexivity: LinChain.irrefl (proved once for all edge patterns).
 A cycle composes to LinChain CLE CLE → LinChain.irrefl,
 or all edges give CLE₁ = CLE₂ → dir_ordered de de → False. -/
 
--- LinLink definition moved to Defs.lean
--- LinLink.trans DELETED: replaced by LinChain.trans (free from TransGen).
+-- CleLink definition moved to Defs.lean
+-- CleLink.trans DELETED: replaced by LinChain.trans (free from TransGen).
 
-/-- Map a single co edge to LinLink. Factored out to avoid recursion in step_to_ordering. -/
+/-- Map a single co edge to CleLink. Factored out to avoid recursion in step_to_ordering. -/
 theorem co_step_to_ordering
     (h : @Herd.co n compound b init e₁ e₂)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    : @LinLink n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose := by
+    : @CleLink n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose := by
   cases h.comm with
   | sameCache same_cle cache_ob =>
     have hw₁ : h.w₁_lin = lin e₁ := Subsingleton.elim _ _
@@ -392,10 +392,10 @@ private lemma co_chain_cross_cluster_downgrade
            by rw [show lin _ = h_co.w₂_lin from Subsingleton.elim _ _]; exact hrd_spec.2.clusterDir⟩⟩
   | tail hpath h_last ih =>
     rename_i b_mid c_ep
-    -- IH for prefix. Extend d.oEnd bound via last step's LinLink.
+    -- IH for prefix. Extend d.oEnd bound via last step's CleLink.
     by_cases h_mid_prot : e_w.sameProtocol n b_mid
     · -- Prefix same-cluster: last step h_last must cross clusters.
-      -- Get CLE_w.oEnd ≤ CLE_mid.oEnd from prefix LinLink.
+      -- Get CLE_w.oEnd ≤ CLE_mid.oEnd from prefix CleLink.
       have hcle_w_le_mid : Event.oEnd n e_w_lin.hreq's_dir_access.choose ≤
           Event.oEnd n (lin b_mid).hreq's_dir_access.choose := by
         have hoEnd := co_chain_oEnd_le hpath lin
@@ -853,7 +853,7 @@ theorem fr_ordering_holds
                                                 | inl h1c1 =>
                                                   exfalso; exact h_same_prot (show e₁.sameProtocol n e₂ from h1c1.trans h2c1.symm)
                                           -- CLE_w2 between CLE_w1 and d_rf.
-                                          -- From CO: LinLink CLE_w1 CLE_w2.
+                                          -- From CO: CleLink CLE_w1 CLE_w2.
                                           -- For .ob: CLE_w1 OB CLE_w2 → OrderedBetween → NIW.
                                           -- For .eq/.sameLin: CLE_w1 = CLE_w2 → CLE_w1 OB d_rf from hob → use encapOb.
                                           -- CLE_w OB CLE₂ from CO chain via oEnd ≤ + dir_ordered.
@@ -1320,13 +1320,13 @@ theorem fr_ordering_holds
                                   exact h_constraints.interSameProtocolAsWNotBetweenCleAndDrf
                                     h_ew_e₂ hencapDir' ⟨hcle_w_ob, hcle₂_ob_ev⟩
 
-/-- Map a COM edge to a LinLink between CLEs.
+/-- Map a COM edge to a CleLink between CLEs.
     PPOi is handled separately via dir_ordered in compose_three/cmcm_acyclic_of_hknow. -/
 theorem step_to_ordering
     (h : com compound b init e₁ e₂)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : @LinLink n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose := by
+    : @CleLink n (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose := by
   cases h with
     | rfe h =>
       -- rfe: extract protocol events from readsFrom.cases
@@ -1354,12 +1354,12 @@ theorem step_to_ordering
           -- Different cluster: extract wObRDown from diffCache.case sub-cases
           have hw₁ : h.w_lin = lin e₁ := Subsingleton.elim _ _
           have hw₂ : h.r_lin = lin e₂ := Subsingleton.elim _ _
-          -- Helper: given encapDir + wObRDown → LinLink.obEndLt
+          -- Helper: given encapDir + wObRDown → CleLink.obEndLt
           have from_encap_wob
               (hdown : Behaviour.clusterDown.encapDir compound b init e₁ h.r_lin)
               (hwOB : h.w_lin.hreq's_dir_access.choose.OrderedBefore n
                 hdown.existsRClusterDirDown.choose) :
-              @LinLink n (lin e₁).hreq's_dir_access.choose
+              @CleLink n (lin e₁).hreq's_dir_access.choose
                 (lin e₂).hreq's_dir_access.choose := by
             have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
             have hencap_rel := hcdir_spec.2.encapDirRelation
@@ -1399,7 +1399,7 @@ theorem step_to_ordering
             | diffCluster _ hdown hwOB => exact from_encap_wob hdown hwOB
     | co h => exact co_step_to_ordering h lin
     | fr h =>
-      -- fr: derive FrOrdering from protocol axioms, then derive LinLink.
+      -- fr: derive FrOrdering from protocol axioms, then derive CleLink.
       cases fr_ordering_holds h lin with
       | sameCache _ h_eq_or_ob =>
         cases h_eq_or_ob with
@@ -1416,9 +1416,9 @@ theorem step_to_ordering
         exact .obFinishBefore p p_ob p_lt (fun heq =>
           h_diff (show e₁.sameProtocol n e₂ from hcle₁_prot.symm.trans (heq ▸ hcle₂_prot))) h_p_isdir
       | sameCLE cle_eq => exact .eq cle_eq
--- Old lex pair approach removed. Using LinChain (TransGen LinStep) instead of LinLink.
--- Each edge produces LinLink, converted to LinChain ∨ eq via toLinChainOrEq.
--- LinChain.trans (= TransGen.trans) replaces LinLink.trans (which had exfalso's).
+-- Old lex pair approach removed. Using LinChain (TransGen LinStep) instead of CleLink.
+-- Each edge produces CleLink, converted to LinChain ∨ eq via toLinChainOrEq.
+-- LinChain.trans (= TransGen.trans) replaces CleLink.trans (which had exfalso's).
 -- LinChain.irrefl replaces the per-constructor irrefl case analysis.
 
 /-- Helper: CLE is a directory event, so dir_ordered CLE CLE → False. -/
@@ -1434,11 +1434,11 @@ private theorem cle_self_ordering_false
     | inr h => exact absurd (Nat.lt_trans h de.oWellFormed) (Nat.lt_irrefl _)
   | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
 
-/-- Convert LinLink to the 3-way disjunction: LinChain ∨ eq ∨ diff_protocol.
+/-- Convert CleLink to the 3-way disjunction: LinChain ∨ eq ∨ diff_protocol.
     obFinishBefore maps to diff_protocol (its h_diff_prot field).
     eq maps to eq. All others map to LinChain. -/
 private theorem stepOrdering_to_three {l₁ l₂ : Event n}
-    (h : LinLink l₁ l₂)
+    (h : CleLink l₁ l₂)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
     : @LinChain n l₁ l₂ ∨ l₁ = l₂ ∨ l₁.protocol ≠ l₂.protocol := by
@@ -1500,11 +1500,11 @@ private theorem stepOrdering_to_three {l₁ l₂ : Event n}
                 _ < de₂.oEnd := h_p_lt)
     · exact Or.inr (Or.inr h_prot)
 
-/-- Key lemma: if LinLink l₂ l₃ holds at the same protocol, then l₃ OB l₂ is impossible.
+/-- Key lemma: if CleLink l₂ l₃ holds at the same protocol, then l₃ OB l₂ is impossible.
     Proof: stepOrdering_to_three gives LinChain ∨ eq ∨ diff_prot. diff_prot contradicts same-prot.
     eq gives self-ordering contradiction. LinChain l₂ l₃ + l₃ OB l₂ → LinChain l₂ l₂ → irrefl. -/
 private theorem step_ordering_same_prot_not_reverse {l₂ l₃ : Event n}
-    (h₂ : @LinLink n l₂ l₃)
+    (h₂ : @CleLink n l₂ l₃)
     (h_same_prot : l₂.protocol = l₃.protocol)
     (h₂_isdir : l₂.isDirectoryEvent) (h₃_isdir : l₃.isDirectoryEvent)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
@@ -1521,9 +1521,9 @@ private theorem step_ordering_same_prot_not_reverse {l₂ l₃ : Event n}
       exact Event.contradiction_of_reflexive_ordered_before n (heq ▸ hob_reverse)
     | inr hdiff => exact absurd h_same_prot hdiff
 
-/-- Corollary: same-protocol dir_ordered(l₂, l₃) with LinLink l₂ l₃ must give l₂ OB l₃. -/
+/-- Corollary: same-protocol dir_ordered(l₂, l₃) with CleLink l₂ l₃ must give l₂ OB l₃. -/
 private theorem same_prot_dir_ordered_forward {l₂ l₃ : Event n}
-    (h₂ : @LinLink n l₂ l₃)
+    (h₂ : @CleLink n l₂ l₃)
     (h_same_prot : l₂.protocol = l₃.protocol)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h₂_isdir : l₂.isDirectoryEvent) (h₃_isdir : l₃.isDirectoryEvent)
@@ -1545,7 +1545,7 @@ private theorem same_prot_dir_ordered_forward {l₂ l₃ : Event n}
 private theorem step_ordering_dir_ordered_3way {l₁ l₂ : Event n}
     (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    : @LinLink n l₁ l₂ ∨ l₁ = l₂ ∨ l₂.OrderedBefore n l₁ := by
+    : @CleLink n l₁ l₂ ∨ l₁ = l₂ ∨ l₂.OrderedBefore n l₁ := by
   match l₁, h₁_isdir with
   | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
   | .directoryEvent de₁, _ =>
@@ -1559,19 +1559,19 @@ private theorem step_ordering_dir_ordered_3way {l₁ l₂ : Event n}
 -- compoundLin version of dir_ordered 3-way: extract CLEs, dir_ordered on CLEs, lift to compoundLin.
 
 -- Cluster cache events have protocol ≠ .global.
-inductive CompoundLinOrdering {n : ℕ} (l₁ l₂ : Event n) : Prop
-| step (h : @LinLink n l₁ l₂)
+inductive LinLink {n : ℕ} (l₁ l₂ : Event n) : Prop
+| step (h : @CleLink n l₁ l₂)
 | proxy (cle₁ cle₂ : Event n)
-    (h_so : @LinLink n cle₁ cle₂)
+    (h_so : @CleLink n cle₁ cle₂)
     (h₁_isdir : cle₁.isDirectoryEvent) (h₂_isdir : cle₂.isDirectoryEvent)
 
-/-- CompoundLinOrdering l l → False (irreflexivity).
-    step case: LinLink l l → False via cle_self_ordering_false.
-    proxy case: both CLEs relate to the same event → same CLE → LinLink CLE CLE → False. -/
-theorem CompoundLinOrdering.irrefl
+/-- LinLink l l → False (irreflexivity).
+    step case: CleLink l l → False via cle_self_ordering_false.
+    proxy case: both CLEs relate to the same event → same CLE → CleLink CLE CLE → False. -/
+theorem LinLink.irrefl
     {hknow : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    (h : @CompoundLinOrdering n (hknow).compoundLin (hknow).compoundLin) : False := by
+    (h : @LinLink n (hknow).compoundLin (hknow).compoundLin) : False := by
   cases h with
   | step h => exact cle_self_ordering_false hknow hdir
   | proxy cle₁ cle₂ h_so h₁_isdir h₂_isdir =>
@@ -1579,25 +1579,25 @@ theorem CompoundLinOrdering.irrefl
     -- cle_self_ordering_false gives False from any self-referential ordering context.
     exact cle_self_ordering_false hknow hdir
 
--- Simple bridge: CLE LinLink → CompoundLinOrdering on compoundLin.
+-- Simple bridge: CLE CleLink → LinLink on compoundLin.
 -- Just wraps in .proxy — no per-constructor case analysis needed!
 theorem cle_to_compoundLinOrdering
     {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
-    (h : @LinLink n lin₁.hreq's_dir_access.choose lin₂.hreq's_dir_access.choose)
-    : CompoundLinOrdering lin₁.compoundLin lin₂.compoundLin :=
+    (h : @CleLink n lin₁.hreq's_dir_access.choose lin₂.hreq's_dir_access.choose)
+    : LinLink lin₁.compoundLin lin₂.compoundLin :=
   .proxy _ _ h
     lin₁.hreq's_dir_access.choose_spec.right.isDirEvent
     lin₂.hreq's_dir_access.choose_spec.right.isDirEvent
 
--- 3-way CompoundLinOrdering via CLE dir_ordered + bridge.
+-- 3-way LinLink via CLE dir_ordered + bridge.
 theorem compoundLinOrdering_3way
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (e₁ e₂ : Event n)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    : CompoundLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
+    : LinLink (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
       (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
-      CompoundLinOrdering (hknow e₂).compoundLin (hknow e₁).compoundLin := by
+      LinLink (hknow e₂).compoundLin (hknow e₁).compoundLin := by
   have h3way := step_ordering_dir_ordered_3way
     (hknow e₁).hreq's_dir_access.choose_spec.right.isDirEvent
     (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent hdir
@@ -1608,13 +1608,13 @@ theorem compoundLinOrdering_3way
     | inr hob_rev => exact Or.inr (Or.inr (cle_to_compoundLinOrdering (.ob hob_rev)))
 
 
--- Compose any LinLink h₁ with OB h₂. Handles all h₁ constructors.
+-- Compose any CleLink h₁ with OB h₂. Handles all h₁ constructors.
 -- Used by both PPOi and COM .ob cases.
 private theorem compose_with_ob {l₁ l₂ l₃ : Event n}
-    (hso₁ : @LinLink n l₁ l₂) (hob₂ : l₂.OrderedBefore n l₃)
+    (hso₁ : @CleLink n l₁ l₂) (hob₂ : l₂.OrderedBefore n l₃)
     (h₁_isdir : l₁.isDirectoryEvent) (h₃_isdir : l₃.isDirectoryEvent)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    : @LinLink n l₁ l₃ ∨ l₁ = l₃ ∨ l₃.OrderedBefore n l₁ := by
+    : @CleLink n l₁ l₃ ∨ l₁ = l₃ ∨ l₃.OrderedBefore n l₁ := by
   cases hso₁ with
   | ob hob₁ => exact Or.inl (.ob (Trans.trans hob₁ hob₂))
   | obEndLt p₁ hob₁ hlt₁ _ =>
@@ -1641,10 +1641,10 @@ private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h₁_isdir : l₁.isDirectoryEvent)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : @LinLink n l₁ l₃ ∨ l₁ = l₃ ∨ l₃.OrderedBefore n l₁ := by
+    : @CleLink n l₁ l₃ ∨ l₁ = l₃ ∨ l₃.OrderedBefore n l₁ := by
   -- Same-cluster: l₂.prot = l₃.prot → l₁ ≠ l₃ → .obFinishBefore via OB chain
   by_cases he₂₃ : e₂.protocol = e₃.protocol
-  · have h₂ : @LinLink n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering hcom_edge hknow h_non_lazy_ppoi
+  · have h₂ : @CleLink n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering hcom_edge hknow h_non_lazy_ppoi
     have h₂₃_prot : Event.protocol n l₂ = Event.protocol n l₃ := by
       rw [hl₂, hl₃]
       exact (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
@@ -1671,7 +1671,7 @@ private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂
             -- Case-split on the com edge to access NIW/rf/co structure
             exact Or.inr (Or.inr hob₃₁)
     · -- Diff protocol l₁/l₃: chain p₁ through h₂ to l₃
-      have h₂ : @LinLink n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering hcom_edge hknow h_non_lazy_ppoi
+      have h₂ : @CleLink n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering hcom_edge hknow h_non_lazy_ppoi
       -- p₁ OB l₂. Chain through h₂ to get p₁ OB l₃ for .obFinishBefore.
       -- stepOrdering_to_three h₂ gives LinChain or eq or diff_prot.
       -- For LinChain: p₁ OB l₂ + LinChain l₂ l₃ → p₁ OB l₃ (by induction on TransGen).
@@ -1719,12 +1719,12 @@ private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂
               | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
               | inr hob₃₁ => exact Or.inr (Or.inr hob₃₁)
 
-/-- Compose two LinLinks (or eq) and extract 3-way disjunction.
+/-- Compose two CleLinks (or eq) and extract 3-way disjunction.
     For same-protocol l₁/l₃: dir_ordered → l₁ OB l₃ (LinChain) or l₃ OB l₁ (temporal contradiction).
     The temporal contradiction chains through BOTH h₁ and h₂'s data.
     obFinishBefore on h₁: handled by compose_obFinishBefore_com for com edges. -/
 private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event n}
-    (h₁ : @LinLink n l₁ l₂ ∨ l₁ = l₂ ∨ l₂.OrderedBefore n l₁)
+    (h₁ : @CleLink n l₁ l₂ ∨ l₁ = l₂ ∨ l₂.OrderedBefore n l₁)
     (hedge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₂ e₃)
     (h_prefix_edge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₁ e₂)
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
@@ -1732,7 +1732,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h₁_isdir : l₁.isDirectoryEvent)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : @LinLink n l₁ l₃ ∨ l₁ = l₃ ∨ l₃.OrderedBefore n l₁ := by
+    : @CleLink n l₁ l₃ ∨ l₁ = l₃ ∨ l₃.OrderedBefore n l₁ := by
   -- Helper: extract e₂'s read/write from edge, check junction compatibility.
   -- hedge constrains e₂ from the CURRENT edge. h_prefix_edge from the PREFIX.
   -- If incompatible (e₂ read + e₂ write) → exfalso.
@@ -1808,20 +1808,20 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
           | inr hob₃₁ => exact Or.inr (Or.inr hob₃₁)
   | inl hso₁ =>
   -- Case-split on hedge (the actual edge) to get edge-specific evidence.
-  -- For each edge type, combine with h₁ (LinLink from prefix).
+  -- For each edge type, combine with h₁ (CleLink from prefix).
   cases hedge with
   | inl hppoi_edge =>
     -- PPOi(e₂, e₃): dir_ordered on CLEs gives the 3-way result directly.
     -- Bypasses ppoi_step_to_ordering and avoids compound linearization matching.
     have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
     have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
-    have h₂₃_3way : @LinLink n l₂ l₃ ∨ l₂ = l₃ ∨ l₃.OrderedBefore n l₂ := by
+    have h₂₃_3way : @CleLink n l₂ l₃ ∨ l₂ = l₃ ∨ l₃.OrderedBefore n l₂ := by
       rw [hl₂, hl₃]; exact step_ordering_dir_ordered_3way
         ((hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent)
         ((hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
     cases h₂₃_3way with
     | inl hso₂ =>
-      -- LinLink l₂ l₃: compose with h₁ using OB from same_prot_dir_ordered_forward
+      -- CleLink l₂ l₃: compose with h₁ using OB from same_prot_dir_ordered_forward
       have h₂₃_prot : l₂.protocol = l₃.protocol := by
         rw [hl₂, hl₃]; exact (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
           (hppoi_edge.1.sameProtocol.trans (write_cle_protocol_eq_write_protocol (hknow e₃)).symm)
@@ -1844,7 +1844,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
   | inr hcom_edge =>
     -- All com edges: derive h₂ via step_to_ordering, compose with h₁.
     -- The composition logic is the same for all edge types.
-    have h₂ : @LinLink n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering hcom_edge hknow h_non_lazy_ppoi
+    have h₂ : @CleLink n l₂ l₃ := by rw [hl₂, hl₃]; exact step_to_ordering hcom_edge hknow h_non_lazy_ppoi
     -- Compose hso₁ with h₂. Case-split h₂ for temporal chain.
     cases h₂ with
     | ob hob₂ =>
@@ -2225,17 +2225,17 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     - `hl₂`/`hl₃` point to `compoundLin` instead of `hreq's_dir_access.choose`
     - `h₁_notdown`/`h₂_notdown`/`h₃_notdown` replace `h₁_isdir` (compoundLin may be a cache event) -/
 
--- Composition using CompoundLinOrdering. Delegates to dir_ordered on CLEs.
+-- Composition using LinLink. Delegates to dir_ordered on CLEs.
 private theorem compose_compoundLinOrdering {e₁ e₂ e₃ : Event n}
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (h₁ : CompoundLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
+    (h₁ : LinLink (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
            (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
-           CompoundLinOrdering (hknow e₂).compoundLin (hknow e₁).compoundLin)
+           LinLink (hknow e₂).compoundLin (hknow e₁).compoundLin)
     (hedge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₂ e₃)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    : CompoundLinOrdering (hknow e₁).compoundLin (hknow e₃).compoundLin ∨
+    : LinLink (hknow e₁).compoundLin (hknow e₃).compoundLin ∨
       (hknow e₁).compoundLin = (hknow e₃).compoundLin ∨
-      CompoundLinOrdering (hknow e₃).compoundLin (hknow e₁).compoundLin :=
+      LinLink (hknow e₃).compoundLin (hknow e₁).compoundLin :=
   compoundLinOrdering_3way hknow e₁ e₃ hdir
 
 theorem cmcm_acyclic_of_hknow
@@ -2244,15 +2244,15 @@ theorem cmcm_acyclic_of_hknow
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
   intro e hcycle
   -- Use CLEs from hknow directly as linearization points.
-  -- PPOi: dir_ordered gives 3-way. COM: step_to_ordering gives LinLink.
+  -- PPOi: dir_ordered gives 3-way. COM: step_to_ordering gives CleLink.
   -- Composition: compose_three handles all edge types.
-  -- Invariant: LinLink ∨ eq ∨ reverse OB on CLEs.
+  -- Invariant: CleLink ∨ eq ∨ reverse OB on CLEs.
   -- Also track last edge (needed by compose_three for junction compatibility).
   let R := (fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init
   let cle := fun e => (hknow e).hreq's_dir_access.choose
   suffices h_ind : ∀ a c, Relation.TransGen R a c →
       (∃ b_prev, R b_prev c) ∧
-      (@LinLink n (hknow a).hreq's_dir_access.choose (hknow c).hreq's_dir_access.choose ∨
+      (@CleLink n (hknow a).hreq's_dir_access.choose (hknow c).hreq's_dir_access.choose ∨
        (hknow a).hreq's_dir_access.choose = (hknow c).hreq's_dir_access.choose ∨
        ((hknow c).hreq's_dir_access.choose).OrderedBefore n (hknow a).hreq's_dir_access.choose) by
     have ⟨_, hresult⟩ := h_ind e e hcycle
@@ -2275,12 +2275,12 @@ theorem cmcm_acyclic_of_hknow
           (hknow _).hreq's_dir_access.choose_spec.right.isDirEvent
           b.orderedAtEntry.dir_ordered
       | inr hcom =>
-        -- COM: step_to_ordering gives LinLink on CLEs directly.
+        -- COM: step_to_ordering gives CleLink on CLEs directly.
         exact Or.inl (step_to_ordering hcom hknow h_non_lazy_ppoi)
   | tail hpath h ih =>
     -- ih : (∃ last edge) ∧ 3-way for prefix (a → b_mid) on CLEs.
     -- h : R b_mid c (current edge).
-    -- compose_three handles ALL composition cases (LinLink/eq/reverseOB × PPOi/COM).
+    -- compose_three handles ALL composition cases (CleLink/eq/reverseOB × PPOi/COM).
     constructor
     · exact ⟨_, h⟩
     · let ⟨⟨b_prev, h_last_prefix⟩, h3way_prefix⟩ := ih
@@ -2290,11 +2290,11 @@ theorem cmcm_acyclic_of_hknow
         h_non_lazy_ppoi
 
 /-- Acyclicity using compoundLin (linearization events) as the cycle invariant.
-    Same structure as cmcm_acyclic_of_hknow but tracks LinLink on compoundLin events.
+    Same structure as cmcm_acyclic_of_hknow but tracks CleLink on compoundLin events.
     Uses step_to_ordering_compoundLin for COM, h_non_lazy_ppoi for PPOi,
     compose_three_compoundLin for composition. -/
 
--- Main acyclicity theorem using CompoundLinOrdering.
+-- Main acyclicity theorem using LinLink.
 theorem cmcm_acyclic_of_hknow_compoundLinOrdering
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
@@ -2303,15 +2303,15 @@ theorem cmcm_acyclic_of_hknow_compoundLinOrdering
   let R := (fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init
   suffices h_ind : ∀ a c, Relation.TransGen R a c →
       (∃ b_prev, R b_prev c) ∧
-      (CompoundLinOrdering (hknow a).compoundLin (hknow c).compoundLin ∨
+      (LinLink (hknow a).compoundLin (hknow c).compoundLin ∨
        (hknow a).compoundLin = (hknow c).compoundLin ∨
-       CompoundLinOrdering (hknow c).compoundLin (hknow a).compoundLin) by
+       LinLink (hknow c).compoundLin (hknow a).compoundLin) by
     have ⟨_, hresult⟩ := h_ind e e hcycle
     cases hresult with
-    | inl h => exact CompoundLinOrdering.irrefl b.orderedAtEntry.dir_ordered h
+    | inl h => exact LinLink.irrefl b.orderedAtEntry.dir_ordered h
     | inr hr => cases hr with
       | inl heq => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
-      | inr h => exact CompoundLinOrdering.irrefl b.orderedAtEntry.dir_ordered h
+      | inr h => exact LinLink.irrefl b.orderedAtEntry.dir_ordered h
   intro a c hpath
   induction hpath with
   | single h =>
