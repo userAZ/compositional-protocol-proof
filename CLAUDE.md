@@ -32,6 +32,18 @@ Before proving, composing, or sorry-ing ANYTHING:
 5. **Verify proofs are not vacuous.** Check hypotheses are satisfiable, conclusions nontrivial.
 6. **Search the codebase first** before flagging open questions.
 
+## The Goal (NEVER FORGET)
+
+**Prove acyclic(PPOi ∪ rfe ∪ fr ∪ co) using CompoundMCM linearization events (compoundLin).**
+
+The proof connects compoundLin events THROUGH CLEs/GLEs to show there's no cycle:
+- Each edge (PPOi/COM) gives forward ordering between compoundLin events
+- Composition chains compoundLin events through CLE-level ordering (dir_ordered on CLEs)
+- Proxy constructors encode: compoundLin₁ → CLE₁ → StepOrdering → CLE₂ → compoundLin₂
+- At cycle closure: StepOrdering l l → False via cle_self_ordering_false
+
+This is the CompoundMCM acyclicity proof using linearization events, NOT just CLEs.
+
 ## Current goal: Herd CMCM acyclicity proof
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
