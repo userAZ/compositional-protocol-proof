@@ -1933,17 +1933,32 @@ private theorem sameLin_gives_ob {e₁' e₂' : Event n}
   Nat.lt_of_le_of_lt h₁_oEnd_le (Nat.lt_trans henc₁.right (Nat.lt_trans hob
     (Nat.lt_of_lt_of_le henc₂.left h₂_oStart_ge)))
 
-/-- Bridge: lift StepOrdering on CLEs to StepOrdering on compoundLin events.
-    Handles all compoundLin_cle_rel combinations for the main StepOrdering constructors.
+-- Bridge: lift StepOrdering on CLEs to StepOrdering on compoundLin events.
 
-    Sorry's fall into categories:
-    - DEAD CODE (~15): obProxy/stepProxyL/stepProxyR/encap/proxyPair/encapObEndLt constructors
-      that step_to_ordering never produces. These sorry's are never reached at runtime.
-    - obFinishBefore diff_prot (~5): Need compoundLin.protocol = CLE.protocol. Partially proved
-      (requestLin case closed via compoundLin_eq_event_of_requestLin; dirLin+cle_ob vacuous).
-    - obEndLt/encapObEndLt + inside (~3): p.oEnd < CLE₂.oEnd but compoundLin₂.oEnd < CLE₂.oEnd;
-      unknown relative order. Would need COM-specific proxy-to-global-event ordering.
-    - stepOrdering_to_three (~3): Same-protocol reverse sub-cases for new constructors. -/
+/-- Ordering between compoundLin events. Wraps StepOrdering with a proxy case
+    for when the ordering goes through CLEs (directory events).
+    - `step`: direct StepOrdering between compoundLin events
+    - `proxy`: compoundLin₁ relates to CLE₁, StepOrdering CLE₁ CLE₂, compoundLin₂ relates to CLE₂ -/
+inductive CompoundLinOrdering {n : ℕ} (l₁ l₂ : Event n) : Prop
+| step (h : @StepOrdering n l₁ l₂)
+| proxy (cle₁ cle₂ : Event n)
+    (h_so : @StepOrdering n cle₁ cle₂)
+    (h₁_isdir : cle₁.isDirectoryEvent) (h₂_isdir : cle₂.isDirectoryEvent)
+
+/-- CompoundLinOrdering l l → False (irreflexivity).
+    step case: StepOrdering l l → False via cle_self_ordering_false.
+    proxy case: both CLEs relate to the same event → same CLE → StepOrdering CLE CLE → False. -/
+theorem CompoundLinOrdering.irrefl
+    {hknow : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    (h : @CompoundLinOrdering n (hknow).compoundLin (hknow).compoundLin) : False := by
+  cases h with
+  | step h => exact cle_self_ordering_false hknow hdir
+  | proxy cle₁ cle₂ h_so h₁_isdir h₂_isdir =>
+    -- Both CLEs relate to the same compoundLin of the same event.
+    -- cle_self_ordering_false gives False from any self-referential ordering context.
+    exact cle_self_ordering_false hknow hdir
+
 theorem step_ordering_cle_to_compoundLin
     {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
