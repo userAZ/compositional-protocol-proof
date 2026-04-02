@@ -1952,13 +1952,13 @@ private theorem compoundLin_diff_protocol
       rw [lin₂.compoundLin_eq_event_of_requestLin hlin₂]
       cases lin₁.compoundLin_cle_of_dirLin h₁_notdown hlin₁ with
       | inl ha₁ => rw [ha₁]; exact fun h => hdiff (h.trans hprot₂.symm)
-      | inr ha => exact fun h => h₁_ne_global (sorry)
+      | inr ha => exact fun h => h₂_ne_global (ha.2.symm.trans h)
     | dirLin _ =>
       cases lin₁.compoundLin_cle_of_dirLin h₁_notdown hlin₁ with
       | inl ha₁ => rw [ha₁]; cases lin₂.compoundLin_cle_of_dirLin h₂_notdown hlin₂ with
         | inl ha₂ => rw [ha₂]; exact hdiff
         | inr ha => rw [ha.2]; exact fun h => h₁_ne_global (hprot₁.symm.trans h)
-      | inr ha => exact fun h => h₂_ne_global (sorry)
+      | inr ha => sorry -- inside+inside: both .global → diff_prot FALSE
 
 -- CLE₁.prot ≠ compoundLin₂.prot from CLE₁.prot ≠ CLE₂.prot.
 -- For cle_ob/eq (compoundLin₂ = CLE₂ or e₂): chain through hprot₂.
