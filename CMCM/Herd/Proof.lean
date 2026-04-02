@@ -2614,14 +2614,10 @@ theorem cmcm_acyclic_of_hknow
         ((hknow a).hreq's_dir_access.choose_spec.right.isDirEvent)
         h_non_lazy_ppoi
 
-/-- Acyclicity using compoundLin events. The CLE-level proof (cmcm_acyclic_of_hknow)
-    uses step_to_ordering for COM evidence and compose_three for composition —
-    all at the CLE level. compoundLin events are linked through this CLE framework
-    via cle_to_compoundLinOrdering (which lifts CleLink to LinLink on compoundLin).
-
-    The invariant is CleLink/eq/reverseOB on CLEs (not dir_ordered fallback).
-    COM evidence flows through: edge → step_to_ordering → CleLink → compose_three.
-    Lifting to compoundLin: CleLink → cle_to_compoundLinOrdering → LinLink. -/
+/-- Acyclicity using compoundLin events as the cycle invariant.
+    Delegates to cmcm_acyclic_of_hknow (CLE-level proof) which uses COM evidence
+    through step_to_ordering and compose_three. The compoundLin linking is established
+    separately via lift_cle_3way_to_compoundLin on the CLE result. -/
 theorem cmcm_acyclic_of_hknow_compoundLinOrdering
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
