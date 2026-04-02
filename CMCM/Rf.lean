@@ -872,6 +872,18 @@ inductive Behaviour.clusterDown.encapDirRelation
         hr_c_and_g_lin.hreq's_dir_access).Encapsulates n e_r_cdir_down)
     (cdownEndBeforeCle : e_r_cdir_down.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd)
 
+/-- Specification for the cluster directory downgrade event `e_r_cdir_down`. -/
+structure Behaviour.clusterDown.RClusterDirDownSpec
+    {cmp : CompoundProtocol n} (b : Behaviour n) (init : InitialSystemState n)
+    (e_w e_r_cdir_down : Event n)
+    (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+    : Prop where
+  isDir : e_r_cdir_down.isDirectoryEvent
+  sameProtocol : e_r_cdir_down.protocol = e_w.protocol
+  isDirDownRW : e_r_cdir_down.isDirDownRW
+  clusterDir : Event.clusterDirFromDiffProtocolRequest b init e_r e_r_cdir_down hr_c_and_g_lin
+  encapDirRelation : Behaviour.clusterDown.encapDirRelation hr_c_and_g_lin e_r_cdir_down
+
 /-- The full read-from-write downgrade chain: e_r's read triggers a global downgrade at
     e_w's cluster, producing a proxy event that causes a cluster directory downgrade.
     The chain: e_r_cle → e_r_cle_gcache → e_r_gle → e_r_gdown → e_r_proxy → e_r_cdir_down.
@@ -883,10 +895,7 @@ structure Behaviour.clusterDown.encapDir (cmp : CompoundProtocol n) (b : Behavio
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   : Prop where
   existsRClusterDirDown :
-    ∃ e_r_cdir_down ∈ b, e_r_cdir_down.isDirectoryEvent ∧ e_r_cdir_down.protocol = e_w.protocol
-    ∧ e_r_cdir_down.isDirDownRW
-      ∧ Event.clusterDirFromDiffProtocolRequest b init e_r e_r_cdir_down hr_c_and_g_lin
-      ∧ Behaviour.clusterDown.encapDirRelation hr_c_and_g_lin e_r_cdir_down
+    ∃ e_r_cdir_down ∈ b, Behaviour.clusterDown.RClusterDirDownSpec b init e_w e_r_cdir_down hr_c_and_g_lin
 
 structure Behaviour.clusterDown.encapProxyAndDirAndCDown {cmp : CompoundProtocol n}
   {b : Behaviour n} {init : InitialSystemState n}

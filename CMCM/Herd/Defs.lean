@@ -139,6 +139,20 @@ structure co (e₁ e₂ : Event n) : Prop where
   notDown₂ : ¬ e₂.down
   comm : co.ordering w₁_lin w₂_lin
 
+abbrev NonLazyPPOi (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) : Prop :=
+  ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
+    (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
+      (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
+    (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
+      (compound.linearizationOfEvent b init a₂)).linearizationEvent
+
+theorem Event.oStart_le_oEnd (e : Event n) : Event.oStart n e ≤ Event.oEnd n e :=
+  Nat.le_of_lt (Event.oWellFormed n e)
+
+theorem Event.ob_of_lt_lt {e₁ e₂ : Event n} {p : ℕ}
+    (h₁ : Event.oEnd n e₁ < p) (h₂ : p < Event.oStart n e₂)
+    : e₁.OrderedBefore n e₂ := Nat.lt_trans h₁ h₂
+
 /-! ## LinLink: ordering between linearization points -/
 
 /-- LinLink between linearization events (CLEs). Each edge derives
