@@ -50,31 +50,19 @@ This is the CompoundMCM acyclicity proof using linearization events, NOT just CL
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 ### Status (updated 2026-04-02)
-- **LinLink.subset_temporalRel IN PROGRESS**: 2 sorry's remain
-  - `compoundLin_not_ob_cle`: 3/4 cases proven (eq, cle_ob, inside = temporal contradictions).
-    1 sorry: `compoundLin_ob_cle` case needs protocol evidence via `nc_weak_write_not_on_mr_state`.
-  - `LinLink.subset_temporalRel`: 1 sorry (body). Depends on compoundLin_not_ob_cle + temporal chain construction.
-  - **Key insight**: ob_cle is always vacuous because MR + NC weak write is protocol-impossible (nc_no_sc).
-    Proof: `nc_weak_write_not_on_mr_state` in RfProofLargeLemmas.lean.
-  - **finishesAfterProxy IS needed**: For CleLink.obFinishBefore where hdir gives reverse direction (l₂ OB l₁),
-    no chain of {OB, Encap, EncapBy, FinishesBefore} goes from l₁ to l₂. Confirmed by trying hdir replacement.
-- **compoundLin lifting COMPLETE (2 sorry'd declarations, main chain sorry-free)**:
-  - `cmcm_acyclic_of_hknow_compoundLin`: SORRY-FREE ✓
-  - `compose_three_compoundLin`: SORRY-FREE ✓
-  - `step_ordering_dir_ordered_3way_compoundLin`: SORRY-FREE ✓
-  - `step_to_ordering_compoundLin`: SORRY-FREE ✓
-  - `compoundLin_cle_of_dirLin`: SORRY-FREE ✓ (Rf.lean, ZERO sorry's)
-  - `compoundLin_diff_protocol`: SORRY-FREE ✓ (modulo 1 inside+inside genuine impossibility)
-  - `cle_ne_compoundLin_prot`: SORRY-FREE ✓
-  - `cluster_cache_ne_global`: SORRY-FREE ✓
-  - `rfe` structure: added `notDown₁`/`notDown₂` fields
-  - 2 sorry'd declarations remain (non-critical):
-    - `stepOrdering_to_three`: 4 sorry's for reverse sub-cases of new constructors (CLE proof only)
-    - `step_ordering_cle_to_compoundLin`: bridge sorry's (ne_global call site args + dead code + inside+inside diff_prot impossibility)
-- **`dirAccessUnique` REMOVED** from `CompoundProtocol` — it was unused.
-- **Architecture**: `cmcm_acyclic_of_hknow` uses CLEs from `hknow` directly (`hreq's_dir_access.choose`). The CLE-to-compound_lin bridge was eliminated.
-  - **PPOi (single edge)**: `dir_ordered` gives 3-way on CLEs (same-cluster directory events). No compound_lin needed.
-  - **COM (single edge)**: `step_to_ordering` gives StepOrdering on CLEs directly. No bridge needed.
+- **ZERO sorry's across all CMCM/. All theorems proven.**
+- **Key theorems**:
+  - `cmcm_acyclic_of_hknow` (line 2600): CLE-level acyclicity proof. COM evidence via step_to_ordering → compose_three.
+  - `cmcm_acyclic_of_hknow_compoundLinOrdering` (line 2632): CompoundLin-level acyclicity. LinLink invariant on compoundLin events. Lifts CLE result via lift_cle_3way_to_compoundLin. Cycle closure via LinLink.irrefl.
+  - `LinLink.subset_temporalRel` (line 2711): Every LinLink decomposes into TransGen BasicTemporalRel.
+  - `CleLink.subset_temporalRel` (Defs.lean:211): Every CleLink decomposes into TransGen BasicTemporalRel.
+  - `compoundLin_not_ob_cle` (line 1573): ob_cle always vacuous (MR+NCWeakWrite protocol-impossible).
+  - `co_ordering_holds` (CoTheorem.lean): CO theorem from protocol axioms.
+- **Architecture**:
+  - `cle_path_invariant`: Reusable CLE-level induction (CleLink/eq/reverse on CLEs from any path).
+  - COM evidence flow: edge → step_to_ordering → CleLink → compose_three → lift_cle_3way_to_compoundLin → LinLink.
+  - `TemporalRel = TransGen BasicTemporalRel` where BasicTemporalRel = {OB, Encap, EncapBy, FinishesBefore}.
+  - `finishesAfterProxy` removed from TemporalRel; obFinishBefore handled via dir_ordered exfalso.
   - **Composition**: `compose_three` handles all StepOrdering/eq/reverseOB × PPOi/COM cases.
   - **`cmcm_acyclic_of_hknow` is sorry-free!** Delegates to compose_three.
 - **compose_three**: SORRY-FREE. Uses dir_ordered fallback for hard cases (all CLEs are directory events → always resolvable).
