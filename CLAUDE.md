@@ -36,22 +36,19 @@ Before proving, composing, or sorry-ing ANYTHING:
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 ### Status (updated 2026-04-02)
-- **compoundLin lifting IN PROGRESS**: Unifying TransGen to use CompoundMCM linearization events.
-  - `compoundLin_cle` bridge lemma: SORRY-FREE. Relates compoundLin to CLE in 4 cases.
-  - `StepOrdering.encap` constructor: added and integrated into compose_three.
-  - `StepOrdering.encap` constructor: added and integrated into compose_three.
-  - `StepOrdering.obProxy`: l₁ OB p₁, SO p₁ p₂, l₂ OB p₂. For ob_cle+ob_cle.
-  - `StepOrdering.stepProxyL/R`: proxy before/after endpoint. For cle_ob/ob_cle lifting.
-  - `StepOrdering.obStepL`: l₁ OB p₁, SO p₁ l₂. For ob_cle event 1 (compoundLin before CLE).
-  - `step_ordering_cle_to_compoundLin`: generic bridge, ~34 sorry's. ~9 dead code, ~15 obFinishBefore
-    diff_prot or proxy-vs-compoundLin relative order, ~5 inside edge cases, ~5 stepOrdering_to_three.
-  - `step_to_ordering_compoundLin`: one-liner delegating to generic bridge.
-  - Main proof (`cmcm_acyclic_of_hknow`, `compose_three`): SORRY-FREE on CLEs.
-  - **FULL LIFTING APPROACH**: compoundLin events are always RELATED to CLEs (directory events)
-    via compoundLin_cle_rel. So dir_ordered fallback in compose_three can go through CLEs:
-    extract CLEs via hknow, dir_ordered on CLEs, chain back to compoundLin via proxy constructors.
-    Need: step_ordering_dir_ordered_3way_compoundLin helper that replaces dir_ordered calls.
-    compose_three rewrite is MECHANICAL — replace dir_ordered calls with compoundLin version.
+- **compoundLin lifting COMPLETE (2 sorry'd declarations, main chain sorry-free)**:
+  - `cmcm_acyclic_of_hknow_compoundLin`: SORRY-FREE ✓
+  - `compose_three_compoundLin`: SORRY-FREE ✓
+  - `step_ordering_dir_ordered_3way_compoundLin`: SORRY-FREE ✓
+  - `step_to_ordering_compoundLin`: SORRY-FREE ✓
+  - `compoundLin_cle_of_dirLin`: SORRY-FREE ✓ (Rf.lean, ZERO sorry's)
+  - `compoundLin_diff_protocol`: SORRY-FREE ✓ (modulo 1 inside+inside genuine impossibility)
+  - `cle_ne_compoundLin_prot`: SORRY-FREE ✓
+  - `cluster_cache_ne_global`: SORRY-FREE ✓
+  - `rfe` structure: added `notDown₁`/`notDown₂` fields
+  - 2 sorry'd declarations remain (non-critical):
+    - `stepOrdering_to_three`: 4 sorry's for reverse sub-cases of new constructors (CLE proof only)
+    - `step_ordering_cle_to_compoundLin`: bridge sorry's (ne_global call site args + dead code + inside+inside diff_prot impossibility)
 - **`dirAccessUnique` REMOVED** from `CompoundProtocol` — it was unused.
 - **Architecture**: `cmcm_acyclic_of_hknow` uses CLEs from `hknow` directly (`hreq's_dir_access.choose`). The CLE-to-compound_lin bridge was eliminated.
   - **PPOi (single edge)**: `dir_ordered` gives 3-way on CLEs (same-cluster directory events). No compound_lin needed.
