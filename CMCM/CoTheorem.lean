@@ -22,6 +22,31 @@ namespace Herd
 variable {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
 variable {e₁ e₂ : Event n}
 
+-- Two non-downgrade cache events at same cache: ¬ e₂ OB e₁ → e₁ OB e₂.
+-- Generalization of eq_gle_cle_implies_write_before_read (which carries unused isRead).
+private lemma cache_events_ordered_from_not_reverse
+    {b : Behaviour n} {e₁ e₂ : Event n}
+    (h₁_cluster : e₁.isClusterCache) (h₂_cluster : e₂.isClusterCache)
+    (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
+    (h_not_reverse : ¬ e₂.OrderedBefore n e₁)
+    : e₁.OrderedBefore n e₂ := by
+  match he₁ : e₁, h₁_cluster.eAtCache with
+  | .cacheEvent ce₁, _ =>
+    match he₂ : e₂, h₂_cluster.eAtCache with
+    | .cacheEvent ce₂, _ =>
+      have h₁_nd : ¬ ce₁.down := by simpa [Event.down, he₁] using h₁_notdown
+      have h₂_nd : ¬ ce₂.down := by simpa [Event.down, he₂] using h₂_notdown
+      simp only [Event.OrderedBefore, Event.oEnd, Event.oStart, he₁, he₂] at h_not_reverse
+      cases (b.orderedAtEntry.cache_ordered ce₁ ce₂).ordered with
+      | inl h => cases h with
+        | inl henc => exact absurd (b.orderedAtEntry.cache_encap_rule ce₂ ce₁ henc) h₁_nd
+        | inr hob => simpa [Event.OrderedBefore, Event.oEnd, Event.oStart, he₁, he₂] using hob
+      | inr h => cases h with
+        | inl henc => exact absurd (b.orderedAtEntry.cache_encap_rule ce₁ ce₂ henc) h₂_nd
+        | inr hob => exact absurd hob h_not_reverse
+    | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+  | .directoryEvent _, hh => simp [Event.isCacheEvent] at hh
+
 -- CO theorem: derive co.ordering from protocol axioms.
 -- Given two writes to the same address with linearization events,
 -- determine the ordering case (sameCache / sameClusDiffCache / diffClus).
@@ -50,19 +75,12 @@ theorem co_ordering_holds
       -- e₁ OB e₂ from cache_ordered + h_not_reverse.
       have h_same_struct := same_cle_implies_same_struct w₁_lin w₂_lin w_r_cle_eq
       -- cache_ordered gives e₁ OB e₂ ∨ e₂ OB e₁. h_not_reverse eliminates reverse.
-      have h_e₁_ob_e₂ : e₁.OrderedBefore n e₂ := by
-        -- From cache_ordered (total order on cache events) + h_not_reverse.
-        -- cache_ordered gives encapsulatedOrBefore in both directions.
-        -- For non-downgrade writes: encapsulation doesn't apply (writes are bottom events).
-        -- So OB in one direction. h_not_reverse eliminates e₂ OB e₁.
-        sorry
+      have h_e₁_ob_e₂ : e₁.OrderedBefore n e₂ :=
+        cache_events_ordered_from_not_reverse (b := b) h_cache₁ h_cache₂ h_notdown₁ h_notdown₂ h_not_reverse
       exact .sameCache w_r_cle_eq h_e₁_ob_e₂
     | otherCases other =>
-      -- Same GLE, CLEs differ → sameClusDiffCache.
-      -- sameProtocol: both events at same cluster (same GLE → same global dir → same cluster).
-      -- From write_cle_protocol: CLE.prot = e.prot. Same cluster CLEs → same protocol.
-      -- TODO: derive sameProtocol from same_gle + cluster evidence.
-      exact .sameClusDiffCache sorry other
+      -- Same GLE → same protocol (same_gle_implies_same_protocol).
+      exact .sameClusDiffCache (same_gle_implies_same_protocol w₁_lin w₂_lin same_gle) other
   | wObRGle w_ob_r_gle cle_cases =>
     -- w₁'s GLE OB w₂'s GLE.
     cases cle_cases with
