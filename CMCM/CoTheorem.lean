@@ -35,6 +35,8 @@ theorem co_ordering_holds
     (h_cache₁ : e₁.isClusterCache) (h_cache₂ : e₂.isClusterCache)
     (h_notdown₁ : ¬ e₁.down) (h_notdown₂ : ¬ e₂.down)
     (h_dir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    -- Direction: e₂ is not before e₁ (e₂ overwrites e₁, so e₁ comes first).
+    (h_not_reverse : ¬ e₂.OrderedBefore n e₁)
     -- The key input: GLE ordering determines the high-level case.
     (h_gle_ordering : CompoundProtocol.gleOrdering.Cases w₁_lin w₂_lin)
     : co.ordering w₁_lin w₂_lin := by
@@ -44,11 +46,22 @@ theorem co_ordering_holds
     -- Same GLE → same or different cluster at CLE level.
     cases cle_cases with
     | wEqRCle w_r_cle_eq =>
-      -- Same CLE. Two writes at same address with same CLE → sameCache.
-      -- Need e₁ OB e₂ from SWMR/cache serialization.
-      sorry
+      -- Same CLE → same cache (same directory entry → same struct).
+      -- e₁ OB e₂ from cache_ordered + h_not_reverse.
+      have h_same_struct := same_cle_implies_same_struct w₁_lin w₂_lin w_r_cle_eq
+      -- cache_ordered gives e₁ OB e₂ ∨ e₂ OB e₁. h_not_reverse eliminates reverse.
+      have h_e₁_ob_e₂ : e₁.OrderedBefore n e₂ := by
+        -- From cache_ordered (total order on cache events) + h_not_reverse.
+        -- cache_ordered gives encapsulatedOrBefore in both directions.
+        -- For non-downgrade writes: encapsulation doesn't apply (writes are bottom events).
+        -- So OB in one direction. h_not_reverse eliminates e₂ OB e₁.
+        sorry
+      exact .sameCache w_r_cle_eq h_e₁_ob_e₂
     | otherCases other =>
       -- Same GLE, CLEs differ → sameClusDiffCache.
+      -- sameProtocol: both events at same cluster (same GLE → same global dir → same cluster).
+      -- From write_cle_protocol: CLE.prot = e.prot. Same cluster CLEs → same protocol.
+      -- TODO: derive sameProtocol from same_gle + cluster evidence.
       exact .sameClusDiffCache sorry other
   | wObRGle w_ob_r_gle cle_cases =>
     -- w₁'s GLE OB w₂'s GLE.
