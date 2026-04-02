@@ -130,7 +130,7 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_of_cluste
     All reqHasPerms constructors give b.hasPerms (= MRS ≤ stateBefore.cache).
     reqMissingPerms.noPermsForNonNcRelAcqWeakWrite has eventOnStateNoPerms = ¬ hasPerms.
     The other reqMissingPerms cases also contradict reqHasPerms sub-cases. -/
-private theorem reqHasPerms_not_reqMissingPerms
+theorem reqHasPerms_not_reqMissingPerms
     {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
     (hno : b.reqMissingPerms n init e) (hnotdown : ¬ e.down) : ¬ b.reqHasPerms n init e := by
   intro hhas
