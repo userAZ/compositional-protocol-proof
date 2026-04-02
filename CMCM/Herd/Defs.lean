@@ -115,11 +115,15 @@ inductive co.ordering
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (cle_ordering : CompoundProtocol.DifferentCluster.cleOB.cleOrdering.Cases w₁_lin w₂_lin)
 
-/-- co: Coherence order.
-    Two writes to the same address, where w₂ overwrites w₁.
-    Communication evidence describes HOW the overwrite happens (same cache,
-    same cluster diff cache, or diff cluster), using the same downgrade chain
-    structures as RF. -/
+-- CO evidence: carries the GLE ordering (Type-valued) and direction evidence.
+-- Separated from the Prop-valued co structure because gleOrdering.Cases is Type.
+structure co.evidence
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e₁ e₂ : Event n}
+    (w₁_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
+    (w₂_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂) where
+  not_reverse : ¬ e₂.OrderedBefore n e₁
+  gle_ordering : CompoundProtocol.gleOrdering.Cases w₁_lin w₂_lin
+
 structure co (e₁ e₂ : Event n) : Prop where
   write₁ : e₁.isWrite
   write₂ : e₂.isWrite
