@@ -1564,6 +1564,17 @@ inductive LinLink {n : ℕ} (l₁ l₂ : Event n) : Prop
 | proxy (cle₁ cle₂ : Event n)
     (h_so : @CleLink n cle₁ cle₂)
     (h₁_isdir : cle₁.isDirectoryEvent) (h₂_isdir : cle₂.isDirectoryEvent)
+    (h_chain : Relation.TransGen TemporalRel l₁ l₂)
+
+-- LinLink is a transitive irreflexive subset of TransGen TemporalRel.
+theorem LinLink.subset_temporalRel {l₁ l₂ : Event n}
+    (h : LinLink l₁ l₂)
+    (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    : Relation.TransGen TemporalRel l₁ l₂ := by
+  cases h with
+  | step h => exact CleLink.subset_temporalRel h h₁_isdir h₂_isdir hdir
+  | proxy _ _ _ _ _ h_chain => exact h_chain
 
 /-- LinLink l l → False (irreflexivity).
     step case: CleLink l l → False via cle_self_ordering_false.
@@ -1585,10 +1596,21 @@ theorem cle_to_compoundLinOrdering
     {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
     (h : @CleLink n lin₁.hreq's_dir_access.choose lin₂.hreq's_dir_access.choose)
-    : LinLink lin₁.compoundLin lin₂.compoundLin :=
-  .proxy _ _ h
+    (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    : LinLink lin₁.compoundLin lin₂.compoundLin := by
+  -- Build TransGen TemporalRel chain from compoundLin_cle_rel + CleLink.
+  -- ob_cle is vacuous (requestLin + orderAfterDir contradictory).
+  -- Only real cases: eq (compoundLin = CLE), cle_ob (CLE OB compoundLin), inside (compoundLin EncBy CLE).
+  have h_cle_chain := CleLink.subset_temporalRel h
+    lin₁.hreq's_dir_access.choose_spec.right.isDirEvent
+    lin₂.hreq's_dir_access.choose_spec.right.isDirEvent hdir
+  -- Use compoundLin_cle_of_dirLin or compoundLin_cle for the leg evidence.
+  -- For now: sorry the chain construction (need formal ob_cle vacuity proof).
+  exact .proxy _ _ h
     lin₁.hreq's_dir_access.choose_spec.right.isDirEvent
     lin₂.hreq's_dir_access.choose_spec.right.isDirEvent
+    sorry
 
 -- 3-way LinLink via CLE dir_ordered + bridge.
 theorem compoundLinOrdering_3way
@@ -1602,10 +1624,10 @@ theorem compoundLinOrdering_3way
     (hknow e₁).hreq's_dir_access.choose_spec.right.isDirEvent
     (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent hdir
   cases h3way with
-  | inl hso => exact Or.inl (cle_to_compoundLinOrdering hso)
+  | inl hso => exact Or.inl (cle_to_compoundLinOrdering hso sorry sorry hdir)
   | inr hr => cases hr with
-    | inl heq => exact Or.inl (cle_to_compoundLinOrdering (.eq heq))
-    | inr hob_rev => exact Or.inr (Or.inr (cle_to_compoundLinOrdering (.ob hob_rev)))
+    | inl heq => exact Or.inl (cle_to_compoundLinOrdering (.eq heq) sorry sorry hdir)
+    | inr hob_rev => exact Or.inr (Or.inr (cle_to_compoundLinOrdering (.ob hob_rev) sorry sorry hdir))
 
 
 -- Compose any CleLink h₁ with OB h₂. Handles all h₁ constructors.
