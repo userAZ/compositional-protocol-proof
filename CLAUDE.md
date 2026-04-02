@@ -79,8 +79,8 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 ### TODO
 1. **CO Theorem**: Implement a CO theorem that PROVES `co.ordering` from protocol axioms. Note: this is NOT a carbon copy of `RfTheorem` — `readsFrom.cases` requires `isRead` for the second event, but CO has two writes. The CO theorem needs its own type structure. `CoTheorem.lean` is currently a placeholder.
 2. **Dead code cleanup**: Remove marked-as-DEAD functions in RfProofHelpers.lean.
-3. **CompoundLin lifting (IN PROGRESS)**: Framework done (compoundLin def, bridge, proxy constructors). Next: finish bridge sorry's → compose_three_compoundLin → cmcm_acyclic_compoundLin. Key: compoundLin always related to CLE via compoundLin_cle_rel; dir_ordered goes through CLEs.
-4. **compose_three_compoundLin**: The reverse case in dir_ordered is a PROOF ARTIFACT. The protocol guarantees forward ordering — composition of two forward edges MUST give forward (causality). The RIGHT approach: handle all stuck composition pairs EXPLICITLY, deriving forward from specific StepOrdering constructors + edge evidence. This eliminates the reverse case and dir_ordered fallback. Produces clean 2-way invariant (StepOrdering or eq). The CLE proofs dir_ordered is an overapproximation introducing a spurious reverse case.
+3. **CompoundLin lifting: DONE.** `cmcm_acyclic_of_hknow_compoundLinOrdering` proves acyclicity using `CompoundLinOrdering` (compoundLin events connected through CLEs/GLEs). ZERO sorry's.
+4. **Nice-to-have: Remove reverse case from 3-way invariant.** The reverse case (`CompoundLinOrdering l₃ l₁`) in the invariant is a proof artifact from `dir_ordered` giving both directions. It's always contradicted at cycle closure. Removing it requires replacing all 41 `dir_ordered` fallback calls in `compose_three` with explicit forward chaining — significant effort for an aesthetic improvement. The proof is correct with reverse.
 5. **Key rule**: Use `Event n` with `isDirectoryEvent` prop, NEVER `DirectoryEvent` directly. Don't use `DirectoryEvent.eReq`. Match existing Behaviour proof patterns. ALWAYS document WHY a sublemma exists.
 
 ### Lessons learned (BE INTROSPECTIVE!)
