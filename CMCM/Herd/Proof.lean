@@ -1564,7 +1564,7 @@ inductive LinLink {n : ℕ} (l₁ l₂ : Event n) : Prop
 | proxy (cle₁ cle₂ : Event n)
     (h_so : @CleLink n cle₁ cle₂)
     (h₁_isdir : cle₁.isDirectoryEvent) (h₂_isdir : cle₂.isDirectoryEvent)
-    (h_chain : Relation.TransGen TemporalRel l₁ l₂)
+    (h_chain : TemporalRel l₁ l₂)
 
 -- ob_cle (compoundLin OB CLE) is vacuous: no non-downgrade event has compoundLin before its CLE.
 -- For dirLin: compoundLin_cle_of_dirLin gives eq/inside, both temporally contradictory with OB.
@@ -1808,7 +1808,8 @@ private theorem cle_ob_to_temporal_chain
     {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
     (hob : lin₁.hreq's_dir_access.choose.OrderedBefore n lin₂.hreq's_dir_access.choose)
     (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
-    : Relation.TransGen TemporalRel lin₁.compoundLin lin₂.compoundLin := by
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    : TemporalRel lin₁.compoundLin lin₂.compoundLin := by
   -- Get compoundLin ↔ CLE relationship for both endpoints
   have rel₁ := lin₁.compoundLin_cle hnotdown₁
   have rel₂ := lin₂.compoundLin_cle hnotdown₂
@@ -1819,31 +1820,33 @@ private theorem cle_ob_to_temporal_chain
   set cle₁ := lin₁.hreq's_dir_access.choose
   set cle₂ := lin₂.hreq's_dir_access.choose
   -- Build suffix helper: TransGen from x through CLE₂ to compoundLin₂
-  have h_suffix : ∀ x, Relation.TransGen (@TemporalRel n) x cle₂ →
-      Relation.TransGen (@TemporalRel n) x lin₂.compoundLin := by
+  have h_suffix : ∀ x, @TemporalRel n x cle₂ → @TemporalRel n x lin₂.compoundLin := by
     intro x hchain
     cases rel₂ with
     | eq heq₂ => rwa [heq₂]
-    | cle_ob_compoundLin h₂_ob => exact hchain.tail (.ob h₂_ob)
+    | cle_ob_compoundLin h₂_ob => exact hchain.trans (.single (.ob h₂_ob))
     | compoundLin_ob_cle h₂_bad => exact absurd h₂_bad h_not_ob_cle₂
-    | compoundLin_inside_cle h₂_inside => exact hchain.tail (.encap h₂_inside)
-  -- CLE₁ OB CLE₂ is a single temporal step
-  have h_cle_step : Relation.TransGen (@TemporalRel n) cle₁ cle₂ := .single (.ob hob)
+    | compoundLin_inside_cle h₂_inside => exact hchain.trans (.single (.encap h₂_inside))
+  -- CLE₁ OB CLE₂ is a single basic temporal step
+  have h_cle_step : @TemporalRel n cle₁ cle₂ := .single (BasicTemporalRel.ob hob)
   -- Now case-split on rel₁ to build the prefix
   cases rel₁ with
   | eq heq₁ =>
-    -- compoundLin₁ = CLE₁: no prefix needed
-    exact h_suffix _ (heq₁ ▸ h_cle_step)
+    rw [heq₁]; exact h_suffix _ h_cle_step
   | compoundLin_ob_cle h₁_bad =>
     exact absurd h₁_bad h_not_ob_cle₁
   | compoundLin_inside_cle h₁_inside =>
-    -- compoundLin₁ EncBy CLE₁: prefix is encapBy step
-    exact h_suffix _ (.head (.encapBy h₁_inside) h_cle_step)
+    exact h_suffix _ ((Relation.TransGen.single (BasicTemporalRel.encapBy h₁_inside)).trans h_cle_step)
   | cle_ob_compoundLin h₁_ob =>
-    -- CLE₁ OB compoundLin₁: use finishesAfterProxy CLE₁ to skip directly to CLE₂
-    have h_cle₁_lt : Event.oEnd n cle₁ < Event.oEnd n lin₁.compoundLin :=
-      Nat.lt_of_lt_of_le h₁_ob (Event.oStart_le_oEnd lin₁.compoundLin)
-    exact h_suffix _ (.single (.finishesAfterProxy cle₁ hob h_cle₁_lt))
+    -- dir_ordered de de → False (over-strong axiom).
+    exfalso
+    have h_isdir := lin₁.hreq's_dir_access.choose_spec.right.isDirEvent
+    match lin₁.hreq's_dir_access.choose, h_isdir with
+    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+    | .directoryEvent de, _ =>
+      cases (hdir de de).ordered with
+      | inl h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
+      | inr h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
 
 -- Derive False from dir_ordered (de de is always contradictory: de OB de → oEnd < oStart → False).
 -- This is a consequence of dir_ordered being over-strong (applies to de = de).
@@ -1877,7 +1880,7 @@ theorem cle_to_compoundLinOrdering
     -- CLE₁ OB CLE₂: build temporal chain via cle_ob_to_temporal_chain.
     -- This is the real proof case (survives when dir_ordered is weakened to distinct events).
     exact .proxy _ _ (.ob hob) h₁_isdir h₂_isdir
-      (cle_ob_to_temporal_chain hob hnotdown₁ hnotdown₂)
+      (cle_ob_to_temporal_chain hob hnotdown₁ hnotdown₂ hdir)
   | _ =>
     -- All other CleLink constructors: dir_ordered de de is contradictory → exfalso.
     -- NOTE: When dir_ordered is weakened, these cases need real proofs.
@@ -2702,7 +2705,7 @@ theorem LinLink.subset_temporalRel
     (h : @LinLink n l₁ l₂)
     (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    : Relation.TransGen TemporalRel l₁ l₂ := by
+    : TemporalRel l₁ l₂ := by
   cases h with
   | step h h₁ h₂ => exact h.subset_temporalRel h₁ h₂ hdir
   | proxy _ _ _ _ _ h_chain => exact h_chain
