@@ -1803,7 +1803,7 @@ lemma Behaviour.noCoherentRead.corresponding_cluster_dir_state_le_stateAfter_fwd
               simp [Behaviour.reqToDirOfRequestEvent, Event.reqToDirOfRequestEvent,
                     hce_req, hacq_state_before, hce_down, Event.req, Event.down] at hacq_dir_req'
               simp [Event.req, hacq_dir_req']
-            | .directoryEvent _ => sorry -- proxy can't be dir event
+            | .directoryEvent _ => exact absurd hfwd_mr_down_translation.acq.atCorrClusterProxy.atProxy (by simp [Event.atProxy])
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
         rw[Behaviour.directory_acq_from_sw_state_eq_stateAfter_vd_append_rest n
           hfwd_mr_down_translation.acqDir.isDir hdir_acq_not_down h_nc_write]
@@ -1833,7 +1833,53 @@ lemma Behaviour.noCoherentRead.corresponding_cluster_dir_state_le_stateAfter_fwd
           simp[cacheStateMadeOn] at hgdown_on_sw
           simp[hgdown_on_sw]
       | ⟨some .wr, true⟩ | ⟨some .r, true⟩ | ⟨some .r, false⟩ | ⟨none, true⟩ | ⟨none, false⟩ =>
-        sorry -- Vc path: rw chain + continuation
+        -- Non-Vd cache: Acquire path. SW → Vc → Vc.
+        -- Dir req = cache req = acquire (default branch of reqToDirOfRequestEvent).
+        have h_acq : (Event.req n e_dir_shim_acq).isAcquire := by
+          have hacq_dir_req' := hacq_dir_req
+          simp [Behaviour.reqToDirOfRequestEvent, Event.reqToDirOfRequestEvent,
+                hacq_req, hacq_state_before, Event.req, Event.down] at hacq_dir_req'
+          match e_dir_shim_acq, hfwd_mr_down_translation.acqDir.isDir with
+          | .directoryEvent de, _ =>
+            match e_shim_acq with
+            | .cacheEvent ce_acq =>
+              have hacq_down := hfwd_mr_down_translation.acq.downgrade
+              have hce_req : ce_acq.req = ⟨⟨.r, false, .Acq⟩, by simp [Request.IsValid']⟩ := by
+                simpa [Event.req] using hacq_req
+              have hce_down : ce_acq.down = false := by
+                simpa [Event.down] using hacq_down
+              simp [Behaviour.reqToDirOfRequestEvent, Event.reqToDirOfRequestEvent,
+                    hce_req, hacq_state_before, hce_down, Event.req, Event.down] at hacq_dir_req'
+              simp [Event.req, ValidRequest.isAcquire, hacq_dir_req']
+            | .directoryEvent _ => exact absurd hfwd_mr_down_translation.acq.atCorrClusterProxy.atProxy (by simp [Event.atProxy])
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+        rw[Behaviour.directory_acq_from_sw_state_eq_stateAfter_vc_append_rest n
+          hfwd_mr_down_translation.acqDir.isDir hdir_acq_not_down h_acq]
+        rw[← List.append_nil [e_dir_shim_vd_down]]
+        rw[Behaviour.directory_vd_downgrade_from_vc_state_eq_stateAfter_vc_append_rest n
+          hfwd_mr_down_translation.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir
+          (by simp [hfwd_mr_down_translation.gDownEncapVdWBDir.downgrade])
+          hfwd_mr_down_translation.gDownEncapVdWBDir.reqTranslation]
+        simp[List.stateAfter]
+        rw[Behaviour.stateAfter_eventsUpToEvent_append_eq_stateAfter_stateBefore]
+        simp[List.stateAfter]
+        apply Behaviour.state_after_cluster_dir_on_Vc_and_global_sc_read_le_state_on_SW_of_cmp_swmr
+        . case hgdown => exact hgdown
+        . case hgdown_cache => exact hgdown.isGlobal.reqAtCache
+        . case hsc_read => exact hsc_read
+        . case hstate_before_gdown_is_cache_state =>
+          simp[stateBefore]
+          apply Behaviour.stateAfter_cache_event_is_cache_state
+          . case he_is_cache => exact hgdown_cache
+          . case hinit_cache =>
+            simp[InitialSystemState.stateAt]
+            match e_gdown with
+            | .cacheEvent _ => simp[EntryState.isCacheState]
+            | .directoryEvent _ => simp[Event.isCacheEvent] at hgdown_cache
+          . case hall_at_entry => apply Behaviour.eventsUpToEntry_at_e_entry
+        . case hstate_before_gdown =>
+          simp[cacheStateMadeOn] at hgdown_on_sw
+          simp[hgdown_on_sw]
 
       -- (Continuation code moved into each branch above)
   | Sum.inl s =>
