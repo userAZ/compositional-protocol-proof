@@ -24,6 +24,7 @@ Before proving, composing, or sorry-ing ANYTHING:
 
 ## Rules
 
+0. **NO SORRY'S.** The proof must have ZERO sorry's. Every sorry must be filled. If a sorry seems unprovable, the approach is wrong — find a different approach that IS provable. Never leave sorry's as "known limitations" or "non-critical."
 1. **Understand first, prove second.** Walk through the proof in text before formalizing.
 2. **Read the actual definition.** Grep and read source. Never assume.
 3. **Consider all cases.** `dirAccessOfRequest` has 3 cases, `linearizationEventOfRequest` has 2, etc.

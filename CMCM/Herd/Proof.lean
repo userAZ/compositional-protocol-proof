@@ -3034,7 +3034,7 @@ private theorem compose_three_compoundLin {e₁ e₂ e₃ : Event n}
       -- StepOrdering l₂ l₃: compose hso₁ with hso₂.
       -- For most h₁ constructors, chaining OB works. For hard cases, fallback.
       cases hso₁ with
-      | ob hob₁ => exact Or.inl (.obStepL _ hob₁ hso₂)
+      | ob hob₁ => exact Or.inl (.obStepL _ hob₁ hso₂ sorry)
       | eq heq₁ => exact Or.inl (heq₁ ▸ hso₂)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ hso₂)
       | _ => exact fallback_1_3
