@@ -175,22 +175,23 @@ inductive StepOrdering : Event n → Event n → Prop where
       If p₁≠p₂: composition with other edges resolves. -/
   | obProxy (p₁ p₂ : Event n) (h₁_ob : l₁.OrderedBefore n p₁)
       (h_so : StepOrdering p₁ p₂) (h₂_ob : l₂.OrderedBefore n p₂)
+      (h_p₁_isdir : p₁.isDirectoryEvent) (h_p₂_isdir : p₂.isDirectoryEvent)
       : StepOrdering l₁ l₂
   /-- StepOrdering through a proxy for l₁: l₁ is after p₁, and StepOrdering p₁ l₂.
       For compoundLin lifting when event 1 has orderBeforeDir (CLE OB compoundLin):
       StepOrdering CLE₁ CLE₂, CLE₁ OB compoundLin₁ → StepOrdering compoundLin₁ CLE₂.
       Irrefl: CLE OB l, StepOrdering CLE l → chain gives CLE.oEnd < l.oStart < ... < CLE.oStart. -/
   | stepProxyL (p₁ : Event n) (h₁_ob : p₁.OrderedBefore n l₁) (h_so : StepOrdering p₁ l₂)
-      : StepOrdering l₁ l₂
+      (h_p₁_isdir : p₁.isDirectoryEvent) : StepOrdering l₁ l₂
   /-- StepOrdering through a proxy for l₂: l₂ is before p₂, and StepOrdering l₁ p₂.
       For compoundLin lifting when event 2 has orderAfterDir (compoundLin OB CLE):
       StepOrdering CLE₁ CLE₂, compoundLin₂ OB CLE₂ → StepOrdering CLE₁ compoundLin₂.
       Also for event 1 = CLE (eq) or inside CLE combined with ob_cle event 2.
       Irrefl: StepOrdering p₂ p₂ from inner h_so → contradiction. -/
   | obStepL (p₁ : Event n) (h₁_ob : l₁.OrderedBefore n p₁) (h_so : StepOrdering p₁ l₂)
-      : StepOrdering l₁ l₂
+      (h_p₁_isdir : p₁.isDirectoryEvent) : StepOrdering l₁ l₂
   | stepProxyR (p₂ : Event n) (h_so : StepOrdering l₁ p₂) (h₂_ob : l₂.OrderedBefore n p₂)
-      : StepOrdering l₁ l₂
+      (h_p₂_isdir : p₂.isDirectoryEvent) : StepOrdering l₁ l₂
   /-- Encap-then-OB-then-oEnd: q inside l₁, q OB p, p.oEnd < l₂.oEnd.
       Composition of encapOb/proxyPair with obEndLt.
       Irrefl via dir_ordered: l₂ OB l₁ gives chain l₂.oEnd < l₁.oStart < q.oStart ≤
