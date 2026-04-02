@@ -100,7 +100,7 @@ theorem ppoi_compound_lin_order
     : compound.CompoundLinearizationOrder n b init e₁ e₂ :=
   CompoundProtocol.enforce_compound_consistency n compound
     hppoi.sameProtocol hppoi.notDown₁ hppoi.notDown₂
-    hppoi.cache₁ hppoi.cache₂ hppoi.in_b₁ hppoi.in_b₂
+    hppoi.cache₁.eAtCache hppoi.cache₂.eAtCache hppoi.in_b₁ hppoi.in_b₂
     hppoi.sameCid' hdiff_addr hppoi.orderedBefore
 
 -- rfe_gle_ordered removed: with diffCache (not diffProtocol), wEqRGle is valid for rfe.
@@ -1952,7 +1952,7 @@ private theorem compoundLin_diff_protocol
       rw [lin₂.compoundLin_eq_event_of_requestLin hlin₂]
       cases lin₁.compoundLin_cle_of_dirLin h₁_notdown hlin₁ with
       | inl ha₁ => rw [ha₁]; exact fun h => hdiff (h.trans hprot₂.symm)
-      | inr ha => exact fun h => h₂_ne_global (ha.2.symm.trans h)
+      | inr ha => exact fun h => h₂_ne_global ((ha.2.symm.trans h).symm)
     | dirLin _ =>
       cases lin₁.compoundLin_cle_of_dirLin h₁_notdown hlin₁ with
       | inl ha₁ => rw [ha₁]; cases lin₂.compoundLin_cle_of_dirLin h₂_notdown hlin₂ with
@@ -2006,6 +2006,7 @@ theorem step_ordering_cle_to_compoundLin
     {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
     (h : @StepOrdering n lin₁.hreq's_dir_access.choose lin₂.hreq's_dir_access.choose)
     (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
+    (h₁_cluster : e₁.isClusterCache) (h₂_cluster : e₂.isClusterCache)
     : @StepOrdering n lin₁.compoundLin lin₂.compoundLin := by
   have hrel₁ := lin₁.compoundLin_cle h₁_notdown
   have hrel₂ := lin₂.compoundLin_cle h₂_notdown
@@ -2050,7 +2051,7 @@ theorem step_ordering_cle_to_compoundLin
         -- And compoundLin₂.prot = e₂.prot (from compoundLin_eq_event if requestLin).
         -- Since ha₂ arises from cle_ob (requestLin), compoundLin₂.prot = e₂.prot.
         -- diff_prot: case-split on linearizationOfEvent to relate compoundLin₂.prot to CLE₂.prot.
-        exact .obFinishBefore p (Trans.trans hob ha₂) hlt (ha₁ ▸ compoundLin_diff_protocol hdiff h₁_notdown h₂_notdown sorry sorry) hisdir
+        exact .obFinishBefore p (Trans.trans hob ha₂) hlt (ha₁ ▸ compoundLin_diff_protocol hdiff h₁_notdown h₂_notdown (cluster_cache_ne_global h₁_cluster) (cluster_cache_ne_global h₂_cluster)) hisdir
       | obProxy p₁ p₂ h₁_ob h_so h₂_ob =>
         -- CLE₁ = compoundLin₁ (eq ha₁), CLE₂ OB compoundLin₂ (cle_ob ha₂).
         -- obProxy: CLE₁ OB p₁, SO p₁ p₂, CLE₂ OB p₂.
@@ -2077,7 +2078,7 @@ theorem step_ordering_cle_to_compoundLin
         sorry
       | obFinishBefore p hob hlt hdiff hisdir =>
         -- p OB CLE₂, compoundLin₂ inside CLE₂ → p.oEnd < CLE₂.oStart < compoundLin₂.oStart.
-        exact .obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (ha₁ ▸ compoundLin_diff_protocol hdiff h₁_notdown h₂_notdown sorry sorry) hisdir
+        exact .obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (ha₁ ▸ compoundLin_diff_protocol hdiff h₁_notdown h₂_notdown (cluster_cache_ne_global h₁_cluster) (cluster_cache_ne_global h₂_cluster)) hisdir
       | encapObEndLt q p hqenc hqob hlt hisdir =>
         -- q inside CLE₁, q OB p, p.oEnd < CLE₂.oEnd, compoundLin₂.oEnd < CLE₂.oEnd.
         -- Unknown p vs compoundLin₂. But encapOb gives q OB p.
@@ -2123,7 +2124,7 @@ theorem step_ordering_cle_to_compoundLin
         -- Inner: StepOrdering CLE₁ compoundLin₂. obFinishBefore needs CLE₁.prot ≠ compoundLin₂.prot.
         -- From hdiff: CLE₁.prot ≠ CLE₂.prot. From hprot₂: CLE₂.prot = e₂.prot.
         -- For cle_ob: compoundLin₂ = e₂ (requestLin). Chain.
-        exact .stepProxyL _ ha₁ (.obFinishBefore p (Trans.trans hob ha₂) hlt (cle_ne_compoundLin_prot hdiff h₂_notdown sorry) hisdir)
+        exact .stepProxyL _ ha₁ (.obFinishBefore p (Trans.trans hob ha₂) hlt (cle_ne_compoundLin_prot hdiff h₂_notdown (fun h => cluster_cache_ne_global h₁_cluster (hprot₁.symm.trans h))) hisdir)
       | _ => sorry -- dead code
     | compoundLin_ob_cle ha₂ =>
       -- compoundLin₂ OB CLE₂ (compoundLin₂ before CLE₂). Use stepProxyR.
@@ -2141,7 +2142,7 @@ theorem step_ordering_cle_to_compoundLin
       | sameLin e₁' e₂' heq henc₁ hob henc₂ =>
         exact .stepProxyL _ ha₁ (.ob (Nat.lt_trans henc₁.right (Nat.lt_trans hob (Nat.lt_trans henc₂.left ha₂.left))))
       | obFinishBefore p hob hlt hdiff hisdir =>
-        exact .stepProxyL _ ha₁ (.obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (cle_ne_compoundLin_prot hdiff h₂_notdown sorry) hisdir)
+        exact .stepProxyL _ ha₁ (.obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (cle_ne_compoundLin_prot hdiff h₂_notdown (fun h => cluster_cache_ne_global h₁_cluster (hprot₁.symm.trans h))) hisdir)
       | _ => sorry -- dead code
   | compoundLin_ob_cle ha₁ =>
     -- compoundLin₁ OB CLE₁ (ob_cle). Use obStepL for ALL event 2 cases:
@@ -2159,7 +2160,7 @@ theorem step_ordering_cle_to_compoundLin
           (Nat.lt_trans henc₁.right (Nat.lt_trans hob
             (Nat.lt_trans henc₂.left (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) ha₂)))))))
       | obFinishBefore p hob hlt hdiff hisdir =>
-        exact .obStepL _ ha₁ (.obFinishBefore p (Trans.trans hob ha₂) hlt (cle_ne_compoundLin_prot hdiff h₂_notdown sorry) hisdir)
+        exact .obStepL _ ha₁ (.obFinishBefore p (Trans.trans hob ha₂) hlt (cle_ne_compoundLin_prot hdiff h₂_notdown (fun h => cluster_cache_ne_global h₁_cluster (hprot₁.symm.trans h))) hisdir)
       | _ => sorry -- dead code
     | compoundLin_ob_cle ha₂ =>
       exact .obProxy _ _ ha₁ h ha₂
@@ -2173,7 +2174,7 @@ theorem step_ordering_cle_to_compoundLin
         exact .ob (Nat.lt_of_lt_of_le ha₁ (Nat.le_of_lt (Nat.lt_trans (Event.oWellFormed n _)
           (Nat.lt_trans henc₁.right (Nat.lt_trans hob (Nat.lt_trans henc₂.left ha₂.left))))))
       | obFinishBefore p hob hlt hdiff hisdir =>
-        exact .obStepL _ ha₁ (.obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (cle_ne_compoundLin_prot hdiff h₂_notdown sorry) hisdir)
+        exact .obStepL _ ha₁ (.obFinishBefore p (Nat.lt_trans hob ha₂.left) hlt (cle_ne_compoundLin_prot hdiff h₂_notdown (fun h => cluster_cache_ne_global h₁_cluster (hprot₁.symm.trans h))) hisdir)
       | _ => sorry -- dead code
   | compoundLin_inside_cle ha₁ =>
     cases hrel₂ with
@@ -2226,6 +2227,7 @@ theorem step_ordering_cle_to_compoundLin
 theorem step_ordering_dir_ordered_3way_compoundLin
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (e₁ e₂ : Event n) (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
+    (h₁_cluster : e₁.isClusterCache) (h₂_cluster : e₂.isClusterCache)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     : @StepOrdering n (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
       (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
@@ -2236,13 +2238,13 @@ theorem step_ordering_dir_ordered_3way_compoundLin
     (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent hdir
   -- Lift ALL cases to compoundLin via the bridge.
   cases h3way with
-  | inl hso => exact Or.inl (step_ordering_cle_to_compoundLin hso h₁_notdown h₂_notdown)
+  | inl hso => exact Or.inl (step_ordering_cle_to_compoundLin hso h₁_notdown h₂_notdown h₁_cluster h₂_cluster)
   | inr hr => cases hr with
-    | inl heq => exact Or.inl (step_ordering_cle_to_compoundLin (.eq heq) h₁_notdown h₂_notdown)
+    | inl heq => exact Or.inl (step_ordering_cle_to_compoundLin (.eq heq) h₁_notdown h₂_notdown h₁_cluster h₂_cluster)
     | inr hob_rev =>
       -- CLE₂ OB CLE₁. Use bridge in reverse: StepOrdering compoundLin₂ compoundLin₁.
       -- .ob hob_rev : StepOrdering CLE₂ CLE₁. Bridge lifts to compoundLin₂ → compoundLin₁.
-      exact Or.inr (Or.inr (step_ordering_cle_to_compoundLin (.ob hob_rev) h₂_notdown h₁_notdown))
+      exact Or.inr (Or.inr (step_ordering_cle_to_compoundLin (.ob hob_rev) h₂_notdown h₁_notdown h₂_cluster h₁_cluster))
 
 
 -- COM → StepOrdering on compoundLin events.
@@ -2255,9 +2257,10 @@ theorem step_to_ordering_compoundLin
       (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
         (compound.linearizationOfEvent b init a₂)).linearizationEvent)
     (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
+    (h₁_cluster : e₁.isClusterCache) (h₂_cluster : e₂.isClusterCache)
     : @StepOrdering n (lin e₁).compoundLin (lin e₂).compoundLin := by
   exact step_ordering_cle_to_compoundLin
-    (step_to_ordering h lin h_non_lazy_ppoi) h₁_notdown h₂_notdown
+    (step_to_ordering h lin h_non_lazy_ppoi) h₁_notdown h₂_notdown h₁_cluster h₂_cluster
 
 /-- Handle obFinishBefore h₁ + com edge directly.
     Case-splits on hcom_edge for full protocol evidence instead of going
@@ -2378,7 +2381,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     cases hedge with
     | inl hppoi =>
         -- PPOi(e₂, e₃): e₂ is a cache event, so rw is either .w or .r
-        have hcache := hppoi.1.cache₁
+        have hcache := hppoi.1.cache₁.eAtCache
         cases he₂ : e₂ with
         | directoryEvent _ => simp [Event.isCacheEvent, he₂] at hcache
         | cacheEvent ce =>
@@ -2394,7 +2397,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     cases h_prefix_edge with
     | inl hppoi =>
         -- PPOi(e₁, e₂): e₂ is a cache event, so rw is either .w or .r
-        have hcache := hppoi.1.cache₂
+        have hcache := hppoi.1.cache₂.eAtCache
         cases he₂ : e₂ with
         | directoryEvent _ => simp [Event.isCacheEvent, he₂] at hcache
         | cacheEvent ce =>
@@ -2987,6 +2990,7 @@ private theorem compose_three_compoundLin {e₁ e₂ e₃ : Event n}
     (hedge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₂ e₃)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down) (h₃_notdown : ¬ e₃.down)
+    (h₁_cluster : e₁.isClusterCache) (h₂_cluster : e₂.isClusterCache) (h₃_cluster : e₃.isClusterCache)
     (h_non_lazy_ppoi : ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
       (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
         (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
@@ -3001,7 +3005,7 @@ private theorem compose_three_compoundLin {e₁ e₂ e₃ : Event n}
   -- Mirrors compose_three but uses compoundLin instead of CLEs.
   -- Fallback: step_ordering_dir_ordered_3way_compoundLin gives 3-way on any pair of events.
   have fallback_1_3 : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ ∨ @StepOrdering n l₃ l₁ :=
-    step_ordering_dir_ordered_3way_compoundLin hknow e₁ e₃ h₁_notdown h₃_notdown hdir
+    step_ordering_dir_ordered_3way_compoundLin hknow e₁ e₃ h₁_notdown h₃_notdown h₁_cluster h₃_cluster hdir
   -- Case-split on h₁: eq/reverse or StepOrdering from prefix.
   cases h₁ with
   | inr hr₁ =>
@@ -3011,10 +3015,10 @@ private theorem compose_three_compoundLin {e₁ e₂ e₃ : Event n}
       cases hedge with
       | inl hppoi_edge =>
         -- PPOi: use dir_ordered on compoundLin events.
-        exact heq₁ ▸ step_ordering_dir_ordered_3way_compoundLin hknow e₂ e₃ h₂_notdown h₃_notdown hdir
+        exact heq₁ ▸ step_ordering_dir_ordered_3way_compoundLin hknow e₂ e₃ h₂_notdown h₃_notdown h₂_cluster h₃_cluster hdir
       | inr hcom_edge =>
         -- COM: step_to_ordering_compoundLin gives StepOrdering.
-        exact heq₁ ▸ Or.inl (step_to_ordering_compoundLin hcom_edge hknow h_non_lazy_ppoi h₂_notdown h₃_notdown)
+        exact heq₁ ▸ Or.inl (step_to_ordering_compoundLin hcom_edge hknow h_non_lazy_ppoi h₂_notdown h₃_notdown h₂_cluster h₃_cluster)
     | inr h_rev₁ =>
       -- StepOrdering l₂ l₁ (reverse): fallback on l₁, l₃.
       exact fallback_1_3
@@ -3024,7 +3028,7 @@ private theorem compose_three_compoundLin {e₁ e₂ e₃ : Event n}
   | inl hppoi_edge =>
     -- PPOi(e₂, e₃): get 3-way on l₂, l₃ via compoundLin.
     have h₂₃_3way : @StepOrdering n l₂ l₃ ∨ l₂ = l₃ ∨ @StepOrdering n l₃ l₂ :=
-      step_ordering_dir_ordered_3way_compoundLin hknow e₂ e₃ h₂_notdown h₃_notdown hdir
+      step_ordering_dir_ordered_3way_compoundLin hknow e₂ e₃ h₂_notdown h₃_notdown h₂_cluster h₃_cluster hdir
     cases h₂₃_3way with
     | inl hso₂ =>
       -- StepOrdering l₂ l₃: compose hso₁ with hso₂.
@@ -3043,7 +3047,7 @@ private theorem compose_three_compoundLin {e₁ e₂ e₃ : Event n}
   | inr hcom_edge =>
     -- COM edge: derive h₂ via step_to_ordering_compoundLin, compose with h₁.
     have h₂ : @StepOrdering n l₂ l₃ :=
-      step_to_ordering_compoundLin hcom_edge hknow h_non_lazy_ppoi h₂_notdown h₃_notdown
+      step_to_ordering_compoundLin hcom_edge hknow h_non_lazy_ppoi h₂_notdown h₃_notdown h₂_cluster h₃_cluster
     -- Compose hso₁ with h₂. Case-split on h₂.
     cases h₂ with
     | ob hob₂ =>
@@ -3249,11 +3253,11 @@ theorem cmcm_acyclic_of_hknow_compoundLin
   let R := (fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init
   let cl := fun e => (hknow e).compoundLin
   suffices h_ind : ∀ a c, Relation.TransGen R a c →
-      (∃ b_prev, R b_prev c) ∧ ¬ a.down ∧
+      (∃ b_prev, R b_prev c) ∧ ¬ a.down ∧ a.isClusterCache ∧
       (@StepOrdering n (hknow a).compoundLin (hknow c).compoundLin ∨
        (hknow a).compoundLin = (hknow c).compoundLin ∨
        @StepOrdering n (hknow c).compoundLin (hknow a).compoundLin) by
-    have ⟨_, _, hresult⟩ := h_ind e e hcycle
+    have ⟨_, _, _, hresult⟩ := h_ind e e hcycle
     exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
   -- Helper: extract notDown from any edge.
   have edge_notDown₁ : ∀ x y, R x y → ¬ x.down := by
@@ -3266,19 +3270,32 @@ theorem cmcm_acyclic_of_hknow_compoundLin
     | inl hp => exact hp.1.notDown₂
     | inr hc => cases hc with
       | rfe h => exact h.notDown₂ | co h => exact h.notDown₂ | fr h => exact h.notDown₂
+  have edge_cluster₁ : ∀ x y, R x y → x.isClusterCache := by
+    intro x y hxy; cases hxy with
+    | inl hp => exact hp.1.cache₁
+    | inr hc => cases hc with
+      | rfe h => exact h.cache₁ | co h => exact h.cache₁ | fr h => exact h.cache₁
+  have edge_cluster₂ : ∀ x y, R x y → y.isClusterCache := by
+    intro x y hxy; cases hxy with
+    | inl hp => exact hp.1.cache₂
+    | inr hc => cases hc with
+      | rfe h => exact h.cache₂ | co h => exact h.cache₂ | fr h => exact h.cache₂
   intro a c hpath
   induction hpath with
   | single h =>
-    exact ⟨⟨a, h⟩, edge_notDown₁ _ _ h,
+    exact ⟨⟨a, h⟩, edge_notDown₁ _ _ h, edge_cluster₁ _ _ h,
       step_ordering_dir_ordered_3way_compoundLin hknow a _
-        (edge_notDown₁ _ _ h) (edge_notDown₂ _ _ h) b.orderedAtEntry.dir_ordered⟩
+        (edge_notDown₁ _ _ h) (edge_notDown₂ _ _ h)
+        (edge_cluster₁ _ _ h) (edge_cluster₂ _ _ h) b.orderedAtEntry.dir_ordered⟩
   | tail hpath h ih =>
-    let ⟨⟨b_prev, h_last_prefix⟩, h_a_nd, h3way_prefix⟩ := ih
-    exact ⟨⟨_, h⟩, h_a_nd,
+    let ⟨⟨b_prev, h_last_prefix⟩, h_a_nd, h_a_cluster, h3way_prefix⟩ := ih
+    exact ⟨⟨_, h⟩, h_a_nd, h_a_cluster,
       compose_three_compoundLin hknow h3way_prefix h
         b.orderedAtEntry.dir_ordered
         h_a_nd (edge_notDown₂ _ _ h_last_prefix)
-        (edge_notDown₂ _ _ h) h_non_lazy_ppoi⟩
+        (edge_notDown₂ _ _ h)
+        h_a_cluster (edge_cluster₂ _ _ h_last_prefix)
+        (edge_cluster₂ _ _ h) h_non_lazy_ppoi⟩
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)

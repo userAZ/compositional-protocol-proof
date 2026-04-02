@@ -61,8 +61,8 @@ structure PPOi (e₁ e₂ : Event n) : Prop where
   sameCid' : e₁.cid = e₂.cid
   notDown₁ : ¬ e₁.down
   notDown₂ : ¬ e₂.down
-  cache₁ : e₁.isCacheEvent
-  cache₂ : e₂.isCacheEvent
+  cache₁ : e₁.isClusterCache
+  cache₂ : e₂.isClusterCache
   in_b₁ : e₁ ∈ b
   in_b₂ : e₂ ∈ b
   isBottom₁ : b.IsBottomEvent n e₁
@@ -78,6 +78,8 @@ structure rfe (e₁ e₂ : Event n) : Prop where
   diffCache : e₁.struct ≠ e₂.struct
   notDown₁ : ¬ e₁.down
   notDown₂ : ¬ e₂.down
+  cache₁ : e₁.isClusterCache
+  cache₂ : e₂.isClusterCache
   w_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
   r_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
