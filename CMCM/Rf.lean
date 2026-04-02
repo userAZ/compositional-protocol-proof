@@ -878,15 +878,25 @@ inductive Behaviour.clusterDown.encapDirRelation
 
     When e_r and e_w are in the same cluster, CLE ≻ e_r_cdir_down (cleEncap).
     When e_r and e_w are in different clusters, e_gcache ≻ e_r_cdir_down (gcacheEncap). -/
+-- Named structure for the existsRClusterDirDown evidence.
+-- Replaces ∃ e ∈ b, isDir ∧ protocol ∧ isDirDownRW ∧ clusterDir ∧ encapDirRelation.
+structure Behaviour.clusterDown.RClusterDirDownSpec
+    {cmp : CompoundProtocol n} (b : Behaviour n) (init : InitialSystemState n)
+    (e_w e_r_cdir_down : Event n)
+    (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
+    : Prop where
+  isDir : e_r_cdir_down.isDirectoryEvent
+  sameProtocol : e_r_cdir_down.protocol = e_w.protocol
+  isDirDownRW : e_r_cdir_down.isDirDownRW
+  clusterDir : Event.clusterDirFromDiffProtocolRequest b init e_r e_r_cdir_down hr_c_and_g_lin
+  encapDirRelation : Behaviour.clusterDown.encapDirRelation hr_c_and_g_lin e_r_cdir_down
+
 structure Behaviour.clusterDown.encapDir (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
   (e_w : Event n)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   : Prop where
   existsRClusterDirDown :
-    ∃ e_r_cdir_down ∈ b, e_r_cdir_down.isDirectoryEvent ∧ e_r_cdir_down.protocol = e_w.protocol
-    ∧ e_r_cdir_down.isDirDownRW
-      ∧ Event.clusterDirFromDiffProtocolRequest b init e_r e_r_cdir_down hr_c_and_g_lin
-      ∧ Behaviour.clusterDown.encapDirRelation hr_c_and_g_lin e_r_cdir_down
+    ∃ e_r_cdir_down ∈ b, Behaviour.clusterDown.RClusterDirDownSpec b init e_w e_r_cdir_down hr_c_and_g_lin
 
 structure Behaviour.clusterDown.encapProxyAndDirAndCDown {cmp : CompoundProtocol n}
   {b : Behaviour n} {init : InitialSystemState n}
