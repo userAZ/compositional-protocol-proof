@@ -145,6 +145,17 @@ structure co (e₁ e₂ : Event n) : Prop where
 theorem Event.oStart_le_oEnd (e : Event n) : Event.oStart n e ≤ Event.oEnd n e :=
   Nat.le_of_lt (Event.oWellFormed n e)
 
+-- Chain: e₁.oEnd < p and p < e₂.oStart → e₁ OB e₂.
+theorem Event.ob_of_lt_lt {e₁ e₂ : Event n} {p : ℕ}
+    (h₁ : Event.oEnd n e₁ < p) (h₂ : p < Event.oStart n e₂)
+    : e₁.OrderedBefore n e₂ := Nat.lt_trans h₁ h₂
+
+-- Chain: e₁ OB p and p.oEnd < e₂.oEnd → e₁.oEnd < e₂.oEnd.
+theorem Event.oEnd_lt_of_ob_lt {e₁ p e₂ : Event n}
+    (h₁ : e₁.OrderedBefore n p) (h₂ : Event.oEnd n p < Event.oEnd n e₂)
+    : Event.oEnd n e₁ < Event.oEnd n e₂ :=
+  Nat.lt_trans (Nat.lt_trans h₁ (Event.oWellFormed n p)) h₂
+
 abbrev NonLazyPPOi (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) : Prop :=
   ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
     (compound.compoundLinearizationEvent compound.shimAxioms b init a₁

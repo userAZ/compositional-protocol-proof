@@ -1618,10 +1618,10 @@ private theorem compose_with_ob {l₁ l₂ l₃ : Event n}
   cases hso₁ with
   | ob hob₁ => exact Or.inl (.ob (Trans.trans hob₁ hob₂))
   | obEndLt p₁ hob₁ hlt₁ _ =>
-    exact Or.inl (.ob (Trans.trans hob₁ (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
+    exact Or.inl (.ob (Trans.trans hob₁ (Event.ob_of_lt_lt hlt₁ hob₂)))
   | encapOb p₁ henc₁ hob₁ => exact Or.inl (.encapOb p₁ henc₁ (Trans.trans hob₁ hob₂))
   | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ _ =>
-    exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
+    exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob (Event.ob_of_lt_lt hlt₁ hob₂)))
   | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
     exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
   | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
@@ -1857,9 +1857,9 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | encapOb p₁ henc₁ hob₁ =>
         exact Or.inl (.encapObEndLt p₁ p₂ henc₁ (Trans.trans hob₁ hob₂) hlt₂ h_p₂_isdir)
       | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ _ =>
-        exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hlt₁ hob₂)) hlt₂ h_p₂_isdir)
+        exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Event.ob_of_lt_lt hlt₁ hob₂)) hlt₂ h_p₂_isdir)
       | obEndLt p₁ hob₁ hlt₁ _ =>
-        exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hlt₁ hob₂)) hlt₂ h_p₂_isdir)
+        exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ (Event.ob_of_lt_lt hlt₁ hob₂)) hlt₂ h_p₂_isdir)
       | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
         exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans hp_ob hob₂)) hlt₂ h_p₂_isdir)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂ h_p₂_isdir)
@@ -1872,11 +1872,11 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     | encapOb p₂ henc₂ hob₂ =>
       cases hso₁ with
       | ob hob₁ =>
-        exact Or.inl (.ob (Trans.trans (show Event.OrderedBefore n l₁ p₂ from Nat.lt_trans hob₁ henc₂.left) hob₂))
+        exact Or.inl (.ob (Trans.trans (Event.ob_of_lt_lt hob₁ henc₂.left) hob₂))
       | encapOb p₁ henc₁ hob₁ =>
-        exact Or.inl (.proxyPair p₁ p₂ henc₁ (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hob₁ henc₂.left) hob₂)
+        exact Or.inl (.proxyPair p₁ p₂ henc₁ (Event.ob_of_lt_lt hob₁ henc₂.left) hob₂)
       | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-        exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hp_ob henc₂.left)) hob₂)
+        exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (Event.ob_of_lt_lt hp_ob henc₂.left)) hob₂)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
       | obEndLt p₁ hob₁ hlt₁ h_p₁_isdir =>
@@ -1901,7 +1901,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
                     (Nat.lt_trans hob_rev dep₁.oWellFormed))
         -- Chain: p₁ OB l₂, l₂.oStart < p₂.oStart (encap) → p₁ OB p₂ → p₁ OB l₃
         exact Or.inl (.ob (Trans.trans hob₁
-          (Trans.trans (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hp₁_ob_l₂ henc₂.left) hob₂)))
+          (Trans.trans (Event.ob_of_lt_lt hp₁_ob_l₂ henc₂.left) hob₂)))
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
           exact compose_obFinishBefore_com (e₁ := e₁) p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir hcom_edge hknow hl₂ hl₃ hdir h₁_isdir h_non_lazy_ppoi
       | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ h_p₁_isdir =>
@@ -1922,18 +1922,18 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
                   (Nat.lt_trans (show dep₁.oEnd < del₂.oEnd from hlt₁)
                     (Nat.lt_trans hob_rev dep₁.oWellFormed))
         exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob
-          (Trans.trans (show Event.OrderedBefore n p₁ p₂ from Nat.lt_trans hp₁_ob_l₂ henc₂.left) hob₂)))
+          (Trans.trans (Event.ob_of_lt_lt hp₁_ob_l₂ henc₂.left) hob₂)))
       | _ =>
         exact step_ordering_dir_ordered_3way h₁_isdir
           (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
     | proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂ =>
       cases hso₁ with
       | ob hob₁ =>
-        exact Or.inl (.ob (Trans.trans (show Event.OrderedBefore n l₁ q₂ from Nat.lt_trans hob₁ hq_enc₂.left) (Trans.trans hq_ob₂ hp_ob₂)))
+        exact Or.inl (.ob (Trans.trans (Event.ob_of_lt_lt hob₁ hq_enc₂.left) (Trans.trans hq_ob₂ hp_ob₂)))
       | encapOb p₁ henc₁ hob₁ =>
-        exact Or.inl (.proxyPair p₁ p₂ henc₁ (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hob₁ hq_enc₂.left) hq_ob₂) hp_ob₂)
+        exact Or.inl (.proxyPair p₁ p₂ henc₁ (Trans.trans (Event.ob_of_lt_lt hob₁ hq_enc₂.left) hq_ob₂) hp_ob₂)
       | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-        exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp_ob hq_enc₂.left) hq_ob₂)) hp_ob₂)
+        exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans (Event.ob_of_lt_lt hp_ob hq_enc₂.left) hq_ob₂)) hp_ob₂)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂)
       | obEndLt p₁ hob₁ hlt₁ h_p₁_isdir =>
@@ -1954,7 +1954,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
                   (Nat.lt_trans (show dep₁.oEnd < del₂.oEnd from hlt₁)
                     (Nat.lt_trans hob_rev dep₁.oWellFormed))
         exact Or.inl (.ob (Trans.trans hob₁ (Trans.trans
-          (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp₁_ob_l₂ hq_enc₂.left)
+          (Event.ob_of_lt_lt hp₁_ob_l₂ hq_enc₂.left)
           (Trans.trans hq_ob₂ hp_ob₂))))
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
           exact compose_obFinishBefore_com (e₁ := e₁) p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir hcom_edge hknow hl₂ hl₃ hdir h₁_isdir h_non_lazy_ppoi
@@ -1975,7 +1975,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
                   (Nat.lt_trans (show dep₁.oEnd < del₂.oEnd from hlt₁)
                     (Nat.lt_trans hob_rev dep₁.oWellFormed))
         exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob (Trans.trans
-          (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp₁_ob_l₂ hq_enc₂.left)
+          (Event.ob_of_lt_lt hp₁_ob_l₂ hq_enc₂.left)
           (Trans.trans hq_ob₂ hp_ob₂))))
       | _ =>
         exact step_ordering_dir_ordered_3way h₁_isdir
@@ -1983,11 +1983,11 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     | encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ h_p₂_isdir =>
       cases hso₁ with
       | ob hob₁ =>
-        exact Or.inl (.obEndLt p₂ (Trans.trans (show Event.OrderedBefore n l₁ q₂ from Nat.lt_trans hob₁ hq_enc₂.left) hq_ob₂) hp_lt₂ h_p₂_isdir)
+        exact Or.inl (.obEndLt p₂ (Trans.trans (Event.ob_of_lt_lt hob₁ hq_enc₂.left) hq_ob₂) hp_lt₂ h_p₂_isdir)
       | encapOb p₁ henc₁ hob₁ =>
-        exact Or.inl (.encapObEndLt p₁ p₂ henc₁ (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hob₁ hq_enc₂.left) hq_ob₂) hp_lt₂ h_p₂_isdir)
+        exact Or.inl (.encapObEndLt p₁ p₂ henc₁ (Trans.trans (Event.ob_of_lt_lt hob₁ hq_enc₂.left) hq_ob₂) hp_lt₂ h_p₂_isdir)
       | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-        exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp_ob hq_enc₂.left) hq_ob₂)) hp_lt₂ h_p₂_isdir)
+        exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans (Event.ob_of_lt_lt hp_ob hq_enc₂.left) hq_ob₂)) hp_lt₂ h_p₂_isdir)
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ h_p₂_isdir)
       | eq heq₁ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ h_p₂_isdir)
       | obEndLt p₁ hob₁ hlt₁ h_p₁_isdir =>
@@ -2007,7 +2007,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
                   (Nat.lt_trans (show dep₁.oEnd < del₂.oEnd from hlt₁)
                     (Nat.lt_trans hob_rev dep₁.oWellFormed))
         exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ (Trans.trans
-          (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp₁_ob_l₂ hq_enc₂.left) hq_ob₂))
+          (Event.ob_of_lt_lt hp₁_ob_l₂ hq_enc₂.left) hq_ob₂))
           hp_lt₂ h_p₂_isdir)
       | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ h_p₁_isdir =>
         -- Same trick: p₁ OB l₂ → chain q₁ OB p₁ OB q₂ OB p₂.
@@ -2026,7 +2026,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
                   (Nat.lt_trans (show dep₁.oEnd < del₂.oEnd from hlt₁)
                     (Nat.lt_trans hob_rev dep₁.oWellFormed))
         exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans
-          (show Event.OrderedBefore n p₁ q₂ from Nat.lt_trans hp₁_ob_l₂ hq_enc₂.left) hq_ob₂))
+          (Event.ob_of_lt_lt hp₁_ob_l₂ hq_enc₂.left) hq_ob₂))
           hp_lt₂ h_p₂_isdir)
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
           exact compose_obFinishBefore_com (e₁ := e₁) p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir hcom_edge hknow hl₂ hl₃ hdir h₁_isdir h_non_lazy_ppoi
