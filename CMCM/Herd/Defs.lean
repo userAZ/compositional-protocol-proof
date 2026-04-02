@@ -139,72 +139,48 @@ structure co (e₁ e₂ : Event n) : Prop where
   notDown₂ : ¬ e₂.down
   comm : co.ordering w₁_lin w₂_lin
 
--- Abbreviation for the non-lazy PPOi hypothesis type.
--- "diff-addr PPOi events have compoundLin₁ OB compoundLin₂"
--- oStart ≤ oEnd for any event (from oWellFormed: oStart < oEnd).
-theorem Event.oStart_le_oEnd (e : Event n) : Event.oStart n e ≤ Event.oEnd n e :=
-  Nat.le_of_lt (Event.oWellFormed n e)
+/-! ## LinLink: ordering between linearization points -/
 
--- Chain: e₁.oEnd < p and p < e₂.oStart → e₁ OB e₂.
-theorem Event.ob_of_lt_lt {e₁ e₂ : Event n} {p : ℕ}
-    (h₁ : Event.oEnd n e₁ < p) (h₂ : p < Event.oStart n e₂)
-    : e₁.OrderedBefore n e₂ := Nat.lt_trans h₁ h₂
-
--- Chain: e₁ OB p and p.oEnd < e₂.oEnd → e₁.oEnd < e₂.oEnd.
-theorem Event.oEnd_lt_of_ob_lt {e₁ p e₂ : Event n}
-    (h₁ : e₁.OrderedBefore n p) (h₂ : Event.oEnd n p < Event.oEnd n e₂)
-    : Event.oEnd n e₁ < Event.oEnd n e₂ :=
-  Nat.lt_trans (Nat.lt_trans h₁ (Event.oWellFormed n p)) h₂
-
-abbrev NonLazyPPOi (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) : Prop :=
-  ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
-    (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
-      (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
-    (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
-      (compound.linearizationOfEvent b init a₂)).linearizationEvent
-
-/-! ## StepOrdering: ordering between linearization points -/
-
-/-- StepOrdering between linearization events (CLEs). Each edge derives
-    `StepOrdering CLE₁ CLE₂` from communication evidence. A cycle gives
-    `StepOrdering CLE CLE → False` via irreflexivity. -/
-inductive StepOrdering : Event n → Event n → Prop where
-  | ob (h : l₁.OrderedBefore n l₂) : StepOrdering l₁ l₂
+/-- LinLink between linearization events (CLEs). Each edge derives
+    `LinLink CLE₁ CLE₂` from communication evidence. A cycle gives
+    `LinLink CLE CLE → False` via irreflexivity. -/
+inductive LinLink : Event n → Event n → Prop where
+  | ob (h : l₁.OrderedBefore n l₂) : LinLink l₁ l₂
   | obEndLt (p : Event n) (h_ob : l₁.OrderedBefore n p) (h_lt : Event.oEnd n p < Event.oEnd n l₂)
-      (h_p_isdir : p.isDirectoryEvent) : StepOrdering l₁ l₂
+      (h_p_isdir : p.isDirectoryEvent) : LinLink l₁ l₂
   /-- Encap-then-OB: p inside l₁, p before l₂.
       Irrefl: p inside l₁ = l₂ and p OB l₂ → p.oEnd < l₂.oStart < p.oStart → False. -/
   | encapOb (p : Event n) (h_enc : p.EncapsulatedBy n l₁) (h_ob : p.OrderedBefore n l₂)
-      : StepOrdering l₁ l₂
+      : LinLink l₁ l₂
   /-- OB-then-finishBefore: p before l₂, p finishes before l₁.
       For cross-cluster FR with gcacheEncap/noGlobalCache: d_rf OB CLE₂ and d_rf.oEnd < CLE₁.oEnd.
       Not irreflexive alone — requires composition with other edges in a cycle. -/
   | obFinishBefore (p : Event n) (h_ob : p.OrderedBefore n l₂) (h_lt : Event.oEnd n p < Event.oEnd n l₁)
       (h_diff_prot : l₁.protocol ≠ l₂.protocol) (h_p_isdir : p.isDirectoryEvent)
-      : StepOrdering l₁ l₂
+      : LinLink l₁ l₂
   | sameLin (e₁' e₂' : Event n) (h_eq : l₁ = l₂)
       (h_enc₁ : l₁.EncapsulatedBy n e₁') (h_ob : e₁'.OrderedBefore n e₂')
-      (h_enc₂ : l₂.EncapsulatedBy n e₂') : StepOrdering l₁ l₂
+      (h_enc₂ : l₂.EncapsulatedBy n e₂') : LinLink l₁ l₂
   /-- Two-proxy chain: q inside l₁, q OB p, p OB l₂.
       For compositions of encapOb/obFinishBefore with obEndLt/encapOb/obFinishBefore.
       Irrefl: q inside l, q OB p, p OB l → p.oEnd < l.oStart < q.oStart → p.oEnd < q.oStart
       and q.oEnd < p.oStart → contradiction. -/
   | proxyPair (q p : Event n) (h_q_enc : q.EncapsulatedBy n l₁)
-      (h_q_ob_p : q.OrderedBefore n p) (h_p_ob : p.OrderedBefore n l₂) : StepOrdering l₁ l₂
-  | eq (h_eq : l₁ = l₂) : StepOrdering l₁ l₂
+      (h_q_ob_p : q.OrderedBefore n p) (h_p_ob : p.OrderedBefore n l₂) : LinLink l₁ l₂
+  | eq (h_eq : l₁ = l₂) : LinLink l₁ l₂
   /-- l₁ encapsulates l₂: l₁.oStart < l₂.oStart ∧ l₂.oEnd < l₁.oEnd.
       Irrefl: l encapsulates l → l.oStart < l.oStart → False.
       For compoundLin lifting: when CLE₁ = CLE₂ and compoundLin₂ inside CLE₂ = compoundLin₁. -/
-  | encap (h_enc : l₁.Encapsulates n l₂) : StepOrdering l₁ l₂
+  | encap (h_enc : l₁.Encapsulates n l₂) : LinLink l₁ l₂
   /-- Encap-then-OB-then-oEnd: q inside l₁, q OB p, p.oEnd < l₂.oEnd.
       Composition of encapOb/proxyPair with obEndLt.
       Irrefl via dir_ordered: l₂ OB l₁ gives chain l₂.oEnd < l₁.oStart < q.oStart ≤
       q.oEnd < p.oStart ≤ p.oEnd < l₂.oEnd → l₂.oEnd < l₂.oEnd → False. -/
   | encapObEndLt (q p : Event n) (h_q_enc : q.EncapsulatedBy n l₁)
       (h_q_ob_p : q.OrderedBefore n p) (h_p_lt : Event.oEnd n p < Event.oEnd n l₂)
-      (h_p_isdir : p.isDirectoryEvent) : StepOrdering l₁ l₂
+      (h_p_isdir : p.isDirectoryEvent) : LinLink l₁ l₂
 
-/-! ## LinStep / LinLink: replacement for StepOrdering -/
+/-! ## LinStep / LinChain: replacement for LinLink -/
 
 /-- Basic step between linearization events: OB, Encapsulates, EncapsulatedBy, or finishesBefore.
     Variable names use x/y to avoid shadowing the section variable `b : Behaviour n`. -/
@@ -212,39 +188,39 @@ inductive LinStep : Event n → Event n → Prop where
   | ob (h : x.OrderedBefore n y) : LinStep x y
   | encap (h : x.Encapsulates n y) : LinStep x y
 
-/-- LinLink: transitive closure of LinStep between events. -/
-def LinLink : Event n → Event n → Prop := Relation.TransGen LinStep
+/-- LinChain: transitive closure of LinStep between events. -/
+def LinChain : Event n → Event n → Prop := Relation.TransGen LinStep
 
-/-- LinLink composes transitively (free from TransGen). -/
-theorem LinLink.trans {x y z : Event n} (h₁ : @LinLink n x y) (h₂ : @LinLink n y z) : @LinLink n x z :=
+/-- LinChain composes transitively (free from TransGen). -/
+theorem LinChain.trans {x y z : Event n} (h₁ : @LinChain n x y) (h₂ : @LinChain n y z) : @LinChain n x z :=
   Relation.TransGen.trans h₁ h₂
 
-/-- A single LinStep lifts to LinLink. -/
-theorem LinLink.single {x y : Event n} (h : @LinStep n x y) : @LinLink n x y :=
+/-- A single LinStep lifts to LinChain. -/
+theorem LinChain.single {x y : Event n} (h : @LinStep n x y) : @LinChain n x y :=
   Relation.TransGen.single h
 
-/-- Lift LinLink to cache events via a linearization function.
+/-- Lift LinChain to cache events via a linearization function.
     In the proof, instantiate `lin := fun e => cle (hknow e)`. -/
-def LinLinked (lin : Event n → Event n) (e₁ e₂ : Event n) : Prop :=
-  LinLink (lin e₁) (lin e₂)
+def LinChained (lin : Event n → Event n) (e₁ e₂ : Event n) : Prop :=
+  LinChain (lin e₁) (lin e₂)
 
-/-- A TransGen of LinLinked composes into a single LinLink between endpoints' lin events. -/
-theorem TransGen_LinLinked_to_LinLink (lin : Event n → Event n)
-    (h : Relation.TransGen (LinLinked lin) e₁ e₂) : LinLink (lin e₁) (lin e₂) := by
+/-- A TransGen of LinChained composes into a single LinChain between endpoints' lin events. -/
+theorem TransGen_LinChained_to_LinChain (lin : Event n → Event n)
+    (h : Relation.TransGen (LinChained lin) e₁ e₂) : LinChain (lin e₁) (lin e₂) := by
   induction h with
   | single h => exact h
   | tail _ h ih => exact Relation.TransGen.trans ih h
 
-/-- LinLinked is acyclic iff LinLink is acyclic on the image of lin. -/
-theorem LinLinked_acyclic_of_LinLink_irrefl (lin : Event n → Event n)
-    (hirrefl : ∀ e, ¬ LinLink (lin e) (lin e))
-    : ∀ e, ¬ Relation.TransGen (LinLinked lin) e e :=
-  fun e h => hirrefl e (TransGen_LinLinked_to_LinLink lin h)
+/-- LinChained is acyclic iff LinChain is acyclic on the image of lin. -/
+theorem LinChained_acyclic_of_LinChain_irrefl (lin : Event n → Event n)
+    (hirrefl : ∀ e, ¬ LinChain (lin e) (lin e))
+    : ∀ e, ¬ Relation.TransGen (LinChained lin) e e :=
+  fun e h => hirrefl e (TransGen_LinChained_to_LinChain lin h)
 
--- toLinLinkOrEq and LinLinkOrEq_trans removed: superseded by stepOrdering_to_three
+-- toLinChainOrEq and LinChainOrEq_trans removed: superseded by stepOrdering_to_three
 -- and compose_three in Proof.lean, which handle obFinishBefore via diff_protocol.
 
-/-- LinLink is irreflexive: no event can link to itself via a chain of LinSteps.
+/-- LinChain is irreflexive: no event can link to itself via a chain of LinSteps.
 
     Each LinStep strictly changes at least one of (oEnd, oStart):
     - ob: both increase (b entirely after a)
@@ -263,13 +239,13 @@ theorem LinStep.oStart_lt {x y : Event n} (h : @LinStep n x y) : Event.oStart n 
   | ob h => exact Nat.lt_trans (Event.oWellFormed n x) h
   | encap h => exact h.left
 
-theorem LinLink.oStart_lt {x y : Event n} (h : @LinLink n x y) : Event.oStart n x < Event.oStart n y := by
+theorem LinChain.oStart_lt {x y : Event n} (h : @LinChain n x y) : Event.oStart n x < Event.oStart n y := by
   induction h with
   | single h => exact LinStep.oStart_lt h
   | tail _ h ih => exact Nat.lt_trans ih (LinStep.oStart_lt h)
 
-theorem LinLink.irrefl {e : Event n} : ¬ @LinLink n e e :=
-  fun h => Nat.lt_irrefl _ (LinLink.oStart_lt h)
+theorem LinChain.irrefl {e : Event n} : ¬ @LinChain n e e :=
+  fun h => Nat.lt_irrefl _ (LinChain.oStart_lt h)
 
 /-- FR ordering: descriptive inductive carrying the communication evidence
     for the relationship between e₁ (reader) and e₂ (later writer).
@@ -280,7 +256,7 @@ theorem LinLink.irrefl {e : Event n} : ¬ @LinLink n e e :=
     where e₂'s downgrade lands (cache vs cluster directory).
 
     Each case carries DESCRIPTIVE evidence (protocol events, OB relationships),
-    NOT the conclusion (StepOrdering). StepOrdering is DERIVED from this evidence
+    NOT the conclusion (LinLink). LinLink is DERIVED from this evidence
     in step_to_ordering. -/
 inductive FrOrdering
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
@@ -290,14 +266,14 @@ inductive FrOrdering
     : Prop
   /-- Same cache e₁/e₂: both at the same cache, serialized by the cache.
       Same CLE (shared directory access) or CLE₁ OB CLE₂.
-      StepOrdering derived via .eq or .ob. -/
+      LinLink derived via .eq or .ob. -/
   | sameCache
     (same_cache : e₁.struct = e₂.struct)
     (cle_eq_or_ob : e₁_lin.hreq's_dir_access.choose = e₂_lin.hreq's_dir_access.choose ∨
         e₁_lin.hreq's_dir_access.choose.OrderedBefore n e₂_lin.hreq's_dir_access.choose)
   /-- Same cluster, different cache: cluster directory serializes the accesses.
       CLE₁ OB CLE₂ from dir_ordered + NIW (NoInterveningWrites eliminates wrong direction).
-      StepOrdering derived via .ob. -/
+      LinLink derived via .ob. -/
   | sameClusDiffCache
     (same_protocol : e₁.sameProtocol n e₂)
     (diff_cache : e₁.struct ≠ e₂.struct)
@@ -306,7 +282,7 @@ inductive FrOrdering
       so e₂'s overwrite triggers a downgrade at e₁'s CACHE.
       The cache downgrade is after e₁ (e₁ OB cache_down), encapsulated by a
       cluster dir event whose oEnd < CLE₂.oEnd.
-      StepOrdering derived via .obEndLt (CLE₁ OB proxy, proxy.oEnd < CLE₂.oEnd). -/
+      LinLink derived via .obEndLt (CLE₁ OB proxy, proxy.oEnd < CLE₂.oEnd). -/
   | diffCluster_coherent
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
@@ -316,7 +292,7 @@ inductive FrOrdering
   /-- Different cluster, e₁ coherent with evict: e₁ had coherent perms but
       evicted before e₂'s downgrade arrived. The downgrade goes to the cluster
       directory after the evict. Proxy is the evict directory event.
-      StepOrdering derived via .obEndLt. -/
+      LinLink derived via .obEndLt. -/
   | diffCluster_evict
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
@@ -326,7 +302,7 @@ inductive FrOrdering
   /-- Different cluster, e₁ non-coherent: e₁ doesn't have coherent perms,
       so e₂'s downgrade goes directly to e₁'s CLUSTER DIRECTORY.
       Proxy is the cluster dir downgrade event.
-      StepOrdering derived via .obEndLt. -/
+      LinLink derived via .obEndLt. -/
   | diffCluster_noncoherent
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
@@ -335,7 +311,7 @@ inductive FrOrdering
     (h_p_isdir : p.isDirectoryEvent)
   /-- Different cluster, RF cross-cluster: e_w at e₂'s cluster, RF gives
       proxy p at e_w's cluster INSIDE CLE₁ (from encapDirRelation) and OB CLE₂.
-      StepOrdering derived via .encapOb (p inside CLE₁, p OB CLE₂). -/
+      LinLink derived via .encapOb (p inside CLE₁, p OB CLE₂). -/
   | diffCluster_rfCrossCluster
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
@@ -343,7 +319,7 @@ inductive FrOrdering
     (p_ob_cle₂ : p.OrderedBefore n e₂_lin.hreq's_dir_access.choose)
   /-- Different cluster, RF cross-cluster with gcacheEncap/noGlobalCache:
       proxy p OB CLE₂ and p finishes before CLE₁ (p.oEnd < CLE₁.oEnd).
-      StepOrdering derived via .obFinishBefore. -/
+      LinLink derived via .obFinishBefore. -/
   | diffCluster_rfFinishBefore
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
@@ -363,7 +339,7 @@ inductive FrOrdering
     transitive chain of co steps, each carrying its own communication pattern.
 
     The `ordering` field carries descriptive evidence of the communication
-    mechanism, making StepOrdering directly extractable. -/
+    mechanism, making LinLink directly extractable. -/
 structure fr (e₁ e₂ : Event n) : Prop where
   read : e₁.isRead
   write : e₂.isWrite
