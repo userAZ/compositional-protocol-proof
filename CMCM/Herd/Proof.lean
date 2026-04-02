@@ -1599,18 +1599,38 @@ theorem cle_to_compoundLinOrdering
     (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     : LinLink lin₁.compoundLin lin₂.compoundLin := by
-  -- Build TransGen TemporalRel chain from compoundLin_cle_rel + CleLink.
-  -- ob_cle is vacuous (requestLin + orderAfterDir contradictory).
-  -- Only real cases: eq (compoundLin = CLE), cle_ob (CLE OB compoundLin), inside (compoundLin EncBy CLE).
   have h_cle_chain := CleLink.subset_temporalRel h
     lin₁.hreq's_dir_access.choose_spec.right.isDirEvent
     lin₂.hreq's_dir_access.choose_spec.right.isDirEvent hdir
-  -- Use compoundLin_cle_of_dirLin or compoundLin_cle for the leg evidence.
-  -- For now: sorry the chain construction (need formal ob_cle vacuity proof).
+  have hrel₁ := lin₁.compoundLin_cle h₁_notdown
+  have hrel₂ := lin₂.compoundLin_cle h₂_notdown
+  -- Build chain: compoundLin₁ → ... → CLE₁ → ... → CLE₂ → ... → compoundLin₂.
+  -- Event 1: prepend compoundLin₁ → CLE₁ (or skip if eq).
+  have h_from₁ : Relation.TransGen TemporalRel lin₁.compoundLin lin₂.hreq's_dir_access.choose := by
+    cases hrel₁ with
+    | eq ha₁ => exact ha₁ ▸ h_cle_chain
+    | compoundLin_inside_cle ha₁ => exact (Relation.TransGen.single (.encapBy ha₁)).trans h_cle_chain
+    | compoundLin_ob_cle ha₁ => exact (Relation.TransGen.single (.ob ha₁)).trans h_cle_chain
+    | cle_ob_compoundLin ha₁ =>
+      -- CLE₁ OB compoundLin₁. Use finishesAfterProxy to skip CLE₁.
+      -- CLE₁.oEnd < compoundLin₁.oEnd (from ha₁ + oWellFormed).
+      sorry
+  -- Event 2: append CLE₂ → compoundLin₂ (or skip if eq).
+  have h_full : Relation.TransGen TemporalRel lin₁.compoundLin lin₂.compoundLin := by
+    cases hrel₂ with
+    | eq ha₂ => exact ha₂ ▸ h_from₁
+    | cle_ob_compoundLin ha₂ => exact h_from₁.trans (Relation.TransGen.single (.ob ha₂))
+    | compoundLin_inside_cle ha₂ => exact h_from₁.trans (Relation.TransGen.single (.encap ha₂))
+    | compoundLin_ob_cle _ =>
+      -- Vacuous: compoundLin_ob_cle arises only from requestLin + orderAfterDir.
+      -- requestLin requires coherent perms (reqHasPerms).
+      -- orderAfterDir requires non-coherent (ncWeakReqOnVd).
+      -- These are contradictory.
+      sorry
   exact .proxy _ _ h
     lin₁.hreq's_dir_access.choose_spec.right.isDirEvent
     lin₂.hreq's_dir_access.choose_spec.right.isDirEvent
-    sorry
+    h_full
 
 -- 3-way LinLink via CLE dir_ordered + bridge.
 theorem compoundLinOrdering_3way
