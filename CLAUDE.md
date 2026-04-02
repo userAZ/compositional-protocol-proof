@@ -73,12 +73,16 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **`cacheEvent_Vd_transition_isNcWeakWrite`**: SORRY-FREE via ValidRequest Subtype match.
 - **RfCase files**: Fixed `rCleOrDownAtWAfterWCle.diffCluster` pattern match (missing 3rd field after `wObRDown` was added).
 
-### TODO
-1. **CO Theorem**: Implement a CO theorem that PROVES `co.ordering` from protocol axioms. Note: this is NOT a carbon copy of `RfTheorem` — `readsFrom.cases` requires `isRead` for the second event, but CO has two writes. The CO theorem needs its own type structure. `CoTheorem.lean` is currently a placeholder.
-2. **Dead code cleanup**: Remove marked-as-DEAD functions in RfProofHelpers.lean.
-3. **CompoundLin lifting: DONE.** `cmcm_acyclic_of_hknow_compoundLinOrdering` proves acyclicity using `CompoundLinOrdering` (compoundLin events connected through CLEs/GLEs). ZERO sorry's.
-4. **Nice-to-have: Remove reverse case from 3-way invariant.** INVESTIGATED: not feasible. The `encap` prefix (l₁ encapsulates l₂) + `ob` h₂ (l₂ OB l₃) cannot compose forward because l₁ and l₃ are both after l₂.oEnd but in unknown relative order. `dir_ordered` IS needed for this case, and it can give reverse. The reverse is always contradicted at cycle closure. Only 9 fallback calls remain (down from 41 after proxy removal). Could extract `StepOrdering.compose_ob` helper to factor common patterns but can't eliminate reverse.
-5. **Key rule**: Use `Event n` with `isDirectoryEvent` prop, NEVER `DirectoryEvent` directly. Don't use `DirectoryEvent.eReq`. Match existing Behaviour proof patterns. ALWAYS document WHY a sublemma exists.
+### TODO — ALL COMPLETE
+1. ~~CO Theorem~~ — DONE: `co_ordering_holds` in CoTheorem.lean.
+2. ~~Dead code cleanup~~ — DONE: no marked-as-DEAD functions remain.
+3. ~~CompoundLin lifting~~ — DONE: `cmcm_acyclic_of_hknow_compoundLinOrdering` with LinLink invariant on compoundLin.
+4. ~~Remove reverse case~~ — INVESTIGATED: not feasible (documented above). Accepted.
+5. ~~Lemma6 sorry's~~ — DONE: both sorry's resolved (proxy isCacheEvent, non-Vd state path).
+6. ~~MWE cleanup~~ — DONE: all scratch files removed.
+7. ~~LinLink.subset_temporalRel~~ — DONE: every LinLink decomposes into TransGen BasicTemporalRel.
+
+**Zero sorry's across entire project. Tag: `zero-sorry-all-files`.**
 
 ### Lessons learned (BE INTROSPECTIVE!)
 - **Don't guess constructors.** Each new StepOrdering constructor multiplies case analysis. Use edge data instead.
