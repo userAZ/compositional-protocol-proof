@@ -1612,6 +1612,30 @@ theorem compoundLinOrdering_3way
     | inr hob_rev => exact Or.inr (Or.inr (cle_to_compoundLinOrdering (.ob hob_rev)))
 
 
+-- Compose any StepOrdering h₁ with OB h₂. Handles all h₁ constructors.
+-- Used by both PPOi and COM .ob cases.
+private theorem compose_with_ob {l₁ l₂ l₃ : Event n}
+    (hso₁ : @StepOrdering n l₁ l₂) (hob₂ : l₂.OrderedBefore n l₃)
+    (h₁_isdir : l₁.isDirectoryEvent) (h₃_isdir : l₃.isDirectoryEvent)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    : @StepOrdering n l₁ l₃ ∨ l₁ = l₃ ∨ l₃.OrderedBefore n l₁ := by
+  cases hso₁ with
+  | ob hob₁ => exact Or.inl (.ob (Trans.trans hob₁ hob₂))
+  | obEndLt p₁ hob₁ hlt₁ _ =>
+    exact Or.inl (.ob (Trans.trans hob₁ (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
+  | encapOb p₁ henc₁ hob₁ => exact Or.inl (.encapOb p₁ henc₁ (Trans.trans hob₁ hob₂))
+  | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ _ =>
+    exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
+  | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
+    exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
+  | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
+  | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
+  | encap henc => exact step_ordering_dir_ordered_3way h₁_isdir h₃_isdir hdir
+  | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
+    -- obFinishBefore needs diff_prot chaining. Can't resolve without protocol context.
+    -- Caller provides protocol evidence (PPOi sameProtocol or COM diff_prot).
+    exact step_ordering_dir_ordered_3way h₁_isdir h₃_isdir hdir
+
 private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event n}
     (p₁ : Event n) (hob₁ : p₁.OrderedBefore n l₂) (hlt₁ : p₁.oEnd < l₁.oEnd)
     (hdiff₁ : l₁.protocol ≠ l₂.protocol) (h_p₁_isdir : p₁.isDirectoryEvent)
@@ -1814,25 +1838,15 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
         rw [hl₂, hl₃]; exact (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
           (hppoi_edge.1.sameProtocol.trans (write_cle_protocol_eq_write_protocol (hknow e₃)).symm)
       have hob₂ : l₂.OrderedBefore n l₃ := same_prot_dir_ordered_forward hso₂ h₂₃_prot hdir h₂_isdir h₃_isdir
-      cases hso₁ with
-      | ob hob₁ => exact Or.inl (.ob (Trans.trans hob₁ hob₂))
-      | obEndLt p₁ hob₁ hlt₁ _ =>
-        exact Or.inl (.ob (Trans.trans hob₁ (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
-      | encapOb p₁ henc₁ hob₁ => exact Or.inl (.encapOb p₁ henc₁ (Trans.trans hob₁ hob₂))
-      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ _ =>
-        exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
-      | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-        exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
-      | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
+      -- PPOi obFinishBefore: derive diff_prot for l₁/l₃ from l₁≠l₂ + l₂=l₃.
+      match hso₁ with
+      | .obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
         have h₂₃_prot : l₂.protocol = l₃.protocol := by
           rw [hl₂, hl₃]; exact (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
             (hppoi_edge.1.sameProtocol.trans (write_cle_protocol_eq_write_protocol (hknow e₃)).symm)
         have hprot_diff : l₁.protocol ≠ l₃.protocol := fun h₁₃ => hdiff₁ (h₁₃.trans h₂₃_prot.symm)
         exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot_diff h_p₁_isdir)
-      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
-      | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
-      | _ =>
-        exact step_ordering_dir_ordered_3way h₁_isdir h₃_isdir hdir
+      | _ => exact compose_with_ob hso₁ hob₂ h₁_isdir h₃_isdir hdir
     | inr hr₂ => cases hr₂ with
       | inl heq₂₃ =>
         exact Or.inl (heq₂₃ ▸ hso₁)
@@ -1846,23 +1860,9 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     -- Compose hso₁ with h₂. Case-split h₂ for temporal chain.
     cases h₂ with
     | ob hob₂ =>
-      -- Same as PPOi ob case: chain h₁ with OB.
-      cases hso₁ with
-      | ob hob₁ => exact Or.inl (.ob (Trans.trans hob₁ hob₂))
-      | obEndLt p₁ hob₁ hlt₁ _ =>
-        exact Or.inl (.ob (Trans.trans hob₁ (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
-      | encapOb p₁ henc₁ hob₁ => exact Or.inl (.encapOb p₁ henc₁ (Trans.trans hob₁ hob₂))
-      | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ _ =>
-        exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob (show Event.OrderedBefore n p₁ l₃ from Nat.lt_trans hlt₁ hob₂)))
-      | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-        exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
-      | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
-          exact compose_obFinishBefore_com (e₁ := e₁) p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir hcom_edge hknow hl₂ hl₃ hdir h₁_isdir h_non_lazy_ppoi
-      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
-      | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
-      | _ =>
-        exact step_ordering_dir_ordered_3way h₁_isdir
-          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+      -- COM .ob: use compose_with_ob for all h₁ constructors.
+      exact compose_with_ob hso₁ hob₂ h₁_isdir
+        (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
     | obEndLt p₂ hob₂ hlt₂ h_p₂_isdir =>
       cases hso₁ with
       | ob hob₁ => exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ hob₂) hlt₂ h_p₂_isdir)
