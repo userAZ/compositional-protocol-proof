@@ -16,6 +16,7 @@ Before proving, composing, or sorry-ing ANYTHING:
 - **FR + FR is IMPOSSIBLE**: e₂ can't be both read and write → edge pair vacuous
 - **obFinishBefore + .ob is VACUOUS**: .ob only from same-cluster edges (l₂=l₃), obFinishBefore has l₁≠l₂ → l₁≠l₃ contradicts same-protocol assumption
 - **Derive protocol BEFORE matches**: Lean's `match` breaks type bridging. Move protocol derivations before `match hfc : l₁, ...`
+- **MR + NC weak write is IMPOSSIBLE**: MR state (`⟨some .r, true⟩`) can only be reached via SC coherent read (proved by `event_list_to_mr_requires_coherent_read` in RfProofLargeLemmas.lean). But `FollowsProtocolInterface.nc_no_sc` forbids NC requests in any PI that has SC reads. So a protocol that supports NC weak write CANNOT have MR state. Use `nc_weak_write_not_on_mr_state` for this. **This proves ob_cle (compoundLin_ob_cle) is ALWAYS vacuous**: the only non-trivial sub-case requires NC weak write on MR, which is protocol-impossible.
 
 ### Codebase philosophy
 - Definitions validated by Murphi model checking. **Never add new axioms.** Prove from existing definitions.
@@ -49,6 +50,14 @@ This is the CompoundMCM acyclicity proof using linearization events, NOT just CL
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 ### Status (updated 2026-04-02)
+- **LinLink.subset_temporalRel IN PROGRESS**: 2 sorry's remain
+  - `compoundLin_not_ob_cle`: 3/4 cases proven (eq, cle_ob, inside = temporal contradictions).
+    1 sorry: `compoundLin_ob_cle` case needs protocol evidence via `nc_weak_write_not_on_mr_state`.
+  - `LinLink.subset_temporalRel`: 1 sorry (body). Depends on compoundLin_not_ob_cle + temporal chain construction.
+  - **Key insight**: ob_cle is always vacuous because MR + NC weak write is protocol-impossible (nc_no_sc).
+    Proof: `nc_weak_write_not_on_mr_state` in RfProofLargeLemmas.lean.
+  - **finishesAfterProxy IS needed**: For CleLink.obFinishBefore where hdir gives reverse direction (l₂ OB l₁),
+    no chain of {OB, Encap, EncapBy, FinishesBefore} goes from l₁ to l₂. Confirmed by trying hdir replacement.
 - **compoundLin lifting COMPLETE (2 sorry'd declarations, main chain sorry-free)**:
   - `cmcm_acyclic_of_hknow_compoundLin`: SORRY-FREE ✓
   - `compose_three_compoundLin`: SORRY-FREE ✓
@@ -122,7 +131,8 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **`simp only` vs `simp` for `if` reduction**: `simp only [...]` does NOT include `ite_true`/`ite_false`, so `if True then x else y` won't reduce. Use `simp [...]` (without `only`) to include default simp lemmas, or add `ite_true`/`ite_false` explicitly.
 - **`compoundLin_ob_cle` is VACUOUS**: `requestLin + orderAfterDir` is contradictory. `requestLin` requires `reqHasPerms` (coherent: `isCoherent`, or `ncRelAcqWeakWrite + coherentState`, or `ncWeakRead + notVd`). `orderAfterDir` requires `ncWeakReqOnVd` (non-coherent weak on Vd state). ALL three `reqHasPerms` constructors contradict `ncWeakReqOnVd`: (1) isCoherent vs non-coherent, (2) coherentState vs Vd, (3) notVd vs Vd. Therefore `ob_cle` (compoundLin OB CLE) can never arise — any case analysis that reaches it should close with `exfalso`.
 - **`lin(dir_event)` gives False for directory events**: `dirAccessOfRequest` constructors are designed for cache events. For a directory event: `encapDir` has `dirOfReq` = False (isDirEventOfReqEvent is false for (dir,dir)); `orderBeforeDir` has `hnot_down` which contradicts `down=true` for downgrades; `orderAfterDir` has `reqCache` = False (dir events aren't cache events). Use this pattern to derive `exfalso` whenever a directory event appears in `lin(e)`. This solved onDirVd and the cdir OB CLE_w temporal contradiction.
-- **Read definitions immediately, don't guess.** `reqToDirOfRequestEvent` is 5 lines — read it instead of speculating about what it does. `grep -rn 'def ...'` is faster than reasoning from names.
+- **READ DEFINITIONS BEFORE MAKING ANY CLAIM.** This is a BLOCKING rule. Before saying "X can/can't happen", "case Y is vacuous/real", "stateAfter does Z" — OPEN THE FILE and READ the definition. `grep -rn 'def ...'` takes seconds. Guessing from names has been wrong REPEATEDLY: `stateAfter` has specific case-split logic per request type, `RequestState` for NC weak write on MR returns Vd (not obvious from the name), `DowngradeState` for NC weak write on Vd returns Vc (write-back). **Protocol definitions encode subtle state machines** — the only way to know what they do is to READ THEM. Treat every claim about a definition's behavior as unverified until you've read the source. This rule exists because multiple hours were wasted making confident but wrong claims about definitions that 30 seconds of reading would have resolved.
+- **SEARCH EFFICIENTLY.** Don't spawn 60k-token sub-agents for something a single grep finds in 3 seconds. Use `Grep` directly for known keywords (`nc_weak_write`, `read_request_no_write_mrs`). Check the obvious files first (RfProofHelpers.lean, RfProofLargeLemmas.lean for RF/CO proof infrastructure). The user found `read_request_no_write_mrs` in RfProofHelpers.lean instantly — match that efficiency.
 - **Search the codebase aggressively for existing lemmas.** Key finds: `directory_event_is_bottom`, `bottom_e_in_b_impl_in_eventsAtEntryOfListBottomEvents`, `eventsUpToEvent_ordered_before_sorted`, `eventsUpToEntry_at_e_entry`. Always search before writing new code.
 - **Extract helper lemmas proactively for heartbeat management.** `dirEvent_down_true_ne_Vd_of_ne_Vd` extraction solved a timeout. `list_stateAfter_exists_transition_with_inv` carried the invariant cleanly. Don't let proofs grow past ~30 lines without extracting.
 - **NEVER use `DirectoryEvent` directly or `DirectoryEvent.eReq`**: Use `Event n` with `isDirectoryEvent` prop, matching the rest of the codebase. The `eReq` field has NO axioms linking it to the dir event's properties (no sameProtocol, no sameDown, no Encapsulates). Use CLE/lin infrastructure instead to get corresponding cache events with full protocol properties via `cacheEncapsulatesCorrespondingDirEvent.dirCorresponds`. I wasted an entire session going down the `eReq` rabbit hole.
