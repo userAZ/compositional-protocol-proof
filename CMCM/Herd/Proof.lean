@@ -1933,6 +1933,7 @@ private theorem sameLin_gives_ob {e₁' e₂' : Event n}
   Nat.lt_of_le_of_lt h₁_oEnd_le (Nat.lt_trans henc₁.right (Nat.lt_trans hob
     (Nat.lt_of_lt_of_le henc₂.left h₂_oStart_ge)))
 
+-- Old bridge (kept for backward compatibility, to be removed):
 -- Bridge: lift StepOrdering on CLEs to StepOrdering on compoundLin events.
 
 /-- Ordering between compoundLin events. Wraps StepOrdering with a proxy case
@@ -1958,6 +1959,17 @@ theorem CompoundLinOrdering.irrefl
     -- Both CLEs relate to the same compoundLin of the same event.
     -- cle_self_ordering_false gives False from any self-referential ordering context.
     exact cle_self_ordering_false hknow hdir
+
+-- Simple bridge: CLE StepOrdering → CompoundLinOrdering on compoundLin.
+-- Just wraps in .proxy — no per-constructor case analysis needed!
+theorem cle_to_compoundLinOrdering
+    {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (h : @StepOrdering n lin₁.hreq's_dir_access.choose lin₂.hreq's_dir_access.choose)
+    : CompoundLinOrdering lin₁.compoundLin lin₂.compoundLin :=
+  .proxy _ _ h
+    lin₁.hreq's_dir_access.choose_spec.right.isDirEvent
+    lin₂.hreq's_dir_access.choose_spec.right.isDirEvent
 
 theorem step_ordering_cle_to_compoundLin
     {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
