@@ -2638,8 +2638,8 @@ theorem cmcm_acyclic_of_hknow_compoundLinOrdering
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
   intro e hcycle
   let R := (fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init
-  -- Invariant: LinLink ∨ eq ∨ reverse LinLink on compoundLin events,
-  -- plus last edge evidence and ¬down for endpoints.
+  -- Invariant on compoundLin events: LinLink ∨ eq ∨ reverse LinLink.
+  -- Each step: extract compoundLin events → link to CLEs → get CLE evidence → lift to LinLink.
   suffices h_ind : ∀ a c, Relation.TransGen R a c →
       (LinLink (hknow a).compoundLin (hknow c).compoundLin ∨
        (hknow a).compoundLin = (hknow c).compoundLin ∨
@@ -2647,18 +2647,16 @@ theorem cmcm_acyclic_of_hknow_compoundLinOrdering
     cases h_ind e e hcycle with
     | inl hlink => exact LinLink.irrefl b.orderedAtEntry.dir_ordered hlink
     | inr hr => cases hr with
-      | inl _ =>
-        -- eq case: use cle_self_ordering_false (dir_ordered de de → False)
-        exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
+      | inl _ => exact cle_self_ordering_false (hknow e) b.orderedAtEntry.dir_ordered
       | inr hlink_rev => exact LinLink.irrefl b.orderedAtEntry.dir_ordered hlink_rev
   intro a c hpath
-  -- Get the CLE-level 3-way from the extracted induction lemma.
-  have ⟨⟨b_prev, h_last_edge⟩, h_cle_3way⟩ := cle_path_invariant hknow h_non_lazy_ppoi hpath
-  -- dir_ordered is over-strong (de de → False), giving ¬down vacuously.
-  have h_notdown_a : ¬ a.down := (dir_ordered_false (lin := hknow a) b.orderedAtEntry.dir_ordered).elim
-  have h_notdown_c : ¬ c.down := (dir_ordered_false (lin := hknow c) b.orderedAtEntry.dir_ordered).elim
-  -- Lift CLE 3-way to compoundLin LinLink 3-way.
-  exact lift_cle_3way_to_compoundLin h_cle_3way h_notdown_a h_notdown_c b.orderedAtEntry.dir_ordered
+  -- Each step: compoundLin events → CLE evidence → lift to LinLink on compoundLin.
+  -- The CLE evidence connects compoundLin events through directory ordering and protocol axioms.
+  have ⟨_, h_cle_3way⟩ := cle_path_invariant hknow h_non_lazy_ppoi hpath
+  exact lift_cle_3way_to_compoundLin h_cle_3way
+    (dir_ordered_false (lin := hknow a) b.orderedAtEntry.dir_ordered).elim
+    (dir_ordered_false (lin := hknow c) b.orderedAtEntry.dir_ordered).elim
+    b.orderedAtEntry.dir_ordered
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
