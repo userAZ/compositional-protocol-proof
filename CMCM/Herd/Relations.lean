@@ -24,6 +24,22 @@ inductive com (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystem
   | fr : @Herd.fr n cmp b init e₁ e₂ → com cmp b init e₁ e₂
   | co : @Herd.co n cmp b init e₁ e₂ → com cmp b init e₁ e₂
 
+/-- Extract globalLinearizationEventOfRequest for e₁ from any COM edge. -/
+noncomputable def com.lin₁ {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    {e₁ e₂ : Event n} : com cmp b init e₁ e₂ →
+    CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁
+  | .rfe h => h.w_cmpLin
+  | .co h => h.w₁_cmpLin
+  | .fr h => h.e₁_cmpLin
+
+/-- Extract globalLinearizationEventOfRequest for e₂ from any COM edge. -/
+noncomputable def com.lin₂ {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    {e₁ e₂ : Event n} : com cmp b init e₁ e₂ →
+    CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂
+  | .rfe h => h.r_cmpLin
+  | .co h => h.w₂_cmpLin
+  | .fr h => h.e₂_cmpLin
+
 /-- The hierarchical ordering: PPOi ∪ com, carrying communication evidence.
 
     Each constructor carries the full edge structure (PPOi or com), which

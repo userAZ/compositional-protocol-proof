@@ -53,8 +53,8 @@ private lemma cache_events_ordered_from_not_reverse
 theorem co_ordering_holds
     (hw₁ : e₁.isWrite) (hw₂ : e₂.isWrite)
     (hsame_addr : e₁.addr = e₂.addr)
-    (w₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
-    (w₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
+    (w₁_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
+    (w₂_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
     (hknow : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
     (h_in_b₁ : e₁ ∈ b) (h_in_b₂ : e₂ ∈ b)
     (h_cache₁ : e₁.isClusterCache) (h_cache₂ : e₂.isClusterCache)
@@ -63,8 +63,8 @@ theorem co_ordering_holds
     -- Direction: e₂ is not before e₁ (e₂ overwrites e₁, so e₁ comes first).
     (h_not_reverse : ¬ e₂.OrderedBefore n e₁)
     -- The key input: GLE ordering determines the high-level case.
-    (h_gle_ordering : CompoundProtocol.gleOrdering.Cases w₁_lin w₂_lin)
-    : co.ordering w₁_lin w₂_lin := by
+    (h_gle_ordering : CompoundProtocol.gleOrdering.Cases w₁_cmpLin w₂_cmpLin)
+    : co.ordering w₁_cmpLin w₂_cmpLin := by
   -- Case-split on GLE ordering: same GLE or w₁'s GLE OB w₂'s GLE.
   cases h_gle_ordering with
   | sameGle same_gle cle_cases =>
@@ -73,14 +73,14 @@ theorem co_ordering_holds
     | wEqRCle w_r_cle_eq =>
       -- Same CLE → same cache (same directory entry → same struct).
       -- e₁ OB e₂ from cache_ordered + h_not_reverse.
-      have h_same_struct := same_cle_implies_same_struct w₁_lin w₂_lin w_r_cle_eq
+      have h_same_struct := same_cle_implies_same_struct w₁_cmpLin w₂_cmpLin w_r_cle_eq
       -- cache_ordered gives e₁ OB e₂ ∨ e₂ OB e₁. h_not_reverse eliminates reverse.
       have h_e₁_ob_e₂ : e₁.OrderedBefore n e₂ :=
         cache_events_ordered_from_not_reverse (b := b) h_cache₁ h_cache₂ h_notdown₁ h_notdown₂ h_not_reverse
       exact .sameCache w_r_cle_eq h_e₁_ob_e₂
     | otherCases other =>
       -- Same GLE → same protocol (same_gle_implies_same_protocol).
-      exact .sameClusDiffCache (same_gle_implies_same_protocol w₁_lin w₂_lin same_gle) other
+      exact .sameClusDiffCache (same_gle_implies_same_protocol w₁_cmpLin w₂_cmpLin same_gle) other
   | wObRGle w_ob_r_gle cle_cases =>
     -- w₁'s GLE OB w₂'s GLE.
     cases cle_cases with

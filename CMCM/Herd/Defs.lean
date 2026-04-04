@@ -80,10 +80,10 @@ structure rfe (e₁ e₂ : Event n) : Prop where
   notDown₂ : ¬ e₂.down
   cache₁ : e₁.isClusterCache
   cache₂ : e₂.isClusterCache
-  w_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
-  r_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
+  w_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
+  r_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
-  readsFrom : Behaviour.readsFrom.cases write read w_lin r_lin hknow_dir_access
+  readsFrom : Behaviour.readsFrom.cases write read w_cmpLin r_cmpLin hknow_dir_access
 
 /-- CO communication ordering: describes HOW e_w2 overwrites e_w1.
     Organized by communication level (like RF's `readsFrom.cases` but for writes).
@@ -91,13 +91,13 @@ structure rfe (e₁ e₂ : Event n) : Prop where
     Parameterized by both events, their write evidence, and linearizations (like RF). -/
 inductive co.ordering
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e₁ e₂ : Event n}
-    (w₁_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
-    (w₂_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂)
+    (w₁_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
+    (w₂_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂)
     : Prop
   /-- Same cache: direct cache ordering. Both writes at the same cache,
       serialized by the cache. Evidence: e₁ OB e₂ + same CLE. -/
   | sameCache
-    (same_cle : w₁_lin.hreq's_dir_access.choose = w₂_lin.hreq's_dir_access.choose)
+    (same_cle : w₁_cmpLin.hreq's_dir_access.choose = w₂_cmpLin.hreq's_dir_access.choose)
     (cache_ob : e₁.OrderedBefore n e₂)
   /-- Same cluster, different cache: cluster directory serializes the writes.
       The second write's request triggers a downgrade at the first write's cache.
@@ -105,7 +105,7 @@ inductive co.ordering
       (carries wImmPredRCle or evictOrReadBetween with downgrade chain). -/
   | sameClusDiffCache
     (same_protocol : e₁.sameProtocol n e₂)
-    (cle_ordering : CompoundProtocol.SameCluster.cleOb.cleOrdering.Cases w₁_lin w₂_lin)
+    (cle_ordering : CompoundProtocol.SameCluster.cleOb.cleOrdering.Cases w₁_cmpLin w₂_cmpLin)
   /-- Different cluster: cross-cluster downgrade chain.
       The second write's request propagates through global directory to trigger
       a downgrade at the first write's cluster.
@@ -113,23 +113,23 @@ inductive co.ordering
       (carries wCleImmPredDown or evictOrReadBetweenWAndRDown with wObRDown + encapDirRelation). -/
   | diffClus
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
-    (cle_ordering : CompoundProtocol.DifferentCluster.cleOB.cleOrdering.Cases w₁_lin w₂_lin)
+    (cle_ordering : CompoundProtocol.DifferentCluster.cleOB.cleOrdering.Cases w₁_cmpLin w₂_cmpLin)
 
 -- CO evidence: carries the GLE ordering (Type-valued) and direction evidence.
 -- Separated from the Prop-valued co structure because gleOrdering.Cases is Type.
 structure co.evidence
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e₁ e₂ : Event n}
-    (w₁_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
-    (w₂_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂) where
+    (w₁_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
+    (w₂_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂) where
   not_reverse : ¬ e₂.OrderedBefore n e₁
-  gle_ordering : CompoundProtocol.gleOrdering.Cases w₁_lin w₂_lin
+  gle_ordering : CompoundProtocol.gleOrdering.Cases w₁_cmpLin w₂_cmpLin
 
 structure co (e₁ e₂ : Event n) : Prop where
   write₁ : e₁.isWrite
   write₂ : e₂.isWrite
   sameAddr : e₁.addr = e₂.addr
-  w₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
-  w₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
+  w₁_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
+  w₂_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
   in_b₁ : e₁ ∈ b
   in_b₂ : e₂ ∈ b
@@ -137,7 +137,7 @@ structure co (e₁ e₂ : Event n) : Prop where
   cache₂ : e₂.isClusterCache
   notDown₁ : ¬ e₁.down
   notDown₂ : ¬ e₂.down
-  comm : co.ordering w₁_lin w₂_lin
+  comm : co.ordering w₁_cmpLin w₂_cmpLin
 
 abbrev NonLazyPPOi (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) : Prop :=
   ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
@@ -327,23 +327,23 @@ theorem LinChain.irrefl {e : Event n} : ¬ @LinChain n e e :=
 inductive FrOrdering
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     {e₁ e₂ : Event n}
-    (e₁_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
-    (e₂_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂)
+    (e₁_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
+    (e₂_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂)
     : Prop
   /-- Same cache e₁/e₂: both at the same cache, serialized by the cache.
       Same CLE (shared directory access) or CLE₁ OB CLE₂.
       CleLink derived via .eq or .ob. -/
   | sameCache
     (same_cache : e₁.struct = e₂.struct)
-    (cle_eq_or_ob : e₁_lin.hreq's_dir_access.choose = e₂_lin.hreq's_dir_access.choose ∨
-        e₁_lin.hreq's_dir_access.choose.OrderedBefore n e₂_lin.hreq's_dir_access.choose)
+    (cle_eq_or_ob : e₁_cmpLin.hreq's_dir_access.choose = e₂_cmpLin.hreq's_dir_access.choose ∨
+        e₁_cmpLin.hreq's_dir_access.choose.OrderedBefore n e₂_cmpLin.hreq's_dir_access.choose)
   /-- Same cluster, different cache: cluster directory serializes the accesses.
       CLE₁ OB CLE₂ from dir_ordered + NIW (NoInterveningWrites eliminates wrong direction).
       CleLink derived via .ob. -/
   | sameClusDiffCache
     (same_protocol : e₁.sameProtocol n e₂)
     (diff_cache : e₁.struct ≠ e₂.struct)
-    (cle_ob : e₁_lin.hreq's_dir_access.choose.OrderedBefore n e₂_lin.hreq's_dir_access.choose)
+    (cle_ob : e₁_cmpLin.hreq's_dir_access.choose.OrderedBefore n e₂_cmpLin.hreq's_dir_access.choose)
   /-- Different cluster, e₁ coherent: e₁ has coherent perms (from reading e_w),
       so e₂'s overwrite triggers a downgrade at e₁'s CACHE.
       The cache downgrade is after e₁ (e₁ OB cache_down), encapsulated by a
@@ -352,8 +352,8 @@ inductive FrOrdering
   | diffCluster_coherent
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
-    (cle₁_ob_p : e₁_lin.hreq's_dir_access.choose.OrderedBefore n p)
-    (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_lin.hreq's_dir_access.choose)
+    (cle₁_ob_p : e₁_cmpLin.hreq's_dir_access.choose.OrderedBefore n p)
+    (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_cmpLin.hreq's_dir_access.choose)
     (h_p_isdir : p.isDirectoryEvent)
   /-- Different cluster, e₁ coherent with evict: e₁ had coherent perms but
       evicted before e₂'s downgrade arrived. The downgrade goes to the cluster
@@ -362,8 +362,8 @@ inductive FrOrdering
   | diffCluster_evict
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
-    (cle₁_ob_p : e₁_lin.hreq's_dir_access.choose.OrderedBefore n p)
-    (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_lin.hreq's_dir_access.choose)
+    (cle₁_ob_p : e₁_cmpLin.hreq's_dir_access.choose.OrderedBefore n p)
+    (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_cmpLin.hreq's_dir_access.choose)
     (h_p_isdir : p.isDirectoryEvent)
   /-- Different cluster, e₁ non-coherent: e₁ doesn't have coherent perms,
       so e₂'s downgrade goes directly to e₁'s CLUSTER DIRECTORY.
@@ -372,8 +372,8 @@ inductive FrOrdering
   | diffCluster_noncoherent
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
-    (cle₁_ob_p : e₁_lin.hreq's_dir_access.choose.OrderedBefore n p)
-    (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_lin.hreq's_dir_access.choose)
+    (cle₁_ob_p : e₁_cmpLin.hreq's_dir_access.choose.OrderedBefore n p)
+    (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_cmpLin.hreq's_dir_access.choose)
     (h_p_isdir : p.isDirectoryEvent)
   /-- Different cluster, RF cross-cluster: e_w at e₂'s cluster, RF gives
       proxy p at e_w's cluster INSIDE CLE₁ (from encapDirRelation) and OB CLE₂.
@@ -381,20 +381,20 @@ inductive FrOrdering
   | diffCluster_rfCrossCluster
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
-    (p_inside_cle₁ : p.EncapsulatedBy n e₁_lin.hreq's_dir_access.choose)
-    (p_ob_cle₂ : p.OrderedBefore n e₂_lin.hreq's_dir_access.choose)
+    (p_inside_cle₁ : p.EncapsulatedBy n e₁_cmpLin.hreq's_dir_access.choose)
+    (p_ob_cle₂ : p.OrderedBefore n e₂_cmpLin.hreq's_dir_access.choose)
   /-- Different cluster, RF cross-cluster with gcacheEncap/noGlobalCache:
       proxy p OB CLE₂ and p finishes before CLE₁ (p.oEnd < CLE₁.oEnd).
       CleLink derived via .obFinishBefore. -/
   | diffCluster_rfFinishBefore
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
-    (p_ob_cle₂ : p.OrderedBefore n e₂_lin.hreq's_dir_access.choose)
-    (p_lt_cle₁ : Event.oEnd n p < Event.oEnd n e₁_lin.hreq's_dir_access.choose)
+    (p_ob_cle₂ : p.OrderedBefore n e₂_cmpLin.hreq's_dir_access.choose)
+    (p_lt_cle₁ : Event.oEnd n p < Event.oEnd n e₁_cmpLin.hreq's_dir_access.choose)
     (h_p_isdir : p.isDirectoryEvent)
   /-- Same CLE: both events share the same CLE. -/
   | sameCLE
-    (cle_eq : e₁_lin.hreq's_dir_access.choose = e₂_lin.hreq's_dir_access.choose)
+    (cle_eq : e₁_cmpLin.hreq's_dir_access.choose = e₂_cmpLin.hreq's_dir_access.choose)
 
 /-- fr: From-reads (rf⁻¹ ; co⁺).
     A read e₁ reads from some write e_w, and e₂ is a write reachable from e_w
@@ -416,8 +416,8 @@ structure fr (e₁ e₂ : Event n) : Prop where
   in_b₂ : e₂ ∈ b
   cache₂ : e₂.isClusterCache
   notDown₂ : ¬ e₂.down
-  e₁_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
-  e₂_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
+  e₁_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
+  e₂_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
   /-- rf⁻¹ ; co⁺ decomposition: e₁ reads from e_w at some communication level
       (full readsFrom.cases structure + NoInterveningWrites), and e₂ overwrites e_w via co⁺.
@@ -425,8 +425,8 @@ structure fr (e₁ e₂ : Event n) : Prop where
   comm : ∃ (e_w : Event n) (e_w_write : e_w.isWrite)
     (e_w_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e_w),
     e_w.addr = e₁.addr ∧
-    Behaviour.readsFrom.cases e_w_write read e_w_lin e₁_lin hknow_dir_access ∧
-    NoInterveningWrites e_w_write read e_w_lin e₁_lin hknow_dir_access ∧
+    Behaviour.readsFrom.cases e_w_write read e_w_lin e₁_cmpLin hknow_dir_access ∧
+    NoInterveningWrites e_w_write read e_w_lin e₁_cmpLin hknow_dir_access ∧
     Relation.TransGen (@co n compound b init) e_w e₂ ∧
     e_w ∈ b ∧ e_w.isClusterCache ∧ ¬ e_w.down
   -- FrOrdering is DERIVED by fr_ordering_holds theorem (not carried as a field).
