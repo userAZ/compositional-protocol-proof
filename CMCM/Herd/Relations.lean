@@ -40,6 +40,26 @@ noncomputable def com.lin₂ {cmp : CompoundProtocol n} {b : Behaviour n} {init 
   | .co h => h.w₂_cmpLin
   | .fr h => h.e₂_cmpLin
 
+/-- The compoundLin event for e₁ from any COM edge. -/
+noncomputable def com.cmpLin₁ {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    {e₁ e₂ : Event n} (h : com cmp b init e₁ e₂) : Event n :=
+  h.lin₁.compoundLin
+
+/-- The compoundLin event for e₂ from any COM edge. -/
+noncomputable def com.cmpLin₂ {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    {e₁ e₂ : Event n} (h : com cmp b init e₁ e₂) : Event n :=
+  h.lin₂.compoundLin
+
+/-- The CLE (cluster linearization event) for e₁, extracted from cmpLin₁'s evidence. -/
+noncomputable def com.cle₁ {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    {e₁ e₂ : Event n} (h : com cmp b init e₁ e₂) : Event n :=
+  h.lin₁.hreq's_dir_access.choose
+
+/-- The CLE for e₂, extracted from cmpLin₂'s evidence. -/
+noncomputable def com.cle₂ {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    {e₁ e₂ : Event n} (h : com cmp b init e₁ e₂) : Event n :=
+  h.lin₂.hreq's_dir_access.choose
+
 /-- The hierarchical ordering: PPOi ∪ com, carrying communication evidence.
 
     Each constructor carries the full edge structure (PPOi or com), which
