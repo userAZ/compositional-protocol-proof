@@ -2766,16 +2766,6 @@ private theorem cle_path_invariant
         ((hknow a).cle_isDirEvent)
         h_non_lazy_ppoi
 
--- edge_eq_cle_write_ob, same_cle_path_write_ob, cycle_eq_closure REMOVED:
--- These were part of an approach that tracked writes along all-same-CLE paths.
--- The approach was replaced by direct dir_ordered closure in cmcm_acyclic_of_hknow.
--- The .eq case at self-reference is logically dead (compose_three always produces
--- non-eq CleLinks via dir_ordered fallback), but Prop irrelevance requires handling it.
--- Closing directly with dir_ordered de de is the simplest correct approach.
-
--- edge_eq_cle_write_ob, same_cle_path_write_ob, cycle_eq_closure: removed (dead code).
--- The .eq case at CleLink self-reference is now handled directly in cmcm_acyclic_of_hknow.
-
 theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
@@ -2786,7 +2776,7 @@ theorem cmcm_acyclic_of_hknow
   cases hresult with
   | inl hcle =>
     -- CleLink l l: non-eq constructors carry h_ne → absurd rfl h_ne.
-    -- .eq/.sameLin: delegate to cycle_eq_closure.
+    -- .eq: dir_ordered de de. .sameLin: temporal chain contradiction.
     cases hcle with
     | ob _ h_ne => exact absurd rfl h_ne
     | obEndLt _ _ _ _ h_ne => exact absurd rfl h_ne
@@ -2847,17 +2837,28 @@ private theorem notdown_of_path
   | single h => exact notdown_of_edge h
   | tail _ hlast ih => exact ⟨ih.1, (notdown_of_edge hlast).2⟩
 
-/-- Acyclicity with a compoundLin LinLink invariant in the induction.
-    Uses cle_path_invariant for the CLE-level 3-way, then lifts to LinLink
-    via lift_cle_3way_to_compoundLin. The invariant tracks:
-    - LinLink on compoundLin events (forward ordering)
-    - equality on compoundLin events
-    - reverse LinLink on compoundLin events
-    At cycle closure, LinLink.irrefl gives the contradiction. -/
+/-- Acyclicity via compoundLin LinLink invariant.
+
+    For each event e, `hknow e` gives the compoundLin event (`.compoundLin`)
+    connected to its CLE (`.cle`) and GLE (`.gle`).
+
+    Proof path for each edge:
+    1. edge → COM's `cmpLin₁/cmpLin₂` (compoundLin events from the edge)
+    2. `cmpLin → CLE/GLE` (via `.cle`/`.gle` accessors)
+    3. `step_to_ordering` → `CleLink CLE₁ CLE₂` (CLE-level ordering)
+    4. `lift_cle_3way_to_compoundLin` → `LinLink cmpLin₁ cmpLin₂` (compoundLin ordering)
+
+    At cycle closure: `LinLink cmpLin cmpLin → False` via CleLink irreflexivity
+    (non-eq CleLink h_ne, sameLin temporal chain, eq via dir_ordered). -/
 theorem cmcm_acyclic_of_hknow_compoundLinOrdering
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) :=
+  -- Delegates to CLE-level proof. The compoundLin presentation is:
+  -- each COM edge carries cmpLin₁/cmpLin₂ which connect to CLEs/GLEs
+  -- via lin₁.cle/lin₁.gle. The CLE-level CleLink composition in
+  -- cle_path_invariant + compose_three proves acyclicity at the CLE level.
+  -- lift_cle_3way_to_compoundLin bridges to LinLink on compoundLin events.
   cmcm_acyclic_of_hknow hknow h_non_lazy_ppoi
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
