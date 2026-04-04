@@ -198,32 +198,32 @@ theorem co_step_to_ordering
       | sameCluster _ hob => exact .ob hob (Event.ne_of_ob hob)
       | diffCluster _ hdown hwObRDown =>
         have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
-        exact .obEndLt hdown.existsRClusterDirDown.choose
-          hwObRDown
-          (by cases hcdir_spec.2.encapDirRelation with
-              | cleEncap henc => exact henc.right
-              | gcacheEncap _ hlt => exact hlt)
-          hcdir_spec.2.isDir
+        have h_lt : Event.oEnd n hdown.existsRClusterDirDown.choose < Event.oEnd n h.w₂_cmpLin.cle := by
+          cases hcdir_spec.2.encapDirRelation with
+          | cleEncap henc => exact henc.right
+          | gcacheEncap _ hlt => exact hlt
+        exact .obEndLt hdown.existsRClusterDirDown.choose hwObRDown h_lt
+          hcdir_spec.2.isDir (Event.ne_of_obEndLt hwObRDown h_lt)
     | evictOrReadBetweenWAndRCleSameCluster evict =>
-      exact .ob evict.wObR
+      exact .ob evict.wObR (Event.ne_of_ob evict.wObR)
   | diffClus _ diff_cluster_cases =>
     cases diff_cluster_cases with
     | wCleImmPredDown w =>
       have hcdir_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
-      exact .obEndLt w.rDown.encapDir.existsRClusterDirDown.choose
-        w.wObRDown
-        (by cases hcdir_spec.2.encapDirRelation with
-            | cleEncap henc => exact henc.right
-            | gcacheEncap _ hlt => exact hlt)
-        hcdir_spec.2.isDir
+      have h_lt : Event.oEnd n w.rDown.encapDir.existsRClusterDirDown.choose < Event.oEnd n h.w₂_cmpLin.cle := by
+        cases hcdir_spec.2.encapDirRelation with
+        | cleEncap henc => exact henc.right
+        | gcacheEncap _ hlt => exact hlt
+      exact .obEndLt w.rDown.encapDir.existsRClusterDirDown.choose w.wObRDown h_lt
+        hcdir_spec.2.isDir (Event.ne_of_obEndLt w.wObRDown h_lt)
     | evictOrReadBetweenWAndRDown evict =>
       have hcdir_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
-      exact .obEndLt evict.rDown.encapDir.existsRClusterDirDown.choose
-        evict.wObRDown
-        (by cases hcdir_spec.2.encapDirRelation with
-            | cleEncap henc => exact henc.right
-            | gcacheEncap _ hlt => exact hlt)
-        hcdir_spec.2.isDir
+      have h_lt : Event.oEnd n evict.rDown.encapDir.existsRClusterDirDown.choose < Event.oEnd n h.w₂_cmpLin.cle := by
+        cases hcdir_spec.2.encapDirRelation with
+        | cleEncap henc => exact henc.right
+        | gcacheEncap _ hlt => exact hlt
+      exact .obEndLt evict.rDown.encapDir.existsRClusterDirDown.choose evict.wObRDown h_lt
+        hcdir_spec.2.isDir (Event.ne_of_obEndLt evict.wObRDown h_lt)
 
 /-- Extract the first step from a TransGen chain. -/
 private lemma transGen_first_step {r : α → α → Prop} (h : Relation.TransGen r a c) :
@@ -1334,11 +1334,11 @@ theorem step_to_ordering
         | wEqRCle _ _ hwr_com =>
           exact absurd hwr_com.sameCache h.diffCache
         | wObRCle hwr_gle_or_cle =>
-          exact .ob hwr_gle_or_cle.hw_r_cle_ob
+          exact .ob hwr_gle_or_cle.hw_r_cle_ob (Event.ne_of_ob hwr_gle_or_cle.hw_r_cle_ob)
       | wObRGle _ hw_ob_r_gle_cases =>
         cases hw_ob_r_gle_cases with
         | sameCluster _ hw_ob_cases =>
-          exact .ob hw_ob_cases.hw_r_cle_ob
+          exact .ob hw_ob_cases.hw_r_cle_ob (Event.ne_of_ob hw_ob_cases.hw_r_cle_ob)
         | diffCluster _ _ _ hdiff_cache_case =>
           -- Helper: given encapDir + wObRDown → CleLink.obEndLt
           have from_encap_wob
@@ -1349,18 +1349,17 @@ theorem step_to_ordering
                 h.r_cmpLin.cle := by
             have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
             have hencap_rel := hcdir_spec.2.encapDirRelation
-            exact .obEndLt hdown.existsRClusterDirDown.choose
-              hwOB
-              (by cases hencap_rel with
-                  | cleEncap henc => exact henc.right
-                  | gcacheEncap _ hlt => exact hlt)
-              hcdir_spec.2.isDir
+            have h_lt := by cases hencap_rel with
+              | cleEncap henc => exact henc.right
+              | gcacheEncap _ hlt => exact hlt
+            exact .obEndLt hdown.existsRClusterDirDown.choose hwOB h_lt
+              hcdir_spec.2.isDir (Event.ne_of_obEndLt hwOB h_lt)
           cases hdiff_cache_case with
           | wHasPermsAfter hw_leaves_SW coherentCase =>
             cases coherentCase with
             | immPred rCle hPDC =>
               cases rCle with
-              | sameCluster _ hob_cle => exact .ob hob_cle
+              | sameCluster _ hob_cle => exact .ob hob_cle (Event.ne_of_ob hob_cle)
               | diffCluster _ _ hwOB => exact from_encap_wob hPDC.encapDir hwOB
             | notImmPred hasPermsCase =>
               cases hasPermsCase with
@@ -1371,11 +1370,11 @@ theorem step_to_ordering
                 exact from_encap_wob evict.encapProxyAndDir evict.evictBetween.wObRDown
           | wNoPermsAfter _ _ rCle =>
             cases rCle with
-            | sameCluster _ hob_cle => exact .ob hob_cle
+            | sameCluster _ hob_cle => exact .ob hob_cle (Event.ne_of_ob hob_cle)
             | diffCluster _ hdown hwOB => exact from_encap_wob hdown hwOB
           | wCleAfter rCle =>
             cases rCle with
-            | sameCluster _ hob_cle => exact .ob hob_cle
+            | sameCluster _ hob_cle => exact .ob hob_cle (Event.ne_of_ob hob_cle)
             | diffCluster _ hdown hwOB => exact from_encap_wob hdown hwOB
     | co h => exact co_step_to_ordering h
     | fr h =>
@@ -1392,17 +1391,18 @@ theorem step_to_ordering
       | sameCache _ h_eq_or_ob =>
         cases h_eq_or_ob with
         | inl cle_eq => exact .eq cle_eq
-        | inr cle_ob => exact .ob cle_ob
-      | sameClusDiffCache _ _ cle_ob => exact .ob cle_ob
-      | diffCluster_coherent _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir
-      | diffCluster_evict _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir
-      | diffCluster_noncoherent _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir
-      | diffCluster_rfCrossCluster _ p p_inside p_ob => exact .encapOb p p_inside p_ob
+        | inr cle_ob => exact .ob cle_ob (Event.ne_of_ob cle_ob)
+      | sameClusDiffCache _ _ cle_ob => exact .ob cle_ob (Event.ne_of_ob cle_ob)
+      | diffCluster_coherent _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir (Event.ne_of_obEndLt cle₁_ob_p p_lt_cle₂)
+      | diffCluster_evict _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir (Event.ne_of_obEndLt cle₁_ob_p p_lt_cle₂)
+      | diffCluster_noncoherent _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir (Event.ne_of_obEndLt cle₁_ob_p p_lt_cle₂)
+      | diffCluster_rfCrossCluster _ p p_inside p_ob => exact .encapOb p p_inside p_ob (Event.ne_of_encapOb p_inside p_ob)
       | diffCluster_rfFinishBefore h_diff p p_ob p_lt h_p_isdir =>
         have hcle₁_prot := read_cle_protocol_eq_read_protocol (lin e₁)
         have hcle₂_prot := write_cle_protocol_eq_write_protocol (lin e₂)
-        exact .obFinishBefore p p_ob p_lt (fun heq =>
-          h_diff (show e₁.sameProtocol n e₂ from hcle₁_prot.symm.trans (heq ▸ hcle₂_prot))) h_p_isdir
+        have h_prot_diff : Event.protocol n h.e₁_cmpLin.cle ≠ Event.protocol n h.e₂_cmpLin.cle :=
+          fun heq => h_diff (show e₁.sameProtocol n e₂ from hcle₁_prot.symm.trans (heq ▸ hcle₂_prot))
+        exact .obFinishBefore p p_ob p_lt h_prot_diff h_p_isdir (Event.ne_of_diff_prot h_prot_diff)
       | sameCLE cle_eq => exact .eq cle_eq
 
 /-- Bridge step_to_ordering result from COM edge's CLEs (h.cle₁/h.cle₂) to hknow's CLEs.
@@ -1646,7 +1646,7 @@ private theorem step_ordering_dir_ordered_3way {l₁ l₂ : Event n}
     | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
     | .directoryEvent de₂, _ =>
       cases (hdir de₁ de₂).ordered with
-      | inl hob => exact Or.inl (.ob hob)
+      | inl hob => exact Or.inl (.ob hob (Event.ne_of_ob hob))
       | inr hob_rev => exact Or.inr (Or.inr hob_rev)
 
 -- compoundLin version of dir_ordered 3-way: extract CLEs, dir_ordered on CLEs, lift to compoundLin.
@@ -1950,7 +1950,7 @@ theorem cle_to_compoundLinOrdering
   cases h with
   | ob hob =>
     -- CLE₁ OB CLE₂: build temporal chain via cle_ob_to_temporal_chain → forward LinLink.
-    exact Or.inl (.proxy _ _ (.ob hob) h₁_isdir h₂_isdir
+    exact Or.inl (.proxy _ _ (.ob hob (Event.ne_of_ob hob)) h₁_isdir h₂_isdir
       (cle_ob_to_temporal_chain hob hnotdown₁ hnotdown₂ hdir))
   | eq heq =>
     -- CLE₁ = CLE₂: both compoundLins relate to the same CLE.
@@ -2060,12 +2060,12 @@ theorem cle_to_compoundLinOrdering
           -- Need Event.OrderedBefore = Event.oEnd (.directoryEvent de₁) < Event.oStart (.directoryEvent de₂)
           have hob' : (Event.directoryEvent de₁).OrderedBefore n (Event.directoryEvent de₂) := hob
           rw [← hfc₁, ← hfc₂] at hob'
-          exact Or.inl (.proxy _ _ (.ob hob') h₁_isdir h₂_isdir
+          exact Or.inl (.proxy _ _ (.ob hob' (Event.ne_of_ob hob')) h₁_isdir h₂_isdir
             (cle_ob_to_temporal_chain hob' hnotdown₁ hnotdown₂ hdir))
         | inr hob_rev =>
           have hob_rev' : (Event.directoryEvent de₂).OrderedBefore n (Event.directoryEvent de₁) := hob_rev
           rw [← hfc₁, ← hfc₂] at hob_rev'
-          exact Or.inr (Or.inr (.proxy _ _ (.ob hob_rev') h₂_isdir h₁_isdir
+          exact Or.inr (Or.inr (.proxy _ _ (.ob hob_rev' (Event.ne_of_ob hob_rev')) h₂_isdir h₁_isdir
             (cle_ob_to_temporal_chain hob_rev' hnotdown₂ hnotdown₁ hdir)))
 
 -- 3-way LinLink via CLE dir_ordered + bridge.
@@ -2089,7 +2089,7 @@ theorem compoundLinOrdering_3way
     | inl heq => exact cle_to_compoundLinOrdering (.eq heq) hnotdown₁ hnotdown₂ hdir
     | inr hob_rev =>
       -- Reverse OB on CLEs → reverse on compoundLin.
-      cases cle_to_compoundLinOrdering (.ob hob_rev) hnotdown₂ hnotdown₁ hdir with
+      cases cle_to_compoundLinOrdering (.ob hob_rev (Event.ne_of_ob hob_rev)) hnotdown₂ hnotdown₁ hdir with
       | inl hfwd => exact Or.inr (Or.inr hfwd)
       | inr hr => cases hr with
         | inl heq => exact Or.inr (Or.inl heq.symm)
@@ -2104,16 +2104,18 @@ private theorem compose_with_ob {l₁ l₂ l₃ : Event n}
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     : @CleLink n l₁ l₃ ∨ l₁ = l₃ ∨ l₃.OrderedBefore n l₁ := by
   cases hso₁ with
-  | ob hob₁ => exact Or.inl (.ob (Trans.trans hob₁ hob₂))
-  | obEndLt p₁ hob₁ hlt₁ _ =>
-    exact Or.inl (.ob (Trans.trans hob₁ (Event.ob_of_lt_lt hlt₁ hob₂)))
-  | encapOb p₁ henc₁ hob₁ => exact Or.inl (.encapOb p₁ henc₁ (Trans.trans hob₁ hob₂))
+  | ob hob₁ _ =>
+    have h := Trans.trans hob₁ hob₂; exact Or.inl (.ob h (Event.ne_of_ob h))
+  | obEndLt p₁ hob₁ hlt₁ _ _ =>
+    have h := Trans.trans hob₁ (Event.ob_of_lt_lt hlt₁ hob₂); exact Or.inl (.ob h (Event.ne_of_ob h))
+  | encapOb p₁ henc₁ hob₁ _ =>
+    have h := Trans.trans hob₁ hob₂; exact Or.inl (.encapOb p₁ henc₁ h (Event.ne_of_encapOb henc₁ h))
   | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ _ =>
-    exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob (Event.ob_of_lt_lt hlt₁ hob₂)))
-  | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-    exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob (Trans.trans hp_ob hob₂))
-  | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂)
-  | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂)
+    have h := Trans.trans hq_ob (Event.ob_of_lt_lt hlt₁ hob₂); exact Or.inl (.encapOb q₁ hq_enc h (Event.ne_of_encapOb hq_enc h))
+  | proxyPair q₁ p₁ hq_enc hq_ob hp_ob _ =>
+    have h := Trans.trans hp_ob hob₂; exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob h (Event.ne_of_proxyPair hq_enc hq_ob h))
+  | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂ (Event.ne_of_ob hob₂))
+  | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂ (Event.ne_of_ob hob₂))
   | encap henc => exact step_ordering_dir_ordered_3way h₁_isdir h₃_isdir hdir
   | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
     -- obFinishBefore needs diff_prot chaining. Can't resolve without protocol context.
