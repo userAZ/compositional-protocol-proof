@@ -66,16 +66,16 @@ lemma CMCM.rf.wObRGle.diffCluster.evictOrReadBetweenWAndRDown
             -- h.cleDirWrite says the CLE of e_w_inter is isDirWrite
             -- wCleImmPredRDown will say it must be isDirRead → contradiction
             have he_in_b := (hknow_dir_access cmp b init e_w_inter).hreq's_dir_access.choose_spec.left
-            have h_cle_prot : (hknow_dir_access cmp b init e_w_inter).hreq's_dir_access.choose.protocol
-                = hw_c_and_g_lin.hreq's_dir_access.choose.protocol :=
+            have h_cle_prot : (hknow_dir_access cmp b init e_w_inter).cle.protocol
+                = hw_c_and_g_lin.cle.protocol :=
               (write_cle_protocol_eq_write_protocol (hknow_dir_access cmp b init e_w_inter)).trans h.sameProtocol
-            have h_inter_is_dir := (hknow_dir_access cmp b init e_w_inter).hreq's_dir_access.choose_spec.right.isDirEvent
-            have h_w_is_dir := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
-            have h_same_struct : (hknow_dir_access cmp b init e_w_inter).hreq's_dir_access.choose.sameStructure n
-                hw_c_and_g_lin.hreq's_dir_access.choose := by
+            have h_inter_is_dir := (hknow_dir_access cmp b init e_w_inter).cle_isDirEvent
+            have h_w_is_dir := hw_c_and_g_lin.cle_isDirEvent
+            have h_same_struct : (hknow_dir_access cmp b init e_w_inter).cle.sameStructure n
+                hw_c_and_g_lin.cle := by
               unfold Event.sameStructure
-              match h_e1 : (hknow_dir_access cmp b init e_w_inter).hreq's_dir_access.choose,
-                    h_e2 : hw_c_and_g_lin.hreq's_dir_access.choose with
+              match h_e1 : (hknow_dir_access cmp b init e_w_inter).cle,
+                    h_e2 : hw_c_and_g_lin.cle with
               | .cacheEvent _, _ => simp [Event.isDirectoryEvent, h_e1] at h_inter_is_dir
               | _, .cacheEvent _ => simp [Event.isDirectoryEvent, h_e2] at h_w_is_dir
               | .directoryEvent de₁, .directoryEvent de₂ =>
@@ -86,7 +86,7 @@ lemma CMCM.rf.wObRGle.diffCluster.evictOrReadBetweenWAndRDown
             -- isDirReadOrEvict = isDirRead, contradicts isDirWrite
             unfold Event.isDirReadOrEvict at h_is_read
             have h_write := h.cleDirWrite
-            match h_ev : (hknow_dir_access cmp b init e_w_inter).hreq's_dir_access.choose with
+            match h_ev : (hknow_dir_access cmp b init e_w_inter).cle with
             | .cacheEvent _ =>
               simp [Event.isDirWrite, h_ev] at h_write
             | .directoryEvent de =>
@@ -98,10 +98,10 @@ lemma CMCM.rf.wObRGle.diffCluster.evictOrReadBetweenWAndRDown
             -- existsClusterDirDown gives a dir event that is isDirWrite between the boundaries
             obtain ⟨e_cdir_down, he_in_b, h_is_dir, h_prot_eq, h_is_write, _, _, h_between⟩ :=
               h.existsClusterDirDown
-            have h_w_is_dir := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
-            have h_same_struct : e_cdir_down.sameStructure n hw_c_and_g_lin.hreq's_dir_access.choose := by
+            have h_w_is_dir := hw_c_and_g_lin.cle_isDirEvent
+            have h_same_struct : e_cdir_down.sameStructure n hw_c_and_g_lin.cle := by
               unfold Event.sameStructure
-              match h_e1 : e_cdir_down, h_e2 : hw_c_and_g_lin.hreq's_dir_access.choose with
+              match h_e1 : e_cdir_down, h_e2 : hw_c_and_g_lin.cle with
               | .cacheEvent _, _ => simp [Event.isDirectoryEvent, h_e1] at h_is_dir
               | _, .cacheEvent _ => simp [Event.isDirectoryEvent, h_e2] at h_w_is_dir
               | .directoryEvent de₁, .directoryEvent de₂ =>
@@ -126,8 +126,8 @@ lemma CMCM.rf.wObRGle.diffCluster.evictOrReadBetweenWAndRDown
         | cacheEvent ce =>
           -- Cache events can't have sameStructure with a directory event
           exfalso
-          have h_w_cle_dir := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
-          match h_cle_ev : hw_c_and_g_lin.hreq's_dir_access.choose with
+          have h_w_cle_dir := hw_c_and_g_lin.cle_isDirEvent
+          match h_cle_ev : hw_c_and_g_lin.cle with
           | .directoryEvent _ =>
             simp [Event.sameStructure, Event.struct, h_cle_ev] at h_same_struct
           | .cacheEvent _ =>
@@ -151,7 +151,7 @@ lemma CMCM.rf.wObRGle.diffCluster.evictOrReadBetweenWAndRDown
               exfalso
               -- Derive sameProtocol from sameStructure (both are directory events)
               have h_same_prot : (Event.directoryEvent de).sameProtocol n
-                  hw_c_and_g_lin.hreq's_dir_access.choose :=
+                  hw_c_and_g_lin.cle :=
                 sameStructure_implies_sameProtocol h_same_struct
               -- Construct IntermediateDirEvictOrRead from OrderedBetween
               have h_is_read := hw_cle_imm_pred_down.wCleImmPredRDown (.directoryEvent de) he_in_b

@@ -111,46 +111,46 @@ structure NoInterveningWrites.constraints
   notSameAsW : e_w_inter ≠ e_w
   notBetweenGles :
     NotBetweenGLEs
-      (hknow_dir_access cmp b init e_w_inter).hreq's_global_lin.choose
-      hw_c_and_g_lin.hreq's_global_lin.choose
-      hr_c_and_g_lin.hreq's_global_lin.choose
+      (hknow_dir_access cmp b init e_w_inter).gle
+      hw_c_and_g_lin.gle
+      hr_c_and_g_lin.gle
   notBetweenCles :
     SameClusterCLE.NotBetweenCLEs
-      (hknow_dir_access cmp b init e_w_inter).hreq's_dir_access.choose
-      hw_c_and_g_lin.hreq's_dir_access.choose
-      hr_c_and_g_lin.hreq's_dir_access.choose
+      (hknow_dir_access cmp b init e_w_inter).cle
+      hw_c_and_g_lin.cle
+      hr_c_and_g_lin.cle
   diffClusterNotBetweenCles:
     ∀ e_inter_down ∈ b,
       (interBtn : DiffClusterCLE.NotBetweenCLEs.constraints e_w_inter e_w e_r e_inter_down hr_c_and_g_lin hinter_c_and_g_lin) →
-      ¬ e_inter_down.OrderedBetween n hw_c_and_g_lin.hreq's_dir_access.choose interBtn.rClusterDownToW.existsRClusterDirDown.choose
+      ¬ e_inter_down.OrderedBetween n hw_c_and_g_lin.cle interBtn.rClusterDownToW.existsRClusterDirDown.choose
   /-- If the intervening write is at the same cluster as the reader, its CLE
       can't be before the reader's CLE. This rules out the case where e_w_inter
       and e_r share a cluster directory — the RF read establishes that no
       overwriting write's CLE precedes the reader's CLE at the same directory. -/
   interSameProtocolCleOB :
     e_w_inter.sameProtocol n e_r →
-      ¬ hinter_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose
+      ¬ hinter_c_and_g_lin.cle.OrderedBefore n hr_c_and_g_lin.cle
   /-- Same-cache variant: uses `dirAccessOfRequest` (no `rDiffProtocol`) and
       `e_r_cle` as the right endpoint instead of `rClusterDownToW`'s dir down. -/
   diffClusterNotBetweenCles_sameCache :
     ¬ ∃ e_inter_down ∈ b,
       DiffClusterCLE.NotBetweenCLEs.sameCacheConstraints e_w_inter e_w e_inter_down hinter_c_and_g_lin ∧
-      e_inter_down.OrderedBetween n hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose
+      e_inter_down.OrderedBetween n hw_c_and_g_lin.cle hr_c_and_g_lin.cle
   /-- Same-cache variant for non-downgrade directory writes (write-back events).
       When e_w_inter writes from a different cluster, its write-back directory event
       (isDirWrite, ¬down) can't be between CLE_w and CLE_r either. -/
   diffClusterNotBetweenCles_sameCacheWrite :
     ¬ ∃ e_inter_down ∈ b,
       DiffClusterCLE.NotBetweenCLEs.sameCacheWriteConstraints e_w_inter e_w e_inter_down hinter_c_and_g_lin ∧
-      e_inter_down.OrderedBetween n hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose
+      e_inter_down.OrderedBetween n hw_c_and_g_lin.cle hr_c_and_g_lin.cle
   /-- Same-cluster intervening write: if e_w_inter is at the same cluster as e_w,
       its CLE can't be between CLE_w and the RF downgrade at e_w's cluster.
       This rules out e_w2 writing at e_w1's cluster before e_r's read's downgrade arrives. -/
   interSameProtocolAsWNotBetweenCleAndDrf :
     e_w_inter.sameProtocol n e_w →
       (hencap : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin) →
-        ¬ hinter_c_and_g_lin.hreq's_dir_access.choose.OrderedBetween n
-            hw_c_and_g_lin.hreq's_dir_access.choose
+        ¬ hinter_c_and_g_lin.cle.OrderedBetween n
+            hw_c_and_g_lin.cle
             hencap.existsRClusterDirDown.choose
   /-- Same-cluster-as-writer intervening write with explicit downgrade endpoint:
       if e_w_inter is at the same cluster as e_w, and e_r is at a different cluster,
@@ -162,8 +162,8 @@ structure NoInterveningWrites.constraints
     e_w_inter.sameProtocol n e_r →
     ∀ (e_r_cdir_down : Event n), e_r_cdir_down.isDirectoryEvent →
       e_r_cdir_down.protocol = e_r.protocol →
-      ¬ hinter_c_and_g_lin.hreq's_dir_access.choose.OrderedBetween n
-          hw_c_and_g_lin.hreq's_dir_access.choose e_r_cdir_down
+      ¬ hinter_c_and_g_lin.cle.OrderedBetween n
+          hw_c_and_g_lin.cle e_r_cdir_down
 
 def NoInterveningWrites
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
@@ -224,19 +224,19 @@ lemma sameStructure_implies_sameProtocol {e₁ e₂ : Event n}
 lemma write_cle_protocol_eq_write_protocol {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
   {e_w : Event n}
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w) :
-  hw_c_and_g_lin.hreq's_dir_access.choose.protocol = e_w.protocol := by
+  hw_c_and_g_lin.cle.protocol = e_w.protocol := by
   have hdir_access_w := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
   cases hdir_access_w with
   | encapDir _ hencap_dir =>
     exact hencap_dir.sameProtocol.symm
   | orderBeforeDir hreq_has_perms hexists_pred hpred_accesses_dir hinter_leaves hpred_same_protocol =>
-    have h1 : hexists_pred.choose.protocol = hw_c_and_g_lin.hreq's_dir_access.choose.protocol := hpred_accesses_dir.sameProtocol
+    have h1 : hexists_pred.choose.protocol = hw_c_and_g_lin.cle.protocol := hpred_accesses_dir.sameProtocol
     have h2 : hexists_pred.choose.protocol = e_w.protocol := by
       unfold Event.sameProtocol at hpred_same_protocol
       exact hpred_same_protocol
     exact h1.symm.trans h2
   | orderAfterDir _ hsucc_encap_dir hsucc_same_protocol =>
-    have h1 : hsucc_encap_dir.choose.protocol = hw_c_and_g_lin.hreq's_dir_access.choose.protocol :=
+    have h1 : hsucc_encap_dir.choose.protocol = hw_c_and_g_lin.cle.protocol :=
       hsucc_encap_dir.choose_spec.right.satisfyP.encapCorresponding.sameProtocol
     have h2 : hsucc_encap_dir.choose.protocol = e_w.protocol := by
       unfold Event.sameProtocol at hsucc_same_protocol
@@ -247,19 +247,19 @@ lemma write_cle_protocol_eq_write_protocol {cmp : CompoundProtocol n} {b : Behav
 lemma read_cle_protocol_eq_read_protocol {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
   {e_r : Event n}
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r) :
-  hr_c_and_g_lin.hreq's_dir_access.choose.protocol = e_r.protocol := by
+  hr_c_and_g_lin.cle.protocol = e_r.protocol := by
   have hdir_access_r := hr_c_and_g_lin.hreq's_dir_access.choose_spec.right
   cases hdir_access_r with
   | encapDir _ hencap_dir =>
     exact hencap_dir.sameProtocol.symm
   | orderBeforeDir hreq_has_perms hexists_pred hpred_accesses_dir hinter_leaves hpred_same_protocol =>
-    have h1 : hexists_pred.choose.protocol = hr_c_and_g_lin.hreq's_dir_access.choose.protocol := hpred_accesses_dir.sameProtocol
+    have h1 : hexists_pred.choose.protocol = hr_c_and_g_lin.cle.protocol := hpred_accesses_dir.sameProtocol
     have h2 : hexists_pred.choose.protocol = e_r.protocol := by
       unfold Event.sameProtocol at hpred_same_protocol
       exact hpred_same_protocol
     exact h1.symm.trans h2
   | orderAfterDir _ hsucc_encap_dir hsucc_same_protocol =>
-    have h1 : hsucc_encap_dir.choose.protocol = hr_c_and_g_lin.hreq's_dir_access.choose.protocol :=
+    have h1 : hsucc_encap_dir.choose.protocol = hr_c_and_g_lin.cle.protocol :=
       hsucc_encap_dir.choose_spec.right.satisfyP.encapCorresponding.sameProtocol
     have h2 : hsucc_encap_dir.choose.protocol = e_r.protocol := by
       unfold Event.sameProtocol at hsucc_same_protocol

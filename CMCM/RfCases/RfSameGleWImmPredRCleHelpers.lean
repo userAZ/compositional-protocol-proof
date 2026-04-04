@@ -29,7 +29,7 @@ lemma wimmpredrCle_no_dir_write_between_same_cache
   (hsame_cache : e_w.struct = e_r.struct)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   (hno_intervening_writes : NoInterveningWrites hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
-  : Event.Between.noDirWrite cmp b init e_w e_r hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose hknow_dir_access :=
+  : Event.Between.noDirWrite cmp b init e_w e_r hw_c_and_g_lin.cle hr_c_and_g_lin.cle hknow_dir_access :=
   no_dir_write_between_same_cache hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hsame_cache hknow_dir_access hno_intervening_writes
 
 /-- Helper: When e_w's CLE is the immediate predecessor of e_r's CLE,

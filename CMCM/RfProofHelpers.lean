@@ -587,12 +587,12 @@ lemma write_event_cle_isDirWrite {cmp : CompoundProtocol n} {b : Behaviour n} {i
     (hw : e.isWrite) (hcluster : e.isClusterCache) (hnot_down : ¬ e.down)
     (hlin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
     (he_in_b : e ∈ b) :
-    hlin.hreq's_dir_access.choose.isDirWrite := by
+    hlin.cle.isDirWrite := by
   have hda := hlin.hreq's_dir_access.choose_spec.2
   cases hda with
   | encapDir hreq_missing_perms hencap_dir =>
     have hcle_is_dir := hencap_dir.isDir
-    match hcle_ev : hlin.hreq's_dir_access.choose with
+    match hcle_ev : hlin.cle with
     | .cacheEvent _ => simp [Event.isDirectoryEvent, hcle_ev] at hcle_is_dir
     | .directoryEvent de =>
       unfold Event.isDirWrite; simp
@@ -660,7 +660,7 @@ lemma write_event_cle_isDirWrite {cmp : CompoundProtocol n} {b : Behaviour n} {i
   | orderBeforeDir hreq_has_perms hexists_pred hpred_accesses_dir _ _ _
       hpred_produces_state hpred_not_down_field =>
     have hcle_is_dir := hpred_accesses_dir.isDir
-    match hcle_ev : hlin.hreq's_dir_access.choose with
+    match hcle_ev : hlin.cle with
     | .cacheEvent _ => simp [Event.isDirectoryEvent, hcle_ev] at hcle_is_dir
     | .directoryEvent de =>
       unfold Event.isDirWrite; simp
@@ -739,7 +739,7 @@ lemma write_event_cle_isDirWrite {cmp : CompoundProtocol n} {b : Behaviour n} {i
         | .directoryEvent _ => simp [Event.isNcWeakRead] at hncwr
   | orderAfterDir hweak_req_on_vd hsucc_encap_dir hsucc_same_protocol _ =>
     -- Use the same approach as the inline proof at ~1350
-    let e_inter_cle := hlin.hreq's_dir_access.choose
+    let e_inter_cle := hlin.cle
     have hcle_is_dir : e_inter_cle.isDirectoryEvent :=
       hsucc_encap_dir.choose_spec.right.satisfyP.encapCorresponding.isDir
     show e_inter_cle.isDirWrite
@@ -853,7 +853,7 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
   (hw_not_down : ¬ e_w.down) (r_not_down : ¬ e_r.down)
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  (_hcle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
+  (_hcle_eq : hw_c_and_g_lin.cle = hr_c_and_g_lin.cle)
   (_hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   {he_inter : e_inter ∈ b}
   (hwrite_cluster : e_inter.isClusterCache)
@@ -864,11 +864,11 @@ lemma noInterveningWrites_diffCache_sameProtocol_case
   (hsame_cache : ¬e_inter.sameStructure n e_w)
   (hsame_protocol : e_inter.sameProtocol n e_w)
   : Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites b init e_inter e_w e_r
-      (hw_c_and_g_lin.hreq's_dir_access.choose) (hr_c_and_g_lin.hreq's_dir_access.choose) := by
+      (hw_c_and_g_lin.cle) (hr_c_and_g_lin.cle) := by
 
-  let e_w_cle := hw_c_and_g_lin.hreq's_dir_access.choose
-  let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
-  let e_inter_cle := hinter_lin.hreq's_dir_access.choose
+  let e_w_cle := hw_c_and_g_lin.cle
+  let e_r_cle := hr_c_and_g_lin.cle
+  let e_inter_cle := hinter_lin.cle
 
   apply Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites.otherWDiffCacheSameCluster
   constructor
@@ -1652,7 +1652,7 @@ lemma noInterveningWrites_diffCache_diffProtocol_case
 --   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  (_hcle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
+  (_hcle_eq : hw_c_and_g_lin.cle = hr_c_and_g_lin.cle)
   (_hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   {he_inter : e_inter ∈ b}
   (hwrite : e_inter.isWrite)
@@ -1661,11 +1661,11 @@ lemma noInterveningWrites_diffCache_diffProtocol_case
   (hsame_cache : ¬e_inter.sameStructure n e_w)
   (hsame_protocol : ¬e_inter.sameProtocol n e_w)
   : Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites b init e_inter e_w e_r
-      (hw_c_and_g_lin.hreq's_dir_access.choose) (hr_c_and_g_lin.hreq's_dir_access.choose) := by
+      (hw_c_and_g_lin.cle) (hr_c_and_g_lin.cle) := by
 
-  let e_w_cle := hw_c_and_g_lin.hreq's_dir_access.choose
-  let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
-  let e_inter_cle := hinter_lin.hreq's_dir_access.choose
+  let e_w_cle := hw_c_and_g_lin.cle
+  let e_r_cle := hr_c_and_g_lin.cle
+  let e_inter_cle := hinter_lin.cle
 
   -- Compute protocol differences upfront for use in both branches
   have hdiff_w_protocol : e_inter.diffProtocol n e_w := by
@@ -1699,7 +1699,7 @@ lemma noInterveningWrites_diffCache_case
   (hw_not_down : ¬ e_w.down) (r_not_down : ¬ e_r.down)
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  (_hcle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
+  (_hcle_eq : hw_c_and_g_lin.cle = hr_c_and_g_lin.cle)
   (_hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   {he_inter : e_inter ∈ b}
   (hwrite_cluster : e_inter.isClusterCache)
@@ -1709,7 +1709,7 @@ lemma noInterveningWrites_diffCache_case
   (hinter_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_inter)
   (hsame_cache : ¬e_inter.sameStructure n e_w)
   : Event.Between.noWrite.wSameClusterR.case.excludeOtherWrites b init e_inter e_w e_r
-      (hw_c_and_g_lin.hreq's_dir_access.choose) (hr_c_and_g_lin.hreq's_dir_access.choose) := by
+      (hw_c_and_g_lin.cle) (hr_c_and_g_lin.cle) := by
 
   -- Case split on whether e_inter is in the same protocol/cluster as e_w and e_r
   by_cases hsame_protocol : e_inter.sameProtocol n e_w
@@ -1730,17 +1730,17 @@ lemma noInterveningWrites_implies_no_writes_between
   (hw_not_down : ¬ e_w.down) (r_not_down : ¬ e_r.down)
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  (_hcle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
+  (_hcle_eq : hw_c_and_g_lin.cle = hr_c_and_g_lin.cle)
   (_hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   (_hno_intervening : NoInterveningWrites _hw_is_write _r_is_read hw_c_and_g_lin hr_c_and_g_lin _hknow_dir_access)
   (_hr_not_ob_w : ¬ e_r.OrderedBefore n e_w)
   (_hsucc_w_of_w_after_r : ∀ e_w_succ ∈ b, e_w_succ.isWrite ∧ e_w_succ.sameProtocol n e_w ∧ e_w_succ.sameStructure n e_w ∧
     e_w.OrderedBefore n e_w_succ → e_r.oEnd < e_w_succ.oEnd)
-  : Event.Between.noWrite b init e_w e_r hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose := by
+  : Event.Between.noWrite b init e_w e_r hw_c_and_g_lin.cle hr_c_and_g_lin.cle := by
   intro e he hwrite_cluster hwrite hwrite_not_down
 
-  let e_w_cle := hw_c_and_g_lin.hreq's_dir_access.choose
-  let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
+  let e_w_cle := hw_c_and_g_lin.cle
+  let e_r_cle := hr_c_and_g_lin.cle
 
   have hinter_lin := _hknow_dir_access cmp b init e
   have hcontra := _hno_intervening e he hwrite_cluster hwrite hwrite_not_down hinter_lin
@@ -1804,26 +1804,26 @@ lemma same_cle_implies_same_protocol
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  (hcle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
+  (hcle_eq : hw_c_and_g_lin.cle = hr_c_and_g_lin.cle)
   : e_w.protocol = e_r.protocol := by
   -- Directory events are protocol-specific
   -- Both events access the same directory event, which belongs to a specific protocol
   -- From cacheEncapsulatesCorrespondingDirEvent, we have sameProtocol : e_req.protocol = e_dir.protocol
   -- Therefore both e_w and e_r must be in the same protocol as the shared directory event
   have hw_cle_protocol :
-      hw_c_and_g_lin.hreq's_dir_access.choose.protocol = e_w.protocol :=
+      hw_c_and_g_lin.cle.protocol = e_w.protocol :=
     write_cle_protocol_eq_write_protocol hw_c_and_g_lin
   have hr_cle_protocol :
-      hr_c_and_g_lin.hreq's_dir_access.choose.protocol = e_r.protocol :=
+      hr_c_and_g_lin.cle.protocol = e_r.protocol :=
     read_cle_protocol_eq_read_protocol hr_c_and_g_lin
   have hcle_protocol_eq :
-      hw_c_and_g_lin.hreq's_dir_access.choose.protocol =
-        hr_c_and_g_lin.hreq's_dir_access.choose.protocol := by
+      hw_c_and_g_lin.cle.protocol =
+        hr_c_and_g_lin.cle.protocol := by
     simp [hcle_eq]
   calc
-    e_w.protocol = hw_c_and_g_lin.hreq's_dir_access.choose.protocol :=
+    e_w.protocol = hw_c_and_g_lin.cle.protocol :=
       hw_cle_protocol.symm
-    _ = hr_c_and_g_lin.hreq's_dir_access.choose.protocol :=
+    _ = hr_c_and_g_lin.cle.protocol :=
       hcle_protocol_eq
     _ = e_r.protocol :=
       hr_cle_protocol
@@ -1860,11 +1860,11 @@ lemma same_cle_implies_same_struct
 --   {hw_not_down : ¬ e_w.down} {r_not_down : ¬ e_r.down}
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  (hcle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
+  (hcle_eq : hw_c_and_g_lin.cle = hr_c_and_g_lin.cle)
   : e_w.struct = e_r.struct := by
   classical
-  let e_w_cle := hw_c_and_g_lin.hreq's_dir_access.choose
-  let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
+  let e_w_cle := hw_c_and_g_lin.cle
+  let e_r_cle := hr_c_and_g_lin.cle
   have hw_cle_in_b := hw_c_and_g_lin.hreq's_dir_access.choose_spec.left
   have hr_cle_in_b := hr_c_and_g_lin.hreq's_dir_access.choose_spec.left
   have hw_dir_access := hw_c_and_g_lin.hreq's_dir_access.choose_spec.right
@@ -1993,8 +1993,8 @@ lemma eq_gle_cle_implies_write_before_read
   (hw_not_down : ¬ e_w.down) (hr_not_down : ¬ e_r.down)
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  (hgle_eq : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
-  (hcle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
+  (hgle_eq : hw_c_and_g_lin.gle = hr_c_and_g_lin.gle)
+  (hcle_eq : hw_c_and_g_lin.cle = hr_c_and_g_lin.cle)
   (hr_not_ob_w : ¬ e_r.OrderedBefore n e_w)
   : e_w.OrderedBefore n e_r := by
   -- Cache events are ordered or encapsulated; with no downgrades, only ordering remains.
@@ -2985,38 +2985,38 @@ lemma same_gle_implies_same_protocol
   {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_w e_r : Event n}
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
-  (hgle_eq : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
+  (hgle_eq : hw_c_and_g_lin.gle = hr_c_and_g_lin.gle)
   : e_w.protocol = e_r.protocol := by
   have hw_cle_protocol :
-      hw_c_and_g_lin.hreq's_dir_access.choose.protocol = e_w.protocol :=
+      hw_c_and_g_lin.cle.protocol = e_w.protocol :=
     write_cle_protocol_eq_write_protocol hw_c_and_g_lin
   have hr_cle_protocol :
-      hr_c_and_g_lin.hreq's_dir_access.choose.protocol = e_r.protocol :=
+      hr_c_and_g_lin.cle.protocol = e_r.protocol :=
     read_cle_protocol_eq_read_protocol hr_c_and_g_lin
   calc
-    e_w.protocol = hw_c_and_g_lin.hreq's_dir_access.choose.protocol :=
+    e_w.protocol = hw_c_and_g_lin.cle.protocol :=
       hw_cle_protocol.symm
-    _ = hr_c_and_g_lin.hreq's_dir_access.choose.protocol := by
-      let hw_cle := hw_c_and_g_lin.hreq's_dir_access.choose
-      let hr_cle := hr_c_and_g_lin.hreq's_dir_access.choose
+    _ = hr_c_and_g_lin.cle.protocol := by
+      let hw_cle := hw_c_and_g_lin.cle
+      let hr_cle := hr_c_and_g_lin.cle
       let hw_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init hw_c_and_g_lin.hreq's_dir_access
       let hr_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init hr_c_and_g_lin.hreq's_dir_access
 
       have hw_cle_is_dir : hw_cle.isDirectoryEvent := by
-        simpa [hw_cle] using hw_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+        simpa [hw_cle] using hw_c_and_g_lin.cle_isDirEvent
       have hr_cle_is_dir : hr_cle.isDirectoryEvent := by
-        simpa [hr_cle] using hr_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+        simpa [hr_cle] using hr_c_and_g_lin.cle_isDirEvent
 
       have hw_gcache_eq : hw_gcache = Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init hw_cle hw_cle_is_dir := by
         simp [hw_gcache, Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper, hw_cle, hw_cle_is_dir]
       have hr_gcache_eq : hr_gcache = Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init hr_cle hr_cle_is_dir := by
         simp [hr_gcache, Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper, hr_cle, hr_cle_is_dir]
 
-      have hw_gcache_to_gdir : b.dirAccessOfRequest n init hw_gcache (hw_c_and_g_lin.hreq's_global_lin.choose) :=
+      have hw_gcache_to_gdir : b.dirAccessOfRequest n init hw_gcache (hw_c_and_g_lin.gle) :=
         hw_c_and_g_lin.hreq's_global_lin.choose_spec.right
-      have hr_gcache_to_gdir' : b.dirAccessOfRequest n init hr_gcache (hr_c_and_g_lin.hreq's_global_lin.choose) :=
+      have hr_gcache_to_gdir' : b.dirAccessOfRequest n init hr_gcache (hr_c_and_g_lin.gle) :=
         hr_c_and_g_lin.hreq's_global_lin.choose_spec.right
-      have hr_gcache_to_gdir : b.dirAccessOfRequest n init hr_gcache (hw_c_and_g_lin.hreq's_global_lin.choose) := by
+      have hr_gcache_to_gdir : b.dirAccessOfRequest n init hr_gcache (hw_c_and_g_lin.gle) := by
         simpa [hgle_eq] using hr_gcache_to_gdir'
 
       simpa [hw_cle, hr_cle] using
@@ -3024,7 +3024,7 @@ lemma same_gle_implies_same_protocol
           (cmp := cmp) (b := b) (init := init)
           (hw_cle := hw_cle) (hr_cle := hr_cle)
           (hw_gcache := hw_gcache) (hr_gcache := hr_gcache)
-          (e_gdir := hw_c_and_g_lin.hreq's_global_lin.choose)
+          (e_gdir := hw_c_and_g_lin.gle)
           hw_cle_is_dir hr_cle_is_dir
           hw_gcache_eq hw_gcache_to_gdir
           hr_gcache_eq hr_gcache_to_gdir)
@@ -3042,7 +3042,7 @@ lemma no_dir_write_between_same_cache
   (hsame_cache : e_w.struct = e_r.struct)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper)
   (hno_intervening_writes : NoInterveningWrites hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
-  : Event.Between.noDirWrite cmp b init e_w e_r hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose hknow_dir_access := by
+  : Event.Between.noDirWrite cmp b init e_w e_r hw_c_and_g_lin.cle hr_c_and_g_lin.cle hknow_dir_access := by
   unfold Event.Between.noDirWrite
   intro h
   have hw_cle_proto := write_cle_protocol_eq_write_protocol hw_c_and_g_lin
@@ -3113,7 +3113,7 @@ lemma diffCache_coherent_globalDowngrade
     Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper cmp b init hr_c_and_g_lin e_r_gdown e_r_grant := by
   let e_r_cle_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
     (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)
-  let e_r_gle := hr_c_and_g_lin.hreq's_global_lin.choose
+  let e_r_gle := hr_c_and_g_lin.gle
   have he_gcache_in_b : e_r_cle_gcache ∈ b :=
     Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB cmp b init hr_c_and_g_lin.hreq's_dir_access
   have he_gle_in_b : e_r_gle ∈ b := hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
@@ -3136,7 +3136,7 @@ lemma diffCache_coherent_globalDowngrade_not_scWrite
   -- Re-derive the axiom to get reqCoherentRead
   let e_r_cle_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
       (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)
-  let e_r_gle := hr_c_and_g_lin.hreq's_global_lin.choose
+  let e_r_gle := hr_c_and_g_lin.gle
   have he_gcache_in_b : e_r_cle_gcache ∈ b :=
     Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB cmp b init hr_c_and_g_lin.hreq's_dir_access
   have he_gle_in_b : e_r_gle ∈ b := hr_c_and_g_lin.hreq's_global_lin.choose_spec.left
@@ -3332,9 +3332,9 @@ private lemma gcache_oEnd_lt_cle
     (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
     : (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
         (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)).oEnd <
-      hr_c_and_g_lin.hreq's_dir_access.choose.oEnd := by
-  let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
-  let hcdir_is_dir := hr_c_and_g_lin.hreq's_dir_access.choose_spec.right.isDirEvent
+      hr_c_and_g_lin.cle.oEnd := by
+  let e_r_cle := hr_c_and_g_lin.cle
+  let hcdir_is_dir := hr_c_and_g_lin.cle_isDirEvent
   show (Behaviour.Shim.ClusterToGlobal.cDir'sGReq cmp b init e_r_cle hcdir_is_dir).oEnd < e_r_cle.oEnd
   unfold Behaviour.Shim.ClusterToGlobal.cDir'sGReq
   match h : cmp.shimAxioms.clusterToGlobal b init e_r_cle hcdir_is_dir with
@@ -3796,14 +3796,14 @@ lemma cdirEncapsDown_exists
     (hw_in_b : e_w ∈ b) (hw_cluster : e_w.isClusterCache) (hw_not_down : ¬ e_w.down)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
     : ∃ e_cdir ∈ b, e_cdir.isDirectoryEvent ∧ e_cdir.protocol = e_w.protocol ∧
-        e_cdir.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧
+        e_cdir.oEnd < hr_c_and_g_lin.cle.oEnd ∧
         (∃ e_cache_down ∈ b,
             e_cdir.Encapsulates n e_cache_down ∧
             e_cache_down.down ∧ e_cache_down.isCacheEvent) ∧
         -- The evict directory event: e_cdir.oEnd ≤ e_evict.oEnd (allows e_cdir = e_evict
         -- when only 1 dir event from shim, e.g. scReadDown or onDirVd).
         (∃ e_evict ∈ b, e_evict.isDirectoryEvent ∧
-            e_evict.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd ∧
+            e_evict.oEnd < hr_c_and_g_lin.cle.oEnd ∧
             e_cdir.oEnd ≤ e_evict.oEnd ∧ e_evict.protocol = e_w.protocol ∧
             Event.clusterDirFromDiffProtocolRequest b init e_r e_evict hr_c_and_g_lin) := by
   -- Get global downgrade and GlobalToCluster shim
@@ -3873,7 +3873,7 @@ lemma cdirEncapsDown_exists
         have he_dw_ob_de : e_dw.OrderedBefore n e_de :=
           hstruct.cohWriteImmBeforeEvict.isImmPred.bPred.isPred
         -- e_de.oEnd < CLE₂.oEnd: e_de inside e_gdown (via evict encap chain), e_gdown inside e_gcache
-        have he_de_lt_cle : e_de.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd := by
+        have he_de_lt_cle : e_de.oEnd < hr_c_and_g_lin.cle.oEnd := by
           have he_gdown_encap_de : e_r_gdown.Encapsulates n e_de :=
             Event.encap_encap_trans n (hstruct.cohEvict.globalEncap)
               (hstruct.cohEvictDir.reqEncapDir)
@@ -4028,7 +4028,7 @@ lemma cdirEncapsDown_exists
           hstruct.acqDir.sameProtocol.symm.trans hproto_acq.symm |>.trans hp_eq
         have he_gdown_encap_acq_dir : e_r_gdown.Encapsulates n e_dir_acq :=
           Event.encap_encap_trans n hstruct.acq.globalEncap hstruct.acqDir.reqEncapDir
-        have h_acq_dir_lt_cle : e_dir_acq.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd :=
+        have h_acq_dir_lt_cle : e_dir_acq.oEnd < hr_c_and_g_lin.cle.oEnd :=
           Nat.lt_trans (gcache_encap_dir_chain hr_c_and_g_lin hdowngrade he_gdown_encap_acq_dir).2
             (gcache_oEnd_lt_cle hr_c_and_g_lin)
         -- OB: acqDirImmBeforeVdWBDir
@@ -4037,7 +4037,7 @@ lemma cdirEncapsDown_exists
         have he_dir_vd_isDir := hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir
         have he_gdown_encap_vd : e_r_gdown.Encapsulates n e_dir_vd :=
           hstruct.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap
-        have h_vd_lt_cle : e_dir_vd.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd :=
+        have h_vd_lt_cle : e_dir_vd.oEnd < hr_c_and_g_lin.cle.oEnd :=
           Nat.lt_trans (gcache_encap_dir_chain hr_c_and_g_lin hdowngrade he_gdown_encap_vd).2
             (gcache_oEnd_lt_cle hr_c_and_g_lin)
         have he_dir_vd_proto : e_dir_vd.protocol = e_w.protocol := by
@@ -4093,7 +4093,7 @@ lemma cdirEncapsDown_exists
         have he_dir_vd_encap := hstruct_vd.gDownEncapVdWBDir.dirCorrespondToGlobalCache.globalEncap
         have he_dir_vd_isDir := hstruct_vd.gDownEncapVdWBDir.dirCorrespondToGlobalCache.atDir
         -- e_dir_vd.oEnd < CLE_r.oEnd (chain: e_dir_vd < e_gdown < e_gcache < CLE_r)
-        have h_dir_vd_lt_cle : e_dir_vd.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd :=
+        have h_dir_vd_lt_cle : e_dir_vd.oEnd < hr_c_and_g_lin.cle.oEnd :=
           Nat.lt_trans (gcache_encap_dir_chain hr_c_and_g_lin hdowngrade he_dir_vd_encap).2
             (gcache_oEnd_lt_cle hr_c_and_g_lin)
         -- Protocol: e_dir_vd is at e_w's cluster (from correspondingCluster)

@@ -53,12 +53,12 @@ noncomputable def com.cmpLin₂ {cmp : CompoundProtocol n} {b : Behaviour n} {in
 /-- The CLE (cluster linearization event) for e₁, extracted from cmpLin₁'s evidence. -/
 noncomputable def com.cle₁ {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     {e₁ e₂ : Event n} (h : com cmp b init e₁ e₂) : Event n :=
-  h.lin₁.hreq's_dir_access.choose
+  h.lin₁.cle
 
 /-- The CLE for e₂, extracted from cmpLin₂'s evidence. -/
 noncomputable def com.cle₂ {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     {e₁ e₂ : Event n} (h : com cmp b init e₁ e₂) : Event n :=
-  h.lin₂.hreq's_dir_access.choose
+  h.lin₂.cle
 
 /-- The hierarchical ordering: PPOi ∪ com, carrying communication evidence.
 

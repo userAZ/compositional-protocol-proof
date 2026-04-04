@@ -174,7 +174,7 @@ or all edges give CLE₁ = CLE₂ → dir_ordered de de → False. -/
 /-- Map a single co edge to CleLink using the CO edge's own cmpLin fields. -/
 theorem co_step_to_ordering
     (h : @Herd.co n compound b init e₁ e₂)
-    : @CleLink n h.w₁_cmpLin.hreq's_dir_access.choose h.w₂_cmpLin.hreq's_dir_access.choose := by
+    : @CleLink n h.w₁_cmpLin.cle h.w₂_cmpLin.cle := by
   cases h.comm with
   | sameCache same_cle cache_ob =>
     have hda₁ := h.w₁_cmpLin.hreq's_dir_access.choose_spec.2
@@ -244,8 +244,8 @@ private lemma transGen_head_tail {r : α → α → Prop} (h : Relation.TransGen
 /-- Extract oEnd ≤ from a single CO step using the CO edge's own cmpLin fields. -/
 private lemma co_step_oEnd_le
     (h : @Herd.co n compound b init e₁ e₂)
-    : Event.oEnd n h.w₁_cmpLin.hreq's_dir_access.choose ≤
-      Event.oEnd n h.w₂_cmpLin.hreq's_dir_access.choose := by
+    : Event.oEnd n h.w₁_cmpLin.cle ≤
+      Event.oEnd n h.w₂_cmpLin.cle := by
   cases h.comm with
   | sameCache same_cle _ =>
     exact Nat.le_of_eq (congrArg (Event.oEnd n) same_cle)
@@ -285,8 +285,8 @@ private lemma co_step_oEnd_le
 private lemma co_chain_oEnd_le
     (hco_chain : Relation.TransGen (@Herd.co n compound b init) e_w e₂)
     (lin : ∀ e, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    : Event.oEnd n (lin e_w).hreq's_dir_access.choose ≤
-      Event.oEnd n (lin e₂).hreq's_dir_access.choose := by
+    : Event.oEnd n (lin e_w).cle ≤
+      Event.oEnd n (lin e₂).cle := by
   induction hco_chain with
   | single h =>
     have := co_step_oEnd_le h
@@ -326,8 +326,8 @@ private lemma co_chain_cross_cluster_downgrade
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     : ∃ (d : Event n),
         d ∈ b ∧
-        e_w_lin.hreq's_dir_access.choose.OrderedBefore n d ∧
-        d.oEnd < (lin e₂).hreq's_dir_access.choose.oEnd ∧
+        e_w_lin.cle.OrderedBefore n d ∧
+        d.oEnd < (lin e₂).cle.oEnd ∧
         d.isDirectoryEvent ∧
         d.protocol = e_w.protocol ∧
         
@@ -356,7 +356,7 @@ private lemma co_chain_cross_cluster_downgrade
       | wCleImmPredDown w =>
         have hrd_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
         have hrd_lt : w.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
-            h_co.w₂_cmpLin.hreq's_dir_access.choose.oEnd := by
+            h_co.w₂_cmpLin.cle.oEnd := by
           cases hrd_spec.2.encapDirRelation with
           | cleEncap henc => exact henc.right
           | gcacheEncap _ hlt => exact hlt
@@ -373,7 +373,7 @@ private lemma co_chain_cross_cluster_downgrade
       | evictOrReadBetweenWAndRDown evict =>
         have hrd_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
         have hrd_lt : evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
-            h_co.w₂_cmpLin.hreq's_dir_access.choose.oEnd := by
+            h_co.w₂_cmpLin.cle.oEnd := by
           cases hrd_spec.2.encapDirRelation with
           | cleEncap henc => exact henc.right
           | gcacheEncap _ hlt => exact hlt
@@ -392,8 +392,8 @@ private lemma co_chain_cross_cluster_downgrade
     by_cases h_mid_prot : e_w.sameProtocol n b_mid
     · -- Prefix same-cluster: last step h_last must cross clusters.
       -- Get CLE_w.oEnd ≤ CLE_mid.oEnd from prefix CleLink.
-      have hcle_w_le_mid : Event.oEnd n e_w_lin.hreq's_dir_access.choose ≤
-          Event.oEnd n (lin b_mid).hreq's_dir_access.choose := by
+      have hcle_w_le_mid : Event.oEnd n e_w_lin.cle ≤
+          Event.oEnd n (lin b_mid).cle := by
         have hoEnd := co_chain_oEnd_le hpath lin
         rw [show e_w_lin = lin e_w from Subsingleton.elim _ _]; exact hoEnd
       -- mid and c_ep must have different protocol (e_w same as mid, diff from c_ep)
@@ -414,7 +414,7 @@ private lemma co_chain_cross_cluster_downgrade
         | wCleImmPredDown w =>
           have hrd_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
           have hrd_lt : w.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
-              h_last.w₂_cmpLin.hreq's_dir_access.choose.oEnd := by
+              h_last.w₂_cmpLin.cle.oEnd := by
             cases hrd_spec.2.encapDirRelation with
             | cleEncap henc => exact henc.right
             | gcacheEncap _ hlt => exact hlt
@@ -434,7 +434,7 @@ private lemma co_chain_cross_cluster_downgrade
         | evictOrReadBetweenWAndRDown evict =>
           have hrd_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
           have hrd_lt : evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
-              h_last.w₂_cmpLin.hreq's_dir_access.choose.oEnd := by
+              h_last.w₂_cmpLin.cle.oEnd := by
             cases hrd_spec.2.encapDirRelation with
             | cleEncap henc => exact henc.right
             | gcacheEncap _ hlt => exact hlt
@@ -455,7 +455,7 @@ private lemma co_chain_cross_cluster_downgrade
       -- Pass through the IH's e_mid — it has translatedDir about e_mid, not the endpoint.
       -- h_no_between at the call site can be applied to e_mid instead of e₂.
       obtain ⟨d, hd_in_b, hob_d, hd_lt, hd_isDir, hd_proto, hd_emid⟩ := ih h_mid_prot
-      have hext : (lin b_mid).hreq's_dir_access.choose.oEnd ≤ (lin c_ep).hreq's_dir_access.choose.oEnd := by
+      have hext : (lin b_mid).cle.oEnd ≤ (lin c_ep).cle.oEnd := by
         have := co_step_oEnd_le h_last
         rw [show h_last.w₁_cmpLin = lin b_mid from Subsingleton.elim _ _,
             show h_last.w₂_cmpLin = lin c_ep from Subsingleton.elim _ _] at this
@@ -525,22 +525,22 @@ theorem fr_ordering_holds
   -- FR = rf⁻¹ ; co⁺ with e_w as intermediate write.
   -- Case structure: sameCLE / sameCache / sameClusDiffCache / diffCluster.
   -- diffCluster sub-cases by e₁'s coherence state.
-  by_cases hcle_eq : (lin e₁).hreq's_dir_access.choose = (lin e₂).hreq's_dir_access.choose
+  by_cases hcle_eq : (lin e₁).cle = (lin e₂).cle
   · exact .sameCLE hcle_eq
   · by_cases h_same_cache : e₁.struct = e₂.struct
     · -- Same cache e₁/e₂: same cluster + same dir → dir_ordered + NIW.
-      have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
-      have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-      match hfc₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+      have hcle₁_isdir := (lin e₁).cle_isDirEvent
+      have hcle₂_isdir := (lin e₂).cle_isDirEvent
+      match hfc₁ : (lin e₁).cle, hcle₁_isdir with
       | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
       | .directoryEvent de₁, _ =>
-        match hfc₂ : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+        match hfc₂ : (lin e₂).cle, hcle₂_isdir with
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
         | .directoryEvent de₂, _ =>
           cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
           | inl hob =>
             exact .sameCache h_same_cache (Or.inr (show Event.OrderedBefore n
-              (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose from
+              (lin e₁).cle (lin e₂).cle from
               by rw [hfc₁, hfc₂]; exact hob))
           | inr hob =>
             -- CLE₂ OB CLE₁ → contradiction via NIW (same as sameClusDiffCache).
@@ -562,23 +562,23 @@ theorem fr_ordering_holds
                   simp [Event.struct] at h_same_cache
                   simp [Event.protocol, h_same_cache]
             exact h_constraints.interSameProtocolCleOB h_same_prot₂₁
-              (show (hlin e₂).hreq's_dir_access.choose.OrderedBefore n
-                  (lin e₁).hreq's_dir_access.choose from by
+              (show (hlin e₂).cle.OrderedBefore n
+                  (lin e₁).cle from by
                 rw [show (hlin e₂) = lin e₂ from Subsingleton.elim _ _, hfc₂, hfc₁]; exact hob)
     · by_cases h_same_prot : e₁.sameProtocol n e₂
       · -- Same cluster, different cache: dir_ordered + NIW.
-        have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
-        have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-        match hfc₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+        have hcle₁_isdir := (lin e₁).cle_isDirEvent
+        have hcle₂_isdir := (lin e₂).cle_isDirEvent
+        match hfc₁ : (lin e₁).cle, hcle₁_isdir with
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
         | .directoryEvent de₁, _ =>
-          match hfc₂ : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+          match hfc₂ : (lin e₂).cle, hcle₂_isdir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
           | .directoryEvent de₂, _ =>
             cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
             | inl hob =>
               exact .sameClusDiffCache h_same_prot h_same_cache (show Event.OrderedBefore n
-                (lin e₁).hreq's_dir_access.choose (lin e₂).hreq's_dir_access.choose from
+                (lin e₁).cle (lin e₂).cle from
                 by rw [hfc₁, hfc₂]; exact hob)
             | inr hob =>
               -- CLE₂ OB CLE₁ → contradiction via NIW.
@@ -596,17 +596,17 @@ theorem fr_ordering_holds
                 have hcle_w_prot := write_cle_protocol_eq_write_protocol e_w_lin
                 have hprot_e₂_e₁ : e₂.protocol = e₁.protocol := by
                   unfold Event.sameProtocol at h_same_prot; exact h_same_prot.symm
-                have hprot₁ : (hlin e₂).hreq's_dir_access.choose.protocol =
-                    e_w_lin.hreq's_dir_access.choose.protocol :=
+                have hprot₁ : (hlin e₂).cle.protocol =
+                    e_w_lin.cle.protocol :=
                   hcle₂_prot.trans (h_ew_prot.trans hcle_w_prot.symm)
-                have hprot₂ : (hlin e₂).hreq's_dir_access.choose.protocol =
-                    (lin e₁).hreq's_dir_access.choose.protocol :=
+                have hprot₂ : (hlin e₂).cle.protocol =
+                    (lin e₁).cle.protocol :=
                   hcle₂_prot.trans (hprot_e₂_e₁.trans hcle₁_prot.symm)
-                have h_isDirWrite : (hlin e₂).hreq's_dir_access.choose.isDirWrite := by
+                have h_isDirWrite : (hlin e₂).cle.isDirWrite := by
                   have : hlin e₂ = h.e₂_cmpLin := Subsingleton.elim _ _
                   rw [this]; exact write_event_cle_isDirWrite h.write h.cache₂ h.notDown₂ h.e₂_cmpLin h.in_b₂
-                have hdir_w := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-                match hfcw : e_w_lin.hreq's_dir_access.choose, hdir_w with
+                have hdir_w := e_w_lin.cle_isDirEvent
+                match hfcw : e_w_lin.cle, hdir_w with
                 | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                 | .directoryEvent de_w, _ =>
                   cases (b.orderedAtEntry.dir_ordered de_w de₂).ordered with
@@ -630,8 +630,8 @@ theorem fr_ordering_holds
                 have h_same_prot₂₁ : e₂.sameProtocol n e₁ := by
                   unfold Event.sameProtocol at h_same_prot ⊢; exact h_same_prot.symm
                 exact absurd
-                  (show (hlin e₂).hreq's_dir_access.choose.OrderedBefore n
-                      (lin e₁).hreq's_dir_access.choose from by
+                  (show (hlin e₂).cle.OrderedBefore n
+                      (lin e₁).cle from by
                     rw [show (hlin e₂) = lin e₂ from Subsingleton.elim _ _, hfc₂, hfc₁]; exact hob)
                   (h_constraints.interSameProtocolCleOB h_same_prot₂₁)
       · -- Different cluster e₁/e₂: need proxy from e₂'s downgrade at e₁'s cluster.
@@ -648,11 +648,11 @@ theorem fr_ordering_holds
           -- e₁ coherent (encapDir): CLE₁ inside e₁.
           -- Use dir_ordered CLE₁ cdir at e₁'s cluster as the primary strategy.
           -- CLE₁ OB cdir → proxy = cdir. cdir OB CLE₁ → use evict or NIW.
-          have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+          have hcle₁_isdir := (lin e₁).cle_isDirEvent
           match hfc_cdir : e_cdir, he_cdir_isDir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
           | .directoryEvent de_cdir, _ =>
-            match hfc_cle₁ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+            match hfc_cle₁ : (lin e₁).cle, hcle₁_isdir with
             | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
             | .directoryEvent de_cle₁, _ =>
               cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
@@ -660,7 +660,7 @@ theorem fr_ordering_holds
                 -- CLE₁ OB cdir → proxy = cdir
                 have hw₂' : lin e₂ = h.e₂_cmpLin := Subsingleton.elim _ _
                 exact .diffCluster_coherent h_same_prot (.directoryEvent de_cdir)
-                  (show (lin e₁).hreq's_dir_access.choose.OrderedBefore n _ from by
+                  (show (lin e₁).cle.OrderedBefore n _ from by
                     rw [hfc_cle₁]; exact hob_cle₁_cdir)
                   (by rw [hw₂']; exact hcdir_lt_cle₂)
                   (by simp [Event.isDirectoryEvent])
@@ -674,7 +674,7 @@ theorem fr_ordering_holds
                   | inl hob_cle₁_evict =>
                     have hw₂' : lin e₂ = h.e₂_cmpLin := Subsingleton.elim _ _
                     exact .diffCluster_coherent h_same_prot (.directoryEvent de_evict)
-                      (show (lin e₁).hreq's_dir_access.choose.OrderedBefore n _ from by
+                      (show (lin e₁).cle.OrderedBefore n _ from by
                         rw [hfc_cle₁]; exact hob_cle₁_evict)
                       (by rw [hw₂']; exact hevict_lt_cle₂)
                       (by simp [Event.isDirectoryEvent])
@@ -711,8 +711,8 @@ theorem fr_ordering_holds
                           have h_constraints := h_no_between e_mid h_mid_in_b
                             h_mid_cache h_mid_write h_mid_not_down (hlin e_mid)
                           have h_between : d_co.OrderedBetween n
-                              e_w_lin.hreq's_dir_access.choose
-                              (lin e₁).hreq's_dir_access.choose := by
+                              e_w_lin.cle
+                              (lin e₁).cle := by
                             constructor
                             · rw [hfc_dco]; exact hcle_w_ob_dco
                             · rw [hfc_dco, hfc_cle₁]; exact hdco_ob_cle₁
@@ -738,7 +738,7 @@ theorem fr_ordering_holds
                           -- CLE₁ OB d_co: proxy for .diffCluster_coherent
                           have hw₂' : lin e₂ = h.e₂_cmpLin := Subsingleton.elim _ _
                           exact .diffCluster_coherent h_same_prot (.directoryEvent de_dco)
-                            (show (lin e₁).hreq's_dir_access.choose.OrderedBefore n _ from by
+                            (show (lin e₁).cle.OrderedBefore n _ from by
                               rw [hfc_cle₁]; exact hcle₁_ob_dco)
                             (by rw [hw₂']; exact hdco_lt_cle₂)
                             (by simp [Event.isDirectoryEvent])
@@ -778,7 +778,7 @@ theorem fr_ordering_holds
                           -- d_rf at e_w's cluster. encapDirRelation gives d_rf inside CLE₁ or oEnd bound.
                           -- For cleEncap: d_rf.EncapsulatedBy CLE₁.
                           -- Then dir_ordered d_rf CLE₂ at e_w's cluster (= e₂'s cluster).
-                          have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+                          have hcle₂_isdir := (lin e₂).cle_isDirEvent
                           have hdrf_isdir := hdrf_spec.2.isDir
                           cases hdrf_spec.2.encapDirRelation with
                           | cleEncap henc_drf =>
@@ -787,7 +787,7 @@ theorem fr_ordering_holds
                             match hfc_drf : hencapDir.existsRClusterDirDown.choose, hdrf_isdir with
                             | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                             | .directoryEvent de_drf, _ =>
-                              match hfc_cle₂ : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+                              match hfc_cle₂ : (lin e₂).cle, hcle₂_isdir with
                               | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                               | .directoryEvent de_cle₂, _ =>
                                 cases (b.orderedAtEntry.dir_ordered de_drf de_cle₂).ordered with
@@ -815,7 +815,7 @@ theorem fr_ordering_holds
                                     match hfc_drf' : hencapDir'.existsRClusterDirDown.choose, hdrf_isdir' with
                                     | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                                     | .directoryEvent de_drf', _ =>
-                                      match hfc_cle₂' : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+                                      match hfc_cle₂' : (lin e₂).cle, hcle₂_isdir with
                                       | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                                       | .directoryEvent de_cle₂', _ =>
                                         cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
@@ -858,17 +858,17 @@ theorem fr_ordering_holds
                                           -- CLE_w OB CLE₂ from CO chain via oEnd ≤ + dir_ordered.
                                           have hoEnd := co_chain_oEnd_le h_co_chain hlin
                                           rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hoEnd
-                                          have hcle_w_isdir := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-                                          have hcle_w2_isdir := (hlin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-                                          match hfc_clew : e_w_lin.hreq's_dir_access.choose, hcle_w_isdir with
+                                          have hcle_w_isdir := e_w_lin.cle_isDirEvent
+                                          have hcle_w2_isdir := (hlin e₂).cle_isDirEvent
+                                          match hfc_clew : e_w_lin.cle, hcle_w_isdir with
                                           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                                           | .directoryEvent de_clew, _ =>
-                                            match hfc_clew2 : (hlin e₂).hreq's_dir_access.choose, hcle_w2_isdir with
+                                            match hfc_clew2 : (hlin e₂).cle, hcle_w2_isdir with
                                             | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                                             | .directoryEvent de_clew2, _ =>
                                               have hcle_w1_ob := co_chain_same_cluster_ob hoEnd
                                                 hfc_clew hfc_clew2 (b.orderedAtEntry.dir_ordered de_clew de_clew2)
-                                              have hcle_w2_ob_drf : (hlin e₂).hreq's_dir_access.choose.OrderedBefore n
+                                              have hcle_w2_ob_drf : (hlin e₂).cle.OrderedBefore n
                                                   hencapDir'.existsRClusterDirDown.choose := by
                                                 rw [show (hlin e₂) = lin e₂ from Subsingleton.elim _ _, hfc_cle₂', hfc_drf']
                                                 exact hob
@@ -885,7 +885,7 @@ theorem fr_ordering_holds
                                     match hfc_drf'' : hencapDir'.existsRClusterDirDown.choose, hdrf_isdir'' with
                                     | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                                     | .directoryEvent de_drf', _ =>
-                                      match hfc_cle₂'' : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+                                      match hfc_cle₂'' : (lin e₂).cle, hcle₂_isdir with
                                       | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                                       | .directoryEvent de_cle₂', _ =>
                                         cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
@@ -914,19 +914,19 @@ theorem fr_ordering_holds
                                                 | inr h1c2 => exact absurd (h1c2.trans hw2.symm) h_ew_e₁
                                                 | inl h1c1 => exfalso; exact h_same_prot (h1c1.trans h2c1.symm)
                                           have hcle₂_ob_drf_ev :
-                                              (hlin e₂).hreq's_dir_access.choose.OrderedBefore n
+                                              (hlin e₂).cle.OrderedBefore n
                                               hencapDir'.existsRClusterDirDown.choose := by
                                             rw [show (hlin e₂) = lin e₂ from Subsingleton.elim _ _,
                                                 hfc_cle₂'', hfc_drf'']; exact hob
                                           -- CLE_w OB CLE₂ from CO chain via oEnd ≤ + dir_ordered.
                                           have hoEnd := co_chain_oEnd_le h_co_chain hlin
                                           rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hoEnd
-                                          have hcle_w_isdir := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-                                          have hcle_w2_isdir := (hlin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-                                          match hfc_clew : e_w_lin.hreq's_dir_access.choose, hcle_w_isdir with
+                                          have hcle_w_isdir := e_w_lin.cle_isDirEvent
+                                          have hcle_w2_isdir := (hlin e₂).cle_isDirEvent
+                                          match hfc_clew : e_w_lin.cle, hcle_w_isdir with
                                           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                                           | .directoryEvent de_clew, _ =>
-                                            match hfc_clew2 : (hlin e₂).hreq's_dir_access.choose, hcle_w2_isdir with
+                                            match hfc_clew2 : (hlin e₂).cle, hcle_w2_isdir with
                                             | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                                             | .directoryEvent de_clew2, _ =>
                                               have hcle_w_ob := co_chain_same_cluster_ob hoEnd
@@ -941,12 +941,12 @@ theorem fr_ordering_holds
                                   have hoEnd := co_chain_oEnd_le h_co_chain hlin
                                   rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hoEnd
                                   -- Extract CLE_w and CLE₂ as DirectoryEvents for dir_ordered.
-                                  have hcle_w_isdir := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-                                  have hcle_w2_isdir := (hlin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-                                  match hfc_w : e_w_lin.hreq's_dir_access.choose, hcle_w_isdir with
+                                  have hcle_w_isdir := e_w_lin.cle_isDirEvent
+                                  have hcle_w2_isdir := (hlin e₂).cle_isDirEvent
+                                  match hfc_w : e_w_lin.cle, hcle_w_isdir with
                                   | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                                   | .directoryEvent de_w', _ =>
-                                    match hfc_w2 : (hlin e₂).hreq's_dir_access.choose, hcle_w2_isdir with
+                                    match hfc_w2 : (hlin e₂).cle, hcle_w2_isdir with
                                     | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                                     | .directoryEvent de_w2', _ =>
                                       have hcle_w_ob := co_chain_same_cluster_ob hoEnd
@@ -955,9 +955,9 @@ theorem fr_ordering_holds
                                       -- Use hencapDir (from diffCache_case_extract_encapDir, in scope).
                                       -- hcle₂_ob_drf is about hencapDir's d_rf (matched to de_drf via hfc_drf).
                                       -- Bridge to Event level using the match equations.
-                                      have hcle₂_ob_ev : (hlin e₂).hreq's_dir_access.choose.OrderedBefore n
+                                      have hcle₂_ob_ev : (hlin e₂).cle.OrderedBefore n
                                           hencapDir.existsRClusterDirDown.choose := by
-                                        show Event.oEnd n (hlin e₂).hreq's_dir_access.choose <
+                                        show Event.oEnd n (hlin e₂).cle <
                                             Event.oStart n hencapDir.existsRClusterDirDown.choose
                                         rw [show (hlin e₂) = lin e₂ from Subsingleton.elim _ _]
                                         simp only [hfc_cle₂, hfc_drf]; exact hcle₂_ob_drf
@@ -968,7 +968,7 @@ theorem fr_ordering_holds
                             match hfc_drf'' : hencapDir.existsRClusterDirDown.choose, hdrf_isdir with
                             | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                             | .directoryEvent de_drf', _ =>
-                              match hfc_cle₂'' : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+                              match hfc_cle₂'' : (lin e₂).cle, hcle₂_isdir with
                               | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                               | .directoryEvent de_cle₂', _ =>
                                 cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
@@ -983,19 +983,19 @@ theorem fr_ordering_holds
                                   have h_ew_e₂ := two_cluster_e₂_same_e_w h_same_prot h_ew_e₁ hw_cache h.cache₁ h.cache₂
                                   have hoEnd := co_chain_oEnd_le h_co_chain hlin
                                   rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hoEnd
-                                  have hcle_w_isdir_x := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-                                  have hcle_w2_isdir_x := (hlin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-                                  match hfc_wx : e_w_lin.hreq's_dir_access.choose, hcle_w_isdir_x with
+                                  have hcle_w_isdir_x := e_w_lin.cle_isDirEvent
+                                  have hcle_w2_isdir_x := (hlin e₂).cle_isDirEvent
+                                  match hfc_wx : e_w_lin.cle, hcle_w_isdir_x with
                                   | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                                   | .directoryEvent de_wx, _ =>
-                                    match hfc_w2x : (hlin e₂).hreq's_dir_access.choose, hcle_w2_isdir_x with
+                                    match hfc_w2x : (hlin e₂).cle, hcle_w2_isdir_x with
                                     | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                                     | .directoryEvent de_w2x, _ =>
                                       have hcle_w_ob := co_chain_same_cluster_ob hoEnd
                                         hfc_wx hfc_w2x (b.orderedAtEntry.dir_ordered de_wx de_w2x)
-                                      have hcle₂_ob_ev : (hlin e₂).hreq's_dir_access.choose.OrderedBefore n
+                                      have hcle₂_ob_ev : (hlin e₂).cle.OrderedBefore n
                                           hencapDir.existsRClusterDirDown.choose := by
-                                        show Event.oEnd n (hlin e₂).hreq's_dir_access.choose <
+                                        show Event.oEnd n (hlin e₂).cle <
                                             Event.oStart n hencapDir.existsRClusterDirDown.choose
                                         rw [show (hlin e₂) = lin e₂ from Subsingleton.elim _ _]
                                         simp only [hfc_cle₂'', hfc_drf'']; exact hob
@@ -1004,11 +1004,11 @@ theorem fr_ordering_holds
         | orderBeforeDir _ hexists_pred₁ hpred₁_encap _ _ _ _ _ =>
           -- Same strategy as encapDir: dir_ordered CLE₁ cdir/evict.
           -- cdirEncapsDown_exists already called, e_cdir/e_evict in scope.
-          have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+          have hcle₁_isdir := (lin e₁).cle_isDirEvent
           match hfc_cdir₂ : e_cdir, he_cdir_isDir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
           | .directoryEvent de_cdir, _ =>
-            match hfc_cle₁₂ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+            match hfc_cle₁₂ : (lin e₁).cle, hcle₁_isdir with
             | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
             | .directoryEvent de_cle₁, _ =>
               cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
@@ -1051,8 +1051,8 @@ theorem fr_ordering_holds
                           have h_constraints := h_no_between e_mid h_mid_in_b
                             h_mid_cache h_mid_write h_mid_not_down (hlin e_mid)
                           have h_between : d_co.OrderedBetween n
-                              e_w_lin.hreq's_dir_access.choose
-                              (lin e₁).hreq's_dir_access.choose := by
+                              e_w_lin.cle
+                              (lin e₁).cle := by
                             constructor
                             · rw [hfc_dco]; exact hcle_w_ob_dco
                             · rw [hfc_dco, hfc_cle₁₂]; exact hdco_ob_cle₁
@@ -1074,21 +1074,21 @@ theorem fr_ordering_holds
                         | inr hcle₁_ob_dco =>
                           have hw₂' : lin e₂ = h.e₂_cmpLin := Subsingleton.elim _ _
                           exact .diffCluster_coherent h_same_prot (.directoryEvent de_dco)
-                            (show (lin e₁).hreq's_dir_access.choose.OrderedBefore n _ from by
+                            (show (lin e₁).cle.OrderedBefore n _ from by
                               rw [hfc_cle₁₂]; exact hcle₁_ob_dco)
                             (by rw [hw₂']; exact hdco_lt_cle₂)
                             (by simp [Event.isDirectoryEvent])
                     · -- e_w same as e₂: RF cross-cluster. Same approach as encapDir.
                       have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache
                       have hdrf_spec' := hencapDir'.existsRClusterDirDown.choose_spec
-                      have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+                      have hcle₂_isdir := (lin e₂).cle_isDirEvent
                       cases hdrf_spec'.2.encapDirRelation with
                       | cleEncap henc' =>
                         have hdrf_isdir' := hdrf_spec'.2.isDir
                         match hfc_drf' : hencapDir'.existsRClusterDirDown.choose, hdrf_isdir' with
                         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                         | .directoryEvent de_drf', _ =>
-                          match hfc_cle₂' : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+                          match hfc_cle₂' : (lin e₂).cle, hcle₂_isdir with
                           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                           | .directoryEvent de_cle₂', _ =>
                             cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
@@ -1104,19 +1104,19 @@ theorem fr_ordering_holds
                               have h_ew_e₂ := two_cluster_e₂_same_e_w h_same_prot h_ew_e₁ hw_cache h.cache₁ h.cache₂
                               have hoEnd := co_chain_oEnd_le h_co_chain hlin
                               rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hoEnd
-                              have hcle_w_isdir_x := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-                              have hcle_w2_isdir_x := (hlin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-                              match hfc_wx : e_w_lin.hreq's_dir_access.choose, hcle_w_isdir_x with
+                              have hcle_w_isdir_x := e_w_lin.cle_isDirEvent
+                              have hcle_w2_isdir_x := (hlin e₂).cle_isDirEvent
+                              match hfc_wx : e_w_lin.cle, hcle_w_isdir_x with
                               | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                               | .directoryEvent de_wx, _ =>
-                                match hfc_w2x : (hlin e₂).hreq's_dir_access.choose, hcle_w2_isdir_x with
+                                match hfc_w2x : (hlin e₂).cle, hcle_w2_isdir_x with
                                 | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                                 | .directoryEvent de_w2x, _ =>
                                   have hcle_w_ob := co_chain_same_cluster_ob hoEnd
                                     hfc_wx hfc_w2x (b.orderedAtEntry.dir_ordered de_wx de_w2x)
-                                  have hcle₂_ob_ev : (hlin e₂).hreq's_dir_access.choose.OrderedBefore n
+                                  have hcle₂_ob_ev : (hlin e₂).cle.OrderedBefore n
                                       hencapDir'.existsRClusterDirDown.choose := by
-                                    show Event.oEnd n (hlin e₂).hreq's_dir_access.choose <
+                                    show Event.oEnd n (hlin e₂).cle <
                                         Event.oStart n hencapDir'.existsRClusterDirDown.choose
                                     rw [show (hlin e₂) = lin e₂ from Subsingleton.elim _ _]
                                     simp only [hfc_cle₂', hfc_drf']; exact hob
@@ -1127,7 +1127,7 @@ theorem fr_ordering_holds
                         match hfc_drf'' : hencapDir'.existsRClusterDirDown.choose, hdrf_isdir'' with
                         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                         | .directoryEvent de_drf', _ =>
-                          match hfc_cle₂'' : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+                          match hfc_cle₂'' : (lin e₂).cle, hcle₂_isdir with
                           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                           | .directoryEvent de_cle₂', _ =>
                             cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
@@ -1142,19 +1142,19 @@ theorem fr_ordering_holds
                               have h_ew_e₂ := two_cluster_e₂_same_e_w h_same_prot h_ew_e₁ hw_cache h.cache₁ h.cache₂
                               have hoEnd := co_chain_oEnd_le h_co_chain hlin
                               rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hoEnd
-                              have hcle_w_isdir_x := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-                              have hcle_w2_isdir_x := (hlin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-                              match hfc_wx : e_w_lin.hreq's_dir_access.choose, hcle_w_isdir_x with
+                              have hcle_w_isdir_x := e_w_lin.cle_isDirEvent
+                              have hcle_w2_isdir_x := (hlin e₂).cle_isDirEvent
+                              match hfc_wx : e_w_lin.cle, hcle_w_isdir_x with
                               | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                               | .directoryEvent de_wx, _ =>
-                                match hfc_w2x : (hlin e₂).hreq's_dir_access.choose, hcle_w2_isdir_x with
+                                match hfc_w2x : (hlin e₂).cle, hcle_w2_isdir_x with
                                 | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                                 | .directoryEvent de_w2x, _ =>
                                   have hcle_w_ob := co_chain_same_cluster_ob hoEnd
                                     hfc_wx hfc_w2x (b.orderedAtEntry.dir_ordered de_wx de_w2x)
-                                  have hcle₂_ob_ev : (hlin e₂).hreq's_dir_access.choose.OrderedBefore n
+                                  have hcle₂_ob_ev : (hlin e₂).cle.OrderedBefore n
                                       hencapDir'.existsRClusterDirDown.choose := by
-                                    show Event.oEnd n (hlin e₂).hreq's_dir_access.choose <
+                                    show Event.oEnd n (hlin e₂).cle <
                                         Event.oStart n hencapDir'.existsRClusterDirDown.choose
                                     rw [show (hlin e₂) = lin e₂ from Subsingleton.elim _ _]
                                     simp only [hfc_cle₂'', hfc_drf'']; exact hob
@@ -1162,11 +1162,11 @@ theorem fr_ordering_holds
                                     h_ew_e₂ hencapDir' ⟨hcle_w_ob, hcle₂_ob_ev⟩
         | orderAfterDir hweak₁ _ _ _ =>
           -- e₁ non-coherent. Same dir_ordered strategy.
-          have hcle₁_isdir := (lin e₁).hreq's_dir_access.choose_spec.2.isDirEvent
+          have hcle₁_isdir := (lin e₁).cle_isDirEvent
           match hfc_cdir₃ : e_cdir, he_cdir_isDir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
           | .directoryEvent de_cdir, _ =>
-            match hfc_cle₁₃ : (lin e₁).hreq's_dir_access.choose, hcle₁_isdir with
+            match hfc_cle₁₃ : (lin e₁).cle, hcle₁_isdir with
             | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
             | .directoryEvent de_cle₁, _ =>
               cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
@@ -1209,8 +1209,8 @@ theorem fr_ordering_holds
                           have h_constraints := h_no_between e_mid h_mid_in_b
                             h_mid_cache h_mid_write h_mid_not_down (hlin e_mid)
                           have h_between : d_co.OrderedBetween n
-                              e_w_lin.hreq's_dir_access.choose
-                              (lin e₁).hreq's_dir_access.choose := by
+                              e_w_lin.cle
+                              (lin e₁).cle := by
                             constructor
                             · rw [hfc_dco]; exact hcle_w_ob_dco
                             · rw [hfc_dco, hfc_cle₁₃]; exact hdco_ob_cle₁
@@ -1232,21 +1232,21 @@ theorem fr_ordering_holds
                         | inr hcle₁_ob_dco =>
                           have hw₂' : lin e₂ = h.e₂_cmpLin := Subsingleton.elim _ _
                           exact .diffCluster_noncoherent h_same_prot (.directoryEvent de_dco)
-                            (show (lin e₁).hreq's_dir_access.choose.OrderedBefore n _ from by
+                            (show (lin e₁).cle.OrderedBefore n _ from by
                               rw [hfc_cle₁₃]; exact hcle₁_ob_dco)
                             (by rw [hw₂']; exact hdco_lt_cle₂)
                             (by simp [Event.isDirectoryEvent])
                     · -- e_w same as e₂: RF cross-cluster. Same approach as encapDir.
                       have hencapDir' := diffCache_coherent_encapProxyAndDir e_w_lin (lin e₁) hw_in_b hw_cache
                       have hdrf_spec' := hencapDir'.existsRClusterDirDown.choose_spec
-                      have hcle₂_isdir := (lin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
+                      have hcle₂_isdir := (lin e₂).cle_isDirEvent
                       cases hdrf_spec'.2.encapDirRelation with
                       | cleEncap henc' =>
                         have hdrf_isdir' := hdrf_spec'.2.isDir
                         match hfc_drf' : hencapDir'.existsRClusterDirDown.choose, hdrf_isdir' with
                         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                         | .directoryEvent de_drf', _ =>
-                          match hfc_cle₂' : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+                          match hfc_cle₂' : (lin e₂).cle, hcle₂_isdir with
                           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                           | .directoryEvent de_cle₂', _ =>
                             cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
@@ -1262,19 +1262,19 @@ theorem fr_ordering_holds
                               have h_ew_e₂ := two_cluster_e₂_same_e_w h_same_prot h_ew_e₁ hw_cache h.cache₁ h.cache₂
                               have hoEnd := co_chain_oEnd_le h_co_chain hlin
                               rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hoEnd
-                              have hcle_w_isdir_x := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-                              have hcle_w2_isdir_x := (hlin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-                              match hfc_wx : e_w_lin.hreq's_dir_access.choose, hcle_w_isdir_x with
+                              have hcle_w_isdir_x := e_w_lin.cle_isDirEvent
+                              have hcle_w2_isdir_x := (hlin e₂).cle_isDirEvent
+                              match hfc_wx : e_w_lin.cle, hcle_w_isdir_x with
                               | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                               | .directoryEvent de_wx, _ =>
-                                match hfc_w2x : (hlin e₂).hreq's_dir_access.choose, hcle_w2_isdir_x with
+                                match hfc_w2x : (hlin e₂).cle, hcle_w2_isdir_x with
                                 | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                                 | .directoryEvent de_w2x, _ =>
                                   have hcle_w_ob := co_chain_same_cluster_ob hoEnd
                                     hfc_wx hfc_w2x (b.orderedAtEntry.dir_ordered de_wx de_w2x)
-                                  have hcle₂_ob_ev : (hlin e₂).hreq's_dir_access.choose.OrderedBefore n
+                                  have hcle₂_ob_ev : (hlin e₂).cle.OrderedBefore n
                                       hencapDir'.existsRClusterDirDown.choose := by
-                                    show Event.oEnd n (hlin e₂).hreq's_dir_access.choose <
+                                    show Event.oEnd n (hlin e₂).cle <
                                         Event.oStart n hencapDir'.existsRClusterDirDown.choose
                                     rw [show (hlin e₂) = lin e₂ from Subsingleton.elim _ _]
                                     simp only [hfc_cle₂', hfc_drf']; exact hob
@@ -1285,7 +1285,7 @@ theorem fr_ordering_holds
                         match hfc_drf'' : hencapDir'.existsRClusterDirDown.choose, hdrf_isdir'' with
                         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                         | .directoryEvent de_drf', _ =>
-                          match hfc_cle₂'' : (lin e₂).hreq's_dir_access.choose, hcle₂_isdir with
+                          match hfc_cle₂'' : (lin e₂).cle, hcle₂_isdir with
                           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                           | .directoryEvent de_cle₂', _ =>
                             cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
@@ -1300,19 +1300,19 @@ theorem fr_ordering_holds
                               have h_ew_e₂ := two_cluster_e₂_same_e_w h_same_prot h_ew_e₁ hw_cache h.cache₁ h.cache₂
                               have hoEnd := co_chain_oEnd_le h_co_chain hlin
                               rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm] at hoEnd
-                              have hcle_w_isdir_x := e_w_lin.hreq's_dir_access.choose_spec.2.isDirEvent
-                              have hcle_w2_isdir_x := (hlin e₂).hreq's_dir_access.choose_spec.2.isDirEvent
-                              match hfc_wx : e_w_lin.hreq's_dir_access.choose, hcle_w_isdir_x with
+                              have hcle_w_isdir_x := e_w_lin.cle_isDirEvent
+                              have hcle_w2_isdir_x := (hlin e₂).cle_isDirEvent
+                              match hfc_wx : e_w_lin.cle, hcle_w_isdir_x with
                               | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                               | .directoryEvent de_wx, _ =>
-                                match hfc_w2x : (hlin e₂).hreq's_dir_access.choose, hcle_w2_isdir_x with
+                                match hfc_w2x : (hlin e₂).cle, hcle_w2_isdir_x with
                                 | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                                 | .directoryEvent de_w2x, _ =>
                                   have hcle_w_ob := co_chain_same_cluster_ob hoEnd
                                     hfc_wx hfc_w2x (b.orderedAtEntry.dir_ordered de_wx de_w2x)
-                                  have hcle₂_ob_ev : (hlin e₂).hreq's_dir_access.choose.OrderedBefore n
+                                  have hcle₂_ob_ev : (hlin e₂).cle.OrderedBefore n
                                       hencapDir'.existsRClusterDirDown.choose := by
-                                    show Event.oEnd n (hlin e₂).hreq's_dir_access.choose <
+                                    show Event.oEnd n (hlin e₂).cle <
                                         Event.oStart n hencapDir'.existsRClusterDirDown.choose
                                     rw [show (hlin e₂) = lin e₂ from Subsingleton.elim _ _]
                                     simp only [hfc_cle₂'', hfc_drf'']; exact hob
@@ -1343,10 +1343,10 @@ theorem step_to_ordering
           -- Helper: given encapDir + wObRDown → CleLink.obEndLt
           have from_encap_wob
               (hdown : Behaviour.clusterDown.encapDir compound b init e₁ h.r_cmpLin)
-              (hwOB : h.w_cmpLin.hreq's_dir_access.choose.OrderedBefore n
+              (hwOB : h.w_cmpLin.cle.OrderedBefore n
                 hdown.existsRClusterDirDown.choose) :
-              @CleLink n h.w_cmpLin.hreq's_dir_access.choose
-                h.r_cmpLin.hreq's_dir_access.choose := by
+              @CleLink n h.w_cmpLin.cle
+                h.r_cmpLin.cle := by
             have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
             have hencap_rel := hcdir_spec.2.encapDirRelation
             exact .obEndLt hdown.existsRClusterDirDown.choose
@@ -1386,7 +1386,7 @@ theorem step_to_ordering
       -- Bridge: h.e₁_cmpLin = lin e₁ and h.e₂_cmpLin = lin e₂ by Subsingleton
       have hlin₁ : h.e₁_cmpLin = lin e₁ := Subsingleton.elim _ _
       have hlin₂ : h.e₂_cmpLin = lin e₂ := Subsingleton.elim _ _
-      show @CleLink n h.e₁_cmpLin.hreq's_dir_access.choose h.e₂_cmpLin.hreq's_dir_access.choose
+      show @CleLink n h.e₁_cmpLin.cle h.e₂_cmpLin.cle
       rw [show h.e₁_cmpLin = lin e₁ from hlin₁, show h.e₂_cmpLin = lin e₂ from hlin₂]
       cases fr_ordering_holds h lin with
       | sameCache _ h_eq_or_ob =>
@@ -1411,12 +1411,12 @@ theorem step_to_ordering_hknow
     (h : com compound b init e₁ e₂)
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : @CleLink n (hknow e₁).hreq's_dir_access.choose (hknow e₂).hreq's_dir_access.choose := by
+    : @CleLink n (hknow e₁).cle (hknow e₂).cle := by
   have := step_to_ordering h h_non_lazy_ppoi
-  rw [show h.cle₁ = (hknow e₁).hreq's_dir_access.choose from
-        congrArg (·.hreq's_dir_access.choose) (Subsingleton.elim h.lin₁ (hknow e₁)),
-      show h.cle₂ = (hknow e₂).hreq's_dir_access.choose from
-        congrArg (·.hreq's_dir_access.choose) (Subsingleton.elim h.lin₂ (hknow e₂))] at this
+  rw [show h.cle₁ = (hknow e₁).cle from
+        congrArg (·.cle) (Subsingleton.elim h.lin₁ (hknow e₁)),
+      show h.cle₂ = (hknow e₂).cle from
+        congrArg (·.cle) (Subsingleton.elim h.lin₂ (hknow e₂))] at this
   exact this
 
 -- Old lex pair approach removed. Using LinChain (TransGen LinStep) instead of CleLink.
@@ -1429,8 +1429,8 @@ private theorem cle_self_ordering_false
     (hknow : CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     : False := by
-  have hisdir := hknow.hreq's_dir_access.choose_spec.right.isDirEvent
-  match hknow.hreq's_dir_access.choose, hisdir with
+  have hisdir := hknow.cle_isDirEvent
+  match hknow.cle, hisdir with
   | .directoryEvent de, _ =>
     cases (hdir de de).ordered with
     | inl h => exact absurd (Nat.lt_trans h de.oWellFormed) (Nat.lt_irrefl _)
@@ -1577,7 +1577,7 @@ private lemma compoundLin_not_ob_cle
     {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
     (lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (hnotdown : ¬ e.down)
-    : ¬ lin.compoundLin.OrderedBefore n lin.hreq's_dir_access.choose := by
+    : ¬ lin.compoundLin.OrderedBefore n lin.cle := by
   intro h_ob
   cases hlin_ev : compound.linearizationOfEvent b init e with
   | dirLin hd =>
@@ -1640,7 +1640,7 @@ private lemma compoundLin_not_ob_cle
             | inl hacq => rw [hread] at hacq; exact absurd hacq (by decide)
             | inr hrel => rw [hread] at hrel; exact absurd hrel (by decide)
     | orderBeforeDir _ hexists_pred hpred_accesses_dir _ _ _ _ _ =>
-      have hcle_ob_e : lin.hreq's_dir_access.choose.OrderedBefore n e :=
+      have hcle_ob_e : lin.cle.OrderedBefore n e :=
         Nat.lt_trans hpred_accesses_dir.reqEncapDir.right
           hexists_pred.choose_spec.2.isImmPred.bPred.isPred
       exact Event.contradiction_of_ordered_both_ways n hcle_ob_e h_ob
@@ -1809,7 +1809,7 @@ theorem LinLink.irrefl
 private theorem cle_ob_to_temporal_chain
     {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
-    (hob : lin₁.hreq's_dir_access.choose.OrderedBefore n lin₂.hreq's_dir_access.choose)
+    (hob : lin₁.cle.OrderedBefore n lin₂.cle)
     (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     : TemporalRel lin₁.compoundLin lin₂.compoundLin := by
@@ -1820,8 +1820,8 @@ private theorem cle_ob_to_temporal_chain
   have h_not_ob_cle₁ := compoundLin_not_ob_cle lin₁ hnotdown₁
   have h_not_ob_cle₂ := compoundLin_not_ob_cle lin₂ hnotdown₂
   -- Abbreviations for CLEs
-  set cle₁ := lin₁.hreq's_dir_access.choose
-  set cle₂ := lin₂.hreq's_dir_access.choose
+  set cle₁ := lin₁.cle
+  set cle₂ := lin₂.cle
   -- Build suffix helper: TransGen from x through CLE₂ to compoundLin₂
   have h_suffix : ∀ x, @TemporalRel n x cle₂ → @TemporalRel n x lin₂.compoundLin := by
     intro x hchain
@@ -1843,8 +1843,8 @@ private theorem cle_ob_to_temporal_chain
   | cle_ob_compoundLin h₁_ob =>
     -- dir_ordered de de → False (over-strong axiom).
     exfalso
-    have h_isdir := lin₁.hreq's_dir_access.choose_spec.right.isDirEvent
-    match lin₁.hreq's_dir_access.choose, h_isdir with
+    have h_isdir := lin₁.cle_isDirEvent
+    match lin₁.cle, h_isdir with
     | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
     | .directoryEvent de, _ =>
       cases (hdir de de).ordered with
@@ -1857,7 +1857,7 @@ private theorem dir_ordered_false
     {lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     : False := by
-  match lin.hreq's_dir_access.choose, lin.hreq's_dir_access.choose_spec.right.isDirEvent with
+  match lin.cle, lin.cle_isDirEvent with
   | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
   | .directoryEvent de, _ =>
     cases (hdir de de).ordered with
@@ -1872,12 +1872,12 @@ private theorem dir_ordered_false
 theorem cle_to_compoundLinOrdering
     {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
-    (h : @CleLink n lin₁.hreq's_dir_access.choose lin₂.hreq's_dir_access.choose)
+    (h : @CleLink n lin₁.cle lin₂.cle)
     (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     : LinLink lin₁.compoundLin lin₂.compoundLin := by
-  have h₁_isdir := lin₁.hreq's_dir_access.choose_spec.right.isDirEvent
-  have h₂_isdir := lin₂.hreq's_dir_access.choose_spec.right.isDirEvent
+  have h₁_isdir := lin₁.cle_isDirEvent
+  have h₂_isdir := lin₂.cle_isDirEvent
   cases h with
   | ob hob =>
     -- CLE₁ OB CLE₂: build temporal chain via cle_ob_to_temporal_chain.
@@ -1902,8 +1902,8 @@ theorem compoundLinOrdering_3way
   have hnotdown₁ : ¬ e₁.down := (dir_ordered_false (lin := hknow e₁) hdir).elim
   have hnotdown₂ : ¬ e₂.down := (dir_ordered_false (lin := hknow e₂) hdir).elim
   have h3way := step_ordering_dir_ordered_3way
-    (hknow e₁).hreq's_dir_access.choose_spec.right.isDirEvent
-    (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent hdir
+    (hknow e₁).cle_isDirEvent
+    (hknow e₂).cle_isDirEvent hdir
   cases h3way with
   | inl hso => exact Or.inl (cle_to_compoundLinOrdering hso hnotdown₁ hnotdown₂ hdir)
   | inr hr => cases hr with
@@ -1940,7 +1940,7 @@ private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂
     (hdiff₁ : l₁.protocol ≠ l₂.protocol) (h_p₁_isdir : p₁.isDirectoryEvent)
     (hcom_edge : com compound b init e₂ e₃)
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (hl₂ : l₂ = (hknow e₂).hreq's_dir_access.choose) (hl₃ : l₃ = (hknow e₃).hreq's_dir_access.choose)
+    (hl₂ : l₂ = (hknow e₂).cle) (hl₃ : l₃ = (hknow e₃).cle)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h₁_isdir : l₁.isDirectoryEvent)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
@@ -1952,15 +1952,15 @@ private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂
       rw [hl₂, hl₃]
       exact (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
         (he₂₃.trans (write_cle_protocol_eq_write_protocol (hknow e₃)).symm)
-    have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
-    have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+    have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).cle_isDirEvent
+    have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).cle_isDirEvent
     have hob₂ := same_prot_dir_ordered_forward h₂ h₂₃_prot hdir h₂_isdir h₃_isdir
     have hprot_diff : l₁.protocol ≠ l₃.protocol := fun h₁₃ => hdiff₁ (h₁₃.trans h₂₃_prot.symm)
     exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot_diff h_p₁_isdir)
   · -- Diff cluster: case-split on hcom_edge for full protocol evidence
     by_cases hprot : l₁.protocol = l₃.protocol
     · -- Same protocol l₁/l₃, diff cluster e₂/e₃: need cross-cluster evidence
-      have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+      have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).cle_isDirEvent
       match hfc₁ : l₁, h₁_isdir with
       | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
       | .directoryEvent de₁, _ =>
@@ -1980,8 +1980,8 @@ private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂
       -- For LinChain: p₁ OB l₂ + LinChain l₂ l₃ → p₁ OB l₃ (by induction on TransGen).
       -- For eq: l₂ = l₃ → p₁ OB l₃.
       -- For diff_prot: l₂ ≠ l₃ → with l₁ ≠ l₃ → .obFinishBefore if we can chain.
-      have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
-      have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+      have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).cle_isDirEvent
+      have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).cle_isDirEvent
       have h3way := stepOrdering_to_three h₂ hdir h₂_isdir h₃_isdir
       cases h3way with
       | inl hlink =>
@@ -2031,7 +2031,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     (hedge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₂ e₃)
     (h_prefix_edge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₁ e₂)
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (hl₂ : l₂ = (hknow e₂).hreq's_dir_access.choose) (hl₃ : l₃ = (hknow e₃).hreq's_dir_access.choose)
+    (hl₂ : l₂ = (hknow e₂).cle) (hl₃ : l₃ = (hknow e₃).cle)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h₁_isdir : l₁.isDirectoryEvent)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
@@ -2091,15 +2091,15 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       cases hedge with
       | inl hppoi_edge =>
         rw [heq₁]; exact step_ordering_dir_ordered_3way
-          (hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent)
-          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+          (hl₂ ▸ (hknow e₂).cle_isDirEvent)
+          (hl₃ ▸ (hknow e₃).cle_isDirEvent) hdir
       | inr hcom_edge =>
         rw [heq₁, hl₂, hl₃]; exact Or.inl (step_to_ordering_hknow hcom_edge hknow h_non_lazy_ppoi)
     | inr h_l₂_ob_l₁ =>
       -- l₂ OB l₁ + new edge. dir_ordered(l₁, l₃) resolves both directions:
       -- l₁ OB l₃ → .ob (first alternative)
       -- l₃ OB l₁ → third alternative (resolved at cycle closure)
-      have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+      have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).cle_isDirEvent
       match hfc₁ : l₁, h₁_isdir with
       | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
       | .directoryEvent de₁, _ =>
@@ -2116,12 +2116,12 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
   | inl hppoi_edge =>
     -- PPOi(e₂, e₃): dir_ordered on CLEs gives the 3-way result directly.
     -- Bypasses ppoi_step_to_ordering and avoids compound linearization matching.
-    have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
-    have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+    have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).cle_isDirEvent
+    have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).cle_isDirEvent
     have h₂₃_3way : @CleLink n l₂ l₃ ∨ l₂ = l₃ ∨ l₃.OrderedBefore n l₂ := by
       rw [hl₂, hl₃]; exact step_ordering_dir_ordered_3way
-        ((hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent)
-        ((hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+        ((hknow e₂).cle_isDirEvent)
+        ((hknow e₃).cle_isDirEvent) hdir
     cases h₂₃_3way with
     | inl hso₂ =>
       -- CleLink l₂ l₃: compose with h₁ using OB from same_prot_dir_ordered_forward
@@ -2143,7 +2143,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
         exact Or.inl (heq₂₃ ▸ hso₁)
       | inr hob_l₃_l₂ =>
         -- l₃ OB l₂: use dir_ordered on l₁ and l₃ for 3-way output
-        exact step_ordering_dir_ordered_3way h₁_isdir (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+        exact step_ordering_dir_ordered_3way h₁_isdir (hl₃ ▸ (hknow e₃).cle_isDirEvent) hdir
   | inr hcom_edge =>
     -- All com edges: derive h₂ via step_to_ordering, compose with h₁.
     -- The composition logic is the same for all edge types.
@@ -2153,7 +2153,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     | ob hob₂ =>
       -- COM .ob: use compose_with_ob for all h₁ constructors.
       exact compose_with_ob hso₁ hob₂ h₁_isdir
-        (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+        (hl₃ ▸ (hknow e₃).cle_isDirEvent) hdir
     | obEndLt p₂ hob₂ hlt₂ h_p₂_isdir =>
       cases hso₁ with
       | ob hob₁ => exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ hob₂) hlt₂ h_p₂_isdir)
@@ -2171,7 +2171,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
           exact compose_obFinishBefore_com (e₁ := e₁) p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir hcom_edge hknow hl₂ hl₃ hdir h₁_isdir h_non_lazy_ppoi
       | _ =>
         exact step_ordering_dir_ordered_3way h₁_isdir
-          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+          (hl₃ ▸ (hknow e₃).cle_isDirEvent) hdir
     | encapOb p₂ henc₂ hob₂ =>
       cases hso₁ with
       | ob hob₁ =>
@@ -2186,7 +2186,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
         -- obEndLt h₁ + encapOb h₂: use dir_ordered(p₁, l₂) to chain through.
         -- l₂ OB p₁ → p₁.oEnd < l₂.oEnd (hlt₁) and l₂.oEnd < p₁.oStart → p₁.oEnd < p₁.oStart → False.
         -- So dir_ordered gives p₁ OB l₂. Chain: l₁ OB p₁ OB l₂, l₂ encaps p₂ OB l₃ → .ob.
-        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
+        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).cle_isDirEvent
         have hp₁_ob_l₂ : p₁.OrderedBefore n l₂ := by
           match hfcp : p₁, h_p₁_isdir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
@@ -2210,7 +2210,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ h_p₁_isdir =>
         -- encapObEndLt h₁ + encapOb h₂: same dir_ordered(p₁, l₂) trick as obEndLt.
         -- p₁ OB l₂ (reverse contradicts p₁.oEnd < l₂.oEnd). Chain: q₁ OB p₁ OB l₂ OB p₂ OB l₃.
-        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
+        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).cle_isDirEvent
         have hp₁_ob_l₂ : p₁.OrderedBefore n l₂ := by
           match hfcp : p₁, h_p₁_isdir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
@@ -2228,7 +2228,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
           (Trans.trans (Event.ob_of_lt_lt hp₁_ob_l₂ henc₂.left) hob₂)))
       | _ =>
         exact step_ordering_dir_ordered_3way h₁_isdir
-          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+          (hl₃ ▸ (hknow e₃).cle_isDirEvent) hdir
     | proxyPair q₂ p₂ hq_enc₂ hq_ob₂ hp_ob₂ =>
       cases hso₁ with
       | ob hob₁ =>
@@ -2242,7 +2242,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | obEndLt p₁ hob₁ hlt₁ h_p₁_isdir =>
         -- obEndLt h₁ + proxyPair h₂: same dir_ordered(p₁, l₂) trick.
         -- p₁ OB l₂ → p₁ OB q₂ OB p₂ OB l₃ → l₁ OB p₁ OB l₃ → .ob.
-        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
+        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).cle_isDirEvent
         have hp₁_ob_l₂ : p₁.OrderedBefore n l₂ := by
           match hfcp : p₁, h_p₁_isdir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
@@ -2263,7 +2263,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
           exact compose_obFinishBefore_com (e₁ := e₁) p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir hcom_edge hknow hl₂ hl₃ hdir h₁_isdir h_non_lazy_ppoi
       | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ h_p₁_isdir =>
         -- encapObEndLt h₁ + proxyPair h₂: same dir_ordered(p₁, l₂) trick.
-        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
+        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).cle_isDirEvent
         have hp₁_ob_l₂ : p₁.OrderedBefore n l₂ := by
           match hfcp : p₁, h_p₁_isdir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
@@ -2282,7 +2282,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
           (Trans.trans hq_ob₂ hp_ob₂))))
       | _ =>
         exact step_ordering_dir_ordered_3way h₁_isdir
-          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+          (hl₃ ▸ (hknow e₃).cle_isDirEvent) hdir
     | encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ h_p₂_isdir =>
       cases hso₁ with
       | ob hob₁ =>
@@ -2295,7 +2295,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | eq heq₁ => exact Or.inl (heq₁ ▸ .encapObEndLt q₂ p₂ hq_enc₂ hq_ob₂ hp_lt₂ h_p₂_isdir)
       | obEndLt p₁ hob₁ hlt₁ h_p₁_isdir =>
         -- Same dir_ordered(p₁, l₂) trick: p₁ OB l₂ → p₁ OB q₂ OB p₂.
-        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
+        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).cle_isDirEvent
         have hp₁_ob_l₂ : p₁.OrderedBefore n l₂ := by
           match hfcp : p₁, h_p₁_isdir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
@@ -2314,7 +2314,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
           hp_lt₂ h_p₂_isdir)
       | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ h_p₁_isdir =>
         -- Same trick: p₁ OB l₂ → chain q₁ OB p₁ OB q₂ OB p₂.
-        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
+        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).cle_isDirEvent
         have hp₁_ob_l₂ : p₁.OrderedBefore n l₂ := by
           match hfcp : p₁, h_p₁_isdir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
@@ -2335,7 +2335,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
           exact compose_obFinishBefore_com (e₁ := e₁) p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir hcom_edge hknow hl₂ hl₃ hdir h₁_isdir h_non_lazy_ppoi
       | _ =>
         exact step_ordering_dir_ordered_3way h₁_isdir
-          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+          (hl₃ ▸ (hknow e₃).cle_isDirEvent) hdir
     | obFinishBefore p₂ hob₂ hlt₂ hdiff₂ h_p₂_isdir =>
       cases hso₁ with
       | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obFinishBefore p₂ hob₂ hlt₂ hdiff₂ h_p₂_isdir)
@@ -2353,7 +2353,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
         --   l₁.oEnd < l₂.oStart (from hob₁). p₂.oStart could be before or after l₂.oStart.
         -- Both directions possible — need by_cases protocol.
         by_cases hprot : l₁.protocol = l₃.protocol
-        · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+        · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).cle_isDirEvent
           match hfc₁ : l₁, h₁_isdir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
           | .directoryEvent de₁, _ =>
@@ -2385,7 +2385,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
         -- dir_ordered(p₁, l₂): l₂ OB p₁ → contradiction. So p₁ OB l₂.
         -- dir_ordered(p₂, l₂): l₂ OB p₂ → contradiction. So p₂ OB l₂.
         -- dir_ordered(p₁, p₂): p₁ OB p₂ → .ob (chain). p₂ OB p₁ → dir_ordered on l₁/p₂.
-        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
+        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).cle_isDirEvent
         have hp₁_ob_l₂ : p₁.OrderedBefore n l₂ := by
           match hfcp : p₁, h_p₁_isdir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
@@ -2414,7 +2414,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
               exact Or.inl (.ob (show Event.OrderedBefore n l₁ l₃ from Trans.trans hob₁ hp₁_ob_l₃))
             | inr hp₂p₁ =>
               by_cases hprot : l₁.protocol = l₃.protocol
-              · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+              · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).cle_isDirEvent
                 match hfcl₁ : l₁, h₁_isdir with
                 | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                 | .directoryEvent del₁, _ =>
@@ -2439,7 +2439,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
                     exact Or.inl (.ob (Nat.lt_trans (Nat.lt_trans hl₁p₂ dep₂.oWellFormed) hob₂))
       | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ h_p₁_isdir =>
         -- Same dir_ordered trick. p₁ OB l₂ → chain through p₂.
-        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).hreq's_dir_access.choose_spec.right.isDirEvent
+        have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).cle_isDirEvent
         have hp₁_ob_l₂ : p₁.OrderedBefore n l₂ := by
           match hfcp : p₁, h_p₁_isdir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
@@ -2466,7 +2466,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
               exact Or.inl (.encapOb q₁ hq_enc (Trans.trans hq_ob hp₁_ob_l₃))
             | inr hp₂p₁ =>
               by_cases hprot : l₁.protocol = l₃.protocol
-              · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+              · have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).cle_isDirEvent
                 match hfcl₁ : l₁, h₁_isdir with
                 | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
                 | .directoryEvent del₁, _ =>
@@ -2488,7 +2488,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
                     exact Or.inl (.ob (Nat.lt_trans (Nat.lt_trans hl₁p₂ dep₂.oWellFormed) hob₂))
       | _ =>
         -- encapOb/proxyPair/ob + obFinishBefore h₂: dir_ordered(l₁, l₃) via 3-way invariant
-        have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent
+        have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).cle_isDirEvent
         match hfc₁ : l₁, h₁_isdir with
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
         | .directoryEvent de₁, _ =>
@@ -2512,10 +2512,10 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | obEndLt p₁ hob₁ hlt₁ h_p₁_isdir =>
         -- p₁.oEnd < l₂.oEnd, l₃.oEnd < l₂.oEnd: use dir_ordered(l₁, l₃)
         exact step_ordering_dir_ordered_3way h₁_isdir
-          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+          (hl₃ ▸ (hknow e₃).cle_isDirEvent) hdir
       | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ h_p₁_isdir =>
         exact step_ordering_dir_ordered_3way h₁_isdir
-          (hl₃ ▸ (hknow e₃).hreq's_dir_access.choose_spec.right.isDirEvent) hdir
+          (hl₃ ▸ (hknow e₃).cle_isDirEvent) hdir
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
           exact compose_obFinishBefore_com (e₁ := e₁) p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir hcom_edge hknow hl₂ hl₃ hdir h₁_isdir h_non_lazy_ppoi
 
@@ -2534,9 +2534,9 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
 private theorem lift_cle_3way_to_compoundLin
     {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
-    (h : @CleLink n lin₁.hreq's_dir_access.choose lin₂.hreq's_dir_access.choose ∨
-         lin₁.hreq's_dir_access.choose = lin₂.hreq's_dir_access.choose ∨
-         (lin₂.hreq's_dir_access.choose).OrderedBefore n lin₁.hreq's_dir_access.choose)
+    (h : @CleLink n lin₁.cle lin₂.cle ∨
+         lin₁.cle = lin₂.cle ∨
+         (lin₂.cle).OrderedBefore n lin₁.cle)
     (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     : LinLink lin₁.compoundLin lin₂.compoundLin ∨
@@ -2552,19 +2552,19 @@ private theorem lift_cle_3way_to_compoundLin
 -- COM/PPOi edge evidence flows through step_to_ordering → compose_three.
 private theorem compose_compoundLinOrdering {e₁ e₂ e₃ : Event n}
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (h₁ : @CleLink n (hknow e₁).hreq's_dir_access.choose (hknow e₂).hreq's_dir_access.choose ∨
-           (hknow e₁).hreq's_dir_access.choose = (hknow e₂).hreq's_dir_access.choose ∨
-           ((hknow e₂).hreq's_dir_access.choose).OrderedBefore n (hknow e₁).hreq's_dir_access.choose)
+    (h₁ : @CleLink n (hknow e₁).cle (hknow e₂).cle ∨
+           (hknow e₁).cle = (hknow e₂).cle ∨
+           ((hknow e₂).cle).OrderedBefore n (hknow e₁).cle)
     (hedge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₂ e₃)
     {e₀ : Event n}
     (h_prefix_edge : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₀ e₂)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : @CleLink n (hknow e₁).hreq's_dir_access.choose (hknow e₃).hreq's_dir_access.choose ∨
-      (hknow e₁).hreq's_dir_access.choose = (hknow e₃).hreq's_dir_access.choose ∨
-      ((hknow e₃).hreq's_dir_access.choose).OrderedBefore n (hknow e₁).hreq's_dir_access.choose :=
+    : @CleLink n (hknow e₁).cle (hknow e₃).cle ∨
+      (hknow e₁).cle = (hknow e₃).cle ∨
+      ((hknow e₃).cle).OrderedBefore n (hknow e₁).cle :=
   compose_three h₁ hedge h_prefix_edge hknow rfl rfl hdir
-    ((hknow e₁).hreq's_dir_access.choose_spec.right.isDirEvent) h_non_lazy_ppoi
+    ((hknow e₁).cle_isDirEvent) h_non_lazy_ppoi
 
 /-- CLE-level path invariant: for any path a →⁺ c in PPOi∪COM,
     there exists a last edge into c, and the CLE 3-way disjunction holds.
@@ -2576,9 +2576,9 @@ private theorem cle_path_invariant
     {a c : Event n}
     (hpath : Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) a c)
     : (∃ b_prev, ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) b_prev c) ∧
-      (@CleLink n (hknow a).hreq's_dir_access.choose (hknow c).hreq's_dir_access.choose ∨
-       (hknow a).hreq's_dir_access.choose = (hknow c).hreq's_dir_access.choose ∨
-       ((hknow c).hreq's_dir_access.choose).OrderedBefore n (hknow a).hreq's_dir_access.choose) := by
+      (@CleLink n (hknow a).cle (hknow c).cle ∨
+       (hknow a).cle = (hknow c).cle ∨
+       ((hknow c).cle).OrderedBefore n (hknow a).cle) := by
   induction hpath with
   | single h =>
     constructor
@@ -2586,8 +2586,8 @@ private theorem cle_path_invariant
     · cases h with
       | inl hppoi =>
         exact step_ordering_dir_ordered_3way
-          (hknow _).hreq's_dir_access.choose_spec.right.isDirEvent
-          (hknow _).hreq's_dir_access.choose_spec.right.isDirEvent
+          (hknow _).cle_isDirEvent
+          (hknow _).cle_isDirEvent
           b.orderedAtEntry.dir_ordered
       | inr hcom =>
         exact Or.inl (step_to_ordering_hknow hcom hknow h_non_lazy_ppoi)
@@ -2597,7 +2597,7 @@ private theorem cle_path_invariant
     · let ⟨⟨b_prev, h_last_prefix⟩, h3way_prefix⟩ := ih
       exact compose_three h3way_prefix h h_last_prefix hknow rfl rfl
         b.orderedAtEntry.dir_ordered
-        ((hknow a).hreq's_dir_access.choose_spec.right.isDirEvent)
+        ((hknow a).cle_isDirEvent)
         h_non_lazy_ppoi
 
 theorem cmcm_acyclic_of_hknow

@@ -34,7 +34,7 @@ variable {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystem
 /-- The GLE (global directory event) of a request's linearization. -/
 noncomputable def gle
     (h : CompoundProtocol.globalLinearizationEventOfRequest compound b init e) : Event n :=
-  h.hreq's_global_lin.choose
+  h.gle
 
 /-- The GCR (global cache request) of a request's linearization.
     Retained for the `cle_eq_implies_gle_eq` chain; not used in hierarchicallyOrdered. -/
@@ -45,7 +45,7 @@ noncomputable def gcr
 /-- The CLE (cluster directory event) of a request's linearization. -/
 noncomputable def cle
     (h : CompoundProtocol.globalLinearizationEventOfRequest compound b init e) : Event n :=
-  h.hreq's_dir_access.choose
+  h.cle
 
 /-! ## Edge definitions -/
 
@@ -97,7 +97,7 @@ inductive co.ordering
   /-- Same cache: direct cache ordering. Both writes at the same cache,
       serialized by the cache. Evidence: e₁ OB e₂ + same CLE. -/
   | sameCache
-    (same_cle : w₁_cmpLin.hreq's_dir_access.choose = w₂_cmpLin.hreq's_dir_access.choose)
+    (same_cle : w₁_cmpLin.cle = w₂_cmpLin.cle)
     (cache_ob : e₁.OrderedBefore n e₂)
   /-- Same cluster, different cache: cluster directory serializes the writes.
       The second write's request triggers a downgrade at the first write's cache.
@@ -335,15 +335,15 @@ inductive FrOrdering
       CleLink derived via .eq or .ob. -/
   | sameCache
     (same_cache : e₁.struct = e₂.struct)
-    (cle_eq_or_ob : e₁_cmpLin.hreq's_dir_access.choose = e₂_cmpLin.hreq's_dir_access.choose ∨
-        e₁_cmpLin.hreq's_dir_access.choose.OrderedBefore n e₂_cmpLin.hreq's_dir_access.choose)
+    (cle_eq_or_ob : e₁_cmpLin.cle = e₂_cmpLin.cle ∨
+        e₁_cmpLin.cle.OrderedBefore n e₂_cmpLin.cle)
   /-- Same cluster, different cache: cluster directory serializes the accesses.
       CLE₁ OB CLE₂ from dir_ordered + NIW (NoInterveningWrites eliminates wrong direction).
       CleLink derived via .ob. -/
   | sameClusDiffCache
     (same_protocol : e₁.sameProtocol n e₂)
     (diff_cache : e₁.struct ≠ e₂.struct)
-    (cle_ob : e₁_cmpLin.hreq's_dir_access.choose.OrderedBefore n e₂_cmpLin.hreq's_dir_access.choose)
+    (cle_ob : e₁_cmpLin.cle.OrderedBefore n e₂_cmpLin.cle)
   /-- Different cluster, e₁ coherent: e₁ has coherent perms (from reading e_w),
       so e₂'s overwrite triggers a downgrade at e₁'s CACHE.
       The cache downgrade is after e₁ (e₁ OB cache_down), encapsulated by a
@@ -352,8 +352,8 @@ inductive FrOrdering
   | diffCluster_coherent
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
-    (cle₁_ob_p : e₁_cmpLin.hreq's_dir_access.choose.OrderedBefore n p)
-    (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_cmpLin.hreq's_dir_access.choose)
+    (cle₁_ob_p : e₁_cmpLin.cle.OrderedBefore n p)
+    (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_cmpLin.cle)
     (h_p_isdir : p.isDirectoryEvent)
   /-- Different cluster, e₁ coherent with evict: e₁ had coherent perms but
       evicted before e₂'s downgrade arrived. The downgrade goes to the cluster
@@ -362,8 +362,8 @@ inductive FrOrdering
   | diffCluster_evict
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
-    (cle₁_ob_p : e₁_cmpLin.hreq's_dir_access.choose.OrderedBefore n p)
-    (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_cmpLin.hreq's_dir_access.choose)
+    (cle₁_ob_p : e₁_cmpLin.cle.OrderedBefore n p)
+    (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_cmpLin.cle)
     (h_p_isdir : p.isDirectoryEvent)
   /-- Different cluster, e₁ non-coherent: e₁ doesn't have coherent perms,
       so e₂'s downgrade goes directly to e₁'s CLUSTER DIRECTORY.
@@ -372,8 +372,8 @@ inductive FrOrdering
   | diffCluster_noncoherent
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
-    (cle₁_ob_p : e₁_cmpLin.hreq's_dir_access.choose.OrderedBefore n p)
-    (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_cmpLin.hreq's_dir_access.choose)
+    (cle₁_ob_p : e₁_cmpLin.cle.OrderedBefore n p)
+    (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_cmpLin.cle)
     (h_p_isdir : p.isDirectoryEvent)
   /-- Different cluster, RF cross-cluster: e_w at e₂'s cluster, RF gives
       proxy p at e_w's cluster INSIDE CLE₁ (from encapDirRelation) and OB CLE₂.
@@ -381,20 +381,20 @@ inductive FrOrdering
   | diffCluster_rfCrossCluster
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
-    (p_inside_cle₁ : p.EncapsulatedBy n e₁_cmpLin.hreq's_dir_access.choose)
-    (p_ob_cle₂ : p.OrderedBefore n e₂_cmpLin.hreq's_dir_access.choose)
+    (p_inside_cle₁ : p.EncapsulatedBy n e₁_cmpLin.cle)
+    (p_ob_cle₂ : p.OrderedBefore n e₂_cmpLin.cle)
   /-- Different cluster, RF cross-cluster with gcacheEncap/noGlobalCache:
       proxy p OB CLE₂ and p finishes before CLE₁ (p.oEnd < CLE₁.oEnd).
       CleLink derived via .obFinishBefore. -/
   | diffCluster_rfFinishBefore
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
     (p : Event n)
-    (p_ob_cle₂ : p.OrderedBefore n e₂_cmpLin.hreq's_dir_access.choose)
-    (p_lt_cle₁ : Event.oEnd n p < Event.oEnd n e₁_cmpLin.hreq's_dir_access.choose)
+    (p_ob_cle₂ : p.OrderedBefore n e₂_cmpLin.cle)
+    (p_lt_cle₁ : Event.oEnd n p < Event.oEnd n e₁_cmpLin.cle)
     (h_p_isdir : p.isDirectoryEvent)
   /-- Same CLE: both events share the same CLE. -/
   | sameCLE
-    (cle_eq : e₁_cmpLin.hreq's_dir_access.choose = e₂_cmpLin.hreq's_dir_access.choose)
+    (cle_eq : e₁_cmpLin.cle = e₂_cmpLin.cle)
 
 /-- fr: From-reads (rf⁻¹ ; co⁺).
     A read e₁ reads from some write e_w, and e₂ is a write reachable from e_w

@@ -26,7 +26,7 @@ lemma CMCM.rf.wObRGle.sameCluster.wImmPredRCle
     hw_ob_r_gle
   -- Extract CLE ordering from rCleOrDownAtWAfterWCle
   -- In the sameCluster case, this must be .sameCluster
-  have hw_cle_ob : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose :=
+  have hw_cle_ob : hw_c_and_g_lin.cle.OrderedBefore n hr_c_and_g_lin.cle :=
     match hw_imm_pred_r_cle with
     | .sameCluster _ hw_ob_r_cle => hw_ob_r_cle
     | .diffCluster hdiff_prot _ _ => absurd hsame_cluster hdiff_prot

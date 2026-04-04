@@ -115,6 +115,39 @@ noncomputable def CompoundProtocol.globalLinearizationEventOfRequest.compoundLin
     (_ : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e) : Event n :=
   cmp.compoundLinOf b init e (cmp.linearizationOfEvent b init e)
 
+/-- CLE (cluster linearization event) — the directory event from dirAccessOfRequest. -/
+noncomputable abbrev CompoundProtocol.globalLinearizationEventOfRequest.cle
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e) : Event n :=
+  lin.hreq's_dir_access.choose
+
+/-- GLE (global linearization event) — the global directory event derived from the CLE. -/
+noncomputable abbrev CompoundProtocol.globalLinearizationEventOfRequest.gle
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e) : Event n :=
+  lin.hreq's_global_lin.choose
+
+/-- CLE is a directory event. -/
+theorem CompoundProtocol.globalLinearizationEventOfRequest.cle_isDirEvent
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    : Event.isDirectoryEvent n lin.cle :=
+  lin.hreq's_dir_access.choose_spec.2.isDirEvent
+
+/-- CLE's dirAccessOfRequest. -/
+noncomputable abbrev CompoundProtocol.globalLinearizationEventOfRequest.cle_dirAccess
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    : Behaviour.dirAccessOfRequest n b init e lin.cle :=
+  lin.hreq's_dir_access.choose_spec.2
+
+/-- CLE is in behaviour b. -/
+theorem CompoundProtocol.globalLinearizationEventOfRequest.cle_in_b
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    : lin.cle ∈ b :=
+  lin.hreq's_dir_access.choose_spec.1
+
 /-- Reduce compoundLin when clusterCacheLin: compoundLin = atCache's chosen event. -/
 theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_of_clusterCacheLin
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
@@ -195,16 +228,16 @@ inductive CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_rel
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
     (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e) : Prop
   /-- compoundLin = CLE: request linearizes at directory and global cache already has perms. -/
-  | eq (h : lin.compoundLin = lin.hreq's_dir_access.choose)
+  | eq (h : lin.compoundLin = lin.cle)
   /-- CLE finishes before compoundLin starts: request has perms (orderBeforeDir),
       so compoundLin = e_creq and CLE is at a predecessor event. -/
-  | cle_ob_compoundLin (h : lin.hreq's_dir_access.choose.OrderedBefore n lin.compoundLin)
+  | cle_ob_compoundLin (h : lin.cle.OrderedBefore n lin.compoundLin)
   /-- compoundLin OB CLE: request has perms but CLE is at successor (orderAfterDir).
       compoundLin = e_creq, CLE at successor of e_creq. -/
-  | compoundLin_ob_cle (h : lin.compoundLin.OrderedBefore n lin.hreq's_dir_access.choose)
+  | compoundLin_ob_cle (h : lin.compoundLin.OrderedBefore n lin.cle)
   /-- compoundLin inside CLE: request linearizes at directory and global cache needs perms,
       so compoundLin is a deeper global event encapsulated by the CLE. -/
-  | compoundLin_inside_cle (h : lin.compoundLin.EncapsulatedBy n lin.hreq's_dir_access.choose)
+  | compoundLin_inside_cle (h : lin.compoundLin.EncapsulatedBy n lin.cle)
 
 /-- Every non-downgrade request's compoundLin relates to its CLE in one of these ways. -/
 theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
@@ -234,11 +267,11 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
         -- CLE inside predecessor, predecessor OB e → CLE OB e = CLE OB compoundLin.
         -- compoundLin = e (via clusterCacheLin + atCache.e_creq_is_e_glin).
         -- Extract CLE OB e:
-        have hcle_ob_e : lin.hreq's_dir_access.choose.OrderedBefore n e :=
+        have hcle_ob_e : lin.cle.OrderedBefore n e :=
           Nat.lt_trans hpred_accesses_dir.reqEncapDir.right
             hexists_pred.choose_spec.2.isImmPred.bPred.isPred
         -- Construct .cle_ob_compoundLin without apply (to avoid dependent goal):
-        exact .cle_ob_compoundLin (show lin.hreq's_dir_access.choose.OrderedBefore n lin.compoundLin by
+        exact .cle_ob_compoundLin (show lin.cle.OrderedBefore n lin.compoundLin by
           -- compoundLin = e: reduce through definitions.
           -- OrderedBefore is Nat.lt on oEnd/oStart. compoundLin and e are the same Event.
           -- Use congrArg to transport through the definition chain.
@@ -310,11 +343,11 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
       | previousGlobalCacheGotPerms _ h_eq =>
         -- h_eq : hdir_case.choose = e_cdir (the CLE from dirLin).
         -- compoundLin = hdir_case.choose = e_cdir.
-        -- Need: compoundLin = lin.hreq's_dir_access.choose.
+        -- Need: compoundLin = lin.cle.
         -- Key: both lin.hreq's_dir_access and dirLin's reqLinearizeAtDir prove the SAME
         -- Use the new invariant: CLE from lin = CLE from dirLin.
         have h_cle_shared := lin.hreq's_dir_access_matches_dirLin hdir hlin_ev
-        -- h_cle_shared : lin.hreq's_dir_access.choose = hdir.choose_spec.2.reqLinearizeAtDir.choose
+        -- h_cle_shared : lin.cle = hdir.choose_spec.2.reqLinearizeAtDir.choose
         -- h_eq : hdir_case.choose = e_cdir (the CLE from OfReqEncapDirAccess simp, = reqLinearizeAtDir.choose)
         -- compoundLin = hdir_case.choose [compoundLin_of_clusterDirLin]
         have h_compoundLin_eq := lin.compoundLin_of_clusterDirLin hlin_ev hcmp
@@ -322,16 +355,16 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
         exact .eq (by rw [h_compoundLin_eq, h_eq, ← h_cle_shared])
       | getGlobalCachePerms _ h_global =>
         -- compoundLin is a deeper global event inside the CLE from dirLin.
-        -- Use the shared CLE invariant to relate to lin.hreq's_dir_access.choose.
+        -- Use the shared CLE invariant to relate to lin.cle.
         have h_cle_shared := lin.hreq's_dir_access_matches_dirLin hdir hlin_ev
         have h_compoundLin_eq := lin.compoundLin_of_clusterDirLin hlin_ev hcmp
         -- h_global : Shim.ClusterToGlobal.noPerms.linearizationEvent on e_cdir and hdir_case.choose
         -- e_cdir encapsulates hdir_case.choose (global event inside CLE).
-        -- Need: compoundLin inside lin.hreq's_dir_access.choose.
-        -- compoundLin = hdir_case.choose, CLE = lin.hreq's_dir_access.choose = e_cdir [h_cle_shared].
+        -- Need: compoundLin inside lin.cle.
+        -- compoundLin = hdir_case.choose, CLE = lin.cle = e_cdir [h_cle_shared].
         -- Need: compoundLin EncapsulatedBy CLE.
         -- compoundLin = hdir_case.choose [compoundLin_of_clusterDirLin].
-        -- CLE = e_cdir [h_cle_shared: lin.hreq's_dir_access.choose = e_cdir].
+        -- CLE = e_cdir [h_cle_shared: lin.cle = e_cdir].
         -- h_global : noPerms.linearizationEvent on e_cdir and hdir_case.choose.
         -- This gives e_cdir encapsulates hdir_case.choose through the global cache chain.
         -- Use request_encapsulates_compound_linearization_event-like reasoning.
@@ -388,8 +421,9 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
               -- hat_dir.choose = gdir (h_gdir_lin.dirIsLin)
               -- CLE = cdir (h_cle_shared)
               -- So: gdir EncapsulatedBy cdir.
-              show lin.compoundLin.EncapsulatedBy n lin.hreq's_dir_access.choose
-              rw [h_compoundLin_eq, hgcache_lin_cases, h_gdir_lin.dirIsLin, h_cle_shared]
+              show lin.compoundLin.EncapsulatedBy n lin.cle
+              rw [h_compoundLin_eq, hgcache_lin_cases, h_gdir_lin.dirIsLin]
+              simp only [globalLinearizationEventOfRequest.cle, h_cle_shared]
               exact ⟨h_cdir_encap_gdir.left, h_cdir_encap_gdir.right⟩
             | orderBeforeDir hgcache_has_perms _ _ _ _ _ _ _ =>
               -- gcache has perms contradicts hat_dir having reqMissingPerms
@@ -430,8 +464,8 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_of_di
     (hnotdown : ¬ e.down)
     {hd : ∃ e_lin ∈ b, b.requestWithoutCoherentPermsLinearizesAtDir n init e e_lin}
     (hdir : cmp.linearizationOfEvent b init e = .dirLin hd)
-    : lin.compoundLin = lin.hreq's_dir_access.choose ∨
-      (lin.compoundLin.EncapsulatedBy n lin.hreq's_dir_access.choose ∧
+    : lin.compoundLin = lin.cle ∨
+      (lin.compoundLin.EncapsulatedBy n lin.cle ∧
        lin.compoundLin.protocol = .global) := by
   -- Replay the dirLin branch of compoundLin_cle.
   -- dirLin produces .eq (previousGlobalCacheGotPerms) or .inside (getGlobalCachePerms).
@@ -569,7 +603,8 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_of_di
               -- h_cdir_encap_gdir : cdir.Encapsulates gdir → gdir.oEnd < cdir.oEnd.
               -- ha : CLE.oEnd < compoundLin.oStart = cdir.oEnd < gdir.oStart.
               -- Chain: cdir.oEnd < gdir.oStart ≤ gdir.oEnd < cdir.oEnd → cdir.oEnd < cdir.oEnd.
-              rw [h_cl_eq, hgcache_lin_cases, h_gdir_lin.dirIsLin, h_cle_shared] at ha
+              rw [h_cl_eq, hgcache_lin_cases, h_gdir_lin.dirIsLin] at ha
+              simp only [globalLinearizationEventOfRequest.cle, h_cle_shared] at ha
               exact Nat.lt_irrefl _ (Nat.lt_trans ha (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) h_cdir_encap_gdir.right))
             | orderBeforeDir hgcache_has_perms _ _ _ _ _ _ _ => exact absurd hgcache_has_perms (by have := hat_dir.choose_spec.2.reqHasNoPerms; intro h; exact absurd h (reqHasPerms_not_reqMissingPerms this htranslation.choose_spec.right.gReqOfCDir.notDowngrade))
             | orderAfterDir hweak_vd _ _ _ =>
@@ -615,7 +650,8 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_of_di
             cases h_gdir_lin.reqCorrespondsToDir with
             | encapDir _ hgcache_encap_gdir =>
               have h_cdir_encap_gdir := Event.encap_encap_trans n h_cdir_encap_gcache hgcache_encap_gdir.reqEncapDir
-              rw [h_cl_eq, hgcache_lin_cases, h_gdir_lin.dirIsLin, h_cle_shared] at ha
+              rw [h_cl_eq, hgcache_lin_cases, h_gdir_lin.dirIsLin] at ha
+              simp only [globalLinearizationEventOfRequest.cle, h_cle_shared] at ha
               exact Nat.lt_irrefl _ (Nat.lt_trans ha (Nat.lt_trans h_cdir_encap_gdir.left (Event.oWellFormed n _)))
             | orderBeforeDir hgcache_has_perms _ _ _ _ _ _ _ => exact absurd hgcache_has_perms (by have := hat_dir.choose_spec.2.reqHasNoPerms; intro h; exact absurd h (reqHasPerms_not_reqMissingPerms this htranslation.choose_spec.right.gReqOfCDir.notDowngrade))
             | orderAfterDir hweak_vd _ _ _ =>
@@ -783,9 +819,9 @@ structure Event.Between.sameProtocol.interveningDirWrite
   notDown : ¬ e_w_inter.down
   -- interUnique : e_w_inter.unique e_w_le e_r_le
   sameProtocol : e_w_inter.protocol = e_w_le.protocol
-  cleDirWrite : (hknow_dir_access cmp b init e_w_inter).hreq's_dir_access.choose.isDirWrite
-  cleNotDown : (hknow_dir_access cmp b init e_w_inter).hreq's_dir_access.choose.isDirNotDown
-  cleBetween : (hknow_dir_access cmp b init e_w_inter).hreq's_dir_access.choose.OrderedBetween n e_w_le e_r_le
+  cleDirWrite : (hknow_dir_access cmp b init e_w_inter).cle.isDirWrite
+  cleNotDown : (hknow_dir_access cmp b init e_w_inter).cle.isDirNotDown
+  cleBetween : (hknow_dir_access cmp b init e_w_inter).cle.OrderedBetween n e_w_le e_r_le
 
 -- diffProtocol.interveningDirWrite, interveningWrite.sameOrDiffCluster, and noDirWrite
 -- are defined below after Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper.
@@ -809,7 +845,7 @@ def Behaviour.downgradeAtPrevOwner.clusterReq.gdown.wrapper (cmp : CompoundProto
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (e_down e_grant : Event n) : Prop :=
   let e_r_cle_gcache := Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init (hexists_cdir := hr_c_and_g_lin.hreq's_dir_access)
-  let e_r_gle := hr_c_and_g_lin.hreq's_global_lin.choose
+  let e_r_gle := hr_c_and_g_lin.gle
   -- yoink from line 269 from BehaviourRelationDefs.lean (used by Axiom 9, Behaviour.coherentWriteDirDowngradeOthers)
   -- fwdPrevOwner : ∃ e_down ∈ b, ∃ e_grant ∈ b, b.downgradeAtPrevOwner n init e_req e_dir e_down e_grant
   b.downgradeAtPrevOwner n init e_r_cle_gcache e_r_gle e_down e_grant
@@ -864,13 +900,13 @@ inductive Behaviour.clusterDown.encapDirRelation
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (e_r_cdir_down : Event n)
   : Prop
-| cleEncap (h : hr_c_and_g_lin.hreq's_dir_access.choose.Encapsulates n e_r_cdir_down)
+| cleEncap (h : hr_c_and_g_lin.cle.Encapsulates n e_r_cdir_down)
 | gcacheEncap
     -- The cluster-to-global shim's global cache event (the canonical gcache for this CLE)
     -- encapsulates e_r_cdir_down, pinning down the gcache via ClusterToGlobal.
     (h : (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
         hr_c_and_g_lin.hreq's_dir_access).Encapsulates n e_r_cdir_down)
-    (cdownEndBeforeCle : e_r_cdir_down.oEnd < hr_c_and_g_lin.hreq's_dir_access.choose.oEnd)
+    (cdownEndBeforeCle : e_r_cdir_down.oEnd < hr_c_and_g_lin.cle.oEnd)
 
 /-- Specification for the cluster directory downgrade event `e_r_cdir_down`. -/
 structure Behaviour.clusterDown.RClusterDirDownSpec
@@ -987,7 +1023,7 @@ structure WriteRead.noEvictBetween.cond.wrapper
   noEvictBetween :
     WriteRead.noEvictBetween.cond b init
       e_w gdownEncapProxyAndDirAndCDown.existsRDownAtW.choose
-        hw_c_and_g_lin.hreq's_dir_access.choose
+        hw_c_and_g_lin.cle
         gdownEncapProxyAndDirAndCDown.encapDir.existsRClusterDirDown.choose
 
 def Event.Between.dirEvict (b : Behaviour n) (e₁ e₂ : Event n) : Prop :=
@@ -1014,7 +1050,7 @@ structure WriteRead.evictBetween.cond.wrapper
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop where
   encapProxyAndDir : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin
-  evictBetween : WriteRead.evictBetween.cond cmp b init e_w e_r (hw_c_and_g_lin.hreq's_dir_access.choose) encapProxyAndDir.existsRClusterDirDown.choose hknow_dir_access
+  evictBetween : WriteRead.evictBetween.cond cmp b init e_w e_r (hw_c_and_g_lin.cle) encapProxyAndDir.existsRClusterDirDown.choose hknow_dir_access
 
 inductive WriteRead.wObRCle.diffCache.wHasPermsAfter.case {e_w e_r}
   (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (e_w_cle e_r_cdir_down : Event n)
@@ -1037,11 +1073,11 @@ inductive WriteRead.wObRCle.diffCache.rCleOrDownAtWAfterWCle
   : Prop
 | sameCluster
   (sameProtocol : e_w.protocol = e_r.protocol)
-  (hw_ob_r_cle : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose)
+  (hw_ob_r_cle : hw_c_and_g_lin.cle.OrderedBefore n hr_c_and_g_lin.cle)
 | diffCluster
   (diffProtocol : e_w.protocol ≠ e_r.protocol)
   (existsRClusterDownAtW : Behaviour.clusterDown.encapDir cmp b init e_w hr_c_and_g_lin)
-  (wObRDown : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n
+  (wObRDown : hw_c_and_g_lin.cle.OrderedBefore n
     existsRClusterDownAtW.existsRClusterDirDown.choose)
 
 /-- When the write is coherent and at a different cache from the read,
@@ -1062,7 +1098,7 @@ inductive WriteRead.wObRCle.diffCache.wCoherent.case
   : WriteRead.wObRCle.diffCache.wCoherent.case hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 | notImmPred
   (hw_has_perms_case : WriteRead.wObRCle.diffCache.wHasPermsAfter.case cmp b init
-    (hw_c_and_g_lin.hreq's_dir_access.choose) (hr_c_and_g_lin.hreq's_dir_access.choose)
+    (hw_c_and_g_lin.cle) (hr_c_and_g_lin.cle)
     hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
   : WriteRead.wObRCle.diffCache.wCoherent.case hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 
@@ -1143,7 +1179,7 @@ inductive WriteRead.wObRCle.case
   | sameCache
     (sameCache : e_w.struct = e_r.struct)
     (noWriteBetween : Event.Between.noDirWrite cmp b init e_w e_r
-      hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose hknow_dir_access)
+      hw_c_and_g_lin.cle hr_c_and_g_lin.cle hknow_dir_access)
     : WriteRead.wObRCle.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
   | diffCache
     (hdiff_cache : e_w.struct ≠ e_r.struct)
@@ -1160,7 +1196,7 @@ structure WriteRead.wObR.GleOrCle.cases
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop where
-    hw_r_cle_ob : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n hr_c_and_g_lin.hreq's_dir_access.choose
+    hw_r_cle_ob : hw_c_and_g_lin.cle.OrderedBefore n hr_c_and_g_lin.cle
     -- add inductive (WriteRead.wObRCle.case) to define goal.
     hwr_cle_ob_case : WriteRead.wObRCle.case hw_is_write r_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
 
@@ -1173,9 +1209,9 @@ inductive Behaviour.readsFrom.wEqRGle.cases (cmp : CompoundProtocol n) (b : Beha
   (hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n))
   : Prop
   | wEqRCle
-    (hw_r_cle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
+    (hw_r_cle_eq : hw_c_and_g_lin.cle = hr_c_and_g_lin.cle)
     (hwr_same_cluster : e_w.protocol = e_r.protocol)
-    (hwr_com : WriteRead.EqGleCle.case b init e_w e_r hw_c_and_g_lin.hreq's_dir_access.choose hr_c_and_g_lin.hreq's_dir_access.choose)
+    (hwr_com : WriteRead.EqGleCle.case b init e_w e_r hw_c_and_g_lin.cle hr_c_and_g_lin.cle)
     : Behaviour.readsFrom.wEqRGle.cases cmp b init e_w e_r hw_cluster hr_cluster hw_is_write r_is_read hw_not_down r_not_down hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
   | wObRCle
     -- NOTE: bundled hypothesis conditions together, for re-use in the wObRGle case below.
@@ -1195,7 +1231,7 @@ structure Behaviour.diffClusters.encapGDown {cmp : CompoundProtocol n}
   : Prop where
   gDirOnSWImplGDown :
     -- If e_w accesses the global dir, and is immediately pred to e_r's global dir access.
-    b.directoryStateMadeOn n init hr_c_and_g_lin.hreq's_global_lin.choose = .SW ⟨SW, by simp⟩ e_w.gCacheOfCEvent →
+    b.directoryStateMadeOn n init hr_c_and_g_lin.gle = .SW ⟨SW, by simp⟩ e_w.gCacheOfCEvent →
     ∃ e_r_down ∈ b, e_r_down.cid = e_w.gCacheOfCEvent ∧ e_r_down.down
 
 inductive WriteRead.wObR.GleAndCle.sameOrDifferentCluster.cases
@@ -1224,14 +1260,14 @@ inductive Behaviour.readsFrom.cases
   : Prop
   -- `e_w`'s GLE is the same as `e_r`'s GLE
   | wEqRGle
-    (hw_r_gle_eq : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
+    (hw_r_gle_eq : hw_c_and_g_lin.gle = hr_c_and_g_lin.gle)
     (hwr_same_cluster : e_w.protocol = e_r.protocol)
     -- Use `Behaviour.readsFrom.wEqRGle.cases` to distinguish subcases of this case.
     (hw_eq_r_gle_cases : Behaviour.readsFrom.wEqRGle.cases cmp b init e_w e_r hw_cluster hr_cluster hw_is_write hr_is_read hw_not_down hr_not_down hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
     : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
   -- `e_w`'s GLE is Ordered Before `e_r`'s GLE
   | wObRGle
-    (hw_r_gle_ob : hw_c_and_g_lin.hreq's_global_lin.choose.OrderedBefore n hr_c_and_g_lin.hreq's_global_lin.choose)
+    (hw_r_gle_ob : hw_c_and_g_lin.gle.OrderedBefore n hr_c_and_g_lin.gle)
     -- use inductive to define subcases of this case
     (hw_ob_r_gle_cases : WriteRead.wObR.GleAndCle.sameOrDifferentCluster.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access)
     : Behaviour.readsFrom.cases hw_is_write hr_is_read hw_c_and_g_lin hr_c_and_g_lin hknow_dir_access
@@ -1245,8 +1281,8 @@ def CompoundProtocol.gleOrderedBefore
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   : Prop :=
-  hw_c_and_g_lin.hreq's_global_lin.choose.OrderedBefore n
-    hr_c_and_g_lin.hreq's_global_lin.choose
+  hw_c_and_g_lin.gle.OrderedBefore n
+    hr_c_and_g_lin.gle
 
 def Event.isDirReadOrEvict (e : Event n) : Prop := e.isDirRead
 
@@ -1265,11 +1301,11 @@ structure CLE.WROrdering.evictOrReadBetween
   wRSameCluster : e_w.sameProtocol n e_r
   interDirEvictOrRead : ∀ e_cdir_inter ∈ b,
     IntermediateDirEvictOrRead e_cdir_inter
-      hw_c_and_g_lin.hreq's_dir_access.choose
-      hr_c_and_g_lin.hreq's_dir_access.choose
+      hw_c_and_g_lin.cle
+      hr_c_and_g_lin.cle
       → e_cdir_inter.isDirReadOrEvict
-  wObR : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n
-        hr_c_and_g_lin.hreq's_dir_access.choose
+  wObR : hw_c_and_g_lin.cle.OrderedBefore n
+        hr_c_and_g_lin.cle
 
 /- Cases of CLE if `e_w` GLE ImmPred `e_r` GLE. Same Cluster case. -/
 inductive CompoundProtocol.SameCluster.cleOb.cleOrdering.Cases
@@ -1287,7 +1323,7 @@ inductive CompoundProtocol.gleEq.SameCluster.cleEq.cleOb.cleOrdering.Cases
     (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
     (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   : Prop
-  | wEqRCle (w_r_cle_eq : hw_c_and_g_lin.hreq's_dir_access.choose = hr_c_and_g_lin.hreq's_dir_access.choose)
+  | wEqRCle (w_r_cle_eq : hw_c_and_g_lin.cle = hr_c_and_g_lin.cle)
   | otherCases (same_as_gle_ob_cases : CompoundProtocol.SameCluster.cleOb.cleOrdering.Cases hw_c_and_g_lin hr_c_and_g_lin)
 
 structure Behaviour.gdown.encapProxyAndDirAndCDown {cmp : CompoundProtocol n} {e_r : Event n} (e_w : Event n) (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r) : Prop where
@@ -1307,10 +1343,10 @@ structure ReadDowngradeAtWrite.evictOrReadBetween.wAndRDown
   rDown : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin
   wCleImmPredRDown : ∀ e_cdir_inter ∈ b,
      IntermediateDirEvictOrRead e_cdir_inter
-      hw_c_and_g_lin.hreq's_dir_access.choose
+      hw_c_and_g_lin.cle
       rDown.encapDir.existsRClusterDirDown.choose
      → e_cdir_inter.isDirReadOrEvict
-  wObRDown : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n
+  wObRDown : hw_c_and_g_lin.cle.OrderedBefore n
     rDown.encapDir.existsRClusterDirDown.choose
 
 structure ReadDowngradeAtWrite.wCleImmPredDown
@@ -1321,13 +1357,13 @@ structure ReadDowngradeAtWrite.wCleImmPredDown
   : Prop where
   rDown : Behaviour.clusterDown.encapProxyAndDirAndCDown e_w hr_c_and_g_lin
   wCleImmPredRDown : b.ImmediateBottomPredecessor n
-    hw_c_and_g_lin.hreq's_dir_access.choose rDown.encapDir.existsRClusterDirDown.choose
+    hw_c_and_g_lin.cle rDown.encapDir.existsRClusterDirDown.choose
   wCleImmPredRDownReadOrEvict : ∀ e_cdir_inter ∈ b,
      IntermediateDirEvictOrRead e_cdir_inter
-      hw_c_and_g_lin.hreq's_dir_access.choose
+      hw_c_and_g_lin.cle
       rDown.encapDir.existsRClusterDirDown.choose
      → e_cdir_inter.isDirReadOrEvict
-  wObRDown : hw_c_and_g_lin.hreq's_dir_access.choose.OrderedBefore n
+  wObRDown : hw_c_and_g_lin.cle.OrderedBefore n
     rDown.encapDir.existsRClusterDirDown.choose
 
 /- Cases of CLE if `e_w` GLE ImmPred `e_r` GLE. Different Cluster case. -/
@@ -1358,7 +1394,7 @@ inductive CompoundProtocol.gleOrdering.Cases
   (hw_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_w)
   (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
   | sameGle
-    (same_gle : hw_c_and_g_lin.hreq's_global_lin.choose = hr_c_and_g_lin.hreq's_global_lin.choose)
+    (same_gle : hw_c_and_g_lin.gle = hr_c_and_g_lin.gle)
     (cle_cases : CompoundProtocol.gleEq.SameCluster.cleEq.cleOb.cleOrdering.Cases hw_c_and_g_lin hr_c_and_g_lin)
   | wObRGle
     (w_ob_r_gle : CompoundProtocol.gleOrderedBefore hw_c_and_g_lin hr_c_and_g_lin)

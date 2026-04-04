@@ -33,10 +33,10 @@ theorem CMCM.rf_holds
   -- probably want to start with cases of `e_w` and `e_r`'s GLEs.
   -- Only expand cases of `e_w` and `e_r`'s requests (coherent, non-coherent, release, acquire...) further into the subcases.
 
-  let e_w_gle := hw_c_and_g_lin.hreq's_global_lin.choose
-  let e_r_gle := hr_c_and_g_lin.hreq's_global_lin.choose
-  let e_w_cle := hw_c_and_g_lin.hreq's_dir_access.choose
-  let e_r_cle := hr_c_and_g_lin.hreq's_dir_access.choose
+  let e_w_gle := hw_c_and_g_lin.gle
+  let e_r_gle := hr_c_and_g_lin.gle
+  let e_w_cle := hw_c_and_g_lin.cle
+  let e_r_cle := hr_c_and_g_lin.cle
 
 
   let test := hw_c_and_g_lin.hreq's_global_lin.choose_spec.right.isDirEvent
