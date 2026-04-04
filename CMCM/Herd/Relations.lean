@@ -60,6 +60,16 @@ noncomputable def com.cle₂ {cmp : CompoundProtocol n} {b : Behaviour n} {init 
     {e₁ e₂ : Event n} (h : com cmp b init e₁ e₂) : Event n :=
   h.lin₂.cle
 
+/-- The GLE (global linearization event) for e₁, extracted from lin₁'s evidence. -/
+noncomputable def com.gle₁ {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    {e₁ e₂ : Event n} (h : com cmp b init e₁ e₂) : Event n :=
+  h.lin₁.gle
+
+/-- The GLE for e₂, extracted from lin₂'s evidence. -/
+noncomputable def com.gle₂ {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    {e₁ e₂ : Event n} (h : com cmp b init e₁ e₂) : Event n :=
+  h.lin₂.gle
+
 /-- The hierarchical ordering: PPOi ∪ com, carrying communication evidence.
 
     Each constructor carries the full edge structure (PPOi or com), which
