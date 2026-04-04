@@ -2792,41 +2792,33 @@ private theorem cle_path_invariant
         ((hknow a).cle_isDirEvent)
         h_non_lazy_ppoi
 
-/-- At cycle closure, when the CLE invariant gives eq, derive False from event-level evidence.
-    The eq case only arises when all edges produce CleLink.eq (co.sameCache or fr).
-    co.sameCache gives event OB; fr gives read/write. Compose through the cycle to derive
-    e OB e → False, or e.isRead ∧ e.isWrite → False. -/
+/-- At cycle closure, derive False directly.
+    Every PPOi edge gives e₁.OrderedBefore n e₂.
+    Every COM edge gives CleLink.  Compose through the cycle using cle_path_invariant
+    to obtain CleLink l l (or eq / reverse).  All three cases give False:
+      CleLink l l → cleLink_self_false_ne,  l = l → trivially no info, handled via
+      transgen_ob_of_step_ob on PPOi.orderedBefore / co.sameCache.cache_ob,
+      l OB l → contradiction_of_reflexive_ordered_before.
+    The proof uses cle_path_invariant (which already handles non-eq CleLink and reverse)
+    combined with edge_self_false for the base case. -/
 private theorem cycle_eq_closure
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     {e : Event n}
     (hcycle : Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e e)
     : False := by
-  -- Single-step cycle: edge_self_false.
-  -- Multi-step cycle: every edge gives (OB ∧ isWrite) ∨ (isRead ∧ isWrite).
-  -- Compose through the cycle: e OB e → False, or e.isRead ∧ e.isWrite → False.
-  -- Note: the eq case at cycle closure means no PPOi/rfe edges are present
-  -- (they produce non-eq CleLink), so only co.sameCache and fr edges exist.
-  -- co.sameCache: cache_ob gives e₁ OB e₂, both isWrite.
-  -- fr: e₁.isRead, e₂.isWrite.
-  -- Junction analysis: co→fr impossible (junction write∧read), fr→fr impossible.
-  -- So chain is: optional fr, then all co.sameCache.
-  -- Pure co: e OB ... OB e → e OB e → False.
-  -- fr first: e.isRead, last co gives e.isWrite → e.isRead ∧ e.isWrite → False.
-  -- Prove by showing TransGen R e e → False, using edge_self_false for base case.
-  -- For multi-step: use cle_path_invariant to get CLE evidence, handle each case.
-  -- Induction on the cycle, tracking event-level OB.
-  -- Each edge is either PPOi (gives e₁ OB e₂ directly) or COM.
-  -- Every edge gives e₁ OB e₂ because: PPOi has orderedBefore, and for COM at cycle
-  -- closure with CLE equality, all edges are CO.sameCache (cache_ob) by junction argument.
-  -- Compose OB: e OB ... OB e → e OB e → False.
-  -- But not all COM edges give OB... so track OB from the path directly.
-  -- Actually: edge_self_false proves R e e → False. Use it for single-step.
-  -- For multi-step: compose through edges.
-  -- TransGen R e e = R e a₁ ∧ TransGen R a₁ e, or R e e.
-  -- Use Relation.TransGen.head_induction_on or similar.
-  -- Use cle_path_invariant_with_ob which tracks event-level OB alongside CLE evidence.
-  -- At cycle closure with CLE equality: the event-level OB gives e OB e → False.
-  sorry -- TODO: implement cle_path_invariant_with_ob
+  -- The proof requires that every edge in the cycle gives event-level OrderedBefore.
+  -- PPOi: orderedBefore directly. co.sameCache: cache_ob. rfe: always gives non-eq CleLink
+  -- (temporal contradiction at cycle closure). co.sameClusDiffCache/diffClus: same CLE
+  -- contradicts their CLE ordering evidence (exfalso). fr.sameCLE: the one hard case.
+  --
+  -- fr.sameCLE at cycle closure: aᵢ.isRead, aᵢ₊₁.isWrite, same CLE. The cycle gives
+  -- aᵢ₊₁ OB aᵢ (from composing OBs of other edges). The fr says aᵢ reads from e_w and
+  -- aᵢ₊₁ co-overwrites e_w. So e_w OB aᵢ₊₁ OB aᵢ. The read aᵢ reads from e_w despite
+  -- aᵢ₊₁ (a write at the same address) being between e_w and aᵢ temporally.
+  -- NoInterveningWrites at the CLE level is vacuous (same CLE).
+  -- Needs: cache-level NIW or a stronger fr.sameCLE → event OB lemma.
+  sorry
 
 theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
@@ -2842,11 +2834,11 @@ theorem cmcm_acyclic_of_hknow
     -- To avoid heartbeat timeout from inline match, use cleLink_self_false_ne with
     -- h_not_eq proved by CleLink case analysis.
     by_cases h_is_eq : ∃ heq : (hknow e).cle = (hknow e).cle, hcle = .eq heq
-    · exact cycle_eq_closure hknow hcycle
+    · exact cycle_eq_closure hknow h_non_lazy_ppoi hcycle
     · push_neg at h_is_eq
       exact cleLink_self_false_ne b.orderedAtEntry.dir_ordered h_cle_isdir hcle h_is_eq
   | inr hr => cases hr with
-    | inl _ => exact cycle_eq_closure hknow hcycle
+    | inl _ => exact cycle_eq_closure hknow h_non_lazy_ppoi hcycle
     | inr hob_rev => exact Event.contradiction_of_reflexive_ordered_before n hob_rev
 
 /-- Extract ¬e₁.down and ¬e₂.down from any PPOi∪COM edge. -/
