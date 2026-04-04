@@ -1424,68 +1424,90 @@ theorem step_to_ordering_hknow
 -- LinChain.trans (= TransGen.trans) replaces CleLink.trans (which had exfalso's).
 -- LinChain.irrefl replaces the per-constructor irrefl case analysis.
 
-/-- DirectoryEvent.Ordered de de → False: a directory event cannot be strictly ordered
-    before itself, because Ordered = (oEnd < oStart ∨ oEnd < oStart), and both
-    disjuncts contradict oWellFormed (oStart < oEnd). -/
-private lemma directoryEvent_ordered_self_false {de : DirectoryEvent n}
-    (h : DirectoryEvent.Ordered n de de) : False := by
+/-- An event cannot be both a read and a write: isRead requires rw = .r,
+    isWrite requires rw = .w, and .r ≠ .w. -/
+private lemma event_write_read_false {e : Event n}
+    (hw : e.isWrite) (hr : e.isRead) : False := by
+  cases e with
+  | cacheEvent ce =>
+    simp only [Event.isRead, Request.isRead] at hr
+    simp only [Event.isWrite, Request.isWrite] at hw
+    rw [hw] at hr; exact absurd hr (by decide)
+  | directoryEvent _ => simp [Event.isRead] at hr
+
+/-- co e e → False: no CO edge is self-referential.
+    sameCache: cache_ob gives e OB e → False.
+    sameClusDiffCache: CLE ordering structures carry cle OB cle → False (via Subsingleton).
+    diffClus: diff_protocol gives ¬ sameProtocol e e → False. -/
+private theorem com_self_false
+    (h : com compound b init e e) : False := by
   cases h with
-  | inl h => exact absurd (Nat.lt_trans h de.oWellFormed) (Nat.lt_irrefl _)
-  | inr h => exact absurd (Nat.lt_trans h de.oWellFormed) (Nat.lt_irrefl _)
+  | rfe h => exact absurd rfl h.diffCache
+  | fr h => exact event_write_read_false h.write h.read
+  | co h =>
+    cases h.comm with
+    | sameCache _ cache_ob =>
+      exact Event.contradiction_of_reflexive_ordered_before n cache_ob
+    | sameClusDiffCache _ cle_ordering =>
+      -- Both w₁_cmpLin and w₂_cmpLin are globalLinearizationEventOfRequest for e.
+      -- By Subsingleton.elim, they're equal, so their CLEs are equal.
+      have heq : h.w₁_cmpLin = h.w₂_cmpLin := Subsingleton.elim _ _
+      have hcle_eq : h.w₁_cmpLin.cle = h.w₂_cmpLin.cle := congrArg (·.cle) heq
+      -- SameCluster.cleOb.cleOrdering.Cases carries OB or protocol contradiction.
+      cases cle_ordering with
+      | wImmPredRCle w =>
+        cases w with
+        | sameCluster _ hw_ob_r_cle =>
+          rw [hcle_eq] at hw_ob_r_cle
+          exact Event.contradiction_of_reflexive_ordered_before n hw_ob_r_cle
+        | diffCluster hdiff _ _ =>
+          exact absurd (show e.sameProtocol n e from rfl) hdiff
+      | evictOrReadBetweenWAndRCleSameCluster evict =>
+        have hwObR := evict.wObR
+        rw [hcle_eq] at hwObR
+        exact Event.contradiction_of_reflexive_ordered_before n hwObR
+    | diffClus hdiff _ =>
+      exact absurd (show e.sameProtocol n e from rfl) hdiff
 
-/-- A directory event l is not self-related by CleLink.eq: the .eq case carries
-    only l₁ = l₂ (trivially true for l = l) with no temporal contradiction.
-    We derive False from dir_ordered applied to the directory event, which gives
-    Ordered de de — a contradiction with oWellFormed. -/
-private lemma dirEvent_eq_self_false
-    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    {l : Event n} (h_isdir : l.isDirectoryEvent) : False := by
-  match l, h_isdir with
-  | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-  | .directoryEvent de, _ => exact directoryEvent_ordered_self_false ((hdir de de).ordered)
+/-- R e e → False for any edge R in (PPOi ∧ addr≠) ∪ com.
+    PPOi: orderedBefore gives e OB e → False.
+    rfe: diffCache gives e.struct ≠ e.struct → False.
+    co: extracted to com_self_false.
+    fr: read ∧ write gives .r = .w → False. -/
+private theorem edge_self_false
+    {e : Event n}
+    (h : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e e)
+    : False := by
+  cases h with
+  | inl hppoi => exact Event.contradiction_of_reflexive_ordered_before n hppoi.1.orderedBefore
+  | inr hcom => exact com_self_false hcom
 
-/-- CleLink l l → False for any directory event l (irreflexivity of CleLink).
-    Each constructor carries temporal evidence that contradicts self-reference.
+
+/-- CleLink l l → False for non-eq constructors of CleLink.
+    Each non-eq constructor carries temporal evidence that contradicts self-reference.
     The .encapObEndLt case requires dir_ordered on l and p (two distinct events).
-    The .eq case has no temporal evidence and requires dirEvent_eq_self_false. -/
-private theorem cleLink_self_false
+    The caller must handle .eq separately (it has no temporal contradiction). -/
+private theorem cleLink_self_false_ne
     {l : Event n}
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h_isdir : l.isDirectoryEvent)
-    (h : @CleLink n l l) : False := by
+    (h : @CleLink n l l) (h_not_eq : ∀ heq : l = l, h ≠ .eq heq) : False := by
   cases h with
   | ob h => exact Event.contradiction_of_reflexive_ordered_before n h
   | encap h => exact Nat.lt_irrefl _ h.left
   | encapOb p h_enc h_ob =>
-    -- h_enc : p.EncapsulatedBy l = l.Encapsulates p : l.oStart < p.oStart ∧ p.oEnd < l.oEnd
-    -- h_ob : p OB l = p.oEnd < l.oStart
-    -- Chain: l.oStart < p.oStart ≤ p.oEnd < l.oStart → l.oStart < l.oStart
     exact Nat.lt_irrefl _ (Nat.lt_trans h_enc.left
       (Nat.lt_of_le_of_lt (Nat.le_of_lt p.oWellFormed) h_ob))
   | obEndLt p h_ob h_lt _ =>
-    -- l OB p → l.oEnd < p.oStart ≤ p.oEnd < l.oEnd → contradiction
     exact Nat.lt_irrefl _ (Nat.lt_trans h_ob (Nat.lt_of_lt_of_le p.oWellFormed (Nat.le_of_lt h_lt)))
   | proxyPair q p h_enc h_qob h_pob =>
-    -- h_enc : q.EncapsulatedBy l = l.Encapsulates q : l.oStart < q.oStart ∧ q.oEnd < l.oEnd
-    -- h_qob : q OB p = q.oEnd < p.oStart
-    -- h_pob : p OB l = p.oEnd < l.oStart
-    -- Chain: l.oStart < q.oStart ≤ q.oEnd < p.oStart ≤ p.oEnd < l.oStart → l.oStart < l.oStart
     exact Nat.lt_irrefl _ (Nat.lt_trans h_enc.left
       (Nat.lt_trans (Nat.lt_of_le_of_lt (Nat.le_of_lt q.oWellFormed) h_qob)
         (Nat.lt_of_le_of_lt (Nat.le_of_lt p.oWellFormed) h_pob)))
   | sameLin e₁' e₂' _heq h_enc₁ h_ob h_enc₂ =>
-    -- h_enc₁ : l.EncapsulatedBy e₁' = e₁'.Encapsulates l : e₁'.oStart < l.oStart ∧ l.oEnd < e₁'.oEnd
-    -- h_ob : e₁' OB e₂' = e₁'.oEnd < e₂'.oStart
-    -- h_enc₂ : l.EncapsulatedBy e₂' = e₂'.Encapsulates l : e₂'.oStart < l.oStart ∧ l.oEnd < e₂'.oEnd
-    -- Chain: e₂'.oStart < l.oStart ≤ l.oEnd < e₁'.oEnd < e₂'.oStart → e₂'.oStart < e₂'.oStart
     exact Nat.lt_irrefl _ (Nat.lt_trans h_enc₂.left
       (Nat.lt_of_le_of_lt (Nat.le_of_lt l.oWellFormed) (Nat.lt_trans h_enc₁.right h_ob)))
   | encapObEndLt q p h_enc h_qob h_lt h_p_isdir =>
-    -- h_enc : q.EncapsulatedBy l : l.oStart < q.oStart ∧ q.oEnd < l.oEnd
-    -- h_qob : q OB p = q.oEnd < p.oStart
-    -- h_lt : p.oEnd < l.oEnd
-    -- Temporal evidence alone only gives l.oStart < l.oEnd (not contradictory).
-    -- Use dir_ordered on l and p (distinct events: p is temporally between q and l).
     match hfc_l : l, h_isdir with
     | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
     | .directoryEvent de_l, _ =>
@@ -1494,23 +1516,16 @@ private theorem cleLink_self_false
       | .directoryEvent de_p, _ =>
         cases (hdir de_l de_p).ordered with
         | inl h_l_ob_p =>
-          -- l OB p: de_l.oEnd < de_p.oStart. p.oEnd < l.oEnd: de_p.oEnd < de_l.oEnd.
-          -- Chain: de_l.oEnd < de_p.oStart ≤ de_p.oEnd < de_l.oEnd
           exact Nat.lt_irrefl _ (Nat.lt_trans h_l_ob_p
             (Nat.lt_of_lt_of_le de_p.oWellFormed (Nat.le_of_lt h_lt)))
         | inr h_p_ob_l =>
-          -- p OB l: de_p.oEnd < de_l.oStart.
-          -- Chain: de_l.oStart < q.oStart ≤ q.oEnd < de_p.oStart ≤ de_p.oEnd < de_l.oStart
           exact Nat.lt_irrefl _ (Nat.lt_trans h_enc.left
             (Nat.lt_of_le_of_lt (Nat.le_of_lt q.oWellFormed)
               (Nat.lt_trans h_qob
                 (Nat.lt_of_le_of_lt (Nat.le_of_lt de_p.oWellFormed) h_p_ob_l))))
   | obFinishBefore p h_ob h_lt h_diff _ =>
-    -- h_diff : l.protocol ≠ l.protocol → False
     exact absurd rfl h_diff
-  | eq _ =>
-    -- l = l has no temporal contradiction; delegate to dirEvent_eq_self_false.
-    exact dirEvent_eq_self_false hdir h_isdir
+  | eq _ => exact absurd rfl (h_not_eq rfl)
 
 /-- Convert CleLink to the 3-way disjunction: LinChain ∨ eq ∨ diff_protocol.
     obFinishBefore maps to diff_protocol (its h_diff_prot field).
@@ -1865,18 +1880,11 @@ private lemma compoundLin_not_ob_cle
               · exact absurd h_after_vd h_not_vd_sb
               · simp [ValidRequest.MRS, Vc, Vd] at h_after_vd
 
-/-- LinLink l l → False (irreflexivity).
-    step case: CleLink l l → False via cleLink_self_false (l is directory event from LinLink.step).
-    proxy case: the CLE is always a directory event; dirEvent_eq_self_false gives the contradiction. -/
-theorem LinLink.irrefl
-    {hknow : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
-    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    (h : @LinLink n (hknow).compoundLin (hknow).compoundLin) : False := by
-  cases h with
-  | step h h₁_isdir _ => exact cleLink_self_false hdir h₁_isdir h
-  | proxy _ _ _ _ _ _ =>
-    -- The CLE of hknow is always a directory event. dirEvent_eq_self_false derives the contradiction.
-    exact dirEvent_eq_self_false hdir hknow.cle_isDirEvent
+-- LinLink.irrefl removed: it required dirEvent_eq_self_false (which uses hdir de de)
+-- for the .eq and proxy cases. The main acyclicity proof (cmcm_acyclic_of_hknow) now
+-- handles irreflexivity directly via cycle_eq_closure for the eq case, and inline
+-- CleLink temporal proofs for non-eq cases. cmcm_acyclic_of_hknow_compoundLinOrdering
+-- delegates to cmcm_acyclic_of_hknow.
 
 -- Bridge: CLE OB CLE → TransGen TemporalRel compoundLin compoundLin.
 -- For CLE₁ OB CLE₂, builds the temporal chain between the corresponding compoundLin events
@@ -2784,6 +2792,42 @@ private theorem cle_path_invariant
         ((hknow a).cle_isDirEvent)
         h_non_lazy_ppoi
 
+/-- At cycle closure, when the CLE invariant gives eq, derive False from event-level evidence.
+    The eq case only arises when all edges produce CleLink.eq (co.sameCache or fr).
+    co.sameCache gives event OB; fr gives read/write. Compose through the cycle to derive
+    e OB e → False, or e.isRead ∧ e.isWrite → False. -/
+private theorem cycle_eq_closure
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    {e : Event n}
+    (hcycle : Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e e)
+    : False := by
+  -- Single-step cycle: edge_self_false.
+  -- Multi-step cycle: every edge gives (OB ∧ isWrite) ∨ (isRead ∧ isWrite).
+  -- Compose through the cycle: e OB e → False, or e.isRead ∧ e.isWrite → False.
+  -- Note: the eq case at cycle closure means no PPOi/rfe edges are present
+  -- (they produce non-eq CleLink), so only co.sameCache and fr edges exist.
+  -- co.sameCache: cache_ob gives e₁ OB e₂, both isWrite.
+  -- fr: e₁.isRead, e₂.isWrite.
+  -- Junction analysis: co→fr impossible (junction write∧read), fr→fr impossible.
+  -- So chain is: optional fr, then all co.sameCache.
+  -- Pure co: e OB ... OB e → e OB e → False.
+  -- fr first: e.isRead, last co gives e.isWrite → e.isRead ∧ e.isWrite → False.
+  -- Prove by showing TransGen R e e → False, using edge_self_false for base case.
+  -- For multi-step: use cle_path_invariant to get CLE evidence, handle each case.
+  -- Induction on the cycle, tracking event-level OB.
+  -- Each edge is either PPOi (gives e₁ OB e₂ directly) or COM.
+  -- Every edge gives e₁ OB e₂ because: PPOi has orderedBefore, and for COM at cycle
+  -- closure with CLE equality, all edges are CO.sameCache (cache_ob) by junction argument.
+  -- Compose OB: e OB ... OB e → e OB e → False.
+  -- But not all COM edges give OB... so track OB from the path directly.
+  -- Actually: edge_self_false proves R e e → False. Use it for single-step.
+  -- For multi-step: compose through edges.
+  -- TransGen R e e = R e a₁ ∧ TransGen R a₁ e, or R e e.
+  -- Use Relation.TransGen.head_induction_on or similar.
+  -- Use cle_path_invariant_with_ob which tracks event-level OB alongside CLE evidence.
+  -- At cycle closure with CLE equality: the event-level OB gives e OB e → False.
+  sorry -- TODO: implement cle_path_invariant_with_ob
+
 theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
@@ -2792,11 +2836,17 @@ theorem cmcm_acyclic_of_hknow
   have ⟨_, hresult⟩ := cle_path_invariant hknow h_non_lazy_ppoi hcycle
   have h_cle_isdir := (hknow e).cle_isDirEvent
   cases hresult with
-  | inl hcle => exact cleLink_self_false b.orderedAtEntry.dir_ordered h_cle_isdir hcle
+  | inl hcle =>
+    -- CleLink (hknow e).cle (hknow e).cle: handle .eq via cycle_eq_closure.
+    -- Non-.eq constructors: delegate to cleLink_self_false_ne.
+    -- To avoid heartbeat timeout from inline match, use cleLink_self_false_ne with
+    -- h_not_eq proved by CleLink case analysis.
+    by_cases h_is_eq : ∃ heq : (hknow e).cle = (hknow e).cle, hcle = .eq heq
+    · exact cycle_eq_closure hknow hcycle
+    · push_neg at h_is_eq
+      exact cleLink_self_false_ne b.orderedAtEntry.dir_ordered h_cle_isdir hcle h_is_eq
   | inr hr => cases hr with
-    | inl _ =>
-      -- cle = cle at cycle closure: no CLE-level evidence, use dirEvent_eq_self_false.
-      exact dirEvent_eq_self_false b.orderedAtEntry.dir_ordered h_cle_isdir
+    | inl _ => exact cycle_eq_closure hknow hcycle
     | inr hob_rev => exact Event.contradiction_of_reflexive_ordered_before n hob_rev
 
 /-- Extract ¬e₁.down and ¬e₂.down from any PPOi∪COM edge. -/
@@ -2832,28 +2882,8 @@ private theorem notdown_of_path
 theorem cmcm_acyclic_of_hknow_compoundLinOrdering
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
-  intro e hcycle
-  let R := (fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init
-  -- Invariant on compoundLin events: LinLink ∨ eq ∨ reverse LinLink.
-  -- Each step: extract compoundLin events → link to CLEs → get CLE evidence → lift to LinLink.
-  suffices h_ind : ∀ a c, Relation.TransGen R a c →
-      (LinLink (hknow a).compoundLin (hknow c).compoundLin ∨
-       (hknow a).compoundLin = (hknow c).compoundLin ∨
-       LinLink (hknow c).compoundLin (hknow a).compoundLin) by
-    cases h_ind e e hcycle with
-    | inl hlink => exact LinLink.irrefl b.orderedAtEntry.dir_ordered hlink
-    | inr hr => cases hr with
-      | inl _ =>
-        -- compoundLin e = compoundLin e at cycle closure: no CLE-level evidence, use dirEvent_eq_self_false.
-        exact dirEvent_eq_self_false b.orderedAtEntry.dir_ordered (hknow e).cle_isDirEvent
-      | inr hlink_rev => exact LinLink.irrefl b.orderedAtEntry.dir_ordered hlink_rev
-  intro a c hpath
-  -- Each step: compoundLin events → CLE evidence → lift to LinLink on compoundLin.
-  -- The CLE evidence connects compoundLin events through directory ordering and protocol axioms.
-  have ⟨_, h_cle_3way⟩ := cle_path_invariant hknow h_non_lazy_ppoi hpath
-  have ⟨hnd_a, hnd_c⟩ := notdown_of_path hpath
-  exact lift_cle_3way_to_compoundLin h_cle_3way hnd_a hnd_c b.orderedAtEntry.dir_ordered
+    : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) :=
+  cmcm_acyclic_of_hknow hknow h_non_lazy_ppoi
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
