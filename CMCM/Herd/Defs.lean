@@ -236,7 +236,7 @@ inductive CleLink : Event n → Event n → Prop where
   | encap (h_enc : l₁.Encapsulates n l₂) (h_ne : l₁ ≠ l₂) : CleLink l₁ l₂
   | encapObEndLt (q p : Event n) (h_q_enc : q.EncapsulatedBy n l₁)
       (h_q_ob_p : q.OrderedBefore n p) (h_p_lt : Event.oEnd n p < Event.oEnd n l₂)
-      (h_p_isdir : p.isDirectoryEvent) : CleLink l₁ l₂
+      (h_p_isdir : p.isDirectoryEvent) (h_ne : l₁ ≠ l₂) : CleLink l₁ l₂
 
 -- CleLink decomposes into equality or a transitive chain of basic temporal steps.
 -- The eq constructor maps to l₁ = l₂ (not TemporalRel, which requires strict progress).
