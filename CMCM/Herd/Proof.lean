@@ -195,7 +195,7 @@ theorem co_step_to_ordering
     cases cle_ord with
     | wImmPredRCle w =>
       cases w with
-      | sameCluster _ hob => exact .ob hob
+      | sameCluster _ hob => exact .ob hob (Event.ne_of_ob hob)
       | diffCluster _ hdown hwObRDown =>
         have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
         exact .obEndLt hdown.existsRClusterDirDown.choose
