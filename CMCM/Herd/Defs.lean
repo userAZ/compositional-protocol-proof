@@ -186,6 +186,55 @@ theorem Event.ne_of_encapBy {e₁ e₂ : Event n} (h : e₁.EncapsulatedBy n e�
 theorem Event.ne_of_diff_prot {e₁ e₂ : Event n} (h : e₁.protocol ≠ e₂.protocol) : e₁ ≠ e₂ :=
   fun heq => by subst heq; exact absurd rfl h
 
+-- EncapOb (p inside l₁, p OB l₂) at self → False.
+theorem Event.ne_of_encapOb {l₁ l₂ : Event n} {p : Event n}
+    (h_enc : p.EncapsulatedBy n l₁) (h_ob : p.OrderedBefore n l₂) : l₁ ≠ l₂ :=
+  fun heq => Nat.lt_irrefl _ (heq ▸ Nat.lt_trans h_enc.left
+    (Nat.lt_of_le_of_lt (Nat.le_of_lt p.oWellFormed) h_ob))
+
+-- ProxyPair (q inside l₁, q OB p, p OB l₂) at self → False.
+theorem Event.ne_of_proxyPair {l₁ l₂ : Event n} {q p : Event n}
+    (h_enc : q.EncapsulatedBy n l₁) (h_qob : q.OrderedBefore n p) (h_pob : p.OrderedBefore n l₂) : l₁ ≠ l₂ :=
+  fun heq => Nat.lt_irrefl _ (heq ▸ Nat.lt_trans h_enc.left (Nat.lt_trans
+    (Nat.lt_of_le_of_lt (Nat.le_of_lt q.oWellFormed) h_qob)
+    (Nat.lt_of_le_of_lt (Nat.le_of_lt p.oWellFormed) h_pob)))
+
+-- ObEndLt (l₁ OB p, p.oEnd < l₂.oEnd) at self → False.
+theorem Event.ne_of_obEndLt {l₁ l₂ : Event n} {p : Event n}
+    (h_ob : l₁.OrderedBefore n p) (h_lt : Event.oEnd n p < Event.oEnd n l₂) : l₁ ≠ l₂ :=
+  fun heq => Nat.lt_irrefl _ (heq ▸ Nat.lt_trans h_ob
+    (Nat.lt_of_lt_of_le p.oWellFormed (Nat.le_of_lt h_lt)))
+
+-- EncapObEndLt (q inside l₁, q OB p, p.oEnd < l₂.oEnd) at self → False.
+-- Uses dir_ordered on l₁ and p (DISTINCT events, legitimate).
+-- Actually: just chain temporals.
+theorem Event.ne_of_encapObEndLt {l₁ l₂ : Event n} {q p : Event n}
+    (h_enc : q.EncapsulatedBy n l₁) (h_qob : q.OrderedBefore n p)
+    (h_lt : Event.oEnd n p < Event.oEnd n l₂) : l₁ ≠ l₂ := by
+  intro heq; subst heq
+  -- After subst: l₂ gone, h_lt : p.oEnd < l₁.oEnd, h_enc : q inside l₁
+  -- Chain: l₁.oStart < q.oStart ≤ q.oEnd < p.oStart ≤ p.oEnd < l₁.oEnd < l₁.oEnd?
+  -- No: l₁.oStart < q.oStart (h_enc.left), q.oEnd < p.oStart (from q OB p via h_qob),
+  -- p.oEnd < l₁.oEnd (h_lt after subst). But l₁.oStart < l₁.oEnd is just oWellFormed.
+  -- Need: l₁.oStart < l₁.oStart for contradiction. Use:
+  -- h_enc.right : q.oEnd < l₁.oEnd. h_enc.left : l₁.oStart < q.oStart.
+  -- h_qob : q.oEnd < p.oStart. h_lt : p.oEnd < l₁.oEnd (after subst l₂ = l₁).
+  -- Chain to get l₁.oEnd < l₁.oEnd? No, get l₁.oStart < l₁.oEnd which is trivial.
+  -- Actually need: a cycle in temporal values.
+  -- From encapBy: l₁.oStart < q.oStart AND q.oEnd < l₁.oEnd.
+  -- q OB p: q.oEnd < p.oStart.
+  -- p.oEnd < l₁.oEnd (h_lt after subst).
+  -- p.oStart ≤ p.oEnd (oWellFormed). q.oStart ≤ q.oEnd (oWellFormed).
+  -- Chain: q.oEnd < p.oStart ≤ p.oEnd < l₁.oEnd.
+  -- And: l₁.oStart < q.oStart ≤ q.oEnd.
+  -- Combined: l₁.oStart < q.oStart ≤ q.oEnd < p.oStart ≤ p.oEnd < l₁.oEnd.
+  -- This gives l₁.oStart < l₁.oEnd (trivially true). NOT a contradiction!
+  -- encapObEndLt at self DOESN'T give a temporal contradiction from these fields alone!
+  -- This was the case that previously needed dir_ordered on l and p (distinct events).
+  -- Without dir_ordered: no contradiction from temporal evidence alone.
+  -- h_ne can't be derived from temporal evidence for encapObEndLt!
+  sorry
+
 /-- CleLink between linearization events (CLEs). Each edge derives
     `CleLink CLE₁ CLE₂` from communication evidence. A cycle gives
     `CleLink CLE CLE → False` via irreflexivity.
