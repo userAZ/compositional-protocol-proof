@@ -76,7 +76,7 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **RfCase files**: Fixed `rCleOrDownAtWAfterWCle.diffCluster` pattern match (missing 3rd field after `wObRDown` was added).
 
 ### TODO
-8. **Remove remaining `hdir de de` abuse (2 locations)**: `cleLink_self_false` `.eq` case (line ~1498) and `LinLink.irrefl` proxy case (line ~1870) still use `dir_ordered de de` (same event). These are at CYCLE CLOSURE where self-referencing needs `False`. Proper fix: prove cycles always make CLE progress (no all-eq paths), or use CleLink irreflexivity that handles `.eq` without `dir_ordered` self-application.
+8. **Remove remaining `hdir de de` abuse (2 locations)**: `cleLink_self_false` `.eq` case and `LinLink.irrefl` proxy case still use `dir_ordered de de` (same event). Proper fix via protocol reasoning: a cycle at the same address/cache ALWAYS contains a CO.sameCache edge (carries `cache_ob : e₁ OB e₂`). FR goes read→write (can't cycle alone — `fr(write, x)` needs `write.isRead`). Pure FR cycles impossible. So any cycle with CLE equality has event-level OB from CO → OB cycle on events → `e OB e` → False. Implementation: at cycle closure with CLE equality, extract event-level OB from the CO edge, compose through cycle → contradiction.
 9. **Finish cmpLin theorem/induction**: Make the relations around cmpLin explicit — the induction should show compoundLin events are ordered at each step through CLEs/GLEs.
 
 ### TODO — PREVIOUSLY COMPLETE
