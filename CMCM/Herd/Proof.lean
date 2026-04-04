@@ -1424,11 +1424,30 @@ theorem step_to_ordering_hknow
 -- LinChain.trans (= TransGen.trans) replaces CleLink.trans (which had exfalso's).
 -- LinChain.irrefl replaces the per-constructor irrefl case analysis.
 
+/-- DirectoryEvent.Ordered de de → False: a directory event cannot be strictly ordered
+    before itself, because Ordered = (oEnd < oStart ∨ oEnd < oStart), and both
+    disjuncts contradict oWellFormed (oStart < oEnd). -/
+private lemma directoryEvent_ordered_self_false {de : DirectoryEvent n}
+    (h : DirectoryEvent.Ordered n de de) : False := by
+  cases h with
+  | inl h => exact absurd (Nat.lt_trans h de.oWellFormed) (Nat.lt_irrefl _)
+  | inr h => exact absurd (Nat.lt_trans h de.oWellFormed) (Nat.lt_irrefl _)
+
+/-- A directory event l is not self-related by CleLink.eq: the .eq case carries
+    only l₁ = l₂ (trivially true for l = l) with no temporal contradiction.
+    We derive False from dir_ordered applied to the directory event, which gives
+    Ordered de de — a contradiction with oWellFormed. -/
+private lemma dirEvent_eq_self_false
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    {l : Event n} (h_isdir : l.isDirectoryEvent) : False := by
+  match l, h_isdir with
+  | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+  | .directoryEvent de, _ => exact directoryEvent_ordered_self_false ((hdir de de).ordered)
+
 /-- CleLink l l → False for any directory event l (irreflexivity of CleLink).
     Each constructor carries temporal evidence that contradicts self-reference.
-    The .eq and .encapObEndLt cases require dir_ordered (temporal evidence alone is insufficient).
-    For .eq: dir_ordered l l gives l OB l → contradiction with oWellFormed.
-    For .encapObEndLt: dir_ordered l p gives the missing temporal link. -/
+    The .encapObEndLt case requires dir_ordered on l and p (two distinct events).
+    The .eq case has no temporal evidence and requires dirEvent_eq_self_false. -/
 private theorem cleLink_self_false
     {l : Event n}
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
@@ -1466,7 +1485,7 @@ private theorem cleLink_self_false
     -- h_qob : q OB p = q.oEnd < p.oStart
     -- h_lt : p.oEnd < l.oEnd
     -- Temporal evidence alone only gives l.oStart < l.oEnd (not contradictory).
-    -- Use dir_ordered on l and p to get the missing link.
+    -- Use dir_ordered on l and p (distinct events: p is temporally between q and l).
     match hfc_l : l, h_isdir with
     | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
     | .directoryEvent de_l, _ =>
@@ -1490,14 +1509,8 @@ private theorem cleLink_self_false
     -- h_diff : l.protocol ≠ l.protocol → False
     exact absurd rfl h_diff
   | eq _ =>
-    -- l = l is trivially true from temporal evidence alone.
-    -- But l is a directory event, so dir_ordered l l gives l OB l, contradicting oWellFormed.
-    match hfc : l, h_isdir with
-    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-    | .directoryEvent de, _ =>
-      cases (hdir de de).ordered with
-      | inl h => exact absurd (Nat.lt_trans h de.oWellFormed) (Nat.lt_irrefl _)
-      | inr h => exact absurd (Nat.lt_trans h de.oWellFormed) (Nat.lt_irrefl _)
+    -- l = l has no temporal contradiction; delegate to dirEvent_eq_self_false.
+    exact dirEvent_eq_self_false hdir h_isdir
 
 /-- Convert CleLink to the 3-way disjunction: LinChain ∨ eq ∨ diff_protocol.
     obFinishBefore maps to diff_protocol (its h_diff_prot field).
@@ -1854,7 +1867,7 @@ private lemma compoundLin_not_ob_cle
 
 /-- LinLink l l → False (irreflexivity).
     step case: CleLink l l → False via cleLink_self_false (l is directory event from LinLink.step).
-    proxy case: dir_ordered on the CLE (always a directory event) gives de OB de → False. -/
+    proxy case: the CLE is always a directory event; dirEvent_eq_self_false gives the contradiction. -/
 theorem LinLink.irrefl
     {hknow : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
@@ -1862,14 +1875,8 @@ theorem LinLink.irrefl
   cases h with
   | step h h₁_isdir _ => exact cleLink_self_false hdir h₁_isdir h
   | proxy _ _ _ _ _ _ =>
-    -- The CLE of hknow is always a directory event. dir_ordered de de → de OB de → False.
-    have h_cle_isdir := hknow.cle_isDirEvent
-    match hfc : hknow.cle, h_cle_isdir with
-    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-    | .directoryEvent de, _ =>
-      cases (hdir de de).ordered with
-      | inl h => exact absurd (Nat.lt_trans h de.oWellFormed) (Nat.lt_irrefl _)
-      | inr h => exact absurd (Nat.lt_trans h de.oWellFormed) (Nat.lt_irrefl _)
+    -- The CLE of hknow is always a directory event. dirEvent_eq_self_false derives the contradiction.
+    exact dirEvent_eq_self_false hdir hknow.cle_isDirEvent
 
 -- Bridge: CLE OB CLE → TransGen TemporalRel compoundLin compoundLin.
 -- For CLE₁ OB CLE₂, builds the temporal chain between the corresponding compoundLin events
@@ -2788,8 +2795,8 @@ theorem cmcm_acyclic_of_hknow
   | inl hcle => exact cleLink_self_false b.orderedAtEntry.dir_ordered h_cle_isdir hcle
   | inr hr => cases hr with
     | inl _ =>
-      -- cle = cle at cycle closure → CleLink.eq → dir_ordered de de → False
-      exact cleLink_self_false b.orderedAtEntry.dir_ordered h_cle_isdir (.eq rfl)
+      -- cle = cle at cycle closure: no CLE-level evidence, use dirEvent_eq_self_false.
+      exact dirEvent_eq_self_false b.orderedAtEntry.dir_ordered h_cle_isdir
     | inr hob_rev => exact Event.contradiction_of_reflexive_ordered_before n hob_rev
 
 /-- Extract ¬e₁.down and ¬e₂.down from any PPOi∪COM edge. -/
@@ -2838,8 +2845,8 @@ theorem cmcm_acyclic_of_hknow_compoundLinOrdering
     | inl hlink => exact LinLink.irrefl b.orderedAtEntry.dir_ordered hlink
     | inr hr => cases hr with
       | inl _ =>
-        -- compoundLin e = compoundLin e at cycle closure → use dir_ordered on CLE
-        exact cleLink_self_false b.orderedAtEntry.dir_ordered (hknow e).cle_isDirEvent (.eq rfl)
+        -- compoundLin e = compoundLin e at cycle closure: no CLE-level evidence, use dirEvent_eq_self_false.
+        exact dirEvent_eq_self_false b.orderedAtEntry.dir_ordered (hknow e).cle_isDirEvent
       | inr hlink_rev => exact LinLink.irrefl b.orderedAtEntry.dir_ordered hlink_rev
   intro a c hpath
   -- Each step: compoundLin events → CLE evidence → lift to LinLink on compoundLin.
