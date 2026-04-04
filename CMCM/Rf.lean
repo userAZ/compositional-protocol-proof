@@ -79,6 +79,15 @@ lemma Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB
     · case isFalse h =>
       exact absurd (Behaviour.hasPermsInGlobalCache_implies_nonempty_immFinishBefore b init _ hcdir_has_gperms) h
 
+/-- CompoundMCM linearization event, parameterized by the linearizationOfEvent value.
+    Avoids dependent type issues by taking lin_ev as an explicit parameter. -/
+noncomputable def CompoundProtocol.compoundLinOf
+    (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (e : Event n)
+    (lin_ev : Behaviour.linearizationEventOfRequest n b init e) : Event n :=
+  match cmp.compoundLinearizationEvent cmp.shimAxioms b init e lin_ev with
+  | .clusterCacheLin lin_e => lin_e.choose
+  | .clusterDirLin lin_e => lin_e.choose
+
 /-- The Cluster Memory Order and Global Memory Order events (or Cluster Linearization Event CLE and Global Linearization Event GLE).
 Note these terms are different from the PPO Linearization event of a request event from the PPO ordering proof.
 A cluster request `e_creq` has a CLE `e_creq_lin` that linearizes `e_creq` in its cluster's (total or partial) memory order.
@@ -86,6 +95,10 @@ A cluster request `e_creq` has a CLE `e_creq_lin` that linearizes `e_creq` in it
 -/
 structure CompoundProtocol.globalLinearizationEventOfRequest (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
   (e_creq : Event n) where
+  -- The compoundLin event: the linearization point for this request.
+  -- Either the cache event itself (requestLin: has perms) or a deeper directory event (dirLin: no perms).
+  hcompoundLin : ∃ cmpLin : Event n,
+    cmpLin = cmp.compoundLinOf b init e_creq (cmp.linearizationOfEvent b init e_creq)
   -- The "Cluster Memory Order, CMO" — CLE (cluster linearization event, a directory event)
   hreq's_dir_access : ∃ e_cdir ∈ b, b.dirAccessOfRequest n init e_creq e_cdir
   -- The "Global Memory Order, GMO" — GLE (global linearization event)
@@ -98,22 +111,19 @@ structure CompoundProtocol.globalLinearizationEventOfRequest (cmp : CompoundProt
     cmp.linearizationOfEvent b init e_creq = .dirLin hdir →
     hreq's_dir_access.choose = hdir.choose_spec.2.reqLinearizeAtDir.choose
 
-/-- CompoundMCM linearization event, parameterized by the linearizationOfEvent value.
-    Avoids dependent type issues by taking lin_ev as an explicit parameter. -/
-noncomputable def CompoundProtocol.compoundLinOf
-    (cmp : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) (e : Event n)
-    (lin_ev : Behaviour.linearizationEventOfRequest n b init e) : Event n :=
-  match cmp.compoundLinearizationEvent cmp.shimAxioms b init e lin_ev with
-  | .clusterCacheLin lin_e => lin_e.choose
-  | .clusterDirLin lin_e => lin_e.choose
-
-/-- CompoundMCM linearization event for a request. Deterministic function (not existential).
-    Either the cache event itself (requestLin: has perms) or the CLE (dirLin: no perms).
-    Used for the ranking function in acyclicity proof alongside CLE/GLE. -/
+/-- The compoundLin event: extracted from the existential field.
+    This is the primary linearization point for the request. -/
 noncomputable def CompoundProtocol.globalLinearizationEventOfRequest.compoundLin
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
-    (_ : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e) : Event n :=
-  cmp.compoundLinOf b init e (cmp.linearizationOfEvent b init e)
+    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e) : Event n :=
+  lin.hcompoundLin.choose
+
+/-- The compoundLin event equals the computed compoundLinOf value. -/
+theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_eq
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e) :
+    lin.compoundLin = cmp.compoundLinOf b init e (cmp.linearizationOfEvent b init e) :=
+  lin.hcompoundLin.choose_spec
 
 /-- CLE (cluster linearization event) — the directory event from dirAccessOfRequest. -/
 noncomputable abbrev CompoundProtocol.globalLinearizationEventOfRequest.cle
@@ -155,7 +165,7 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_of_cluste
     {hreqlin} (hlin_ev : cmp.linearizationOfEvent b init e = .requestLin hreqlin)
     {hcache} (hcmp : cmp.compoundLinearizationEvent cmp.shimAxioms b init e (.requestLin hreqlin) = .clusterCacheLin hcache)
     : lin.compoundLin = hcache.choose := by
-  show cmp.compoundLinOf b init e (cmp.linearizationOfEvent b init e) = hcache.choose
+  rw [lin.compoundLin_eq]
   rw [hlin_ev]; show cmp.compoundLinOf b init e (.requestLin hreqlin) = hcache.choose
   unfold CompoundProtocol.compoundLinOf; rw [hcmp]
 
@@ -215,7 +225,7 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_of_cluste
     {hdir} (hlin_ev : cmp.linearizationOfEvent b init e = .dirLin hdir)
     {hdir_case} (hcmp : cmp.compoundLinearizationEvent cmp.shimAxioms b init e (.dirLin hdir) = .clusterDirLin hdir_case)
     : lin.compoundLin = hdir_case.choose := by
-  show cmp.compoundLinOf b init e (cmp.linearizationOfEvent b init e) = hdir_case.choose
+  rw [lin.compoundLin_eq]
   rw [hlin_ev]; show cmp.compoundLinOf b init e (.dirLin hdir) = hdir_case.choose
   unfold CompoundProtocol.compoundLinOf; rw [hcmp]
 
