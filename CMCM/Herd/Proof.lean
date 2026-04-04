@@ -2738,6 +2738,10 @@ noncomputable def eventPartialOrder
 
 -- LinLink ⊆ TransGen TemporalRel: every LinLink between compoundLin events
 -- decomposes into a transitive chain of temporal relations.
+/-- Every LinLink between compoundLin events decomposes into a transitive chain
+    of temporal relations {OB, Encap, EncapBy, FinishesBefore}.
+    step case: delegates to CleLink.subset_temporalRel (both events are directory events).
+    proxy case: extracts the temporal chain directly (carried in the constructor). -/
 theorem LinLink.subset_temporalRel
     (h : @LinLink n l₁ l₂)
     (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
@@ -2746,5 +2750,41 @@ theorem LinLink.subset_temporalRel
   cases h with
   | step h h₁ h₂ => exact h.subset_temporalRel h₁ h₂ hdir
   | proxy _ _ _ _ _ h_chain => exact h_chain
+
+/-- LinLink on compoundLin events implies TemporalRel.
+    Simplified version: proxy case doesn't need isDirectoryEvent (h_chain is carried directly).
+    Uses dir_ordered for the step case (which requires isDirectoryEvent). -/
+theorem LinLink.toTemporalRel
+    {hknow₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {hknow₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (h : LinLink hknow₁.compoundLin hknow₂.compoundLin)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    : TemporalRel hknow₁.compoundLin hknow₂.compoundLin := by
+  cases h with
+  | step h h₁ h₂ => exact h.subset_temporalRel h₁ h₂ hdir
+  | proxy _ _ _ _ _ h_chain => exact h_chain
+
+/-- The compoundLin events along any PPOi ∪ COM path are connected by transitive
+    chains of temporal relations {OB, Encap, EncapBy, FinishesBefore}.
+    The proof: each compoundLin connects to its CLE (via compoundLin_cle),
+    CLEs are ordered through protocol axioms and downgrades (step_to_ordering, compose_three),
+    and the CLE ordering lifts back to compoundLin (cle_to_compoundLinOrdering). -/
+theorem compoundLin_temporalRel_of_path
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    {a c : Event n}
+    (hpath : Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) a c)
+    : TemporalRel (hknow a).compoundLin (hknow c).compoundLin ∨
+      (hknow a).compoundLin = (hknow c).compoundLin ∨
+      TemporalRel (hknow c).compoundLin (hknow a).compoundLin := by
+  have ⟨_, h_cle_3way⟩ := cle_path_invariant hknow h_non_lazy_ppoi hpath
+  have hdir := b.orderedAtEntry.dir_ordered
+  have hnd_a : ¬ a.down := (dir_ordered_false (lin := hknow a) hdir).elim
+  have hnd_c : ¬ c.down := (dir_ordered_false (lin := hknow c) hdir).elim
+  cases lift_cle_3way_to_compoundLin h_cle_3way hnd_a hnd_c hdir with
+  | inl hlink => exact Or.inl (hlink.toTemporalRel hdir)
+  | inr hr => cases hr with
+    | inl heq => exact Or.inr (Or.inl heq)
+    | inr hlink => exact Or.inr (Or.inr (hlink.toTemporalRel hdir))
 
 end Herd
