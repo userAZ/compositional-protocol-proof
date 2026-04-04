@@ -2343,7 +2343,10 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       cases hso₁ with
       | ob hob₁ => exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ hob₂) hlt₂ h_p₂_isdir)
       | encapOb p₁ henc₁ hob₁ =>
-        exact Or.inl (.encapObEndLt p₁ p₂ henc₁ (Trans.trans hob₁ hob₂) hlt₂ h_p₂_isdir)
+        if h_ne : l₁ = l₃ then
+          exact Or.inl (h_ne ▸ .eq rfl)
+        else
+          exact Or.inl (.encapObEndLt p₁ p₂ henc₁ (Trans.trans hob₁ hob₂) hlt₂ h_p₂_isdir h_ne)
       | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ _ =>
         exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Event.ob_of_lt_lt hlt₁ hob₂)) hlt₂ h_p₂_isdir)
       | obEndLt p₁ hob₁ hlt₁ _ =>
