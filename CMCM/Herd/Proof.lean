@@ -2831,21 +2831,27 @@ private theorem edge_eq_cle_write_ob
     : e₂.isWrite ∧ (e₁.isWrite → e₁.OrderedBefore n e₂) := by
   cases h with
   | inl hppoi =>
+    -- PPOi (diff addr): CLE₁ = CLE₂ → e₁.addr = e₂.addr → contradiction with addr ≠.
     exfalso
-    match hfc₁ : (hknow e₁).cle, (hknow e₁).cle_isDirEvent with
-    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-    | .directoryEvent de₁, _ =>
-      match hfc₂ : (hknow e₂).cle, (hknow e₂).cle_isDirEvent with
-      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-      | .directoryEvent de₂, _ =>
-        have h_de_eq : de₁ = de₂ := Event.directoryEvent.inj (hfc₁ ▸ hfc₂ ▸ h_cle_eq)
-        cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
-        | inl hob =>
-          simp [DirectoryEvent.OrderedBefore] at hob
-          exact Nat.lt_irrefl _ (h_de_eq ▸ Nat.lt_trans hob de₂.oWellFormed)
-        | inr hob =>
-          simp [DirectoryEvent.OrderedBefore] at hob
-          exact Nat.lt_irrefl _ (h_de_eq ▸ Nat.lt_trans hob de₁.oWellFormed)
+    -- Extract e.addr = CLE.addr from dirAccessOfRequest's requestDirectoryEvent.sameAddr.
+    have cle_addr (e : Event n) (hk : CompoundProtocol.globalLinearizationEventOfRequest compound b init e) : e.addr = hk.cle.addr := by
+      cases hk.cle_dirAccess with
+      | encapDir _ hencap => exact hencap.dirCorresponds.sameAddr
+      | orderBeforeDir _ hpred hencap _ _ _ _ _ =>
+        -- hencap relates pred to dir: pred.addr = dir.addr
+        -- hpred : reqHasPermsSoDirPred → ∃ e_pred, immBottomPred... → sameEntry → sameAddr
+        have h_pred_addr : hpred.choose.addr = e.addr := by
+          have h_spec := hpred.choose_spec
+          exact h_spec.2.isImmPred.bPred.sameEntry.sameAddr
+        exact h_pred_addr.symm.trans hencap.dirCorresponds.sameAddr
+      | orderAfterDir _ hsucc _ _ =>
+        have h_imbsp := hsucc.choose_spec.2
+        have h_succ_addr : e.addr = hsucc.choose.addr :=
+          h_imbsp.isImmBottomSucc.sameEntry.sameAddr
+        exact h_succ_addr.trans h_imbsp.satisfyP.encapCorresponding.dirCorresponds.sameAddr
+    have h_addr₁ := cle_addr e₁ (hknow e₁)
+    have h_addr₂ := cle_addr e₂ (hknow e₂)
+    exact hppoi.2 (h_addr₁.trans (h_cle_eq ▸ h_addr₂.symm))
   | inr hcom =>
     -- Case-split on COM edge directly. For each subcase:
     -- co.sameCache: write₂ + cache_ob. fr: vacuous. Others: CLE OB evidence → exfalso.
