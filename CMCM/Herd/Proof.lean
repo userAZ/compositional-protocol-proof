@@ -2066,10 +2066,21 @@ private theorem compose_with_ob {l₁ l₂ l₃ : Event n}
     have h := Trans.trans hp_ob hob₂; exact Or.inl (.proxyPair q₁ p₁ hq_enc hq_ob h (Event.ne_of_proxyPair hq_enc hq_ob h))
   | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .ob hob₂ (Event.ne_of_ob hob₂))
   | eq heq₁ => exact Or.inl (heq₁ ▸ .ob hob₂ (Event.ne_of_ob hob₂))
-  | encap henc => exact step_ordering_dir_ordered_3way h₁_isdir h₃_isdir hdir
-  | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
-    -- obFinishBefore needs diff_prot chaining. Can't resolve without protocol context.
-    -- Caller provides protocol evidence (PPOi sameProtocol or COM diff_prot).
+  | encap henc _ =>
+    -- encap l₁ l₂ + OB l₂ l₃: l₂ is inside l₁ and l₂ OB l₃. Build encapOb directly.
+    -- h_ne from temporal chain: l₁.oStart < l₂.oStart < l₂.oEnd < l₃.oStart → l₁ ≠ l₃.
+    have h_ne : l₁ ≠ l₃ := by
+      intro heq; subst heq
+      exact Nat.lt_irrefl _ (Nat.lt_trans henc.left (Nat.lt_trans (Event.oWellFormed n l₂) hob₂))
+    exact Or.inl (.encapOb l₂ henc hob₂ h_ne)
+  | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir _ =>
+    -- obFinishBefore p₁ l₁ l₂ + OB l₂ l₃: p₁ OB l₂ OB l₃, p₁.oEnd < l₁.oEnd.
+    -- Compose: .obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ if l₁.protocol ≠ l₃.protocol.
+    -- For same protocol: use dir_ordered (same cluster, but possibly diff addr — fallback).
+    -- NOTE: cross-address dir_ordered in this branch. The obFinishBefore constructor
+    -- already has h_diff_prot (l₁ ≠ l₂ protocol). If l₂.protocol = l₃.protocol (same cluster
+    -- for the edge), then l₁.protocol ≠ l₃.protocol → obFinishBefore works.
+    -- If l₂.protocol ≠ l₃.protocol: unknown relationship. Fall back to dir_ordered.
     exact step_ordering_dir_ordered_3way h₁_isdir h₃_isdir hdir
 
 private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event n}
