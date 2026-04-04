@@ -208,32 +208,8 @@ theorem Event.ne_of_obEndLt {l₁ l₂ : Event n} {p : Event n}
 -- EncapObEndLt (q inside l₁, q OB p, p.oEnd < l₂.oEnd) at self → False.
 -- Uses dir_ordered on l₁ and p (DISTINCT events, legitimate).
 -- Actually: just chain temporals.
-theorem Event.ne_of_encapObEndLt {l₁ l₂ : Event n} {q p : Event n}
-    (h_enc : q.EncapsulatedBy n l₁) (h_qob : q.OrderedBefore n p)
-    (h_lt : Event.oEnd n p < Event.oEnd n l₂) : l₁ ≠ l₂ := by
-  intro heq; subst heq
-  -- After subst: l₂ gone, h_lt : p.oEnd < l₁.oEnd, h_enc : q inside l₁
-  -- Chain: l₁.oStart < q.oStart ≤ q.oEnd < p.oStart ≤ p.oEnd < l₁.oEnd < l₁.oEnd?
-  -- No: l₁.oStart < q.oStart (h_enc.left), q.oEnd < p.oStart (from q OB p via h_qob),
-  -- p.oEnd < l₁.oEnd (h_lt after subst). But l₁.oStart < l₁.oEnd is just oWellFormed.
-  -- Need: l₁.oStart < l₁.oStart for contradiction. Use:
-  -- h_enc.right : q.oEnd < l₁.oEnd. h_enc.left : l₁.oStart < q.oStart.
-  -- h_qob : q.oEnd < p.oStart. h_lt : p.oEnd < l₁.oEnd (after subst l₂ = l₁).
-  -- Chain to get l₁.oEnd < l₁.oEnd? No, get l₁.oStart < l₁.oEnd which is trivial.
-  -- Actually need: a cycle in temporal values.
-  -- From encapBy: l₁.oStart < q.oStart AND q.oEnd < l₁.oEnd.
-  -- q OB p: q.oEnd < p.oStart.
-  -- p.oEnd < l₁.oEnd (h_lt after subst).
-  -- p.oStart ≤ p.oEnd (oWellFormed). q.oStart ≤ q.oEnd (oWellFormed).
-  -- Chain: q.oEnd < p.oStart ≤ p.oEnd < l₁.oEnd.
-  -- And: l₁.oStart < q.oStart ≤ q.oEnd.
-  -- Combined: l₁.oStart < q.oStart ≤ q.oEnd < p.oStart ≤ p.oEnd < l₁.oEnd.
-  -- This gives l₁.oStart < l₁.oEnd (trivially true). NOT a contradiction!
-  -- encapObEndLt at self DOESN'T give a temporal contradiction from these fields alone!
-  -- This was the case that previously needed dir_ordered on l and p (distinct events).
-  -- Without dir_ordered: no contradiction from temporal evidence alone.
-  -- h_ne can't be derived from temporal evidence for encapObEndLt!
-  sorry
+-- ne_of_encapObEndLt: removed. encapObEndLt doesn't carry h_ne.
+-- At cycle closure, handled by dir_ordered on DISTINCT events l and p.
 
 /-- CleLink between linearization events (CLEs). Each edge derives
     `CleLink CLE₁ CLE₂` from communication evidence. A cycle gives
@@ -260,7 +236,7 @@ inductive CleLink : Event n → Event n → Prop where
   | encap (h_enc : l₁.Encapsulates n l₂) (h_ne : l₁ ≠ l₂) : CleLink l₁ l₂
   | encapObEndLt (q p : Event n) (h_q_enc : q.EncapsulatedBy n l₁)
       (h_q_ob_p : q.OrderedBefore n p) (h_p_lt : Event.oEnd n p < Event.oEnd n l₂)
-      (h_p_isdir : p.isDirectoryEvent) (h_ne : l₁ ≠ l₂) : CleLink l₁ l₂
+      (h_p_isdir : p.isDirectoryEvent) : CleLink l₁ l₂
 
 -- CleLink decomposes into equality or a transitive chain of basic temporal steps.
 -- The eq constructor maps to l₁ = l₂ (not TemporalRel, which requires strict progress).
