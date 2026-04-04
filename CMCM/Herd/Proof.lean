@@ -1319,12 +1319,12 @@ theorem fr_ordering_holds
                                   exact h_constraints.interSameProtocolAsWNotBetweenCleAndDrf
                                     h_ew_e₂ hencapDir' ⟨hcle_w_ob, hcle₂_ob_ev⟩
 
-/-- Map a COM edge to a CleLink between CLEs from the COM edge's own cmpLin fields.
+/-- Map a COM edge to a CleLink between its CLEs (h.cle₁ and h.cle₂).
     PPOi is handled separately via dir_ordered in compose_three/cmcm_acyclic_of_hknow. -/
 theorem step_to_ordering
     (h : com compound b init e₁ e₂)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : @CleLink n h.lin₁.hreq's_dir_access.choose h.lin₂.hreq's_dir_access.choose := by
+    : @CleLink n h.cle₁ h.cle₂ := by
   cases h with
     | rfe h =>
       -- rfe: h.w_cmpLin = com.lin₁, h.r_cmpLin = com.lin₂ (by definition)
@@ -1386,7 +1386,8 @@ theorem step_to_ordering
       -- Bridge: h.e₁_cmpLin = lin e₁ and h.e₂_cmpLin = lin e₂ by Subsingleton
       have hlin₁ : h.e₁_cmpLin = lin e₁ := Subsingleton.elim _ _
       have hlin₂ : h.e₂_cmpLin = lin e₂ := Subsingleton.elim _ _
-      rw [show (com.fr h).lin₁ = lin e₁ from hlin₁, show (com.fr h).lin₂ = lin e₂ from hlin₂]
+      show @CleLink n h.e₁_cmpLin.hreq's_dir_access.choose h.e₂_cmpLin.hreq's_dir_access.choose
+      rw [show h.e₁_cmpLin = lin e₁ from hlin₁, show h.e₂_cmpLin = lin e₂ from hlin₂]
       cases fr_ordering_holds h lin with
       | sameCache _ h_eq_or_ob =>
         cases h_eq_or_ob with
@@ -1404,7 +1405,7 @@ theorem step_to_ordering
           h_diff (show e₁.sameProtocol n e₂ from hcle₁_prot.symm.trans (heq ▸ hcle₂_prot))) h_p_isdir
       | sameCLE cle_eq => exact .eq cle_eq
 
-/-- Bridge step_to_ordering result from COM edge's own CLEs to hknow's CLEs.
+/-- Bridge step_to_ordering result from COM edge's CLEs (h.cle₁/h.cle₂) to hknow's CLEs.
     Uses Subsingleton.elim since globalLinearizationEventOfRequest is a Prop. -/
 theorem step_to_ordering_hknow
     (h : com compound b init e₁ e₂)
@@ -1412,8 +1413,10 @@ theorem step_to_ordering_hknow
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : @CleLink n (hknow e₁).hreq's_dir_access.choose (hknow e₂).hreq's_dir_access.choose := by
   have := step_to_ordering h h_non_lazy_ppoi
-  rw [show h.lin₁ = hknow e₁ from Subsingleton.elim _ _,
-      show h.lin₂ = hknow e₂ from Subsingleton.elim _ _] at this
+  rw [show h.cle₁ = (hknow e₁).hreq's_dir_access.choose from
+        congrArg (·.hreq's_dir_access.choose) (Subsingleton.elim h.lin₁ (hknow e₁)),
+      show h.cle₂ = (hknow e₂).hreq's_dir_access.choose from
+        congrArg (·.hreq's_dir_access.choose) (Subsingleton.elim h.lin₂ (hknow e₂))] at this
   exact this
 
 -- Old lex pair approach removed. Using LinChain (TransGen LinStep) instead of CleLink.
@@ -2522,7 +2525,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
     with their compoundLin counterparts that operate via the CLE-to-compoundLin bridge.
 
     Hypotheses mirror `compose_three` except:
-    - `hl₂`/`hl₃` point to `compoundLin` instead of `hreq's_dir_access.choose`
+    - `hl₂`/`hl₃` point to `compoundLin` (cmpLin) instead of CLE (`hreq's_dir_access.choose`)
     - `h₁_notdown`/`h₂_notdown`/`h₃_notdown` replace `h₁_isdir` (compoundLin may be a cache event) -/
 
 -- Composition using LinLink. Delegates to dir_ordered on CLEs.
