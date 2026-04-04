@@ -3026,8 +3026,21 @@ private theorem cycle_eq_closure
     {e : Event n}
     (hcycle : Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e e)
     : False := by
-  have hev := path_write_ob_of_eq_cle hknow h_non_lazy_ppoi hcycle rfl
-  exact Event.contradiction_of_reflexive_ordered_before n (hev.2 hev.1)
+  let R := (fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init
+  -- Enriched relation: R + CLE equality per edge
+  let R_eq := fun (a c : Event n) => R a c ∧ (hknow a).cle = (hknow c).cle
+  -- Step 1: Construct TransGen R_eq e e from TransGen R e e.
+  -- For each edge R a b: step_to_ordering gives CleLink.
+  --   If .eq: CLE_a = CLE_b → R_eq a b.
+  --   If non-eq: cle_path_invariant on full cycle gives non-eq CleLink self → False.
+  suffices h_enriched : Relation.TransGen R_eq e e by
+    -- Step 2: From TransGen R_eq e e, compose event OB → e OB e → False.
+    -- By edge_eq_cle_write_ob: each R_eq edge gives b.isWrite ∧ (a.isWrite → a OB b).
+    -- Compose: e.isWrite ∧ (e.isWrite → e OB e) → e OB e → False.
+    -- OR: first edge FR → e.isRead, last edge → e.isWrite → contradiction.
+    sorry -- Step 2: compose event OB from R_eq edges
+  -- Step 1: lift TransGen R to TransGen R_eq.
+  sorry -- Step 1: construct TransGen R_eq from TransGen R
 
 theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
