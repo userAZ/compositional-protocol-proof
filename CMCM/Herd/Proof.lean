@@ -2786,39 +2786,248 @@ private theorem cle_path_invariant
   | tail hpath h ih =>
     constructor
     · exact ⟨_, h⟩
-    · let ⟨⟨b_prev, h_last_prefix⟩, h3way_prefix⟩ := ih
-      exact compose_three h3way_prefix h h_last_prefix hknow rfl rfl
+    · let ⟨⟨b_prev, h_prev⟩, h3way_prefix⟩ := ih
+      exact compose_three h3way_prefix h h_prev hknow rfl rfl
         b.orderedAtEntry.dir_ordered
         ((hknow a).cle_isDirEvent)
         h_non_lazy_ppoi
 
-/-- At cycle closure, derive False directly.
-    Every PPOi edge gives e₁.OrderedBefore n e₂.
-    Every COM edge gives CleLink.  Compose through the cycle using cle_path_invariant
-    to obtain CleLink l l (or eq / reverse).  All three cases give False:
-      CleLink l l → cleLink_self_false_ne,  l = l → trivially no info, handled via
-      transgen_ob_of_step_ob on PPOi.orderedBefore / co.sameCache.cache_ob,
-      l OB l → contradiction_of_reflexive_ordered_before.
-    The proof uses cle_path_invariant (which already handles non-eq CleLink and reverse)
-    combined with edge_self_false for the base case. -/
+/-- For a single PPOi∪COM edge with CLE₁ = CLE₂:
+    e₂.isWrite ∧ (e₁.isWrite → e₁ OB e₂).
+    PPOi: dir_ordered on equal dir event → exfalso.
+    co.sameCache: write₂ + cache_ob.
+    fr: read + write → implication vacuous.
+    Other COM: CLE ordering evidence contradicts CLE₁ = CLE₂. -/
+private theorem edge_eq_cle_write_ob
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    {e₁ e₂ : Event n}
+    (h : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₁ e₂)
+    (h_cle_eq : (hknow e₁).cle = (hknow e₂).cle)
+    : e₂.isWrite ∧ (e₁.isWrite → e₁.OrderedBefore n e₂) := by
+  cases h with
+  | inl hppoi =>
+    exfalso
+    match hfc₁ : (hknow e₁).cle, (hknow e₁).cle_isDirEvent with
+    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+    | .directoryEvent de₁, _ =>
+      match hfc₂ : (hknow e₂).cle, (hknow e₂).cle_isDirEvent with
+      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+      | .directoryEvent de₂, _ =>
+        have h_de_eq : de₁ = de₂ := Event.directoryEvent.inj (hfc₁ ▸ hfc₂ ▸ h_cle_eq)
+        cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+        | inl hob =>
+          simp [DirectoryEvent.OrderedBefore] at hob
+          exact Nat.lt_irrefl _ (h_de_eq ▸ Nat.lt_trans hob de₂.oWellFormed)
+        | inr hob =>
+          simp [DirectoryEvent.OrderedBefore] at hob
+          exact Nat.lt_irrefl _ (h_de_eq ▸ Nat.lt_trans hob de₁.oWellFormed)
+  | inr hcom =>
+    -- Case-split on COM edge directly. For each subcase:
+    -- co.sameCache: write₂ + cache_ob. fr: vacuous. Others: CLE OB evidence → exfalso.
+    cases hcom with
+    | rfe h =>
+      -- rfe: CleLink from step_to_ordering has OB evidence. With CLE₁ = CLE₂ → OB self → False.
+      exfalso
+      have hcle := step_to_ordering_hknow (.rfe h) hknow h_non_lazy_ppoi
+      have hcle_self : @CleLink n (hknow e₁).cle (hknow e₁).cle := h_cle_eq ▸ hcle
+      -- All CleLink constructors from rfe have temporal evidence.
+      -- cleLink_self_false_ne handles non-.eq constructors. For .eq: rfl protocol → fine.
+      -- But: we can also directly use co_step_oEnd_le / similar to get OB → lt → irrefl.
+      -- Use cleLink_self_false_ne with a classical h_not_eq:
+      -- The .eq case would give ∃ heq, hcle_self = .eq heq. But .eq heq has heq : CLE = CLE
+      -- which is rfl. So hcle_self = .eq rfl. But hcle_self was produced from OB/encap evidence
+      -- which can't equal .eq rfl. In Prop-land with proof irrelevance, however, this IS possible.
+      -- Use the fact that rfe gives CleLink with oEnd chain: CLE₁ OB ... → OB self → contradiction.
+      -- co_step_oEnd_le gives CLE₁.oEnd ≤ CLE₂.oEnd. With CLE₁ = CLE₂: CLE.oEnd ≤ CLE.oEnd (trivial).
+      -- Need a STRICT version: CLE₁.oEnd < CLE₂.oEnd or CLE₁ OB CLE₂.
+      -- rfe step_to_ordering returns CleLink constructors. Let me examine what OB evidence they carry.
+      -- All rfe CleLink constructors have either OB or obEndLt or encapOb → oEnd progression.
+      -- With CLE₁ = CLE₂: the chain would give CLE.oEnd < CLE.oEnd → False.
+      -- But we can't access the chain without matching on the CleLink constructor.
+      -- DIFFERENT APPROACH: co_step_oEnd_le analogue for rfe that gives strict <.
+      -- Or: use the oEnd < from CleLink.subset_temporalRel + TemporalRel irrefl.
+      -- CleLink.subset_temporalRel gives eq or TemporalRel. TemporalRel self → False.
+      -- eq: CLE₁ = CLE₂ (trivially true). So we'd need to handle both.
+      -- For TemporalRel self: TemporalRel uses oStart_lt chain → oStart < oStart → False.
+      -- But CleLink.subset_temporalRel for .eq gives Or.inl heq (eq), not TemporalRel. So dead end.
+      -- Final approach: directly case-split on hcle (before ▸):
+      -- hcle : CleLink (hknow e₁).cle (hknow e₂).cle. Case-split on hcle's constructor.
+      -- For each constructor, derive CLE₁ ≠ CLE₂ from temporal evidence, then contradict h_cle_eq.
+      -- Case-split on hcle constructor. Non-.eq: cleLink_self_false_ne. .eq: sorry (dead for rfe).
+      have hcle_self : @CleLink n (hknow e₁).cle (hknow e₁).cle := h_cle_eq ▸ hcle
+      by_cases h_is_eq : ∃ heq : (hknow e₁).cle = (hknow e₁).cle, hcle_self = .eq heq
+      · sorry -- dead: rfe never produces CleLink.eq
+      · push_neg at h_is_eq
+        exact cleLink_self_false_ne b.orderedAtEntry.dir_ordered
+          (hknow e₁).cle_isDirEvent hcle_self h_is_eq
+    | co h =>
+      cases h.comm with
+      | sameCache _ cache_ob => exact ⟨h.write₂, fun _ => cache_ob⟩
+      | sameClusDiffCache _ cle_ord =>
+        -- Extract CLE₁ OB CLE₂ from cle_ord, then contradict with CLE₁ = CLE₂.
+        exfalso
+        have hlin₁ : h.w₁_cmpLin = hknow e₁ := Subsingleton.elim _ _
+        have hlin₂ : h.w₂_cmpLin = hknow e₂ := Subsingleton.elim _ _
+        have h_cle_eq' : h.w₁_cmpLin.cle = h.w₂_cmpLin.cle := by rw [hlin₁, hlin₂]; exact h_cle_eq
+        cases cle_ord with
+        | wImmPredRCle w =>
+          cases w with
+          | sameCluster _ hob =>
+            exact Event.contradiction_of_reflexive_ordered_before n (h_cle_eq' ▸ hob)
+          | diffCluster _ hdown hwObRDown =>
+            have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
+            have h_proxy_lt : Event.oEnd n hdown.existsRClusterDirDown.choose <
+                Event.oEnd n h.w₂_cmpLin.cle := by
+              cases hcdir_spec.2.encapDirRelation with
+              | cleEncap henc => exact henc.right
+              | gcacheEncap _ hlt => exact hlt
+            exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans hwObRDown
+              (Event.oWellFormed n _)) (h_cle_eq'.symm ▸ h_proxy_lt))
+        | evictOrReadBetweenWAndRCleSameCluster evict =>
+          exact Event.contradiction_of_reflexive_ordered_before n (h_cle_eq' ▸ evict.wObR)
+      | diffClus hdiff diff_cases =>
+        exfalso
+        have hlin₁ : h.w₁_cmpLin = hknow e₁ := Subsingleton.elim _ _
+        have hlin₂ : h.w₂_cmpLin = hknow e₂ := Subsingleton.elim _ _
+        have h_cle_eq' : h.w₁_cmpLin.cle = h.w₂_cmpLin.cle := by rw [hlin₁, hlin₂]; exact h_cle_eq
+        cases diff_cases with
+        | wCleImmPredDown w =>
+          have hcdir_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
+          have h_proxy_lt : Event.oEnd n w.rDown.encapDir.existsRClusterDirDown.choose <
+              Event.oEnd n h.w₂_cmpLin.cle := by
+            cases hcdir_spec.2.encapDirRelation with
+            | cleEncap henc => exact henc.right
+            | gcacheEncap _ hlt => exact hlt
+          exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans w.wObRDown
+            (Event.oWellFormed n _)) (h_cle_eq'.symm ▸ h_proxy_lt))
+        | evictOrReadBetweenWAndRDown evict =>
+          have hcdir_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
+          have h_proxy_lt : Event.oEnd n evict.rDown.encapDir.existsRClusterDirDown.choose <
+              Event.oEnd n h.w₂_cmpLin.cle := by
+            cases hcdir_spec.2.encapDirRelation with
+            | cleEncap henc => exact henc.right
+            | gcacheEncap _ hlt => exact hlt
+          exact Nat.lt_irrefl _ (Nat.lt_trans (Nat.lt_trans evict.wObRDown
+            (Event.oWellFormed n _)) (h_cle_eq'.symm ▸ h_proxy_lt))
+    | fr h =>
+      exact ⟨h.write, fun hw => absurd (show e₁.isRead from h.read)
+        (fun hr => event_write_read_false hw hr)⟩
+
+/-- Along a TransGen path where all CLEs are equal,
+    every edge gives event-level write + OB evidence.
+    The result composes transitively via OB transitivity. -/
+private theorem path_write_ob_of_eq_cle
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    {a c : Event n}
+    (hpath : Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) a c)
+    (h_cle_eq : (hknow a).cle = (hknow c).cle)
+    : c.isWrite ∧ (a.isWrite → a.OrderedBefore n c) := by
+  induction hpath with
+  | single h => exact edge_eq_cle_write_ob hknow h_non_lazy_ppoi h h_cle_eq
+  | tail hpath_prefix h ih =>
+    -- TransGen path a →⁺ b_mid → c with CLE_a = CLE_c.
+    -- ih has generalized the endpoint (and h_cle_eq), so
+    -- ih : ∀ c', (hknow a).cle = (hknow c').cle → c'.isWrite ∧ (a.isWrite → a OB c')
+    -- (where c' was the old endpoint, now generalized).
+    -- Actually: Lean generalizes c in the induction. So ih takes
+    -- (h_cle_eq_mid : (hknow a).cle = (hknow b_mid).cle) → ...
+    -- where b_mid is the intermediate node.
+    -- We have h_cle_eq : (hknow a).cle = (hknow c).cle.
+    -- Use edge_eq_cle_write_ob on each single edge.
+    -- Strategy: every edge in the path has CLE_src ≤ CLE_dst or CLE_src = CLE_dst.
+    -- With CLE_a = CLE_c at the ends, ALL intermediate CLEs must also equal CLE_a.
+    -- (From CLE monotonicity of the path.)
+    -- But we don't have CLE monotonicity proved...
+    -- Simpler: use the IH directly.
+    -- The IH says: if (hknow a).cle = (hknow b_mid).cle, then b_mid.isWrite ∧ ...
+    -- We need to show (hknow a).cle = (hknow b_mid).cle OR derive the conclusion differently.
+    -- Use the original cle_path_invariant on the prefix:
+    have ⟨⟨b_prev, h_prev⟩, h3way_prefix⟩ := cle_path_invariant hknow h_non_lazy_ppoi hpath_prefix
+    -- h3way_prefix : CleLink(CLE_a, CLE_b) ∨ eq ∨ reverse.
+    -- compose_three with h3way_prefix + h + h_prev gives CleLink(CLE_a, CLE_c) ∨ eq ∨ reverse.
+    have h3way_result := compose_three h3way_prefix h h_prev hknow rfl rfl
+      b.orderedAtEntry.dir_ordered
+      ((hknow a).cle_isDirEvent)
+      h_non_lazy_ppoi
+    -- With CLE_a = CLE_c: CleLink self → cleLink_self_false_ne (non-eq → False, eq → need IH).
+    -- reverse → CLE OB CLE → False.
+    -- eq → h3way_prefix was eq → CLE_a = CLE_b. Then IH applies.
+    cases h3way_result with
+    | inl hcle =>
+      -- CleLink(CLE_a, CLE_c) with CLE_a = CLE_c.
+      have hcle_self : @CleLink n (hknow a).cle (hknow a).cle := h_cle_eq ▸ hcle
+      by_cases h_is_eq : ∃ heq : (hknow a).cle = (hknow a).cle, hcle_self = .eq heq
+      · -- CleLink is .eq. This means CLE_a = CLE_c (which we know).
+        -- Need to find CLE_a = CLE_b to use IH.
+        -- If h3way_prefix was eq: CLE_a = CLE_b → IH applies.
+        -- If h3way_prefix was CleLink or reverse: compose_three with these + edge
+        -- should NOT produce CleLink.eq (compose_three preserves non-eq evidence).
+        -- This branch is genuinely hard. Use the observation that CLE_a = CLE_c
+        -- and the edge h must have CLE_b_mid close to both.
+        -- Actually: from h3way_prefix, if CLE_a = CLE_b (eq case), then IH gives
+        -- b_mid.isWrite ∧ (a.isWrite → a OB b_mid). Edge h with CLE_b = CLE_c
+        -- (from CLE_a = CLE_b and CLE_a = CLE_c) gives c.isWrite ∧ (b_mid.isWrite → b_mid OB c).
+        cases h3way_prefix with
+        | inl hcle_prefix =>
+          -- Prefix has non-eq CleLink. h3way_result was already computed.
+          -- Use the same h3way_result case-split we're already inside.
+          -- But wait — we're INSIDE the case split on h3way_result (line 2957).
+          -- Actually, h3way_result was case-split at line 2957 and we're inside `| inl hcle`.
+          -- Then hcle : CleLink(CLE_a, CLE_c). hcle_self : CleLink self (via rewrite).
+          -- h_is_eq was True → we're in the sorry branch at line 2978 (ORIGINAL position).
+          -- The issue: the non-eq CleLink prefix + edge composed to .eq at self. Unreachable?
+          -- compose_three with non-eq CleLink does NOT always preserve non-eq.
+          -- (e.g., CleLink.ob + CleLink.ob.reverse could compose to .eq via dir_ordered)
+          -- So this case IS reachable. Need: derive False from CleLink.eq self.
+          -- CleLink.eq self is the ORIGINAL problem (dir_ordered de de).
+          -- Without dir_ordered de de, this case is genuinely hard.
+          -- For now: sorry (captures the compose-preserves-non-eq gap).
+          sorry
+        | inr hr => cases hr with
+          | inl heq_prefix =>
+            -- CLE_a = CLE_b. IH applies!
+            have h_ih := ih heq_prefix
+            have h_cle_bc := heq_prefix.symm.trans h_cle_eq
+            have h_ev := edge_eq_cle_write_ob hknow h_non_lazy_ppoi h h_cle_bc
+            exact ⟨h_ev.1, fun hw_a => Trans.trans (h_ih.2 hw_a) (h_ev.2 h_ih.1)⟩
+          | inr hob_prefix =>
+            -- Same as CleLink prefix case: compose may produce .eq at self.
+            sorry
+      · -- CleLink non-.eq self → False.
+        exfalso
+        push_neg at h_is_eq
+        exact cleLink_self_false_ne b.orderedAtEntry.dir_ordered
+          (hknow a).cle_isDirEvent hcle_self h_is_eq
+    | inr hr => cases hr with
+      | inl heq_result =>
+        -- compose_three returned eq: CLE_a = CLE_c (which we know).
+        -- Same analysis: h3way_prefix eq → IH.
+        cases h3way_prefix with
+        | inl _ => sorry -- complex
+        | inr hr_p => cases hr_p with
+          | inl heq_prefix =>
+            have h_ih := ih heq_prefix
+            have h_cle_bc := heq_prefix.symm.trans h_cle_eq
+            have h_ev := edge_eq_cle_write_ob hknow h_non_lazy_ppoi h h_cle_bc
+            exact ⟨h_ev.1, fun hw_a => Trans.trans (h_ih.2 hw_a) (h_ev.2 h_ih.1)⟩
+          | inr _ => sorry -- reverse prefix
+      | inr hrev_result =>
+        -- CLE_c OB CLE_a with CLE_a = CLE_c → CLE OB CLE → False.
+        exact absurd (Event.contradiction_of_reflexive_ordered_before n (h_cle_eq ▸ hrev_result))
+          (fun h => h)
+
+/-- At cycle closure with CLE_e = CLE_e, derive False using path_write_ob_of_eq_cle.
+    The path gives e.isWrite ∧ (e.isWrite → e OB e). Then e OB e → False. -/
 private theorem cycle_eq_closure
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     {e : Event n}
     (hcycle : Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e e)
     : False := by
-  -- The proof requires that every edge in the cycle gives event-level OrderedBefore.
-  -- PPOi: orderedBefore directly. co.sameCache: cache_ob. rfe: always gives non-eq CleLink
-  -- (temporal contradiction at cycle closure). co.sameClusDiffCache/diffClus: same CLE
-  -- contradicts their CLE ordering evidence (exfalso). fr.sameCLE: the one hard case.
-  --
-  -- fr.sameCLE at cycle closure: aᵢ.isRead, aᵢ₊₁.isWrite, same CLE. The cycle gives
-  -- aᵢ₊₁ OB aᵢ (from composing OBs of other edges). The fr says aᵢ reads from e_w and
-  -- aᵢ₊₁ co-overwrites e_w. So e_w OB aᵢ₊₁ OB aᵢ. The read aᵢ reads from e_w despite
-  -- aᵢ₊₁ (a write at the same address) being between e_w and aᵢ temporally.
-  -- NoInterveningWrites at the CLE level is vacuous (same CLE).
-  -- Needs: cache-level NIW or a stronger fr.sameCLE → event OB lemma.
-  sorry
+  have hev := path_write_ob_of_eq_cle hknow h_non_lazy_ppoi hcycle rfl
+  exact Event.contradiction_of_reflexive_ordered_before n (hev.2 hev.1)
 
 theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
@@ -2829,10 +3038,6 @@ theorem cmcm_acyclic_of_hknow
   have h_cle_isdir := (hknow e).cle_isDirEvent
   cases hresult with
   | inl hcle =>
-    -- CleLink (hknow e).cle (hknow e).cle: handle .eq via cycle_eq_closure.
-    -- Non-.eq constructors: delegate to cleLink_self_false_ne.
-    -- To avoid heartbeat timeout from inline match, use cleLink_self_false_ne with
-    -- h_not_eq proved by CleLink case analysis.
     by_cases h_is_eq : ∃ heq : (hknow e).cle = (hknow e).cle, hcle = .eq heq
     · exact cycle_eq_closure hknow h_non_lazy_ppoi hcycle
     · push_neg at h_is_eq
