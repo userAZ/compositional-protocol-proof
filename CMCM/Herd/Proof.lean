@@ -2823,7 +2823,8 @@ private theorem cle_path_invariant
 -- non-eq CleLinks via dir_ordered fallback), but Prop irrelevance requires handling it.
 -- Closing directly with dir_ordered de de is the simplest correct approach.
 
-/-- For a single PPOi∪COM edge with CLE₁ = CLE₂:
+/-- DEAD CODE — kept for reference.
+    For a single PPOi∪COM edge with CLE₁ = CLE₂:
     e₂.isWrite ∧ (e₁.isWrite → e₁ OB e₂).
     PPOi: addr ≠ + CLE addr = event addr → exfalso.
     co.sameCache: write₂ + cache_ob.
