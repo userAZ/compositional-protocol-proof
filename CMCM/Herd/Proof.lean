@@ -2143,7 +2143,7 @@ private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂
     have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).cle_isDirEvent
     have hob₂ := same_prot_dir_ordered_forward h₂ h₂₃_prot hdir h₂_isdir h₃_isdir
     have hprot_diff : l₁.protocol ≠ l₃.protocol := fun h₁₃ => hdiff₁ (h₁₃.trans h₂₃_prot.symm)
-    exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot_diff h_p₁_isdir)
+    exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot_diff h_p₁_isdir (Event.ne_of_diff_prot hprot_diff))
   · -- Diff cluster: case-split on hcom_edge for full protocol evidence
     by_cases hprot : l₁.protocol = l₃.protocol
     · -- Same protocol l₁/l₃, diff cluster e₂/e₃: need cross-cluster evidence
@@ -2155,7 +2155,7 @@ private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
         | .directoryEvent de₃, _ =>
           cases (hdir de₁ de₃).ordered with
-          | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
+          | inl hob₁₃ => exact Or.inl (.ob hob₁₃ (Event.ne_of_ob hob₁₃))
           | inr hob₃₁ =>
             -- l₃ OB l₁: need cross-cluster protocol evidence from hcom_edge
             -- Case-split on the com edge to access NIW/rf/co structure
@@ -2192,13 +2192,11 @@ private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂
                 exfalso; exact LinChain.irrefl
                   (((LinChain.single (.ob (show Event.OrderedBefore n (.directoryEvent del₃) (.directoryEvent dep₁) from hob_rev))).tail
                     (.ob (show Event.OrderedBefore n (.directoryEvent dep₁) l₂ from hob₁))).trans hlink)
-        exact Or.inl (.obFinishBefore p₁ hp₁_ob_l₃ hlt₁ hprot h_p₁_isdir)
+        exact Or.inl (.obFinishBefore p₁ hp₁_ob_l₃ hlt₁ hprot h_p₁_isdir (Event.ne_of_diff_prot hprot))
       | inr hr => cases hr with
         | inl heq =>
-          -- l₂ = l₃ → p₁ OB l₃
-          exact Or.inl (.obFinishBefore p₁ (heq ▸ hob₁) hlt₁ hprot h_p₁_isdir)
+          exact Or.inl (.obFinishBefore p₁ (heq ▸ hob₁) hlt₁ hprot h_p₁_isdir (Event.ne_of_diff_prot hprot))
         | inr hdiff₂ =>
-          -- l₂ ≠ l₃ protocol. dir_ordered(l₁, l₃) resolves via 3-way invariant.
           match hfc₁ : l₁, h₁_isdir with
           | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
           | .directoryEvent de₁, _ =>
@@ -2206,7 +2204,7 @@ private theorem compose_obFinishBefore_com {l₁ l₂ l₃ : Event n} {e₁ e₂
             | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
             | .directoryEvent de₃, _ =>
               cases (hdir de₁ de₃).ordered with
-              | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
+              | inl hob₁₃ => exact Or.inl (.ob hob₁₃ (Event.ne_of_ob hob₁₃))
               | inr hob₃₁ => exact Or.inr (Or.inr hob₃₁)
 
 /-- Compose two CleLinks (or eq) and extract 3-way disjunction.
@@ -2294,7 +2292,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
         | .directoryEvent de₃, _ =>
           cases (hdir de₁ de₃).ordered with
-          | inl hob₁₃ => exact Or.inl (.ob hob₁₃)
+          | inl hob₁₃ => exact Or.inl (.ob hob₁₃ (Event.ne_of_ob hob₁₃))
           | inr hob₃₁ => exact Or.inr (Or.inr hob₃₁)
   | inl hso₁ =>
   -- Case-split on hedge (the actual edge) to get edge-specific evidence.
@@ -2343,20 +2341,23 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
         (hl₃ ▸ (hknow e₃).cle_isDirEvent) hdir
     | obEndLt p₂ hob₂ hlt₂ h_p₂_isdir =>
       cases hso₁ with
-      | ob hob₁ => exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ hob₂) hlt₂ h_p₂_isdir)
-      | encapOb p₁ henc₁ hob₁ =>
-        if h_ne : l₁ = l₃ then
-          exact Or.inl (h_ne ▸ .eq rfl)
-        else
-          exact Or.inl (.encapObEndLt p₁ p₂ henc₁ (Trans.trans hob₁ hob₂) hlt₂ h_p₂_isdir h_ne)
+      | ob hob₁ _ =>
+        have h := Trans.trans hob₁ hob₂
+        exact Or.inl (.obEndLt p₂ h hlt₂ h_p₂_isdir (Event.ne_of_obEndLt h hlt₂))
+      | encapOb p₁ henc₁ hob₁ _ =>
+        if h_ne : l₁ = l₃ then exact Or.inl (h_ne ▸ .eq rfl)
+        else exact Or.inl (.encapObEndLt p₁ p₂ henc₁ (Trans.trans hob₁ hob₂) hlt₂ h_p₂_isdir h_ne)
       | encapObEndLt q₁ p₁ hq_enc hq_ob hlt₁ _ =>
-        exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Event.ob_of_lt_lt hlt₁ hob₂)) hlt₂ h_p₂_isdir)
-      | obEndLt p₁ hob₁ hlt₁ _ =>
-        exact Or.inl (.obEndLt p₂ (Trans.trans hob₁ (Event.ob_of_lt_lt hlt₁ hob₂)) hlt₂ h_p₂_isdir)
-      | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-        exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans hp_ob hob₂)) hlt₂ h_p₂_isdir)
-      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂ h_p₂_isdir)
-      | eq heq₁ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂ h_p₂_isdir)
+        if h_ne : l₁ = l₃ then exact Or.inl (h_ne ▸ .eq rfl)
+        else exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Event.ob_of_lt_lt hlt₁ hob₂)) hlt₂ h_p₂_isdir h_ne)
+      | obEndLt p₁ hob₁ hlt₁ _ _ =>
+        have h := Trans.trans hob₁ (Event.ob_of_lt_lt hlt₁ hob₂)
+        exact Or.inl (.obEndLt p₂ h hlt₂ h_p₂_isdir (Event.ne_of_obEndLt h hlt₂))
+      | proxyPair q₁ p₁ hq_enc hq_ob hp_ob _ =>
+        if h_ne : l₁ = l₃ then exact Or.inl (h_ne ▸ .eq rfl)
+        else exact Or.inl (.encapObEndLt q₁ p₂ hq_enc (Trans.trans hq_ob (Trans.trans hp_ob hob₂)) hlt₂ h_p₂_isdir h_ne)
+      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂ h_p₂_isdir (Event.ne_of_obEndLt hob₂ hlt₂))
+      | eq heq₁ => exact Or.inl (heq₁ ▸ .obEndLt p₂ hob₂ hlt₂ h_p₂_isdir (Event.ne_of_obEndLt hob₂ hlt₂))
       | obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
           exact compose_obFinishBefore_com (e₁ := e₁) p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir hcom_edge hknow hl₂ hl₃ hdir h₁_isdir h_non_lazy_ppoi
       | _ =>
