@@ -25,20 +25,34 @@ Before proving, composing, or sorry-ing ANYTHING:
 
 ## Rules
 
-0. **NO SORRY'S.** The proof must have ZERO sorry's. Every sorry must be filled. If a sorry seems unprovable, the approach is wrong — find a different approach that IS provable. Never leave sorry's as "known limitations" or "non-critical."
-0b. **BE HONEST about completeness.** If definitions exist but aren't used in proofs, say "defined but unused." If a rename changes names but not proof flow, say so. Don't present partial work as done — the user wastes time discovering the gap. Honesty up front saves confusion. This is BLOCKING.
-0c. **DO NOT confuse GLE and compoundLin.** `globalLinearizationEventOfRequest` is a CLE+GLE bundle. `compoundLin` is a DERIVED Event computed from `compoundLinearizationEvent`. They are DIFFERENT things. The user's philosophy: compoundLin events are PRIMARY, connected THROUGH CLE/GLE and protocol axiom downgrades. The data dependency (CLE/GLE → compoundLin) is an implementation detail; the conceptual direction is compoundLin → CLE/GLE.
-0d. **CRITICAL [HIGHEST PRIORITY]: USE PROTOCOL INFORMATION — NOT SIMPLE MEASURES.** There is NO simple measure (oStart, oEnd, etc.) that makes CleLink/LinLink/TemporalRel irreflexive. That's WHY these relations exist — they encode PROTOCOL-SPECIFIC ordering that can't be captured by a single numeric measure. When stuck, the answer is ALWAYS to use more protocol context — add protocol evidence to definitions, carry it through relations, extract it at proof sites. The proof is about a real cache coherence protocol. When stuck, the answer is ALWAYS to use more protocol context — add protocol evidence to definitions, carry it through relations, extract it at proof sites. This has been the solution EVERY TIME: ob_cle vacuity (nc_weak_write_not_on_mr_state), CleLink.eq cycle closure (CO.sameCache cache_ob), junction arguments (read/write contradiction). NEVER try to solve protocol problems with pure type-theory tricks (Prop irrelevance, Subsingleton). The protocol information IS the proof.
-0d'. **CRITICAL [HIGHEST PRIORITY]: DRAW THE PROTOCOL SCENARIO before proving.** Before filling any sorry or proving any lemma, DESCRIBE and DRAW the protocol scenario: what events are involved, what are their types (read/write/downgrade), what edges connect them, what temporal relationships exist. This catches bogus cases, reveals the real proof path, and prevents hours of mechanical grinding. Example: the CleLink.eq cycle closure was solved in minutes once I drew the junction diagram showing FR can't appear (read/write contradiction at junctions). **This is the single most useful proof strategy. USE `/protocol-proof` SKILL.**
-0e. **DO NOT USE AGENTS for proof work.** Agents don't have CLAUDE.md context, don't follow protocol reasoning rules, and repeatedly re-introduce the exact abuse being removed. They burn 100k+ tokens doing the wrong thing. Do ALL proof work directly. Only use agents for mechanical tasks (file renames, grep-and-replace) where protocol reasoning is not needed.
-0f. **BE HONEST with yourself and the user.** If you're stuck, say so. If an approach isn't working, say so. If you've been going in circles, say so. Honesty saves hours.
-0g. **CRITICAL [HIGHEST PRIORITY]: SKETCH TEST THEOREMS before implementing.** Before committing to an approach, write a PARTIALLY sorry'd theorem to test if the types work. Build. If the types don't match, the approach is wrong — caught in seconds, not hours. Example: `edge_event_ob` (all edges give event OB) was FALSE — a test theorem would have caught this immediately instead of wasting an implementation attempt.
+### AUTOMATIC WORKFLOW (do these WITHOUT being asked)
+
+**BEFORE writing any proof code:**
+1. **DRAW THE PROTOCOL SCENARIO.** What events? What types (read/write/downgrade)? What edges? What temporal/protocol relationships? What are the junction constraints? This catches bogus cases and reveals the proof path. Solved CleLink.eq cycle closure in minutes after hours of grinding.
+2. **SKETCH UNCERTAIN THEOREMS.** Write a partially sorry'd test theorem. Build. If types don't match → approach is wrong → caught in seconds, not hours. Do this BEFORE committing to large mechanical work (like fixing 100+ construction sites).
+3. **CHECK: am I using protocol info or type-theory tricks?** Protocol info IS the proof. Subsingleton, Prop irrelevance, measure theory → wrong path. Protocol address evidence, junction read/write analysis, communication evidence → right path.
+
+**DURING proof work:**
+4. **BE HONEST.** If stuck, say so immediately. If going in circles, say so. If an approach failed, say so. Don't present partial work as done. Honesty saves hours.
+5. **SAVE LESSONS IMMEDIATELY.** Every user correction, failed approach, working approach, protocol insight → write to CLAUDE.md RIGHT NOW. 10 seconds to write, hours to re-discover.
+
+**NEVER do:**
+6. **NEVER use agents for proof work.** They lack CLAUDE.md context and re-introduce abuses. Only use for purely mechanical tasks (file renames, grep-and-replace).
+7. **NEVER use dir_ordered without verifying same address/cluster.** Even on distinct events. Use DecidableEq or protocol address evidence instead.
+8. **NEVER try simple measures (oStart, oEnd) for CleLink/LinLink irreflexivity.** These relations encode protocol-specific ordering that no single measure captures.
+9. **NEVER confuse GLE and compoundLin.** `globalLinearizationEventOfRequest` = CLE+GLE bundle. `compoundLin` = derived Event. Philosophy: compoundLin is primary, connected through CLE/GLE.
+
+### Core rules
+
+0. **NO SORRY'S.** Zero sorry's. If unprovable → wrong approach → find a different one.
 1. **Understand first, prove second.** Walk through the proof in text before formalizing.
 2. **Read the actual definition.** Grep and read source. Never assume.
-3. **Consider all cases.** `dirAccessOfRequest` has 3 cases, `linearizationEventOfRequest` has 2, etc.
+3. **Consider all PPOi and COM cases.** Each case has specific protocol evidence. Trace it.
 4. **Never add new axioms.** Case-split on existing inductive types.
 5. **Verify proofs are not vacuous.** Check hypotheses are satisfiable, conclusions nontrivial.
-6. **Search the codebase first** before flagging open questions.
+6. **Search the codebase first.** Check existing proofs (compose_three, step_to_ordering, RF/CO/FR theorems) for similar patterns. Reuse protocol reasoning.
+7. **When temporal evidence is insufficient, add protocol address/cluster evidence.** This is the safest way to close gaps. Example: CleLink.encapObEndLt needs h_ne from protocol context, not temporal chain.
+8. **Use DecidableEq on Event n for CLE equality checks.** Avoids Prop irrelevance issues. Pattern: `if h : CLE₁ = CLE₂ then .eq else .constructor ... h`.
 
 ## The Goal (NEVER FORGET)
 
