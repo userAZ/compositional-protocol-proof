@@ -3027,14 +3027,40 @@ private theorem path_write_ob_of_eq_cle
             exfalso
             push_neg at h_prefix_is_eq
             -- Check last edge for CLE equality:
+            -- Check last edge for CLE equality. If .eq → Subsingleton contradiction.
+            -- For PPOi: edge_eq_cle_write_ob with CLE_b_mid = CLE_c gives exfalso (PPOi + same CLE → addr contradiction).
+            -- But we need CLE_b_mid = CLE_c from the edge. Use edge_eq_cle_write_ob on the last edge:
+            -- If we can derive CLE_b_mid = CLE_c from the last edge → CLE_a = CLE_b_mid → Subsingleton → False.
+            -- The only edges that give CLE equality are COM .eq. PPOi/COM non-eq don't.
+            -- For edges that DON'T give CLE equality: CLE_b_mid ≠ CLE_c. Combined with CLE_a = CLE_c.
+            -- But prefix non-eq CleLink(CLE_a, CLE_b_mid) is between distinct CLEs.
+            -- Compose → non-eq full path → .eq full path → contradiction (Subsingleton).
+            -- compose_three produces a CleLink. We already have hcle (the compose output).
+            -- hcle was already determined to be .eq (h_is_eq). So hcle = .eq heq.
+            -- AND hcle = compose_three(hcle_prefix, edge, ...). Both are CleLink CLE_a CLE_c.
+            -- Proof irrelevance: all proofs of CleLink CLE_a CLE_c are equal.
+            -- So hcle_prefix info is lost at the type level.
+            -- I need to USE the fact that CleLink is inhabited (by hcle_prefix or compose output)
+            -- and .eq heq is ALSO an inhabitant → Subsingleton.elim → they're equal.
+            -- But hcle_prefix has type CleLink CLE_a CLE_b_mid (not CLE_a CLE_c).
+            -- So it's a different type — Subsingleton applies within the same type only.
+            --
+            -- The fix: I need CLE_a = CLE_b_mid to make the types match. And that's what I lack.
+            -- UNLESS: I check the last edge for CLE equality.
             cases h with
             | inl hppoi =>
-              -- PPOi last edge: different addresses → CLE_b_mid ≠ CLE_c in general.
-              -- Full path .eq with non-eq prefix + PPOi → compose_three produces non-eq.
-              -- Contradiction with h_is_eq. Needs compose-preserves-non-eq lemma.
+              -- PPOi last edge: PPOi has addr ≠. If h_cle_eq holds (CLE_a = CLE_c) and PPOi is
+              -- between b_mid and c: b_mid.addr ≠ c.addr. CLE equality would mean same addr → contradiction.
+              -- So edge_eq_cle_write_ob for PPOi with CLE_b_mid = CLE_c gives exfalso.
+              -- But I don't HAVE CLE_b_mid = CLE_c. I need to derive it or get False otherwise.
+              -- PPOi gives orderedBefore: b_mid OB c → CLE_b_mid OB CLE_c (? not necessarily).
+              -- Actually: PPOi at different addresses → different CLEs → CLE_b_mid ≠ CLE_c.
+              -- And CLE_a = CLE_c → CLE_a ≠ CLE_b_mid.
+              -- Prefix: non-eq CleLink(CLE_a, CLE_b_mid). With CLE_a ≠ CLE_b_mid: consistent.
+              -- Full path: .eq. compose_three(non-eq CleLink, PPOi edge). PPOi gives CleLink or reverse.
+              -- Result should be non-eq... but I can't prove it.
               sorry
             | inr hcom =>
-              -- COM last edge: check step_to_ordering for .eq
               have hcle_last := step_to_ordering_hknow hcom hknow h_non_lazy_ppoi
               by_cases h_last_eq : ∃ heq, hcle_last = CleLink.eq heq
               · -- Last edge .eq: CLE_b_mid = CLE_c.
@@ -3058,14 +3084,20 @@ private theorem path_write_ob_of_eq_cle
             exact ⟨h_ev.1, fun hw_a => Trans.trans (h_ih.2 hw_a) (h_ev.2 h_ih.1)⟩
           | inr hob_prefix =>
             -- Prefix gives reverse OB: CLE_b_mid OB CLE_a.
-            -- If CLE_a = CLE_b_mid: reverse OB self → e OB e → False.
-            -- If CLE_a ≠ CLE_b_mid: similar to non-eq CleLink case.
-            -- Use edge_eq_cle_write_ob: if last edge has CLE_b_mid = CLE_c:
-            --   CLE_a = CLE_c → CLE_a = CLE_b_mid → reverse OB self → False.
-            -- If last edge CLE_b_mid ≠ CLE_c: compose → non-eq full path.
-            -- Same argument as non-eq CleLink case above.
+            -- Check last edge for CLE equality:
             exfalso
-            sorry
+            cases h with
+            | inl hppoi => sorry -- PPOi: same issue as above
+            | inr hcom =>
+              have hcle_last := step_to_ordering_hknow hcom hknow h_non_lazy_ppoi
+              by_cases h_last_eq : ∃ heq, hcle_last = CleLink.eq heq
+              · -- Last edge .eq: CLE_b_mid = CLE_c → CLE_a = CLE_b_mid.
+                -- Reverse OB self: CLE OB CLE → False.
+                obtain ⟨heq_last, _⟩ := h_last_eq
+                have h_ab := h_cle_eq.trans heq_last.symm
+                exact Event.contradiction_of_reflexive_ordered_before n (h_ab ▸ hob_prefix)
+              · -- Last edge non-eq: same compose issue.
+                sorry
       · -- CleLink non-.eq self → False.
         exfalso
         push_neg at h_is_eq
