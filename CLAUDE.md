@@ -70,8 +70,12 @@ This is the CompoundMCM acyclicity proof using linearization events, NOT just CL
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-04-02)
-- **ZERO sorry's across all CMCM/. All theorems proven.**
+### Status (updated 2026-04-03)
+- **1 sorry remaining**: `cycle_eq_closure` h_all_same_cle (Proof.lean:3118)
+- **ZERO `hdir de de` abuse**: All dir_ordered self-applications removed via h_ne on CleLink constructors + address-based PPOi contradiction + readsFrom case analysis for rfe.
+- **h_ne approach**: Non-eq CleLink constructors carry `h_ne : l₁ ≠ l₂`. At self-reference, non-eq cases close with `absurd rfl h_ne`. sameLin closes with temporal chain (CLE.oEnd < e₁'.oEnd < e₂'.oStart < CLE.oStart < CLE.oEnd). eq delegates to cycle_eq_closure.
+- **PPOi (diff-addr) + CLE equality**: Impossible. CLE.addr = e.addr (from dirAccessOfRequest.dirCorresponds.sameAddr), so CLE₁=CLE₂ → e₁.addr=e₂.addr → contradicts addr≠.
+- **rfe + CLE equality**: Impossible. Case-split CleLink → non-eq/sameLin give contradiction. eq case: case-split readsFrom → all sub-cases give OB/oEnd chains that contradict CLE₁=CLE₂.
 - **Key theorems**:
   - `cmcm_acyclic_of_hknow` (line 2600): CLE-level acyclicity proof. COM evidence via step_to_ordering → compose_three.
   - `cmcm_acyclic_of_hknow_compoundLinOrdering` (line 2632): CompoundLin-level acyclicity. LinLink invariant on compoundLin events. Lifts CLE result via lift_cle_3way_to_compoundLin. Cycle closure via LinLink.irrefl.
