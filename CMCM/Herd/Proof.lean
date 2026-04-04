@@ -2914,30 +2914,51 @@ private theorem edge_eq_cle_write_ob
       exact ⟨h.write, fun hw => absurd (show e₁.isRead from h.read)
         (fun hr => event_write_read_false hw hr)⟩
 
-/-- Along a TransGen path where all CLEs are equal,
-    every edge gives event-level write + OB evidence.
-    The result composes transitively via OB transitivity. -/
+/-- Helper: for a path with all same-CLE edges, track c.isWrite ∧ (a.isWrite → a OB c).
+    Uses edge_eq_cle_write_ob per-edge + Trans.trans on OB. -/
+private theorem same_cle_path_write_ob
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    {a c : Event n}
+    (hpath : Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) a c)
+    -- Key: ALL intermediate events share the same CLE as a
+    (h_all_same_cle : ∀ b_mid,
+      Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) a b_mid →
+      (hknow a).cle = (hknow b_mid).cle)
+    (h_cle_eq : (hknow a).cle = (hknow c).cle)
+    : c.isWrite ∧ (a.isWrite → a.OrderedBefore n c) := by
+  induction hpath with
+  | single hedge => exact edge_eq_cle_write_ob hknow h_non_lazy_ppoi hedge h_cle_eq
+  | tail hprefix hedge ih =>
+    -- IH for prefix: need h_all_same_cle for sub-path and CLE_a = CLE_b_mid.
+    have h_ab : (hknow a).cle = (hknow _).cle := h_all_same_cle _ hprefix
+    -- ih takes h_all_same_cle (for sub-paths of the prefix) and h_cle_eq (for prefix endpoint)
+    -- ih is the IH for the prefix. It may already have h_all_same_cle and h_cle_eq applied.
+    -- Since induction generalizes c but not necessarily the other hypotheses,
+    -- ih might be: b_mid.isWrite ∧ (a.isWrite → a OB b_mid)
+    -- OR it might need h_all_same_cle and h_cle_eq for b_mid.
+    -- Test: can I use ih directly?
+    have h_ab := h_all_same_cle _ hprefix
+    have h_ih := ih h_ab
+    have h_bc := h_ab.symm.trans h_cle_eq
+    have h_ev := edge_eq_cle_write_ob hknow h_non_lazy_ppoi hedge h_bc
+    exact ⟨h_ev.1, fun hw => Trans.trans (h_ih.2 hw) (h_ev.2 h_ih.1)⟩
+
 private theorem cycle_eq_closure
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     {e : Event n}
     (hcycle : Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e e)
     : False := by
-  let R := (fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init
-  -- Enriched relation: R + CLE equality per edge
-  let R_eq := fun (a c : Event n) => R a c ∧ (hknow a).cle = (hknow c).cle
-  -- Step 1: Construct TransGen R_eq e e from TransGen R e e.
-  -- For each edge R a b: step_to_ordering gives CleLink.
-  --   If .eq: CLE_a = CLE_b → R_eq a b.
-  --   If non-eq: cle_path_invariant on full cycle gives non-eq CleLink self → False.
-  suffices h_enriched : Relation.TransGen R_eq e e by
-    -- Step 2: From TransGen R_eq e e, compose event OB → e OB e → False.
-    -- By edge_eq_cle_write_ob: each R_eq edge gives b.isWrite ∧ (a.isWrite → a OB b).
-    -- Compose: e.isWrite ∧ (e.isWrite → e OB e) → e OB e → False.
-    -- OR: first edge FR → e.isRead, last edge → e.isWrite → contradiction.
-    sorry -- Step 2: compose event OB from R_eq edges
-  -- Step 1: lift TransGen R to TransGen R_eq.
-  sorry -- Step 1: construct TransGen R_eq from TransGen R
+  -- Prove all intermediates share CLE_e, then use same_cle_path_write_ob.
+  -- For h_all_same_cle: induction on TransGen R e b_mid, checking CLE per-edge.
+  -- If CLE equal: extend. If CLE not equal: derive False from cycle (sorry for now).
+  have h_all : ∀ b_mid, Relation.TransGen
+      ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e b_mid →
+      (hknow e).cle = (hknow b_mid).cle := by
+    sorry -- TODO: prove all intermediates same CLE
+  have hev := same_cle_path_write_ob hknow h_non_lazy_ppoi hcycle h_all rfl
+  exact Event.contradiction_of_reflexive_ordered_before n (hev.2 hev.1)
 
 theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
