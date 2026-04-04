@@ -170,20 +170,27 @@ def TemporalRel {n : ℕ} : Event n → Event n → Prop := Relation.TransGen Ba
 
 -- CleLink.subset_temporalRel theorem is defined after CleLink.
 
-/-- CleLink between linearization events (CLEs). Each edge derives
-    `CleLink CLE₁ CLE₂` from communication evidence. A cycle gives
-    `CleLink CLE CLE → False` via irreflexivity. -/
-/-- OB between events implies they're distinct. -/
+-- OB between events implies they're distinct.
 theorem Event.ne_of_ob {e₁ e₂ : Event n} (h : e₁.OrderedBefore n e₂) : e₁ ≠ e₂ :=
-  fun heq => by subst heq; exact Nat.lt_irrefl _ (Nat.lt_trans h e₂.oWellFormed)
+  fun heq => by subst heq; exact Nat.lt_irrefl _ (Nat.lt_trans h (Event.oWellFormed n e₁))
 
-/-- Encapsulation implies distinct events. -/
+-- Encapsulation implies distinct events.
 theorem Event.ne_of_encap {e₁ e₂ : Event n} (h : e₁.Encapsulates n e₂) : e₁ ≠ e₂ :=
   fun heq => by subst heq; exact Nat.lt_irrefl _ h.left
 
-/-- EncapsulatedBy implies distinct events. -/
+-- EncapsulatedBy implies distinct events.
 theorem Event.ne_of_encapBy {e₁ e₂ : Event n} (h : e₁.EncapsulatedBy n e₂) : e₁ ≠ e₂ :=
   fun heq => by subst heq; exact Nat.lt_irrefl _ h.left
+
+-- Different protocol implies distinct events.
+theorem Event.ne_of_diff_prot {e₁ e₂ : Event n} (h : e₁.protocol ≠ e₂.protocol) : e₁ ≠ e₂ :=
+  fun heq => by subst heq; exact absurd rfl h
+
+/-- CleLink between linearization events (CLEs). Each edge derives
+    `CleLink CLE₁ CLE₂` from communication evidence. A cycle gives
+    `CleLink CLE CLE → False` via irreflexivity.
+    Non-eq constructors carry h_ne : l₁ ≠ l₂ (from temporal/protocol evidence).
+    At cycle closure (l₁ = l₂): non-eq cases give absurd rfl h_ne → False. -/
 
 inductive CleLink : Event n → Event n → Prop where
   | ob (h : l₁.OrderedBefore n l₂) (h_ne : l₁ ≠ l₂) : CleLink l₁ l₂
