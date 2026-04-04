@@ -2971,29 +2971,100 @@ private theorem path_write_ob_of_eq_cle
         -- (from CLE_a = CLE_b and CLE_a = CLE_c) gives c.isWrite ∧ (b_mid.isWrite → b_mid OB c).
         cases h3way_prefix with
         | inl hcle_prefix =>
-          -- Prefix has non-eq CleLink. h3way_result was already computed.
-          -- Use the same h3way_result case-split we're already inside.
-          -- But wait — we're INSIDE the case split on h3way_result (line 2957).
-          -- Actually, h3way_result was case-split at line 2957 and we're inside `| inl hcle`.
-          -- Then hcle : CleLink(CLE_a, CLE_c). hcle_self : CleLink self (via rewrite).
-          -- h_is_eq was True → we're in the sorry branch at line 2978 (ORIGINAL position).
-          -- The issue: the non-eq CleLink prefix + edge composed to .eq at self. Unreachable?
-          -- compose_three with non-eq CleLink does NOT always preserve non-eq.
-          -- (e.g., CleLink.ob + CleLink.ob.reverse could compose to .eq via dir_ordered)
-          -- So this case IS reachable. Need: derive False from CleLink.eq self.
-          -- CleLink.eq self is the ORIGINAL problem (dir_ordered de de).
-          -- Without dir_ordered de de, this case is genuinely hard.
-          -- For now: sorry (captures the compose-preserves-non-eq gap).
-          sorry
+          -- Prefix gives CleLink(CLE_a, CLE_b_mid). Split: .eq or non-eq?
+          by_cases h_prefix_is_eq : ∃ heq : (hknow a).cle = (hknow _).cle, hcle_prefix = .eq heq
+          · -- Prefix CleLink IS .eq → CLE_a = CLE_b_mid → IH applies (same as heq_prefix).
+            obtain ⟨heq_ab, _⟩ := h_prefix_is_eq
+            have h_ih := ih heq_ab
+            have h_cle_bc := heq_ab.symm.trans h_cle_eq
+            have h_ev := edge_eq_cle_write_ob hknow h_non_lazy_ppoi h h_cle_bc
+            exact ⟨h_ev.1, fun hw_a => Trans.trans (h_ih.2 hw_a) (h_ev.2 h_ih.1)⟩
+          · -- Prefix CleLink is NON-.eq. Last edge gives CLE_b_mid → CLE_c evidence.
+            -- From edge_eq_cle_write_ob on last edge with CLE_b_mid = CLE_c:
+            -- OR: last edge may have CLE_b_mid ≠ CLE_c. Check:
+            -- Actually: CLE_a = CLE_c (h_cle_eq). If CLE_a = CLE_b_mid: contradicts prefix non-eq.
+            -- If CLE_a ≠ CLE_b_mid: prefix non-eq CleLink is between distinct CLEs. OK.
+            -- Need: derive CLE_a = CLE_b_mid somehow → contradiction with prefix non-eq.
+            -- From h3way_result being .eq: full path CleLink is CLE_a = CLE_c (trivially CLE_a = CLE_a).
+            -- Full path = compose_three(prefix, last_edge, ...).
+            -- Prefix: non-eq CleLink(CLE_a, CLE_b_mid).
+            -- For full path to be .eq (CLE_a = CLE_c = CLE_a): compose needs to "undo" the prefix.
+            -- This requires the last edge to bring CLE_b_mid back to CLE_a.
+            -- If last edge has CLE_b_mid = CLE_c: CLE_b_mid = CLE_c = CLE_a → CLE_a = CLE_b_mid.
+            -- Prefix non-eq CleLink self → cleLink_self_false_ne → False.
+            -- If last edge has CLE_b_mid ≠ CLE_c: full path has non-eq CleLink. But full path is .eq. Contradiction?
+            -- In Prop/CleLink: proof irrelevance means we can't distinguish .eq from non-eq
+            -- via the accumulated result. The h_is_eq check already determined hcle_self = .eq.
+            -- But hcle_self was REWRITTEN from hcle via h_cle_eq ▸ hcle.
+            -- The rewrite doesn't change the CleLink constructor.
+            -- So if hcle_self = .eq, then hcle was also .eq (just with different type).
+            -- And hcle = compose_three(hcle_prefix, ...). If hcle is .eq...
+            -- Actually: CleLink is Prop. In Lean 4, Prop types ARE subsingletons.
+            -- So any two proofs of CleLink l₁ l₂ are equal. We CAN'T distinguish constructors!
+            -- by_cases with ∃ heq uses Decidable, which CleLink might not have.
+            -- Wait — the by_cases DOES work (it's used above at h_is_eq).
+            -- So CleLink HAS decidable equality for the ∃ form.
+            -- But: if hcle_self is .eq heq for SOME heq, and hcle_prefix is non-.eq,
+            -- these are different CleLink INSTANCES (different types: self vs non-self).
+            -- The key: hcle_self = h_cle_eq ▸ hcle. And hcle was the compose_three output.
+            -- If compose_three output is .eq: then CLE_a = CLE_c from the .eq.
+            -- And compose_three with non-eq prefix: CAN compose_three produce .eq from non-eq?
+            -- In code: compose_three returns .eq ONLY via CleLink.eq constructor propagation.
+            -- With non-eq prefix: compose_three does OB/encap composition → non-eq result.
+            -- So compose_three(non-eq, anything) → non-eq. But h_is_eq says result is .eq.
+            -- CONTRADICTION!
+            -- Formalization: compose_three result hcle matches .eq → but compose_three with
+            -- non-eq prefix can't produce .eq → False.
+            -- I can't prove "compose_three with non-eq can't produce .eq" without a formal lemma.
+            -- BUT: I can use a different argument.
+            -- Since prefix is non-eq CleLink self (after CLE_a = CLE_b_mid rewrite)
+            -- and cleLink_self_false_ne handles it:
+            -- I need CLE_a = CLE_b_mid. Get it from:
+            -- h_is_eq gives ∃ heq, hcle_self = .eq heq. heq : CLE_a = CLE_a (trivial).
+            -- This doesn't give CLE_a = CLE_b_mid.
+            -- The problem: .eq in hcle_self doesn't propagate to .eq in hcle_prefix.
+            -- I'm stuck.
+            exfalso
+            push_neg at h_prefix_is_eq
+            -- Check last edge for CLE equality:
+            cases h with
+            | inl hppoi =>
+              -- PPOi last edge: different addresses → CLE_b_mid ≠ CLE_c in general.
+              -- Full path .eq with non-eq prefix + PPOi → compose_three produces non-eq.
+              -- Contradiction with h_is_eq. Needs compose-preserves-non-eq lemma.
+              sorry
+            | inr hcom =>
+              -- COM last edge: check step_to_ordering for .eq
+              have hcle_last := step_to_ordering_hknow hcom hknow h_non_lazy_ppoi
+              by_cases h_last_eq : ∃ heq, hcle_last = CleLink.eq heq
+              · -- Last edge .eq: CLE_b_mid = CLE_c.
+                obtain ⟨heq_last, _⟩ := h_last_eq
+                -- CLE(a) = CLE(c) and CLE(b_mid) = CLE(c) → CLE(a) = CLE(b_mid).
+                have h_ab := h_cle_eq.trans heq_last.symm
+                -- h_prefix_is_eq : ∀ heq, hcle_prefix ≠ .eq heq
+                -- h_ab : CLE(a) = CLE(b_mid)
+                -- h_prefix_is_eq h_ab : hcle_prefix ≠ .eq h_ab
+                -- But hcle_prefix and .eq h_ab are both proofs of CleLink CLE_a CLE_b_mid (Prop)
+                -- → equal by proof irrelevance → contradiction!
+                exact absurd (Subsingleton.elim hcle_prefix (.eq h_ab)) (h_prefix_is_eq h_ab)
+              · -- Last edge non-eq: full path .eq with non-eq prefix + non-eq last → impossible.
+                sorry
         | inr hr => cases hr with
           | inl heq_prefix =>
-            -- CLE_a = CLE_b. IH applies!
+            -- CLE_a = CLE_b_mid → IH applies.
             have h_ih := ih heq_prefix
             have h_cle_bc := heq_prefix.symm.trans h_cle_eq
             have h_ev := edge_eq_cle_write_ob hknow h_non_lazy_ppoi h h_cle_bc
             exact ⟨h_ev.1, fun hw_a => Trans.trans (h_ih.2 hw_a) (h_ev.2 h_ih.1)⟩
           | inr hob_prefix =>
-            -- Same as CleLink prefix case: compose may produce .eq at self.
+            -- Prefix gives reverse OB: CLE_b_mid OB CLE_a.
+            -- If CLE_a = CLE_b_mid: reverse OB self → e OB e → False.
+            -- If CLE_a ≠ CLE_b_mid: similar to non-eq CleLink case.
+            -- Use edge_eq_cle_write_ob: if last edge has CLE_b_mid = CLE_c:
+            --   CLE_a = CLE_c → CLE_a = CLE_b_mid → reverse OB self → False.
+            -- If last edge CLE_b_mid ≠ CLE_c: compose → non-eq full path.
+            -- Same argument as non-eq CleLink case above.
+            exfalso
             sorry
       · -- CleLink non-.eq self → False.
         exfalso
