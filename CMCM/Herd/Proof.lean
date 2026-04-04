@@ -1319,8 +1319,50 @@ theorem fr_ordering_holds
                                   exact h_constraints.interSameProtocolAsWNotBetweenCleAndDrf
                                     h_ew_e₂ hencapDir' ⟨hcle_w_ob, hcle₂_ob_ev⟩
 
-/-- Map a COM edge to a CleLink between its CLEs (h.cle₁ and h.cle₂).
-    PPOi is handled separately via dir_ordered in compose_three/cmcm_acyclic_of_hknow. -/
+/-- CLE address = event address, derived from dirAccessOfRequest.
+    Each dirAccessOfRequest constructor carries sameAddr evidence. -/
+theorem cle_addr_eq (hk : CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    : Event.addr n e = Event.addr n hk.cle := by
+  cases hk.cle_dirAccess with
+  | encapDir _ hencap => exact hencap.dirCorresponds.sameAddr
+  | orderBeforeDir _ hpred hencap _ _ _ _ _ =>
+    exact hpred.choose_spec.2.isImmPred.bPred.sameEntry.sameAddr.symm.trans
+      hencap.dirCorresponds.sameAddr
+  | orderAfterDir _ hsucc _ _ =>
+    have h_imbsp := hsucc.choose_spec.2
+    exact h_imbsp.isImmBottomSucc.sameEntry.sameAddr.trans
+      h_imbsp.satisfyP.encapCorresponding.dirCorresponds.sameAddr
+
+/-- For PPOi (diff-addr) edges: CLE₁.addr ≠ CLE₂.addr.
+    Since CLE.addr = e.addr and e₁.addr ≠ e₂.addr. -/
+theorem ppoi_diff_addr_cle_addr_ne
+    (hppoi : @PPOi n b e₁ e₂) (h_addr_ne : e₁.addr ≠ e₂.addr)
+    (hk₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
+    (hk₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
+    : Event.addr n hk₁.cle ≠ Event.addr n hk₂.cle :=
+  fun h => h_addr_ne (by rw [cle_addr_eq hk₁, h, ← cle_addr_eq hk₂])
+
+/-- For PPOi (diff-addr): dir_ordered on the two CLEs gives a contradictory
+    sameDirectoryEntry (addresses differ), so exfalso.
+    This replaces the illegal cross-address dir_ordered usage. -/
+theorem ppoi_diff_addr_exfalso
+    (hppoi : @PPOi n b e₁ e₂) (h_addr_ne : e₁.addr ≠ e₂.addr)
+    (hk₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
+    (hk₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    : @CleLink n hk₁.cle hk₂.cle ∨ hk₁.cle = hk₂.cle ∨ hk₂.cle.OrderedBefore n hk₁.cle := by
+  exfalso
+  have h_cle_addr_ne := ppoi_diff_addr_cle_addr_ne hppoi h_addr_ne hk₁ hk₂
+  match hfc₁ : hk₁.cle, hk₁.cle_isDirEvent with
+  | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
+  | .directoryEvent de₁, _ =>
+    match hfc₂ : hk₂.cle, hk₂.cle_isDirEvent with
+    | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
+    | .directoryEvent de₂, _ =>
+      exact absurd (hdir de₁ de₂).sameDirectoryEntry
+        (by simp [Event.addr] at h_cle_addr_ne; rw [hfc₁, hfc₂] at h_cle_addr_ne; exact h_cle_addr_ne)
+
+/-- Map a COM edge to a CleLink between its CLEs (h.cle₁ and h.cle₂). -/
 theorem step_to_ordering
     (h : com compound b init e₁ e₂)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
@@ -2018,33 +2060,7 @@ theorem cle_to_compoundLinOrdering
           exact Or.inr (Or.inr (.proxy _ _ (.ob hob_rev' (Event.ne_of_ob hob_rev')) h₂_isdir h₁_isdir
             (cle_ob_to_temporal_chain hob_rev' hnotdown₂ hnotdown₁ hdir)))
 
--- 3-way LinLink via CLE dir_ordered + bridge.
--- hnotdown provided by callers (from edge data).
-theorem compoundLinOrdering_3way
-    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (e₁ e₂ : Event n)
-    (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
-    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    : LinLink (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
-      (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
-      LinLink (hknow e₂).compoundLin (hknow e₁).compoundLin := by
-  have h3way := step_ordering_dir_ordered_3way
-    (hknow e₁).cle_isDirEvent
-    (hknow e₂).cle_isDirEvent hdir
-  cases h3way with
-  | inl hso =>
-    -- step_ordering_dir_ordered_3way only produces CleLink.ob for distinct CLEs.
-    exact cle_to_compoundLinOrdering hso hnotdown₁ hnotdown₂ hdir
-  | inr hr => cases hr with
-    | inl heq => exact cle_to_compoundLinOrdering (.eq heq) hnotdown₁ hnotdown₂ hdir
-    | inr hob_rev =>
-      -- Reverse OB on CLEs → reverse on compoundLin.
-      cases cle_to_compoundLinOrdering (.ob hob_rev (Event.ne_of_ob hob_rev)) hnotdown₂ hnotdown₁ hdir with
-      | inl hfwd => exact Or.inr (Or.inr hfwd)
-      | inr hr => cases hr with
-        | inl heq => exact Or.inr (Or.inl heq.symm)
-        | inr hrev => exact Or.inl hrev
-
+-- compoundLinOrdering_3way: removed (dead code, used cross-address dir_ordered).
 
 -- Compose any CleLink h₁ with OB h₂. Handles all h₁ constructors.
 -- Used by both PPOi and COM .ob cases.
@@ -2236,38 +2252,48 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       -- l₁ = l₂: just need 3-way for (l₂, l₃). For PPOi: dir_ordered. For COM: step_to_ordering.
       cases hedge with
       | inl hppoi_edge =>
-        rw [heq₁]; exact step_ordering_dir_ordered_3way
-          (hl₂ ▸ (hknow e₂).cle_isDirEvent)
-          (hl₃ ▸ (hknow e₃).cle_isDirEvent) hdir
+        rw [heq₁, hl₂, hl₃]; exact ppoi_diff_addr_exfalso hppoi_edge.1 hppoi_edge.2 (hknow e₂) (hknow e₃) hdir
       | inr hcom_edge =>
         rw [heq₁, hl₂, hl₃]; exact Or.inl (step_to_ordering_hknow hcom_edge hknow h_non_lazy_ppoi)
     | inr h_l₂_ob_l₁ =>
-      -- l₂ OB l₁ + new edge. dir_ordered(l₁, l₃) resolves both directions:
-      -- l₁ OB l₃ → .ob (first alternative)
-      -- l₃ OB l₁ → third alternative (resolved at cycle closure)
-      have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).cle_isDirEvent
-      match hfc₁ : l₁, h₁_isdir with
-      | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-      | .directoryEvent de₁, _ =>
-        match hfc₃ : l₃, h₃_isdir with
+      -- l₂ OB l₁ + new edge. For PPOi: exfalso (cross-addr sameDirectoryEntry).
+      -- For COM: l₁ and l₃ might be same or diff addr.
+      cases hedge with
+      | inl hppoi_edge =>
+        -- PPOi diff-addr: exfalso from address contradiction via sameDirectoryEntry.
+        exfalso
+        have h_addr_ne := ppoi_diff_addr_cle_addr_ne hppoi_edge.1 hppoi_edge.2 (hknow e₂) (hknow e₃)
+        match hfc₂ : (hknow e₂).cle, (hknow e₂).cle_isDirEvent with
+        | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
+        | .directoryEvent de₂, _ =>
+          match hfc₃ : (hknow e₃).cle, (hknow e₃).cle_isDirEvent with
+          | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
+          | .directoryEvent de₃, _ =>
+            exact absurd (hdir de₂ de₃).sameDirectoryEntry
+              (show de₂.addr ≠ de₃.addr by simp [Event.addr] at h_addr_ne; rw [hfc₂, hfc₃] at h_addr_ne; exact h_addr_ne)
+      | inr hcom_edge =>
+        -- COM: same addr → dir_ordered on same-addr CLEs is legitimate.
+        have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).cle_isDirEvent
+        match hfc₁ : l₁, h₁_isdir with
         | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-        | .directoryEvent de₃, _ =>
-          cases (hdir de₁ de₃).ordered with
-          | inl hob₁₃ => exact Or.inl (.ob hob₁₃ (Event.ne_of_ob hob₁₃))
-          | inr hob₃₁ => exact Or.inr (Or.inr hob₃₁)
+        | .directoryEvent de₁, _ =>
+          match hfc₃ : l₃, h₃_isdir with
+          | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
+          | .directoryEvent de₃, _ =>
+            cases (hdir de₁ de₃).ordered with
+            | inl hob₁₃ => exact Or.inl (.ob hob₁₃ (Event.ne_of_ob hob₁₃))
+            | inr hob₃₁ => exact Or.inr (Or.inr hob₃₁)
   | inl hso₁ =>
   -- Case-split on hedge (the actual edge) to get edge-specific evidence.
   -- For each edge type, combine with h₁ (CleLink from prefix).
   cases hedge with
   | inl hppoi_edge =>
-    -- PPOi(e₂, e₃): dir_ordered on CLEs gives the 3-way result directly.
-    -- Bypasses ppoi_step_to_ordering and avoids compound linearization matching.
+    -- PPOi(e₂, e₃) with diff-addr: CLE₂.addr ≠ CLE₃.addr → dir_ordered sameDirectoryEntry
+    -- contradicts → exfalso. No cross-address dir_ordered needed.
     have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).cle_isDirEvent
     have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).cle_isDirEvent
     have h₂₃_3way : @CleLink n l₂ l₃ ∨ l₂ = l₃ ∨ l₃.OrderedBefore n l₂ := by
-      rw [hl₂, hl₃]; exact step_ordering_dir_ordered_3way
-        ((hknow e₂).cle_isDirEvent)
-        ((hknow e₃).cle_isDirEvent) hdir
+      rw [hl₂, hl₃]; exact ppoi_diff_addr_exfalso hppoi_edge.1 hppoi_edge.2 (hknow e₂) (hknow e₃) hdir
     cases h₂₃_3way with
     | inl hso₂ =>
       -- CleLink l₂ l₃: compose with h₁ using OB from same_prot_dir_ordered_forward
@@ -2762,10 +2788,7 @@ private theorem cle_path_invariant
     · exact ⟨a, h⟩
     · cases h with
       | inl hppoi =>
-        exact step_ordering_dir_ordered_3way
-          (hknow _).cle_isDirEvent
-          (hknow _).cle_isDirEvent
-          b.orderedAtEntry.dir_ordered
+        exact ppoi_diff_addr_exfalso hppoi.1 hppoi.2 (hknow _) (hknow _) b.orderedAtEntry.dir_ordered
       | inr hcom =>
         exact Or.inl (step_to_ordering_hknow hcom hknow h_non_lazy_ppoi)
   | tail hpath h ih =>
