@@ -2316,7 +2316,7 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       have hob₂ : l₂.OrderedBefore n l₃ := same_prot_dir_ordered_forward hso₂ h₂₃_prot hdir h₂_isdir h₃_isdir
       -- PPOi obFinishBefore: derive diff_prot for l₁/l₃ from l₁≠l₂ + l₂=l₃.
       match hso₁ with
-      | .obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir =>
+      | .obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir _ =>
         have h₂₃_prot : l₂.protocol = l₃.protocol := by
           rw [hl₂, hl₃]; exact (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
             (hppoi_edge.1.sameProtocol.trans (write_cle_protocol_eq_write_protocol (hknow e₃)).symm)
@@ -2363,17 +2363,20 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
       | _ =>
         exact step_ordering_dir_ordered_3way h₁_isdir
           (hl₃ ▸ (hknow e₃).cle_isDirEvent) hdir
-    | encapOb p₂ henc₂ hob₂ =>
+    | encapOb p₂ henc₂ hob₂ _ =>
       cases hso₁ with
-      | ob hob₁ =>
-        exact Or.inl (.ob (Trans.trans (Event.ob_of_lt_lt hob₁ henc₂.left) hob₂))
-      | encapOb p₁ henc₁ hob₁ =>
-        exact Or.inl (.proxyPair p₁ p₂ henc₁ (Event.ob_of_lt_lt hob₁ henc₂.left) hob₂)
-      | proxyPair q₁ p₁ hq_enc hq_ob hp_ob =>
-        exact Or.inl (.proxyPair q₁ p₂ hq_enc (Trans.trans hq_ob (Event.ob_of_lt_lt hp_ob henc₂.left)) hob₂)
-      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
-      | eq heq₁ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂)
-      | obEndLt p₁ hob₁ hlt₁ h_p₁_isdir =>
+      | ob hob₁ _ =>
+        have h := Trans.trans (Event.ob_of_lt_lt hob₁ henc₂.left) hob₂
+        exact Or.inl (.ob h (Event.ne_of_ob h))
+      | encapOb p₁ henc₁ hob₁ _ =>
+        have hq := Event.ob_of_lt_lt hob₁ henc₂.left
+        exact Or.inl (.proxyPair p₁ p₂ henc₁ hq hob₂ (Event.ne_of_proxyPair henc₁ hq hob₂))
+      | proxyPair q₁ p₁ hq_enc hq_ob hp_ob _ =>
+        have hq := Trans.trans hq_ob (Event.ob_of_lt_lt hp_ob henc₂.left)
+        exact Or.inl (.proxyPair q₁ p₂ hq_enc hq hob₂ (Event.ne_of_proxyPair hq_enc hq hob₂))
+      | sameLin _ _ heq₁ _ _ _ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂ (Event.ne_of_encapOb henc₂ hob₂))
+      | eq heq₁ => exact Or.inl (heq₁ ▸ .encapOb p₂ henc₂ hob₂ (Event.ne_of_encapOb henc₂ hob₂))
+      | obEndLt p₁ hob₁ hlt₁ h_p₁_isdir _ =>
         -- obEndLt h₁ + encapOb h₂: use dir_ordered(p₁, l₂) to chain through.
         -- l₂ OB p₁ → p₁.oEnd < l₂.oEnd (hlt₁) and l₂.oEnd < p₁.oStart → p₁.oEnd < p₁.oStart → False.
         -- So dir_ordered gives p₁ OB l₂. Chain: l₁ OB p₁ OB l₂, l₂ encaps p₂ OB l₃ → .ob.
