@@ -173,41 +173,38 @@ def TemporalRel {n : ℕ} : Event n → Event n → Prop := Relation.TransGen Ba
 /-- CleLink between linearization events (CLEs). Each edge derives
     `CleLink CLE₁ CLE₂` from communication evidence. A cycle gives
     `CleLink CLE CLE → False` via irreflexivity. -/
+/-- OB between events implies they're distinct. -/
+theorem Event.ne_of_ob {e₁ e₂ : Event n} (h : e₁.OrderedBefore n e₂) : e₁ ≠ e₂ :=
+  fun heq => by subst heq; exact Nat.lt_irrefl _ (Nat.lt_trans h e₂.oWellFormed)
+
+/-- Encapsulation implies distinct events. -/
+theorem Event.ne_of_encap {e₁ e₂ : Event n} (h : e₁.Encapsulates n e₂) : e₁ ≠ e₂ :=
+  fun heq => by subst heq; exact Nat.lt_irrefl _ h.left
+
+/-- EncapsulatedBy implies distinct events. -/
+theorem Event.ne_of_encapBy {e₁ e₂ : Event n} (h : e₁.EncapsulatedBy n e₂) : e₁ ≠ e₂ :=
+  fun heq => by subst heq; exact Nat.lt_irrefl _ h.left
+
 inductive CleLink : Event n → Event n → Prop where
-  | ob (h : l₁.OrderedBefore n l₂) : CleLink l₁ l₂
+  | ob (h : l₁.OrderedBefore n l₂) (h_ne : l₁ ≠ l₂) : CleLink l₁ l₂
   | obEndLt (p : Event n) (h_ob : l₁.OrderedBefore n p) (h_lt : Event.oEnd n p < Event.oEnd n l₂)
-      (h_p_isdir : p.isDirectoryEvent) : CleLink l₁ l₂
-  /-- Encap-then-OB: p inside l₁, p before l₂.
-      Irrefl: p inside l₁ = l₂ and p OB l₂ → p.oEnd < l₂.oStart < p.oStart → False. -/
+      (h_p_isdir : p.isDirectoryEvent) (h_ne : l₁ ≠ l₂) : CleLink l₁ l₂
   | encapOb (p : Event n) (h_enc : p.EncapsulatedBy n l₁) (h_ob : p.OrderedBefore n l₂)
-      : CleLink l₁ l₂
-  /-- OB-then-finishBefore: p before l₂, p finishes before l₁.
-      For cross-cluster FR with gcacheEncap/noGlobalCache: d_rf OB CLE₂ and d_rf.oEnd < CLE₁.oEnd.
-      Not irreflexive alone — requires composition with other edges in a cycle. -/
+      (h_ne : l₁ ≠ l₂) : CleLink l₁ l₂
   | obFinishBefore (p : Event n) (h_ob : p.OrderedBefore n l₂) (h_lt : Event.oEnd n p < Event.oEnd n l₁)
       (h_diff_prot : l₁.protocol ≠ l₂.protocol) (h_p_isdir : p.isDirectoryEvent)
-      : CleLink l₁ l₂
+      (h_ne : l₁ ≠ l₂) : CleLink l₁ l₂
   | sameLin (e₁' e₂' : Event n) (h_eq : l₁ = l₂)
       (h_enc₁ : l₁.EncapsulatedBy n e₁') (h_ob : e₁'.OrderedBefore n e₂')
       (h_enc₂ : l₂.EncapsulatedBy n e₂') : CleLink l₁ l₂
-  /-- Two-proxy chain: q inside l₁, q OB p, p OB l₂.
-      For compositions of encapOb/obFinishBefore with obEndLt/encapOb/obFinishBefore.
-      Irrefl: q inside l, q OB p, p OB l → p.oEnd < l.oStart < q.oStart → p.oEnd < q.oStart
-      and q.oEnd < p.oStart → contradiction. -/
   | proxyPair (q p : Event n) (h_q_enc : q.EncapsulatedBy n l₁)
-      (h_q_ob_p : q.OrderedBefore n p) (h_p_ob : p.OrderedBefore n l₂) : CleLink l₁ l₂
+      (h_q_ob_p : q.OrderedBefore n p) (h_p_ob : p.OrderedBefore n l₂)
+      (h_ne : l₁ ≠ l₂) : CleLink l₁ l₂
   | eq (h_eq : l₁ = l₂) : CleLink l₁ l₂
-  /-- l₁ encapsulates l₂: l₁.oStart < l₂.oStart ∧ l₂.oEnd < l₁.oEnd.
-      Irrefl: l encapsulates l → l.oStart < l.oStart → False.
-      For compoundLin lifting: when CLE₁ = CLE₂ and compoundLin₂ inside CLE₂ = compoundLin₁. -/
-  | encap (h_enc : l₁.Encapsulates n l₂) : CleLink l₁ l₂
-  /-- Encap-then-OB-then-oEnd: q inside l₁, q OB p, p.oEnd < l₂.oEnd.
-      Composition of encapOb/proxyPair with obEndLt.
-      Irrefl via dir_ordered: l₂ OB l₁ gives chain l₂.oEnd < l₁.oStart < q.oStart ≤
-      q.oEnd < p.oStart ≤ p.oEnd < l₂.oEnd → l₂.oEnd < l₂.oEnd → False. -/
+  | encap (h_enc : l₁.Encapsulates n l₂) (h_ne : l₁ ≠ l₂) : CleLink l₁ l₂
   | encapObEndLt (q p : Event n) (h_q_enc : q.EncapsulatedBy n l₁)
       (h_q_ob_p : q.OrderedBefore n p) (h_p_lt : Event.oEnd n p < Event.oEnd n l₂)
-      (h_p_isdir : p.isDirectoryEvent) : CleLink l₁ l₂
+      (h_p_isdir : p.isDirectoryEvent) (h_ne : l₁ ≠ l₂) : CleLink l₁ l₂
 
 -- CleLink decomposes into equality or a transitive chain of basic temporal steps.
 -- The eq constructor maps to l₁ = l₂ (not TemporalRel, which requires strict progress).

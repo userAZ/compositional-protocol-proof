@@ -2950,15 +2950,107 @@ private theorem cycle_eq_closure
     {e : Event n}
     (hcycle : Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e e)
     : False := by
-  -- Prove all intermediates share CLE_e, then use same_cle_path_write_ob.
-  -- For h_all_same_cle: induction on TransGen R e b_mid, checking CLE per-edge.
-  -- If CLE equal: extend. If CLE not equal: derive False from cycle (sorry for now).
-  have h_all : ∀ b_mid, Relation.TransGen
-      ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e b_mid →
-      (hknow e).cle = (hknow b_mid).cle := by
-    sorry -- TODO: prove all intermediates same CLE
-  have hev := same_cle_path_write_ob hknow h_non_lazy_ppoi hcycle h_all rfl
-  exact Event.contradiction_of_reflexive_ordered_before n (hev.2 hev.1)
+  -- Induction on the cycle directly, checking CLE equality per-edge.
+  -- Track: c.isWrite ∧ (e.isWrite → e OB c) ∧ CLE_e = CLE_c
+  -- When CLE differs: use edge_self_false on the cycle + remaining path.
+  --
+  -- Protocol scenario: the cycle visits events. If ALL share the same CLE:
+  -- compose event OB → e OB e → False. If any CLE differs: the cycle crosses
+  -- addresses, and we can derive False from the cycle structure.
+  --
+  -- Key: do the induction on hcycle ITSELF (not a sub-path), tracking the conjunction.
+  -- The induction generalizes the endpoint. At cycle closure (endpoint = e):
+  -- use the tracked evidence to derive e OB e → False.
+  suffices h_track : ∀ c,
+      Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e c →
+      (hknow e).cle = (hknow c).cle →
+      c.isWrite ∧ (e.isWrite → e.OrderedBefore n c) by
+    exact Event.contradiction_of_reflexive_ordered_before n
+      ((h_track e hcycle rfl).2 (h_track e hcycle rfl).1)
+  intro c hpath h_cle_eq
+  -- Use same_cle_path_write_ob. Need h_all_same_cle: ∀ b_mid on path, CLE_e = CLE_b_mid.
+  -- Prove h_all_same_cle by induction on hpath, checking each edge with DecidableEq.
+  -- For the "CLE not equal" case: the edge has CLE_prev ≠ CLE_next.
+  -- Combined with CLE_e = CLE_prev (from IH) → CLE_e ≠ CLE_next.
+  -- But h_cle_eq says CLE_e = CLE_c (endpoint). The path goes e → ... → next → ... → c.
+  -- The remaining sub-path from next to c has CLE_next ≠ CLE_e = CLE_c.
+  -- We need False. This requires: the sub-path CLE evidence contradicts.
+  -- For this: edge_eq_cle_write_ob on (prev, next) with CLE_prev = CLE_e ≠ CLE_next gives exfalso
+  -- (from edge_eq_cle_write_ob's PPOi case using dir_ordered on same-CLE events,
+  --  or from the edge_self_false argument).
+  -- Actually: edge_eq_cle_write_ob REQUIRES CLE_a = CLE_b. It gives exfalso for PPOi
+  -- (using dir_ordered which is over-strong). For CLE_a ≠ CLE_b: edge_eq_cle_write_ob doesn't apply.
+  -- Need a DIFFERENT argument for CLE ≠.
+  --
+  -- WAIT: I don't need False in the "CLE ≠" case of the h_all proof.
+  -- I just need False in cycle_eq_closure. The h_track suffices takes h_cle_eq.
+  -- If I can provide h_all_same_cle to same_cle_path_write_ob:
+  --   same_cle_path_write_ob gives the result.
+  -- If I CAN'T provide h_all_same_cle: I need a different argument.
+  --
+  -- REVELATION: the h_track suffices says:
+  --   ∀ c, TransGen R e c → CLE_e = CLE_c → c.isWrite ∧ (e.isWrite → e OB c)
+  -- For c where CLE_e ≠ CLE_c: the hypothesis CLE_e = CLE_c is FALSE → vacuously true!
+  -- So h_track only needs to work for c where CLE_e = CLE_c.
+  -- And for h_all_same_cle: I only need it for sub-paths that END at c with CLE_e = CLE_c.
+  -- The intermediates might have different CLEs!
+  --
+  -- BUT same_cle_path_write_ob needs ALL intermediates to have the same CLE.
+  -- If some intermediate has a different CLE: same_cle_path_write_ob doesn't apply.
+  --
+  -- DIFFERENT APPROACH: don't use same_cle_path_write_ob for paths with mixed CLEs.
+  -- Instead: for the h_track suffices, do the induction directly, and when CLE differs
+  -- at an intermediate, use exfalso (since the hypothesis h_cle_eq makes this vacuous).
+  --
+  -- Actually: h_track says ∀ c, ... → CLE_e = CLE_c → result.
+  -- The induction generalizes c AND h_cle_eq. In the tail case:
+  --   hprefix : TransGen R e b_mid, hedge : R b_mid c
+  --   ih : CLE_e = CLE_b_mid → b_mid.isWrite ∧ ...
+  --   h_cle_eq : CLE_e = CLE_c
+  -- I need CLE_e = CLE_b_mid to call ih. Check with DecidableEq:
+  --   If equal: ih gives the prefix result. Compose with last edge.
+  --   If not equal: ???
+  --
+  -- For "not equal": I have CLE_e ≠ CLE_b_mid AND CLE_e = CLE_c.
+  -- The path goes e →⁺ b_mid → c with CLE_e ≠ CLE_b_mid but CLE_e = CLE_c.
+  -- I need: c.isWrite ∧ (e.isWrite → e OB c). Goal is NOT False!
+  -- I actually need the CONJUNCTION, not False.
+  -- For the conjunction: c.isWrite is about c (the endpoint). e.isWrite → e OB c.
+  -- Can I get these from the edge evidence?
+  --
+  -- From edge R b_mid c: edge_eq_cle_write_ob needs CLE_b_mid = CLE_c.
+  -- CLE_b_mid ≠ CLE_e = CLE_c → CLE_b_mid ≠ CLE_c. So edge_eq_cle_write_ob doesn't apply.
+  -- From edge evidence directly: R b_mid c is PPOi or COM.
+  --   PPOi: orderedBefore gives b_mid OB c. Need e OB c... only if e OB b_mid (from ih which needs CLE_e = CLE_b_mid — circular).
+  --   COM: various evidence.
+  --
+  -- I'm stuck again. The core issue: when CLE_e ≠ CLE_b_mid, I can't use the IH,
+  -- and I can't derive the conjunction from edge evidence alone.
+  --
+  -- FINAL REALIZATION: the problem is that h_track needs the result for ALL c with CLE_e = CLE_c,
+  -- but the induction goes through intermediates that may have DIFFERENT CLEs.
+  -- The same_cle_path_write_ob helper avoids this by requiring h_all_same_cle.
+  -- But providing h_all_same_cle requires knowing all intermediates have same CLE.
+  --
+  -- The REAL answer: prove h_all_same_cle from the cycle structure.
+  -- But this is circular (proving all same CLE from the cycle that is all same CLE).
+  --
+  -- UNLESS: I can show that for a cycle TransGen R e e,
+  -- either ALL intermediates have CLE_e, or there exist two consecutive edges
+  -- where CLE differs, giving temporal evidence that contradicts the cycle.
+  --
+  -- This is the per-edge DecidableEq check. For each consecutive pair (a, b):
+  -- if CLE_a ≠ CLE_b: use dir_ordered on DISTINCT CLEs (legitimate: a ≠ b).
+  -- The dir_ordered evidence, combined with the rest of the cycle, gives a temporal cycle → False.
+  --
+  -- But this is TemporalRel irreflexivity again!
+  --
+  -- I'll use same_cle_path_write_ob with h_all_same_cle proved from the cycle.
+  -- For h_all_same_cle: use the cycle + cle_path_invariant on sub-paths + contradiction.
+  apply same_cle_path_write_ob hknow h_non_lazy_ppoi hpath _ h_cle_eq
+  -- Need: ∀ b_mid, TransGen R e b_mid → CLE_e = CLE_b_mid
+  intro b_mid hpath_sub
+  sorry
 
 theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
