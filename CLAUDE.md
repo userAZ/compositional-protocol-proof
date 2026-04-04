@@ -75,7 +75,11 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **`cacheEvent_Vd_transition_isNcWeakWrite`**: SORRY-FREE via ValidRequest Subtype match.
 - **RfCase files**: Fixed `rCleOrDownAtWAfterWCle.diffCluster` pattern match (missing 3rd field after `wObRDown` was added).
 
-### TODO — ALL COMPLETE
+### TODO
+8. **Remove remaining `hdir de de` abuse (2 locations)**: `cleLink_self_false` `.eq` case (line ~1498) and `LinLink.irrefl` proxy case (line ~1870) still use `dir_ordered de de` (same event). These are at CYCLE CLOSURE where self-referencing needs `False`. Proper fix: prove cycles always make CLE progress (no all-eq paths), or use CleLink irreflexivity that handles `.eq` without `dir_ordered` self-application.
+9. **Finish cmpLin theorem/induction**: Make the relations around cmpLin explicit — the induction should show compoundLin events are ordered at each step through CLEs/GLEs.
+
+### TODO — PREVIOUSLY COMPLETE
 1. ~~CO Theorem~~ — DONE: `co_ordering_holds` in CoTheorem.lean.
 2. ~~Dead code cleanup~~ — DONE: no marked-as-DEAD functions remain.
 3. ~~CompoundLin lifting~~ — DONE: `cmcm_acyclic_of_hknow_compoundLinOrdering` with LinLink invariant on compoundLin.

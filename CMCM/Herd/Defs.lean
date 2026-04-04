@@ -162,6 +162,9 @@ inductive BasicTemporalRel {n : ℕ} : Event n → Event n → Prop
 | encap : l₁.Encapsulates n l₂ → BasicTemporalRel l₁ l₂
 | encapBy : l₁.EncapsulatedBy n l₂ → BasicTemporalRel l₁ l₂
 | finishesBefore : Event.oEnd n l₁ < Event.oEnd n l₂ → BasicTemporalRel l₁ l₂
+/-- Proxy: p OB l₂ and p.oEnd < l₁.oEnd. Used for obFinishBefore (cross-cluster)
+    and cle_ob_compoundLin (compoundLin after CLE, need chain to CLE₂). -/
+| finishesAfterProxy (p : Event n) : p.OrderedBefore n l₂ → Event.oEnd n p < Event.oEnd n l₁ → BasicTemporalRel l₁ l₂
 
 def TemporalRel {n : ℕ} : Event n → Event n → Prop := Relation.TransGen BasicTemporalRel
 
@@ -206,45 +209,30 @@ inductive CleLink : Event n → Event n → Prop where
       (h_q_ob_p : q.OrderedBefore n p) (h_p_lt : Event.oEnd n p < Event.oEnd n l₂)
       (h_p_isdir : p.isDirectoryEvent) : CleLink l₁ l₂
 
--- CleLink is an irreflexive transitive subset of TemporalRel.
--- Every CleLink can be decomposed into a chain of basic temporal steps.
+-- CleLink decomposes into equality or a transitive chain of basic temporal steps.
+-- The eq constructor maps to l₁ = l₂ (not TemporalRel, which requires strict progress).
+-- All other constructors map to TemporalRel chains.
 theorem CleLink.subset_temporalRel {l₁ l₂ : Event n}
     (h : CleLink l₁ l₂)
-    (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
-    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    : TemporalRel l₁ l₂ := by
-  unfold TemporalRel
+    (_h₁_isdir : l₁.isDirectoryEvent) (_h₂_isdir : l₂.isDirectoryEvent)
+    (_hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    : l₁ = l₂ ∨ TemporalRel l₁ l₂ := by
   cases h with
-  | ob h => exact .single (.ob h)
-  | encap h => exact .single (.encap h)
+  | ob h => exact Or.inr (.single (.ob h))
+  | encap h => exact Or.inr (.single (.encap h))
   | encapOb p h_enc h_ob =>
-    exact .tail (.single (.encap h_enc)) (.ob h_ob)
+    exact Or.inr (.tail (.single (.encap h_enc)) (.ob h_ob))
   | obEndLt p h_ob h_lt _ =>
-    exact .tail (.single (.ob h_ob)) (.finishesBefore h_lt)
+    exact Or.inr (.tail (.single (.ob h_ob)) (.finishesBefore h_lt))
   | proxyPair q p h_enc h_ob h_ob₂ =>
-    exact .tail (.tail (.single (.encap h_enc)) (.ob h_ob)) (.ob h_ob₂)
+    exact Or.inr (.tail (.tail (.single (.encap h_enc)) (.ob h_ob)) (.ob h_ob₂))
   | sameLin e₁' e₂' _ h_enc₁ h_ob h_enc₂ =>
-    exact .tail (.tail (.single (.encapBy h_enc₁)) (.ob h_ob)) (.encap h_enc₂)
+    exact Or.inr (.tail (.tail (.single (.encapBy h_enc₁)) (.ob h_ob)) (.encap h_enc₂))
   | encapObEndLt q p h_enc h_ob h_lt _ =>
-    exact .tail (.tail (.single (.encap h_enc)) (.ob h_ob)) (.finishesBefore h_lt)
-  | obFinishBefore p h_ob h_lt h_diff h_isdir =>
-    -- hdir is over-strong: de OB de gives False for any directory event.
-    -- Use h_isdir to extract directory event from p, then dir_ordered p p → False.
-    exfalso
-    match p, h_isdir with
-    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-    | .directoryEvent de, _ =>
-      cases (hdir de de).ordered with
-      | inl h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
-      | inr h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
-  | eq heq =>
-    exfalso; subst heq
-    match l₁, h₁_isdir with
-    | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
-    | .directoryEvent de, _ =>
-      cases (hdir de de).ordered with
-      | inl h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
-      | inr h => exact Nat.lt_irrefl _ (Nat.lt_trans h (de.oWellFormed))
+    exact Or.inr (.tail (.tail (.single (.encap h_enc)) (.ob h_ob)) (.finishesBefore h_lt))
+  | obFinishBefore p h_ob h_lt _ _ =>
+    exact Or.inr (.single (.finishesAfterProxy p h_ob h_lt))
+  | eq heq => exact Or.inl heq
 
 /-! ## LinStep / LinChain: replacement for CleLink -/
 
