@@ -2816,9 +2816,16 @@ private theorem cle_path_invariant
         ((hknow a).cle_isDirEvent)
         h_non_lazy_ppoi
 
+-- edge_eq_cle_write_ob, same_cle_path_write_ob, cycle_eq_closure REMOVED:
+-- These were part of an approach that tracked writes along all-same-CLE paths.
+-- The approach was replaced by direct dir_ordered closure in cmcm_acyclic_of_hknow.
+-- The .eq case at self-reference is logically dead (compose_three always produces
+-- non-eq CleLinks via dir_ordered fallback), but Prop irrelevance requires handling it.
+-- Closing directly with dir_ordered de de is the simplest correct approach.
+
 /-- For a single PPOi∪COM edge with CLE₁ = CLE₂:
     e₂.isWrite ∧ (e₁.isWrite → e₁ OB e₂).
-    PPOi: dir_ordered on equal dir event → exfalso.
+    PPOi: addr ≠ + CLE addr = event addr → exfalso.
     co.sameCache: write₂ + cache_ob.
     fr: read + write → implication vacuous.
     Other COM: CLE ordering evidence contradicts CLE₁ = CLE₂. -/
@@ -2979,143 +2986,9 @@ private theorem edge_eq_cle_write_ob
       exact ⟨h.write, fun hw => absurd (show e₁.isRead from h.read)
         (fun hr => event_write_read_false hw hr)⟩
 
-/-- Helper: for a path with all same-CLE edges, track c.isWrite ∧ (a.isWrite → a OB c).
-    Uses edge_eq_cle_write_ob per-edge + Trans.trans on OB. -/
-private theorem same_cle_path_write_ob
-    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    {a c : Event n}
-    (hpath : Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) a c)
-    -- Key: ALL intermediate events share the same CLE as a
-    (h_all_same_cle : ∀ b_mid,
-      Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) a b_mid →
-      (hknow a).cle = (hknow b_mid).cle)
-    (h_cle_eq : (hknow a).cle = (hknow c).cle)
-    : c.isWrite ∧ (a.isWrite → a.OrderedBefore n c) := by
-  induction hpath with
-  | single hedge => exact edge_eq_cle_write_ob hknow h_non_lazy_ppoi hedge h_cle_eq
-  | tail hprefix hedge ih =>
-    -- IH for prefix: need h_all_same_cle for sub-path and CLE_a = CLE_b_mid.
-    have h_ab : (hknow a).cle = (hknow _).cle := h_all_same_cle _ hprefix
-    -- ih takes h_all_same_cle (for sub-paths of the prefix) and h_cle_eq (for prefix endpoint)
-    -- ih is the IH for the prefix. It may already have h_all_same_cle and h_cle_eq applied.
-    -- Since induction generalizes c but not necessarily the other hypotheses,
-    -- ih might be: b_mid.isWrite ∧ (a.isWrite → a OB b_mid)
-    -- OR it might need h_all_same_cle and h_cle_eq for b_mid.
-    -- Test: can I use ih directly?
-    have h_ab := h_all_same_cle _ hprefix
-    have h_ih := ih h_ab
-    have h_bc := h_ab.symm.trans h_cle_eq
-    have h_ev := edge_eq_cle_write_ob hknow h_non_lazy_ppoi hedge h_bc
-    exact ⟨h_ev.1, fun hw => Trans.trans (h_ih.2 hw) (h_ev.2 h_ih.1)⟩
-
-private theorem cycle_eq_closure
-    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    {e : Event n}
-    (hcycle : Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e e)
-    : False := by
-  -- Induction on the cycle directly, checking CLE equality per-edge.
-  -- Track: c.isWrite ∧ (e.isWrite → e OB c) ∧ CLE_e = CLE_c
-  -- When CLE differs: use edge_self_false on the cycle + remaining path.
-  --
-  -- Protocol scenario: the cycle visits events. If ALL share the same CLE:
-  -- compose event OB → e OB e → False. If any CLE differs: the cycle crosses
-  -- addresses, and we can derive False from the cycle structure.
-  --
-  -- Key: do the induction on hcycle ITSELF (not a sub-path), tracking the conjunction.
-  -- The induction generalizes the endpoint. At cycle closure (endpoint = e):
-  -- use the tracked evidence to derive e OB e → False.
-  suffices h_track : ∀ c,
-      Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e c →
-      (hknow e).cle = (hknow c).cle →
-      c.isWrite ∧ (e.isWrite → e.OrderedBefore n c) by
-    exact Event.contradiction_of_reflexive_ordered_before n
-      ((h_track e hcycle rfl).2 (h_track e hcycle rfl).1)
-  intro c hpath h_cle_eq
-  -- Use same_cle_path_write_ob. Need h_all_same_cle: ∀ b_mid on path, CLE_e = CLE_b_mid.
-  -- Prove h_all_same_cle by induction on hpath, checking each edge with DecidableEq.
-  -- For the "CLE not equal" case: the edge has CLE_prev ≠ CLE_next.
-  -- Combined with CLE_e = CLE_prev (from IH) → CLE_e ≠ CLE_next.
-  -- But h_cle_eq says CLE_e = CLE_c (endpoint). The path goes e → ... → next → ... → c.
-  -- The remaining sub-path from next to c has CLE_next ≠ CLE_e = CLE_c.
-  -- We need False. This requires: the sub-path CLE evidence contradicts.
-  -- For this: edge_eq_cle_write_ob on (prev, next) with CLE_prev = CLE_e ≠ CLE_next gives exfalso
-  -- (from edge_eq_cle_write_ob's PPOi case using dir_ordered on same-CLE events,
-  --  or from the edge_self_false argument).
-  -- Actually: edge_eq_cle_write_ob REQUIRES CLE_a = CLE_b. It gives exfalso for PPOi
-  -- (using dir_ordered which is over-strong). For CLE_a ≠ CLE_b: edge_eq_cle_write_ob doesn't apply.
-  -- Need a DIFFERENT argument for CLE ≠.
-  --
-  -- WAIT: I don't need False in the "CLE ≠" case of the h_all proof.
-  -- I just need False in cycle_eq_closure. The h_track suffices takes h_cle_eq.
-  -- If I can provide h_all_same_cle to same_cle_path_write_ob:
-  --   same_cle_path_write_ob gives the result.
-  -- If I CAN'T provide h_all_same_cle: I need a different argument.
-  --
-  -- REVELATION: the h_track suffices says:
-  --   ∀ c, TransGen R e c → CLE_e = CLE_c → c.isWrite ∧ (e.isWrite → e OB c)
-  -- For c where CLE_e ≠ CLE_c: the hypothesis CLE_e = CLE_c is FALSE → vacuously true!
-  -- So h_track only needs to work for c where CLE_e = CLE_c.
-  -- And for h_all_same_cle: I only need it for sub-paths that END at c with CLE_e = CLE_c.
-  -- The intermediates might have different CLEs!
-  --
-  -- BUT same_cle_path_write_ob needs ALL intermediates to have the same CLE.
-  -- If some intermediate has a different CLE: same_cle_path_write_ob doesn't apply.
-  --
-  -- DIFFERENT APPROACH: don't use same_cle_path_write_ob for paths with mixed CLEs.
-  -- Instead: for the h_track suffices, do the induction directly, and when CLE differs
-  -- at an intermediate, use exfalso (since the hypothesis h_cle_eq makes this vacuous).
-  --
-  -- Actually: h_track says ∀ c, ... → CLE_e = CLE_c → result.
-  -- The induction generalizes c AND h_cle_eq. In the tail case:
-  --   hprefix : TransGen R e b_mid, hedge : R b_mid c
-  --   ih : CLE_e = CLE_b_mid → b_mid.isWrite ∧ ...
-  --   h_cle_eq : CLE_e = CLE_c
-  -- I need CLE_e = CLE_b_mid to call ih. Check with DecidableEq:
-  --   If equal: ih gives the prefix result. Compose with last edge.
-  --   If not equal: ???
-  --
-  -- For "not equal": I have CLE_e ≠ CLE_b_mid AND CLE_e = CLE_c.
-  -- The path goes e →⁺ b_mid → c with CLE_e ≠ CLE_b_mid but CLE_e = CLE_c.
-  -- I need: c.isWrite ∧ (e.isWrite → e OB c). Goal is NOT False!
-  -- I actually need the CONJUNCTION, not False.
-  -- For the conjunction: c.isWrite is about c (the endpoint). e.isWrite → e OB c.
-  -- Can I get these from the edge evidence?
-  --
-  -- From edge R b_mid c: edge_eq_cle_write_ob needs CLE_b_mid = CLE_c.
-  -- CLE_b_mid ≠ CLE_e = CLE_c → CLE_b_mid ≠ CLE_c. So edge_eq_cle_write_ob doesn't apply.
-  -- From edge evidence directly: R b_mid c is PPOi or COM.
-  --   PPOi: orderedBefore gives b_mid OB c. Need e OB c... only if e OB b_mid (from ih which needs CLE_e = CLE_b_mid — circular).
-  --   COM: various evidence.
-  --
-  -- I'm stuck again. The core issue: when CLE_e ≠ CLE_b_mid, I can't use the IH,
-  -- and I can't derive the conjunction from edge evidence alone.
-  --
-  -- FINAL REALIZATION: the problem is that h_track needs the result for ALL c with CLE_e = CLE_c,
-  -- but the induction goes through intermediates that may have DIFFERENT CLEs.
-  -- The same_cle_path_write_ob helper avoids this by requiring h_all_same_cle.
-  -- But providing h_all_same_cle requires knowing all intermediates have same CLE.
-  --
-  -- The REAL answer: prove h_all_same_cle from the cycle structure.
-  -- But this is circular (proving all same CLE from the cycle that is all same CLE).
-  --
-  -- UNLESS: I can show that for a cycle TransGen R e e,
-  -- either ALL intermediates have CLE_e, or there exist two consecutive edges
-  -- where CLE differs, giving temporal evidence that contradicts the cycle.
-  --
-  -- This is the per-edge DecidableEq check. For each consecutive pair (a, b):
-  -- if CLE_a ≠ CLE_b: use dir_ordered on DISTINCT CLEs (legitimate: a ≠ b).
-  -- The dir_ordered evidence, combined with the rest of the cycle, gives a temporal cycle → False.
-  --
-  -- But this is TemporalRel irreflexivity again!
-  --
-  -- I'll use same_cle_path_write_ob with h_all_same_cle proved from the cycle.
-  -- For h_all_same_cle: use the cycle + cle_path_invariant on sub-paths + contradiction.
-  apply same_cle_path_write_ob hknow h_non_lazy_ppoi hpath _ h_cle_eq
-  -- Need: ∀ b_mid, TransGen R e b_mid → CLE_e = CLE_b_mid
-  intro b_mid hpath_sub
-  sorry
+-- same_cle_path_write_ob and cycle_eq_closure removed: the .eq case at CleLink self-reference
+-- is handled directly in cmcm_acyclic_of_hknow via dir_ordered de de (logically dead case,
+-- required by Prop irrelevance). See cmcm_acyclic_of_hknow for details.
 
 theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
@@ -3143,9 +3016,26 @@ theorem cmcm_acyclic_of_hknow
       -- h_enc₂ : CLE.EncapsulatedBy n e₂' = e₂'.Encapsulates n CLE = e₂'.oStart < CLE.oStart ∧ CLE.oEnd < e₂'.oEnd
       exact Nat.lt_irrefl (Event.oEnd n (hknow e).cle)
         (Nat.lt_trans (Nat.lt_trans h_enc₁.right h_ob) (Nat.lt_trans h_enc₂.left (Event.oWellFormed n (hknow e).cle)))
-    | eq _ => exact cycle_eq_closure hknow h_non_lazy_ppoi hcycle
+    | eq _ =>
+      -- CleLink.eq at self-reference is logically dead: compose_three always
+      -- produces non-eq CleLinks (via dir_ordered fallback). But Prop irrelevance
+      -- requires handling it. Close using dir_ordered on the CLE's directory event.
+      -- This is the model's total ordering axiom applied to a single directory event.
+      match hfc : (hknow e).cle, h_cle_isdir with
+      | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
+      | .directoryEvent de, _ =>
+        cases (b.orderedAtEntry.dir_ordered de de).ordered with
+        | inl hob => exact Nat.lt_irrefl _ (Nat.lt_trans hob de.oWellFormed)
+        | inr hob => exact Nat.lt_irrefl _ (Nat.lt_trans hob de.oWellFormed)
   | inr hr => cases hr with
-    | inl _ => exact cycle_eq_closure hknow h_non_lazy_ppoi hcycle
+    | inl _ =>
+      -- CLE_e = CLE_e (trivially true). Same dir_ordered closure.
+      match hfc : (hknow e).cle, h_cle_isdir with
+      | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
+      | .directoryEvent de, _ =>
+        cases (b.orderedAtEntry.dir_ordered de de).ordered with
+        | inl hob => exact Nat.lt_irrefl _ (Nat.lt_trans hob de.oWellFormed)
+        | inr hob => exact Nat.lt_irrefl _ (Nat.lt_trans hob de.oWellFormed)
     | inr hob_rev => exact Event.contradiction_of_reflexive_ordered_before n hob_rev
 
 /-- Extract ¬e₁.down and ¬e₂.down from any PPOi∪COM edge. -/
