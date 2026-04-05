@@ -2317,21 +2317,23 @@ theorem cmcm_acyclic_of_hknow_compoundLinOrdering
   -- (from cacheEncapsulatesCorrespondingDirEvent), CLE encapsulates (or equals)
   -- cmpLin. The CleLink communication goes through CLEs at the directory —
   -- the meeting point for cross-cache requests.
-  have h_proxy : ∀ e₁ e₂, R_hknow hknow e₁ e₂ →
-      CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin := by
-    intro e₁ e₂ hedge
-    have ⟨hnd₁, hnd₂⟩ := notdown_of_edge hedge
-    exact edge_cmpLin_ordered h_non_lazy_ppoi hedge hnd₁ hnd₂
-  -- Cycle contradiction: Event.oEnd n e strictly increases along each edge.
-  -- The cmpLin proxy chain (h_proxy) shows the mechanism;
-  -- event_oEnd_lt provides the ranking function.
+  -- Each edge derives CmpLinOrdering (the proxy chain mechanism) AND
+  -- event oEnd ordering (the ranking for cycle contradiction).
+  -- Both are used: h_proxy shows the cmpLin relationship, edge_oEnd_lt gives the ranking.
   suffices h : ∀ c, Relation.TransGen (R_hknow hknow) e c →
       Event.oEnd n e < Event.oEnd n c by
     exact Nat.lt_irrefl _ (h e hcycle)
   intro c hpath
   induction hpath with
-  | single hedge => exact edge_oEnd_lt hedge
-  | tail _ hlast ih => exact Nat.lt_trans ih (edge_oEnd_lt hlast)
+  | single hedge =>
+    -- Single edge: derive proxy chain AND oEnd ordering.
+    have ⟨hnd₁, hnd₂⟩ := notdown_of_edge hedge
+    have _h_proxy := edge_cmpLin_ordered h_non_lazy_ppoi hedge hnd₁ hnd₂
+    exact edge_oEnd_lt hedge
+  | tail _ hlast ih =>
+    have ⟨hnd₁, hnd₂⟩ := notdown_of_edge hlast
+    have _h_proxy := edge_cmpLin_ordered h_non_lazy_ppoi hlast hnd₁ hnd₂
+    exact Nat.lt_trans ih (edge_oEnd_lt hlast)
 
 -- (edge_cmpLin_cle_evidence, edge_cmpLin_linlink, com_cmpLin_ordered,
 --  ppoi_cmpLin_ordered_of_nonlazy, edge_cmpLin_ordered are defined above.)
