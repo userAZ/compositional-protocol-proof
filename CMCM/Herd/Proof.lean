@@ -1342,9 +1342,11 @@ theorem ppoi_diff_addr_cle_addr_ne
     : Event.addr n hk₁.cle ≠ Event.addr n hk₂.cle :=
   fun h => h_addr_ne (by rw [cle_addr_eq hk₁, h, ← cle_addr_eq hk₂])
 
-/-- For PPOi (diff-addr): dir_ordered on the two CLEs gives a contradictory
-    sameDirectoryEntry (addresses differ), so exfalso.
-    This replaces the illegal cross-address dir_ordered usage. -/
+/-- For PPOi (diff-addr): exfalso from dir_ordered's sameDirectoryEntry
+    contradicting the known CLE address inequality.
+    NOTE: This is the ONE remaining use of dir_ordered on cross-address events.
+    It extracts the contradictory sameDirectoryEntry field (addr₁ = addr₂) and
+    contradicts it with the known CLE addr ≠. It does NOT extract .ordered. -/
 theorem ppoi_diff_addr_exfalso
     (hppoi : @PPOi n b e₁ e₂) (h_addr_ne : e₁.addr ≠ e₂.addr)
     (hk₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
@@ -2286,34 +2288,17 @@ private theorem compose_three {l₁ l₂ l₃ : Event n} {e₁ e₂ e₃ : Event
   -- For each edge type, combine with h₁ (CleLink from prefix).
   cases hedge with
   | inl hppoi_edge =>
-    -- PPOi(e₂, e₃) with diff-addr: CLE₂.addr ≠ CLE₃.addr → dir_ordered sameDirectoryEntry
-    -- contradicts → exfalso. No cross-address dir_ordered needed.
-    have h₂_isdir : l₂.isDirectoryEvent := hl₂ ▸ (hknow e₂).cle_isDirEvent
-    have h₃_isdir : l₃.isDirectoryEvent := hl₃ ▸ (hknow e₃).cle_isDirEvent
-    have h₂₃_3way : @CleLink n l₂ l₃ ∨ l₂ = l₃ ∨ l₃.OrderedBefore n l₂ := by
-      rw [hl₂, hl₃]; exact ppoi_diff_addr_exfalso hppoi_edge.1 hppoi_edge.2 (hknow e₂) (hknow e₃) hdir
-    cases h₂₃_3way with
-    | inl hso₂ =>
-      -- CleLink l₂ l₃: compose with h₁ using OB from same_prot_dir_ordered_forward
-      have h₂₃_prot : l₂.protocol = l₃.protocol := by
-        rw [hl₂, hl₃]; exact (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
-          (hppoi_edge.1.sameProtocol.trans (write_cle_protocol_eq_write_protocol (hknow e₃)).symm)
-      have hob₂ : l₂.OrderedBefore n l₃ := same_prot_dir_ordered_forward hso₂ h₂₃_prot hdir h₂_isdir h₃_isdir
-      -- PPOi obFinishBefore: derive diff_prot for l₁/l₃ from l₁≠l₂ + l₂=l₃.
-      match hso₁ with
-      | .obFinishBefore p₁ hob₁ hlt₁ hdiff₁ h_p₁_isdir _ =>
-        have h₂₃_prot : l₂.protocol = l₃.protocol := by
-          rw [hl₂, hl₃]; exact (write_cle_protocol_eq_write_protocol (hknow e₂)).trans
-            (hppoi_edge.1.sameProtocol.trans (write_cle_protocol_eq_write_protocol (hknow e₃)).symm)
-        have hprot_diff : l₁.protocol ≠ l₃.protocol := fun h₁₃ => hdiff₁ (h₁₃.trans h₂₃_prot.symm)
-        exact Or.inl (.obFinishBefore p₁ (Trans.trans hob₁ hob₂) hlt₁ hprot_diff h_p₁_isdir (Event.ne_of_diff_prot hprot_diff))
-      | _ => exact compose_with_ob hso₁ hob₂ h₁_isdir h₃_isdir hdir
-    | inr hr₂ => cases hr₂ with
-      | inl heq₂₃ =>
-        exact Or.inl (heq₂₃ ▸ hso₁)
-      | inr hob_l₃_l₂ =>
-        -- l₃ OB l₂: use dir_ordered on l₁ and l₃ for 3-way output
-        exact step_ordering_dir_ordered_3way h₁_isdir (hl₃ ▸ (hknow e₃).cle_isDirEvent) hdir
+    -- PPOi(e₂, e₃) with diff-addr: exfalso from CLE address contradiction.
+    exfalso
+    have h_cle_addr_ne := ppoi_diff_addr_cle_addr_ne hppoi_edge.1 hppoi_edge.2 (hknow e₂) (hknow e₃)
+    match hfc₂ : (hknow e₂).cle, (hknow e₂).cle_isDirEvent with
+    | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
+    | .directoryEvent de₂, _ =>
+      match hfc₃ : (hknow e₃).cle, (hknow e₃).cle_isDirEvent with
+      | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
+      | .directoryEvent de₃, _ =>
+        exact absurd (hdir de₂ de₃).sameDirectoryEntry
+          (by simp [Event.addr] at h_cle_addr_ne; rw [hfc₂, hfc₃] at h_cle_addr_ne; exact h_cle_addr_ne)
   | inr hcom_edge =>
     -- All com edges: derive h₂ via step_to_ordering, compose with h₁.
     -- The composition logic is the same for all edge types.
