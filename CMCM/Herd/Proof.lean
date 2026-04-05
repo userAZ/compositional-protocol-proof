@@ -1948,6 +1948,7 @@ private theorem ne_of_cle_ob_and_rels
     {cmpLin₁ cmpLin₂ cle₁ cle₂ : Event n}
     (hob : cle₁.OrderedBefore n cle₂)
     (hrel₁ : CmpLinCleRel cmpLin₁ cle₁) (hrel₂ : CmpLinCleRel cmpLin₂ cle₂)
+    (h₂_isdir : cle₂.isDirectoryEvent := by assumption)
     : cmpLin₁ ≠ cmpLin₂ := by
   intro heq
   -- For all prefix cases: cmpLin₁.oEnd ≤ CLE₁.oEnd (eq: =, inside: <) or
