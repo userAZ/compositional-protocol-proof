@@ -37,7 +37,7 @@ Before proving, composing, or sorry-ing ANYTHING:
 5. **SAVE LESSONS IMMEDIATELY.** Every user correction, failed approach, working approach, protocol insight → write to CLAUDE.md RIGHT NOW. 10 seconds to write, hours to re-discover.
 
 **NEVER do:**
-6. **NEVER use agents for proof work.** They lack CLAUDE.md context and re-introduce abuses. Only use for purely mechanical tasks (file renames, grep-and-replace).
+6. **NEVER start an agent.** Agents lack CLAUDE.md context, re-introduce abuses, interfere with concurrent edits, and produce worse results. Do ALL work yourself — no agents, no subprocesses, no delegation.
 7. **NEVER use dir_ordered without verifying same address/cluster AND distinct events.** dir_ordered de de is cheating — no event is strictly before itself. Cross-address or cross-cluster dir_ordered is cheating. ALWAYS verify before claiming a use is legal.
 7b. **DOUBLE-CHECK every claim before presenting it.** Don't say "all uses are legal" without verifying each one. Don't say "this branch is dead" without proving it. The user should not have to audit every item in depth. Verify YOURSELF, thoroughly, before reporting.
 8. **NEVER try simple measures (oStart, oEnd) for CleLink/LinLink irreflexivity.** These relations encode protocol-specific ordering that no single measure captures.

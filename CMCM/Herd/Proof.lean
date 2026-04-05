@@ -31,15 +31,43 @@ namespace Herd
 
 variable {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
 
+/-! ## The PPOi∪COM relation via hknow -/
+
+/-- The PPOi∪COM edge relation, parameterized by hknow.
+    This makes compoundLin the primary concept: `(hknow e).compoundLin`, `.cle`, `.gle`. -/
+abbrev R_hknow
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (e₁ e₂ : Event n) : Prop :=
+  (PPOi (hknow e₁) (hknow e₂) ∧ e₁.addr ≠ e₂.addr) ∨ com (hknow e₁) (hknow e₂)
+
+/-- Bridge: any PPOi with arbitrary lins lifts to R_hknow via Subsingleton.elim. -/
+theorem R_hknow_of_ppoi
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (h : PPOi lin₁ lin₂) (h_addr : e₁.addr ≠ e₂.addr) : R_hknow hknow e₁ e₂ :=
+  Or.inl ⟨(Subsingleton.elim lin₁ (hknow e₁)) ▸ (Subsingleton.elim lin₂ (hknow e₂)) ▸ h, h_addr⟩
+
+/-- Bridge: any COM with arbitrary lins lifts to R_hknow via Subsingleton.elim. -/
+theorem R_hknow_of_com
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (h : com lin₁ lin₂) : R_hknow hknow e₁ e₂ :=
+  Or.inr ((Subsingleton.elim lin₁ (hknow e₁)) ▸ (Subsingleton.elim lin₂ (hknow e₂)) ▸ h)
+
 /-! ## Irreflexivity of each edge type -/
 
-theorem ppoi_irrefl (h : @PPOi n b e e) : False :=
+theorem ppoi_irrefl {lin₁ lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (h : PPOi lin₁ lin₂) : False :=
   Event.contradiction_of_reflexive_ordered_before n h.orderedBefore
 
-theorem rfe_irrefl (h : @Herd.rfe n compound b init e e) : False :=
+theorem rfe_irrefl {lin₁ lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (h : Herd.rfe lin₁ lin₂) : False :=
   absurd rfl h.diffCache
 
-theorem co_irrefl (h : @Herd.co n compound b init e e) : False := by
+theorem co_irrefl {lin₁ lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (h : Herd.co lin₁ lin₂) : False := by
   cases h.comm with
   | sameCache _ hob => exact Event.contradiction_of_reflexive_ordered_before n hob
   | sameClusDiffCache _ cle_ord =>
@@ -52,7 +80,8 @@ theorem co_irrefl (h : @Herd.co n compound b init e e) : False := by
       exact Event.contradiction_of_reflexive_ordered_before n evict.wObR
   | diffClus hdiff _ => exact absurd rfl hdiff
 
-theorem fr_irrefl (h : @Herd.fr n compound b init e e) : False := by
+theorem fr_irrefl {lin₁ lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (h : Herd.fr lin₁ lin₂) : False := by
   have hread := h.read
   have hwrite := h.write
   cases e with
@@ -63,17 +92,12 @@ theorem fr_irrefl (h : @Herd.fr n compound b init e e) : False := by
   | directoryEvent de =>
     simp [Event.isRead] at hread
 
-theorem com_irrefl (h : com compound b init e e) : False := by
+theorem com_irrefl {lin₁ lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (h : com lin₁ lin₂) : False := by
   cases h with
   | rfe h => exact rfe_irrefl h
   | co h => exact co_irrefl h
   | fr h => exact fr_irrefl h
-
-theorem hierarchicallyOrdered_irrefl
-    (h : @hierarchicallyOrdered n compound b init e e) : False := by
-  cases h with
-  | ppoi h => exact ppoi_irrefl h
-  | com h => exact com_irrefl h
 
 /-- List.stateAfter on append singleton: processing xs then e equals
     applying e's SucceedingState to the result of processing xs. -/
@@ -95,7 +119,9 @@ theorem stateAfter_eq_succeedingState
 
 /-- PPOi → CompoundLinearizationOrder (for diff-addr, via CompoundMCM). -/
 theorem ppoi_compound_lin_order
-    (hppoi : @PPOi n b e₁ e₂)
+    {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (hppoi : PPOi lin₁ lin₂)
     (hdiff_addr : e₁.addr ≠ e₂.addr)
     : compound.CompoundLinearizationOrder n b init e₁ e₂ :=
   CompoundProtocol.enforce_compound_consistency n compound
@@ -149,7 +175,8 @@ theorem transgen_oend_lt_of_step
   | tail _ h ih => exact Nat.lt_trans ih (hstep _ _ h)
 
 /-- Pure PPOi is acyclic (from OrderedBefore transitivity). -/
-theorem ppoi_acyclic : Relation.Acyclic (@PPOi n b) := by
+theorem ppoi_acyclic (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    : Relation.Acyclic (fun e₁ e₂ => PPOi (hknow e₁) (hknow e₂)) := by
   intro e hcycle
   exact Event.contradiction_of_reflexive_ordered_before n
     (transgen_ob_of_step_ob hcycle fun a b h => h.orderedBefore)
@@ -171,14 +198,16 @@ or all edges give CLE₁ = CLE₂ → dir_ordered de de → False. -/
 -- CleLink definition moved to Defs.lean
 -- CleLink.trans DELETED: replaced by LinChain.trans (free from TransGen).
 
-/-- Map a single co edge to CleLink using the CO edge's own cmpLin fields. -/
+/-- Map a single co edge to CleLink using the CO edge's lin parameters. -/
 theorem co_step_to_ordering
-    (h : @Herd.co n compound b init e₁ e₂)
-    : @CleLink n h.w₁_cmpLin.cle h.w₂_cmpLin.cle := by
+    {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (h : Herd.co lin₁ lin₂)
+    : @CleLink n lin₁.cle lin₂.cle := by
   cases h.comm with
   | sameCache same_cle cache_ob =>
-    have hda₁ := h.w₁_cmpLin.hreq's_dir_access.choose_spec.2
-    have hda₂ := h.w₂_cmpLin.hreq's_dir_access.choose_spec.2
+    have hda₁ := lin₁.hreq's_dir_access.choose_spec.2
+    have hda₂ := lin₂.hreq's_dir_access.choose_spec.2
     cases hda₁ with
     | encapDir _ hencap₁ =>
       cases hda₂ with
@@ -198,7 +227,7 @@ theorem co_step_to_ordering
       | sameCluster _ hob => exact .ob hob (Event.ne_of_ob hob)
       | diffCluster _ hdown hwObRDown =>
         have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
-        have h_lt : Event.oEnd n hdown.existsRClusterDirDown.choose < Event.oEnd n h.w₂_cmpLin.cle := by
+        have h_lt : Event.oEnd n hdown.existsRClusterDirDown.choose < Event.oEnd n lin₂.cle := by
           cases hcdir_spec.2.encapDirRelation with
           | cleEncap henc => exact henc.right
           | gcacheEncap _ hlt => exact hlt
@@ -210,7 +239,7 @@ theorem co_step_to_ordering
     cases diff_cluster_cases with
     | wCleImmPredDown w =>
       have hcdir_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
-      have h_lt : Event.oEnd n w.rDown.encapDir.existsRClusterDirDown.choose < Event.oEnd n h.w₂_cmpLin.cle := by
+      have h_lt : Event.oEnd n w.rDown.encapDir.existsRClusterDirDown.choose < Event.oEnd n lin₂.cle := by
         cases hcdir_spec.2.encapDirRelation with
         | cleEncap henc => exact henc.right
         | gcacheEncap _ hlt => exact hlt
@@ -218,7 +247,7 @@ theorem co_step_to_ordering
         hcdir_spec.2.isDir (Event.ne_of_obEndLt w.wObRDown h_lt)
     | evictOrReadBetweenWAndRDown evict =>
       have hcdir_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
-      have h_lt : Event.oEnd n evict.rDown.encapDir.existsRClusterDirDown.choose < Event.oEnd n h.w₂_cmpLin.cle := by
+      have h_lt : Event.oEnd n evict.rDown.encapDir.existsRClusterDirDown.choose < Event.oEnd n lin₂.cle := by
         cases hcdir_spec.2.encapDirRelation with
         | cleEncap henc => exact henc.right
         | gcacheEncap _ hlt => exact hlt
@@ -243,9 +272,10 @@ private lemma transGen_head_tail {r : α → α → Prop} (h : Relation.TransGen
 
 /-- Extract oEnd ≤ from a single CO step using the CO edge's own cmpLin fields. -/
 private lemma co_step_oEnd_le
-    (h : @Herd.co n compound b init e₁ e₂)
-    : Event.oEnd n h.w₁_cmpLin.cle ≤
-      Event.oEnd n h.w₂_cmpLin.cle := by
+    {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (h : Herd.co lin₁ lin₂)
+    : Event.oEnd n lin₁.cle ≤ Event.oEnd n lin₂.cle := by
   cases h.comm with
   | sameCache same_cle _ =>
     exact Nat.le_of_eq (congrArg (Event.oEnd n) same_cle)
@@ -283,20 +313,22 @@ private lemma co_step_oEnd_le
 
 /-- Extract oEnd ≤ from a CO chain by composing single-step bounds. -/
 private lemma co_chain_oEnd_le
-    (hco_chain : Relation.TransGen (@Herd.co n compound b init) e_w e₂)
+    (hco_chain : Relation.TransGen (fun ew₁ ew₂ => ∃ (l₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init ew₁) (l₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init ew₂), Herd.co l₁ l₂) e_w e₂)
     (lin : ∀ e, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     : Event.oEnd n (lin e_w).cle ≤
       Event.oEnd n (lin e₂).cle := by
   induction hco_chain with
   | single h =>
-    have := co_step_oEnd_le h
-    rw [show h.w₁_cmpLin = lin _ from Subsingleton.elim _ _,
-        show h.w₂_cmpLin = lin _ from Subsingleton.elim _ _] at this
+    obtain ⟨l₁, l₂, hco⟩ := h
+    have := co_step_oEnd_le hco
+    rw [show l₁ = lin _ from Subsingleton.elim _ _,
+        show l₂ = lin _ from Subsingleton.elim _ _] at this
     exact this
   | tail _ h ih =>
-    have := co_step_oEnd_le h
-    rw [show h.w₁_cmpLin = lin _ from Subsingleton.elim _ _,
-        show h.w₂_cmpLin = lin _ from Subsingleton.elim _ _] at this
+    obtain ⟨l₁, l₂, hco⟩ := h
+    have := co_step_oEnd_le hco
+    rw [show l₁ = lin _ from Subsingleton.elim _ _,
+        show l₂ = lin _ from Subsingleton.elim _ _] at this
     exact Nat.le_trans ih this
 
 /-- Given oEnd ≤ and dir_ordered at same cluster, derive OB.
@@ -320,7 +352,7 @@ private lemma co_chain_same_cluster_ob
 private lemma co_chain_cross_cluster_downgrade
     {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     {e_w e₂ : Event n}
-    (h_co_chain : Relation.TransGen (@Herd.co n compound b init) e_w e₂)
+    (h_co_chain : Relation.TransGen (fun ew₁ ew₂ => ∃ (l₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init ew₁) (l₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init ew₂), Herd.co l₁ l₂) e_w e₂)
     (h_diff_prot : ¬ e_w.sameProtocol n e₂)
     (e_w_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e_w)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
@@ -519,7 +551,9 @@ private lemma two_cluster_e₂_same_e_w
 -- Helper not feasible due to complex types. CLE₂ OB d_rf NIW exfalso's use inline pattern.
 
 theorem fr_ordering_holds
-    (h : @Herd.fr n compound b init e₁ e₂)
+    {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (h : Herd.fr lin₁ lin₂)
     (lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     : FrOrdering (lin e₁) (lin e₂) := by
   -- FR = rf⁻¹ ; co⁺ with e_w as intermediate write.
@@ -603,8 +637,8 @@ theorem fr_ordering_holds
                     (lin e₁).cle.protocol :=
                   hcle₂_prot.trans (hprot_e₂_e₁.trans hcle₁_prot.symm)
                 have h_isDirWrite : (hlin e₂).cle.isDirWrite := by
-                  have : hlin e₂ = h.e₂_cmpLin := Subsingleton.elim _ _
-                  rw [this]; exact write_event_cle_isDirWrite h.write h.cache₂ h.notDown₂ h.e₂_cmpLin h.in_b₂
+                  have : hlin e₂ = lin₂ := Subsingleton.elim _ _
+                  rw [this]; exact write_event_cle_isDirWrite h.write h.cache₂ h.notDown₂ lin₂ h.in_b₂
                 have hdir_w := e_w_lin.cle_isDirEvent
                 match hfcw : e_w_lin.cle, hdir_w with
                 | .cacheEvent _, hh => simp [Event.isDirectoryEvent] at hh
@@ -613,14 +647,14 @@ theorem fr_ordering_holds
                   | inl hob_w₂ =>
                     exact h_constraints.notBetweenCles ⟨hprot₁, hprot₂, h_isDirWrite⟩
                       ⟨by simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
-                            show hlin e₂ = h.e₂_cmpLin from Subsingleton.elim _ _, hfc₂, hfcw]; exact hob_w₂,
+                            show hlin e₂ = lin₂ from Subsingleton.elim _ _, hfc₂, hfcw]; exact hob_w₂,
                        by simp only [Event.OrderedBefore, Event.oEnd, Event.oStart,
-                            show hlin e₂ = h.e₂_cmpLin from Subsingleton.elim _ _, hfc₂, hfc₁]; exact hob⟩
+                            show hlin e₂ = lin₂ from Subsingleton.elim _ _, hfc₂, hfc₁]; exact hob⟩
                   | inr hob_₂w =>
                     have hcw_le : de_w.oEnd ≤ de₂.oEnd := by
                       have hoEnd := co_chain_oEnd_le h_co_chain hlin
                       rw [show hlin e_w = e_w_lin from (Subsingleton.elim _ _).symm,
-                          show hlin e₂ = h.e₂_cmpLin from Subsingleton.elim _ _] at hoEnd
+                          show hlin e₂ = lin₂ from Subsingleton.elim _ _] at hoEnd
                       simp only [Event.oEnd, hfcw, hfc₂] at hoEnd ⊢; exact hoEnd
                     exact Nat.lt_irrefl _ (calc de_w.oEnd ≤ de₂.oEnd := hcw_le
                       _ < de_w.oStart := hob_₂w
@@ -658,7 +692,7 @@ theorem fr_ordering_holds
               cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
               | inl hob_cle₁_cdir =>
                 -- CLE₁ OB cdir → proxy = cdir
-                have hw₂' : lin e₂ = h.e₂_cmpLin := Subsingleton.elim _ _
+                have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
                 exact .diffCluster_coherent h_same_prot (.directoryEvent de_cdir)
                   (show (lin e₁).cle.OrderedBefore n _ from by
                     rw [hfc_cle₁]; exact hob_cle₁_cdir)
@@ -672,7 +706,7 @@ theorem fr_ordering_holds
                 | .directoryEvent de_evict, _ =>
                   cases (b.orderedAtEntry.dir_ordered de_cle₁ de_evict).ordered with
                   | inl hob_cle₁_evict =>
-                    have hw₂' : lin e₂ = h.e₂_cmpLin := Subsingleton.elim _ _
+                    have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
                     exact .diffCluster_coherent h_same_prot (.directoryEvent de_evict)
                       (show (lin e₁).cle.OrderedBefore n _ from by
                         rw [hfc_cle₁]; exact hob_cle₁_evict)
@@ -736,7 +770,7 @@ theorem fr_ordering_holds
                               }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCacheWrite
                         | inr hcle₁_ob_dco =>
                           -- CLE₁ OB d_co: proxy for .diffCluster_coherent
-                          have hw₂' : lin e₂ = h.e₂_cmpLin := Subsingleton.elim _ _
+                          have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
                           exact .diffCluster_coherent h_same_prot (.directoryEvent de_dco)
                             (show (lin e₁).cle.OrderedBefore n _ from by
                               rw [hfc_cle₁]; exact hcle₁_ob_dco)
@@ -1013,7 +1047,7 @@ theorem fr_ordering_holds
             | .directoryEvent de_cle₁, _ =>
               cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
               | inl hob =>
-                have hw₂' : lin e₂ = h.e₂_cmpLin := Subsingleton.elim _ _
+                have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
                 exact .diffCluster_coherent h_same_prot (.directoryEvent de_cdir)
                   (by rw [hfc_cle₁₂]; exact hob) (by rw [hw₂']; exact hcdir_lt_cle₂)
                   (by simp [Event.isDirectoryEvent])
@@ -1024,7 +1058,7 @@ theorem fr_ordering_holds
                 | .directoryEvent de_evict, _ =>
                   cases (b.orderedAtEntry.dir_ordered de_cle₁ de_evict).ordered with
                   | inl hob_evict =>
-                    have hw₂' : lin e₂ = h.e₂_cmpLin := Subsingleton.elim _ _
+                    have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
                     exact .diffCluster_coherent h_same_prot (.directoryEvent de_evict)
                       (by rw [hfc_cle₁₂]; exact hob_evict) (by rw [hw₂']; exact hevict_lt_cle₂)
                       (by simp [Event.isDirectoryEvent])
@@ -1072,7 +1106,7 @@ theorem fr_ordering_holds
                                 translatedDir := by rw [hfc_dco]; exact h_mid_translated
                               }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCacheWrite
                         | inr hcle₁_ob_dco =>
-                          have hw₂' : lin e₂ = h.e₂_cmpLin := Subsingleton.elim _ _
+                          have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
                           exact .diffCluster_coherent h_same_prot (.directoryEvent de_dco)
                             (show (lin e₁).cle.OrderedBefore n _ from by
                               rw [hfc_cle₁₂]; exact hcle₁_ob_dco)
@@ -1171,7 +1205,7 @@ theorem fr_ordering_holds
             | .directoryEvent de_cle₁, _ =>
               cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
               | inl hob =>
-                have hw₂' : lin e₂ = h.e₂_cmpLin := Subsingleton.elim _ _
+                have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
                 exact .diffCluster_noncoherent h_same_prot (.directoryEvent de_cdir)
                   (by rw [hfc_cle₁₃]; exact hob) (by rw [hw₂']; exact hcdir_lt_cle₂)
                   (by simp [Event.isDirectoryEvent])
@@ -1182,7 +1216,7 @@ theorem fr_ordering_holds
                 | .directoryEvent de_evict, _ =>
                   cases (b.orderedAtEntry.dir_ordered de_cle₁ de_evict).ordered with
                   | inl hob_evict =>
-                    have hw₂' : lin e₂ = h.e₂_cmpLin := Subsingleton.elim _ _
+                    have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
                     exact .diffCluster_noncoherent h_same_prot (.directoryEvent de_evict)
                       (by rw [hfc_cle₁₃]; exact hob_evict) (by rw [hw₂']; exact hevict_lt_cle₂)
                       (by simp [Event.isDirectoryEvent])
@@ -1230,7 +1264,7 @@ theorem fr_ordering_holds
                                 translatedDir := by rw [hfc_dco]; exact h_mid_translated
                               }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCacheWrite
                         | inr hcle₁_ob_dco =>
-                          have hw₂' : lin e₂ = h.e₂_cmpLin := Subsingleton.elim _ _
+                          have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
                           exact .diffCluster_noncoherent h_same_prot (.directoryEvent de_dco)
                             (show (lin e₁).cle.OrderedBefore n _ from by
                               rw [hfc_cle₁₃]; exact hcle₁_ob_dco)
@@ -1342,14 +1376,16 @@ theorem ppoi_diff_addr_cle_addr_ne
     : Event.addr n hk₁.cle ≠ Event.addr n hk₂.cle :=
   fun h => h_addr_ne (by rw [cle_addr_eq hk₁, h, ← cle_addr_eq hk₂])
 
-/-- Map a COM edge to a CleLink between its CLEs (h.cle₁ and h.cle₂). -/
+/-- Map a COM edge to a CleLink between its CLEs. -/
 theorem step_to_ordering
-    (h : com compound b init e₁ e₂)
+    {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (h : com lin₁ lin₂)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : @CleLink n h.cle₁ h.cle₂ := by
+    : @CleLink n lin₁.cle lin₂.cle := by
   cases h with
     | rfe h =>
-      -- rfe: h.w_cmpLin = com.lin₁, h.r_cmpLin = com.lin₂ (by definition)
+      -- rfe: lin₁ = com.lin₁, lin₂ = com.lin₂ (by definition)
       cases h.readsFrom with
       | wEqRGle _ hwr_same_cluster hw_eq_r_gle_cases =>
         cases hw_eq_r_gle_cases with
@@ -1364,11 +1400,11 @@ theorem step_to_ordering
         | diffCluster _ _ _ hdiff_cache_case =>
           -- Helper: given encapDir + wObRDown → CleLink.obEndLt
           have from_encap_wob
-              (hdown : Behaviour.clusterDown.encapDir compound b init e₁ h.r_cmpLin)
-              (hwOB : h.w_cmpLin.cle.OrderedBefore n
+              (hdown : Behaviour.clusterDown.encapDir compound b init e₁ lin₂)
+              (hwOB : lin₁.cle.OrderedBefore n
                 hdown.existsRClusterDirDown.choose) :
-              @CleLink n h.w_cmpLin.cle
-                h.r_cmpLin.cle := by
+              @CleLink n lin₁.cle
+                lin₂.cle := by
             have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
             have hencap_rel := hcdir_spec.2.encapDirRelation
             have h_lt := by cases hencap_rel with
@@ -1404,11 +1440,11 @@ theorem step_to_ordering
       -- Construct a local `lin` from the FR edge's hknow_dir_access for fr_ordering_holds.
       have lin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e :=
         fun e => h.hknow_dir_access compound b init e
-      -- Bridge: h.e₁_cmpLin = lin e₁ and h.e₂_cmpLin = lin e₂ by Subsingleton
-      have hlin₁ : h.e₁_cmpLin = lin e₁ := Subsingleton.elim _ _
-      have hlin₂ : h.e₂_cmpLin = lin e₂ := Subsingleton.elim _ _
-      show @CleLink n h.e₁_cmpLin.cle h.e₂_cmpLin.cle
-      rw [show h.e₁_cmpLin = lin e₁ from hlin₁, show h.e₂_cmpLin = lin e₂ from hlin₂]
+      -- Bridge: lin₁ = lin e₁ and lin₂ = lin e₂ by Subsingleton
+      have hlin₁ : lin₁ = lin e₁ := Subsingleton.elim _ _
+      have hlin₂ : lin₂ = lin e₂ := Subsingleton.elim _ _
+      show @CleLink n lin₁.cle lin₂.cle
+      rw [show lin₁ = lin e₁ from hlin₁, show lin₂ = lin e₂ from hlin₂]
       cases fr_ordering_holds h lin with
       | sameCache _ h_eq_or_ob =>
         cases h_eq_or_ob with
@@ -1422,7 +1458,7 @@ theorem step_to_ordering
       | diffCluster_rfFinishBefore h_diff p p_ob p_lt h_p_isdir =>
         have hcle₁_prot := read_cle_protocol_eq_read_protocol (lin e₁)
         have hcle₂_prot := write_cle_protocol_eq_write_protocol (lin e₂)
-        have h_prot_diff : Event.protocol n h.e₁_cmpLin.cle ≠ Event.protocol n h.e₂_cmpLin.cle :=
+        have h_prot_diff : Event.protocol n lin₁.cle ≠ Event.protocol n lin₂.cle :=
           fun heq => h_diff (show e₁.sameProtocol n e₂ from hcle₁_prot.symm.trans (heq ▸ hcle₂_prot))
         exact .obFinishBefore p p_ob p_lt h_prot_diff h_p_isdir (Event.ne_of_diff_prot h_prot_diff)
       | sameCLE cle_eq => exact .eq cle_eq
@@ -1430,16 +1466,11 @@ theorem step_to_ordering
 /-- Bridge step_to_ordering result from COM edge's CLEs (h.cle₁/h.cle₂) to hknow's CLEs.
     Uses Subsingleton.elim since globalLinearizationEventOfRequest is a Prop. -/
 theorem step_to_ordering_hknow
-    (h : com compound b init e₁ e₂)
+    (hcom : com (hknow e₁) (hknow e₂))
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : @CleLink n (hknow e₁).cle (hknow e₂).cle := by
-  have := step_to_ordering h h_non_lazy_ppoi
-  rw [show h.cle₁ = (hknow e₁).cle from
-        congrArg (·.cle) (Subsingleton.elim h.lin₁ (hknow e₁)),
-      show h.cle₂ = (hknow e₂).cle from
-        congrArg (·.cle) (Subsingleton.elim h.lin₂ (hknow e₂))] at this
-  exact this
+    : @CleLink n (hknow e₁).cle (hknow e₂).cle :=
+  step_to_ordering hcom h_non_lazy_ppoi
 
 -- Old lex pair approach removed. Using LinChain (TransGen LinStep) instead of CleLink.
 -- Each edge produces CleLink, converted to LinChain ∨ eq via toLinChainOrEq.
@@ -1473,8 +1504,8 @@ private theorem com_self_false
     | sameClusDiffCache _ cle_ordering =>
       -- Both w₁_cmpLin and w₂_cmpLin are globalLinearizationEventOfRequest for e.
       -- By Subsingleton.elim, they're equal, so their CLEs are equal.
-      have heq : h.w₁_cmpLin = h.w₂_cmpLin := Subsingleton.elim _ _
-      have hcle_eq : h.w₁_cmpLin.cle = h.w₂_cmpLin.cle := congrArg (·.cle) heq
+      have heq : lin₁ = lin₂ := Subsingleton.elim _ _
+      have hcle_eq : lin₁.cle = lin₂.cle := congrArg (·.cle) heq
       -- SameCluster.cleOb.cleOrdering.Cases carries OB or protocol contradiction.
       cases cle_ordering with
       | wImmPredRCle w =>
@@ -1498,7 +1529,7 @@ private theorem com_self_false
     fr: read ∧ write gives .r = .w → False. -/
 private theorem edge_self_false
     {e : Event n}
-    (h : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e e)
+    (h : R_hknow hknow e e)
     : False := by
   cases h with
   | inl hppoi => exact Event.contradiction_of_reflexive_ordered_before n hppoi.1.orderedBefore
@@ -1509,7 +1540,7 @@ private theorem edge_self_false
     PPOi: from orderedBefore + oWellFormed. COM: from event_oEnd_lt field. -/
 private theorem edge_oEnd_lt
     {e₁ e₂ : Event n}
-    (h : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₁ e₂)
+    (h : R_hknow hknow e₁ e₂)
     : Event.oEnd n e₁ < Event.oEnd n e₂ := by
   cases h with
   | inl hppoi => exact Nat.lt_trans hppoi.1.orderedBefore (Event.oWellFormed n e₂)
@@ -1958,12 +1989,12 @@ private theorem lift_cle_3way_to_compoundLin
 theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
+    : Relation.Acyclic R_hknow hknow := by
   intro e hcycle
   -- Every edge gives e₁.oEnd < e₂.oEnd (protocol causal ordering).
   -- A cycle composes to e.oEnd < e.oEnd → Nat.lt_irrefl → False.
   -- No dir_ordered needed. Pure protocol temporal evidence.
-  suffices h : ∀ c, Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e c →
+  suffices h : ∀ c, Relation.TransGen R_hknow hknow e c →
       Event.oEnd n e < Event.oEnd n c by
     exact Nat.lt_irrefl _ (h e hcycle)
   intro c hpath
@@ -1974,7 +2005,7 @@ theorem cmcm_acyclic_of_hknow
 /-- Extract ¬e₁.down and ¬e₂.down from any PPOi∪COM edge. -/
 private theorem notdown_of_edge
     {e₁ e₂ : Event n}
-    (h : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₁ e₂)
+    (h : R_hknow hknow e₁ e₂)
     : ¬ e₁.down ∧ ¬ e₂.down := by
   cases h with
   | inl hppoi => exact ⟨hppoi.1.notDown₁, hppoi.1.notDown₂⟩
@@ -1988,7 +2019,7 @@ private theorem notdown_of_edge
     First edge gives ¬a.down, last edge gives ¬c.down. -/
 private theorem notdown_of_path
     {a c : Event n}
-    (hpath : Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) a c)
+    (hpath : Relation.TransGen R_hknow hknow a c)
     : ¬ a.down ∧ ¬ c.down := by
   induction hpath with
   | single h => exact notdown_of_edge h
@@ -2013,7 +2044,7 @@ private theorem notdown_of_path
 theorem cmcm_acyclic_of_hknow_compoundLinOrdering
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) :=
+    : Relation.Acyclic R_hknow hknow :=
   cmcm_acyclic_of_hknow hknow h_non_lazy_ppoi
 
 /-- For each edge, the compoundLin events are related through CLE/GLE evidence:
@@ -2074,7 +2105,7 @@ theorem transgen_union_find_right {R₁ R₂ : α → α → Prop}
 
 theorem cmcm_acyclic
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
+    : Relation.Acyclic R_hknow hknow := by
   intro e hcycle
   -- The cycle is either pure PPOi or has at least one com edge.
   rcases transgen_union_find_right hcycle with hppoi_cycle | ⟨x, y, hcom⟩
