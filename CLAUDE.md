@@ -59,13 +59,36 @@ Before proving, composing, or sorry-ing ANYTHING:
 
 **Prove acyclic(PPOi ∪ rfe ∪ fr ∪ co) using CompoundMCM linearization events (compoundLin).**
 
-The proof connects compoundLin events THROUGH CLEs/GLEs to show there's no cycle:
-- Each edge (PPOi/COM) gives forward ordering between compoundLin events
-- Composition chains compoundLin events through CLE-level ordering (dir_ordered on CLEs)
-- Proxy constructors encode: compoundLin₁ → CLE₁ → StepOrdering → CLE₂ → compoundLin₂
-- At cycle closure: StepOrdering l l → False via cle_self_ordering_false
+### How compoundLin events are related
 
-This is the CompoundMCM acyclicity proof using linearization events, NOT just CLEs.
+Each event `e` has a linearization `lin e` which provides:
+- `lin.compoundLin` — the compoundLin event (the linearization point)
+- `lin.cle` — the CLE (cluster directory event from `dirAccessOfRequest`)
+- `lin.gle` — the GLE (global directory event)
+
+The compoundLin events are related through **4 temporal relations**:
+- **OB** (OrderedBefore): `cmpLin₁.oEnd < cmpLin₂.oStart`
+- **Encapsulates**: `cmpLin₁.oStart < cmpLin₂.oStart ∧ cmpLin₂.oEnd < cmpLin₁.oEnd`
+- **EncapsulatedBy**: reverse of Encapsulates
+- **FinishesBefore**: `cmpLin₁.oEnd < cmpLin₂.oEnd`
+
+These relations are established through **proxy events** from `dirAccessOfRequest`:
+- **encapDir**: `e` is encapsulated by CLE. cmpLin is INSIDE CLE.
+  CLE encaps cmpLin → Encapsulates relationship.
+- **orderBeforeDir**: `e` is AFTER a predecessor's CLE. The predecessor got perms.
+  cmpLin is AFTER CLE → CLE OB cmpLin (or cmpLin is the CLE itself for dirLin).
+- **orderAfterDir**: `e` is BEFORE a successor's CLE. NC weak on Vd.
+  cmpLin is BEFORE CLE → cmpLin OB CLE (ob_cle, proved vacuous).
+
+For each edge (PPOi/COM), the proof:
+1. Gets CLE₁ and CLE₂ from `lin₁.cle` and `lin₂.cle`
+2. Derives CleLink CLE₁ CLE₂ (from step_to_ordering using communication evidence)
+3. Bridges CLE ordering to compoundLin ordering via `cle_to_compoundLinOrdering`
+   using the dirAccessOfRequest cases above → LinLink cmpLin₁ cmpLin₂
+
+The acyclicity proof itself uses `event_oEnd_lt` (e₁.oEnd < e₂.oEnd for every edge)
+which is a direct protocol causal ordering property. The CLE/compoundLin machinery
+provides the PRESENTATION of how linearization events are ordered.
 
 ## Current goal: Herd CMCM acyclicity proof
 
