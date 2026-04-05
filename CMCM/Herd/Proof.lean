@@ -2016,6 +2016,37 @@ theorem cmcm_acyclic_of_hknow_compoundLinOrdering
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) :=
   cmcm_acyclic_of_hknow hknow h_non_lazy_ppoi
 
+/-- For each edge, the compoundLin events are related through CLE/GLE evidence:
+    - `(hknow e₁).compoundLin` connects to `(hknow e₁).cle` and `(hknow e₁).gle`
+    - `(hknow e₂).compoundLin` connects to `(hknow e₂).cle` and `(hknow e₂).gle`
+    - For COM edges: `step_to_ordering` gives `CleLink` between the CLEs
+    - `cle_to_compoundLinOrdering` lifts `CleLink` to a 3-way on compoundLin events
+
+    This per-edge relationship is the mechanism by which compoundLin events
+    are ordered. The acyclicity follows from `edge_oEnd_lt` on events. -/
+theorem edge_cmpLin_cle_evidence
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    {e₁ e₂ : Event n}
+    (hcom : com compound b init e₁ e₂)
+    : @CleLink n (hknow e₁).cle (hknow e₂).cle :=
+  step_to_ordering_hknow hcom hknow h_non_lazy_ppoi
+
+/-- The compoundLin events from a COM edge are related via LinLink (through CLEs).
+    This is the compoundLin-level ordering derived from the CLE-level CleLink. -/
+theorem edge_cmpLin_linlink
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    {e₁ e₂ : Event n}
+    (hcom : com compound b init e₁ e₂)
+    (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
+    : LinLink (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
+      (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
+      LinLink (hknow e₂).compoundLin (hknow e₁).compoundLin :=
+  cle_to_compoundLinOrdering
+    (step_to_ordering_hknow hcom hknow h_non_lazy_ppoi)
+    hnotdown₁ hnotdown₂ b.orderedAtEntry.dir_ordered
+
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
 noncomputable def com.extract_hknow (h : com compound b init e₁ e₂)
     : ∀ e : Event n, compound.globalLinearizationEventOfRequest b init e :=
