@@ -371,16 +371,16 @@ private lemma co_chain_cross_cluster_downgrade
   -- Induction on co chain. The endpoint e₂ gets generalized.
   -- Use h_diff_prot and lin in generalized form.
   induction h_co_chain with
-  | single h_co =>
+  | single h_co_ex =>
     -- Single co step: co(e_w, c). Since protocols differ: must be diffClus.
+    obtain ⟨l₁_co, l₂_co, h_co⟩ := h_co_ex
     cases h_co.comm with
     | sameCache same_cle _ =>
       -- sameCache → same CLE → same protocol. But h_diff_prot says diff protocol. Contradiction.
       exfalso; apply h_diff_prot
       unfold Event.sameProtocol
-      -- same_cle : CLE_w = CLE₂. CLE_w.protocol = e_w.protocol, CLE₂.protocol = e₂.protocol.
-      have h1 := write_cle_protocol_eq_write_protocol h_co.w₁_cmpLin
-      have h2 := write_cle_protocol_eq_write_protocol h_co.w₂_cmpLin
+      have h1 := write_cle_protocol_eq_write_protocol l₁_co
+      have h2 := write_cle_protocol_eq_write_protocol l₂_co
       rw [← h1, ← h2, same_cle]
     | sameClusDiffCache h_same_prot _ => exact absurd h_same_prot h_diff_prot
     | diffClus _ diff_cases =>
@@ -388,36 +388,36 @@ private lemma co_chain_cross_cluster_downgrade
       | wCleImmPredDown w =>
         have hrd_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
         have hrd_lt : w.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
-            h_co.w₂_cmpLin.cle.oEnd := by
+            l₂_co.cle.oEnd := by
           cases hrd_spec.2.encapDirRelation with
           | cleEncap henc => exact henc.right
           | gcacheEncap _ hlt => exact hlt
         -- e_mid = the second writer in this CO step (the endpoint)
         exact ⟨w.rDown.encapDir.existsRClusterDirDown.choose,
           hrd_spec.1,
-          by rw [show e_w_lin = h_co.w₁_cmpLin from Subsingleton.elim _ _]; exact w.wObRDown,
-          by rw [show lin _ = h_co.w₂_cmpLin from Subsingleton.elim _ _]; exact hrd_lt,
+          by rw [show e_w_lin = l₁_co from Subsingleton.elim _ _]; exact w.wObRDown,
+          by rw [show lin _ = l₂_co from Subsingleton.elim _ _]; exact hrd_lt,
           hrd_spec.2.isDir, hrd_spec.2.sameProtocol,
           
           ⟨_, h_co.in_b₂, h_co.cache₂, h_co.write₂, h_co.notDown₂,
            fun h => h_diff_prot (show e_w.sameProtocol n _ from h.symm),
-           by rw [show lin _ = h_co.w₂_cmpLin from Subsingleton.elim _ _]; exact hrd_spec.2.clusterDir⟩⟩
+           by rw [show lin _ = l₂_co from Subsingleton.elim _ _]; exact hrd_spec.2.clusterDir⟩⟩
       | evictOrReadBetweenWAndRDown evict =>
         have hrd_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
         have hrd_lt : evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
-            h_co.w₂_cmpLin.cle.oEnd := by
+            l₂_co.cle.oEnd := by
           cases hrd_spec.2.encapDirRelation with
           | cleEncap henc => exact henc.right
           | gcacheEncap _ hlt => exact hlt
         exact ⟨evict.rDown.encapDir.existsRClusterDirDown.choose,
           hrd_spec.1,
-          by rw [show e_w_lin = h_co.w₁_cmpLin from Subsingleton.elim _ _]; exact evict.wObRDown,
-          by rw [show lin _ = h_co.w₂_cmpLin from Subsingleton.elim _ _]; exact hrd_lt,
+          by rw [show e_w_lin = l₁_co from Subsingleton.elim _ _]; exact evict.wObRDown,
+          by rw [show lin _ = l₂_co from Subsingleton.elim _ _]; exact hrd_lt,
           hrd_spec.2.isDir, hrd_spec.2.sameProtocol,
           
           ⟨_, h_co.in_b₂, h_co.cache₂, h_co.write₂, h_co.notDown₂,
            fun h => h_diff_prot (show e_w.sameProtocol n _ from h.symm),
-           by rw [show lin _ = h_co.w₂_cmpLin from Subsingleton.elim _ _]; exact hrd_spec.2.clusterDir⟩⟩
+           by rw [show lin _ = l₂_co from Subsingleton.elim _ _]; exact hrd_spec.2.clusterDir⟩⟩
   | tail hpath h_last ih =>
     rename_i b_mid c_ep
     -- IH for prefix. Extend d.oEnd bound via last step's CleLink.
@@ -434,11 +434,12 @@ private lemma co_chain_cross_cluster_downgrade
           (show e_w.protocol = c_ep.protocol from
             (show e_w.protocol = b_mid.protocol from h_mid_prot).trans h))
       -- h_last.comm must be diffClus
-      cases h_last.comm with
+      obtain ⟨l₁_last, l₂_last, h_last_co⟩ := h_last
+      cases h_last_co.comm with
       | sameCache same_cle _ =>
         exfalso; apply h_mid_diff_c; unfold Event.sameProtocol
-        have h1 := write_cle_protocol_eq_write_protocol h_last.w₁_cmpLin
-        have h2 := write_cle_protocol_eq_write_protocol h_last.w₂_cmpLin
+        have h1 := write_cle_protocol_eq_write_protocol l₁_last
+        have h2 := write_cle_protocol_eq_write_protocol l₂_last
         rw [← h1, ← h2, same_cle]
       | sameClusDiffCache h_same _ => exact absurd h_same h_mid_diff_c
       | diffClus _ diff_cases =>
@@ -446,51 +447,51 @@ private lemma co_chain_cross_cluster_downgrade
         | wCleImmPredDown w =>
           have hrd_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
           have hrd_lt : w.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
-              h_last.w₂_cmpLin.cle.oEnd := by
+              l₂_last.cle.oEnd := by
             cases hrd_spec.2.encapDirRelation with
             | cleEncap henc => exact henc.right
             | gcacheEncap _ hlt => exact hlt
           have h_mid_ob_d := w.wObRDown
-          rw [show h_last.w₁_cmpLin = lin b_mid from Subsingleton.elim _ _] at h_mid_ob_d
+          rw [show l₁_last = lin b_mid from Subsingleton.elim _ _] at h_mid_ob_d
           exact ⟨w.rDown.encapDir.existsRClusterDirDown.choose,
             hrd_spec.1,
             Nat.lt_of_le_of_lt hcle_w_le_mid h_mid_ob_d,
-            by rw [show lin c_ep = h_last.w₂_cmpLin from Subsingleton.elim _ _]; exact hrd_lt,
+            by rw [show lin c_ep = l₂_last from Subsingleton.elim _ _]; exact hrd_lt,
             hrd_spec.2.isDir,
             hrd_spec.2.sameProtocol.trans (show b_mid.protocol = e_w.protocol from
               (show e_w.protocol = b_mid.protocol from h_mid_prot).symm),
             
-            ⟨c_ep, h_last.in_b₂, h_last.cache₂, h_last.write₂, h_last.notDown₂,
+            ⟨c_ep, h_last_co.in_b₂, h_last_co.cache₂, h_last_co.write₂, h_last_co.notDown₂,
              fun h => h_diff_prot (show e_w.sameProtocol n c_ep from h.symm),
-             by rw [show lin c_ep = h_last.w₂_cmpLin from Subsingleton.elim _ _]; exact hrd_spec.2.clusterDir⟩⟩
+             by rw [show lin c_ep = l₂_last from Subsingleton.elim _ _]; exact hrd_spec.2.clusterDir⟩⟩
         | evictOrReadBetweenWAndRDown evict =>
           have hrd_spec := evict.rDown.encapDir.existsRClusterDirDown.choose_spec
           have hrd_lt : evict.rDown.encapDir.existsRClusterDirDown.choose.oEnd <
-              h_last.w₂_cmpLin.cle.oEnd := by
+              l₂_last.cle.oEnd := by
             cases hrd_spec.2.encapDirRelation with
             | cleEncap henc => exact henc.right
             | gcacheEncap _ hlt => exact hlt
           have h_mid_ob_d := evict.wObRDown
-          rw [show h_last.w₁_cmpLin = lin b_mid from Subsingleton.elim _ _] at h_mid_ob_d
+          rw [show l₁_last = lin b_mid from Subsingleton.elim _ _] at h_mid_ob_d
           exact ⟨evict.rDown.encapDir.existsRClusterDirDown.choose,
             hrd_spec.1,
             Nat.lt_of_le_of_lt hcle_w_le_mid h_mid_ob_d,
-            by rw [show lin c_ep = h_last.w₂_cmpLin from Subsingleton.elim _ _]; exact hrd_lt,
+            by rw [show lin c_ep = l₂_last from Subsingleton.elim _ _]; exact hrd_lt,
             hrd_spec.2.isDir,
             hrd_spec.2.sameProtocol.trans (show b_mid.protocol = e_w.protocol from
               (show e_w.protocol = b_mid.protocol from h_mid_prot).symm),
             
-            ⟨c_ep, h_last.in_b₂, h_last.cache₂, h_last.write₂, h_last.notDown₂,
+            ⟨c_ep, h_last_co.in_b₂, h_last_co.cache₂, h_last_co.write₂, h_last_co.notDown₂,
              fun h => h_diff_prot (show e_w.sameProtocol n c_ep from h.symm),
-             by rw [show lin c_ep = h_last.w₂_cmpLin from Subsingleton.elim _ _]; exact hrd_spec.2.clusterDir⟩⟩
+             by rw [show lin c_ep = l₂_last from Subsingleton.elim _ _]; exact hrd_spec.2.clusterDir⟩⟩
     · -- Prefix diff-cluster: IH gives d with e_mid from some earlier step.
       -- Pass through the IH's e_mid — it has translatedDir about e_mid, not the endpoint.
       -- h_no_between at the call site can be applied to e_mid instead of e₂.
       obtain ⟨d, hd_in_b, hob_d, hd_lt, hd_isDir, hd_proto, hd_emid⟩ := ih h_mid_prot
       have hext : (lin b_mid).cle.oEnd ≤ (lin c_ep).cle.oEnd := by
         have := co_step_oEnd_le h_last
-        rw [show h_last.w₁_cmpLin = lin b_mid from Subsingleton.elim _ _,
-            show h_last.w₂_cmpLin = lin c_ep from Subsingleton.elim _ _] at this
+        rw [show l₁_last = lin b_mid from Subsingleton.elim _ _,
+            show l₂_last = lin c_ep from Subsingleton.elim _ _] at this
         exact this
       exact ⟨d, hd_in_b, hob_d, Nat.lt_of_lt_of_le hd_lt hext, hd_isDir, hd_proto, hd_emid⟩
 
@@ -1528,6 +1529,7 @@ private theorem com_self_false
     co: extracted to com_self_false.
     fr: read ∧ write gives .r = .w → False. -/
 private theorem edge_self_false
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e : Event n}
     (h : R_hknow hknow e e)
     : False := by
@@ -1539,6 +1541,7 @@ private theorem edge_self_false
 /-- Every PPOi∪COM edge gives e₁.oEnd < e₂.oEnd (strict temporal progression).
     PPOi: from orderedBefore + oWellFormed. COM: from event_oEnd_lt field. -/
 private theorem edge_oEnd_lt
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n}
     (h : R_hknow hknow e₁ e₂)
     : Event.oEnd n e₁ < Event.oEnd n e₂ := by
@@ -1989,12 +1992,12 @@ private theorem lift_cle_3way_to_compoundLin
 theorem cmcm_acyclic_of_hknow
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : Relation.Acyclic R_hknow hknow := by
+    : Relation.Acyclic (R_hknow hknow) := by
   intro e hcycle
   -- Every edge gives e₁.oEnd < e₂.oEnd (protocol causal ordering).
   -- A cycle composes to e.oEnd < e.oEnd → Nat.lt_irrefl → False.
   -- No dir_ordered needed. Pure protocol temporal evidence.
-  suffices h : ∀ c, Relation.TransGen R_hknow hknow e c →
+  suffices h : ∀ c, Relation.TransGen (R_hknow hknow) e c →
       Event.oEnd n e < Event.oEnd n c by
     exact Nat.lt_irrefl _ (h e hcycle)
   intro c hpath
@@ -2004,6 +2007,7 @@ theorem cmcm_acyclic_of_hknow
 
 /-- Extract ¬e₁.down and ¬e₂.down from any PPOi∪COM edge. -/
 private theorem notdown_of_edge
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n}
     (h : R_hknow hknow e₁ e₂)
     : ¬ e₁.down ∧ ¬ e₂.down := by
@@ -2018,8 +2022,9 @@ private theorem notdown_of_edge
 /-- Extract ¬a.down and ¬c.down from a TransGen path of PPOi∪COM edges.
     First edge gives ¬a.down, last edge gives ¬c.down. -/
 private theorem notdown_of_path
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {a c : Event n}
-    (hpath : Relation.TransGen R_hknow hknow a c)
+    (hpath : Relation.TransGen (R_hknow hknow) a c)
     : ¬ a.down ∧ ¬ c.down := by
   induction hpath with
   | single h => exact notdown_of_edge h
@@ -2044,7 +2049,7 @@ private theorem notdown_of_path
 theorem cmcm_acyclic_of_hknow_compoundLinOrdering
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : Relation.Acyclic R_hknow hknow :=
+    : Relation.Acyclic (R_hknow hknow) :=
   cmcm_acyclic_of_hknow hknow h_non_lazy_ppoi
 
 /-- For each edge, the compoundLin events are related through CLE/GLE evidence:
@@ -2105,7 +2110,7 @@ theorem transgen_union_find_right {R₁ R₂ : α → α → Prop}
 
 theorem cmcm_acyclic
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : Relation.Acyclic R_hknow hknow := by
+    : Relation.Acyclic (R_hknow hknow) := by
   intro e hcycle
   -- The cycle is either pure PPOi or has at least one com edge.
   rcases transgen_union_find_right hcycle with hppoi_cycle | ⟨x, y, hcom⟩
