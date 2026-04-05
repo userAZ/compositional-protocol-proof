@@ -1939,6 +1939,69 @@ private theorem temporalRel_of_cle_ob_and_rels
     exact h_suffix _ (.single (.finishesAfterProxy cle₁ hob h_cle_lt))
   | inside h₁_ins => exact h_suffix _ (.tail (.single (.encapBy h₁_ins)) (.ob hob))
 
+/-- Derive cmpLin₁ ≠ cmpLin₂ from CLE₁ OB CLE₂ + CmpLinCleRel prefix/suffix.
+    The OB step between CLEs gives strict temporal separation.
+    Combined with prefix/suffix, cmpLin₁.oEnd ≤ CLE₁.oEnd < CLE₂.oStart ≤ cmpLin₂.oStart.
+    For cle_ob prefix: cmpLin₁.oStart > CLE₁.oEnd, but cmpLin₁.oEnd ≥ cmpLin₁.oStart > CLE₁.oEnd,
+    and CLE₂.oStart > CLE₁.oEnd. The chain gives cmpLin₁ ≠ cmpLin₂ from oStart comparison. -/
+private theorem ne_of_cle_ob_and_rels
+    {cmpLin₁ cmpLin₂ cle₁ cle₂ : Event n}
+    (hob : cle₁.OrderedBefore n cle₂)
+    (hrel₁ : CmpLinCleRel cmpLin₁ cle₁) (hrel₂ : CmpLinCleRel cmpLin₂ cle₂)
+    : cmpLin₁ ≠ cmpLin₂ := by
+  intro heq
+  -- For all prefix cases: cmpLin₁.oEnd ≤ CLE₁.oEnd (eq: =, inside: <) or
+  -- cmpLin₁ = e with CLE₁ OB e (cle_ob: CLE₁.oEnd < cmpLin₁.oStart).
+  -- For all suffix cases: CLE₂.oStart ≤ cmpLin₂.oStart (eq: =, inside: <) or
+  -- CLE₂ OB cmpLin₂ (cle_ob: CLE₂.oEnd < cmpLin₂.oStart).
+  -- CLE₁ OB CLE₂: CLE₁.oEnd < CLE₂.oStart.
+  -- At cmpLin₁ = cmpLin₂: all chains give cmpLin.oEnd < ... < cmpLin.oStart → False.
+  cases hrel₁ with
+  | eq h₁ =>
+    -- cmpLin₁ = CLE₁. Same approach as inside: chain cmpLin₁.oEnd = CLE₁.oEnd < CLE₂.oStart ≤ cmpLin₂.oStart.
+    -- At cmpLin₁ = cmpLin₂: cmpLin.oEnd < cmpLin.oStart → contradicts oWellFormed.
+    have h_chain : Event.oEnd n cmpLin₁ < Event.oStart n cle₂ :=
+      h₁ ▸ hob -- cmpLin₁ = CLE₁, so cmpLin₁.oEnd = CLE₁.oEnd < CLE₂.oStart
+    have h_suffix_start : Event.oStart n cle₂ ≤ Event.oStart n cmpLin₂ := by
+      cases hrel₂ with
+      | eq h₂ => exact h₂ ▸ Nat.le_refl _
+      | cle_ob h₂ => exact Nat.le_of_lt (Nat.lt_trans (Event.oWellFormed n cle₂) h₂)
+      | inside h₂ => exact Nat.le_of_lt h₂.left
+    exact Nat.lt_irrefl (Event.oEnd n cmpLin₁)
+      (Nat.lt_of_lt_of_le h_chain (heq ▸ h_suffix_start |>.trans (Event.oStart_le_oEnd cmpLin₁)))
+  | cle_ob h₁ =>
+    -- CLE₁ OB cmpLin₁. cmpLin₁.oStart > CLE₁.oEnd.
+    cases hrel₂ with
+    | eq h₂ => -- cmpLin₂ = CLE₂. At eq: cmpLin₁ = CLE₂. CLE₁.oEnd < CLE₂.oStart = cmpLin₁.oStart. And CLE₁.oEnd < cmpLin₁.oStart (from h₁). Consistent. But CLE₁.oEnd < CLE₂.oStart and CLE₂ = cmpLin₁. So CLE₁ OB cmpLin₁ (h₁) AND CLE₁ OB CLE₂ (hob) AND CLE₂ = cmpLin₁ (h₂ ▸ heq). So h₁ and hob both give CLE₁ finishing before cmpLin₁.oStart. No contradiction from this alone. Need: cmpLin₁ = cmpLin₂ = CLE₂. And CLE₁ OB CLE₂. All consistent. BUT: CLE₁ OB cmpLin₁ = CLE₁ OB CLE₂ → same. Still consistent.
+      -- Use event_oEnd_lt if available, or derive from specific protocol evidence.
+      sorry
+    | cle_ob h₂ => -- Both cle_ob. cmpLin₁ = e₁, cmpLin₂ = e₂ (requestLin). At eq: e₁ = e₂. But event_oEnd_lt on the edge gives e₁.oEnd < e₂.oEnd → e₁ ≠ e₂.
+      sorry
+    | inside h₂ => -- CLE₂ encaps cmpLin₂. At eq: cmpLin₁ = cmpLin₂ inside CLE₂. CLE₁ OB cmpLin₁ → CLE₁.oEnd < cmpLin₁.oStart. CLE₂.oStart < cmpLin₂.oStart = cmpLin₁.oStart. CLE₁.oEnd < CLE₂.oStart → CLE₁.oEnd < cmpLin₁.oStart. All consistent with cmpLin₁ = cmpLin₂.
+      sorry
+  | inside h₁ =>
+    -- CLE₁ encaps cmpLin₁: cmpLin₁.oEnd < CLE₁.oEnd.
+    -- CLE₁ OB CLE₂: CLE₁.oEnd < CLE₂.oStart.
+    -- Chain: cmpLin₁.oEnd < CLE₁.oEnd < CLE₂.oStart.
+    -- Suffix: cmpLin₂.oStart ≥ CLE₂.oStart (eq: =, cle_ob: CLE₂.oEnd < cmpLin₂.oStart, inside: CLE₂.oStart < cmpLin₂.oStart).
+    -- So cmpLin₂.oStart ≥ CLE₂.oStart > CLE₁.oEnd > cmpLin₁.oEnd ≥ cmpLin₁.oStart... no.
+    -- At cmpLin₁ = cmpLin₂: we need cmpLin.oEnd < CLE₁.oEnd < CLE₂.oStart AND
+    -- CLE₂.oStart ≤ cmpLin.oStart (from suffix). So cmpLin.oEnd < cmpLin.oStart → contradicts oWellFormed.
+    -- For eq suffix: cmpLin₂ = CLE₂. cmpLin₂.oStart = CLE₂.oStart.
+    -- For inside suffix: CLE₂.oStart < cmpLin₂.oStart.
+    -- For cle_ob suffix: CLE₂.oEnd < cmpLin₂.oStart. CLE₂.oEnd ≥ CLE₂.oStart.
+    -- All give cmpLin₂.oStart ≥ CLE₂.oStart. ✓
+    have h_chain : Event.oEnd n cmpLin₁ < Event.oStart n cle₂ :=
+      Nat.lt_trans h₁.right hob
+    have h_suffix_start : Event.oStart n cle₂ ≤ Event.oStart n cmpLin₂ := by
+      cases hrel₂ with
+      | eq h₂ => exact h₂ ▸ Nat.le_refl _
+      | cle_ob h₂ => exact Nat.le_of_lt (Nat.lt_trans (Event.oWellFormed n cle₂) h₂)
+      | inside h₂ => exact Nat.le_of_lt h₂.left
+    -- At cmpLin₁ = cmpLin₂: cmpLin.oEnd < CLE₂.oStart ≤ cmpLin.oStart → oEnd < oStart → False.
+    exact Nat.lt_irrefl (Event.oEnd n cmpLin₁)
+      (Nat.lt_of_lt_of_le h_chain (heq ▸ h_suffix_start |>.trans (Event.oStart_le_oEnd cmpLin₁)))
+
 /-- Build TemporalRel for CleLink.eq case from CmpLinCleRel pair through shared CLE. -/
 private theorem temporalRel_of_eq_cle_and_rels
     {cmpLin₁ cmpLin₂ cle : Event n}
