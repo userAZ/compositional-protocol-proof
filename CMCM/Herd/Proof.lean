@@ -2358,8 +2358,26 @@ theorem ppoi_cmpLin_ordered_of_nonlazy
         have h_e_eq : e₁ = e₂ := h_eq₁.symm.trans (heq.trans h_eq₂)
         exact Nat.lt_irrefl _ (Nat.lt_trans (h_e_eq ▸ hppoi.orderedBefore) (Event.oWellFormed n e₂))
       | inr hr₂ => cases hr₂ with
-        | inl h_encap₂ => sorry -- eq prefix + inside suffix: e₁ = cmpLin₂ inside e₂ → temporal contradiction
-        | inr h_after₂ => sorry -- eq prefix + after suffix: e₁ = cmpLin₂ after e₂ → temporal contradiction
+        | inl h_encap₂ =>
+          -- cmpLin₁ = e₁ (h_eq₁), cmpLin₂ inside e₂ (h_encap₂), cmpLin₁ = cmpLin₂ (heq).
+          -- e₁.oEnd < e₂.oStart < cmpLin₂.oStart. cmpLin₂ = e₁ → e₂.oStart < e₁.oStart.
+          -- Chain: e₁.oEnd < e₂.oStart < e₁.oStart → contradicts oWellFormed.
+          have h1 : Event.oEnd n e₁ < Event.oStart n e₂ := hppoi.orderedBefore
+          have h2 : Event.oStart n e₂ < Event.oStart n (hknow e₂).compoundLin := h_encap₂.left
+          have h3 : (hknow e₂).compoundLin = e₁ := heq ▸ h_eq₁
+          rw [h3] at h2
+          exact Nat.lt_irrefl _ (Nat.lt_trans h1 (Nat.lt_trans h2 (Event.oWellFormed n e₁)))
+        | inr h_after₂ =>
+          -- cmpLin₁ = e₁, e₂ OB cmpLin₂ (h_after₂), cmpLin₁ = cmpLin₂ = e₁.
+          -- e₁.oEnd < e₂.oStart (OB). e₂.oEnd < cmpLin₂.oStart = e₁.oStart (after + heq).
+          -- Chain: e₁.oEnd < e₂.oStart < e₂.oEnd < e₁.oStart → contradicts oWellFormed.
+          have h1 : Event.oEnd n e₁ < Event.oStart n e₂ := hppoi.orderedBefore
+          have h2 : Event.oEnd n e₂ < Event.oStart n (hknow e₂).compoundLin := h_after₂
+          have h3 : (hknow e₂).compoundLin = e₁ := heq ▸ h_eq₁
+          rw [h3] at h2
+          -- h2 : e₂.oEnd < e₁.oStart. h1 : e₁.oEnd < e₂.oStart.
+          -- Chain: e₁.oEnd < e₂.oStart ≤ e₂.oEnd < e₁.oStart < e₁.oEnd → contradiction.
+          exact Nat.lt_irrefl _ (Nat.lt_trans h1 (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd e₂) (Nat.lt_trans h2 (Event.oWellFormed n e₁))))
     | inr hr₁ => cases hr₁ with
       | inl h_encap₁ =>
         -- cmpLin₁ inside e₁. cmpLin₁.oEnd < e₁.oEnd < e₂.oStart ≤ cmpLin₂.oStart.
@@ -2370,7 +2388,19 @@ theorem ppoi_cmpLin_ordered_of_nonlazy
         | inr hr₂ => cases hr₂ with
           | inl h_encap₂ => -- both inside. cmpLin₁.oEnd < e₁.oEnd < e₂.oStart < cmpLin₂.oStart.
             exact Nat.lt_irrefl _ (Nat.lt_trans h_encap₁.right (Nat.lt_trans hppoi.orderedBefore (heq ▸ Nat.lt_trans h_encap₂.left (Event.oWellFormed n (hknow e₂).compoundLin))))
-          | inr h_after₂ => sorry -- inside + after: temporal contradiction needs careful type handling
+          | inr h_after₂ =>
+            -- cmpLin₁ inside e₁, e₂ OB cmpLin₂, cmpLin₁ = cmpLin₂.
+            -- cmpLin₁.oEnd < e₁.oEnd < e₂.oStart ≤ e₂.oEnd < cmpLin₂.oStart.
+            -- At eq: cmpLin.oEnd < ... < cmpLin.oStart → contradicts oWellFormed.
+            have h1 := h_encap₁.right -- cmpLin₁.oEnd < e₁.oEnd
+            have h2 := hppoi.orderedBefore -- e₁.oEnd < e₂.oStart
+            have h3 : Event.oEnd n e₂ < Event.oStart n (hknow e₂).compoundLin := h_after₂
+            have h4 : (hknow e₂).compoundLin = (hknow e₁).compoundLin := heq.symm
+            rw [h4] at h3
+            -- h1: cmpLin₁.oEnd < e₁.oEnd, h2: e₁.oEnd < e₂.oStart, h3: e₂.oEnd < cmpLin₁.oStart
+            have h_chain : Event.oEnd n (hknow e₁).compoundLin < Event.oStart n (hknow e₁).compoundLin :=
+              Nat.lt_trans h1 (Nat.lt_trans h2 (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd e₂) h3))
+            exact Nat.lt_irrefl _ (Nat.lt_trans h_chain (Event.oWellFormed n (hknow e₁).compoundLin))
       | inr h_after₁ =>
         -- cmpLin₁ after e₁. e₁ OB cmpLin₁. Hard case.
         -- e₁ OB e₂ and e₁ OB cmpLin₁. Both cmpLin₁ and e₂ after e₁.
