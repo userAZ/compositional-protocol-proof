@@ -86,9 +86,18 @@ For each edge (PPOi/COM), the proof:
 3. Bridges CLE ordering to compoundLin ordering via `cle_to_compoundLinOrdering`
    using the dirAccessOfRequest cases above → LinLink cmpLin₁ cmpLin₂
 
-The acyclicity proof itself uses `event_oEnd_lt` (e₁.oEnd < e₂.oEnd for every edge)
-which is a direct protocol causal ordering property. The CLE/compoundLin machinery
-provides the PRESENTATION of how linearization events are ordered.
+### What the user wants (cmpLin migration)
+
+The edge definitions (PPOi, rfe, co, fr) must:
+1. Use `lin₁ lin₂` (linearization evidence) as PRIMARY parameters, not cache events
+2. Carry `cmpLin_ordered : CmpLinOrdering lin₁.compoundLin lin₂.compoundLin` — explicitly stating how the compoundLin events are temporally related
+3. The CmpLinOrdering relates compoundLin events through OB, Encap, EncapBy, FinishesBefore — connected through proxy events from dirAccessOfRequest:
+   - **encapDir**: CLE encapsulates `e` → compoundLin is INSIDE CLE (Encap)
+   - **orderBeforeDir**: predecessor's CLE gave perms → compoundLin is AFTER CLE (CLE OB compoundLin)
+   - **orderAfterDir**: successor's CLE → compoundLin is BEFORE CLE (vacuous ob_cle)
+   - The CLE itself or GLE acts as the proxy connecting two compoundLin events
+
+The acyclicity proof uses `event_oEnd_lt` (e₁.oEnd < e₂.oEnd) as the proof mechanism. The cmpLin_ordered field provides the PRESENTATION of how compoundLin events are ordered through the protocol's directory access evidence.
 
 ## Current goal: Herd CMCM acyclicity proof
 
