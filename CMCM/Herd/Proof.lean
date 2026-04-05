@@ -1913,10 +1913,28 @@ theorem cle_to_compoundLinOrdering
   | ob hob _ =>
     exact Or.inl (mk_fwd (.ob hob (Event.ne_of_ob hob))
       (temporalRel_of_cle_ob_and_rels hob hrel₁ hrel₂))
+  | obEndLt p hob_cl hlt hdir_p hne =>
+    exact Or.inl (mk_fwd (.obEndLt p hob_cl hlt hdir_p hne)
+      (temporalRel_of_cle_ob_and_rels (by
+        -- CLE₁ OB CLE₂ from dir_ordered. oEnd ≤ from obEndLt evidence.
+        match hfc₁ : lin₁.cle, h₁_isdir with
+        | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
+        | .directoryEvent de₁, _ =>
+          match hfc₂ : lin₂.cle, h₂_isdir with
+          | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
+          | .directoryEvent de₂, _ =>
+            exact co_chain_same_cluster_ob
+              (Nat.le_of_lt (Nat.lt_trans (Nat.lt_trans hob_cl (Event.oWellFormed n p)) hlt))
+              hfc₁ hfc₂ (hdir de₁ de₂)
+        ) hrel₁ hrel₂))
+  | sameLin e₁' e₂' heq' henc₁ hob_s henc₂ =>
+    cases temporalRel_of_eq_cle_and_rels hrel₁ (heq' ▸ hrel₂) with
+    | inl htr => exact Or.inl (.proxy _ _ (.sameLin e₁' e₂' heq' henc₁ hob_s henc₂) h₁_isdir h₂_isdir hrel₁ (heq' ▸ hrel₂) htr)
+    | inr hr => cases hr with
+      | inl heq_cl => exact Or.inr (Or.inl heq_cl)
+      | inr htr_rev => exact Or.inr (Or.inr (.proxy _ _ (.sameLin e₂' e₁' heq'.symm henc₂ hob_s henc₁) h₂_isdir h₁_isdir (heq' ▸ hrel₂) hrel₁ htr_rev))
   | _ =>
-    -- All other non-eq CleLinks: derive CLE₁ OB CLE₂ and build TemporalRel.
-    -- The non-eq CleLink h was consumed by cases; reconstruct from cle_ob_to_temporal_chain.
-    -- This is the same temporal chain that the old code built.
+    -- Remaining: encapOb, obFinishBefore, proxyPair, encap, encapObEndLt.
     sorry
 
 -- Composition using LinLink. Delegates to dir_ordered on CLEs.
