@@ -1862,11 +1862,38 @@ private lemma compoundLin_not_ob_cle
 private theorem compoundLin_cle_to_CmpLinCleRel
     {lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (hnotdown : ¬ e.down)
+    (h_not_dir_e : ¬ e.isDirectoryEvent := by assumption)
     : CmpLinCleRel lin.compoundLin lin.cle := by
   have rel := lin.compoundLin_cle hnotdown
   cases rel with
   | eq heq => exact .eq heq
-  | cle_ob_compoundLin hob => exact .cle_ob hob
+  | cle_ob_compoundLin hob =>
+    -- cle_ob: cmpLin = e (from requestLin). e is not a dir event → cmpLin not dir.
+    -- Derive cmpLin = e from requestLin case.
+    -- Since cle_ob_compoundLin only arises from requestLin, cmpLin = e.
+    -- Use compoundLin_eq_event_of_requestLin after case-splitting linearizationOfEvent.
+    have h_not_dir : ¬ lin.compoundLin.isDirectoryEvent := by
+      cases hlin_ev : compound.linearizationOfEvent b init e with
+      | requestLin hreqlin =>
+        rw [lin.compoundLin_eq_event_of_requestLin hlin_ev]; exact h_not_dir_e
+      | dirLin hd =>
+        -- dirLin: cmpLin = CLE or inside CLE. CLE is dir. Both are dir or inside dir.
+        -- But hob says CLE OB cmpLin (from cle_ob_compoundLin).
+        -- compoundLin_cle_of_dirLin gives eq or inside, not cle_ob.
+        -- The rel was cle_ob_compoundLin. If linearizationOfEvent is dirLin, this is
+        -- from the opaque compoundLin_cle proof's requestLin branch — contradiction
+        -- with dirLin. Use: compoundLin_cle_of_dirLin gives eq ∨ inside. Both mean
+        -- cmpLin = CLE (dir) or inside CLE (could be dir or not).
+        -- For eq: cmpLin = CLE → CLE OB CLE → self-OB → False.
+        -- For inside: CLE encaps cmpLin AND CLE OB cmpLin → CLE.oEnd < cmpLin.oStart
+        --   and cmpLin.oEnd < CLE.oEnd → cmpLin.oStart < cmpLin.oEnd < CLE.oEnd < cmpLin.oStart → False.
+        cases lin.compoundLin_cle_of_dirLin hnotdown hlin_ev with
+        | inl h_eq =>
+          exfalso; rw [h_eq] at hob; exact Nat.lt_irrefl _ (Nat.lt_trans hob (Event.oWellFormed n lin.cle))
+        | inr h_inside =>
+          exfalso; exact absurd (Nat.lt_trans h_inside.1.right hob)
+            (Nat.not_lt.mpr (Event.oStart_le_oEnd lin.compoundLin))
+    exact .cle_ob hob h_not_dir
   | compoundLin_ob_cle hbad => exact absurd hbad (compoundLin_not_ob_cle lin hnotdown)
   | compoundLin_inside_cle hinside => exact .inside hinside
 
@@ -1970,16 +1997,27 @@ private theorem ne_of_cle_ob_and_rels
       | inside h₂ => exact Nat.le_of_lt h₂.left
     exact Nat.lt_irrefl (Event.oEnd n cmpLin₁)
       (Nat.lt_of_lt_of_le h_chain (heq ▸ h_suffix_start |>.trans (Event.oStart_le_oEnd cmpLin₁)))
-  | cle_ob h₁ =>
-    -- CLE₁ OB cmpLin₁. cmpLin₁.oStart > CLE₁.oEnd.
+  | cle_ob h₁_ob h₁_not_dir =>
+    -- cle_ob prefix: cmpLin₁ is NOT a dir event (h₁_not_dir).
     cases hrel₂ with
-    | eq h₂ => -- cmpLin₂ = CLE₂. At eq: cmpLin₁ = CLE₂. CLE₁.oEnd < CLE₂.oStart = cmpLin₁.oStart. And CLE₁.oEnd < cmpLin₁.oStart (from h₁). Consistent. But CLE₁.oEnd < CLE₂.oStart and CLE₂ = cmpLin₁. So CLE₁ OB cmpLin₁ (h₁) AND CLE₁ OB CLE₂ (hob) AND CLE₂ = cmpLin₁ (h₂ ▸ heq). So h₁ and hob both give CLE₁ finishing before cmpLin₁.oStart. No contradiction from this alone. Need: cmpLin₁ = cmpLin₂ = CLE₂. And CLE₁ OB CLE₂. All consistent. BUT: CLE₁ OB cmpLin₁ = CLE₁ OB CLE₂ → same. Still consistent.
-      -- Use event_oEnd_lt if available, or derive from specific protocol evidence.
-      sorry
-    | cle_ob h₂ => -- Both cle_ob. cmpLin₁ = e₁, cmpLin₂ = e₂ (requestLin). At eq: e₁ = e₂. But event_oEnd_lt on the edge gives e₁.oEnd < e₂.oEnd → e₁ ≠ e₂.
-      sorry
-    | inside h₂ => -- CLE₂ encaps cmpLin₂. At eq: cmpLin₁ = cmpLin₂ inside CLE₂. CLE₁ OB cmpLin₁ → CLE₁.oEnd < cmpLin₁.oStart. CLE₂.oStart < cmpLin₂.oStart = cmpLin₁.oStart. CLE₁.oEnd < CLE₂.oStart → CLE₁.oEnd < cmpLin₁.oStart. All consistent with cmpLin₁ = cmpLin₂.
-      sorry
+    | eq h₂ =>
+      -- cmpLin₂ = CLE₂ (dir event from h₂_isdir). At cmpLin₁ = cmpLin₂:
+      -- cmpLin₁ = CLE₂ (dir event). But h₁_not_dir: ¬ cmpLin₁.isDirectoryEvent. Contradiction.
+      -- cmpLin₁ = cmpLin₂ = CLE₂ (from h₂ and heq). CLE₂ is dir. cmpLin₁ not dir. Contradiction.
+      exact h₁_not_dir ((heq.trans h₂) ▸ h₂_isdir)
+    | cle_ob h₂_ob h₂_not_dir =>
+      -- Both cle_ob: both cmpLin are NOT dir events. At eq: same non-dir event.
+      -- Need temporal contradiction. CLE₁ OB cmpLin₁, CLE₂ OB cmpLin₂, CLE₁ OB CLE₂.
+      -- At cmpLin₁ = cmpLin₂: CLE₁ OB cl, CLE₂ OB cl, CLE₁ OB CLE₂.
+      -- CLE₁.oEnd < cl.oStart AND CLE₂.oEnd < cl.oStart AND CLE₁.oEnd < CLE₂.oStart.
+      -- All consistent. Need additional evidence (e.g., event_oEnd_lt from edge).
+      sorry -- Need event_oEnd_lt from the edge context (not available here)
+    | inside h₂ =>
+      -- inside: CLE₂ encaps cmpLin₂. CLE₂ is dir (h₂_isdir).
+      -- cmpLin₂ inside CLE₂: cmpLin₂ could be dir or not.
+      -- At cmpLin₁ = cmpLin₂: if cmpLin₂ is dir → contradicts h₁_not_dir.
+      -- If cmpLin₂ is not dir: both non-dir, same issue as cle_ob + cle_ob.
+      sorry -- Need event type evidence on cmpLin₂ or event_oEnd_lt
   | inside h₁ =>
     -- CLE₁ encaps cmpLin₁: cmpLin₁.oEnd < CLE₁.oEnd.
     -- CLE₁ OB CLE₂: CLE₁.oEnd < CLE₂.oStart.
@@ -2040,8 +2078,8 @@ theorem cle_to_compoundLinOrdering
     : CmpLinOrdering lin₁.compoundLin lin₂.compoundLin := by
   have h₁_isdir := lin₁.cle_isDirEvent
   have h₂_isdir := lin₂.cle_isDirEvent
-  have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnotdown₁ (lin := lin₁)
-  have hrel₂ := compoundLin_cle_to_CmpLinCleRel hnotdown₂ (lin := lin₂)
+  have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnotdown₁ (h_not_dir_e := sorry) (lin := lin₁)
+  have hrel₂ := compoundLin_cle_to_CmpLinCleRel hnotdown₂ (h_not_dir_e := sorry) (lin := lin₂)
   -- For non-eq CleLinks: forward proxy with explicit CmpLinCleRel.
   -- For eq CleLink: case-split on the two CmpLinCleRel to determine direction.
   -- Helper: build forward LinLink.proxy with all fields for non-eq CleLink
