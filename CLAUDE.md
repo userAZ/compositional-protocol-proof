@@ -71,7 +71,7 @@ This is the CompoundMCM acyclicity proof using linearization events, NOT just CL
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-04-03)
+### Status (updated 2026-04-04)
 - **1 sorry remaining**: `cycle_eq_closure` h_all_same_cle (Proof.lean:3118)
 - **ZERO `hdir de de` abuse**: All dir_ordered self-applications removed via h_ne on CleLink constructors + address-based PPOi contradiction + readsFrom case analysis for rfe.
 - **h_ne approach**: Non-eq CleLink constructors carry `h_ne : l₁ ≠ l₂`. At self-reference, non-eq cases close with `absurd rfl h_ne`. sameLin closes with temporal chain (CLE.oEnd < e₁'.oEnd < e₂'.oStart < CLE.oStart < CLE.oEnd). eq delegates to cycle_eq_closure.
