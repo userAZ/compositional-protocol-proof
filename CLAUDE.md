@@ -60,6 +60,35 @@ Before proving, composing, or sorry-ing ANYTHING:
 
 **Prove acyclic(PPOi ∪ rfe ∪ fr ∪ co) using CompoundMCM linearization events (compoundLin).**
 
+## THE PHILOSOPHY — cmpLin ordering through proxy events (READ THIS BEFORE EVERY PROOF)
+
+**cmpLin events are NOT directly ordered.** Two compoundLin events (cmpLin₁, cmpLin₂) from different cache events at different caches/clusters have NO direct temporal constraint between them (the caches may take extra internal cycles). Instead, they are ordered THROUGH PROTOCOL PROXY EVENTS.
+
+The `cmpLinLinLink` relation captures this: a `TransGen` chain of OB/Encap/EncapBy/FinishesBefore steps that goes through NAMED PROXY EVENTS from the protocol definitions. The chain does NOT go directly from cmpLin₁ to cmpLin₂ — it goes through the communication mechanism.
+
+**Example: RF with e_w and e_r in different clusters (generalizes to other cases):**
+```
+cmpLin_w → ... → e_w OB e_r_cache_downgrade
+                       → e_r_cache_downgrade EncapBy e_r_cdir_downgrade
+                       → e_r_cdir_downgrade EncapBy e_gcache_downgrade
+                       → e_gcache_downgrade EncapBy GLE_r
+                       → GLE_r EncapBy e_r_gcache
+                       → e_r_gcache {EncapBy or FinishesBefore} CLE_r
+                       → CLE_r related to e_r by dirAccessOfRequest:
+                         - orderBeforeDir: CLE_r EncapBy predecessor, predecessor OB e_r (cmpLin_r = e_r)
+                         - encapDir: CLE_r EncapBy e_r (cmpLin_r inside CLE_r)
+                         - orderAfterDir: CLE_r EncapBy successor, CLE_r OB successor
+                       → ... → cmpLin_r
+```
+
+Each step in this chain names a SPECIFIC PROTOCOL EVENT (downgrade, directory event, GLE, predecessor, etc.). This is the communication mechanism that the protocol uses to propagate coherence.
+
+**THIS IS WHAT THE PROOF MUST SHOW.** The acyclicity proof must demonstrate that each edge produces a cmpLinLinLink chain through proxy events. A cycle of such chains would require a proxy event to be temporally before itself → contradiction.
+
+**ENSURE YOUR PROOFS FOLLOW THIS PHILOSOPHY.** Before writing any proof code, ask: "Does this proof show the proxy chain? Does it name the protocol events?" If the proof just uses an opaque oEnd ranking without naming proxies, it's NOT following the philosophy. The proxy chain IS the proof — the ranking is derived FROM the chain.
+
+**The cmpLinLinLink relation IS the RF/CO/FR definitions' chains drawn out.** Read the RF def. The communication cases (sameCluster, diffCluster, etc.) describe EXACTLY these proxy chains. The proof should mirror these cases.
+
 ### How compoundLin events are related
 
 Each event `e` has a linearization `lin e` which provides:
@@ -67,11 +96,11 @@ Each event `e` has a linearization `lin e` which provides:
 - `lin.cle` — the CLE (cluster directory event from `dirAccessOfRequest`)
 - `lin.gle` — the GLE (global directory event)
 
-The compoundLin events are related through **4 temporal relations**:
-- **OB** (OrderedBefore): `cmpLin₁.oEnd < cmpLin₂.oStart`
-- **Encapsulates**: `cmpLin₁.oStart < cmpLin₂.oStart ∧ cmpLin₂.oEnd < cmpLin₁.oEnd`
+The proxy events are related through **4 temporal relations**:
+- **OB** (OrderedBefore): `a.oEnd < b.oStart`
+- **Encapsulates**: `a.oStart < b.oStart ∧ b.oEnd < a.oEnd`
 - **EncapsulatedBy**: reverse of Encapsulates
-- **FinishesBefore**: `cmpLin₁.oEnd < cmpLin₂.oEnd`
+- **FinishesBefore**: `a.oEnd < b.oEnd`
 
 These relations are established through **proxy events** from `dirAccessOfRequest`:
 - **encapDir**: `e` is encapsulated by CLE. cmpLin is INSIDE CLE.
@@ -145,13 +174,14 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 ### TODO — cmpLin migration (ACTIVE, 2026-04-05)
 1. **DONE: PPOi `cmpLin_ordered` derived** from NonLazyPPOi.
 2. **DONE: `cmpLin_ordered` field removed** from rfe/co/fr. Derived via `com_cmpLin_ordered`. NOTE: rfe is based on rf — the rf definition is the foundation.
-3. **SHIFT PROOFS TO BE CENTERED AROUND cmpLin ORDERING.** This is the main remaining task. Currently `cmcm_acyclic_of_hknow_compoundLinOrdering` still uses `Event.oEnd n e` (cache event oEnd) for cycle contradiction. Must shift to cmpLin-centered:
-   - Each edge should produce CmpLinOrdering between cmpLin events through proxies
-   - The cycle contradiction should work at the cmpLin/CLE level
-   - The CLE is WHERE requests from different caches/clusters MEET — it's the rendezvous point
-   - For PPOi: NonLazyPPOi gives `cmpLin₁.OrderedBefore cmpLin₂` directly
-   - For COM: CleLink between CLEs, bridged to cmpLin via CmpLinCleRel
-   - Ranking approach: use `Event.oEnd n (hknow e).compoundLin` as ranking. For PPOi this works (OB gives strict oEnd increase). For COM: need to derive `cmpLin₁.oEnd < cmpLin₂.oEnd` from CLE ordering + CmpLinCleRel. Think harder about the protocol: in WHICH cases does CmpLinCleRel.eq (cmpLin = CLE, oEnd > e.oEnd) happen? Can it co-occur with CmpLinCleRel.inside on the OTHER side of the same edge? If not, the ranking works.
+3. **DEFINE cmpLinLinLink (clll) AND USE IT AS THE CENTRAL RELATION.** This is the main remaining task.
+   - Define `cmpLinLinLink cmpLin₁ cmpLin₂` as a `TransGen` chain of OB/Encap/EncapBy/FinishesBefore through NAMED PROXY EVENTS (not directly between cmpLin₁ and cmpLin₂).
+   - cmpLin events are NOT directly constrained (different caches take different cycles). They're linked ONLY through proxy events (downgrades, CLE, GLE, predecessor, successor).
+   - Do NOT assume `cmpLin₁.oEnd < cmpLin₂.oEnd` as a field. REMOVE `cmpLin_oEnd_lt` from rfe/co/fr. DERIVE the ordering from the proxy chain.
+   - For each COM edge type (rfe/co/fr), derive the cmpLinLinLink chain by tracing through the RF/CO/FR definitions' communication cases: sameCluster, diffCluster_coherent, diffCluster_evict, etc.
+   - The cmpLinLinLink relation is an irreflexive subset of `TransGen BasicTemporalRel`.
+   - For PPOi: NonLazyPPOi gives `cmpLin₁ OB cmpLin₂` directly (one-step chain).
+   - Cycle contradiction: TransGen of cmpLinLinLink → TransGen BasicTemporalRel → irreflexive (because the proxy chain gives strict temporal progress through named events).
 4. **Name proxy events meaningfully** in LinLink constructors and CleLink. Use names like `writerCLE`, `readerCLE`, `cdir_downgrade`, `gcache_downgrade`, `predecessor`, `successor` — NOT single-letter variables like `p`, `q`, `e₁'`. The user's definitions always use meaningful names.
 5. **Update LinLink.proxy to use meaningful proxy event names** — rename fields to describe WHAT the proxy events are in the protocol (predecessor CLE, downgrade event, etc.)
 
@@ -207,6 +237,10 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **rfe is based on rf, NOT the other way around.** The rf definition is the foundation. rfe adds the "external" (different cache) constraint. Always think about rf first, then rfe as a specialization.
 - **THINK ABOUT WHAT YOU'RE SAYING IN THE PROTOCOL.** Before claiming something is done or impossible, /reflect: What does this mean in the actual cache coherence protocol? What are the physical events? Which cache/cluster/directory does each event belong to? What communication mechanism connects them? If you can't answer these questions, you don't understand the proof well enough to implement it.
 - **The CLE is where requests from different caches/clusters MEET.** The directory processes requests from multiple caches. The CLE is the directory access event. This is why the cycle goes through CLEs — they're the communication rendezvous point.
+- **ENSURE PROOFS FOLLOW THE PHILOSOPHY.** Before writing ANY proof, re-read "THE PHILOSOPHY" section above. Ask: does this proof show the proxy chain through named protocol events? If not, it's wrong. The philosophy is NON-NEGOTIABLE. Don't use opaque oEnd rankings that skip the proxy chain.
+- **The proxy chain IS the RF/CO/FR definitions drawn out.** Read the actual RF def (`Behaviour.readsFrom.cases`). The communication cases describe the exact proxy chains. Mirror them in the proof. Don't invent abstract alternatives.
+- **cmpLin events are NOT directly constrained.** Different cache events at different caches/clusters have no direct OB/Encap/etc constraint. They're connected ONLY through proxy events (downgrades, CLE, GLE, predecessor, successor). NEVER assume cmpLin₁.oEnd < cmpLin₂.oEnd as a field — DERIVE it from the proxy chain.
+- **rfe is based on rf.** The rf definition is the foundation. rfe adds "external" (different cache). Always think about rf first.
 
 ### Lessons learned THIS SESSION (CleLink h_ne refactoring)
 - **Sketch test theorems BEFORE fixing 103 construction sites.** The test at cycle closure confirmed the h_ne approach works in 30 seconds, saving hours of wasted mechanical work if the approach were wrong.

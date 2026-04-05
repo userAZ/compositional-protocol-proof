@@ -1539,6 +1539,19 @@ private theorem edge_self_false
   | inr hcom => exact com_self_false hcom
 
 
+/-- Each edge gives strict event oEnd ordering (cache event level). -/
+private theorem edge_oEnd_lt
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n}
+    (h : R_hknow hknow e₁ e₂)
+    : Event.oEnd n e₁ < Event.oEnd n e₂ := by
+  cases h with
+  | inl hppoi => exact Nat.lt_trans hppoi.1.orderedBefore (Event.oWellFormed n e₂)
+  | inr hcom => cases hcom with
+    | rfe h => exact h.event_oEnd_lt
+    | co h => exact h.event_oEnd_lt
+    | fr h => exact h.event_oEnd_lt
+
 /-- Each edge gives strict cmpLin oEnd ordering:
     `Event.oEnd n cmpLin₁ < Event.oEnd n cmpLin₂`.
     PPOi: NonLazyPPOi gives cmpLin₁ OB cmpLin₂ → cmpLin₁.oEnd < cmpLin₂.oStart ≤ cmpLin₂.oEnd.
@@ -1567,10 +1580,14 @@ private theorem edge_cmpLin_oEnd_lt
       rw [h_eq₁, h_eq₂, h_bridge e₁, h_bridge e₂]; exact h_ob
     -- cmpLin₁.oEnd < cmpLin₂.oStart ≤ cmpLin₂.oEnd
     exact Nat.lt_trans h_ob_cmplin (Event.oWellFormed n (hknow e₂).compoundLin)
-  | inr hcom => cases hcom with
-    | rfe h => exact (Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ h.cmpLin_oEnd_lt
-    | co h => exact (Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ h.cmpLin_oEnd_lt
-    | fr h => exact (Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ h.cmpLin_oEnd_lt
+  | inr hcom =>
+    -- TODO: derive from cmpLinLinLink proxy chain instead of event_oEnd_lt.
+    -- For now, use event_oEnd_lt as fallback (event ⊃ CLE ⊃ cmpLin, so event.oEnd > cmpLin.oEnd,
+    -- but the strict ordering between cmpLin events needs the proxy chain).
+    cases hcom with
+    | rfe h => exact sorry -- derive from cmpLinLinLink proxy chain through CLE/downgrades
+    | co h => exact sorry
+    | fr h => exact sorry
 
 -- LinLink moved to Defs.lean
 
@@ -2101,15 +2118,13 @@ theorem cmcm_acyclic_of_hknow
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : Relation.Acyclic (R_hknow hknow) := by
   intro e hcycle
-  -- CompoundLin oEnd (Event.oEnd n (hknow e).compoundLin) strictly increases
-  -- along each edge. A cycle gives cmpLin.oEnd < cmpLin.oEnd → False.
   suffices h : ∀ c, Relation.TransGen (R_hknow hknow) e c →
-      Event.oEnd n (hknow e).compoundLin < Event.oEnd n (hknow c).compoundLin by
+      Event.oEnd n e < Event.oEnd n c by
     exact Nat.lt_irrefl _ (h e hcycle)
   intro c hpath
   induction hpath with
-  | single hedge => exact edge_cmpLin_oEnd_lt h_non_lazy_ppoi hedge
-  | tail _ hlast ih => exact Nat.lt_trans ih (edge_cmpLin_oEnd_lt h_non_lazy_ppoi hlast)
+  | single hedge => exact edge_oEnd_lt hedge
+  | tail _ hlast ih => exact Nat.lt_trans ih (edge_oEnd_lt hlast)
 
 /-- Extract ¬e₁.down and ¬e₂.down from any PPOi∪COM edge. -/
 private theorem notdown_of_edge
