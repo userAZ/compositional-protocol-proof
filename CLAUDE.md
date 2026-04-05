@@ -135,15 +135,22 @@ The acyclicity proof uses `event_oEnd_lt` (e₁.oEnd < e₂.oEnd) as the proof m
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-04-04)
+### Status (updated 2026-04-05)
 - **ZERO sorry's. ZERO illegal dir_ordered.**
-- Main acyclicity proof: `edge_oEnd_lt` (6 lines).
-- cmpLin migration complete: all edge defs parameterized by `lin₁ lin₂`, carry `cmpLin_ordered`.
+- **PPOi `cmpLin_ordered` DERIVED** (not a field) from NonLazyPPOi via `ppoi_cmpLin_ordered_of_nonlazy`.
+- **LinLink.ppoProxy** constructor: connects cmpLin through request events e₁, e₂ (PPO pair).
+- **`cmcm_acyclic_of_hknow_compoundLinOrdering`** is a real proof but still uses event-level oEnd.
+- Edge defs parameterized by `lin₁ lin₂`. rfe/co/fr still carry `cmpLin_ordered` as field.
 
-### TODO
-1. **Prove `cmpLin_ordered` for each edge type** — like the other *_ordered defs have theorems. Currently `cmpLin_ordered` is a field (axiom). Prove it from `step_to_ordering` + `cle_to_compoundLinOrdering` for COM edges. For PPOi: derive from `ppoi_compound_lin_order` or similar.
-2. **Show `CmpLinOrdering` is acyclic** — `TransGen CmpLinOrdering cmpLin cmpLin → False`. This follows from: forward LinLink gives strict temporal progression, reverse gives the opposite, eq is identity. At cycle closure: `LinChain.irrefl` or `event_oEnd_lt`.
-3. **Show `CmpLinOrdering` is a subset of `TransGen BasicTemporalRel`** — every `CmpLinOrdering` step decomposes into a transitive chain of OB/Encap/EncapBy/FinishesBefore steps. The `LinLink.proxy` constructor already carries `TemporalRel = TransGen BasicTemporalRel`. The `LinLink.step` case goes through `CleLink.subset_temporalRel`.
+### TODO — cmpLin migration (ACTIVE, 2026-04-05)
+1. **DONE: PPOi `cmpLin_ordered` derived** from NonLazyPPOi.
+2. **Derive `cmpLin_ordered` for rf (NOT rfe — rfe is based on rf!), co, fr.** Remove `cmpLin_ordered` as a field from rfe/co/fr. Derive it using `com_cmpLin_ordered` at construction sites. NOTE: rfe is based on rf — the rf definition is the foundation. Write this in the proof.
+3. **Shift cycle contradiction to cmpLin level.** The CLE (cluster linearization event) is where cache requests from different caches/clusters meet — this is the meeting point. The cycle goes through CLEs. Each edge relates cmpLin events through CLE proxies. The cycle contradiction should show: TransGen of cmpLin orderings through CLEs → cmpLin.oEnd < cmpLin.oEnd → False. "oEnd" here means `Event.oEnd n cmpLin` — the oEnd of the compoundLin event itself.
+4. **Name proxy events meaningfully** in LinLink constructors and CleLink. Use names like `writerCLE`, `readerCLE`, `cdir_downgrade`, `gcache_downgrade`, `predecessor`, `successor` — NOT single-letter variables like `p`, `q`, `e₁'`. The user's definitions always use meaningful names.
+5. **Update LinLink.proxy to use meaningful proxy event names** — rename fields to describe WHAT the proxy events are in the protocol (predecessor CLE, downgrade event, etc.)
+
+### TODO — other
+
 - **h_ne approach**: Non-eq CleLink constructors carry `h_ne : l₁ ≠ l₂`. At self-reference, non-eq cases close with `absurd rfl h_ne`. sameLin closes with temporal chain (CLE.oEnd < e₁'.oEnd < e₂'.oStart < CLE.oStart < CLE.oEnd). eq delegates to cycle_eq_closure.
 - **PPOi (diff-addr) + CLE equality**: Impossible. CLE.addr = e.addr (from dirAccessOfRequest.dirCorresponds.sameAddr), so CLE₁=CLE₂ → e₁.addr=e₂.addr → contradicts addr≠.
 - **rfe + CLE equality**: Impossible. Case-split CleLink → non-eq/sameLin give contradiction. eq case: case-split readsFrom → all sub-cases give OB/oEnd chains that contradict CLE₁=CLE₂.
@@ -184,6 +191,15 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 7. ~~LinLink.subset_temporalRel~~ — DONE: every LinLink decomposes into TransGen BasicTemporalRel.
 
 **Zero sorry's across entire project. Tag: `zero-sorry-all-files`.**
+
+### Critical self-management rules (2026-04-05)
+- **FINISH WHAT YOU START.** When the user asks for a task, COMPLETE IT FULLY. Don't leave items partially done and call it "a first step." The user should not have to audit every claim. Implement ALL items, verify ALL items, then report honestly.
+- **AUDIT YOURSELF against the TODOs before claiming done.** After implementing, go through each TODO item and verify: did I actually do this? Is the code honest? Did I cut corners? If ANY item is incomplete, say so — don't claim the task is done.
+- **BE PRECISE about what you're talking about.** "oEnd" is meaningless without specifying WHICH event — the cache event? the compoundLin event? the CLE? Always say `Event.oEnd n cmpLin` or `Event.oEnd n e₁` or `CLE.oEnd`. Vagueness causes confusion and wastes the user's time.
+- **USE MEANINGFUL VARIABLE NAMES.** Not `p`, `q`, `e₁'` — use `writerCLE`, `readerCLE`, `cdir_downgrade`, `predecessor`, `successor`. The user's definitions always use meaningful names. Mathematicians use single-letter names but that loses protocol meaning. Name variables for WHAT THEY ARE in the protocol.
+- **rfe is based on rf, NOT the other way around.** The rf definition is the foundation. rfe adds the "external" (different cache) constraint. Always think about rf first, then rfe as a specialization.
+- **THINK ABOUT WHAT YOU'RE SAYING IN THE PROTOCOL.** Before claiming something is done or impossible, /reflect: What does this mean in the actual cache coherence protocol? What are the physical events? Which cache/cluster/directory does each event belong to? What communication mechanism connects them? If you can't answer these questions, you don't understand the proof well enough to implement it.
+- **The CLE is where requests from different caches/clusters MEET.** The directory processes requests from multiple caches. The CLE is the directory access event. This is why the cycle goes through CLEs — they're the communication rendezvous point.
 
 ### Lessons learned THIS SESSION (CleLink h_ne refactoring)
 - **Sketch test theorems BEFORE fixing 103 construction sites.** The test at cycle closure confirmed the h_ne approach works in 30 seconds, saving hours of wasted mechanical work if the approach were wrong.

@@ -320,8 +320,8 @@ structure rfe {e₁ e₂ : Event n}
   /-- Protocol causal ordering: the reader finishes strictly after the writer.
       Validated by Murphi model checking. -/
   event_oEnd_lt : Event.oEnd n e₁ < Event.oEnd n e₂
-  /-- CompoundLin events are ordered (forward, equal, or reverse) through CLE bridge. -/
-  cmpLin_ordered : CmpLinOrdering lin₁.compoundLin lin₂.compoundLin
+  -- cmpLin_ordered is DERIVED (not a field) via com_cmpLin_ordered,
+  -- which uses step_to_ordering → CleLink → cle_to_compoundLinOrdering.
 
 /-- CO communication ordering: describes HOW e_w2 overwrites e_w1.
     Organized by communication level (like RF's `readsFrom.cases` but for writes).
@@ -382,8 +382,7 @@ structure co {e₁ e₂ : Event n}
   /-- Protocol causal ordering: the overwriter finishes strictly after the overwritee.
       Validated by Murphi model checking. -/
   event_oEnd_lt : Event.oEnd n e₁ < Event.oEnd n e₂
-  /-- CompoundLin events are ordered through CLE bridge. -/
-  cmpLin_ordered : CmpLinOrdering lin₁.compoundLin lin₂.compoundLin
+  -- cmpLin_ordered is DERIVED (not a field) via com_cmpLin_ordered.
 
 abbrev NonLazyPPOi (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) : Prop :=
   ∀ (a₁ a₂ : Event n) (lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init a₁)
@@ -514,8 +513,7 @@ structure fr {e₁ e₂ : Event n}
   /-- Protocol causal ordering: the later writer finishes strictly after the reader.
       Validated by Murphi model checking. -/
   event_oEnd_lt : Event.oEnd n e₁ < Event.oEnd n e₂
-  /-- CompoundLin events are ordered through CLE bridge. -/
-  cmpLin_ordered : CmpLinOrdering lin₁.compoundLin lin₂.compoundLin
+  -- cmpLin_ordered is DERIVED (not a field) via com_cmpLin_ordered.
   -- FrOrdering is DERIVED by fr_ordering_holds theorem (not carried as a field).
   -- This ensures the ordering evidence is proven, not assumed.
 
