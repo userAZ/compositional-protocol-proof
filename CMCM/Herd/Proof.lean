@@ -2301,8 +2301,46 @@ theorem ppoi_cmpLin_ordered_of_nonlazy
     : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin :=
   -- Explicit proxy chain through e₁, e₂ (request events):
   -- cmpLin₁ →(EncapBy e₁ if dirLin)→ e₁ →(OB)→ e₂ →(Encap cmpLin₂ if dirLin)→ cmpLin₂
+  have h_ne : (hknow e₁).compoundLin ≠ (hknow e₂).compoundLin := by
+    intro heq
+    -- Case-split on how cmpLin₁/cmpLin₂ relate to e₁/e₂.
+    -- For eq/inside prefix: cmpLin₁.oEnd ≤ e₁.oEnd < e₂.oStart.
+    -- For eq/inside suffix: cmpLin₂.oStart ≥ e₂.oStart.
+    -- At cmpLin₁ = cmpLin₂: oEnd < oStart → contradicts oWellFormed.
+    -- For after prefix/suffix: need separate handling.
+    cases compoundLin_event_rel hppoi.notDown₁ (lin := hknow e₁) with
+    | inl h_eq₁ =>
+      -- cmpLin₁ = e₁.
+      cases compoundLin_event_rel hppoi.notDown₂ (lin := hknow e₂) with
+      | inl h_eq₂ =>
+        -- cmpLin₂ = e₂. At eq: e₁ = e₂. But e₁ OB e₂ → e₁.oEnd < e₂.oStart → e₁ ≠ e₂.
+        have h_e_eq : e₁ = e₂ := h_eq₁.symm.trans (heq.trans h_eq₂)
+        exact Nat.lt_irrefl _ (Nat.lt_trans (h_e_eq ▸ hppoi.orderedBefore) (Event.oWellFormed n e₂))
+      | inr hr₂ => cases hr₂ with
+        | inl h_encap₂ => sorry -- eq prefix + inside suffix: e₁ = cmpLin₂ inside e₂ → temporal contradiction
+        | inr h_after₂ => sorry -- eq prefix + after suffix: e₁ = cmpLin₂ after e₂ → temporal contradiction
+    | inr hr₁ => cases hr₁ with
+      | inl h_encap₁ =>
+        -- cmpLin₁ inside e₁. cmpLin₁.oEnd < e₁.oEnd < e₂.oStart ≤ cmpLin₂.oStart.
+        -- At cmpLin₁ = cmpLin₂: oEnd < oStart → False.
+        cases compoundLin_event_rel hppoi.notDown₂ (lin := hknow e₂) with
+        | inl h_eq₂ => -- cmpLin₂ = e₂. cmpLin₁.oEnd < e₁.oEnd < e₂.oStart = cmpLin₂.oStart.
+          exact Nat.lt_irrefl _ (Nat.lt_trans h_encap₁.right (Nat.lt_trans hppoi.orderedBefore (h_eq₂ ▸ heq ▸ Event.oWellFormed n (hknow e₁).compoundLin)))
+        | inr hr₂ => cases hr₂ with
+          | inl h_encap₂ => -- both inside. cmpLin₁.oEnd < e₁.oEnd < e₂.oStart < cmpLin₂.oStart.
+            exact Nat.lt_irrefl _ (Nat.lt_trans h_encap₁.right (Nat.lt_trans hppoi.orderedBefore (heq ▸ Nat.lt_trans h_encap₂.left (Event.oWellFormed n (hknow e₂).compoundLin))))
+          | inr h_after₂ => sorry -- inside + after: temporal contradiction needs careful type handling
+      | inr h_after₁ =>
+        -- cmpLin₁ after e₁. e₁ OB cmpLin₁. Hard case.
+        -- e₁ OB e₂ and e₁ OB cmpLin₁. Both cmpLin₁ and e₂ after e₁.
+        -- For suffix: cmpLin₂ related to e₂. At eq: need to show contradiction.
+        -- Use: e₁ OB cmpLin₁ → cmpLin₁.oStart > e₁.oEnd.
+        -- e₁ OB e₂ → e₂.oStart > e₁.oEnd.
+        -- Suffix: cmpLin₂.oStart related to e₂.oStart.
+        -- At cmpLin₁ = cmpLin₂: need to use specific event properties.
+        sorry
   Or.inl (.ppoProxy e₁ e₂ hppoi.orderedBefore
-    (ppoi_cmpLin_temporalRel hppoi.orderedBefore hppoi.notDown₁ hppoi.notDown₂) sorry)
+    (ppoi_cmpLin_temporalRel hppoi.orderedBefore hppoi.notDown₁ hppoi.notDown₂) h_ne)
 
 /-- Prove cmpLin_ordered for any R_hknow edge (PPOi or COM).
     PPOi: derived from NonLazyPPOi (proxy chain through request events).
