@@ -242,7 +242,16 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **cmpLin events are NOT directly constrained.** Different cache events at different caches/clusters have no direct OB/Encap/etc constraint. They're connected ONLY through proxy events (downgrades, CLE, GLE, predecessor, successor). NEVER assume cmpLin₁.oEnd < cmpLin₂.oEnd as a field — DERIVE it from the proxy chain.
 - **rfe is based on rf.** The rf definition is the foundation. rfe adds "external" (different cache). Always think about rf first.
 
-### Lessons learned THIS SESSION (CleLink h_ne refactoring)
+### Lessons learned THIS SESSION (cmpLin migration, 2026-04-05)
+- **cmpLin events are NOT directly constrained.** Different cache events at different caches/clusters have no direct OB/Encap/etc between their cmpLin events. The ordering goes ONLY through protocol proxy events (CLE, downgrades, GLE, predecessor, successor).
+- **Don't assume ordering fields — derive them from the protocol.** `cmpLin_oEnd_lt` was wrong to add as a field. The ordering must come from the proxy chain (cmpLinLinLink) that traces through the RF/CO/FR definitions.
+- **The RF/CO/FR definitions already describe the proxy chains.** Read `step_to_ordering` — it extracts CleLink from the RF cases. The CleLink constructors (ob, obEndLt, encapOb, etc.) name the proxy events. Mirror these in the cmpLinLinLink relation.
+- **When stuck, ask for a guiding protocol example.** The user's diff-cluster RF example (e_w OB e_r_down, e_r_down EncapBy e_r_cdir_down, ..., CLE_r related to e_r) unblocked the entire approach. Don't go in circles — ask.
+- **Always give protocol context.** "oEnd" is meaningless without specifying WHICH event. Say `Event.oEnd n cmpLin₁` or `Event.oEnd n e_writer` or `CLE_reader.oEnd`. Vagueness wastes the user's time.
+- **Finish what you start.** Don't claim a task is done when items remain. Audit against the TODOs before reporting. The user should not have to audit.
+- **The philosophy must guide the proof.** Before writing ANY proof code, re-read THE PHILOSOPHY section. If the proof doesn't show the proxy chain through named protocol events, it's wrong.
+
+### Lessons learned PREVIOUS SESSION (CleLink h_ne refactoring)
 - **Sketch test theorems BEFORE fixing 103 construction sites.** The test at cycle closure confirmed the h_ne approach works in 30 seconds, saving hours of wasted mechanical work if the approach were wrong.
 - **Add protocol address/cluster evidence to CleLink constructors that need it.** `encapObEndLt` can't derive `l₁ ≠ l₂` from temporal evidence alone — it needs address evidence. The general lesson: when temporal evidence is insufficient, bring in protocol address/cluster context. This is the SAFEST way to proceed.
 - **Never use `dir_ordered` on events without verifying same address/cluster.** Even on DISTINCT events, `dir_ordered` is only legitimate for same-address same-cluster directory events. Using it on different-address events is the same over-strength abuse.
