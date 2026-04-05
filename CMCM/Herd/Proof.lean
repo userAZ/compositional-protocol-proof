@@ -1552,66 +1552,88 @@ private theorem edge_oEnd_lt
     | co h => exact h.event_oEnd_lt
     | fr h => exact h.event_oEnd_lt
 
-/-- For each non-downgrade event, its compoundLin is either equal to the event
-    (clusterCacheLin: event has perms, cmpLin = e) or encapsulated by the event
-    (clusterDirLin: e encaps cmpLin). Case-split on compoundLinearizationEvent. -/
-private theorem compoundLin_eq_or_inside_event
+/-- For each non-downgrade event, its compoundLin is related to the event by:
+    - eq: cmpLin = e (requestLin: event has perms, linearizes at cache)
+    - inside: e.Encapsulates cmpLin (dirLin + encapDir: e encaps CLE encaps cmpLin)
+    - after: e.OrderedBefore cmpLin (dirLin + orderAfterDir: CLE at successor, NC weak on Vd)
+    Case-split on linearizationOfEvent and dirAccessOfRequest. -/
+private theorem compoundLin_event_rel
     {lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (hnotdown : ¬ e.down)
-    : lin.compoundLin = e ∨ e.Encapsulates n lin.compoundLin := by
-  -- Case-split on linearizationOfEvent to match with compoundLinearizationEvent.
+    : lin.compoundLin = e ∨ e.Encapsulates n lin.compoundLin ∨ e.OrderedBefore n lin.compoundLin := by
   cases hlin_ev : compound.linearizationOfEvent b init e with
   | requestLin hreqlin =>
-    -- requestLin: event has perms → clusterCacheLin → cmpLin = e.
     exact Or.inl (lin.compoundLin_eq_event_of_requestLin hlin_ev)
   | dirLin hdir =>
-    right
-    -- dirLin gives reqMissingPerms. Case on dirAccessOfRequest:
-    -- encapDir: e encaps CLE. orderBeforeDir/orderAfterDir: contradictory.
     have h_missing := hdir.choose_spec.2.reqHasNoPerms
-    -- The CLE comes from lin.hreq's_dir_access (the CLE from the lin structure).
-    -- The dirAccessOfRequest from dirLin's reqLinearizeAtDir also gives a dir event.
-    -- They should be the same CLE (by construction), but we use lin's CLE.
-    have h_e_encaps_cle : e.Encapsulates n lin.cle := by
-      cases lin.cle_dirAccess with
-      | encapDir _ hencap => exact hencap.reqEncapDir
-      | orderBeforeDir hhas _ _ _ _ _ _ _ =>
-        exact absurd hhas (reqHasPerms_not_reqMissingPerms h_missing hnotdown)
-      | orderAfterDir _ hsucc _ _ =>
-        -- orderAfterDir: CLE is at successor (next bottom event at same cache).
-        -- Successor encaps CLE. e OB successor. So CLE is AFTER e.
-        -- e does NOT encapsulate CLE in this case.
-        -- The successor encaps the corresponding dir event:
-        -- orderAfterDir: CLE at successor, e OB successor ⊃ CLE.
-        -- e does NOT encapsulate CLE. NC weak req on Vd — rare case.
-        -- TODO: handle orderAfterDir by showing e OB cmpLin (third relationship case).
-        sorry
-    -- cmpLin = CLE ∨ CLE encaps cmpLin (from compoundLin_cle_of_dirLin)
-    cases lin.compoundLin_cle_of_dirLin hnotdown hlin_ev with
-    | inl h_eq => exact h_eq ▸ h_e_encaps_cle
-    | inr h_cle_encaps => exact Event.encap_encap_trans n h_e_encaps_cle h_cle_encaps.1
+    cases lin.cle_dirAccess with
+    | encapDir _ hencap =>
+      -- encapDir: e encaps CLE. CLE encaps-or-equals cmpLin.
+      have h_e_encaps_cle := hencap.reqEncapDir
+      cases lin.compoundLin_cle_of_dirLin hnotdown hlin_ev with
+      | inl h_eq => exact Or.inr (Or.inl (h_eq ▸ h_e_encaps_cle))
+      | inr h_cle_encaps =>
+        exact Or.inr (Or.inl (Event.encap_encap_trans n h_e_encaps_cle h_cle_encaps.1))
+    | orderBeforeDir hhas _ _ _ _ _ _ _ =>
+      exact absurd hhas (reqHasPerms_not_reqMissingPerms h_missing hnotdown)
+    | orderAfterDir _hweak hsucc _hprot _hnotdown₂ =>
+      -- orderAfterDir: CLE at successor. e OB successor, successor encaps CLE.
+      -- Chain: e OB successor, successor Encaps CLE → e OB CLE (via Trans).
+      right; right
+      -- Extract: e OB successor (from ImmediateSuccessorConstraint.isSucc)
+      have h_succ_spec := hsucc.choose_spec.2
+      have h_e_ob_succ : e.OrderedBefore n hsucc.choose :=
+        h_succ_spec.isImmBottomSucc.isSucc
+      -- Extract: successor Encaps CLE (from reqOnVdWithCorrespondingDir.encapCorresponding)
+      have h_succ_encaps_cle : hsucc.choose.Encapsulates n lin.cle :=
+        h_succ_spec.satisfyP.encapCorresponding.reqEncapDir
+      -- Compose: e OB CLE (via Trans instance OrderedBefore + Encapsulates → OrderedBefore)
+      have h_e_ob_cle : e.OrderedBefore n lin.cle :=
+        Trans.trans h_e_ob_succ h_succ_encaps_cle
+      -- cmpLin = CLE or CLE encaps cmpLin
+      cases lin.compoundLin_cle_of_dirLin hnotdown hlin_ev with
+      | inl h_eq => exact h_eq ▸ h_e_ob_cle
+      | inr h_cle_encaps =>
+        -- e OB CLE, CLE Encaps cmpLin → e OB cmpLin
+        exact Trans.trans h_e_ob_cle h_cle_encaps.1
 
 /-- PPOi TemporalRel chain through request events e₁, e₂ as named proxy events.
-    Chain: cmpLin₁ →(EncapBy e₁ if dirLin)→ e₁ →(OB)→ e₂ →(Encap cmpLin₂ if dirLin)→ cmpLin₂ -/
+    Three prefix cases (cmpLin₁ vs e₁): eq, inside (EncapBy), after (OB from e₁).
+    Three suffix cases (e₂ vs cmpLin₂): eq, inside (Encap), after (OB to cmpLin₂).
+    The chain always goes through e₁ →(OB)→ e₂ as the central step. -/
 private theorem ppoi_cmpLin_temporalRel
     {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
     (h_ob_events : e₁.OrderedBefore n e₂)
     (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
     : TemporalRel lin₁.compoundLin lin₂.compoundLin := by
+  -- Suffix: extend from e₂ to cmpLin₂
   have h_suffix : ∀ x, @TemporalRel n x e₂ → @TemporalRel n x lin₂.compoundLin := by
     intro x htr
-    cases compoundLin_eq_or_inside_event hnotdown₂ (lin := lin₂) with
+    cases compoundLin_event_rel hnotdown₂ (lin := lin₂) with
     | inl h_eq => rwa [h_eq]
-    | inr h_encap => exact htr.trans (.single (.encap h_encap))
-  cases compoundLin_eq_or_inside_event hnotdown₁ (lin := lin₁) with
+    | inr hr => cases hr with
+      | inl h_encap => exact htr.trans (.single (.encap h_encap))
+      | inr h_ob => exact htr.trans (.single (.ob h_ob))
+  -- Prefix: from cmpLin₁ to e₁, then OB to e₂, then suffix
+  cases compoundLin_event_rel hnotdown₁ (lin := lin₁) with
   | inl h_eq₁ =>
     -- cmpLin₁ = e₁. Chain: cmpLin₁ = e₁ →(OB)→ e₂ →(suffix)→ cmpLin₂
-    have h_ob_cmplin : lin₁.compoundLin.OrderedBefore n e₂ := h_eq₁.symm ▸ h_ob_events
-    exact h_suffix _ (.single (.ob h_ob_cmplin))
-  | inr h_encap₁ =>
-    -- e₁ Encapsulates cmpLin₁. Chain: cmpLin₁ →(EncapBy)→ e₁ →(OB)→ e₂ →(suffix)→ cmpLin₂
-    exact h_suffix _ (.tail (.single (.encapBy h_encap₁)) (.ob h_ob_events))
+    exact h_suffix _ (h_eq₁.symm ▸ .single (.ob h_ob_events))
+  | inr hr₁ => cases hr₁ with
+    | inl h_encap₁ =>
+      -- e₁ Encapsulates cmpLin₁. Chain: cmpLin₁ →(EncapBy)→ e₁ →(OB)→ e₂ →(suffix)→ cmpLin₂
+      exact h_suffix _ (.tail (.single (.encapBy h_encap₁)) (.ob h_ob_events))
+    | inr h_ob₁ =>
+      -- e₁ OB cmpLin₁ (orderAfterDir: CLE at successor). cmpLin₁ is AFTER e₁.
+      -- Chain: need cmpLin₁ → e₂. From e₁ OB e₂ and e₁ OB cmpLin₁,
+      -- cmpLin₁ and e₂ are both after e₁ but not directly related.
+      -- Use finishesAfterProxy: e₁ OB e₂ and e₁.oEnd < cmpLin₁.oEnd
+      -- (since e₁ OB cmpLin₁ → e₁.oEnd < cmpLin₁.oStart ≤ cmpLin₁.oEnd).
+      -- This gives BasicTemporalRel.finishesAfterProxy e₁ h_ob_events h_lt.
+      have h_lt : Event.oEnd n e₁ < Event.oEnd n lin₁.compoundLin :=
+        Nat.lt_trans h_ob₁ (Event.oWellFormed n lin₁.compoundLin)
+      exact h_suffix _ (.single (.finishesAfterProxy e₁ h_ob_events h_lt))
 
 -- LinLink moved to Defs.lean
 

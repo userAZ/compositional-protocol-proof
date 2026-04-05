@@ -1,5 +1,14 @@
 # Compositional Protocol Proof — Lean 4 Formal Verification
 
+**READ FIRST: [Lessons learned](docs/learned-patterns.md) and the lessons in this file.**
+
+## Lean mechanics lessons (reference before writing proofs)
+- `▸` direction: `h_eq.symm ▸ h` when `h_eq : a = b` and you need to rewrite `a→b` in `h`
+- `compoundLin_cle_of_dirLin` returns `EncapsulatedBy ∧ protocol=global` — use `.1` to extract
+- `reqHasPerms_not_reqMissingPerms` (Rf.lean): proves `reqMissingPerms + ¬down → ¬reqHasPerms`. Use for orderBeforeDir contradiction in dirLin branch.
+- Case-split `compoundLinearizationEvent` (clusterCacheLin/clusterDirLin) AND `dirAccessOfRequest` (encapDir/orderBeforeDir/orderAfterDir) simultaneously. Matching: clusterCacheLin↔orderBeforeDir, clusterDirLin↔encapDir. Cross-cases contradictory via reqHasPerms_not_reqMissingPerms. Write helper lemmas for this matched context.
+- `orderAfterDir` is NOT vacuous for `e.Encapsulates cmpLin`. Only vacuous for `cmpLin OB CLE` (self-OB). For orderAfterDir: CLE at successor, e OB successor ⊃ CLE, so e does NOT encapsulate CLE. Handle as third case (e OB cmpLin) or show it can't arise for the specific event type.
+
 ## Philosophy — READ THIS FIRST
 
 **This is a protocol verification project.** The mathematical structures (StepOrdering, TransGen, LinLink) represent REAL protocol communication between cache coherence agents. They are NOT abstract math to be manipulated mechanically.
