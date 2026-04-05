@@ -2074,12 +2074,13 @@ theorem cle_to_compoundLinOrdering
     {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
     (h : @CleLink n lin₁.cle lin₂.cle)
     (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
+    (h_not_dir₁ : ¬ e₁.isDirectoryEvent) (h_not_dir₂ : ¬ e₂.isDirectoryEvent)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     : CmpLinOrdering lin₁.compoundLin lin₂.compoundLin := by
   have h₁_isdir := lin₁.cle_isDirEvent
   have h₂_isdir := lin₂.cle_isDirEvent
-  have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnotdown₁ (h_not_dir_e := sorry) (lin := lin₁)
-  have hrel₂ := compoundLin_cle_to_CmpLinCleRel hnotdown₂ (h_not_dir_e := sorry) (lin := lin₂)
+  have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnotdown₁ h_not_dir₁ (lin := lin₁)
+  have hrel₂ := compoundLin_cle_to_CmpLinCleRel hnotdown₂ h_not_dir₂ (lin := lin₂)
   -- For non-eq CleLinks: forward proxy with explicit CmpLinCleRel.
   -- For eq CleLink: case-split on the two CmpLinCleRel to determine direction.
   -- Helper: build forward LinLink.proxy with all fields for non-eq CleLink
@@ -2229,18 +2230,17 @@ private theorem lift_cle_3way_to_compoundLin
          lin₁.cle = lin₂.cle ∨
          (lin₂.cle).OrderedBefore n lin₁.cle)
     (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
+    (h_not_dir₁ : ¬ e₁.isDirectoryEvent) (h_not_dir₂ : ¬ e₂.isDirectoryEvent)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     : LinLink lin₁.compoundLin lin₂.compoundLin ∨
       lin₁.compoundLin = lin₂.compoundLin ∨
       LinLink lin₂.compoundLin lin₁.compoundLin := by
   cases h with
-  | inl hcle => exact cle_to_compoundLinOrdering hcle hnotdown₁ hnotdown₂ hdir
+  | inl hcle => exact cle_to_compoundLinOrdering hcle hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ hdir
   | inr hr => cases hr with
-    | inl heq => exact cle_to_compoundLinOrdering (.eq heq) hnotdown₁ hnotdown₂ hdir
+    | inl heq => exact cle_to_compoundLinOrdering (.eq heq) hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ hdir
     | inr hob =>
-      -- Reverse OB: CLE₂ OB CLE₁. cle_to_compoundLinOrdering gives 3-way on (compoundLin₂, compoundLin₁).
-      -- Flip the result to get 3-way on (compoundLin₁, compoundLin₂).
-      cases cle_to_compoundLinOrdering (.ob hob (Event.ne_of_ob hob)) hnotdown₂ hnotdown₁ hdir with
+      cases cle_to_compoundLinOrdering (.ob hob (Event.ne_of_ob hob)) hnotdown₂ hnotdown₁ h_not_dir₂ h_not_dir₁ hdir with
       | inl hfwd => exact Or.inr (Or.inr hfwd)
       | inr hr => cases hr with
         | inl heq => exact Or.inr (Or.inl heq.symm)
@@ -2308,12 +2308,13 @@ theorem edge_cmpLin_linlink
     {e₁ e₂ : Event n}
     (hcom : com (hknow e₁) (hknow e₂))
     (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
+    (h_not_dir₁ : ¬ e₁.isDirectoryEvent) (h_not_dir₂ : ¬ e₂.isDirectoryEvent)
     : LinLink (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
       (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
       LinLink (hknow e₂).compoundLin (hknow e₁).compoundLin :=
   cle_to_compoundLinOrdering
     (step_to_ordering_hknow hknow hcom h_non_lazy_ppoi)
-    hnotdown₁ hnotdown₂ b.orderedAtEntry.dir_ordered
+    hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ b.orderedAtEntry.dir_ordered
 
 /-- Prove cmpLin_ordered for any COM edge: derive CmpLinOrdering from step_to_ordering + bridge.
     COM edges go through CLEs: step_to_ordering → CleLink → cle_to_compoundLinOrdering. -/
@@ -2323,8 +2324,9 @@ theorem com_cmpLin_ordered
     {e₁ e₂ : Event n}
     (hcom : com (hknow e₁) (hknow e₂))
     (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
+    (h_not_dir₁ : ¬ e₁.isDirectoryEvent) (h_not_dir₂ : ¬ e₂.isDirectoryEvent)
     : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin :=
-  edge_cmpLin_linlink hknow h_non_lazy_ppoi hcom hnotdown₁ hnotdown₂
+  edge_cmpLin_linlink hknow h_non_lazy_ppoi hcom hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂
 
 /-- Derive CmpLinOrdering for PPOi from NonLazyPPOi.
     NonLazyPPOi gives cmpLin₁ OB cmpLin₂ directly.
@@ -2390,12 +2392,13 @@ theorem edge_cmpLin_ordered
     {e₁ e₂ : Event n}
     (h : R_hknow hknow e₁ e₂)
     (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
+    (h_not_dir₁ : ¬ e₁.isDirectoryEvent) (h_not_dir₂ : ¬ e₂.isDirectoryEvent)
     : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin := by
   cases h with
   | inl hppoi =>
     exact ppoi_cmpLin_ordered_of_nonlazy h_non_lazy_ppoi
       ((Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ hppoi.1) hppoi.2
-  | inr hcom => exact com_cmpLin_ordered hknow h_non_lazy_ppoi hcom hnotdown₁ hnotdown₂
+  | inr hcom => exact com_cmpLin_ordered hknow h_non_lazy_ppoi hcom hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂
 
 /-- Acyclicity via compoundLin.
 
