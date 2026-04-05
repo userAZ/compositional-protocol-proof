@@ -1902,6 +1902,7 @@ theorem cle_to_compoundLinOrdering
   have mk_fwd (hcl : @CleLink n lin₁.cle lin₂.cle) (htr : TemporalRel lin₁.compoundLin lin₂.compoundLin)
       : LinLink lin₁.compoundLin lin₂.compoundLin :=
     .proxy _ _ hcl h₁_isdir h₂_isdir hrel₁ hrel₂ htr
+  have hcl_saved := h
   cases h with
   | eq heq =>
     -- CLE₁ = CLE₂. Use temporalRel_of_eq_cle_and_rels for direction.
@@ -1913,133 +1914,78 @@ theorem cle_to_compoundLinOrdering
   | ob hob _ =>
     exact Or.inl (mk_fwd (.ob hob (Event.ne_of_ob hob))
       (temporalRel_of_cle_ob_and_rels hob hrel₁ hrel₂))
-  | obEndLt p hob_p hlt_p hdir_p hne_p =>
-    exact Or.inl (mk_fwd (.obEndLt p hob_p hlt_p hdir_p hne_p) (cle_ob_to_temporal_chain (by
-      match hfc₁ : lin₁.cle, h₁_isdir with
-      | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
-      | .directoryEvent de₁, _ =>
-        match hfc₂ : lin₂.cle, h₂_isdir with
-        | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
-        | .directoryEvent de₂, _ =>
-          cases (hdir de₁ de₂).ordered with
-          | inl hob => rw [← hfc₁, ← hfc₂]; exact hob
-          | inr hob_rev =>
-            exfalso; exact Nat.lt_irrefl de₂.oEnd
-              (calc de₂.oEnd < de₁.oStart := hob_rev
-                _ ≤ de₁.oEnd := Nat.le_of_lt de₁.oWellFormed
-                _ < Event.oStart n p := hob_p
-                _ ≤ Event.oEnd n p := Event.oStart_le_oEnd p
-                _ < de₂.oEnd := hlt_p)
-      ) hnotdown₁ hnotdown₂ hdir))
-  | encapOb p henc hob_p hne_p =>
-    exact Or.inl (mk_fwd (.encapOb p henc hob_p hne_p) (cle_ob_to_temporal_chain (by
-      match hfc₁ : lin₁.cle, h₁_isdir with
-      | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
-      | .directoryEvent de₁, _ =>
-        match hfc₂ : lin₂.cle, h₂_isdir with
-        | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
-        | .directoryEvent de₂, _ =>
-          cases (hdir de₁ de₂).ordered with
-          | inl hob => rw [← hfc₁, ← hfc₂]; exact hob
-          | inr hob_rev =>
-            exfalso; rw [← hfc₁, ← hfc₂] at henc hob_p
-            exact Nat.lt_irrefl de₁.oStart
-              (Nat.lt_trans (Nat.lt_trans henc.left (Nat.lt_of_le_of_lt (Nat.le_of_lt (Event.oWellFormed n _)) hob_p)) hob_rev)
-      ) hnotdown₁ hnotdown₂ hdir))
   | _ =>
-    -- Remaining non-eq CleLinks (obFinishBefore, proxyPair, encap, encapObEndLt, sameLin).
-    -- All give forward temporal chain via cle_ob_to_temporal_chain + dir_ordered.
-    have hcl : @CleLink n lin₁.cle lin₂.cle := by assumption
-    -- Use CleLink.subset_temporalRel to get TemporalRel on CLEs or eq.
-    sorry -- TODO: handle remaining constructors
-    have hcl : @CleLink n lin₁.cle lin₂.cle := by assumption
-    cases CleLink.subset_temporalRel hcl h₁_isdir h₂_isdir hdir with
-    | inl heq_cle =>
-      -- CleLink gave CLE₁ = CLE₂ (from sameLin etc).
-      cases temporalRel_of_eq_cle_and_rels hrel₁ (heq_cle ▸ hrel₂) with
-      | inl htr => exact Or.inl (.proxy _ _ hcl h₁_isdir h₂_isdir hrel₁ hrel₂ htr)
-      | inr hr => cases hr with
-        | inl heq_cl => exact Or.inr (Or.inl heq_cl)
-        | inr htr_rev => exact Or.inr (Or.inr (.proxy _ _ (heq_cle ▸ hcl) h₂_isdir h���_isdir (heq_cle ▸ hrel₂) hrel₁ htr_rev))
-    | inr htr_cle =>
-      -- TemporalRel CLE₁ CLE₂. Build full chain via helpers.
-      have h_suffix : ∀ x, @TemporalRel n x lin₂.cle → @TemporalRel n x lin₂.compoundLin := by
-        intro x htr'; cases hrel₂ with
-        | eq h => rwa [h]
-        | cle_ob h => exact htr'.trans (.single (.ob h))
-        | inside h => exact htr'.trans (.single (.encap h))
-      have h_full : TemporalRel lin₁.compoundLin lin₂.compoundLin := by
-        cases hrel₁ with
-        | eq h => exact h_suffix _ (h ▸ htr_cle)
-        | cle_ob h₁_ob =>
-          -- cle₁ OB cmpLin₁. cle₁ → cle₂ via htr_cle. Need cmpLin₁ → cle₂ → cmpLin₂.
-          -- Use finishesAfterProxy: for each step cle₁ → x in htr_cle, use finishesAfterProxy cle₁.
-          -- Simpler: BasicTemporalRel.finishesBefore cmpLin₁ cle₂ if cmpLin₁.oEnd ≤ cle₂.oEnd... not guaranteed.
-          -- Use the existing cle_ob_to_temporal_chain which handles this via finishesAfterProxy.
-          exact cle_ob_to_temporal_chain (by
-            match hfc₁ : lin₁.cle, h₁_isdir with
-            | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
-            | .directoryEvent de₁, _ =>
-              match hfc₂ : lin₂.cle, h₂_isdir with
-              | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
-              | .directoryEvent de₂, _ =>
-                cases (hdir de₁ de₂).ordered with
-                | inl hob => rw [← hfc₁, ← hfc₂]; exact hob
-                | inr hob_rev =>
-                  -- CLE₂ OB CLE₁. But htr_cle : TemporalRel CLE₁ CLE₂.
-                  -- TemporalRel gives CLE₁.oStart < CLE₂.oStart (each step advances oStart or other measure).
-                  -- CLE₂ OB CLE₁ gives CLE₂.oEnd < CLE₁.oStart → CLE₂.oStart < CLE₂.oEnd < CLE₁.oStart.
-                  -- Combined: CLE₁.oStart < CLE₂.oStart < CLE₂.oEnd < CLE₁.oStart → contradiction.
-                  -- But TemporalRel doesn't always advance oStart (finishesAfterProxy doesn't).
-                  -- Use: CLE₂ OB CLE₁ means CLE₂.oEnd < CLE₁.oStart.
-                  -- TemporalRel CLE₁ CLE₂ gives some chain. Compose with CLE₂ OB CLE₁ →
-                  -- TemporalRel CLE₁ CLE₁ → hmm, TemporalRel is not irreflexive in general.
-                  -- But CLE₁ OB CLE₂ (from forward direction of htr_cle at some step)...
-                  -- Actually: since hcl is non-eq CleLink and de₂ OB de₁:
-                  -- the CleLink's temporal evidence contradicts de₂ OB de₁. Each non-eq CleLink
-                  -- constructor has forward temporal evidence → reverse OB gives Nat.lt_irrefl.
-                  -- This is what co_chain_same_cluster_ob does.
-                  exfalso
-                  rw [← hfc₁, ← hfc₂] at hob_rev
-                  -- hob_rev : CLE₂ OB CLE₁. hcl : CleLink CLE₁ CLE₂ (non-eq).
-                  -- CleLink.subset_temporalRel gave htr_cle : TemporalRel CLE₁ CLE₂.
-                  -- Compose: TemporalRel CLE₁ CLE₂ + OB CLE₂ CLE₁ → TemporalRel CLE₁ CLE₁.
-                  -- finishesAfterProxy at self → not contradictory. But OB at self → contradictory.
-                  -- Actually: htr_cle.trans (.single (.ob hob_rev)) : TemporalRel CLE₁ CLE₁.
-                  -- But TemporalRel CLE₁ CLE₁ is not always False.
-                  -- However: both de₁, de₂ are directory events with AreOrdered.sameDirectoryEntry.
-                  -- So de₁.addr = de₂.addr. The h_ne from the CleLink constructor means CLE₁ ≠ CLE₂.
-                  -- And de₁ OB de₂ or de₂ OB de₁. We have de₂ OB de₁.
-                  -- CleLink CLE₁ CLE₂ with h_ne: temporal forward evidence.
-                  -- Combined with de₂ OB de₁: the CleLink's forward chain + reverse OB gives
-                  -- a strict oEnd or oStart contradiction.
-                  -- Simplest: CleLink gives some l₁.oStart < l₂.oStart for non-eq constructors?
-                  -- Not for all constructors. obFinishBefore has p OB l₂, p.oEnd < l₁.oEnd.
-                  -- Let me just use: htr_cle gives TemporalRel CLE₁ CLE₂.
-                  -- hob_rev gives CLE₂.oEnd < CLE₁.oStart.
-                  -- If any step of htr_cle gives CLE₁.oStart < something: chain → contradiction.
-                  -- The first step of TransGen gives BasicTemporalRel CLE₁ x for some x.
-                  -- Each BasicTemporalRel gives some strict inequality.
-                  -- For ob: CLE₁.oEnd < x.oStart → CLE₁.oStart < x.oStart.
-                  -- For encap: CLE₁.oStart < x.oStart.
-                  -- For encapBy: x.oStart < CLE₁.oStart.
-                  -- For finishesBefore: CLE₁.oEnd < x.oEnd.
-                  -- For finishesAfterProxy: p OB x, p.oEnd < CLE₁.oEnd.
-                  -- encapBy goes backward. So not all steps advance oStart.
-                  -- BUT: CLE₁ is a directory event. x from TemporalRel might not be.
-                  -- This is getting complicated. Use Nat.lt_irrefl on oEnd instead:
-                  -- hob_rev : CLE₂.oEnd < CLE₁.oStart. oWellFormed: CLE₁.oStart < CLE₁.oEnd.
-                  -- So CLE₂.oEnd < CLE₁.oEnd. And htr_cle : TemporalRel CLE₁ CLE₂.
-                  -- hmm... not enough.
-                  -- SIMPLEST: this case shouldn't arise for same-addr same-cluster CLEs.
-                  -- dir_ordered gives AreOrdered with sameDirectoryEntry.
-                  -- The non-eq CleLink came from COM step_to_ordering, which is same-addr.
-                  -- Both directions are in AreOrdered, but if CleLink gives forward evidence,
-                  -- the reverse should give contradiction. This IS what co_chain_same_cluster_ob does.
-                  sorry
-            ) hnotdown₁ hnotdown₂ hdir
-        | inside h₁_ins => exact h_suffix _ ((.single (.encapBy h₁_ins)).trans htr_cle)
-      exact Or.inl (.proxy _ _ hcl h₁_isdir h₂_isdir hrel₁ hrel₂ h_full)
+    -- All other non-eq CleLinks: get CLE₁ OB CLE₂ via dir_ordered (same-addr same-cluster),
+    -- then use cle_ob_to_temporal_chain for the TemporalRel chain.
+    have hcl := hcl_saved
+    -- Get CLE₁ OB CLE₂ from dir_ordered. Reverse contradicts CleLink's forward evidence
+    -- (proved by co_chain_same_cluster_ob pattern for each constructor).
+    have h_cle_ob : lin₁.cle.OrderedBefore n lin₂.cle := by
+      match hfc₁ : lin₁.cle, h₁_isdir with
+      | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
+      | .directoryEvent de₁, _ =>
+        match hfc₂ : lin₂.cle, h₂_isdir with
+        | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
+        | .directoryEvent de₂, _ =>
+          cases (hdir de₁ de₂).ordered with
+          | inl hob => exact hob
+          | inr hob_rev =>
+            -- Reverse contradicts CleLink's temporal evidence.
+            exfalso
+            have hob_rev' : Event.OrderedBefore n lin₂.cle lin₁.cle := by rw [hfc₁, hfc₂]; exact hob_rev
+            -- CleLink.subset_temporalRel gives TemporalRel or eq.
+            cases CleLink.subset_temporalRel hcl h₁_isdir h₂_isdir hdir with
+            | inl heq_cle =>
+              exact Event.contradiction_of_reflexive_ordered_before n (heq_cle ▸ hob_rev')
+            | inr htr_cle =>
+              -- TemporalRel CLE₁ CLE₂. CLE₂ OB CLE₁.
+              -- Compose: TemporalRel CLE₁ CLE₂ + OB CLE₂ CLE₁ → TemporalRel CLE₁ CLE₁.
+              -- Each non-sameLin non-eq CleLink gives temporal evidence with OB or finishesBefore.
+              -- With CLE₂ OB CLE₁ (hob_rev): compose gives TemporalRel CLE₁ CLE₁.
+              -- For the first step of htr_cle: BasicTemporalRel CLE₁ x.
+              -- finishesBefore: CLE₁.oEnd < x.oEnd. Eventually → CLE₁.oEnd < CLE₂.oEnd.
+              --   With hob_rev: CLE₂.oEnd < CLE₁.oStart < CLE₁.oEnd → CLE₂.oEnd < CLE₁.oEnd.
+              --   So CLE₁.oEnd < CLE₂.oEnd < CLE₁.oEnd → contradiction.
+              -- ob: CLE₁.oEnd < x.oStart. CLE₂.oEnd < CLE₁.oStart.
+              --   Chain: CLE₁.oEnd < ... < CLE₂.oStart. CLE₂.oEnd < CLE₁.oStart < CLE₁.oEnd.
+              --   CLE₁.oEnd < CLE₂.oStart ≤ CLE₂.oEnd < CLE₁.oEnd → contradiction at CLE₁.oEnd < CLE₁.oEnd.
+              -- All paths give contradiction. Use co_chain_same_cluster_ob pattern:
+              -- hob_rev is reverse, CleLink gives forward oEnd ≤.
+              -- co_step_oEnd_le uses the CO comm field. Here we have CleLink directly.
+              -- Use CleLink.subset_temporalRel's TemporalRel to derive CLE₁.oEnd ≤ CLE₂.oEnd:
+              -- NOT always true (finishesAfterProxy doesn't guarantee oEnd increase).
+              -- But hob_rev gives CLE₂.oEnd < CLE₁.oStart < CLE₁.oEnd.
+              -- So CLE₂.oEnd < CLE₁.oEnd. If htr_cle gives CLE₁.oEnd ≤ CLE₂.oEnd → contradiction.
+              -- Does TemporalRel CLE₁ CLE₂ give CLE₁.oEnd ≤ CLE₂.oEnd? Not in general.
+              -- SIMPLEST: use the ORIGINAL approach: each CleLink constructor gives specific evidence
+              -- that contradicts reverse OB. The old stepOrdering_to_three did this per-constructor.
+              -- Since we're in the catch-all, we don't know which constructor. But we DO have htr_cle.
+              -- Compose: htr_cle.trans (.single (.ob hob_rev)) : TemporalRel CLE₁ CLE₁.
+              -- Need to show this TemporalRel CLE₁ CLE₁ is False.
+              -- Since hob_rev : CLE₂ OB CLE₁ : CLE₂.oEnd < CLE₁.oStart, and htr_cle eventually
+              -- goes CLE₁ → ... → CLE₂, the round-trip gives CLE₁.oStart < ... < CLE₂.oEnd < CLE₁.oStart
+              -- for the OB steps. But finishesAfterProxy steps don't advance oStart.
+              -- USE: the specific CleLink constructor for each case.
+              -- Actually: I can cases on hcl AGAIN here to get per-constructor evidence.
+              cases hcl with
+              | ob _ h_ne => exact absurd rfl h_ne  -- already handled above, shouldn't reach
+              | eq _ => exact Event.contradiction_of_reflexive_ordered_before n hob_rev  -- CLE₁ = CLE₂
+              | obEndLt p hob_cl hlt _ _ =>
+                exact Nat.lt_irrefl _ (Nat.lt_trans hob_rev' (Nat.lt_trans (Event.oWellFormed n _) (Nat.lt_trans hob_cl (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd p) hlt))))
+              | encapOb p henc hob_cl _ =>
+                exact Nat.lt_irrefl _ (Nat.lt_trans hob_rev' (Nat.lt_trans (Event.oWellFormed n _) (Nat.lt_trans henc.left (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd p) hob_cl))))
+              | obFinishBefore p hob_cl hlt hdiff _ _ =>
+                exact Nat.lt_irrefl _ (Nat.lt_trans hlt (Nat.lt_trans hob_rev' (Event.oWellFormed n _)))
+              | proxyPair q p henc hqob hpob _ =>
+                exact Nat.lt_irrefl _ (Nat.lt_trans hob_rev' (Nat.lt_trans (Event.oWellFormed n _) (Nat.lt_trans henc.left (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd q) (Nat.lt_trans hqob (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd p) hpob))))))
+              | encap henc _ =>
+                exact Nat.lt_irrefl _ (Nat.lt_trans hob_rev' (Nat.lt_trans (Event.oWellFormed n _) henc.left))
+              | encapObEndLt q p henc hqob hlt _ _ =>
+                exact Nat.lt_irrefl _ (Nat.lt_trans hob_rev' (Nat.lt_trans (Event.oWellFormed n _) (Nat.lt_trans henc.left (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd q) (Nat.lt_trans hqob (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd p) hlt))))))
+              | sameLin _ _ heq' _ _ _ =>
+                exact Event.contradiction_of_reflexive_ordered_before n (heq' ▸ hob_rev')
+    exact Or.inl (.proxy _ _ hcl h₁_isdir h₂_isdir hrel₁ hrel₂
+      (temporalRel_of_cle_ob_and_rels h_cle_ob hrel₁ hrel₂))
 
 -- Composition using LinLink. Delegates to dir_ordered on CLEs.
 -- Lift CLE-level 3-way (CleLink/eq/reverseOB) to compoundLin LinLink/eq/reverse.
