@@ -2114,44 +2114,31 @@ theorem cle_to_compoundLinOrdering
     -- which returns eq (not forward LinLink) for inside+inside. So LinLink is NOT constructed.
     -- Actually: eq CleLink with cle_ob+inside gives FORWARD TemporalRel (line 2062: inside+cle_ob → OB).
     -- Hmm, need to check carefully.
-    -- Now: cle_ob carries h_eq : cmpLin = e. Case-split to extract equations.
-    cases hrel₁ with
-    | cle_ob _ h_eq₁ _ h₁_not_dir =>
-      cases hrel₂ with
-      | cle_ob _ h_eq₂ _ _ =>
-        -- cle_ob+cle_ob: cmpLin₁ = some_e₁, cmpLin₂ = some_e₂. At eq: some_e₁ = some_e₂.
-        -- h_event_fb : e₁.oEnd < e₂.oEnd. Need some_e₁ = e₁ and some_e₂ = e₂.
-        -- h_eq₁ : lin₁.compoundLin = some_e₁. h_eq₂ : lin₂.compoundLin = some_e₂.
-        -- heq_cl : lin₁.compoundLin = lin₂.compoundLin.
-        -- Chain: some_e₁ = lin₁.compoundLin = lin₂.compoundLin = some_e₂.
-        -- Need: Event.oEnd n some_e₁ < Event.oEnd n some_e₂ at some_e₁ = some_e₂ → False.
-        -- Use: Event.oEnd n lin₁.compoundLin < Event.oEnd n lin₂.compoundLin would work
-        --   at heq_cl. But we don't have that.
-        -- Use: h_eq₁ and h_eq₂ give oEnd equations:
-        --   Event.oEnd n lin₁.compoundLin = Event.oEnd n some_e₁ (from h_eq₁)
-        --   Event.oEnd n lin₂.compoundLin = Event.oEnd n some_e₂ (from h_eq₂)
-        -- At heq_cl: Event.oEnd n some_e₁ = Event.oEnd n some_e₂.
-        -- We need: Event.oEnd n some_e₁ = Event.oEnd n e₁. But some_e₁ may ≠ e₁.
-        -- The `e` in cle_ob IS e₁ (from compoundLin_cle_to_CmpLinCleRel's implicit param).
-        -- But Lean doesn't know this after pattern matching.
-        -- Solution: use `subst` on h_eq₁ to replace some_e₁ with lin₁.compoundLin.
-        -- Then heq_cl gives lin₁.compoundLin = lin₂.compoundLin.
-        -- Subst h_eq₂ to get lin₂.compoundLin = some_e₂.
-        -- This is circular. Just use sorry for now.
+    -- Use compoundLin_event_rel to get equations with ORIGINAL event params e₁, e₂.
+    -- compoundLin_event_rel returns: cmpLin = e ∨ e.Encapsulates cmpLin ∨ e.OrderedBefore cmpLin
+    -- where `e` IS the original event parameter (not an existential).
+    cases compoundLin_event_rel hnotdown₁ (lin := lin₁) with
+    | inl h_eq₁ =>
+      -- cmpLin₁ = e₁. Rewrite heq_cl: e₁ = lin₂.compoundLin.
+      cases compoundLin_event_rel hnotdown₂ (lin := lin₂) with
+      | inl h_eq₂ =>
+        -- cmpLin₂ = e₂. heq_cl: e₁ = e₂. Contradicts h_event_fb.
+        rw [h_eq₁, h_eq₂] at heq_cl
+        exact Nat.lt_irrefl _ (heq_cl ▸ h_event_fb)
+      | inr hr₂ => cases hr₂ with
+        | inl h_enc₂ =>
+          -- e₂ Encaps cmpLin₂. heq_cl: cmpLin₁ = cmpLin₂. h_eq₁: cmpLin₁ = e₁.
+          -- So e₁ = cmpLin₂ inside e₂. e₂.oStart < e₁.oStart (from Encaps).
+          -- h_event_fb: e₁.oEnd < e₂.oEnd. And e₁ OB e₂... no, we only have FinishesBefore.
+          sorry
+        | inr h_after₂ => sorry
+    | inr hr₁ => cases hr₁ with
+      | inl h_enc₁ =>
+        -- e₁ Encaps cmpLin₁. cmpLin₁.oEnd < e₁.oEnd.
+        -- For any suffix, cmpLin₂.oStart ≥ some threshold after CLE chain.
+        -- ne_of_cle_ob_and_rels handles inside prefix directly. h_cmpLin_ne shouldn't fire.
         sorry
-      | eq h₂ =>
-        -- cle_ob+eq: cmpLin₂ = CLE₂ (dir). cmpLin₁ not dir. At eq: cmpLin₁ is dir → contradiction.
-        exact h₁_not_dir ((heq_cl.trans h₂) ▸ h₂_isdir)
-      | inside _ =>
-        -- cle_ob+inside: genuine gap (cmpLin₂ inside CLE₂ could be cache or dir).
-        sorry
-    | eq _ | inside _ =>
-      -- eq/inside prefix: ne_of_cle_ob_and_rels handles these directly via
-      -- temporal OB evidence. h_cmpLin_ne is not needed for these cases.
-      -- But h_cmpLin_ne must handle ALL prefix combos since it's a single function.
-      -- For eq/inside prefix: temporal contradiction at self gives heq_cl → False.
-      -- (ne_of_cle_ob_and_rels doesn't call h_cmpLin_ne for these cases.)
-      sorry -- Unreachable: ne_of_cle_ob_and_rels only calls h_cmpLin_ne for cle_ob prefix
+      | inr _ => sorry
   -- For non-eq CleLinks: forward proxy with explicit CmpLinCleRel.
   -- For eq CleLink: case-split on the two CmpLinCleRel to determine direction.
   -- Helper: build forward LinLink.proxy with all fields for non-eq CleLink
