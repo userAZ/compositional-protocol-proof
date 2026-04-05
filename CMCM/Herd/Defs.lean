@@ -249,12 +249,14 @@ inductive LinLink {n : ℕ} (l₁ l₂ : Event n) : Prop
       cle₁/cle₂ are the proxy dir events from dirAccessOfRequest.
       h_prefix: how cmpLin₁ connects to cle₁ (eq/cle_ob/inside from dirAccessOfRequest).
       h_suffix: how cmpLin₂ connects to cle₂.
-      h_so: CleLink between the proxy CLEs (from step_to_ordering). -/
+      h_so: CleLink between the proxy CLEs (from step_to_ordering).
+      h_chain: composed temporal chain cmpLin₁ → cmpLin₂ (from prefix + CLE chain + suffix). -/
   | proxy (cle₁ cle₂ : Event n)
       (h_so : @CleLink n cle₁ cle₂)
       (h₁_isdir : cle₁.isDirectoryEvent) (h₂_isdir : cle₂.isDirectoryEvent)
       (h_prefix : CmpLinCleRel l₁ cle₁)
       (h_suffix : CmpLinCleRel l₂ cle₂)
+      (h_chain : TemporalRel l₁ l₂)
 
 /-- The 3-way compoundLin ordering for an edge: forward LinLink, equality, or reverse LinLink. -/
 abbrev CmpLinOrdering {n : ℕ} (cmpLin₁ cmpLin₂ : Event n) : Prop :=

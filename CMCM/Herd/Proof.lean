@@ -1555,22 +1555,6 @@ private theorem edge_oEnd_lt
 
 -- LinLink moved to Defs.lean
 
-/-- Convert compoundLin_cle (4-way) to CmpLinCleRel (3-way, ob_cle vacuous). -/
-private theorem compoundLin_cle_to_CmpLinCleRel
-    {lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
-    (hnotdown : ¬ e.down)
-    : CmpLinCleRel lin.compoundLin lin.cle := by
-  have rel := lin.compoundLin_cle hnotdown
-  cases rel with
-  | eq heq => exact .eq heq
-  | cle_ob_compoundLin hob => exact .cle_ob hob
-  | compoundLin_ob_cle hbad => exact absurd hbad (compoundLin_not_ob_cle lin hnotdown)
-  | compoundLin_inside_cle hinside => exact .inside hinside
-
--- ob_cle (compoundLin OB CLE) is vacuous: no non-downgrade event has compoundLin before its CLE.
--- For dirLin: compoundLin_cle_of_dirLin gives eq/inside, both temporally contradictory with OB.
--- For requestLin: encapDir contradicts reqHasPerms, orderBeforeDir gives ordered-both-ways,
--- orderAfterDir requires NC weak write on MR state → protocol contradiction (nc_weak_write_not_on_mr_state).
 private lemma compoundLin_not_ob_cle
     {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
     (lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
@@ -1792,6 +1776,22 @@ private lemma compoundLin_not_ob_cle
 -- For CLE₁ OB CLE₂, builds the temporal chain between the corresponding compoundLin events
 -- by prepending a prefix (compoundLin₁ →? CLE₁) and appending a suffix (CLE₂ →? compoundLin₂)
 -- using the compoundLin_cle_rel relationship.
+/-- Convert compoundLin_cle (4-way) to CmpLinCleRel (3-way, ob_cle vacuous). -/
+private theorem compoundLin_cle_to_CmpLinCleRel
+    {lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (hnotdown : ¬ e.down)
+    : CmpLinCleRel lin.compoundLin lin.cle := by
+  have rel := lin.compoundLin_cle hnotdown
+  cases rel with
+  | eq heq => exact .eq heq
+  | cle_ob_compoundLin hob => exact .cle_ob hob
+  | compoundLin_ob_cle hbad => exact absurd hbad (compoundLin_not_ob_cle lin hnotdown)
+  | compoundLin_inside_cle hinside => exact .inside hinside
+
+-- ob_cle (compoundLin OB CLE) is vacuous: no non-downgrade event has compoundLin before its CLE.
+-- For dirLin: compoundLin_cle_of_dirLin gives eq/inside, both temporally contradictory with OB.
+-- For requestLin: encapDir contradicts reqHasPerms, orderBeforeDir gives ordered-both-ways,
+-- orderAfterDir requires NC weak write on MR state → protocol contradiction (nc_weak_write_not_on_mr_state).
 private theorem cle_ob_to_temporal_chain
     {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
@@ -1872,9 +1872,14 @@ theorem cle_to_compoundLinOrdering
       | eq heq₂ => exact Or.inl (.proxy _ _ (.eq heq) h₁_isdir h₂_isdir (.inside h₁_ins) (.eq (heq ▸ heq₂)))
       | cle_ob h₂_ob => exact Or.inl (.proxy _ _ (.eq heq) h₁_isdir h₂_isdir (.inside h₁_ins) (.cle_ob (heq ▸ h₂_ob)))
       | inside h₂_ins => exact Or.inl (.proxy _ _ (.eq heq) h₁_isdir h₂_isdir (.inside h₁_ins) (.inside (heq ▸ h₂_ins)))
-  | _ =>
-    -- All non-eq CleLinks: forward proxy with CmpLinCleRel.
-    exact Or.inl (.proxy _ _ (by assumption) h₁_isdir h₂_isdir hrel₁ hrel₂)
+  | ob hob h_ne => exact Or.inl (.proxy _ _ (.ob hob h_ne) h₁_isdir h₂_isdir hrel₁ hrel₂)
+  | obEndLt p hob hlt hdir h_ne => exact Or.inl (.proxy _ _ (.obEndLt p hob hlt hdir h_ne) h₁_isdir h₂_isdir hrel₁ hrel₂)
+  | encapOb p henc hob h_ne => exact Or.inl (.proxy _ _ (.encapOb p henc hob h_ne) h₁_isdir h₂_isdir hrel₁ hrel₂)
+  | obFinishBefore p hob hlt hdiff hdir h_ne => exact Or.inl (.proxy _ _ (.obFinishBefore p hob hlt hdiff hdir h_ne) h₁_isdir h₂_isdir hrel₁ hrel₂)
+  | proxyPair q p henc hqob hpob h_ne => exact Or.inl (.proxy _ _ (.proxyPair q p henc hqob hpob h_ne) h₁_isdir h₂_isdir hrel₁ hrel₂)
+  | encap henc h_ne => exact Or.inl (.proxy _ _ (.encap henc h_ne) h₁_isdir h₂_isdir hrel₁ hrel₂)
+  | encapObEndLt q p henc hqob hlt hdir h_ne => exact Or.inl (.proxy _ _ (.encapObEndLt q p henc hqob hlt hdir h_ne) h₁_isdir h₂_isdir hrel₁ hrel₂)
+  | sameLin e₁' e₂' heq' henc₁ hob henc₂ => exact Or.inl (.proxy _ _ (.sameLin e₁' e₂' heq' henc₁ hob henc₂) h₁_isdir h₂_isdir hrel₁ hrel₂)
 
 -- Composition using LinLink. Delegates to dir_ordered on CLEs.
 -- Lift CLE-level 3-way (CleLink/eq/reverseOB) to compoundLin LinLink/eq/reverse.
@@ -2038,16 +2043,97 @@ theorem CmpLinOrdering.subset_temporalRel_or_eq
       cases CleLink.subset_temporalRel h h₁ h₂ hdir with
       | inl heq => exact Or.inr (Or.inl heq)
       | inr htr => exact Or.inl htr
-    | proxy _ _ _ _ _ hchain => exact Or.inl hchain
+    | proxy cle₁ cle₂ hso h₁d h₂d hpre hsuf =>
+      -- Derive TemporalRel from CmpLinCleRel prefix + CleLink + CmpLinCleRel suffix.
+      cases CleLink.subset_temporalRel hso h₁d h₂d hdir with
+      | inl heq_cle =>
+        -- CLE₁ = CLE₂. Build chain from prefix → suffix through shared CLE.
+        cases hpre with
+        | eq h => cases hsuf with
+          | eq h₂ => exact Or.inr (Or.inl (h.trans (heq_cle ▸ h₂.symm)))
+          | cle_ob h₂ => exact Or.inl (h ▸ heq_cle ▸ .single (.ob h₂))
+          | inside h₂ => exact Or.inl (h ▸ heq_cle ▸ .single (.encap h₂))
+        | cle_ob h => cases hsuf with
+          | eq h₂ => exact Or.inr (Or.inr (h₂ ▸ heq_cle.symm ▸ .single (.ob h)))
+          | cle_ob h₂ =>
+            have : Event.oEnd n cle₁ < Event.oEnd n cmpLin₁ :=
+              Nat.lt_of_lt_of_le h (Event.oStart_le_oEnd cmpLin₁)
+            exact Or.inl (.single (.finishesAfterProxy cle₁ (heq_cle ▸ h₂) this))
+          | inside h₂ => exact Or.inr (Or.inr (.single (.ob (Nat.lt_trans h₂.right (heq_cle ▸ h)))))
+        | inside h => cases hsuf with
+          | eq h₂ => exact Or.inl (.single (.encapBy (h₂ ▸ heq_cle.symm ▸ h)))
+          | cle_ob h₂ => exact Or.inl (.single (.ob (Nat.lt_trans h.right (heq_cle ▸ h₂))))
+          | inside h₂ => exact Or.inl (.tail (.single (.encapBy h)) (.encap (heq_cle ▸ h₂)))
+      | inr htr_cle =>
+        -- CLE₁ → CLE₂ via TemporalRel. Build full chain: prefix + CLE chain + suffix.
+        have h_prefix_tr : TemporalRel cmpLin₁ cle₁ ∨ cmpLin₁ = cle₁ := by
+          cases hpre with
+          | eq h => exact Or.inr h
+          | cle_ob h => exact Or.inl (.single (.finishesAfterProxy cle₁ h (Nat.lt_of_lt_of_le h (Event.oStart_le_oEnd cmpLin₁))))
+          | inside h => exact Or.inl (.single (.encapBy h))
+        have h_suffix_tr : TemporalRel cle₂ cmpLin₂ ∨ cmpLin₂ = cle₂ := by
+          cases hsuf with
+          | eq h => exact Or.inr h.symm
+          | cle_ob h => exact Or.inl (.single (.ob h))
+          | inside h => exact Or.inl (.single (.encap h))
+        cases h_prefix_tr with
+        | inl hpr =>
+          cases h_suffix_tr with
+          | inl hsu => exact Or.inl (hpr.trans (htr_cle.trans hsu))
+          | inr hsu => exact Or.inl (hpr.trans (hsu ▸ htr_cle))
+        | inr hpr =>
+          cases h_suffix_tr with
+          | inl hsu => exact Or.inl (hpr ▸ htr_cle.trans hsu)
+          | inr hsu => exact Or.inl (hpr ▸ hsu ▸ htr_cle)
   | inr hr => cases hr with
     | inl heq => exact Or.inr (Or.inl heq)
     | inr hlink =>
+      -- Reverse LinLink → reverse TemporalRel. Same decomposition.
       cases hlink with
       | step h h₁ h₂ =>
         cases CleLink.subset_temporalRel h h₁ h₂ hdir with
         | inl heq => exact Or.inr (Or.inl heq.symm)
         | inr htr => exact Or.inr (Or.inr htr)
-      | proxy _ _ _ _ _ hchain => exact Or.inr (Or.inr hchain)
+      | proxy cle₁ cle₂ hso h₁d h₂d hpre hsuf =>
+        -- Same as forward case but result is reversed.
+        cases CleLink.subset_temporalRel hso h₁d h₂d hdir with
+        | inl heq_cle =>
+          cases hpre with
+          | eq h => cases hsuf with
+            | eq h₂ => exact Or.inr (Or.inl (h₂.trans (heq_cle.symm ▸ h.symm)))
+            | cle_ob h₂ => exact Or.inr (Or.inr (h ▸ heq_cle ▸ .single (.ob h₂)))
+            | inside h₂ => exact Or.inr (Or.inr (h ▸ heq_cle ▸ .single (.encap h₂)))
+          | cle_ob h => cases hsuf with
+            | eq h₂ => exact Or.inl (h₂ ▸ heq_cle.symm ▸ .single (.ob h))
+            | cle_ob h₂ =>
+              have : Event.oEnd n cle₁ < Event.oEnd n cmpLin₂ :=
+                Nat.lt_of_lt_of_le h (Event.oStart_le_oEnd cmpLin₂)
+              exact Or.inr (Or.inr (.single (.finishesAfterProxy cle₁ (heq_cle ▸ h₂) this)))
+            | inside h₂ => exact Or.inl (.single (.ob (Nat.lt_trans h₂.right (heq_cle ▸ h))))
+          | inside h => cases hsuf with
+            | eq h₂ => exact Or.inr (Or.inr (.single (.encapBy (h₂ ▸ heq_cle.symm ▸ h))))
+            | cle_ob h₂ => exact Or.inr (Or.inr (.single (.ob (Nat.lt_trans h.right (heq_cle ▸ h₂)))))
+            | inside h₂ => exact Or.inr (Or.inr (.tail (.single (.encapBy h)) (.encap (heq_cle ▸ h₂))))
+        | inr htr_cle =>
+          have h_prefix_tr : TemporalRel cmpLin₂ cle₁ ∨ cmpLin₂ = cle₁ := by
+            cases hpre with
+            | eq h => exact Or.inr h
+            | cle_ob h => exact Or.inl (.single (.finishesAfterProxy cle₁ h (Nat.lt_of_lt_of_le h (Event.oStart_le_oEnd cmpLin₂))))
+            | inside h => exact Or.inl (.single (.encapBy h))
+          have h_suffix_tr : TemporalRel cle₂ cmpLin₁ ∨ cmpLin₁ = cle₂ := by
+            cases hsuf with
+            | eq h => exact Or.inr h.symm
+            | cle_ob h => exact Or.inl (.single (.ob h))
+            | inside h => exact Or.inl (.single (.encap h))
+          cases h_prefix_tr with
+          | inl hpr =>
+            cases h_suffix_tr with
+            | inl hsu => exact Or.inr (Or.inr (hpr.trans (htr_cle.trans hsu)))
+            | inr hsu => exact Or.inr (Or.inr (hpr.trans (hsu ▸ htr_cle)))
+          | inr hpr =>
+            cases h_suffix_tr with
+            | inl hsu => exact Or.inr (Or.inr (hpr ▸ htr_cle.trans hsu))
+            | inr hsu => exact Or.inr (Or.inr (hpr ▸ hsu ▸ htr_cle))
 
 /-- CmpLinOrdering composed through a cycle is acyclic:
     TransGen (fun cl₁ cl₂ => CmpLinOrdering cl₁ cl₂) cl cl → False.
