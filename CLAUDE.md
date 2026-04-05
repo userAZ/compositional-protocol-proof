@@ -171,11 +171,12 @@ The acyclicity proof uses `event_oEnd_lt` (e₁.oEnd < e₂.oEnd) as the proof m
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 ### Status (updated 2026-04-05)
-- **ZERO sorry's. ZERO illegal dir_ordered.**
-- **PPOi `cmpLin_ordered` DERIVED** (not a field) from NonLazyPPOi via `ppoi_cmpLin_ordered_of_nonlazy`.
-- **LinLink.ppoProxy** constructor: connects cmpLin through request events e₁, e₂ (PPO pair).
-- **`cmcm_acyclic_of_hknow_compoundLinOrdering`** is a real proof but still uses event-level oEnd.
-- Edge defs parameterized by `lin₁ lin₂`. rfe/co/fr still carry `cmpLin_ordered` as field.
+- **1 sorry remaining**: `compoundLin_eq_or_inside_event` orderAfterDir case (NC weak req on Vd). CLE is at successor, e does NOT encapsulate CLE. Different from encapDir/orderBeforeDir.
+- **PPOi `cmpLin_ordered` DERIVED** with explicit proxy chain through e₁, e₂ (EncapBy + OB + Encap).
+- **LinLink.ppoProxy** constructor: connects cmpLin through request events.
+- **`cmpLin_ordered` removed** from ALL edge structures (PPOi/rfe/co/fr).
+- **`event_oEnd_lt` remains** on rfe/co/fr as ranking measure (cmpLin oEnd not directly derivable).
+- **orderAfterDir is NOT vacuous for e.Encapsulates cmpLin.** For NC weak req on Vd: cmpLin = CLE at successor, e OB CLE (not encaps). Need third case in compoundLin_eq_or_inside_event or different handling.
 
 ### TODO — cmpLin migration (ACTIVE, 2026-04-05)
 1. **DONE: PPOi `cmpLin_ordered` derived** from NonLazyPPOi.
