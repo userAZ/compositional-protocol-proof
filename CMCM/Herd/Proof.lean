@@ -1527,6 +1527,19 @@ private theorem edge_self_false
   | inr hcom => exact com_self_false hcom
 
 
+/-- Every PPOi∪COM edge gives e₁.oEnd < e₂.oEnd (strict temporal progression).
+    PPOi: from orderedBefore + oWellFormed. COM: from event_oEnd_lt field. -/
+private theorem edge_oEnd_lt
+    {e₁ e₂ : Event n}
+    (h : ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e₁ e₂)
+    : Event.oEnd n e₁ < Event.oEnd n e₂ := by
+  cases h with
+  | inl hppoi => exact Nat.lt_trans hppoi.1.orderedBefore (Event.oWellFormed n e₂)
+  | inr hcom => cases hcom with
+    | rfe h => exact h.event_oEnd_lt
+    | co h => exact h.event_oEnd_lt
+    | fr h => exact h.event_oEnd_lt
+
 /-- Convert CleLink to the 3-way disjunction: LinChain ∨ eq ∨ diff_protocol.
     obFinishBefore maps to diff_protocol (its h_diff_prot field).
     eq maps to eq. All others map to LinChain. -/
@@ -2788,48 +2801,16 @@ theorem cmcm_acyclic_of_hknow
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) := by
   intro e hcycle
-  have ⟨_, hresult⟩ := cle_path_invariant hknow h_non_lazy_ppoi hcycle
-  have h_cle_isdir := (hknow e).cle_isDirEvent
-  cases hresult with
-  | inl hcle =>
-    -- CleLink l l: non-eq constructors carry h_ne → absurd rfl h_ne.
-    -- .eq: dir_ordered de de. .sameLin: temporal chain contradiction.
-    cases hcle with
-    | ob _ h_ne => exact absurd rfl h_ne
-    | obEndLt _ _ _ _ h_ne => exact absurd rfl h_ne
-    | encapOb _ _ _ h_ne => exact absurd rfl h_ne
-    | obFinishBefore _ _ _ _ _ h_ne => exact absurd rfl h_ne
-    | proxyPair _ _ _ _ _ h_ne => exact absurd rfl h_ne
-    | encap _ h_ne => exact absurd rfl h_ne
-    | encapObEndLt _ _ _ _ _ _ h_ne => exact absurd rfl h_ne
-    | sameLin e₁' e₂' _ h_enc₁ h_ob h_enc₂ =>
-      -- Temporal chain: CLE.oEnd < e₁'.oEnd < e₂'.oStart < CLE.oStart contradicts CLE.oWellFormed.
-      -- h_enc₁ : CLE.EncapsulatedBy n e₁' = e₁'.Encapsulates n CLE = e₁'.oStart < CLE.oStart ∧ CLE.oEnd < e₁'.oEnd
-      -- h_ob : e₁'.OrderedBefore n e₂' = e₁'.oEnd < e₂'.oStart
-      -- h_enc₂ : CLE.EncapsulatedBy n e₂' = e₂'.Encapsulates n CLE = e₂'.oStart < CLE.oStart ∧ CLE.oEnd < e₂'.oEnd
-      exact Nat.lt_irrefl (Event.oEnd n (hknow e).cle)
-        (Nat.lt_trans (Nat.lt_trans h_enc₁.right h_ob) (Nat.lt_trans h_enc₂.left (Event.oWellFormed n (hknow e).cle)))
-    | eq _ =>
-      -- CleLink.eq at self-reference is logically dead: compose_three always
-      -- produces non-eq CleLinks (via dir_ordered fallback). But Prop irrelevance
-      -- requires handling it. Close using dir_ordered on the CLE's directory event.
-      -- This is the model's total ordering axiom applied to a single directory event.
-      match hfc : (hknow e).cle, h_cle_isdir with
-      | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
-      | .directoryEvent de, _ =>
-        cases (b.orderedAtEntry.dir_ordered de de).ordered with
-        | inl hob => exact Nat.lt_irrefl _ (Nat.lt_trans hob de.oWellFormed)
-        | inr hob => exact Nat.lt_irrefl _ (Nat.lt_trans hob de.oWellFormed)
-  | inr hr => cases hr with
-    | inl _ =>
-      -- CLE_e = CLE_e (trivially true). Same dir_ordered closure.
-      match hfc : (hknow e).cle, h_cle_isdir with
-      | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
-      | .directoryEvent de, _ =>
-        cases (b.orderedAtEntry.dir_ordered de de).ordered with
-        | inl hob => exact Nat.lt_irrefl _ (Nat.lt_trans hob de.oWellFormed)
-        | inr hob => exact Nat.lt_irrefl _ (Nat.lt_trans hob de.oWellFormed)
-    | inr hob_rev => exact Event.contradiction_of_reflexive_ordered_before n hob_rev
+  -- Every edge gives e₁.oEnd < e₂.oEnd (protocol causal ordering).
+  -- A cycle composes to e.oEnd < e.oEnd → Nat.lt_irrefl → False.
+  -- No dir_ordered needed. Pure protocol temporal evidence.
+  suffices h : ∀ c, Relation.TransGen ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) e c →
+      Event.oEnd n e < Event.oEnd n c by
+    exact Nat.lt_irrefl _ (h e hcycle)
+  intro c hpath
+  induction hpath with
+  | single hedge => exact edge_oEnd_lt hedge
+  | tail _ hlast ih => exact Nat.lt_trans ih (edge_oEnd_lt hlast)
 
 /-- Extract ¬e₁.down and ¬e₂.down from any PPOi∪COM edge. -/
 private theorem notdown_of_edge

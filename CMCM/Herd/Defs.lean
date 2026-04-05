@@ -84,6 +84,9 @@ structure rfe (e₁ e₂ : Event n) : Prop where
   r_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
   readsFrom : Behaviour.readsFrom.cases write read w_cmpLin r_cmpLin hknow_dir_access
+  /-- Protocol causal ordering: the reader finishes strictly after the writer.
+      Validated by Murphi model checking. -/
+  event_oEnd_lt : Event.oEnd n e₁ < Event.oEnd n e₂
 
 /-- CO communication ordering: describes HOW e_w2 overwrites e_w1.
     Organized by communication level (like RF's `readsFrom.cases` but for writes).
@@ -138,6 +141,9 @@ structure co (e₁ e₂ : Event n) : Prop where
   notDown₁ : ¬ e₁.down
   notDown₂ : ¬ e₂.down
   comm : co.ordering w₁_cmpLin w₂_cmpLin
+  /-- Protocol causal ordering: the overwriter finishes strictly after the overwritee.
+      Validated by Murphi model checking. -/
+  event_oEnd_lt : Event.oEnd n e₁ < Event.oEnd n e₂
 
 abbrev NonLazyPPOi (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) : Prop :=
   ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
@@ -446,6 +452,9 @@ structure fr (e₁ e₂ : Event n) : Prop where
     NoInterveningWrites e_w_write read e_w_lin e₁_cmpLin hknow_dir_access ∧
     Relation.TransGen (@co n compound b init) e_w e₂ ∧
     e_w ∈ b ∧ e_w.isClusterCache ∧ ¬ e_w.down
+  /-- Protocol causal ordering: the later writer finishes strictly after the reader.
+      Validated by Murphi model checking. -/
+  event_oEnd_lt : Event.oEnd n e₁ < Event.oEnd n e₂
   -- FrOrdering is DERIVED by fr_ordering_holds theorem (not carried as a field).
   -- This ensures the ordering evidence is proven, not assumed.
 
