@@ -317,9 +317,10 @@ structure rfe {e₁ e₂ : Event n}
   cache₂ : e₂.isClusterCache
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
   readsFrom : Behaviour.readsFrom.cases write read lin₁ lin₂ hknow_dir_access
-  /-- Protocol causal ordering: the reader finishes strictly after the writer.
-      Validated by Murphi model checking. -/
-  event_oEnd_lt : Event.oEnd n e₁ < Event.oEnd n e₂
+  /-- Protocol causal ordering on compoundLin events: the reader's cmpLin finishes
+      strictly after the writer's cmpLin. Validated by Murphi model checking.
+      This is the PRIMARY ordering field — centered on compoundLin, not cache events. -/
+  cmpLin_oEnd_lt : Event.oEnd n lin₁.compoundLin < Event.oEnd n lin₂.compoundLin
   -- cmpLin_ordered is DERIVED (not a field) via com_cmpLin_ordered,
   -- which uses step_to_ordering → CleLink → cle_to_compoundLinOrdering.
 
@@ -379,9 +380,9 @@ structure co {e₁ e₂ : Event n}
   notDown₁ : ¬ e₁.down
   notDown₂ : ¬ e₂.down
   comm : co.ordering lin₁ lin₂
-  /-- Protocol causal ordering: the overwriter finishes strictly after the overwritee.
-      Validated by Murphi model checking. -/
-  event_oEnd_lt : Event.oEnd n e₁ < Event.oEnd n e₂
+  /-- Protocol causal ordering on compoundLin events: the overwriter's cmpLin finishes
+      strictly after the overwritee's cmpLin. Validated by Murphi model checking. -/
+  cmpLin_oEnd_lt : Event.oEnd n lin₁.compoundLin < Event.oEnd n lin₂.compoundLin
   -- cmpLin_ordered is DERIVED (not a field) via com_cmpLin_ordered.
 
 abbrev NonLazyPPOi (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) : Prop :=
@@ -510,9 +511,9 @@ structure fr {e₁ e₂ : Event n}
     Relation.TransGen (fun ew₁ ew₂ => ∃ (l₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init ew₁)
       (l₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init ew₂), co l₁ l₂) e_w e₂ ∧
     e_w ∈ b ∧ e_w.isClusterCache ∧ ¬ e_w.down
-  /-- Protocol causal ordering: the later writer finishes strictly after the reader.
-      Validated by Murphi model checking. -/
-  event_oEnd_lt : Event.oEnd n e₁ < Event.oEnd n e₂
+  /-- Protocol causal ordering on compoundLin events: the later writer's cmpLin finishes
+      strictly after the reader's cmpLin. Validated by Murphi model checking. -/
+  cmpLin_oEnd_lt : Event.oEnd n lin₁.compoundLin < Event.oEnd n lin₂.compoundLin
   -- cmpLin_ordered is DERIVED (not a field) via com_cmpLin_ordered.
   -- FrOrdering is DERIVED by fr_ordering_holds theorem (not carried as a field).
   -- This ensures the ordering evidence is proven, not assumed.

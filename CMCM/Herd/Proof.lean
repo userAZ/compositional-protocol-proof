@@ -1539,19 +1539,38 @@ private theorem edge_self_false
   | inr hcom => exact com_self_false hcom
 
 
-/-- Every PPOi∪COM edge gives e₁.oEnd < e₂.oEnd (strict temporal progression).
-    PPOi: from orderedBefore + oWellFormed. COM: from event_oEnd_lt field. -/
-private theorem edge_oEnd_lt
+/-- Each edge gives strict cmpLin oEnd ordering:
+    `Event.oEnd n cmpLin₁ < Event.oEnd n cmpLin₂`.
+    PPOi: NonLazyPPOi gives cmpLin₁ OB cmpLin₂ → cmpLin₁.oEnd < cmpLin₂.oStart ≤ cmpLin₂.oEnd.
+    COM: from cmpLin_oEnd_lt field (validated by model checking). -/
+private theorem edge_cmpLin_oEnd_lt
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     {e₁ e₂ : Event n}
     (h : R_hknow hknow e₁ e₂)
-    : Event.oEnd n e₁ < Event.oEnd n e₂ := by
+    : Event.oEnd n (hknow e₁).compoundLin < Event.oEnd n (hknow e₂).compoundLin := by
   cases h with
-  | inl hppoi => exact Nat.lt_trans hppoi.1.orderedBefore (Event.oWellFormed n e₂)
+  | inl hppoi =>
+    -- PPOi: derive cmpLin₁ OB cmpLin₂ directly from NonLazyPPOi
+    have h_ob := h_non_lazy_ppoi e₁ e₂ (hknow e₁) (hknow e₂)
+      ((Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ hppoi.1) hppoi.2
+    have h_eq₁ := (hknow e₁).compoundLin_eq
+    have h_eq₂ := (hknow e₂).compoundLin_eq
+    have h_bridge : ∀ e, compound.compoundLinOf b init e (compound.linearizationOfEvent b init e) =
+        (compound.compoundLinearizationEvent compound.shimAxioms b init e
+          (compound.linearizationOfEvent b init e)).linearizationEvent := by
+      intro e; unfold CompoundProtocol.compoundLinOf ClusterRequestLinearizationEvent.linearizationEvent
+      cases compound.compoundLinearizationEvent compound.shimAxioms b init e
+          (compound.linearizationOfEvent b init e) with
+      | clusterCacheLin _ => rfl | clusterDirLin _ => rfl
+    have h_ob_cmplin : (hknow e₁).compoundLin.OrderedBefore n (hknow e₂).compoundLin := by
+      rw [h_eq₁, h_eq₂, h_bridge e₁, h_bridge e₂]; exact h_ob
+    -- cmpLin₁.oEnd < cmpLin₂.oStart ≤ cmpLin₂.oEnd
+    exact Nat.lt_trans h_ob_cmplin (Event.oWellFormed n (hknow e₂).compoundLin)
   | inr hcom => cases hcom with
-    | rfe h => exact h.event_oEnd_lt
-    | co h => exact h.event_oEnd_lt
-    | fr h => exact h.event_oEnd_lt
+    | rfe h => exact (Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ h.cmpLin_oEnd_lt
+    | co h => exact (Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ h.cmpLin_oEnd_lt
+    | fr h => exact (Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ h.cmpLin_oEnd_lt
 
 -- LinLink moved to Defs.lean
 
@@ -2082,16 +2101,15 @@ theorem cmcm_acyclic_of_hknow
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : Relation.Acyclic (R_hknow hknow) := by
   intro e hcycle
-  -- Every edge gives e₁.oEnd < e₂.oEnd (protocol causal ordering).
-  -- A cycle composes to e.oEnd < e.oEnd → Nat.lt_irrefl → False.
-  -- No dir_ordered needed. Pure protocol temporal evidence.
+  -- CompoundLin oEnd (Event.oEnd n (hknow e).compoundLin) strictly increases
+  -- along each edge. A cycle gives cmpLin.oEnd < cmpLin.oEnd → False.
   suffices h : ∀ c, Relation.TransGen (R_hknow hknow) e c →
-      Event.oEnd n e < Event.oEnd n c by
+      Event.oEnd n (hknow e).compoundLin < Event.oEnd n (hknow c).compoundLin by
     exact Nat.lt_irrefl _ (h e hcycle)
   intro c hpath
   induction hpath with
-  | single hedge => exact edge_oEnd_lt hedge
-  | tail _ hlast ih => exact Nat.lt_trans ih (edge_oEnd_lt hlast)
+  | single hedge => exact edge_cmpLin_oEnd_lt h_non_lazy_ppoi hedge
+  | tail _ hlast ih => exact Nat.lt_trans ih (edge_cmpLin_oEnd_lt h_non_lazy_ppoi hlast)
 
 /-- Extract ¬e₁.down and ¬e₂.down from any PPOi∪COM edge. -/
 private theorem notdown_of_edge
@@ -2256,14 +2274,14 @@ theorem cmcm_acyclic_of_hknow_compoundLinOrdering
     intro e₁ e₂ hedge
     have ⟨hnd₁, hnd₂⟩ := notdown_of_edge hedge
     exact edge_cmpLin_ordered h_non_lazy_ppoi hedge hnd₁ hnd₂
-  -- Event oEnd strictly increases along the cycle:
+  -- CompoundLin oEnd (Event.oEnd n cmpLin) strictly increases along each edge:
   suffices h : ∀ c, Relation.TransGen (R_hknow hknow) e c →
-      Event.oEnd n e < Event.oEnd n c by
+      Event.oEnd n (hknow e).compoundLin < Event.oEnd n (hknow c).compoundLin by
     exact Nat.lt_irrefl _ (h e hcycle)
   intro c hpath
   induction hpath with
-  | single hedge => exact edge_oEnd_lt hedge
-  | tail _ hlast ih => exact Nat.lt_trans ih (edge_oEnd_lt hlast)
+  | single hedge => exact edge_cmpLin_oEnd_lt h_non_lazy_ppoi hedge
+  | tail _ hlast ih => exact Nat.lt_trans ih (edge_cmpLin_oEnd_lt h_non_lazy_ppoi hlast)
 
 -- (edge_cmpLin_cle_evidence, edge_cmpLin_linlink, com_cmpLin_ordered,
 --  ppoi_cmpLin_ordered_of_nonlazy, edge_cmpLin_ordered are defined above.)
