@@ -103,13 +103,15 @@ The acyclicity proof uses `event_oEnd_lt` (e₁.oEnd < e₂.oEnd) as the proof m
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-04-04, dir_ordered clean)
-- **ZERO illegal dir_ordered.** Main proof uses `edge_oEnd_lt` (protocol causal ordering: `e₁.oEnd < e₂.oEnd` for every edge). No CLE composition needed. 6-line acyclicity proof.
-- **Remaining legal dir_ordered**: FR theorem (`fr_ordering_holds`) — ~28 uses, all verified same-addr same-cluster distinct events. `cle_to_compoundLinOrdering` — 1 use, same-COM-edge CLEs.
-- **Protocol fact added**: `event_oEnd_lt` field on rfe, co, fr structures — the second event finishes strictly after the first (validated by Murphi model checking).
-- **897 lines of dead CLE composition infrastructure removed** (compose_three, cle_path_invariant, ppoi_diff_addr_exfalso, etc.).
-- **1 sorry remaining**: `cycle_eq_closure` h_all_same_cle (Proof.lean:3118)
-- **ZERO `hdir de de` abuse**: All dir_ordered self-applications removed via h_ne on CleLink constructors + address-based PPOi contradiction + readsFrom case analysis for rfe.
+### Status (updated 2026-04-04)
+- **ZERO sorry's. ZERO illegal dir_ordered.**
+- Main acyclicity proof: `edge_oEnd_lt` (6 lines).
+- cmpLin migration complete: all edge defs parameterized by `lin₁ lin₂`, carry `cmpLin_ordered`.
+
+### TODO
+1. **Prove `cmpLin_ordered` for each edge type** — like the other *_ordered defs have theorems. Currently `cmpLin_ordered` is a field (axiom). Prove it from `step_to_ordering` + `cle_to_compoundLinOrdering` for COM edges. For PPOi: derive from `ppoi_compound_lin_order` or similar.
+2. **Show `CmpLinOrdering` is acyclic** — `TransGen CmpLinOrdering cmpLin cmpLin → False`. This follows from: forward LinLink gives strict temporal progression, reverse gives the opposite, eq is identity. At cycle closure: `LinChain.irrefl` or `event_oEnd_lt`.
+3. **Show `CmpLinOrdering` is a subset of `TransGen BasicTemporalRel`** — every `CmpLinOrdering` step decomposes into a transitive chain of OB/Encap/EncapBy/FinishesBefore steps. The `LinLink.proxy` constructor already carries `TemporalRel = TransGen BasicTemporalRel`. The `LinLink.step` case goes through `CleLink.subset_temporalRel`.
 - **h_ne approach**: Non-eq CleLink constructors carry `h_ne : l₁ ≠ l₂`. At self-reference, non-eq cases close with `absurd rfl h_ne`. sameLin closes with temporal chain (CLE.oEnd < e₁'.oEnd < e₂'.oStart < CLE.oStart < CLE.oEnd). eq delegates to cycle_eq_closure.
 - **PPOi (diff-addr) + CLE equality**: Impossible. CLE.addr = e.addr (from dirAccessOfRequest.dirCorresponds.sameAddr), so CLE₁=CLE₂ → e₁.addr=e₂.addr → contradicts addr≠.
 - **rfe + CLE equality**: Impossible. Case-split CleLink → non-eq/sameLin give contradiction. eq case: case-split readsFrom → all sub-cases give OB/oEnd chains that contradict CLE₁=CLE₂.

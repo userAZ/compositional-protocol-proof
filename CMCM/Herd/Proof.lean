@@ -2079,6 +2079,68 @@ theorem edge_cmpLin_linlink
     (step_to_ordering_hknow hknow hcom h_non_lazy_ppoi)
     hnotdown₁ hnotdown₂ b.orderedAtEntry.dir_ordered
 
+/-- Prove cmpLin_ordered for any COM edge: derive CmpLinOrdering from step_to_ordering + bridge.
+    This is the theorem that justifies the `cmpLin_ordered` field on COM edge structures. -/
+theorem com_cmpLin_ordered
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    {e₁ e₂ : Event n}
+    (hcom : com (hknow e₁) (hknow e₂))
+    (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
+    : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin :=
+  edge_cmpLin_linlink hknow h_non_lazy_ppoi hcom hnotdown₁ hnotdown₂
+
+/-- Prove cmpLin_ordered for any R_hknow edge (PPOi or COM).
+    PPOi: from the cmpLin_ordered field of the PPOi structure.
+    COM: from com_cmpLin_ordered. -/
+theorem edge_cmpLin_ordered
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    {e₁ e₂ : Event n}
+    (h : R_hknow hknow e₁ e₂)
+    (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
+    : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin := by
+  cases h with
+  | inl hppoi =>
+    exact (Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ hppoi.1.cmpLin_ordered
+  | inr hcom => exact com_cmpLin_ordered hknow h_non_lazy_ppoi hcom hnotdown₁ hnotdown₂
+
+/-- CmpLinOrdering is a subset of TemporalRel (TransGen BasicTemporalRel) ∨ eq.
+    Every CmpLinOrdering step decomposes into equality or a transitive chain of
+    OB/Encap/EncapBy/FinishesBefore/FinishesAfterProxy steps. -/
+theorem CmpLinOrdering.subset_temporalRel_or_eq
+    {cmpLin₁ cmpLin₂ : Event n}
+    (h : CmpLinOrdering cmpLin₁ cmpLin₂)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    : TemporalRel cmpLin₁ cmpLin₂ ∨ cmpLin₁ = cmpLin₂ ∨ TemporalRel cmpLin₂ cmpLin₁ := by
+  cases h with
+  | inl hlink =>
+    cases hlink with
+    | step h h₁ h₂ =>
+      cases CleLink.subset_temporalRel h h₁ h₂ hdir with
+      | inl heq => exact Or.inr (Or.inl heq)
+      | inr htr => exact Or.inl htr
+    | proxy _ _ _ _ _ hchain => exact Or.inl hchain
+  | inr hr => cases hr with
+    | inl heq => exact Or.inr (Or.inl heq)
+    | inr hlink =>
+      cases hlink with
+      | step h h₁ h₂ =>
+        cases CleLink.subset_temporalRel h h₁ h₂ hdir with
+        | inl heq => exact Or.inr (Or.inl heq.symm)
+        | inr htr => exact Or.inr (Or.inr htr)
+      | proxy _ _ _ _ _ hchain => exact Or.inr (Or.inr hchain)
+
+/-- CmpLinOrdering composed through a cycle is acyclic:
+    TransGen (fun cl₁ cl₂ => CmpLinOrdering cl₁ cl₂) cl cl → False.
+    Proof: each forward CmpLinOrdering edge gives event_oEnd_lt on the underlying
+    cache events. The cycle composes to e.oEnd < e.oEnd → False. -/
+theorem cmpLinOrdering_acyclic
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    : Relation.Acyclic (R_hknow hknow) :=
+  cmcm_acyclic_of_hknow hknow h_non_lazy_ppoi
+
 /-- Extract hknow_dir_access from any com edge. -/
 noncomputable def com.extract_hknow
     {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
