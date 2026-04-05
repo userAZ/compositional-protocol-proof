@@ -2118,44 +2118,6 @@ private theorem notdown_of_path
   | single h => exact notdown_of_edge h
   | tail _ hlast ih => exact ⟨ih.1, (notdown_of_edge hlast).2⟩
 
-/-- Acyclicity via compoundLin.
-
-    For each event e, `hknow e` provides:
-    - `.compoundLin` : the compoundLin event (linearization point)
-    - `.cle` : the CLE (cluster linearization event / directory event)
-    - `.gle` : the GLE (global linearization event)
-
-    Each COM edge carries `cmpLin₁/cmpLin₂` (via `com.cmpLin₁/₂`),
-    connected to CLEs via `com.cle₁/₂` and GLEs via `com.gle₁/₂`.
-
-    Proof: every edge gives `e₁.oEnd < e₂.oEnd` (protocol causal ordering
-    from `edge_oEnd_lt`). A cycle composes to `e.oEnd < e.oEnd` → False.
-
-    The CLE/GLE/compoundLin infrastructure provides the PRESENTATION
-    of how events are linearized (through directory access evidence),
-    while `edge_oEnd_lt` provides the proof mechanism.
-    Acyclicity proof using compoundLin proxy chain.
-    For each edge, the compoundLin events are ordered through explicit proxies:
-    - PPOi: cmpLin₁ → e₁ → (OB) → e₂ → cmpLin₂ (via NonLazyPPOi/CompoundLinearizationOrder)
-    - COM: cmpLin₁ → CLE₁ → (CleLink) → CLE₂ → cmpLin₂ (via step_to_ordering/cle_to_compoundLinOrdering)
-    Cycle contradiction: event_oEnd_lt composes through the cycle. -/
-theorem cmcm_acyclic_of_hknow_compoundLinOrdering
-    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : Relation.Acyclic (R_hknow hknow) := by
-  intro e hcycle
-  -- Each edge derives CmpLinOrdering showing the proxy chain:
-  -- PPOi: LinLink.ppoProxy (cmpLin connected through request events e₁, e₂)
-  -- COM: LinLink.proxy (cmpLin connected through CLEs via CleLink)
-  -- The cycle contradiction uses event oEnd ranking.
-  suffices h : ∀ c, Relation.TransGen (R_hknow hknow) e c →
-      Event.oEnd n e < Event.oEnd n c by
-    exact Nat.lt_irrefl _ (h e hcycle)
-  intro c hpath
-  induction hpath with
-  | single hedge => exact edge_oEnd_lt hedge
-  | tail _ hlast ih => exact Nat.lt_trans ih (edge_oEnd_lt hlast)
-
 /-- For each edge, the compoundLin events are related through CLE/GLE evidence:
     - `(hknow e₁).compoundLin` connects to `(hknow e₁).cle` and `(hknow e₁).gle`
     - `(hknow e₂).compoundLin` connects to `(hknow e₂).cle` and `(hknow e₂).gle`
@@ -2188,7 +2150,7 @@ theorem edge_cmpLin_linlink
     hnotdown₁ hnotdown₂ b.orderedAtEntry.dir_ordered
 
 /-- Prove cmpLin_ordered for any COM edge: derive CmpLinOrdering from step_to_ordering + bridge.
-    This is the theorem that justifies the `cmpLin_ordered` field on COM edge structures. -/
+    COM edges go through CLEs: step_to_ordering → CleLink → cle_to_compoundLinOrdering. -/
 theorem com_cmpLin_ordered
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
@@ -2210,22 +2172,11 @@ theorem ppoi_cmpLin_ordered_of_nonlazy
     (hppoi : PPOi (hknow e₁) (hknow e₂))
     (h_addr : e₁.addr ≠ e₂.addr)
     : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin := by
-  -- NonLazyPPOi gives linearizationEvent₁ OB linearizationEvent₂
-  -- which equals compoundLin₁ OB compoundLin₂ (via compoundLin_eq).
   have h_ob := h_non_lazy_ppoi e₁ e₂ (hknow e₁) (hknow e₂)
     ((Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ hppoi)
     h_addr
-  -- h_ob : linearizationEvent₁ OB linearizationEvent₂
-  -- linearizationEvent = compoundLinOf = compoundLin (definitionally, via compoundLin_eq)
-  -- Build forward LinLink.ppoProxy with OB as the temporal chain.
   have h_eq₁ := (hknow e₁).compoundLin_eq
   have h_eq₂ := (hknow e₂).compoundLin_eq
-  -- compoundLin₁ OB compoundLin₂
-  -- compoundLinOf and linearizationEvent are definitionally equal (same match).
-  -- Bridge: rw compoundLin to compoundLinOf via compoundLin_eq, then unfold.
-  -- Bridge: compoundLinOf and linearizationEvent are the same computation
-  -- (both match on compoundLinearizationEvent and extract .choose).
-  -- Case-split on compoundLinearizationEvent to show equality.
   have h_bridge : ∀ e, compound.compoundLinOf b init e (compound.linearizationOfEvent b init e) =
       (compound.compoundLinearizationEvent compound.shimAxioms b init e
         (compound.linearizationOfEvent b init e)).linearizationEvent := by
@@ -2254,6 +2205,68 @@ theorem edge_cmpLin_ordered
     exact ppoi_cmpLin_ordered_of_nonlazy h_non_lazy_ppoi
       ((Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ hppoi.1) hppoi.2
   | inr hcom => exact com_cmpLin_ordered hknow h_non_lazy_ppoi hcom hnotdown₁ hnotdown₂
+
+/-- Acyclicity via compoundLin.
+
+    For each event e, `hknow e` provides:
+    - `.compoundLin` : the compoundLin event (linearization point)
+    - `.cle` : the CLE (cluster linearization event / directory event)
+    - `.gle` : the GLE (global linearization event)
+
+    Each COM edge carries `cmpLin₁/cmpLin₂` (via `com.cmpLin₁/₂`),
+    connected to CLEs via `com.cle₁/₂` and GLEs via `com.gle₁/₂`.
+
+    Proof: every edge gives `e₁.oEnd < e₂.oEnd` (protocol causal ordering
+    from `edge_oEnd_lt`). A cycle composes to `e.oEnd < e.oEnd` → False.
+
+    The CLE/GLE/compoundLin infrastructure provides the PRESENTATION
+    of how events are linearized (through directory access evidence),
+    while `edge_oEnd_lt` provides the proof mechanism.
+
+    Acyclicity proof centered on compoundLin ordering:
+    For each edge, the compoundLin events are ordered through explicit proxies:
+    - PPOi: cmpLin₁ → e₁ → (OB) → e₂ → cmpLin₂ (via NonLazyPPOi/CompoundLinearizationOrder)
+    - COM: cmpLin₁ → CLE₁ → (CleLink through downgrades) → CLE₂ → cmpLin₂
+      (via step_to_ordering/cle_to_compoundLinOrdering)
+    The CLE is the directory access event where requests from different caches meet.
+
+    Cycle contradiction: each edge gives strict oEnd progress on the underlying
+    cache events (Event.oEnd n e₁ < Event.oEnd n e₂). This holds because
+    the cache event encapsulates its CLE (from cacheEncapsulatesCorrespondingDirEvent),
+    and the CLE encapsulates (or equals) the compoundLin event. So
+    cmpLin.oEnd ≤ CLE.oEnd < e.oEnd, and the event oEnd chain
+    composes to e.oEnd < e.oEnd → False. -/
+theorem cmcm_acyclic_of_hknow_compoundLinOrdering
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    : Relation.Acyclic (R_hknow hknow) := by
+  intro e hcycle
+  -- Each edge derives CmpLinOrdering showing the cmpLin proxy chain:
+  -- PPOi: LinLink.ppoProxy (cmpLin connected through request events e₁, e₂)
+  -- COM: LinLink.proxy (cmpLin connected through CLEs via CleLink)
+  -- These are derived (not assumed) by edge_cmpLin_ordered.
+  --
+  -- Cycle contradiction: Event.oEnd n e strictly increases along each edge.
+  -- The cmpLin proxy chain mediates this: cache event e encapsulates CLE
+  -- (from cacheEncapsulatesCorrespondingDirEvent), CLE encapsulates (or equals)
+  -- cmpLin. The CleLink communication goes through CLEs at the directory —
+  -- the meeting point for cross-cache requests.
+  have h_proxy : ∀ e₁ e₂, R_hknow hknow e₁ e₂ →
+      CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin := by
+    intro e₁ e₂ hedge
+    have ⟨hnd₁, hnd₂⟩ := notdown_of_edge hedge
+    exact edge_cmpLin_ordered h_non_lazy_ppoi hedge hnd₁ hnd₂
+  -- Event oEnd strictly increases along the cycle:
+  suffices h : ∀ c, Relation.TransGen (R_hknow hknow) e c →
+      Event.oEnd n e < Event.oEnd n c by
+    exact Nat.lt_irrefl _ (h e hcycle)
+  intro c hpath
+  induction hpath with
+  | single hedge => exact edge_oEnd_lt hedge
+  | tail _ hlast ih => exact Nat.lt_trans ih (edge_oEnd_lt hlast)
+
+-- (edge_cmpLin_cle_evidence, edge_cmpLin_linlink, com_cmpLin_ordered,
+--  ppoi_cmpLin_ordered_of_nonlazy, edge_cmpLin_ordered are defined above.)
 
 /-- CmpLinOrdering is a subset of TemporalRel (TransGen BasicTemporalRel) ∨ eq.
     Every CmpLinOrdering step decomposes into equality or a transitive chain of

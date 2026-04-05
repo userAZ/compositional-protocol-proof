@@ -144,8 +144,14 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 ### TODO — cmpLin migration (ACTIVE, 2026-04-05)
 1. **DONE: PPOi `cmpLin_ordered` derived** from NonLazyPPOi.
-2. **Derive `cmpLin_ordered` for rf (NOT rfe — rfe is based on rf!), co, fr.** Remove `cmpLin_ordered` as a field from rfe/co/fr. Derive it using `com_cmpLin_ordered` at construction sites. NOTE: rfe is based on rf — the rf definition is the foundation. Write this in the proof.
-3. **Shift cycle contradiction to cmpLin level.** The CLE (cluster linearization event) is where cache requests from different caches/clusters meet — this is the meeting point. The cycle goes through CLEs. Each edge relates cmpLin events through CLE proxies. The cycle contradiction should show: TransGen of cmpLin orderings through CLEs → cmpLin.oEnd < cmpLin.oEnd → False. "oEnd" here means `Event.oEnd n cmpLin` — the oEnd of the compoundLin event itself.
+2. **DONE: `cmpLin_ordered` field removed** from rfe/co/fr. Derived via `com_cmpLin_ordered`. NOTE: rfe is based on rf — the rf definition is the foundation.
+3. **SHIFT PROOFS TO BE CENTERED AROUND cmpLin ORDERING.** This is the main remaining task. Currently `cmcm_acyclic_of_hknow_compoundLinOrdering` still uses `Event.oEnd n e` (cache event oEnd) for cycle contradiction. Must shift to cmpLin-centered:
+   - Each edge should produce CmpLinOrdering between cmpLin events through proxies
+   - The cycle contradiction should work at the cmpLin/CLE level
+   - The CLE is WHERE requests from different caches/clusters MEET — it's the rendezvous point
+   - For PPOi: NonLazyPPOi gives `cmpLin₁.OrderedBefore cmpLin₂` directly
+   - For COM: CleLink between CLEs, bridged to cmpLin via CmpLinCleRel
+   - Ranking approach: use `Event.oEnd n (hknow e).compoundLin` as ranking. For PPOi this works (OB gives strict oEnd increase). For COM: need to derive `cmpLin₁.oEnd < cmpLin₂.oEnd` from CLE ordering + CmpLinCleRel. Think harder about the protocol: in WHICH cases does CmpLinCleRel.eq (cmpLin = CLE, oEnd > e.oEnd) happen? Can it co-occur with CmpLinCleRel.inside on the OTHER side of the same edge? If not, the ranking works.
 4. **Name proxy events meaningfully** in LinLink constructors and CleLink. Use names like `writerCLE`, `readerCLE`, `cdir_downgrade`, `gcache_downgrade`, `predecessor`, `successor` — NOT single-letter variables like `p`, `q`, `e₁'`. The user's definitions always use meaningful names.
 5. **Update LinLink.proxy to use meaningful proxy event names** — rename fields to describe WHAT the proxy events are in the protocol (predecessor CLE, downgrade event, etc.)
 
@@ -193,6 +199,7 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 **Zero sorry's across entire project. Tag: `zero-sorry-all-files`.**
 
 ### Critical self-management rules (2026-04-05)
+- **BE EFFICIENT, FOCUSED, AND DIRECTED.** Don't deliberate endlessly. Don't write paragraphs of analysis when code is needed. Write the code, build, fix, commit. Stop wasting tokens on analysis that doesn't lead to code changes.
 - **FINISH WHAT YOU START.** When the user asks for a task, COMPLETE IT FULLY. Don't leave items partially done and call it "a first step." The user should not have to audit every claim. Implement ALL items, verify ALL items, then report honestly.
 - **AUDIT YOURSELF against the TODOs before claiming done.** After implementing, go through each TODO item and verify: did I actually do this? Is the code honest? Did I cut corners? If ANY item is incomplete, say so — don't claim the task is done.
 - **BE PRECISE about what you're talking about.** "oEnd" is meaningless without specifying WHICH event — the cache event? the compoundLin event? the CLE? Always say `Event.oEnd n cmpLin` or `Event.oEnd n e₁` or `CLE.oEnd`. Vagueness causes confusion and wastes the user's time.
