@@ -9,6 +9,7 @@
 - Case-split `compoundLinearizationEvent` (clusterCacheLin/clusterDirLin) AND `dirAccessOfRequest` (encapDir/orderBeforeDir/orderAfterDir) simultaneously. Matching: clusterCacheLin↔orderBeforeDir, clusterDirLin↔encapDir. Cross-cases contradictory via reqHasPerms_not_reqMissingPerms. Write helper lemmas for this matched context.
 - `orderAfterDir` is NOT vacuous for `e.Encapsulates cmpLin`. Only vacuous for `cmpLin OB CLE` (self-OB). For orderAfterDir: CLE at successor, e OB successor ⊃ CLE, so e does NOT encapsulate CLE. Handle as third case (e OB cmpLin) or show it can't arise for the specific event type.
 - **cmpLinLinLink (clll) must be an INDUCTIVE with h_ne.** Like CleLink, each clll constructor must carry specific protocol events AND `h_ne : l₁ ≠ l₂`. This makes irreflexivity trivial (`absurd rfl h_ne` at self-reference). The constructors mirror protocol scenarios (PPOi through e₁/e₂, COM through CLE₁/CLE₂/downgrades). This is the same pattern as CleLink/StepOrdering/LinLink. Don't use opaque `TemporalRel` as the sole ranking — use specific named temporal evidence that implies `h_ne`.
+- **CmpLinCleRel needs cache/dir event type evidence.** `cle_ob` → cmpLin is a cache event (from requestLin). `eq`/`inside` → cmpLin is or is inside a directory event. Adding `isCacheEvent`/`isDirectoryEvent` to CmpLinCleRel constructors enables h_ne derivation via cache≠dir. This is the blocking issue for 12 sorry's in LinLink h_ne derivation.
 
 ## Philosophy — READ THIS FIRST
 
