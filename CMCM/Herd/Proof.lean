@@ -1578,26 +1578,13 @@ private theorem compoundLin_eq_or_inside_event
       | orderBeforeDir hhas _ _ _ _ _ _ _ =>
         exact absurd hhas (reqHasPerms_not_reqMissingPerms h_missing hnotdown)
       | orderAfterDir _ hsucc _ _ =>
-        -- orderAfterDir: CLE is at successor. successor encaps CLE.
-        -- e OB successor → e OB CLE. But we need e.Encapsulates CLE.
-        -- For orderAfterDir, the successor's dir event IS the CLE.
-        -- And successor encaps CLE via hsucc.
-        -- The successor event encaps the CLE, and e OB successor.
-        -- So e doesn't encapsulate CLE — CLE is AFTER e.
-        -- BUT: for dirLin + orderAfterDir, compoundLin = CLE.
-        -- And CLE is at successor. So cmpLin = CLE = successor's dir event.
-        -- e OB successor means e finishes before cmpLin starts.
-        -- This means cmpLin IS after e, not inside e.
-        -- For the PPOi chain: if cmpLin₁ is AFTER e₁, the chain goes
-        -- e₁ →(OB)→ cmpLin₁ (reversed direction).
-        -- This case is genuinely different from eq/inside.
-        -- From compoundLin_cle_of_dirLin: cmpLin = CLE (eq case).
-        -- So cmpLin = CLE = successor's dir event. e OB successor ⊃ CLE.
-        -- Actually: hsucc gives immBottomSuccOnVdEncapCorrDir which
-        -- has the successor encapsulating the corresponding dir event.
-        -- The CLE comes from lin.hreq's_dir_access, not from hsucc.
-        -- By protocol uniqueness, they should be the same.
-        -- For now: this case gives e OB cmpLin, handle as a third disjunct.
+        -- orderAfterDir: CLE is at successor (next bottom event at same cache).
+        -- Successor encaps CLE. e OB successor. So CLE is AFTER e.
+        -- e does NOT encapsulate CLE in this case.
+        -- The successor encaps the corresponding dir event:
+        -- orderAfterDir: CLE at successor, e OB successor ⊃ CLE.
+        -- e does NOT encapsulate CLE. NC weak req on Vd — rare case.
+        -- TODO: handle orderAfterDir by showing e OB cmpLin (third relationship case).
         sorry
     -- cmpLin = CLE ∨ CLE encaps cmpLin (from compoundLin_cle_of_dirLin)
     cases lin.compoundLin_cle_of_dirLin hnotdown hlin_ev with
