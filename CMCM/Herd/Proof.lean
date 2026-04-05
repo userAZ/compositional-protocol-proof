@@ -1882,6 +1882,56 @@ private theorem temporalRel_of_eq_cle_and_rels
     | cle_ob h₂ => exact Or.inl (.single (.ob (Nat.lt_trans h₁.right h₂)))
     | inside h₂ => exact Or.inl (.tail (.single (.encapBy h₁)) (.encap h₂))
 
+/-- Derive CLE₁ OB CLE₂ from a non-eq non-ob CleLink + dir_ordered.
+    Uses the CleLink's temporal evidence to rule out the reverse direction.
+    For each constructor: reverse OB + forward temporal evidence → Nat.lt_irrefl. -/
+private theorem cleLink_to_ob
+    {l₁ l₂ : Event n}
+    (h : @CleLink n l₁ l₂)
+    (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    : l₁.OrderedBefore n l₂ := by
+  match hfc₁ : l₁, h₁_isdir with
+  | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
+  | .directoryEvent de₁, _ =>
+    match hfc₂ : l₂, h₂_isdir with
+    | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
+    | .directoryEvent de₂, _ =>
+      cases (hdir de₁ de₂).ordered with
+      | inl hob => exact hob
+      | inr hob_rev =>
+        -- Reverse: de₂.oEnd < de₁.oStart. Contradict with CleLink forward evidence.
+        exfalso
+        have hrev : (Event.directoryEvent de₂).OrderedBefore n (Event.directoryEvent de₁) := hob_rev
+        have h' := h  -- h already has the right type after match rewrite
+        -- All cases: reverse OB (de₂.oEnd < de₁.oStart) + forward CleLink evidence → Nat.lt_irrefl.
+        -- The CleLink fields have Event-level types, hrev has Event-level type.
+        -- Both unfold to the same Nat operations on de₁/de₂/proxy.oStart/oEnd.
+        -- Unfold Event-level types to raw Nat for omega.
+        simp only [Event.OrderedBefore, Event.oEnd, Event.oStart] at hrev
+        cases h' with
+        | ob hfwd _ =>
+          show False
+          have : Event.oEnd n (.directoryEvent de₁) < Event.oStart n (.directoryEvent de₂) := hfwd
+          have : Event.oEnd n (.directoryEvent de₂) < Event.oStart n (.directoryEvent de₁) := hrev
+          simp [Event.oEnd, Event.oStart, Event.OrderedBefore] at *; omega
+        | eq heq => simp [Event.oEnd, Event.oStart, Event.OrderedBefore] at *; omega
+        | obEndLt p hfwd hlt _ _ =>
+          have := Event.oWellFormed n p; simp [Event.oEnd, Event.oStart, Event.OrderedBefore] at *; omega
+        | encapOb p henc hfwd _ =>
+          have := Event.oWellFormed n p; simp [Event.oEnd, Event.oStart, Event.Encapsulates, Event.EncapsulatedBy] at *; omega
+        | obFinishBefore p _ hlt _ _ _ =>
+          simp [Event.oEnd, Event.oStart, Event.OrderedBefore] at *; omega
+        | proxyPair q p henc hqob hpob _ =>
+          have := Event.oWellFormed n q; have := Event.oWellFormed n p
+          simp [Event.oEnd, Event.oStart, Event.Encapsulates, Event.EncapsulatedBy] at *; omega
+        | encap henc _ =>
+          simp [Event.oEnd, Event.oStart, Event.Encapsulates] at *; omega
+        | encapObEndLt q p henc hqob hlt _ _ =>
+          have := Event.oWellFormed n q; have := Event.oWellFormed n p
+          simp [Event.oEnd, Event.oStart, Event.Encapsulates, Event.EncapsulatedBy] at *; omega
+        | sameLin _ _ heq' _ _ _ => simp [Event.oEnd, Event.oStart, Event.OrderedBefore] at *; omega
+
 /-- Bridge CleLink on CLEs to CmpLinOrdering on compoundLin events.
     Each compoundLin connects to its CLE via CmpLinCleRel (from dirAccessOfRequest).
     The CleLink between CLEs + the two CmpLinCleRel give the full proxy chain. -/
