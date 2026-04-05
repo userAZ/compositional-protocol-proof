@@ -86,6 +86,29 @@ For each edge (PPOi/COM), the proof:
 3. Bridges CLE ordering to compoundLin ordering via `cle_to_compoundLinOrdering`
    using the dirAccessOfRequest cases above → LinLink cmpLin₁ cmpLin₂
 
+### How cmpLin connects to CLE through dirAccessOfRequest proxy events
+
+Each event `e` has a `dirAccessOfRequest` which determines how its cmpLin relates to its CLE:
+
+**encapDir**: `e` doesn't have perms → CLE encapsulates `e` → cmpLin is INSIDE CLE.
+  The CLE is the directory event that processes `e`'s request directly.
+  Proxy chain: cmpLin ← (inside) ← CLE
+
+**orderBeforeDir**: `e` HAS perms (a PREDECESSOR got them) → cmpLin = `e` itself (requestLin).
+  The CLE belongs to the PREDECESSOR that got perms. The predecessor encapsulates
+  a directory event (the CLE). The connection: predecessor OB `e`, CLE encaps predecessor.
+  Proxy chain: CLE ← (encaps) ← predecessor → (OB) → e = cmpLin
+  **KEY EXAMPLE**: In RF, the reader `e_r` can have cmpLin = `e_r` itself, because
+  a predecessor got permissions through a dir access which triggered the downgrade
+  of the prior writer `e_w`. The predecessor + its dir event ARE the proxy events.
+
+**orderAfterDir**: NC weak on Vd → cmpLin is BEFORE CLE (successor's dir event).
+  Proved vacuous (compoundLin_not_ob_cle): reqHasPerms contradicts ncWeakReqOnVd.
+
+The `LinLink.proxy` constructor should EXPLICITLY show these proxy connections —
+not hide them in an opaque `TemporalRel`. Each case (encapDir, orderBeforeDir)
+gives a specific proxy chain that should be visible in the type.
+
 ### What the user wants (cmpLin migration)
 
 The edge definitions (PPOi, rfe, co, fr) must:

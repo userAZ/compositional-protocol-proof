@@ -224,17 +224,37 @@ theorem LinChain.oStart_lt {x y : Event n} (h : @LinChain n x y) : Event.oStart 
 theorem LinChain.irrefl {e : Event n} : ¬ @LinChain n e e :=
   fun h => Nat.lt_irrefl _ (LinChain.oStart_lt h)
 
-/-- LinLink: ordering between compoundLin events, bridged through CLEs.
-    `step`: when the compoundLin events ARE directory events (dirLin case).
-    `proxy`: when compoundLin events are bridged through CLEs via TemporalRel
-    (the dirAccessOfRequest cases: encapDir → encap, orderBeforeDir → OB,
-    orderAfterDir → vacuous ob_cle). -/
+/-- How a compoundLin event connects to its CLE through dirAccessOfRequest.
+    Each case names the proxy relationship explicitly:
+    - `eq`: cmpLin = CLE (dirLin case — the event linearizes at the directory)
+    - `cle_ob`: CLE OB cmpLin (orderBeforeDir — a predecessor got perms through a dir
+      access, and cmpLin = e itself. The predecessor encaps the CLE.)
+    - `inside`: cmpLin inside CLE (encapDir — CLE encapsulates cmpLin. The CLE
+      is the dir event that directly processes the request.)
+    orderAfterDir is vacuous (compoundLin_not_ob_cle). -/
+inductive CmpLinCleRel {n : ℕ} (cmpLin cle : Event n) : Prop
+  | eq (h : cmpLin = cle)
+  | cle_ob (h : cle.OrderedBefore n cmpLin)
+  | inside (h : cle.Encapsulates n cmpLin)
+
+/-- LinLink: ordering between compoundLin events, bridged through proxy CLEs.
+    `step`: both compoundLin events ARE directory events (dirLin case).
+    `proxy`: compoundLin events connected through CLE proxies with EXPLICIT
+    proxy chain via CmpLinCleRel (showing how each cmpLin relates to its CLE
+    through dirAccessOfRequest: encapDir, orderBeforeDir, or eq). -/
 inductive LinLink {n : ℕ} (l₁ l₂ : Event n) : Prop
-| step (h : @CleLink n l₁ l₂) (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
-| proxy (cle₁ cle₂ : Event n)
-    (h_so : @CleLink n cle₁ cle₂)
-    (h₁_isdir : cle₁.isDirectoryEvent) (h₂_isdir : cle₂.isDirectoryEvent)
-    (h_chain : TemporalRel l₁ l₂)
+  /-- Both cmpLin events are CLEs themselves (dirLin). -/
+  | step (h : @CleLink n l₁ l₂) (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
+  /-- cmpLin events connected through CLE proxies.
+      cle₁/cle₂ are the proxy dir events from dirAccessOfRequest.
+      h_prefix: how cmpLin₁ connects to cle₁ (eq/cle_ob/inside from dirAccessOfRequest).
+      h_suffix: how cmpLin₂ connects to cle₂.
+      h_so: CleLink between the proxy CLEs (from step_to_ordering). -/
+  | proxy (cle₁ cle₂ : Event n)
+      (h_so : @CleLink n cle₁ cle₂)
+      (h₁_isdir : cle₁.isDirectoryEvent) (h₂_isdir : cle₂.isDirectoryEvent)
+      (h_prefix : CmpLinCleRel l₁ cle₁)
+      (h_suffix : CmpLinCleRel l₂ cle₂)
 
 /-- The 3-way compoundLin ordering for an edge: forward LinLink, equality, or reverse LinLink. -/
 abbrev CmpLinOrdering {n : ℕ} (cmpLin₁ cmpLin₂ : Event n) : Prop :=
