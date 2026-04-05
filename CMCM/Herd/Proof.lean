@@ -1565,10 +1565,44 @@ private theorem compoundLin_eq_or_inside_event
     -- requestLin: event has perms → clusterCacheLin → cmpLin = e.
     exact Or.inl (lin.compoundLin_eq_event_of_requestLin hlin_ev)
   | dirLin hdir =>
-    -- dirLin: event missing perms → clusterDirLin → e encaps cmpLin.
-    -- CompoundPPOs.lean proves e.Encapsulates cmpLin for ncRel/acq/coherent.
-    -- TODO: extract this as a reusable lemma from CompoundPPOs machinery.
-    exact Or.inr sorry
+    right
+    -- dirLin gives reqMissingPerms. Case on dirAccessOfRequest:
+    -- encapDir: e encaps CLE. orderBeforeDir/orderAfterDir: contradictory.
+    have h_missing := hdir.choose_spec.2.reqHasNoPerms
+    -- The CLE comes from lin.hreq's_dir_access (the CLE from the lin structure).
+    -- The dirAccessOfRequest from dirLin's reqLinearizeAtDir also gives a dir event.
+    -- They should be the same CLE (by construction), but we use lin's CLE.
+    have h_e_encaps_cle : e.Encapsulates n lin.cle := by
+      cases lin.cle_dirAccess with
+      | encapDir _ hencap => exact hencap.reqEncapDir
+      | orderBeforeDir hhas _ _ _ _ _ _ _ =>
+        exact absurd hhas (reqHasPerms_not_reqMissingPerms h_missing hnotdown)
+      | orderAfterDir _ hsucc _ _ =>
+        -- orderAfterDir: CLE is at successor. successor encaps CLE.
+        -- e OB successor → e OB CLE. But we need e.Encapsulates CLE.
+        -- For orderAfterDir, the successor's dir event IS the CLE.
+        -- And successor encaps CLE via hsucc.
+        -- The successor event encaps the CLE, and e OB successor.
+        -- So e doesn't encapsulate CLE — CLE is AFTER e.
+        -- BUT: for dirLin + orderAfterDir, compoundLin = CLE.
+        -- And CLE is at successor. So cmpLin = CLE = successor's dir event.
+        -- e OB successor means e finishes before cmpLin starts.
+        -- This means cmpLin IS after e, not inside e.
+        -- For the PPOi chain: if cmpLin₁ is AFTER e₁, the chain goes
+        -- e₁ →(OB)→ cmpLin₁ (reversed direction).
+        -- This case is genuinely different from eq/inside.
+        -- From compoundLin_cle_of_dirLin: cmpLin = CLE (eq case).
+        -- So cmpLin = CLE = successor's dir event. e OB successor ⊃ CLE.
+        -- Actually: hsucc gives immBottomSuccOnVdEncapCorrDir which
+        -- has the successor encapsulating the corresponding dir event.
+        -- The CLE comes from lin.hreq's_dir_access, not from hsucc.
+        -- By protocol uniqueness, they should be the same.
+        -- For now: this case gives e OB cmpLin, handle as a third disjunct.
+        sorry
+    -- cmpLin = CLE ∨ CLE encaps cmpLin (from compoundLin_cle_of_dirLin)
+    cases lin.compoundLin_cle_of_dirLin hnotdown hlin_ev with
+    | inl h_eq => exact h_eq ▸ h_e_encaps_cle
+    | inr h_cle_encaps => exact Event.encap_encap_trans n h_e_encaps_cle h_cle_encaps.1
 
 /-- PPOi TemporalRel chain through request events e₁, e₂ as named proxy events.
     Chain: cmpLin₁ →(EncapBy e₁ if dirLin)→ e₁ →(OB)→ e₂ →(Encap cmpLin₂ if dirLin)→ cmpLin₂ -/
