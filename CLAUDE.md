@@ -105,14 +105,14 @@ Each event `e` has a `dirAccessOfRequest` which determines how its cmpLin relate
 
 **orderAfterDir**: NC weak on Vd → cmpLin is BEFORE CLE (successor's dir event).
   Currently proved vacuous (compoundLin_not_ob_cle): reqHasPerms contradicts ncWeakReqOnVd.
-  **WARNING: Re-examine this!** The user pointed out: an NC weak write on Vd CAN have
-  dirAccessOfRequest.orderAfterDir. In RF, e_w (NC weak write) on Vd has a successor
-  that encaps the dir access. The reader e_r can downgrade that successor.
-  The proof of vacuity derives contradiction from reqHasPerms (from requestLin) +
-  ncWeakReqOnVd (from orderAfterDir). Check: does NC weak write on Vd actually satisfy
-  reqHasPerms? If Vd state has perms (c=false but some .wr), is MRS ≤ Vd.cache?
-  If the proof IS correct: the vacuity is from the specific MRS/state analysis.
-  If NOT correct: orderAfterDir is a real case and CmpLinCleRel needs a 4th constructor.
+  **Re-examined (2026-04-05):** NC weak write on Vd CAN have dirAccessOfRequest.orderAfterDir.
+  BUT: reqHasPerms has 3 constructors: (1) isCoherent+hasPerms, (2) ncRelAcqWeakWrite+coherentState,
+  (3) ncWeakRead+notVd. For NC weak write on Vd: (1) fails (non-coherent), (2) fails (Vd has c=false,
+  reqHasPermsOnCoherentState needs c=true), (3) fails (not a read). So reqHasPerms is False for
+  NC weak write on Vd → requestLin doesn't apply → linearizationOfEvent gives dirLin →
+  compoundLin = CLE → compoundLin OB CLE = CLE OB CLE = self-OB = False.
+  So the vacuity IS correct. orderAfterDir events always go through dirLin (compoundLin = CLE),
+  never through requestLin (compoundLin = e). The proof compoundLin_not_ob_cle is sound.
 
 The `LinLink.proxy` constructor should EXPLICITLY show these proxy connections —
 not hide them in an opaque `TemporalRel`. Each case (encapDir, orderBeforeDir)
