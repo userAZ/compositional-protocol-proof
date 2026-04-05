@@ -234,7 +234,9 @@ theorem LinChain.irrefl {e : Event n} : ¬ @LinChain n e e :=
     orderAfterDir is vacuous (compoundLin_not_ob_cle). -/
 inductive CmpLinCleRel {n : ℕ} (cmpLin cle : Event n) : Prop
   | eq (h : cmpLin = cle)
-  | cle_ob (h : cle.OrderedBefore n cmpLin) (h_not_dir : ¬ cmpLin.isDirectoryEvent)
+  /-- cle_ob: CLE OB cmpLin. From requestLin (event has perms).
+      Carries cmpLin = e (the cache request event) and ¬ isDirectoryEvent. -/
+  | cle_ob (e : Event n) (h_eq : cmpLin = e) (h : cle.OrderedBefore n cmpLin) (h_not_dir : ¬ cmpLin.isDirectoryEvent)
   | inside (h : cle.Encapsulates n cmpLin)
 
 /-- LinLink: ordering between compoundLin events, bridged through proxy CLEs.
