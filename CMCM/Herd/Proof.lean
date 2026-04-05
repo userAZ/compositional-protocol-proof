@@ -2133,12 +2133,28 @@ private theorem notdown_of_path
 
     The CLE/GLE/compoundLin infrastructure provides the PRESENTATION
     of how events are linearized (through directory access evidence),
-    while `edge_oEnd_lt` provides the proof mechanism. -/
+    while `edge_oEnd_lt` provides the proof mechanism.
+    Acyclicity proof using compoundLin proxy chain.
+    For each edge, the compoundLin events are ordered through explicit proxies:
+    - PPOi: cmpLin₁ → e₁ → (OB) → e₂ → cmpLin₂ (via NonLazyPPOi/CompoundLinearizationOrder)
+    - COM: cmpLin₁ → CLE₁ → (CleLink) → CLE₂ → cmpLin₂ (via step_to_ordering/cle_to_compoundLinOrdering)
+    Cycle contradiction: event_oEnd_lt composes through the cycle. -/
 theorem cmcm_acyclic_of_hknow_compoundLinOrdering
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : Relation.Acyclic (R_hknow hknow) :=
-  cmcm_acyclic_of_hknow hknow h_non_lazy_ppoi
+    : Relation.Acyclic (R_hknow hknow) := by
+  intro e hcycle
+  -- Each edge derives CmpLinOrdering showing the proxy chain:
+  -- PPOi: LinLink.ppoProxy (cmpLin connected through request events e₁, e₂)
+  -- COM: LinLink.proxy (cmpLin connected through CLEs via CleLink)
+  -- The cycle contradiction uses event oEnd ranking.
+  suffices h : ∀ c, Relation.TransGen (R_hknow hknow) e c →
+      Event.oEnd n e < Event.oEnd n c by
+    exact Nat.lt_irrefl _ (h e hcycle)
+  intro c hpath
+  induction hpath with
+  | single hedge => exact edge_oEnd_lt hedge
+  | tail _ hlast ih => exact Nat.lt_trans ih (edge_oEnd_lt hlast)
 
 /-- For each edge, the compoundLin events are related through CLE/GLE evidence:
     - `(hknow e₁).compoundLin` connects to `(hknow e₁).cle` and `(hknow e₁).gle`
@@ -2182,9 +2198,50 @@ theorem com_cmpLin_ordered
     : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin :=
   edge_cmpLin_linlink hknow h_non_lazy_ppoi hcom hnotdown₁ hnotdown₂
 
+/-- Derive CmpLinOrdering for PPOi from NonLazyPPOi.
+    NonLazyPPOi gives cmpLin₁ OB cmpLin₂ directly.
+    The proxy chain goes through e₁, e₂ (the request events):
+    cmpLin₁ →(EncapBy e₁ if dirLin)→ e₁ →(OB)→ e₂ →(Encap cmpLin₂ if dirLin)→ cmpLin₂.
+    This is proven in CompoundPPOs.lean via CompoundLinearizationOrder. -/
+theorem ppoi_cmpLin_ordered_of_nonlazy
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    {e₁ e₂ : Event n}
+    (hppoi : PPOi (hknow e₁) (hknow e₂))
+    (h_addr : e₁.addr ≠ e₂.addr)
+    : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin := by
+  -- NonLazyPPOi gives linearizationEvent₁ OB linearizationEvent₂
+  -- which equals compoundLin₁ OB compoundLin₂ (via compoundLin_eq).
+  have h_ob := h_non_lazy_ppoi e₁ e₂ (hknow e₁) (hknow e₂)
+    ((Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ hppoi)
+    h_addr
+  -- h_ob : linearizationEvent₁ OB linearizationEvent₂
+  -- linearizationEvent = compoundLinOf = compoundLin (definitionally, via compoundLin_eq)
+  -- Build forward LinLink.ppoProxy with OB as the temporal chain.
+  have h_eq₁ := (hknow e₁).compoundLin_eq
+  have h_eq₂ := (hknow e₂).compoundLin_eq
+  -- compoundLin₁ OB compoundLin₂
+  -- compoundLinOf and linearizationEvent are definitionally equal (same match).
+  -- Bridge: rw compoundLin to compoundLinOf via compoundLin_eq, then unfold.
+  -- Bridge: compoundLinOf and linearizationEvent are the same computation
+  -- (both match on compoundLinearizationEvent and extract .choose).
+  -- Case-split on compoundLinearizationEvent to show equality.
+  have h_bridge : ∀ e, compound.compoundLinOf b init e (compound.linearizationOfEvent b init e) =
+      (compound.compoundLinearizationEvent compound.shimAxioms b init e
+        (compound.linearizationOfEvent b init e)).linearizationEvent := by
+    intro e
+    unfold CompoundProtocol.compoundLinOf ClusterRequestLinearizationEvent.linearizationEvent
+    cases compound.compoundLinearizationEvent compound.shimAxioms b init e
+        (compound.linearizationOfEvent b init e) with
+    | clusterCacheLin _ => rfl
+    | clusterDirLin _ => rfl
+  have h_ob_cmplin : (hknow e₁).compoundLin.OrderedBefore n (hknow e₂).compoundLin := by
+    rw [h_eq₁, h_eq₂, h_bridge e₁, h_bridge e₂]; exact h_ob
+  exact Or.inl (.ppoProxy e₁ e₂ hppoi.orderedBefore (.single (.ob h_ob_cmplin)))
+
 /-- Prove cmpLin_ordered for any R_hknow edge (PPOi or COM).
-    PPOi: from the cmpLin_ordered field of the PPOi structure.
-    COM: from com_cmpLin_ordered. -/
+    PPOi: derived from NonLazyPPOi (proxy chain through request events).
+    COM: from com_cmpLin_ordered (proxy chain through CLEs). -/
 theorem edge_cmpLin_ordered
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
@@ -2194,7 +2251,8 @@ theorem edge_cmpLin_ordered
     : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin := by
   cases h with
   | inl hppoi =>
-    exact (Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ hppoi.1.cmpLin_ordered
+    exact ppoi_cmpLin_ordered_of_nonlazy h_non_lazy_ppoi
+      ((Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ hppoi.1) hppoi.2
   | inr hcom => exact com_cmpLin_ordered hknow h_non_lazy_ppoi hcom hnotdown₁ hnotdown₂
 
 /-- CmpLinOrdering is a subset of TemporalRel (TransGen BasicTemporalRel) ∨ eq.
@@ -2214,6 +2272,8 @@ theorem CmpLinOrdering.subset_temporalRel_or_eq
       | inr htr => exact Or.inl htr
     | proxy _ _ _ _ _ _ _ hchain =>
       exact Or.inl hchain
+    | ppoProxy _ _ _ hchain =>
+      exact Or.inl hchain
   | inr hr => cases hr with
     | inl heq => exact Or.inr (Or.inl heq)
     | inr hlink =>
@@ -2225,6 +2285,8 @@ theorem CmpLinOrdering.subset_temporalRel_or_eq
         | inr htr => exact Or.inr (Or.inr htr)
       | proxy _ _ _ _ _ _ _ hchain =>
         -- LinLink.proxy carries h_chain : TemporalRel. Extract directly (reverse).
+        exact Or.inr (Or.inr hchain)
+      | ppoProxy _ _ _ hchain =>
         exact Or.inr (Or.inr hchain)
 
 /-- CmpLinOrdering composed through a cycle is acyclic:

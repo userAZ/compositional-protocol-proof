@@ -257,6 +257,15 @@ inductive LinLink {n : ℕ} (l₁ l₂ : Event n) : Prop
       (h_prefix : CmpLinCleRel l₁ cle₁)
       (h_suffix : CmpLinCleRel l₂ cle₂)
       (h_chain : TemporalRel l₁ l₂)
+  /-- cmpLin events connected through request events (PPOi proxy chain).
+      e₁/e₂ are the request events forming a PPO pair at the same cache.
+      h_ob: e₁ finishes before e₂ starts (preserved program order).
+      h_chain: composed temporal chain cmpLin₁ → cmpLin₂ through e₁, e₂.
+      The chain goes: cmpLin₁ →(EncapBy e₁ if dirLin)→ e₁ →(OB)→ e₂ →(Encap cmpLin₂ if dirLin)→ cmpLin₂.
+      Derived from CompoundLinearizationOrder (CompoundPPOs.lean) via NonLazyPPOi. -/
+  | ppoProxy (e₁ e₂ : Event n)
+      (h_ob : e₁.OrderedBefore n e₂)
+      (h_chain : TemporalRel l₁ l₂)
 
 /-- The 3-way compoundLin ordering for an edge: forward LinLink, equality, or reverse LinLink. -/
 abbrev CmpLinOrdering {n : ℕ} (cmpLin₁ cmpLin₂ : Event n) : Prop :=
@@ -289,8 +298,6 @@ structure PPOi {e₁ e₂ : Event n}
   in_b₂ : e₂ ∈ b
   isBottom₁ : b.IsBottomEvent n e₁
   isBottom₂ : b.IsBottomEvent n e₂
-  /-- CompoundLin events are ordered through CLE bridge. -/
-  cmpLin_ordered : CmpLinOrdering lin₁.compoundLin lin₂.compoundLin
 
 /-- rfe: Reads-from external (different cache).
     A write e₁ that is read by e₂, at the same address, from different caches.
