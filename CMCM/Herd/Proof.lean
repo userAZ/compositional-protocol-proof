@@ -2058,26 +2058,25 @@ theorem cle_to_compoundLinOrdering
       | inr htr_rev => exact Or.inr (Or.inr (.proxy _ _ (.eq heq.symm) h₂_isdir h₁_isdir (heq ▸ hrel₂) hrel₁ htr_rev sorry))
   | ob hob _ =>
     exact Or.inl (mk_fwd (.ob hob (Event.ne_of_ob hob))
-      (temporalRel_of_cle_ob_and_rels hob hrel₁ hrel₂) sorry)
+      (temporalRel_of_cle_ob_and_rels hob hrel₁ hrel₂) (ne_of_cle_ob_and_rels hob hrel₁ hrel₂))
   | obEndLt p hob_cl hlt hdir_p hne =>
-    exact Or.inl (mk_fwd (.obEndLt p hob_cl hlt hdir_p hne)
-      (temporalRel_of_cle_ob_and_rels (by
-        -- CLE₁ OB CLE₂ from dir_ordered. oEnd ≤ from obEndLt evidence.
-        match hfc₁ : lin₁.cle, h₁_isdir with
+    have h_cle_ob : lin₁.cle.OrderedBefore n lin₂.cle := by
+      match hfc₁ : lin₁.cle, h₁_isdir with
+      | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
+      | .directoryEvent de₁, _ =>
+        match hfc₂ : lin₂.cle, h₂_isdir with
         | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
-        | .directoryEvent de₁, _ =>
-          match hfc₂ : lin₂.cle, h₂_isdir with
-          | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
-          | .directoryEvent de₂, _ =>
-            cases (hdir de₁ de₂).ordered with
-            | inl hob => exact hob
-            | inr hob_rev =>
-              exfalso
-              -- de₂.oEnd < de₁.oStart (hob_rev) + de₁.oEnd < p.oStart < p.oEnd < de₂.oEnd → contradiction
-              rw [hfc₁] at hob_cl; rw [hfc₂] at hlt
-              exact Nat.lt_irrefl de₂.oEnd (Nat.lt_trans hob_rev (Nat.lt_trans de₁.oWellFormed
-                (Nat.lt_trans hob_cl (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd p) hlt))))
-        ) hrel₁ hrel₂) sorry)
+        | .directoryEvent de₂, _ =>
+          cases (hdir de₁ de₂).ordered with
+          | inl hob => exact hob
+          | inr hob_rev =>
+            exfalso
+            rw [hfc₁] at hob_cl; rw [hfc₂] at hlt
+            exact Nat.lt_irrefl de₂.oEnd (Nat.lt_trans hob_rev (Nat.lt_trans de₁.oWellFormed
+              (Nat.lt_trans hob_cl (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd p) hlt))))
+    exact Or.inl (mk_fwd (.obEndLt p hob_cl hlt hdir_p hne)
+      (temporalRel_of_cle_ob_and_rels h_cle_ob hrel₁ hrel₂)
+      (ne_of_cle_ob_and_rels h_cle_ob hrel₁ hrel₂))
   | sameLin e₁' e₂' heq' henc₁ hob_s henc₂ =>
     cases temporalRel_of_eq_cle_and_rels hrel₁ (heq' ▸ hrel₂) with
     | inl htr => exact Or.inl (.proxy _ _ (.sameLin e₁' e₂' heq' henc₁ hob_s henc₂) h₁_isdir h₂_isdir hrel₁ (heq' ▸ hrel₂) htr sorry)
@@ -2086,25 +2085,22 @@ theorem cle_to_compoundLinOrdering
       | inr htr_rev => exact Or.inr (Or.inr (.proxy _ _ (.eq heq'.symm) h₂_isdir h₁_isdir (heq' ▸ hrel₂) hrel₁ htr_rev sorry))
   | encapOb p h_enc h_ob h_ne =>
     -- encapOb: p EncapsulatedBy CLE₁, p OB CLE₂. Reverse contradicts.
-    exact Or.inl (mk_fwd (.encapOb p h_enc h_ob h_ne)
-      (temporalRel_of_cle_ob_and_rels (by
-        match hfc₁ : lin₁.cle, h₁_isdir with
+    have h_cle_ob : lin₁.cle.OrderedBefore n lin₂.cle := by
+      match hfc₁ : lin₁.cle, h₁_isdir with
+      | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
+      | .directoryEvent de₁, _ =>
+        match hfc₂ : lin₂.cle, h₂_isdir with
         | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
-        | .directoryEvent de₁, _ =>
-          match hfc₂ : lin₂.cle, h₂_isdir with
-          | .cacheEvent _, hh => exact absurd hh (by simp [Event.isDirectoryEvent])
-          | .directoryEvent de₂, _ =>
-            cases (hdir de₁ de₂).ordered with
-            | inl hob_fwd => exact hob_fwd
-            | inr hob_rev =>
-              exfalso
-              rw [hfc₁] at h_enc; rw [hfc₂] at h_ob
-              -- p.oEnd < de₂.oStart ≤ de₂.oEnd < de₁.oStart < p.oStart < p.oEnd
-              exact Nat.lt_irrefl (Event.oEnd n p) (Nat.lt_trans h_ob
-                (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd (.directoryEvent de₂))
-                  (Nat.lt_trans hob_rev
-                    (Nat.lt_trans h_enc.1 (Event.oWellFormed n p)))))
-      ) hrel₁ hrel₂) sorry)
+        | .directoryEvent de₂, _ =>
+          cases (hdir de₁ de₂).ordered with
+          | inl hob_fwd => exact hob_fwd
+          | inr hob_rev =>
+            exfalso; rw [hfc₁] at h_enc; rw [hfc₂] at h_ob
+            exact Nat.lt_irrefl (Event.oEnd n p) (Nat.lt_trans h_ob
+              (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd (.directoryEvent de₂))
+                (Nat.lt_trans hob_rev (Nat.lt_trans h_enc.1 (Event.oWellFormed n p)))))
+    exact Or.inl (mk_fwd (.encapOb p h_enc h_ob h_ne)
+      (temporalRel_of_cle_ob_and_rels h_cle_ob hrel₁ hrel₂) (ne_of_cle_ob_and_rels h_cle_ob hrel₁ hrel₂))
   | proxyPair q p h_enc h_qob h_pob h_ne =>
     -- proxyPair: q EncapsulatedBy CLE₁, q OB p, p OB CLE₂. Reverse contradicts.
     exact Or.inl (mk_fwd (.proxyPair q p h_enc h_qob h_pob h_ne)
