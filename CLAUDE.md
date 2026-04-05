@@ -38,7 +38,8 @@ Before proving, composing, or sorry-ing ANYTHING:
 
 **NEVER do:**
 6. **NEVER use agents for proof work.** They lack CLAUDE.md context and re-introduce abuses. Only use for purely mechanical tasks (file renames, grep-and-replace).
-7. **NEVER use dir_ordered without verifying same address/cluster.** Even on distinct events. Use DecidableEq or protocol address evidence instead.
+7. **NEVER use dir_ordered without verifying same address/cluster AND distinct events.** dir_ordered de de is cheating — no event is strictly before itself. Cross-address or cross-cluster dir_ordered is cheating. ALWAYS verify before claiming a use is legal.
+7b. **DOUBLE-CHECK every claim before presenting it.** Don't say "all uses are legal" without verifying each one. Don't say "this branch is dead" without proving it. The user should not have to audit every item in depth. Verify YOURSELF, thoroughly, before reporting.
 8. **NEVER try simple measures (oStart, oEnd) for CleLink/LinLink irreflexivity.** These relations encode protocol-specific ordering that no single measure captures.
 9. **NEVER confuse GLE and compoundLin.** `globalLinearizationEventOfRequest` = CLE+GLE bundle. `compoundLin` = derived Event. Philosophy: compoundLin is primary, connected through CLE/GLE.
 
