@@ -39,7 +39,8 @@ Before proving, composing, or sorry-ing ANYTHING:
 **NEVER do:**
 6. **NEVER start an agent.** Agents lack CLAUDE.md context, re-introduce abuses, interfere with concurrent edits, and produce worse results. Do ALL work yourself — no agents, no subprocesses, no delegation.
 7. **NEVER use dir_ordered without verifying same address/cluster AND distinct events.** dir_ordered de de is cheating — no event is strictly before itself. Cross-address or cross-cluster dir_ordered is cheating. ALWAYS verify before claiming a use is legal.
-7b. **DOUBLE-CHECK every claim before presenting it.** Don't say "all uses are legal" without verifying each one. Don't say "this branch is dead" without proving it. The user should not have to audit every item in depth. Verify YOURSELF, thoroughly, before reporting.
+7b. **THINK about what you're saying before saying it.** You've likely forgotten some key detail in the protocol. Think about the protocol's cases carefully and deeply. Don't claim something is vacuous without tracing through ALL protocol cases. Don't claim a direction is impossible without checking every dirAccessOfRequest case for every request type.
+7c. **DOUBLE-CHECK every claim before presenting it.** Don't say "all uses are legal" without verifying each one. Don't say "this branch is dead" without proving it. The user should not have to audit every item in depth. Verify YOURSELF, thoroughly, before reporting.
 8. **NEVER try simple measures (oStart, oEnd) for CleLink/LinLink irreflexivity.** These relations encode protocol-specific ordering that no single measure captures.
 9. **NEVER confuse GLE and compoundLin.** `globalLinearizationEventOfRequest` = CLE+GLE bundle. `compoundLin` = derived Event. Philosophy: compoundLin is primary, connected through CLE/GLE.
 
@@ -103,7 +104,15 @@ Each event `e` has a `dirAccessOfRequest` which determines how its cmpLin relate
   of the prior writer `e_w`. The predecessor + its dir event ARE the proxy events.
 
 **orderAfterDir**: NC weak on Vd → cmpLin is BEFORE CLE (successor's dir event).
-  Proved vacuous (compoundLin_not_ob_cle): reqHasPerms contradicts ncWeakReqOnVd.
+  Currently proved vacuous (compoundLin_not_ob_cle): reqHasPerms contradicts ncWeakReqOnVd.
+  **WARNING: Re-examine this!** The user pointed out: an NC weak write on Vd CAN have
+  dirAccessOfRequest.orderAfterDir. In RF, e_w (NC weak write) on Vd has a successor
+  that encaps the dir access. The reader e_r can downgrade that successor.
+  The proof of vacuity derives contradiction from reqHasPerms (from requestLin) +
+  ncWeakReqOnVd (from orderAfterDir). Check: does NC weak write on Vd actually satisfy
+  reqHasPerms? If Vd state has perms (c=false but some .wr), is MRS ≤ Vd.cache?
+  If the proof IS correct: the vacuity is from the specific MRS/state analysis.
+  If NOT correct: orderAfterDir is a real case and CmpLinCleRel needs a 4th constructor.
 
 The `LinLink.proxy` constructor should EXPLICITLY show these proxy connections —
 not hide them in an opaque `TemporalRel`. Each case (encapDir, orderBeforeDir)
