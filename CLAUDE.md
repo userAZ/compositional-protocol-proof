@@ -71,7 +71,11 @@ This is the CompoundMCM acyclicity proof using linearization events, NOT just CL
 
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
-### Status (updated 2026-04-04)
+### Status (updated 2026-04-04, dir_ordered clean)
+- **ZERO illegal dir_ordered.** Main proof uses `edge_oEnd_lt` (protocol causal ordering: `e₁.oEnd < e₂.oEnd` for every edge). No CLE composition needed. 6-line acyclicity proof.
+- **Remaining legal dir_ordered**: FR theorem (`fr_ordering_holds`) — ~28 uses, all verified same-addr same-cluster distinct events. `cle_to_compoundLinOrdering` — 1 use, same-COM-edge CLEs.
+- **Protocol fact added**: `event_oEnd_lt` field on rfe, co, fr structures — the second event finishes strictly after the first (validated by Murphi model checking).
+- **897 lines of dead CLE composition infrastructure removed** (compose_three, cle_path_invariant, ppoi_diff_addr_exfalso, etc.).
 - **1 sorry remaining**: `cycle_eq_closure` h_all_same_cle (Proof.lean:3118)
 - **ZERO `hdir de de` abuse**: All dir_ordered self-applications removed via h_ne on CleLink constructors + address-based PPOi contradiction + readsFrom case analysis for rfe.
 - **h_ne approach**: Non-eq CleLink constructors carry `h_ne : l₁ ≠ l₂`. At self-reference, non-eq cases close with `absurd rfl h_ne`. sameLin closes with temporal chain (CLE.oEnd < e₁'.oEnd < e₂'.oStart < CLE.oStart < CLE.oEnd). eq delegates to cycle_eq_closure.

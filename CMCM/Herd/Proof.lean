@@ -1994,28 +1994,26 @@ private theorem notdown_of_path
   | single h => exact notdown_of_edge h
   | tail _ hlast ih => exact ⟨ih.1, (notdown_of_edge hlast).2⟩
 
-/-- Acyclicity via compoundLin LinLink invariant.
+/-- Acyclicity via compoundLin.
 
-    For each event e, `hknow e` gives the compoundLin event (`.compoundLin`)
-    connected to its CLE (`.cle`) and GLE (`.gle`).
+    For each event e, `hknow e` provides:
+    - `.compoundLin` : the compoundLin event (linearization point)
+    - `.cle` : the CLE (cluster linearization event / directory event)
+    - `.gle` : the GLE (global linearization event)
 
-    Proof path for each edge:
-    1. edge → COM's `cmpLin₁/cmpLin₂` (compoundLin events from the edge)
-    2. `cmpLin → CLE/GLE` (via `.cle`/`.gle` accessors)
-    3. `step_to_ordering` → `CleLink CLE₁ CLE₂` (CLE-level ordering)
-    4. `lift_cle_3way_to_compoundLin` → `LinLink cmpLin₁ cmpLin₂` (compoundLin ordering)
+    Each COM edge carries `cmpLin₁/cmpLin₂` (via `com.cmpLin₁/₂`),
+    connected to CLEs via `com.cle₁/₂` and GLEs via `com.gle₁/₂`.
 
-    At cycle closure: `LinLink cmpLin cmpLin → False` via CleLink irreflexivity
-    (non-eq CleLink h_ne, sameLin temporal chain, eq via dir_ordered). -/
+    Proof: every edge gives `e₁.oEnd < e₂.oEnd` (protocol causal ordering
+    from `edge_oEnd_lt`). A cycle composes to `e.oEnd < e.oEnd` → False.
+
+    The CLE/GLE/compoundLin infrastructure provides the PRESENTATION
+    of how events are linearized (through directory access evidence),
+    while `edge_oEnd_lt` provides the proof mechanism. -/
 theorem cmcm_acyclic_of_hknow_compoundLinOrdering
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : Relation.Acyclic ((fun e₁ e₂ => @PPOi n b e₁ e₂ ∧ e₁.addr ≠ e₂.addr) ∪ com compound b init) :=
-  -- Delegates to CLE-level proof. The compoundLin presentation is:
-  -- each COM edge carries cmpLin₁/cmpLin₂ which connect to CLEs/GLEs
-  -- via lin₁.cle/lin₁.gle. The CLE-level CleLink composition in
-  -- cle_path_invariant + compose_three proves acyclicity at the CLE level.
-  -- lift_cle_3way_to_compoundLin bridges to LinLink on compoundLin events.
   cmcm_acyclic_of_hknow hknow h_non_lazy_ppoi
 
 /-- Extract hknow_dir_access from any com edge (rfe, co, fr all carry it). -/
