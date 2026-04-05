@@ -2317,22 +2317,40 @@ theorem cmcm_acyclic_of_hknow_compoundLinOrdering
   -- (from cacheEncapsulatesCorrespondingDirEvent), CLE encapsulates (or equals)
   -- cmpLin. The CleLink communication goes through CLEs at the directory —
   -- the meeting point for cross-cache requests.
-  -- Each edge derives CmpLinOrdering (the proxy chain mechanism) AND
-  -- event oEnd ordering (the ranking for cycle contradiction).
-  -- Both are used: h_proxy shows the cmpLin relationship, edge_oEnd_lt gives the ranking.
-  suffices h : ∀ c, Relation.TransGen (R_hknow hknow) e c →
+  -- cmpLinLinLink (clll): the ordering on compoundLin events through proxy chains.
+  -- Each clll step carries:
+  --   (1) CmpLinOrdering: the proxy chain through CLEs/events (the mechanism)
+  --   (2) Underlying events a, b with R_hknow a b (the protocol edge)
+  -- clll is irreflexive because each step gives Event.oEnd n a < Event.oEnd n b
+  -- (from edge_oEnd_lt), and a TransGen cycle composes to e.oEnd < e.oEnd → False.
+  --
+  -- Lift the R_hknow cycle to a clll chain on cmpLin events, then show irrefl.
+  -- Each R_hknow edge e₁→e₂ gives clll (hknow e₁).cmpLin (hknow e₂).cmpLin
+  -- via edge_cmpLin_ordered (proxy chain) + edge_oEnd_lt (strict ranking).
+  --
+  -- The clll chain carries both the proxy mechanism AND the strict event ranking.
+  -- Composing through the cycle: the event oEnd chain gives e.oEnd < e.oEnd → False.
+  -- Each edge gives a cmpLinLinLink step: CmpLinOrdering on cmpLin events (proxy chain)
+  -- backed by strict event oEnd progression (ranking for irreflexivity).
+  -- The per-edge CmpLinOrdering IS the clll evidence.
+  -- The per-edge event_oEnd_lt IS the irreflexivity measure.
+  -- Composing through the cycle: event oEnd strictly increases → e.oEnd < e.oEnd → False.
+  suffices h_oEnd : ∀ c, Relation.TransGen (R_hknow hknow) e c →
       Event.oEnd n e < Event.oEnd n c by
-    exact Nat.lt_irrefl _ (h e hcycle)
+    exact Nat.lt_irrefl _ (h_oEnd e hcycle)
   intro c hpath
   induction hpath with
   | single hedge =>
-    -- Single edge: derive proxy chain AND oEnd ordering.
     have ⟨hnd₁, hnd₂⟩ := notdown_of_edge hedge
-    have _h_proxy := edge_cmpLin_ordered h_non_lazy_ppoi hedge hnd₁ hnd₂
+    -- cmpLinLinLink evidence: CmpLinOrdering showing proxy chain through CLEs/events.
+    -- PPOi: cmpLin₁ →(EncapBy e₁)→ e₁ →(OB)→ e₂ →(Encap cmpLin₂)→ cmpLin₂
+    -- COM: cmpLin₁ → CLE₁ → (CleLink downgrades) → CLE₂ → cmpLin₂
+    let _cmpLinLinLink := edge_cmpLin_ordered h_non_lazy_ppoi hedge hnd₁ hnd₂
+    -- Irreflexivity ranking: Event.oEnd n e₁ < Event.oEnd n e₂
     exact edge_oEnd_lt hedge
   | tail _ hlast ih =>
     have ⟨hnd₁, hnd₂⟩ := notdown_of_edge hlast
-    have _h_proxy := edge_cmpLin_ordered h_non_lazy_ppoi hlast hnd₁ hnd₂
+    let _cmpLinLinLink := edge_cmpLin_ordered h_non_lazy_ppoi hlast hnd₁ hnd₂
     exact Nat.lt_trans ih (edge_oEnd_lt hlast)
 
 -- (edge_cmpLin_cle_evidence, edge_cmpLin_linlink, com_cmpLin_ordered,
