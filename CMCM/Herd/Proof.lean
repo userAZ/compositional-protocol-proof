@@ -1553,12 +1553,7 @@ private theorem edge_oEnd_lt
     | co h => exact h.event_oEnd_lt
     | fr h => exact h.event_oEnd_lt
 
-inductive LinLink {n : ℕ} (l₁ l₂ : Event n) : Prop
-| step (h : @CleLink n l₁ l₂) (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
-| proxy (cle₁ cle₂ : Event n)
-    (h_so : @CleLink n cle₁ cle₂)
-    (h₁_isdir : cle₁.isDirectoryEvent) (h₂_isdir : cle₂.isDirectoryEvent)
-    (h_chain : TemporalRel l₁ l₂)
+-- LinLink moved to Defs.lean
 
 -- ob_cle (compoundLin OB CLE) is vacuous: no non-downgrade event has compoundLin before its CLE.
 -- For dirLin: compoundLin_cle_of_dirLin gives eq/inside, both temporally contradictory with OB.

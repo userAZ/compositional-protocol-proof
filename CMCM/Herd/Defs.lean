@@ -47,133 +47,6 @@ noncomputable def cle
     (h : CompoundProtocol.globalLinearizationEventOfRequest compound b init e) : Event n :=
   h.cle
 
-/-! ## Edge definitions
-
-All edge definitions are parameterized by linearization evidence `lin₁ lin₂`
-(of type `globalLinearizationEventOfRequest`). This makes compoundLin the
-PRIMARY concept: `lin.compoundLin` is the linearization point, `lin.cle` is
-the CLE, `lin.gle` is the GLE. The underlying cache events `e₁ e₂` are
-implicit (inferred from the lin types). -/
-
-/-- PPOi: Preserved Program Order (intra-cache).
-    Two events on the same cache forming a PPO pair, with e₁ ordered before e₂.
-    Parameterized by linearization evidence (provides compoundLin/CLE/GLE). -/
-structure PPOi {e₁ e₂ : Event n}
-    (lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
-    (lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
-    : Prop where
-  ppo : e₁.isPPOPair n e₂
-  orderedBefore : e₁.OrderedBefore n e₂
-  sameProtocol : e₁.sameProtocol n e₂
-  sameCid : e₁.sameCid n e₂
-  sameCid' : e₁.cid = e₂.cid
-  notDown₁ : ¬ e₁.down
-  notDown₂ : ¬ e₂.down
-  cache₁ : e₁.isClusterCache
-  cache₂ : e₂.isClusterCache
-  in_b₁ : e₁ ∈ b
-  in_b₂ : e₂ ∈ b
-  isBottom₁ : b.IsBottomEvent n e₁
-  isBottom₂ : b.IsBottomEvent n e₂
-
-/-- rfe: Reads-from external (different cache).
-    A write e₁ that is read by e₂, at the same address, from different caches.
-    Parameterized by linearization evidence (provides compoundLin/CLE/GLE).
-    "External" means different cache (struct), not necessarily different cluster. -/
-structure rfe {e₁ e₂ : Event n}
-    (lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
-    (lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
-    : Prop where
-  write : e₁.isWrite
-  read : e₂.isRead
-  sameAddr : e₁.addr = e₂.addr
-  diffCache : e₁.struct ≠ e₂.struct
-  notDown₁ : ¬ e₁.down
-  notDown₂ : ¬ e₂.down
-  cache₁ : e₁.isClusterCache
-  cache₂ : e₂.isClusterCache
-  hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
-  readsFrom : Behaviour.readsFrom.cases write read lin₁ lin₂ hknow_dir_access
-  /-- Protocol causal ordering: the reader finishes strictly after the writer.
-      Validated by Murphi model checking. -/
-  event_oEnd_lt : Event.oEnd n e₁ < Event.oEnd n e₂
-
-/-- CO communication ordering: describes HOW e_w2 overwrites e_w1.
-    Organized by communication level (like RF's `readsFrom.cases` but for writes).
-    Each constructor describes the specific communication mechanism.
-    Parameterized by both events, their write evidence, and linearizations (like RF). -/
-inductive co.ordering
-    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e₁ e₂ : Event n}
-    (w₁_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
-    (w₂_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂)
-    : Prop
-  /-- Same cache: direct cache ordering. Both writes at the same cache,
-      serialized by the cache. Evidence: e₁ OB e₂ + same CLE. -/
-  | sameCache
-    (same_cle : w₁_cmpLin.cle = w₂_cmpLin.cle)
-    (cache_ob : e₁.OrderedBefore n e₂)
-  /-- Same cluster, different cache: cluster directory serializes the writes.
-      The second write's request triggers a downgrade at the first write's cache.
-      Evidence: CLE ordering from SameCluster.cleOb.cleOrdering.Cases
-      (carries wImmPredRCle or evictOrReadBetween with downgrade chain). -/
-  | sameClusDiffCache
-    (same_protocol : e₁.sameProtocol n e₂)
-    (cle_ordering : CompoundProtocol.SameCluster.cleOb.cleOrdering.Cases w₁_cmpLin w₂_cmpLin)
-  /-- Different cluster: cross-cluster downgrade chain.
-      The second write's request propagates through global directory to trigger
-      a downgrade at the first write's cluster.
-      Evidence: DifferentCluster.cleOB.cleOrdering.Cases
-      (carries wCleImmPredDown or evictOrReadBetweenWAndRDown with wObRDown + encapDirRelation). -/
-  | diffClus
-    (diff_protocol : ¬ e₁.sameProtocol n e₂)
-    (cle_ordering : CompoundProtocol.DifferentCluster.cleOB.cleOrdering.Cases w₁_cmpLin w₂_cmpLin)
-
--- CO evidence: carries the GLE ordering (Type-valued) and direction evidence.
--- Separated from the Prop-valued co structure because gleOrdering.Cases is Type.
-structure co.evidence
-    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e₁ e₂ : Event n}
-    (w₁_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
-    (w₂_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂) where
-  not_reverse : ¬ e₂.OrderedBefore n e₁
-  gle_ordering : CompoundProtocol.gleOrdering.Cases w₁_cmpLin w₂_cmpLin
-
-/-- CO: Coherence ordering between two writes.
-    Parameterized by linearization evidence (provides compoundLin/CLE/GLE). -/
-structure co {e₁ e₂ : Event n}
-    (lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
-    (lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
-    : Prop where
-  write₁ : e₁.isWrite
-  write₂ : e₂.isWrite
-  sameAddr : e₁.addr = e₂.addr
-  hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
-  in_b₁ : e₁ ∈ b
-  in_b₂ : e₂ ∈ b
-  cache₁ : e₁.isClusterCache
-  cache₂ : e₂.isClusterCache
-  notDown₁ : ¬ e₁.down
-  notDown₂ : ¬ e₂.down
-  comm : co.ordering lin₁ lin₂
-  /-- Protocol causal ordering: the overwriter finishes strictly after the overwritee.
-      Validated by Murphi model checking. -/
-  event_oEnd_lt : Event.oEnd n e₁ < Event.oEnd n e₂
-
-abbrev NonLazyPPOi (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) : Prop :=
-  ∀ (a₁ a₂ : Event n) (lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init a₁)
-    (lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init a₂),
-    @PPOi n compound b init a₁ a₂ lin₁ lin₂ → a₁.addr ≠ a₂.addr →
-    (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
-      (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
-    (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
-      (compound.linearizationOfEvent b init a₂)).linearizationEvent
-
-theorem Event.oStart_le_oEnd (e : Event n) : Event.oStart n e ≤ Event.oEnd n e :=
-  Nat.le_of_lt (Event.oWellFormed n e)
-
-theorem Event.ob_of_lt_lt {e₁ e₂ : Event n} {p : ℕ}
-    (h₁ : Event.oEnd n e₁ < p) (h₂ : p < Event.oStart n e₂)
-    : e₁.OrderedBefore n e₂ := Nat.lt_trans h₁ h₂
-
 /-! ## CleLink: ordering between linearization points -/
 
 -- Base temporal relations between events.
@@ -351,6 +224,155 @@ theorem LinChain.oStart_lt {x y : Event n} (h : @LinChain n x y) : Event.oStart 
 theorem LinChain.irrefl {e : Event n} : ¬ @LinChain n e e :=
   fun h => Nat.lt_irrefl _ (LinChain.oStart_lt h)
 
+/-- LinLink: ordering between compoundLin events, bridged through CLEs.
+    `step`: when the compoundLin events ARE directory events (dirLin case).
+    `proxy`: when compoundLin events are bridged through CLEs via TemporalRel
+    (the dirAccessOfRequest cases: encapDir → encap, orderBeforeDir → OB,
+    orderAfterDir → vacuous ob_cle). -/
+inductive LinLink {n : ℕ} (l₁ l₂ : Event n) : Prop
+| step (h : @CleLink n l₁ l₂) (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
+| proxy (cle₁ cle₂ : Event n)
+    (h_so : @CleLink n cle₁ cle₂)
+    (h₁_isdir : cle₁.isDirectoryEvent) (h₂_isdir : cle₂.isDirectoryEvent)
+    (h_chain : TemporalRel l₁ l₂)
+
+/-- The 3-way compoundLin ordering for an edge: forward LinLink, equality, or reverse LinLink. -/
+abbrev CmpLinOrdering {n : ℕ} (cmpLin₁ cmpLin₂ : Event n) : Prop :=
+  LinLink cmpLin₁ cmpLin₂ ∨ cmpLin₁ = cmpLin₂ ∨ LinLink cmpLin₂ cmpLin₁
+/-! ## Edge definitions
+
+All edge definitions are parameterized by linearization evidence `lin₁ lin₂`
+(of type `globalLinearizationEventOfRequest`). This makes compoundLin the
+PRIMARY concept: `lin.compoundLin` is the linearization point, `lin.cle` is
+the CLE, `lin.gle` is the GLE. The underlying cache events `e₁ e₂` are
+implicit (inferred from the lin types). -/
+
+/-- PPOi: Preserved Program Order (intra-cache).
+    Two events on the same cache forming a PPO pair, with e₁ ordered before e₂.
+    Parameterized by linearization evidence (provides compoundLin/CLE/GLE). -/
+structure PPOi {e₁ e₂ : Event n}
+    (lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
+    (lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
+    : Prop where
+  ppo : e₁.isPPOPair n e₂
+  orderedBefore : e₁.OrderedBefore n e₂
+  sameProtocol : e₁.sameProtocol n e₂
+  sameCid : e₁.sameCid n e₂
+  sameCid' : e₁.cid = e₂.cid
+  notDown₁ : ¬ e₁.down
+  notDown₂ : ¬ e₂.down
+  cache₁ : e₁.isClusterCache
+  cache₂ : e₂.isClusterCache
+  in_b₁ : e₁ ∈ b
+  in_b₂ : e₂ ∈ b
+  isBottom₁ : b.IsBottomEvent n e₁
+  isBottom₂ : b.IsBottomEvent n e₂
+  /-- CompoundLin events are ordered through CLE bridge. -/
+  cmpLin_ordered : CmpLinOrdering lin₁.compoundLin lin₂.compoundLin
+
+/-- rfe: Reads-from external (different cache).
+    A write e₁ that is read by e₂, at the same address, from different caches.
+    Parameterized by linearization evidence (provides compoundLin/CLE/GLE).
+    "External" means different cache (struct), not necessarily different cluster. -/
+structure rfe {e₁ e₂ : Event n}
+    (lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
+    (lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
+    : Prop where
+  write : e₁.isWrite
+  read : e₂.isRead
+  sameAddr : e₁.addr = e₂.addr
+  diffCache : e₁.struct ≠ e₂.struct
+  notDown₁ : ¬ e₁.down
+  notDown₂ : ¬ e₂.down
+  cache₁ : e₁.isClusterCache
+  cache₂ : e₂.isClusterCache
+  hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
+  readsFrom : Behaviour.readsFrom.cases write read lin₁ lin₂ hknow_dir_access
+  /-- Protocol causal ordering: the reader finishes strictly after the writer.
+      Validated by Murphi model checking. -/
+  event_oEnd_lt : Event.oEnd n e₁ < Event.oEnd n e₂
+  /-- CompoundLin events are ordered (forward, equal, or reverse) through CLE bridge. -/
+  cmpLin_ordered : CmpLinOrdering lin₁.compoundLin lin₂.compoundLin
+
+/-- CO communication ordering: describes HOW e_w2 overwrites e_w1.
+    Organized by communication level (like RF's `readsFrom.cases` but for writes).
+    Each constructor describes the specific communication mechanism.
+    Parameterized by both events, their write evidence, and linearizations (like RF). -/
+inductive co.ordering
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e₁ e₂ : Event n}
+    (w₁_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
+    (w₂_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂)
+    : Prop
+  /-- Same cache: direct cache ordering. Both writes at the same cache,
+      serialized by the cache. Evidence: e₁ OB e₂ + same CLE. -/
+  | sameCache
+    (same_cle : w₁_cmpLin.cle = w₂_cmpLin.cle)
+    (cache_ob : e₁.OrderedBefore n e₂)
+  /-- Same cluster, different cache: cluster directory serializes the writes.
+      The second write's request triggers a downgrade at the first write's cache.
+      Evidence: CLE ordering from SameCluster.cleOb.cleOrdering.Cases
+      (carries wImmPredRCle or evictOrReadBetween with downgrade chain). -/
+  | sameClusDiffCache
+    (same_protocol : e₁.sameProtocol n e₂)
+    (cle_ordering : CompoundProtocol.SameCluster.cleOb.cleOrdering.Cases w₁_cmpLin w₂_cmpLin)
+  /-- Different cluster: cross-cluster downgrade chain.
+      The second write's request propagates through global directory to trigger
+      a downgrade at the first write's cluster.
+      Evidence: DifferentCluster.cleOB.cleOrdering.Cases
+      (carries wCleImmPredDown or evictOrReadBetweenWAndRDown with wObRDown + encapDirRelation). -/
+  | diffClus
+    (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (cle_ordering : CompoundProtocol.DifferentCluster.cleOB.cleOrdering.Cases w₁_cmpLin w₂_cmpLin)
+
+-- CO evidence: carries the GLE ordering (Type-valued) and direction evidence.
+-- Separated from the Prop-valued co structure because gleOrdering.Cases is Type.
+structure co.evidence
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e₁ e₂ : Event n}
+    (w₁_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₁)
+    (w₂_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e₂) where
+  not_reverse : ¬ e₂.OrderedBefore n e₁
+  gle_ordering : CompoundProtocol.gleOrdering.Cases w₁_cmpLin w₂_cmpLin
+
+/-- CO: Coherence ordering between two writes.
+    Parameterized by linearization evidence (provides compoundLin/CLE/GLE). -/
+structure co {e₁ e₂ : Event n}
+    (lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
+    (lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
+    : Prop where
+  write₁ : e₁.isWrite
+  write₂ : e₂.isWrite
+  sameAddr : e₁.addr = e₂.addr
+  hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
+  in_b₁ : e₁ ∈ b
+  in_b₂ : e₂ ∈ b
+  cache₁ : e₁.isClusterCache
+  cache₂ : e₂.isClusterCache
+  notDown₁ : ¬ e₁.down
+  notDown₂ : ¬ e₂.down
+  comm : co.ordering lin₁ lin₂
+  /-- Protocol causal ordering: the overwriter finishes strictly after the overwritee.
+      Validated by Murphi model checking. -/
+  event_oEnd_lt : Event.oEnd n e₁ < Event.oEnd n e₂
+  /-- CompoundLin events are ordered through CLE bridge. -/
+  cmpLin_ordered : CmpLinOrdering lin₁.compoundLin lin₂.compoundLin
+
+abbrev NonLazyPPOi (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) : Prop :=
+  ∀ (a₁ a₂ : Event n) (lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init a₁)
+    (lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init a₂),
+    @PPOi n compound b init a₁ a₂ lin₁ lin₂ → a₁.addr ≠ a₂.addr →
+    (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
+      (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
+    (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
+      (compound.linearizationOfEvent b init a₂)).linearizationEvent
+
+theorem Event.oStart_le_oEnd (e : Event n) : Event.oStart n e ≤ Event.oEnd n e :=
+  Nat.le_of_lt (Event.oWellFormed n e)
+
+theorem Event.ob_of_lt_lt {e₁ e₂ : Event n} {p : ℕ}
+    (h₁ : Event.oEnd n e₁ < p) (h₂ : p < Event.oStart n e₂)
+    : e₁.OrderedBefore n e₂ := Nat.lt_trans h₁ h₂
+
+
 /-- FR ordering: descriptive inductive carrying the communication evidence
     for the relationship between e₁ (reader) and e₂ (later writer).
     Mirrors RF's `readsFrom.cases` and CO's `co.ordering`, organized by
@@ -463,6 +485,8 @@ structure fr {e₁ e₂ : Event n}
   /-- Protocol causal ordering: the later writer finishes strictly after the reader.
       Validated by Murphi model checking. -/
   event_oEnd_lt : Event.oEnd n e₁ < Event.oEnd n e₂
+  /-- CompoundLin events are ordered through CLE bridge. -/
+  cmpLin_ordered : CmpLinOrdering lin₁.compoundLin lin₂.compoundLin
   -- FrOrdering is DERIVED by fr_ordering_holds theorem (not carried as a field).
   -- This ensures the ordering evidence is proven, not assumed.
 
