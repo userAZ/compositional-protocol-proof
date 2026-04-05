@@ -83,6 +83,12 @@ cmpLin_w → ... → e_w OB e_r_cache_downgrade
 
 Each step in this chain names a SPECIFIC PROTOCOL EVENT (downgrade, directory event, GLE, predecessor, etc.). This is the communication mechanism that the protocol uses to propagate coherence.
 
+**How to open up compoundLin defs (from user guidance):**
+When doing `cases` on `compoundLinearizationEvent`, you get `clusterCacheLin` (has perms) or `clusterDirLin` (no perms). Do `cases` on `dirAccessOfRequest` simultaneously — the sub-cases must LINE UP:
+- `clusterCacheLin` ↔ `orderBeforeDir` (event has perms)
+- `clusterDirLin` ↔ `encapDir` (event missing perms)
+Cross-cases are contradictory (reqHasPerms vs reqMissingPerms). Write a helper lemma that does this matched case-split and extracts the relevant context. See CompoundPPOs.lean line 619+ for examples of this pattern.
+
 **THIS IS WHAT THE PROOF MUST SHOW.** The acyclicity proof must demonstrate that each edge produces a cmpLinLinLink chain through proxy events. A cycle of such chains would require a proxy event to be temporally before itself → contradiction.
 
 **ENSURE YOUR PROOFS FOLLOW THIS PHILOSOPHY.** Before writing any proof code, ask: "Does this proof show the proxy chain? Does it name the protocol events?" If the proof just uses an opaque oEnd ranking without naming proxies, it's NOT following the philosophy. The proxy chain IS the proof — the ranking is derived FROM the chain.

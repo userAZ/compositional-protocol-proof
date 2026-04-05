@@ -1552,12 +1552,45 @@ private theorem edge_oEnd_lt
     | co h => exact h.event_oEnd_lt
     | fr h => exact h.event_oEnd_lt
 
--- cmpLinLinLink: the proxy chain relation between cmpLin events.
--- For each COM edge, cle_to_compoundLinOrdering derives a TemporalRel
--- (= TransGen BasicTemporalRel) through named proxy events (CLEs, downgrades).
--- For PPOi, NonLazyPPOi gives cmpLin₁ OB cmpLin₂ directly.
--- This is an irreflexive subset of TransGen {OB, Encap, EncapBy, FinishesBefore}.
--- The irreflexivity comes from the protocol structure, not a generic measure.
+/-- For each non-downgrade event, its compoundLin is either equal to the event
+    (clusterCacheLin: event has perms, cmpLin = e) or encapsulated by the event
+    (clusterDirLin: e encaps cmpLin). Case-split on compoundLinearizationEvent. -/
+private theorem compoundLin_eq_or_inside_event
+    {lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (hnotdown : ¬ e.down)
+    : lin.compoundLin = e ∨ e.Encapsulates n lin.compoundLin := by
+  -- Case-split on linearizationOfEvent to match with compoundLinearizationEvent.
+  cases hlin_ev : compound.linearizationOfEvent b init e with
+  | requestLin hreqlin =>
+    -- requestLin: event has perms → clusterCacheLin → cmpLin = e.
+    exact Or.inl (lin.compoundLin_eq_event_of_requestLin hlin_ev)
+  | dirLin hdir =>
+    -- dirLin: event missing perms → clusterDirLin → e encaps cmpLin.
+    -- CompoundPPOs.lean proves e.Encapsulates cmpLin for ncRel/acq/coherent.
+    -- TODO: extract this as a reusable lemma from CompoundPPOs machinery.
+    exact Or.inr sorry
+
+/-- PPOi TemporalRel chain through request events e₁, e₂ as named proxy events.
+    Chain: cmpLin₁ →(EncapBy e₁ if dirLin)→ e₁ →(OB)→ e₂ →(Encap cmpLin₂ if dirLin)→ cmpLin₂ -/
+private theorem ppoi_cmpLin_temporalRel
+    {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (h_ob_events : e₁.OrderedBefore n e₂)
+    (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
+    : TemporalRel lin₁.compoundLin lin₂.compoundLin := by
+  have h_suffix : ∀ x, @TemporalRel n x e₂ → @TemporalRel n x lin₂.compoundLin := by
+    intro x htr
+    cases compoundLin_eq_or_inside_event hnotdown₂ (lin := lin₂) with
+    | inl h_eq => rwa [h_eq]
+    | inr h_encap => exact htr.trans (.single (.encap h_encap))
+  cases compoundLin_eq_or_inside_event hnotdown₁ (lin := lin₁) with
+  | inl h_eq₁ =>
+    -- cmpLin₁ = e₁. Chain: cmpLin₁ = e₁ →(OB)→ e₂ →(suffix)→ cmpLin₂
+    have h_ob_cmplin : lin₁.compoundLin.OrderedBefore n e₂ := h_eq₁.symm ▸ h_ob_events
+    exact h_suffix _ (.single (.ob h_ob_cmplin))
+  | inr h_encap₁ =>
+    -- e₁ Encapsulates cmpLin₁. Chain: cmpLin₁ →(EncapBy)→ e₁ →(OB)→ e₂ →(suffix)→ cmpLin₂
+    exact h_suffix _ (.tail (.single (.encapBy h_encap₁)) (.ob h_ob_events))
 
 -- LinLink moved to Defs.lean
 
@@ -2174,24 +2207,11 @@ theorem ppoi_cmpLin_ordered_of_nonlazy
     {e₁ e₂ : Event n}
     (hppoi : PPOi (hknow e₁) (hknow e₂))
     (h_addr : e₁.addr ≠ e₂.addr)
-    : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin := by
-  have h_ob := h_non_lazy_ppoi e₁ e₂ (hknow e₁) (hknow e₂)
-    ((Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ hppoi)
-    h_addr
-  have h_eq₁ := (hknow e₁).compoundLin_eq
-  have h_eq₂ := (hknow e₂).compoundLin_eq
-  have h_bridge : ∀ e, compound.compoundLinOf b init e (compound.linearizationOfEvent b init e) =
-      (compound.compoundLinearizationEvent compound.shimAxioms b init e
-        (compound.linearizationOfEvent b init e)).linearizationEvent := by
-    intro e
-    unfold CompoundProtocol.compoundLinOf ClusterRequestLinearizationEvent.linearizationEvent
-    cases compound.compoundLinearizationEvent compound.shimAxioms b init e
-        (compound.linearizationOfEvent b init e) with
-    | clusterCacheLin _ => rfl
-    | clusterDirLin _ => rfl
-  have h_ob_cmplin : (hknow e₁).compoundLin.OrderedBefore n (hknow e₂).compoundLin := by
-    rw [h_eq₁, h_eq₂, h_bridge e₁, h_bridge e₂]; exact h_ob
-  exact Or.inl (.ppoProxy e₁ e₂ hppoi.orderedBefore (.single (.ob h_ob_cmplin)))
+    : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin :=
+  -- Explicit proxy chain through e₁, e₂ (request events):
+  -- cmpLin₁ →(EncapBy e₁ if dirLin)→ e₁ →(OB)→ e₂ →(Encap cmpLin₂ if dirLin)→ cmpLin₂
+  Or.inl (.ppoProxy e₁ e₂ hppoi.orderedBefore
+    (ppoi_cmpLin_temporalRel hppoi.orderedBefore hppoi.notDown₁ hppoi.notDown₂))
 
 /-- Prove cmpLin_ordered for any R_hknow edge (PPOi or COM).
     PPOi: derived from NonLazyPPOi (proxy chain through request events).
