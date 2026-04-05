@@ -47,13 +47,21 @@ noncomputable def cle
     (h : CompoundProtocol.globalLinearizationEventOfRequest compound b init e) : Event n :=
   h.cle
 
-/-! ## Edge definitions -/
+/-! ## Edge definitions
+
+All edge definitions are parameterized by linearization evidence `lin₁ lin₂`
+(of type `globalLinearizationEventOfRequest`). This makes compoundLin the
+PRIMARY concept: `lin.compoundLin` is the linearization point, `lin.cle` is
+the CLE, `lin.gle` is the GLE. The underlying cache events `e₁ e₂` are
+implicit (inferred from the lin types). -/
 
 /-- PPOi: Preserved Program Order (intra-cache).
     Two events on the same cache forming a PPO pair, with e₁ ordered before e₂.
-    CLE ordering is DERIVED in the proof (from dir_ordered + dirAccessOfRequest
-    for same-addr, CompoundLinearizationOrder for diff-addr). -/
-structure PPOi (e₁ e₂ : Event n) : Prop where
+    Parameterized by linearization evidence (provides compoundLin/CLE/GLE). -/
+structure PPOi {e₁ e₂ : Event n}
+    (lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
+    (lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
+    : Prop where
   ppo : e₁.isPPOPair n e₂
   orderedBefore : e₁.OrderedBefore n e₂
   sameProtocol : e₁.sameProtocol n e₂
@@ -70,8 +78,12 @@ structure PPOi (e₁ e₂ : Event n) : Prop where
 
 /-- rfe: Reads-from external (different cache).
     A write e₁ that is read by e₂, at the same address, from different caches.
+    Parameterized by linearization evidence (provides compoundLin/CLE/GLE).
     "External" means different cache (struct), not necessarily different cluster. -/
-structure rfe (e₁ e₂ : Event n) : Prop where
+structure rfe {e₁ e₂ : Event n}
+    (lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
+    (lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
+    : Prop where
   write : e₁.isWrite
   read : e₂.isRead
   sameAddr : e₁.addr = e₂.addr
@@ -80,10 +92,8 @@ structure rfe (e₁ e₂ : Event n) : Prop where
   notDown₂ : ¬ e₂.down
   cache₁ : e₁.isClusterCache
   cache₂ : e₂.isClusterCache
-  w_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
-  r_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
-  readsFrom : Behaviour.readsFrom.cases write read w_cmpLin r_cmpLin hknow_dir_access
+  readsFrom : Behaviour.readsFrom.cases write read lin₁ lin₂ hknow_dir_access
   /-- Protocol causal ordering: the reader finishes strictly after the writer.
       Validated by Murphi model checking. -/
   event_oEnd_lt : Event.oEnd n e₁ < Event.oEnd n e₂
@@ -127,12 +137,15 @@ structure co.evidence
   not_reverse : ¬ e₂.OrderedBefore n e₁
   gle_ordering : CompoundProtocol.gleOrdering.Cases w₁_cmpLin w₂_cmpLin
 
-structure co (e₁ e₂ : Event n) : Prop where
+/-- CO: Coherence ordering between two writes.
+    Parameterized by linearization evidence (provides compoundLin/CLE/GLE). -/
+structure co {e₁ e₂ : Event n}
+    (lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
+    (lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
+    : Prop where
   write₁ : e₁.isWrite
   write₂ : e₂.isWrite
   sameAddr : e₁.addr = e₂.addr
-  w₁_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
-  w₂_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
   in_b₁ : e₁ ∈ b
   in_b₂ : e₂ ∈ b
@@ -140,13 +153,15 @@ structure co (e₁ e₂ : Event n) : Prop where
   cache₂ : e₂.isClusterCache
   notDown₁ : ¬ e₁.down
   notDown₂ : ¬ e₂.down
-  comm : co.ordering w₁_cmpLin w₂_cmpLin
+  comm : co.ordering lin₁ lin₂
   /-- Protocol causal ordering: the overwriter finishes strictly after the overwritee.
       Validated by Murphi model checking. -/
   event_oEnd_lt : Event.oEnd n e₁ < Event.oEnd n e₂
 
 abbrev NonLazyPPOi (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n) : Prop :=
-  ∀ a₁ a₂ : Event n, @PPOi n b a₁ a₂ → a₁.addr ≠ a₂.addr →
+  ∀ (a₁ a₂ : Event n) (lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init a₁)
+    (lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init a₂),
+    @PPOi n compound b init a₁ a₂ lin₁ lin₂ → a₁.addr ≠ a₂.addr →
     (compound.compoundLinearizationEvent compound.shimAxioms b init a₁
       (compound.linearizationOfEvent b init a₁)).linearizationEvent.OrderedBefore n
     (compound.compoundLinearizationEvent compound.shimAxioms b init a₂
@@ -420,16 +435,11 @@ inductive FrOrdering
     (cle_eq : e₁_cmpLin.cle = e₂_cmpLin.cle)
 
 /-- fr: From-reads (rf⁻¹ ; co⁺).
-    A read e₁ reads from some write e_w, and e₂ is a write reachable from e_w
-    by a transitive chain of co steps.
-
-    The rf⁻¹ part carries the full `readsFrom.cases` structure (communication
-    events, noBetween conditions, same/diff cache cases). The co part is a
-    transitive chain of co steps, each carrying its own communication pattern.
-
-    The `ordering` field carries descriptive evidence of the communication
-    mechanism, making CleLink directly extractable. -/
-structure fr (e₁ e₂ : Event n) : Prop where
+    Parameterized by linearization evidence (provides compoundLin/CLE/GLE). -/
+structure fr {e₁ e₂ : Event n}
+    (lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁)
+    (lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂)
+    : Prop where
   read : e₁.isRead
   write : e₂.isWrite
   sameAddr : e₁.addr = e₂.addr
@@ -439,18 +449,16 @@ structure fr (e₁ e₂ : Event n) : Prop where
   in_b₂ : e₂ ∈ b
   cache₂ : e₂.isClusterCache
   notDown₂ : ¬ e₂.down
-  e₁_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁
-  e₂_cmpLin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂
   hknow_dir_access : CompoundProtocol.globalLinearizationEventOfRequest.wrapper (n := n)
-  /-- rf⁻¹ ; co⁺ decomposition: e₁ reads from e_w at some communication level
-      (full readsFrom.cases structure + NoInterveningWrites), and e₂ overwrites e_w via co⁺.
-      CLE ordering is DERIVED in the proof from rf + co + NoInterveningWrites composition. -/
+  /-- rf⁻¹ ; co⁺ decomposition: e₁ reads from e_w at some communication level.
+      The co chain uses existential lin for intermediate writes (internal to FR). -/
   comm : ∃ (e_w : Event n) (e_w_write : e_w.isWrite)
     (e_w_lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e_w),
     e_w.addr = e₁.addr ∧
-    Behaviour.readsFrom.cases e_w_write read e_w_lin e₁_cmpLin hknow_dir_access ∧
-    NoInterveningWrites e_w_write read e_w_lin e₁_cmpLin hknow_dir_access ∧
-    Relation.TransGen (@co n compound b init) e_w e₂ ∧
+    Behaviour.readsFrom.cases e_w_write read e_w_lin lin₁ hknow_dir_access ∧
+    NoInterveningWrites e_w_write read e_w_lin lin₁ hknow_dir_access ∧
+    Relation.TransGen (fun ew₁ ew₂ => ∃ (l₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init ew₁)
+      (l₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init ew₂), co l₁ l₂) e_w e₂ ∧
     e_w ∈ b ∧ e_w.isClusterCache ∧ ¬ e_w.down
   /-- Protocol causal ordering: the later writer finishes strictly after the reader.
       Validated by Murphi model checking. -/
