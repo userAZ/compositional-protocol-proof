@@ -1973,7 +1973,6 @@ private theorem temporalRel_of_cle_ob_and_rels
 private theorem temporalRel_of_eq_cle_and_rels
     {cmpLin₁ cmpLin₂ cle : Event n}
     (hrel₁ : CmpLinCleRel cmpLin₁ cle) (hrel₂ : CmpLinCleRel cmpLin₂ cle)
-    (h_ne_fallback : cmpLin₁ ≠ cmpLin₂)
     : (TemporalRel cmpLin₁ cmpLin₂ ∧ cmpLin₁ ≠ cmpLin₂) ∨
       cmpLin₁ = cmpLin₂ ∨
       (TemporalRel cmpLin₂ cmpLin₁ ∧ cmpLin₂ ≠ cmpLin₁) := by
@@ -1996,8 +1995,11 @@ private theorem temporalRel_of_eq_cle_and_rels
       -- finishesAfterProxy: at self cmpLin₁ = cmpLin₂, this IS satisfiable.
       -- h_ne derived from: both are requestLin → cmpLin = event → oEnd eq → contradicts h_event_fb.
       -- But we don't have h_event_fb here. Leave h_ne to the caller.
-      exact Or.inl ⟨.single (.finishesAfterProxy cle h₂
-        (Nat.lt_of_lt_of_le h₁ (Event.oStart_le_oEnd cmpLin₁))), h_ne_fallback⟩
+      if hne : cmpLin₁ = cmpLin₂ then
+        exact Or.inr (Or.inl hne)
+      else
+        exact Or.inl ⟨.single (.finishesAfterProxy cle h₂
+          (Nat.lt_of_lt_of_le h₁ (Event.oStart_le_oEnd cmpLin₁))), hne⟩
     | inside h₂ =>
       refine Or.inr (Or.inr ⟨.single (.ob (Nat.lt_trans h₂.right h₁)), ?_⟩)
       intro heq; exact Nat.lt_irrefl _ (heq ▸ Nat.lt_trans (Nat.lt_trans h₂.right h₁) (Event.oWellFormed n cmpLin₁))
@@ -2010,7 +2012,13 @@ private theorem temporalRel_of_eq_cle_and_rels
       refine Or.inl ⟨.single (.ob (Nat.lt_trans h₁.right h₂)), ?_⟩
       intro heq; exact Nat.lt_irrefl _ (heq ▸ Nat.lt_trans (Nat.lt_trans h₁.right h₂) (Event.oWellFormed n cmpLin₂))
     | inside h₂ =>
-      exact Or.inl ⟨.tail (.single (.encapBy h₁)) (.encap h₂), h_ne_fallback⟩
+      -- Both inside CLE. At shared CLE, cmpLin₁ = cmpLin₂ is possible
+      -- (both events share the same global linearization chain through the CLE).
+      -- Use DecidableEq to check.
+      if hne : cmpLin₁ = cmpLin₂ then
+        exact Or.inr (Or.inl hne)
+      else
+        exact Or.inl ⟨.tail (.single (.encapBy h₁)) (.encap h₂), hne⟩
 
 /-- Two cache events sharing the same CLE (via encapDir) must be the same event.
     The CLE's dirOfReq field (matchesCacheEvent.correspondingCE) links CLE.eReq to the cache event.
@@ -2282,21 +2290,75 @@ theorem cle_to_compoundLinOrdering
   -- For non-eq CleLinks: forward proxy with explicit CmpLinCleRel.
   -- For eq CleLink: case-split on the two CmpLinCleRel to determine direction.
   -- Helper: build forward LinLink.proxy with all fields for non-eq CleLink
-  have h_cmpLin_ne := @cmpLin_ne_of_event_fb n compound b init e₁ e₂ lin₁ lin₂
-    hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_cluster₁ h_cluster₂ h_event_fb
+  -- h_ne for non-eq CleLink: CLE₁ OB CLE₂ gives temporal contradiction at cmpLin₁ = cmpLin₂.
+  -- For each CmpLinCleRel pair at shared cmpLin: OB between CLEs forces oEnd < oStart.
+  have h_ne_of_cle_ob (h_cle_ob : lin₁.cle.OrderedBefore n lin₂.cle)
+      : lin₁.compoundLin ≠ lin₂.compoundLin := by
+    intro heq
+    -- Case-split on CmpLinCleRel pairs
+    cases hrel₁ with
+    | eq h₁ =>
+      cases hrel₂ with
+      | eq h₂ => exact absurd (h₁.symm.trans (heq.trans h₂)) (Event.ne_of_ob h_cle_ob)
+      | cle_ob _ _ _ h_nd₂ =>
+        -- cmpLin₁ = CLE₁ (dir). cmpLin₂ not dir. At eq: contradiction.
+        have : lin₁.compoundLin.isDirectoryEvent := h₁ ▸ h₁_isdir
+        exact h_nd₂ (heq ▸ this)
+      | inside h₂ =>
+        -- cmpLin₁ = CLE₁. CLE₂ Encaps cmpLin₂. CLE₁ OB CLE₂.
+        -- At eq: CLE₁.oEnd < CLE₂.oStart < cmpLin₂.oStart = cmpLin₁.oStart = CLE₁.oStart → False.
+        have : Event.oEnd n lin₁.cle < Event.oStart n lin₂.compoundLin :=
+          Nat.lt_trans h_cle_ob h₂.left
+        rw [← heq, h₁] at this
+        exact Nat.lt_irrefl _ (Nat.lt_trans this (Event.oWellFormed n lin₁.cle))
+    | cle_ob _ _ _ h_nd₁ =>
+      cases hrel₂ with
+      | eq h₂ =>
+        have : lin₂.compoundLin.isDirectoryEvent := h₂ ▸ h₂_isdir
+        exact h_nd₁ (heq.symm ▸ this)
+      | cle_ob _ _ _ _ =>
+        -- Both cle_ob (requestLin). cmpLin = event. At eq: same event → oEnd contradiction.
+        exact @cmpLin_ne_of_event_fb n compound b init e₁ e₂ lin₁ lin₂
+          hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_cluster₁ h_cluster₂ h_event_fb heq
+      | inside _ =>
+        -- cle_ob prefix (¬dir) + inside suffix. Inside from dirLin.
+        -- Protocol: cle_ob → requestLin → cluster cache. Inside → global or dir event.
+        -- Use protocol distinction or CLE OB temporal chain.
+        exact @cmpLin_ne_of_event_fb n compound b init e₁ e₂ lin₁ lin₂
+          hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_cluster₁ h_cluster₂ h_event_fb heq
+    | inside h₁ =>
+      cases hrel₂ with
+      | eq h₂ =>
+        -- cmpLin₁ inside CLE₁. cmpLin₂ = CLE₂. CLE₁ OB CLE₂.
+        -- cmpLin₁.oEnd < CLE₁.oEnd < CLE₂.oStart = cmpLin₂.oStart. At eq: oEnd < oStart → False.
+        have : Event.oEnd n lin₁.compoundLin < Event.oStart n lin₂.cle :=
+          Nat.lt_trans h₁.right h_cle_ob
+        rw [heq, h₂] at this
+        exact Nat.lt_irrefl _ (Nat.lt_trans this (Event.oWellFormed n lin₂.cle))
+      | cle_ob _ _ _ _ =>
+        exact @cmpLin_ne_of_event_fb n compound b init e₁ e₂ lin₁ lin₂
+          hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_cluster₁ h_cluster₂ h_event_fb heq
+      | inside h₂ =>
+        -- Both inside: cl inside CLE₁ AND cl inside CLE₂. CLE₁ OB CLE₂.
+        -- cl.oEnd < CLE₁.oEnd < CLE₂.oStart < cl.oStart → cl.oEnd < cl.oStart → False.
+        have chain : Event.oEnd n lin₁.compoundLin < Event.oStart n lin₂.compoundLin :=
+          Nat.lt_trans h₁.right (Nat.lt_trans h_cle_ob h₂.left)
+        rw [heq] at chain
+        exact Nat.lt_irrefl _ (Nat.lt_trans chain (Event.oWellFormed n lin₂.compoundLin))
   have mk_fwd (hcl : @CleLink n lin₁.cle lin₂.cle) (htr : TemporalRel lin₁.compoundLin lin₂.compoundLin)
+      (h_cle_ob : lin₁.cle.OrderedBefore n lin₂.cle)
       : LinLink lin₁.compoundLin lin₂.compoundLin :=
-    .proxy _ _ hcl h₁_isdir h₂_isdir hrel₁ hrel₂ htr h_cmpLin_ne
+    .proxy _ _ hcl h₁_isdir h₂_isdir hrel₁ hrel₂ htr (h_ne_of_cle_ob h_cle_ob)
   cases h with
   | eq heq =>
     -- CLE₁ = CLE₂. Use temporalRel_of_eq_cle_and_rels for direction.
-    match temporalRel_of_eq_cle_and_rels hrel₁ (heq ▸ hrel₂) h_cmpLin_ne with
+    match temporalRel_of_eq_cle_and_rels hrel₁ (heq ▸ hrel₂) with
     | .inl ⟨htr, hne⟩ => exact Or.inl (.proxy _ _ (.eq heq) h₁_isdir h₂_isdir hrel₁ (heq ▸ hrel₂) htr hne)
     | .inr (.inl heq_cl) => exact Or.inr (Or.inl heq_cl)
     | .inr (.inr ⟨htr_rev, hne⟩) => exact Or.inr (Or.inr (.proxy _ _ (.eq heq.symm) h₂_isdir h₁_isdir (heq ▸ hrel₂) hrel₁ htr_rev hne))
   | ob hob _ =>
     exact Or.inl (mk_fwd (.ob hob (Event.ne_of_ob hob))
-      (temporalRel_of_cle_ob_and_rels hob hrel₁ hrel₂))
+      (temporalRel_of_cle_ob_and_rels hob hrel₁ hrel₂) hob)
   | obEndLt p hob_cl hlt hdir_p hne =>
     have h_cle_ob : lin₁.cle.OrderedBefore n lin₂.cle := by
       match hfc₁ : lin₁.cle, h₁_isdir with
@@ -2313,9 +2375,9 @@ theorem cle_to_compoundLinOrdering
             exact Nat.lt_irrefl de₂.oEnd (Nat.lt_trans hob_rev (Nat.lt_trans de₁.oWellFormed
               (Nat.lt_trans hob_cl (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd p) hlt))))
     exact Or.inl (mk_fwd (.obEndLt p hob_cl hlt hdir_p hne)
-      (temporalRel_of_cle_ob_and_rels h_cle_ob hrel₁ hrel₂))
+      (temporalRel_of_cle_ob_and_rels h_cle_ob hrel₁ hrel₂) h_cle_ob)
   | sameLin e₁' e₂' heq' henc₁ hob_s henc₂ =>
-    match temporalRel_of_eq_cle_and_rels hrel₁ (heq' ▸ hrel₂) h_cmpLin_ne with
+    match temporalRel_of_eq_cle_and_rels hrel₁ (heq' ▸ hrel₂) with
     | .inl ⟨htr, hne⟩ => exact Or.inl (.proxy _ _ (.sameLin e₁' e₂' heq' henc₁ hob_s henc₂) h₁_isdir h₂_isdir hrel₁ (heq' ▸ hrel₂) htr hne)
     | .inr (.inl heq_cl) => exact Or.inr (Or.inl heq_cl)
     | .inr (.inr ⟨htr_rev, hne⟩) => exact Or.inr (Or.inr (.proxy _ _ (.eq heq'.symm) h₂_isdir h₁_isdir (heq' ▸ hrel₂) hrel₁ htr_rev hne))
@@ -2336,7 +2398,7 @@ theorem cle_to_compoundLinOrdering
               (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd (.directoryEvent de₂))
                 (Nat.lt_trans hob_rev (Nat.lt_trans h_enc.1 (Event.oWellFormed n p)))))
     exact Or.inl (mk_fwd (.encapOb p h_enc h_ob h_ne)
-      (temporalRel_of_cle_ob_and_rels h_cle_ob hrel₁ hrel₂))
+      (temporalRel_of_cle_ob_and_rels h_cle_ob hrel₁ hrel₂) h_cle_ob)
   | proxyPair q p h_enc h_qob h_pob h_ne =>
     -- proxyPair: extract CLE₁ OB CLE₂ for both temporalRel and h_ne.
     have h_cle_ob : lin₁.cle.OrderedBefore n lin₂.cle := by
@@ -2355,7 +2417,7 @@ theorem cle_to_compoundLinOrdering
                 (Nat.lt_trans hob_rev (Nat.lt_trans h_enc.1
                   (Nat.lt_trans (Event.oWellFormed n q) (Nat.lt_trans h_qob (Event.oWellFormed n p)))))))
     exact Or.inl (mk_fwd (.proxyPair q p h_enc h_qob h_pob h_ne)
-      (temporalRel_of_cle_ob_and_rels h_cle_ob hrel₁ hrel₂))
+      (temporalRel_of_cle_ob_and_rels h_cle_ob hrel₁ hrel₂) h_cle_ob)
   | encap h_enc h_ne =>
     have h_cle_ob : lin₁.cle.OrderedBefore n lin₂.cle := by
       match hfc₁ : lin₁.cle, h₁_isdir with
@@ -2371,7 +2433,7 @@ theorem cle_to_compoundLinOrdering
             exact Nat.lt_irrefl _ (Nat.lt_trans hob_rev
               (Nat.lt_trans h_enc.1 (Event.oWellFormed n (.directoryEvent de₂))))
     exact Or.inl (mk_fwd (.encap h_enc h_ne)
-      (temporalRel_of_cle_ob_and_rels h_cle_ob hrel₁ hrel₂))
+      (temporalRel_of_cle_ob_and_rels h_cle_ob hrel₁ hrel₂) h_cle_ob)
   | encapObEndLt q p h_enc h_qob h_plt h_p_isdir h_ne =>
     have h_cle_ob : lin₁.cle.OrderedBefore n lin₂.cle := by
       match hfc₁ : lin₁.cle, h₁_isdir with
@@ -2388,7 +2450,7 @@ theorem cle_to_compoundLinOrdering
               (Nat.lt_trans h_enc.1 (Nat.lt_trans (Event.oWellFormed n q)
                 (Nat.lt_trans h_qob (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd p) h_plt)))))
     exact Or.inl (mk_fwd (.encapObEndLt q p h_enc h_qob h_plt h_p_isdir h_ne)
-      (temporalRel_of_cle_ob_and_rels h_cle_ob hrel₁ hrel₂))
+      (temporalRel_of_cle_ob_and_rels h_cle_ob hrel₁ hrel₂) h_cle_ob)
   | obFinishBefore p h_ob h_lt h_diff_prot h_p_isdir h_ne =>
     -- obFinishBefore: p OB CLE₂, p.oEnd < CLE₁.oEnd. Can't derive CLE₁ OB CLE₂.
     -- Build TemporalRel cmpLin₁ cmpLin₂ directly through CmpLinCleRel prefix/suffix.
@@ -2414,7 +2476,10 @@ theorem cle_to_compoundLinOrdering
       | inside h₁_ins =>
         -- cle₁ Encapsulates cmpLin₁. Chain: cmpLin₁ →(encapBy) cle₁ →(finishesAfterProxy) cle₂.
         exact h_suffix _ (.tail (.single (.encapBy h₁_ins)) (.finishesAfterProxy p h_ob h_lt))
-    exact Or.inl (mk_fwd (.obFinishBefore p h_ob h_lt h_diff_prot h_p_isdir h_ne) htr)
+    have h_cmpLin_ne := @cmpLin_ne_of_event_fb n compound b init e₁ e₂ lin₁ lin₂
+      hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_cluster₁ h_cluster₂ h_event_fb
+    exact Or.inl (.proxy _ _ (.obFinishBefore p h_ob h_lt h_diff_prot h_p_isdir h_ne)
+      h₁_isdir h₂_isdir hrel₁ hrel₂ htr h_cmpLin_ne)
 
 
 theorem cmcm_acyclic_of_hknow
