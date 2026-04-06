@@ -260,7 +260,6 @@ inductive LinLink {n : ℕ} (l₁ l₂ : Event n) : Prop
       (h_prefix : CmpLinCleRel l₁ cle₁)
       (h_suffix : CmpLinCleRel l₂ cle₂)
       (h_chain : TemporalRel l₁ l₂)
-      (h_ne : l₁ ≠ l₂)
   /-- cmpLin events connected through request events (PPOi proxy chain).
       e₁/e₂ are the request events forming a PPO pair at the same cache.
       h_ob: e₁ finishes before e₂ starts (preserved program order).
@@ -269,16 +268,7 @@ inductive LinLink {n : ℕ} (l₁ l₂ : Event n) : Prop
   | ppoProxy (e₁ e₂ : Event n)
       (h_ob : e₁.OrderedBefore n e₂)
       (h_chain : TemporalRel l₁ l₂)
-      (h_ne : l₁ ≠ l₂)
 
-/-- LinLink is irreflexive: no compoundLin event can link to itself.
-    Every constructor carries h_ne : l₁ ≠ l₂. -/
-theorem LinLink.irrefl' {l : Event n} : ¬ @LinLink n l l := by
-  intro h
-  cases h with
-  | step _ _ _ h_ne => exact absurd rfl h_ne
-  | proxy _ _ _ _ _ _ _ _ h_ne => exact absurd rfl h_ne
-  | ppoProxy _ _ _ _ h_ne => exact absurd rfl h_ne
 
 /-- The 3-way compoundLin ordering for an edge: forward LinLink, equality, or reverse LinLink. -/
 abbrev CmpLinOrdering {n : ℕ} (cmpLin₁ cmpLin₂ : Event n) : Prop :=
