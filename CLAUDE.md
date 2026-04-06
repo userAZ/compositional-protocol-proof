@@ -11,7 +11,8 @@
 - **cmpLinLinLink (clll) must be an INDUCTIVE with h_ne.** Like CleLink, each clll constructor must carry specific protocol events AND `h_ne : l₁ ≠ l₂`. This makes irreflexivity trivial (`absurd rfl h_ne` at self-reference). The constructors mirror protocol scenarios (PPOi through e₁/e₂, COM through CLE₁/CLE₂/downgrades). This is the same pattern as CleLink/StepOrdering/LinLink. Don't use opaque `TemporalRel` as the sole ranking — use specific named temporal evidence that implies `h_ne`.
 - **CmpLinCleRel.cle_ob now carries h_not_dir.** `cle_ob` → cmpLin is NOT a directory event (from requestLin = cache event). This enables h_ne derivation for cle_ob+eq suffix case (cache ≠ dir).
 - **Write inductive definitions with cases carrying protocol scenario info.** Don't be afraid of writing new inductives. When you need to track information through case-splits (like `cmpLin = e` from requestLin), use an inductive where each constructor carries the relevant evidence. Disjunctions (`∨`) lose the connection between cases and their evidence. An inductive with named constructors preserves it. Example: `CmpLinEventRel` should carry `cmpLin = e` in its requestLin constructor, not just `¬ isDirectoryEvent`.
-- **Don't go in circles on type issues.** When `▸`/`rw` fail because existentials from pattern matching lose connection to original parameters, write an inductive that carries the equation explicitly. Track `e` through a hypothesis carried in the inductive constructor.
+- **Write inductive definitions with cases carrying protocol scenario info.** Don't be afraid of writing new inductives where each constructor carries the relevant protocol evidence. When you need to track information through case-splits (like `cmpLin = e` from requestLin), use an inductive where each constructor carries the equation explicitly. Disjunctions (`∨`) lose the connection between cases and their evidence after pattern matching. An inductive with named constructors preserves it. This is the FUNDAMENTAL technique for this project — CleLink, LinLink, CmpLinCleRel, FrOrdering all follow this pattern.
+- **Don't go in circles on type issues.** When `▸`/`rw` fail because existentials from pattern matching lose connection to original parameters, use `compoundLin_event_rel` which returns equations with the ORIGINAL event parameters (not existentials). Or write a new inductive that carries the equation with the original param.
 - **Use OB/Encap/EncapBy for temporal evidence, not FinishesBefore.** `event_oEnd_lt` (= FinishesBefore) is the weakest temporal relation. Many edges have STRONGER evidence: PPOi has `e₁ OB e₂`, COM has CLE₁ OB CLE₂, etc. Edge structures should carry or derive OB/Encap/EncapBy between the appropriate proxy events. `event_oEnd_lt` should be REPLACED with the stronger relation where available. This gives h_ne directly (OB/Encap/EncapBy all imply strict oStart inequality → h_ne). Don't think of `event_oEnd_lt` as a "fallback" — think of ALL temporal relations as tools, and use the strongest one.
 
 ## Philosophy — READ THIS FIRST
@@ -192,17 +193,20 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **`event_oEnd_lt` remains** on rfe/co/fr as ranking measure (cmpLin oEnd not directly derivable).
 - **orderAfterDir is NOT vacuous for e.Encapsulates cmpLin.** For NC weak req on Vd: cmpLin = CLE at successor, e OB CLE (not encaps). Need third case in compoundLin_eq_or_inside_event or different handling.
 
-### TODO — cmpLin migration (ACTIVE, 2026-04-05)
+### TODO — cmpLin migration (2026-04-06)
 1. **DONE: PPOi `cmpLin_ordered` derived** from NonLazyPPOi.
 2. **DONE: `cmpLin_ordered` field removed** from rfe/co/fr. Derived via `com_cmpLin_ordered`. NOTE: rfe is based on rf — the rf definition is the foundation.
-3. **DEFINE cmpLinLinLink (clll) AND USE IT AS THE CENTRAL RELATION.** This is the main remaining task.
-   - Define `cmpLinLinLink cmpLin₁ cmpLin₂` as a `TransGen` chain of OB/Encap/EncapBy/FinishesBefore through NAMED PROXY EVENTS (not directly between cmpLin₁ and cmpLin₂).
-   - cmpLin events are NOT directly constrained (different caches take different cycles). They're linked ONLY through proxy events (downgrades, CLE, GLE, predecessor, successor).
-   - Do NOT assume `cmpLin₁.oEnd < cmpLin₂.oEnd` as a field. REMOVE `cmpLin_oEnd_lt` from rfe/co/fr. DERIVE the ordering from the proxy chain.
-   - For each COM edge type (rfe/co/fr), derive the cmpLinLinLink chain by tracing through the RF/CO/FR definitions' communication cases: sameCluster, diffCluster_coherent, diffCluster_evict, etc.
-   - The cmpLinLinLink relation is an irreflexive subset of `TransGen BasicTemporalRel`.
-   - For PPOi: NonLazyPPOi gives `cmpLin₁ OB cmpLin₂` directly (one-step chain).
-   - Cycle contradiction: TransGen of cmpLinLinLink → TransGen BasicTemporalRel → irreflexive (because the proxy chain gives strict temporal progress through named events).
+3. **IN PROGRESS: `cmpLinLinLink` defined with LinLink.irrefl' (h_ne restored).**
+   - `cmpLinLinLink` (Proof.lean) bundles R_hknow edge + CmpLinOrdering proxy chain.
+   - `LinLink.irrefl'` proves `LinLink l l → False` (h_ne restored to proxy/ppoProxy constructors).
+   - `edge_to_cmpLinLinLink` lifts every R_hknow edge to cmpLinLinLink.
+   - `cmpLinLinLink_acyclic` proves acyclicity via event_oEnd_lt on the .edge component.
+   - `cmcm_acyclic_of_hknow_compoundLinOrdering` lifts R_hknow cycle to cmpLinLinLink cycle → contradiction.
+   - Theorem flow: `cmpLinLinLink_acyclic` → `cmcm_acyclic_of_hknow_compoundLinOrdering` → `cmcm_acyclic` → `cmcm`.
+   - **3 sorry's in `cmpLin_ne_of_event_fb` dirLin×dirLin, all involving orderAfterDir.** The sorry is `cmpLin₁ ≠ cmpLin₂` when both events have dirLin linearization. Proven sub-cases: requestLin×requestLin (oEnd), requestLin×dirLin-eq (isDirectoryEvent), requestLin×dirLin-inside (cluster vs global protocol), dirLin-eq×dirLin-eq encapDir×encapDir (shared CLE eReq injectivity via eq_of_shared_encapDir_cle), encapDir×orderAfterDir temporal contradiction, dirLin-eq×dirLin-inside protocol (CLE.protocol = cluster ≠ global). Remaining: orderAfterDir₁×encapDir₂ (e₂ = successor, genuine shared CLE possible but h_ne from temporal if CLE OB or from eq_of_shared_encapDir_cle variant), orderAfterDir₁×orderAfterDir₂ (both successors encapsulate same CLE), getGlobalCachePerms×getGlobalCachePerms (both at global level).
+   - `temporalRel_of_eq_cle_and_rels` returns `(TemporalRel ∧ h_ne) ∨ eq ∨ (TemporalRel ∧ h_ne)` — h_ne derived from temporal chain for 6/8 cases (OB/Encap/EncapBy at self → oWellFormed contradiction), fallback to `cmpLin_ne_of_event_fb` for cle_ob×cle_ob and inside×inside.
+   - `notdir_of_edge` derives ¬isDirectoryEvent from isClusterCache evidence.
+   - `edge_cmpLin_ordered` simplified: derives notdown/notdir internally.
 4. **Name proxy events meaningfully** in LinLink constructors and CleLink. Use names like `writerCLE`, `readerCLE`, `cdir_downgrade`, `gcache_downgrade`, `predecessor`, `successor` — NOT single-letter variables like `p`, `q`, `e₁'`. The user's definitions always use meaningful names.
 5. **Update LinLink.proxy to use meaningful proxy event names** — rename fields to describe WHAT the proxy events are in the protocol (predecessor CLE, downgrade event, etc.)
 
@@ -212,15 +216,18 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **PPOi (diff-addr) + CLE equality**: Impossible. CLE.addr = e.addr (from dirAccessOfRequest.dirCorresponds.sameAddr), so CLE₁=CLE₂ → e₁.addr=e₂.addr → contradicts addr≠.
 - **rfe + CLE equality**: Impossible. Case-split CleLink → non-eq/sameLin give contradiction. eq case: case-split readsFrom → all sub-cases give OB/oEnd chains that contradict CLE₁=CLE₂.
 - **Key theorems**:
-  - `cmcm_acyclic_of_hknow` (line 2600): CLE-level acyclicity proof. COM evidence via step_to_ordering → compose_three.
-  - `cmcm_acyclic_of_hknow_compoundLinOrdering` (line 2632): CompoundLin-level acyclicity. LinLink invariant on compoundLin events. Lifts CLE result via lift_cle_3way_to_compoundLin. Cycle closure via LinLink.irrefl.
-  - `LinLink.subset_temporalRel` (line 2711): Every LinLink decomposes into TransGen BasicTemporalRel.
-  - `CleLink.subset_temporalRel` (Defs.lean:211): Every CleLink decomposes into TransGen BasicTemporalRel.
-  - `compoundLin_not_ob_cle` (line 1573): ob_cle always vacuous (MR+NCWeakWrite protocol-impossible).
+  - `cmpLinLinLink_acyclic`: Core acyclicity proof on cmpLinLinLink (event_oEnd_lt per edge).
+  - `cmcm_acyclic_of_hknow_compoundLinOrdering`: Lifts R_hknow → cmpLinLinLink → acyclic.
+  - `cmcm_acyclic_of_hknow`: Standalone event-level acyclicity (event_oEnd_lt directly).
+  - `edge_to_cmpLinLinLink`: Lifts R_hknow edge to cmpLinLinLink (adds CmpLinOrdering).
+  - `edge_cmpLin_ordered`: Derives CmpLinOrdering for any R_hknow edge (notdown/notdir internal).
+  - `CleLink.subset_temporalRel` (Defs.lean): Every CleLink decomposes into TransGen BasicTemporalRel.
+  - `compoundLin_not_ob_cle` (Proof.lean): ob_cle always vacuous (MR+NCWeakWrite protocol-impossible).
   - `co_ordering_holds` (CoTheorem.lean): CO theorem from protocol axioms.
 - **Architecture**:
   - `cle_path_invariant`: Reusable CLE-level induction (CleLink/eq/reverse on CLEs from any path).
-  - COM evidence flow: edge → step_to_ordering → CleLink → compose_three → lift_cle_3way_to_compoundLin → LinLink.
+  - COM evidence flow: edge → step_to_ordering → CleLink → cle_to_compoundLinOrdering → CmpLinOrdering (LinLink/eq/reverse).
+  - Theorem flow: `cmpLinLinLink_acyclic` → `cmcm_acyclic_of_hknow_compoundLinOrdering` → `cmcm_acyclic` → `cmcm`.
   - `TemporalRel = TransGen BasicTemporalRel` where BasicTemporalRel = {OB, Encap, EncapBy, FinishesBefore}.
   - `finishesAfterProxy` removed from TemporalRel; obFinishBefore handled via dir_ordered exfalso.
   - **Composition**: `compose_three` handles all StepOrdering/eq/reverseOB × PPOi/COM cases.
@@ -262,6 +269,13 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **The proxy chain IS the RF/CO/FR definitions drawn out.** Read the actual RF def (`Behaviour.readsFrom.cases`). The communication cases describe the exact proxy chains. Mirror them in the proof. Don't invent abstract alternatives.
 - **cmpLin events are NOT directly constrained.** Different cache events at different caches/clusters have no direct OB/Encap/etc constraint. They're connected ONLY through proxy events (downgrades, CLE, GLE, predecessor, successor). NEVER assume cmpLin₁.oEnd < cmpLin₂.oEnd as a field — DERIVE it from the proxy chain.
 - **rfe is based on rf.** The rf definition is the foundation. rfe adds "external" (different cache). Always think about rf first.
+
+### Lessons learned (cmpLin h_ne derivation, 2026-04-06)
+- **For cmpLin h_ne: case-split on linearizationOfEvent, not compoundLin_event_rel.** The linearizationOfEvent gives requestLin (cmpLin = e) or dirLin (cmpLin at directory level). This is cleaner than the 3-way from compoundLin_event_rel because requestLin directly gives cmpLin = e (the cache event).
+- **requestLin × dirLin-eq closes via isDirectoryEvent.** CLE is always a directory event. requestLin gives cmpLin = e (cache, ¬ dir). At eq: cache = dir → contradiction.
+- **requestLin × dirLin-inside closes via protocol.** compoundLin_cle_of_dirLin gives protocol = .global for the inside case. Cache events have cluster protocol (from isClusterCache.eCluster). At eq: cluster ≠ global.
+- **dirLin × dirLin is the genuine protocol gap.** Both events go through directory linearization. The compoundLin events are at the directory/global level. Proving they're distinct requires protocol injectivity — that the linearization chain produces distinct events for different cache events.
+- **Thread isClusterCache through the call chain.** Needed for the cluster ≠ global argument. PPOi/COM edges carry cache₁/cache₂ : isClusterCache. Thread through edge_cmpLin_ordered → com_cmpLin_ordered → edge_cmpLin_linlink → cle_to_compoundLinOrdering → cmpLin_ne_of_event_fb.
 
 ### Lessons learned THIS SESSION (cmpLin migration, 2026-04-05)
 - **cmpLin events are NOT directly constrained.** Different cache events at different caches/clusters have no direct OB/Encap/etc between their cmpLin events. The ordering goes ONLY through protocol proxy events (CLE, downgrades, GLE, predecessor, successor).

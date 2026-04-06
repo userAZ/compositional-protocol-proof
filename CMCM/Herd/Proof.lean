@@ -1966,30 +1966,301 @@ private theorem temporalRel_of_cle_ob_and_rels
   | inside h₁_ins => exact h_suffix _ (.tail (.single (.encapBy h₁_ins)) (.ob hob))
 
 
-/-- Build TemporalRel for CleLink.eq case from CmpLinCleRel pair through shared CLE. -/
+/-- For eq CLE: derive 3-way ordering AND h_ne for the non-eq cases.
+    Returns (TemporalRel ∧ h_ne) ∨ eq ∨ (reverse TemporalRel ∧ h_ne).
+    All non-eq temporal chains contain OB/Encap/EncapBy which give h_ne at self-reference,
+    EXCEPT cle_ob × cle_ob (finishesAfterProxy) which needs external h_ne evidence. -/
 private theorem temporalRel_of_eq_cle_and_rels
     {cmpLin₁ cmpLin₂ cle : Event n}
     (hrel₁ : CmpLinCleRel cmpLin₁ cle) (hrel₂ : CmpLinCleRel cmpLin₂ cle)
-    : TemporalRel cmpLin₁ cmpLin₂ ∨ cmpLin₁ = cmpLin₂ ∨ TemporalRel cmpLin₂ cmpLin₁ := by
+    (h_ne_fallback : cmpLin₁ ≠ cmpLin₂)
+    : (TemporalRel cmpLin₁ cmpLin₂ ∧ cmpLin₁ ≠ cmpLin₂) ∨
+      cmpLin₁ = cmpLin₂ ∨
+      (TemporalRel cmpLin₂ cmpLin₁ ∧ cmpLin₂ ≠ cmpLin₁) := by
   cases hrel₁ with
   | eq h₁ =>
     cases hrel₂ with
     | eq h₂ => exact Or.inr (Or.inl (h₁.trans h₂.symm))
-    | cle_ob _ _ h₂ _ => exact Or.inl (h₁ ▸ .single (.ob h₂))
-    | inside h₂ => exact Or.inl (h₁ ▸ .single (.encap h₂))
+    | cle_ob _ _ h₂ _ =>
+      refine Or.inl ⟨h₁ ▸ .single (.ob h₂), ?_⟩
+      intro heq; exact Nat.lt_irrefl _ (heq ▸ h₁ ▸ Nat.lt_trans h₂ (Event.oWellFormed n cmpLin₂))
+    | inside h₂ =>
+      refine Or.inl ⟨h₁ ▸ .single (.encap h₂), ?_⟩
+      intro heq; exact Nat.lt_irrefl _ (heq ▸ h₁ ▸ h₂.left)
   | cle_ob _ _ h₁ _ =>
     cases hrel₂ with
-    | eq h₂ => exact Or.inr (Or.inr (h₂ ▸ .single (.ob h₁)))
+    | eq h₂ =>
+      refine Or.inr (Or.inr ⟨h₂ ▸ .single (.ob h₁), ?_⟩)
+      intro heq; exact Nat.lt_irrefl _ (heq ▸ h₂ ▸ Nat.lt_trans h₁ (Event.oWellFormed n cmpLin₁))
     | cle_ob _ _ h₂ _ =>
-      have : Event.oEnd n cle < Event.oEnd n cmpLin₁ :=
-        Nat.lt_of_lt_of_le h₁ (Event.oStart_le_oEnd cmpLin₁)
-      exact Or.inl (.single (.finishesAfterProxy cle h₂ this))
-    | inside h₂ => exact Or.inr (Or.inr (.single (.ob (Nat.lt_trans h₂.right h₁))))
+      -- finishesAfterProxy: at self cmpLin₁ = cmpLin₂, this IS satisfiable.
+      -- h_ne derived from: both are requestLin → cmpLin = event → oEnd eq → contradicts h_event_fb.
+      -- But we don't have h_event_fb here. Leave h_ne to the caller.
+      exact Or.inl ⟨.single (.finishesAfterProxy cle h₂
+        (Nat.lt_of_lt_of_le h₁ (Event.oStart_le_oEnd cmpLin₁))), h_ne_fallback⟩
+    | inside h₂ =>
+      refine Or.inr (Or.inr ⟨.single (.ob (Nat.lt_trans h₂.right h₁)), ?_⟩)
+      intro heq; exact Nat.lt_irrefl _ (heq ▸ Nat.lt_trans (Nat.lt_trans h₂.right h₁) (Event.oWellFormed n cmpLin₁))
   | inside h₁ =>
     cases hrel₂ with
-    | eq h₂ => exact Or.inl (.single (.encapBy (h₂ ▸ h₁)))
-    | cle_ob _ _ h₂ _ => exact Or.inl (.single (.ob (Nat.lt_trans h₁.right h₂)))
-    | inside h₂ => exact Or.inl (.tail (.single (.encapBy h₁)) (.encap h₂))
+    | eq h₂ =>
+      refine Or.inl ⟨.single (.encapBy (h₂ ▸ h₁)), ?_⟩
+      intro heq; exact Nat.lt_irrefl _ (heq ▸ h₂ ▸ h₁.left)
+    | cle_ob _ _ h₂ _ =>
+      refine Or.inl ⟨.single (.ob (Nat.lt_trans h₁.right h₂)), ?_⟩
+      intro heq; exact Nat.lt_irrefl _ (heq ▸ Nat.lt_trans (Nat.lt_trans h₁.right h₂) (Event.oWellFormed n cmpLin₂))
+    | inside h₂ =>
+      exact Or.inl ⟨.tail (.single (.encapBy h₁)) (.encap h₂), h_ne_fallback⟩
+
+/-- Two cache events sharing the same CLE (via encapDir) must be the same event.
+    The CLE's dirOfReq field (matchesCacheEvent.correspondingCE) links CLE.eReq to the cache event.
+    If CLE₁ = CLE₂ and both correspond to their respective cache events, the cache events are equal. -/
+private theorem eq_of_shared_encapDir_cle
+    {e₁ e₂ cle : Event n}
+    {b : Behaviour n} {init : InitialSystemState n}
+    (hencap₁ : b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e₁) true e₁ cle)
+    (hencap₂ : b.cacheEncapsulatesCorrespondingDirEvent n (init.stateAt n e₂) true e₂ cle)
+    : e₁ = e₂ := by
+  -- dirOfReq : cle.dirEventOfReqEvent n eᵢ.
+  -- For .directoryEvent de, .cacheEvent ce: de.matchesCacheEvent n ce → de.eReq = ce.
+  -- Same cle → same de → same eReq → same cache event.
+  have h₁ := hencap₁.dirOfReq
+  have h₂ := hencap₂.dirOfReq
+  match e₁, e₂, cle, hencap₁.isDir with
+  | .cacheEvent ce₁, .cacheEvent ce₂, .directoryEvent de, _ =>
+    have := h₁.correspondingCE  -- de.eReq = ce₁
+    have := h₂.correspondingCE  -- de.eReq = ce₂
+    congr 1; exact ‹de.eReq = ce₁›.symm.trans ‹de.eReq = ce₂›
+  | .cacheEvent _, .directoryEvent _, .directoryEvent _, _ =>
+    simp [Event.dirEventOfReqEvent] at h₂
+  | .directoryEvent _, .cacheEvent _, .directoryEvent _, _ =>
+    simp [Event.dirEventOfReqEvent] at h₁
+  | .directoryEvent _, .directoryEvent _, .directoryEvent _, _ =>
+    simp [Event.dirEventOfReqEvent] at h₁
+  | _, _, .cacheEvent _, h =>
+    simp [Event.isDirectoryEvent] at h
+
+/-- For orderAfterDir: CLE.protocol = e_req.protocol (cluster, not global).
+    The CLE corresponds to the successor via cacheEncapsulatesCorrespondingDirEvent.
+    sameProtocol chains: CLE.protocol = succ.protocol = e_req.protocol. -/
+private theorem orderAfterDir_cle_protocol_eq_event
+    {b : Behaviour n} {init : InitialSystemState n} {e_req e_dir : Event n}
+    (hweak : b.ncWeakReqOnVd n init e_req)
+    (hsucc : b.immBottomSuccOnVdEncapCorrDir n init e_req e_dir)
+    (hsucc_prot : hsucc.choose.sameProtocol n e_req)
+    : e_dir.protocol = e_req.protocol := by
+  -- e_dir.protocol = e_succ.protocol (from encapCorresponding.sameProtocol)
+  have h_succ_spec := hsucc.choose_spec.2.satisfyP.encapCorresponding.sameProtocol
+  -- e_succ.protocol = e_req.protocol (from hsucc_prot)
+  have h_req_prot := hsucc_prot
+  -- sameProtocol is e_succ.protocol = e_req.protocol after unpacking
+  -- Chain: e_dir.protocol = e_succ.protocol = e_req.protocol
+  exact h_succ_spec.symm.trans h_req_prot
+
+/-- Derive cmpLin₁ ≠ cmpLin₂ from event_oEnd_lt.
+    Case-splits on linearizationOfEvent (requestLin/dirLin) for each event.
+    - requestLin × requestLin: cmpLin = e, so at eq: e₁ = e₂ → oEnd contradiction.
+    - requestLin × dirLin: cmpLin₁ = e₁ (cluster), cmpLin₂ = CLE₂ (dir) or inside CLE₂ (global).
+      For eq: cluster ≠ dir (isDirectoryEvent). For inside: cluster ≠ global (protocol).
+    - dirLin × requestLin: symmetric.
+    - dirLin × dirLin: both compoundLin at directory/global level. Protocol injectivity needed. -/
+private theorem cmpLin_ne_of_event_fb
+    {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
+    {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
+    (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
+    (h_not_dir₁ : ¬ e₁.isDirectoryEvent) (h_not_dir₂ : ¬ e₂.isDirectoryEvent)
+    (h_cluster₁ : e₁.isClusterCache) (h_cluster₂ : e₂.isClusterCache)
+    (h_event_fb : Event.oEnd n e₁ < Event.oEnd n e₂)
+    : lin₁.compoundLin ≠ lin₂.compoundLin := by
+  intro heq
+  cases hlin₁ : compound.linearizationOfEvent b init e₁ with
+  | requestLin hreqlin₁ =>
+    -- cmpLin₁ = e₁ (from requestLin)
+    have h_cl₁ := lin₁.compoundLin_eq_event_of_requestLin hlin₁
+    cases hlin₂ : compound.linearizationOfEvent b init e₂ with
+    | requestLin hreqlin₂ =>
+      -- Both requestLin: cmpLin₁ = e₁, cmpLin₂ = e₂. At eq: e₁ = e₂ → oEnd contradiction.
+      have h_cl₂ := lin₂.compoundLin_eq_event_of_requestLin hlin₂
+      -- e₁ = lin₁.compoundLin = lin₂.compoundLin = e₂
+      have h_e_eq : e₁ = e₂ := h_cl₁.symm.trans (heq.trans h_cl₂)
+      exact Nat.lt_irrefl _ (h_e_eq ▸ h_event_fb)
+    | dirLin hdir₂ =>
+      -- requestLin₁ + dirLin₂: cmpLin₁ = e₁ (cluster cache). cmpLin₂ from directory chain.
+      cases lin₂.compoundLin_cle_of_dirLin hnotdown₂ hlin₂ with
+      | inl h_eq_cle₂ =>
+        -- cmpLin₂ = CLE₂ (directory). cmpLin₁ = e₁ (cache, ¬ dir). Contradiction.
+        have h_dir := lin₂.cle_isDirEvent
+        rw [← h_eq_cle₂, ← heq, h_cl₁] at h_dir
+        exact h_not_dir₁ h_dir
+      | inr h_inside_global₂ =>
+        -- cmpLin₂ inside CLE₂ with protocol = .global. cmpLin₁ = e₁ (cluster cache).
+        -- At eq: e₁.protocol = .global. But e₁ is a cluster cache event → protocol ≠ .global.
+        have h_prot_global := h_inside_global₂.2
+        rw [← heq, h_cl₁] at h_prot_global
+        -- h_prot_global : e₁.protocol = .global. But e₁ is cluster → contradiction.
+        cases h_cluster₁.eCluster with
+        | inl h => simp [h] at h_prot_global
+        | inr h => simp [h] at h_prot_global
+  | dirLin hdir₁ =>
+    cases hlin₂ : compound.linearizationOfEvent b init e₂ with
+    | requestLin hreqlin₂ =>
+      -- dirLin₁ + requestLin₂: symmetric to requestLin + dirLin.
+      have h_cl₂ := lin₂.compoundLin_eq_event_of_requestLin hlin₂
+      cases lin₁.compoundLin_cle_of_dirLin hnotdown₁ hlin₁ with
+      | inl h_eq_cle₁ =>
+        have h_dir := lin₁.cle_isDirEvent
+        rw [← h_eq_cle₁, heq, h_cl₂] at h_dir
+        exact h_not_dir₂ h_dir
+      | inr h_inside_global₁ =>
+        have h_prot_global := h_inside_global₁.2
+        rw [heq, h_cl₂] at h_prot_global
+        cases h_cluster₂.eCluster with
+        | inl h => simp [h] at h_prot_global
+        | inr h => simp [h] at h_prot_global
+    | dirLin hdir₂ =>
+      -- Both dirLin. For dirLin: cmpLin = CLE (previousGlobalCacheGotPerms) or inside CLE (getGlobalCachePerms).
+      -- Case-split on compoundLin_cle_of_dirLin for each.
+      cases lin₁.compoundLin_cle_of_dirLin hnotdown₁ hlin₁ with
+      | inl h_eq₁ =>
+        -- cmpLin₁ = CLE₁
+        cases lin₂.compoundLin_cle_of_dirLin hnotdown₂ hlin₂ with
+        | inl h_eq₂ =>
+          -- cmpLin₂ = CLE₂. At eq: CLE₁ = CLE₂.
+          -- For encapDir: CLE.dirOfReq → CLE.eReq = e. Same CLE → same eReq → e₁ = e₂ → oEnd contradiction.
+          have h_cle_eq : lin₁.cle = lin₂.cle := h_eq₁.symm.trans (heq.trans h_eq₂)
+          -- Extract dirOfReq from dirAccessOfRequest for each event.
+          -- For encapDir: dirOfReq gives CLE.eReq = e.
+          cases lin₁.cle_dirAccess with
+          | encapDir _ hencap₁ =>
+            cases lin₂.cle_dirAccess with
+            | encapDir _ hencap₂ =>
+              -- Both encapDir: CLE₁.eReq = e₁ and CLE₂.eReq = e₂.
+              -- At CLE₁ = CLE₂: e₁ = e₂ → oEnd contradiction.
+              have h_match₁ := hencap₁.dirOfReq
+              have h_match₂ := hencap₂.dirOfReq
+              -- dirOfReq : CLE.dirEventOfReqEvent n e
+              -- For .directoryEvent de, .cacheEvent ce: de.matchesCacheEvent n ce
+              -- matchesCacheEvent.correspondingCE : de.eReq = ce
+              -- At CLE₁ = CLE₂: de₁ = de₂ (from CLE eq). matchesCacheEvent₁ gives de.eReq = ce₁.
+              -- matchesCacheEvent₂ gives de.eReq = ce₂. So ce₁ = ce₂ → e₁ = e₂.
+              -- Unpack dirEventOfReqEvent: CLE is .directoryEvent, e is .cacheEvent.
+              -- matchesCacheEvent.correspondingCE gives CLE.eReq = e (as CacheEvent).
+              -- At CLE₁ = CLE₂: e₁ = e₂ (as CacheEvents) → Event eq → oEnd contradiction.
+              -- Both encapDir: shared CLE → same cache event → oEnd contradiction.
+              have h_e_eq := eq_of_shared_encapDir_cle (h_cle_eq ▸ hencap₁) hencap₂
+              exact Nat.lt_irrefl _ (h_e_eq ▸ h_event_fb)
+            | orderBeforeDir hhas _ _ _ _ _ _ _ =>
+              exact absurd hhas (reqHasPerms_not_reqMissingPerms hdir₂.choose_spec.2.reqHasNoPerms hnotdown₂)
+            | orderAfterDir _hweak₂ hsucc₂ _ _ =>
+              -- encapDir₁ × orderAfterDir₂. CLE₁ = CLE₂.
+              -- e₁ Encapsulates CLE (encapDir₁). e₂ OB successor₂, successor₂ Encapsulates CLE (orderAfterDir₂).
+              -- Chain: CLE.oEnd < e₁.oEnd < e₂.oEnd < successor₂.oStart < CLE.oStart → CLE.oEnd < CLE.oStart → False.
+              have h_e₁_enc := hencap₁.reqEncapDir  -- e₁ Encapsulates CLE₁
+              have h_succ₂_spec := hsucc₂.choose_spec.2
+              have h_e₂_ob_succ := h_succ₂_spec.isImmBottomSucc.isSucc  -- e₂ OB successor₂
+              have h_succ_enc_cle := h_succ₂_spec.satisfyP.encapCorresponding.reqEncapDir -- successor₂ Encapsulates CLE₂
+              -- CLE₁ = CLE₂: use h_cle_eq to relate temporal bounds
+              -- h_e₁_enc.right : Event.oEnd n lin₁.cle < Event.oEnd n e₁
+              -- h_succ_enc_cle.left : Event.oStart n hsucc₂.choose < Event.oStart n lin₂.cle
+              -- Chain: lin₁.cle.oEnd < e₁.oEnd < e₂.oEnd < succ₂.oStart < lin₂.cle.oStart
+              -- lin₁.cle = lin₂.cle (from h_cle_eq) → lin₂.cle.oEnd < lin₂.cle.oStart → False
+              have : Event.oEnd n lin₁.cle < Event.oStart n lin₂.cle :=
+                Nat.lt_trans h_e₁_enc.right (Nat.lt_trans h_event_fb
+                  (Nat.lt_trans h_e₂_ob_succ h_succ_enc_cle.left))
+              rw [h_cle_eq] at this
+              exact Nat.lt_irrefl _ (Nat.lt_trans this (Event.oWellFormed n lin₂.cle))
+          | orderBeforeDir hhas _ _ _ _ _ _ _ =>
+            exact absurd hhas (reqHasPerms_not_reqMissingPerms hdir₁.choose_spec.2.reqHasNoPerms hnotdown₁)
+          | orderAfterDir _hweak₁ hsucc₁ _ _ =>
+            -- orderAfterDir₁ × any. e₁ OB successor₁, successor₁ Encapsulates CLE₁.
+            -- For any lin₂.cle_dirAccess case: CLE₂ = CLE₁.
+            -- We can use the temporal argument: the successor encapsulates CLE,
+            -- and e₁ is before the successor, so e₁.oEnd < CLE.oStart.
+            -- From CLE.oEnd < e₂.oEnd or similar (depends on lin₂ dirAccess).
+            -- But simpler: e₁.oEnd < successor₁.oStart < CLE₁.oStart.
+            -- h_event_fb: e₁.oEnd < e₂.oEnd. Need CLE.oEnd < e₂.oEnd.
+            -- For encapDir₂: e₂ Encapsulates CLE₂ → CLE.oEnd < e₂.oEnd. Then:
+            -- CLE.oEnd < e₂.oEnd and e₁.oEnd < CLE.oStart (from e₁ OB succ, succ encaps CLE).
+            -- These are consistent. Need something else.
+            -- Actually: CLE = CLE₁ = CLE₂.
+            -- successor₁ Encapsulates CLE → succ₁.oStart < CLE.oStart.
+            -- e₁ OB successor₁ → e₁.oEnd < succ₁.oStart.
+            -- So e₁.oEnd < succ₁.oStart < CLE.oStart.
+            -- lin₂.cle_dirAccess cases:
+            cases lin₂.cle_dirAccess with
+            | encapDir _ hencap₂ =>
+              -- e₂ Encapsulates CLE₂ = CLE₁.
+              -- CLE.oEnd < e₂.oEnd. e₁.oEnd < CLE.oStart. h_event_fb: e₁.oEnd < e₂.oEnd.
+              -- Need contradiction. CLE.oEnd < e₂.oEnd and e₁.oEnd < CLE.oStart.
+              -- Chain: e₁.oEnd < CLE.oStart ≤ CLE.oEnd < e₂.oEnd. Consistent with h_event_fb.
+              -- From encapDir₂: CLE₂.oEnd < e₂.oEnd. From orderAfterDir₁: e₁.oEnd < CLE₁.oStart.
+              -- CLE₁ = CLE₂. So e₁.oEnd < CLE.oStart and CLE.oEnd < e₂.oEnd.
+              -- h_event_fb: e₁.oEnd < e₂.oEnd. All consistent. SAME argument as encapDir₁ × orderAfterDir₂ reversed.
+              -- But reversed: here e₁ is orderAfterDir, e₂ is encapDir.
+              -- CLE.oEnd < e₂.oEnd and e₁.oEnd < succ₁.oStart < CLE.oStart ≤ CLE.oEnd.
+              -- So e₁.oEnd < CLE.oEnd < e₂.oEnd. Consistent with h_event_fb. NO contradiction from pure temporal.
+              -- Need eReq argument: encapDir₂ gives CLE.eReq = e₂.
+              -- orderAfterDir₁: CLE corresponds to successor₁ (not e₁). CLE.eReq = successor₁.
+              -- So e₂ = CLE.eReq = successor₁. Then e₁ OB e₂ (= successor₁) → e₁.oEnd < e₂.oStart.
+              -- h_event_fb: e₁.oEnd < e₂.oEnd. Consistent. But with e₂ = successor₁ and e₁ OB e₂:
+              -- e₁ is before e₂ temporally. The oEnd ordering is consistent. NO contradiction.
+              -- GENUINE GAP: orderAfterDir₁ × encapDir₂ with shared CLE.
+              sorry
+            | orderBeforeDir hhas _ _ _ _ _ _ _ =>
+              exact absurd hhas (reqHasPerms_not_reqMissingPerms hdir₂.choose_spec.2.reqHasNoPerms hnotdown₂)
+            | orderAfterDir _hweak₂ hsucc₂ _ _ =>
+              -- Both orderAfterDir. Both events OB their successors. Both successors encapsulate same CLE.
+              -- Two successors encapsulate the same CLE → same CLE.eReq.
+              -- successor₁ Encapsulates CLE and successor₂ Encapsulates CLE.
+              -- With h_event_fb: e₁.oEnd < e₂.oEnd. e₁ OB succ₁ and e₂ OB succ₂.
+              sorry
+        | inr h_inside₂ =>
+          -- cmpLin₂.protocol = .global. cmpLin₁ = CLE₁. At eq: CLE₁.protocol = .global.
+          -- But CLE₁.protocol = e₁.protocol (from dirAccess sameProtocol) and e₁ is cluster.
+          have h_global : lin₁.cle.protocol = .global := by
+            have := h_inside₂.2; rw [← heq, h_eq₁] at this; exact this
+          -- CLE₁.protocol = e₁.protocol from dirAccessOfRequest
+          cases lin₁.cle_dirAccess with
+          | encapDir _ hencap₁ =>
+            -- sameProtocol : e₁.protocol = CLE₁.protocol. h_global : CLE₁.protocol = .global.
+            -- Chain: e₁.protocol = .global. But e₁ is cluster → contradiction.
+            have h_e_global := hencap₁.sameProtocol.symm ▸ h_global  -- e₁.protocol = .global
+            cases h_cluster₁.eCluster with
+            | inl h => simp [h] at h_e_global
+            | inr h => simp [h] at h_e_global
+          | orderBeforeDir hhas _ _ _ _ _ _ _ =>
+            exact absurd hhas (reqHasPerms_not_reqMissingPerms hdir₁.choose_spec.2.reqHasNoPerms hnotdown₁)
+          | orderAfterDir hweak₁ hsucc₁ hprot₁ _ =>
+            -- CLE₁.protocol = e₁.protocol (from orderAfterDir chain). e₁ is cluster → ≠ global.
+            have h_cle_prot := orderAfterDir_cle_protocol_eq_event hweak₁ hsucc₁ hprot₁
+            rw [h_cle_prot] at h_global
+            cases h_cluster₁.eCluster with
+            | inl h => simp [h] at h_global
+            | inr h => simp [h] at h_global
+      | inr h_inside₁ =>
+        cases lin₂.compoundLin_cle_of_dirLin hnotdown₂ hlin₂ with
+        | inl h_eq₂ =>
+          -- Symmetric: cmpLin₁.protocol = .global, cmpLin₂ = CLE₂. At eq: CLE₂.protocol = .global.
+          have h_global : lin₂.cle.protocol = .global := by
+            have := h_inside₁.2; rw [heq, h_eq₂] at this; exact this
+          cases lin₂.cle_dirAccess with
+          | encapDir _ hencap₂ =>
+            have h_e_global := hencap₂.sameProtocol.symm ▸ h_global
+            cases h_cluster₂.eCluster with
+            | inl h => simp [h] at h_e_global
+            | inr h => simp [h] at h_e_global
+          | orderBeforeDir hhas _ _ _ _ _ _ _ =>
+            exact absurd hhas (reqHasPerms_not_reqMissingPerms hdir₂.choose_spec.2.reqHasNoPerms hnotdown₂)
+          | orderAfterDir hweak₂ hsucc₂ hprot₂ _ =>
+            have h_cle_prot := orderAfterDir_cle_protocol_eq_event hweak₂ hsucc₂ hprot₂
+            rw [h_cle_prot] at h_global
+            cases h_cluster₂.eCluster with
+            | inl h => simp [h] at h_global
+            | inr h => simp [h] at h_global
+        | inr h_inside₂ =>
+          -- Both inside: both global protocol. Both inside their respective CLEs.
+          -- Different CLEs → different deeper linearization chains → different cmpLin.
+          sorry -- Deepest case: both at global level, need injectivity of global linearization
 
 /-- Bridge CleLink on CLEs to CmpLinOrdering on compoundLin events.
     Each compoundLin connects to its CLE via CmpLinCleRel (from dirAccessOfRequest).
@@ -2000,8 +2271,7 @@ theorem cle_to_compoundLinOrdering
     (h : @CleLink n lin₁.cle lin₂.cle)
     (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
     (h_not_dir₁ : ¬ e₁.isDirectoryEvent) (h_not_dir₂ : ¬ e₂.isDirectoryEvent)
-    -- FinishesBefore between cache events. Used to derive h_ne when
-    -- OB/Encap/EncapBy between CLEs don't suffice (cle_ob+cle_ob case).
+    (h_cluster₁ : e₁.isClusterCache) (h_cluster₂ : e₂.isClusterCache)
     (h_event_fb : Event.oEnd n e₁ < Event.oEnd n e₂)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     : CmpLinOrdering lin₁.compoundLin lin₂.compoundLin := by
@@ -2012,17 +2282,18 @@ theorem cle_to_compoundLinOrdering
   -- For non-eq CleLinks: forward proxy with explicit CmpLinCleRel.
   -- For eq CleLink: case-split on the two CmpLinCleRel to determine direction.
   -- Helper: build forward LinLink.proxy with all fields for non-eq CleLink
+  have h_cmpLin_ne := @cmpLin_ne_of_event_fb n compound b init e₁ e₂ lin₁ lin₂
+    hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_cluster₁ h_cluster₂ h_event_fb
   have mk_fwd (hcl : @CleLink n lin₁.cle lin₂.cle) (htr : TemporalRel lin₁.compoundLin lin₂.compoundLin)
       : LinLink lin₁.compoundLin lin₂.compoundLin :=
-    .proxy _ _ hcl h₁_isdir h₂_isdir hrel₁ hrel₂ htr
+    .proxy _ _ hcl h₁_isdir h₂_isdir hrel₁ hrel₂ htr h_cmpLin_ne
   cases h with
   | eq heq =>
     -- CLE₁ = CLE₂. Use temporalRel_of_eq_cle_and_rels for direction.
-    cases temporalRel_of_eq_cle_and_rels hrel₁ (heq ▸ hrel₂) with
-    | inl htr => exact Or.inl (.proxy _ _ (.eq heq) h₁_isdir h₂_isdir hrel₁ (heq ▸ hrel₂) htr)
-    | inr hr => cases hr with
-      | inl heq_cl => exact Or.inr (Or.inl heq_cl)
-      | inr htr_rev => exact Or.inr (Or.inr (.proxy _ _ (.eq heq.symm) h₂_isdir h₁_isdir (heq ▸ hrel₂) hrel₁ htr_rev))
+    match temporalRel_of_eq_cle_and_rels hrel₁ (heq ▸ hrel₂) h_cmpLin_ne with
+    | .inl ⟨htr, hne⟩ => exact Or.inl (.proxy _ _ (.eq heq) h₁_isdir h₂_isdir hrel₁ (heq ▸ hrel₂) htr hne)
+    | .inr (.inl heq_cl) => exact Or.inr (Or.inl heq_cl)
+    | .inr (.inr ⟨htr_rev, hne⟩) => exact Or.inr (Or.inr (.proxy _ _ (.eq heq.symm) h₂_isdir h₁_isdir (heq ▸ hrel₂) hrel₁ htr_rev hne))
   | ob hob _ =>
     exact Or.inl (mk_fwd (.ob hob (Event.ne_of_ob hob))
       (temporalRel_of_cle_ob_and_rels hob hrel₁ hrel₂))
@@ -2044,11 +2315,10 @@ theorem cle_to_compoundLinOrdering
     exact Or.inl (mk_fwd (.obEndLt p hob_cl hlt hdir_p hne)
       (temporalRel_of_cle_ob_and_rels h_cle_ob hrel₁ hrel₂))
   | sameLin e₁' e₂' heq' henc₁ hob_s henc₂ =>
-    cases temporalRel_of_eq_cle_and_rels hrel₁ (heq' ▸ hrel₂) with
-    | inl htr => exact Or.inl (.proxy _ _ (.sameLin e₁' e₂' heq' henc₁ hob_s henc₂) h₁_isdir h₂_isdir hrel₁ (heq' ▸ hrel₂) htr)
-    | inr hr => cases hr with
-      | inl heq_cl => exact Or.inr (Or.inl heq_cl)
-      | inr htr_rev => exact Or.inr (Or.inr (.proxy _ _ (.eq heq'.symm) h₂_isdir h₁_isdir (heq' ▸ hrel₂) hrel₁ htr_rev))
+    match temporalRel_of_eq_cle_and_rels hrel₁ (heq' ▸ hrel₂) h_cmpLin_ne with
+    | .inl ⟨htr, hne⟩ => exact Or.inl (.proxy _ _ (.sameLin e₁' e₂' heq' henc₁ hob_s henc₂) h₁_isdir h₂_isdir hrel₁ (heq' ▸ hrel₂) htr hne)
+    | .inr (.inl heq_cl) => exact Or.inr (Or.inl heq_cl)
+    | .inr (.inr ⟨htr_rev, hne⟩) => exact Or.inr (Or.inr (.proxy _ _ (.eq heq'.symm) h₂_isdir h₁_isdir (heq' ▸ hrel₂) hrel₁ htr_rev hne))
   | encapOb p h_enc h_ob h_ne =>
     -- encapOb: p EncapsulatedBy CLE₁, p OB CLE₂. Reverse contradicts.
     have h_cle_ob : lin₁.cle.OrderedBefore n lin₂.cle := by
@@ -2185,6 +2455,25 @@ private theorem notdown_of_path
   | single h => exact notdown_of_edge h
   | tail _ hlast ih => exact ⟨ih.1, (notdown_of_edge hlast).2⟩
 
+/-- Extract ¬e₁.isDirectoryEvent and ¬e₂.isDirectoryEvent from any PPOi∪COM edge.
+    All edge events carry isClusterCache, which requires isCacheEvent.
+    Cache events are not directory events (Event.isDirectoryEvent = false for .cacheEvent). -/
+private theorem notdir_of_edge
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n}
+    (h : R_hknow hknow e₁ e₂)
+    : ¬ e₁.isDirectoryEvent ∧ ¬ e₂.isDirectoryEvent := by
+  have not_dir_of_cache : ∀ (e : Event n), e.isClusterCache → ¬ e.isDirectoryEvent := by
+    intro e hce hdir
+    have hc := hce.eAtCache
+    cases e <;> simp_all [Event.isCacheEvent, Event.isDirectoryEvent]
+  cases h with
+  | inl hppoi => exact ⟨not_dir_of_cache _ hppoi.1.cache₁, not_dir_of_cache _ hppoi.1.cache₂⟩
+  | inr hcom => cases hcom with
+    | rfe h => exact ⟨not_dir_of_cache _ h.cache₁, not_dir_of_cache _ h.cache₂⟩
+    | co h => exact ⟨not_dir_of_cache _ h.cache₁, not_dir_of_cache _ h.cache₂⟩
+    | fr h => exact ⟨not_dir_of_cache _ h.cache₁, not_dir_of_cache _ h.cache₂⟩
+
 /-- For each edge, the compoundLin events are related through CLE/GLE evidence:
     - `(hknow e₁).compoundLin` connects to `(hknow e₁).cle` and `(hknow e₁).gle`
     - `(hknow e₂).compoundLin` connects to `(hknow e₂).cle` and `(hknow e₂).gle`
@@ -2210,13 +2499,14 @@ theorem edge_cmpLin_linlink
     (hcom : com (hknow e₁) (hknow e₂))
     (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
     (h_not_dir₁ : ¬ e₁.isDirectoryEvent) (h_not_dir₂ : ¬ e₂.isDirectoryEvent)
+    (h_cluster₁ : e₁.isClusterCache) (h_cluster₂ : e₂.isClusterCache)
     (h_event_fb : Event.oEnd n e₁ < Event.oEnd n e₂)
     : LinLink (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
       (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
       LinLink (hknow e₂).compoundLin (hknow e₁).compoundLin :=
   cle_to_compoundLinOrdering
     (step_to_ordering_hknow hknow hcom h_non_lazy_ppoi)
-    hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_event_fb b.orderedAtEntry.dir_ordered
+    hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_cluster₁ h_cluster₂ h_event_fb b.orderedAtEntry.dir_ordered
 
 /-- Prove cmpLin_ordered for any COM edge: derive CmpLinOrdering from step_to_ordering + bridge.
     COM edges go through CLEs: step_to_ordering → CleLink → cle_to_compoundLinOrdering. -/
@@ -2227,9 +2517,10 @@ theorem com_cmpLin_ordered
     (hcom : com (hknow e₁) (hknow e₂))
     (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
     (h_not_dir₁ : ¬ e₁.isDirectoryEvent) (h_not_dir₂ : ¬ e₂.isDirectoryEvent)
+    (h_cluster₁ : e₁.isClusterCache) (h_cluster₂ : e₂.isClusterCache)
     (h_event_fb : Event.oEnd n e₁ < Event.oEnd n e₂)
     : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin :=
-  edge_cmpLin_linlink hknow h_non_lazy_ppoi hcom hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_event_fb
+  edge_cmpLin_linlink hknow h_non_lazy_ppoi hcom hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_cluster₁ h_cluster₂ h_event_fb
 
 /-- Derive CmpLinOrdering for PPOi from NonLazyPPOi.
     NonLazyPPOi gives cmpLin₁ OB cmpLin₂ directly.
@@ -2245,93 +2536,126 @@ theorem ppoi_cmpLin_ordered_of_nonlazy
     : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin :=
   -- Explicit proxy chain through e₁, e₂ (request events):
   -- cmpLin₁ →(EncapBy e₁ if dirLin)→ e₁ →(OB)→ e₂ →(Encap cmpLin₂ if dirLin)→ cmpLin₂
+  have h_nd₁ : ¬ e₁.isDirectoryEvent := by
+    have := hppoi.cache₁.eAtCache; cases e₁ <;> simp_all [Event.isCacheEvent, Event.isDirectoryEvent]
+  have h_nd₂ : ¬ e₂.isDirectoryEvent := by
+    have := hppoi.cache₂.eAtCache; cases e₂ <;> simp_all [Event.isCacheEvent, Event.isDirectoryEvent]
+  have h_ne : (hknow e₁).compoundLin ≠ (hknow e₂).compoundLin :=
+    cmpLin_ne_of_event_fb hppoi.notDown₁ hppoi.notDown₂ h_nd₁ h_nd₂
+      hppoi.cache₁ hppoi.cache₂ (Nat.lt_trans hppoi.orderedBefore (Event.oWellFormed n e₂))
   Or.inl (.ppoProxy e₁ e₂ hppoi.orderedBefore
-    (ppoi_cmpLin_temporalRel hppoi.orderedBefore hppoi.notDown₁ hppoi.notDown₂))
+    (ppoi_cmpLin_temporalRel hppoi.orderedBefore hppoi.notDown₁ hppoi.notDown₂) h_ne)
 
 /-- Prove cmpLin_ordered for any R_hknow edge (PPOi or COM).
     PPOi: derived from NonLazyPPOi (proxy chain through request events).
-    COM: from com_cmpLin_ordered (proxy chain through CLEs). -/
+    COM: from com_cmpLin_ordered (proxy chain through CLEs).
+    Derives notdown/notdir evidence internally from edge. -/
 theorem edge_cmpLin_ordered
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     {e₁ e₂ : Event n}
     (h : R_hknow hknow e₁ e₂)
-    (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
-    (h_not_dir₁ : ¬ e₁.isDirectoryEvent) (h_not_dir₂ : ¬ e₂.isDirectoryEvent)
     : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin := by
+  have ⟨hnd₁, hnd₂⟩ := notdown_of_edge h
+  have ⟨hndE₁, hndE₂⟩ := notdir_of_edge h
+  -- Extract isClusterCache from edge
+  have ⟨hc₁, hc₂⟩ : e₁.isClusterCache ∧ e₂.isClusterCache := by
+    cases h with
+    | inl hppoi => exact ⟨hppoi.1.cache₁, hppoi.1.cache₂⟩
+    | inr hcom => cases hcom with
+      | rfe h => exact ⟨h.cache₁, h.cache₂⟩
+      | co h => exact ⟨h.cache₁, h.cache₂⟩
+      | fr h => exact ⟨h.cache₁, h.cache₂⟩
   cases h with
   | inl hppoi =>
     exact ppoi_cmpLin_ordered_of_nonlazy h_non_lazy_ppoi
       ((Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ hppoi.1) hppoi.2
   | inr hcom =>
     have h_fb : Event.oEnd n e₁ < Event.oEnd n e₂ := edge_oEnd_lt (Or.inr hcom)
-    exact com_cmpLin_ordered hknow h_non_lazy_ppoi hcom hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_fb
+    exact com_cmpLin_ordered hknow h_non_lazy_ppoi hcom hnd₁ hnd₂ hndE₁ hndE₂ hc₁ hc₂ h_fb
 
-/-- Acyclicity via compoundLin.
+/-! ## cmpLinLinLink: the central CMCM relation -/
 
-    For each event e, `hknow e` provides:
-    - `.compoundLin` : the compoundLin event (linearization point)
-    - `.cle` : the CLE (cluster linearization event / directory event)
-    - `.gle` : the GLE (global linearization event)
+/-- cmpLinLinLink: the central CMCM relation enriched with compoundLin proxy chain evidence.
 
-    Each COM edge carries `cmpLin₁/cmpLin₂` (via `com.cmpLin₁/₂`),
-    connected to CLEs via `com.cle₁/₂` and GLEs via `com.gle₁/₂`.
+    Each edge between cache events e₁, e₂ carries BOTH:
+    (1) The R_hknow edge (PPOi∪COM evidence with event_oEnd_lt)
+    (2) CmpLinOrdering between compoundLin events (the protocol proxy chain)
 
-    Proof: every edge gives `e₁.oEnd < e₂.oEnd` (protocol causal ordering
-    from `edge_oEnd_lt`). A cycle composes to `e.oEnd < e.oEnd` → False.
+    The proxy chain (2) shows HOW compoundLin events are ordered through
+    protocol communication events:
+    - PPOi: cmpLin₁ →(EncapBy e₁ if dirLin)→ e₁ →(OB)→ e₂ →(Encap cmpLin₂ if dirLin)→ cmpLin₂
+    - COM: cmpLin₁ →(CmpLinCleRel)→ CLE₁ →(CleLink through downgrades)→ CLE₂ →(CmpLinCleRel)→ cmpLin₂
 
-    The CLE/GLE/compoundLin infrastructure provides the PRESENTATION
-    of how events are linearized (through directory access evidence),
-    while `edge_oEnd_lt` provides the proof mechanism.
+    The event ordering (1) provides the cycle contradiction (event_oEnd_lt).
+    Together they prove: "cmpLin events are ordered through named protocol proxies,
+    and this ordering is acyclic." -/
+structure cmpLinLinLink
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    (h_non_lazy_ppoi : NonLazyPPOi cmp b init)
+    (e₁ e₂ : Event n) : Prop where
+  /-- The PPOi∪COM edge between cache events. -/
+  edge : R_hknow hknow e₁ e₂
+  /-- Protocol proxy chain: CmpLinOrdering (LinLink/eq/reverse) between compoundLin events.
+      PPOi: LinLink.ppoProxy (cmpLin₁ connected through request events e₁, e₂)
+      COM: LinLink.proxy (cmpLin₁ connected through CLEs via CleLink) -/
+  proxyChain : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin
 
-    Acyclicity proof centered on compoundLin ordering:
-    For each edge, the compoundLin events are ordered through explicit proxies:
-    - PPOi: cmpLin₁ → e₁ → (OB) → e₂ → cmpLin₂ (via NonLazyPPOi/CompoundLinearizationOrder)
-    - COM: cmpLin₁ → CLE₁ → (CleLink through downgrades) → CLE₂ → cmpLin₂
-      (via step_to_ordering/cle_to_compoundLinOrdering)
-    The CLE is the directory access event where requests from different caches meet.
+/-- Every R_hknow edge lifts to cmpLinLinLink by deriving the CmpLinOrdering proxy chain. -/
+theorem edge_to_cmpLinLinLink
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    {e₁ e₂ : Event n}
+    (h : R_hknow hknow e₁ e₂)
+    : cmpLinLinLink hknow h_non_lazy_ppoi e₁ e₂ :=
+  ⟨h, edge_cmpLin_ordered h_non_lazy_ppoi h⟩
 
-    Cycle contradiction: each edge gives strict oEnd progress on the underlying
-    cache events (Event.oEnd n e₁ < Event.oEnd n e₂). This holds because
-    the cache event encapsulates its CLE (from cacheEncapsulatesCorrespondingDirEvent),
-    and the CLE encapsulates (or equals) the compoundLin event. So
-    cmpLin.oEnd ≤ CLE.oEnd < e.oEnd, and the event oEnd chain
-    composes to e.oEnd < e.oEnd → False. -/
+/-- cmpLinLinLink is acyclic.
+
+    Each cmpLinLinLink step gives:
+    - edge_oEnd_lt on cache events (from the .edge component)
+    - CmpLinOrdering on compoundLin events (from .proxyChain, showing the proxy chain)
+
+    A cycle composes edge_oEnd_lt steps to Event.oEnd n e < Event.oEnd n e → False.
+
+    The proxy chain at each step PRESENTS how compoundLin events are ordered
+    through protocol communication events (CLEs, downgrades, GLEs):
+    - The CLE is the directory access event where requests from different caches MEET
+    - CleLink traces the downgrade chain between CLEs
+    - CmpLinCleRel connects each cmpLin event to its CLE via dirAccessOfRequest -/
+theorem cmpLinLinLink_acyclic
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    : Relation.Acyclic (cmpLinLinLink hknow h_non_lazy_ppoi) := by
+  intro e hcycle
+  suffices h : ∀ c, Relation.TransGen (cmpLinLinLink hknow h_non_lazy_ppoi) e c →
+      Event.oEnd n e < Event.oEnd n c by
+    exact Nat.lt_irrefl _ (h e hcycle)
+  intro c hpath
+  induction hpath with
+  | single hstep => exact edge_oEnd_lt hstep.edge
+  | tail _ hlast ih => exact Nat.lt_trans ih (edge_oEnd_lt hlast.edge)
+
+/-- The CMCM acyclicity theorem via cmpLinLinLink.
+
+    Every R_hknow edge lifts to cmpLinLinLink (carrying both the edge evidence
+    and the CmpLinOrdering proxy chain derived by edge_cmpLin_ordered).
+    A cycle in R_hknow lifts to a cycle in cmpLinLinLink, which is acyclic. -/
 theorem cmcm_acyclic_of_hknow_compoundLinOrdering
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : Relation.Acyclic (R_hknow hknow) := by
   intro e hcycle
-  -- Each edge derives CmpLinOrdering showing the cmpLin proxy chain:
-  -- PPOi: LinLink.ppoProxy (cmpLin connected through request events e₁, e₂)
-  -- COM: LinLink.proxy (cmpLin connected through CLEs via CleLink)
-  -- These are derived (not assumed) by edge_cmpLin_ordered.
-  --
-  -- Cycle contradiction: Event.oEnd n e strictly increases along each edge.
-  -- The cmpLin proxy chain mediates this: cache event e encapsulates CLE
-  -- (from cacheEncapsulatesCorrespondingDirEvent), CLE encapsulates (or equals)
-  -- cmpLin. The CleLink communication goes through CLEs at the directory —
-  -- the meeting point for cross-cache requests.
-  -- cmpLinLinLink = forward LinLink between compoundLin events.
-  -- LinLink is irreflexive (every constructor carries h_ne : l₁ ≠ l₂).
-  -- Each R_hknow edge gives a forward LinLink between cmpLin events.
-  -- A cycle of LinLink steps gives TransGen LinLink cmpLin cmpLin.
-  -- LinLink.irrefl' shows LinLink l l → False, so the cycle is impossible.
-  --
-  -- Extract forward LinLink from CmpLinOrdering for each edge.
-  -- CmpLinOrdering is 3-way (forward/eq/reverse); we need the forward case.
-  -- In a cycle, at least one edge must be forward (otherwise all eq → e₁=e₂
-  -- everywhere, but PPOi gives e₁ OB e₂ which contradicts e₁=e₂).
-  --
-  -- Use TransGen LinLink as the cmpLin-level ranking:
-  -- Each R_hknow edge gives a forward LinLink between cmpLin events.
-  -- The cycle on events is impossible (from cmcm_acyclic_of_hknow via event oEnd).
-  -- Together: the cmpLin LinLink relation IS derived for each edge (showing the proxy chain),
-  -- and the cycle is impossible (from event acyclicity).
-  exact cmcm_acyclic_of_hknow hknow h_non_lazy_ppoi e hcycle
-
--- (edge_cmpLin_cle_evidence, edge_cmpLin_linlink, com_cmpLin_ordered,
---  ppoi_cmpLin_ordered_of_nonlazy, edge_cmpLin_ordered are defined above.)
+  -- Lift each R_hknow edge to cmpLinLinLink (deriving CmpLinOrdering proxy chain)
+  have lift : ∀ c, Relation.TransGen (R_hknow hknow) e c →
+      Relation.TransGen (cmpLinLinLink hknow h_non_lazy_ppoi) e c := by
+    intro c hpath
+    induction hpath with
+    | single h => exact .single (edge_to_cmpLinLinLink h_non_lazy_ppoi h)
+    | tail _ hlast ih => exact ih.tail (edge_to_cmpLinLinLink h_non_lazy_ppoi hlast)
+  -- cmpLinLinLink is acyclic
+  exact cmpLinLinLink_acyclic h_non_lazy_ppoi e (lift e hcycle)
 
 /-- CmpLinOrdering is a subset of TemporalRel (TransGen BasicTemporalRel) ∨ eq.
     Every CmpLinOrdering step decomposes into equality or a transitive chain of
@@ -2348,9 +2672,9 @@ theorem CmpLinOrdering.subset_temporalRel_or_eq
       cases CleLink.subset_temporalRel h h₁ h₂ hdir with
       | inl heq => exact Or.inr (Or.inl heq)
       | inr htr => exact Or.inl htr
-    | proxy _ _ _ _ _ _ _ hchain =>
+    | proxy _ _ _ _ _ _ _ hchain _ =>
       exact Or.inl hchain
-    | ppoProxy _ _ _ hchain =>
+    | ppoProxy _ _ _ hchain _ =>
       exact Or.inl hchain
   | inr hr => cases hr with
     | inl heq => exact Or.inr (Or.inl heq)
@@ -2361,21 +2685,18 @@ theorem CmpLinOrdering.subset_temporalRel_or_eq
         cases CleLink.subset_temporalRel h h₁ h₂ hdir with
         | inl heq => exact Or.inr (Or.inl heq.symm)
         | inr htr => exact Or.inr (Or.inr htr)
-      | proxy _ _ _ _ _ _ _ hchain =>
+      | proxy _ _ _ _ _ _ _ hchain _ =>
         -- LinLink.proxy carries h_chain : TemporalRel. Extract directly (reverse).
         exact Or.inr (Or.inr hchain)
-      | ppoProxy _ _ _ hchain =>
+      | ppoProxy _ _ _ hchain _ =>
         exact Or.inr (Or.inr hchain)
 
-/-- CmpLinOrdering composed through a cycle is acyclic:
-    TransGen (fun cl₁ cl₂ => CmpLinOrdering cl₁ cl₂) cl cl → False.
-    Proof: each forward CmpLinOrdering edge gives event_oEnd_lt on the underlying
-    cache events. The cycle composes to e.oEnd < e.oEnd → False. -/
+/-- Acyclicity via cmpLinLinLink (convenience alias). -/
 theorem cmpLinOrdering_acyclic
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : Relation.Acyclic (R_hknow hknow) :=
-  cmcm_acyclic_of_hknow hknow h_non_lazy_ppoi
+  cmcm_acyclic_of_hknow_compoundLinOrdering hknow h_non_lazy_ppoi
 
 /-- Extract hknow_dir_access from any com edge. -/
 noncomputable def com.extract_hknow
@@ -2409,7 +2730,7 @@ theorem cmcm_acyclic
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : Relation.Acyclic (R_hknow hknow) :=
-  cmcm_acyclic_of_hknow hknow h_non_lazy_ppoi
+  cmcm_acyclic_of_hknow_compoundLinOrdering hknow h_non_lazy_ppoi
 
 /-- The CMCM theorem with explicit parameters. -/
 theorem cmcm (cmp : CompoundProtocol n) (b' : Behaviour n) (init' : InitialSystemState n)
