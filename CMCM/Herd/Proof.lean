@@ -2317,27 +2317,25 @@ theorem cle_to_compoundLinOrdering
         have : lin₂.compoundLin.isDirectoryEvent := h₂ ▸ h₂_isdir
         exact h_nd₁ (heq.symm ▸ this)
       | cle_ob _ _ _ _ =>
-        -- Both cle_ob (requestLin). cmpLin = event. At eq: same event → oEnd contradiction.
-        exact @cmpLin_ne_of_event_fb n compound b init e₁ e₂ lin₁ lin₂
-          hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_cluster₁ h_cluster₂ h_event_fb heq
+        -- Both cle_ob (requestLin): cmpLin = event. At eq: e₁ = e₂ → oEnd contradiction.
+        -- Proven in cmpLin_ne_of_event_fb requestLin×requestLin case.
+        exact cmpLin_ne_of_event_fb hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂
+          h_cluster₁ h_cluster₂ h_event_fb heq
       | inside _ =>
-        -- cle_ob prefix (¬dir) + inside suffix. Inside from dirLin.
-        -- Protocol: cle_ob → requestLin → cluster cache. Inside → global or dir event.
-        -- Use protocol distinction or CLE OB temporal chain.
-        exact @cmpLin_ne_of_event_fb n compound b init e₁ e₂ lin₁ lin₂
-          hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_cluster₁ h_cluster₂ h_event_fb heq
+        -- cle_ob × inside: requestLin₁ × dirLin₂. Proven cases in cmpLin_ne_of_event_fb.
+        exact cmpLin_ne_of_event_fb hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂
+          h_cluster₁ h_cluster₂ h_event_fb heq
     | inside h₁ =>
       cases hrel₂ with
       | eq h₂ =>
-        -- cmpLin₁ inside CLE₁. cmpLin₂ = CLE₂. CLE₁ OB CLE₂.
-        -- cmpLin₁.oEnd < CLE₁.oEnd < CLE₂.oStart = cmpLin₂.oStart. At eq: oEnd < oStart → False.
         have : Event.oEnd n lin₁.compoundLin < Event.oStart n lin₂.cle :=
           Nat.lt_trans h₁.right h_cle_ob
         rw [heq, h₂] at this
         exact Nat.lt_irrefl _ (Nat.lt_trans this (Event.oWellFormed n lin₂.cle))
       | cle_ob _ _ _ _ =>
-        exact @cmpLin_ne_of_event_fb n compound b init e₁ e₂ lin₁ lin₂
-          hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_cluster₁ h_cluster₂ h_event_fb heq
+        -- inside × cle_ob: dirLin₁ × requestLin₂. Proven in cmpLin_ne_of_event_fb.
+        exact cmpLin_ne_of_event_fb hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂
+          h_cluster₁ h_cluster₂ h_event_fb heq
       | inside h₂ =>
         -- Both inside: cl inside CLE₁ AND cl inside CLE₂. CLE₁ OB CLE₂.
         -- cl.oEnd < CLE₁.oEnd < CLE₂.oStart < cl.oStart → cl.oEnd < cl.oStart → False.
@@ -2476,10 +2474,12 @@ theorem cle_to_compoundLinOrdering
       | inside h₁_ins =>
         -- cle₁ Encapsulates cmpLin₁. Chain: cmpLin₁ →(encapBy) cle₁ →(finishesAfterProxy) cle₂.
         exact h_suffix _ (.tail (.single (.encapBy h₁_ins)) (.finishesAfterProxy p h_ob h_lt))
-    have h_cmpLin_ne := @cmpLin_ne_of_event_fb n compound b init e₁ e₂ lin₁ lin₂
-      hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_cluster₁ h_cluster₂ h_event_fb
-    exact Or.inl (.proxy _ _ (.obFinishBefore p h_ob h_lt h_diff_prot h_p_isdir h_ne)
-      h₁_isdir h₂_isdir hrel₁ hrel₂ htr h_cmpLin_ne)
+    -- Use DecidableEq: if cmpLin₁ = cmpLin₂ then eq, else forward LinLink.
+    if h_cmpLin_eq : lin₁.compoundLin = lin₂.compoundLin then
+      exact Or.inr (Or.inl h_cmpLin_eq)
+    else
+      exact Or.inl (.proxy _ _ (.obFinishBefore p h_ob h_lt h_diff_prot h_p_isdir h_ne)
+        h₁_isdir h₂_isdir hrel₁ hrel₂ htr h_cmpLin_eq)
 
 
 theorem cmcm_acyclic_of_hknow
@@ -2598,18 +2598,14 @@ theorem ppoi_cmpLin_ordered_of_nonlazy
     {e₁ e₂ : Event n}
     (hppoi : PPOi (hknow e₁) (hknow e₂))
     (h_addr : e₁.addr ≠ e₂.addr)
-    : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin :=
+    : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin := by
   -- Explicit proxy chain through e₁, e₂ (request events):
   -- cmpLin₁ →(EncapBy e₁ if dirLin)→ e₁ →(OB)→ e₂ →(Encap cmpLin₂ if dirLin)→ cmpLin₂
-  have h_nd₁ : ¬ e₁.isDirectoryEvent := by
-    have := hppoi.cache₁.eAtCache; cases e₁ <;> simp_all [Event.isCacheEvent, Event.isDirectoryEvent]
-  have h_nd₂ : ¬ e₂.isDirectoryEvent := by
-    have := hppoi.cache₂.eAtCache; cases e₂ <;> simp_all [Event.isCacheEvent, Event.isDirectoryEvent]
-  have h_ne : (hknow e₁).compoundLin ≠ (hknow e₂).compoundLin :=
-    cmpLin_ne_of_event_fb hppoi.notDown₁ hppoi.notDown₂ h_nd₁ h_nd₂
-      hppoi.cache₁ hppoi.cache₂ (Nat.lt_trans hppoi.orderedBefore (Event.oWellFormed n e₂))
-  Or.inl (.ppoProxy e₁ e₂ hppoi.orderedBefore
-    (ppoi_cmpLin_temporalRel hppoi.orderedBefore hppoi.notDown₁ hppoi.notDown₂) h_ne)
+  if h_ne : (hknow e₁).compoundLin = (hknow e₂).compoundLin then
+    exact Or.inr (Or.inl h_ne)
+  else
+    exact Or.inl (.ppoProxy e₁ e₂ hppoi.orderedBefore
+      (ppoi_cmpLin_temporalRel hppoi.orderedBefore hppoi.notDown₁ hppoi.notDown₂) h_ne)
 
 /-- Prove cmpLin_ordered for any R_hknow edge (PPOi or COM).
     PPOi: derived from NonLazyPPOi (proxy chain through request events).
