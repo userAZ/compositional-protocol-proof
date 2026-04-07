@@ -3100,7 +3100,28 @@ theorem cmcm_cmpLin_acyclic
       (hknow e_m).cle_isDirEvent (hknow e₁).cle_isDirEvent
       b.orderedAtEntry.dir_ordered
       (cle_protocol_ne_global hnd_m hc_m) (cle_protocol_ne_global hnd₁ hc₁)
-      (by sorry) (by sorry) -- CLE protocol = cl_mid protocol
+      (by -- CLE_m protocol = cl_mid protocol.
+        -- eq: cl_mid = CLE_m → trivial. cle_ob: cl_mid = e_m → CLE.prot = e_m.prot = cl_mid.prot.
+        -- inside: CLE.prot = cluster ≠ global = cl_mid.prot → junction_compose eliminates.
+        -- For inside: just provide any Prop (sorry). junction_compose won't use it.
+        cases hrel_m with
+        | eq h => exact congrArg _ h.symm
+        | cle_ob _ h_eq _ _ =>
+          -- h_eq : cl_mid = e_cle_ob. CLE.prot = e_m.prot. Need e_m.prot = e_cle_ob.prot.
+          -- e_cle_ob was set to e_m at construction (compoundLin_eq_of_cle_ob → cmpLin = e_m).
+          -- h_cl_m : (hknow e_m).compoundLin = cl_mid. cle_ob h_eq : cl_mid = e_cle_ob.
+          -- Chain: e_m = (hknow e_m).compoundLin = cl_mid = e_cle_ob (transitively from cle_ob → requestLin).
+          -- compoundLin_eq_of_cle_ob gives (hknow e_m).compoundLin = e_m.
+          -- So cl_mid = e_m (from h_cl_m.symm.trans compoundLin_eq_of_cle_ob).
+          -- And h_eq : cl_mid = e_cle_ob. So e_m = e_cle_ob.
+          -- But: to get the OB evidence for compoundLin_eq_of_cle_ob, I need the cle_ob's h field.
+          -- hrel_m was cases'd as cle_ob, so the OB field is available.
+          sorry -- cle_ob protocol chain: CLE.prot = e_m.prot = cl_mid.prot
+        | inside _ _ => sorry)
+      (by cases hrel₁ with
+        | eq h => exact congrArg _ h.symm
+        | cle_ob _ _ _ _ => sorry
+        | inside _ _ => sorry)
     -- New step CLE relationship.
     have h_new_cle : (hknow e₁).cle = (hknow e₂).cle ∨
         Relation.TransGen (@CleLink n) (hknow e₁).cle (hknow e₂).cle ∨
