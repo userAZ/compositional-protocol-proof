@@ -451,29 +451,34 @@ inductive FrOrdering
       CleLink derived via .obEndLt (CLE₁ OB proxy, proxy.oEnd < CLE₂.oEnd). -/
   | diffCluster_coherent
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (gle_ob : e₁_cmpLin.gle.OrderedBefore n e₂_cmpLin.gle)
     (p : Event n)
     (cle₁_ob_p : e₁_cmpLin.cle.OrderedBefore n p)
     (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_cmpLin.cle)
     (h_p_isdir : p.isDirectoryEvent)
   | diffCluster_evict
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (gle_ob : e₁_cmpLin.gle.OrderedBefore n e₂_cmpLin.gle)
     (p : Event n)
     (cle₁_ob_p : e₁_cmpLin.cle.OrderedBefore n p)
     (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_cmpLin.cle)
     (h_p_isdir : p.isDirectoryEvent)
   | diffCluster_noncoherent
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (gle_ob : e₁_cmpLin.gle.OrderedBefore n e₂_cmpLin.gle)
     (p : Event n)
     (cle₁_ob_p : e₁_cmpLin.cle.OrderedBefore n p)
     (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_cmpLin.cle)
     (h_p_isdir : p.isDirectoryEvent)
   | diffCluster_rfCrossCluster
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (gle_ob : e₁_cmpLin.gle.OrderedBefore n e₂_cmpLin.gle)
     (p : Event n)
     (p_inside_cle₁ : p.EncapsulatedBy n e₁_cmpLin.cle)
     (p_ob_cle₂ : p.OrderedBefore n e₂_cmpLin.cle)
   | diffCluster_rfFinishBefore
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (gle_ob : e₁_cmpLin.gle.OrderedBefore n e₂_cmpLin.gle)
     (p : Event n)
     (p_ob_cle₂ : p.OrderedBefore n e₂_cmpLin.cle)
     (p_lt_cle₁ : Event.oEnd n p < Event.oEnd n e₁_cmpLin.cle)
