@@ -228,7 +228,15 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
      - Each constructor carries: CmpLinCleRel (cmpLin→CLE link), protocol OB (GLE/CLE/event), named proxies.
      - ProtoOBLevel for 3-level composition (GLE OB / CLE OB / event OB). Transitive + irreflexive.
      - cmpLinLinLink_acyclic: sorry-free (composes via proto_forward_trans, closes via proto_forward_irrefl).
-   - **TODO: Fill sorry's in ProtoForwardStep infrastructure (31 total):**
+   - **STATUS (2026-04-07): 19 sorry's. Definitions correct. cmpLinLinLink_acyclic sorry-free.**
+     - PPOi cmpLin OB: PROVABLE (needs compoundLin_eq_linearizationEvent reordered above usage) (1)
+     - Reverse contradictions in derive_gle_ob'/derive_cle_ob_same_cluster: unprovable with event_fb alone. Need either same_cle_implies_same_gle or vacuity argument (3)
+     - event_ob_of_same_cache: heartbeat timeout, proof correct (1)
+     - CO/FR GLE direction edge cases: likely vacuous (same CLE → same GLE not proven) (3)
+     - FR gle_ordering field + h_fr_gle parameter: RESOLVED via fr.gle_ordering field
+     - CO gle_ob in diffClus: RESOLVED via co.ordering.diffClus field
+     - Chain presentation (.chain): NOT acyclicity-critical, deferred (11)
+   - **PREVIOUS TODO: Fill sorry's in ProtoForwardStep infrastructure (31 total):**
      - **Category A: `.level` — derive ProtoOBLevel (3 sorry's)**
        - `co_sameCache`: same CLE → derive GLE eq → eventOB level
        - `fr_sameClusDiffCache`: derive GLE eq from same-cluster evidence
