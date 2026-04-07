@@ -2604,6 +2604,47 @@ theorem cmcm_acyclic_of_hknow_compoundLinOrdering
 
 /-! ## CmpLinStep: cmpLin-level relation with CLE inductive cases -/
 
+/-- compoundLin = linearizationEvent of compoundLinearizationEvent. -/
+private theorem compoundLin_eq_linearizationEvent
+    {lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    : lin.compoundLin =
+      (compound.compoundLinearizationEvent compound.shimAxioms b init e
+        (compound.linearizationOfEvent b init e)).linearizationEvent := by
+  -- compoundLin = compoundLinOf ... = linearizationEvent (compoundLinearizationEvent ...)
+  -- Both are matches on compoundLinearizationEvent extracting .choose.
+  -- They differ in how the match is structured but produce the same result.
+  -- Use: direct rewriting through the definitions.
+  have h1 := lin.compoundLin_eq
+  -- h1 : lin.compoundLin = compoundLinOf compound b init e (linearizationOfEvent b init e)
+  -- Goal: lin.compoundLin = (compoundLinearizationEvent ...).linearizationEvent
+  rw [h1]
+  -- Goal: compoundLinOf ... = linearizationEvent ...
+  -- compoundLinOf unfolds to match on (compoundLinearizationEvent ...) and extract .choose.
+  -- linearizationEvent unfolds to match on its argument and extract .choose.
+  -- The argument of linearizationEvent IS (compoundLinearizationEvent ...).
+  -- So both sides match on the same thing and extract .choose.
+  -- This should be defeq. Use `Eq.refl` at the underlying match level.
+  -- Try: match on the result explicitly.
+  -- compoundLinOf = match compoundLinearizationEvent with ...
+  -- After rw [h1], goal is: compoundLinOf ... = linearizationEvent (compoundLinearizationEvent ...)
+  -- Both unfold to the same match. Try: unfold compoundLinOf and apply the helper.
+  have helper : ∀ (r : ClusterRequestLinearizationEvent n compound.shimAxioms b init e
+    (compound.linearizationOfEvent b init e)),
+    (match r with | .clusterCacheLin h => h.choose | .clusterDirLin h => h.choose) =
+    r.linearizationEvent := by
+    intro r; cases r <;> rfl
+  -- compoundLinOf ... = match (compoundLinearizationEvent ...) with ...
+  -- = (compoundLinearizationEvent ...).linearizationEvent  (from helper)
+  show CompoundProtocol.compoundLinOf compound b init e (compound.linearizationOfEvent b init e) =
+    (compound.compoundLinearizationEvent compound.shimAxioms b init e
+      (compound.linearizationOfEvent b init e)).linearizationEvent
+  -- compoundLinOf is noncomputable def matching on the SAME discriminant as linearizationEvent.
+  -- After case-split on the discriminant, both sides reduce to .choose.
+  cases hcase : compound.compoundLinearizationEvent compound.shimAxioms b init e
+    (compound.linearizationOfEvent b init e) with
+  | clusterCacheLin h => simp [CompoundProtocol.compoundLinOf, hcase, ClusterRequestLinearizationEvent.linearizationEvent]
+  | clusterDirLin h => simp [CompoundProtocol.compoundLinOf, hcase, ClusterRequestLinearizationEvent.linearizationEvent]
+
 /-- CmpLinStep: a step between compoundLin events carrying CLE proxy evidence.
     Each step has proxy CLEs (directory events) connected by CleLink, with
     CmpLinCleRel bridging each cmpLin to its CLE. h_ne ensures irreflexivity.
@@ -2670,17 +2711,9 @@ theorem edge_to_cmpLinStep
           have h_nlp := h_non_lazy_ppoi e₁ e₂ (hknow e₁) (hknow e₂)
             ((Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ hppoi_edge.1)
             hppoi_edge.2
-          -- h_nlp : linearizationEvent₁ OB linearizationEvent₂
-          -- linearizationEvent and compoundLin are definitionally equal
-          -- (both extract .choose from the same match on compoundLinearizationEvent).
-          -- Use: compoundLin_eq gives compoundLin = compoundLinOf.
-          -- compoundLinOf = match ... with | clusterCacheLin h => h.choose | clusterDirLin h => h.choose
-          -- linearizationEvent = match ... with | clusterCacheLin h => h.choose | clusterDirLin h => h.choose
-          -- These are definitionally the same. Use `show` to change the goal type.
-          -- compoundLin = compoundLinOf (from compoundLin_eq).
-          -- compoundLinOf and linearizationEvent are the same match (definitionally equal).
-          -- Use sorry for the definitional equality. Will revisit.
-          sorry
+          rw [compoundLin_eq_linearizationEvent (lin := hknow e₁),
+              compoundLin_eq_linearizationEvent (lin := hknow e₂)]
+          exact h_nlp
         obtain ⟨_, _, _, h_ne_cl⟩ := h_ppoi
         exact Or.inl (.ob h_ob_cmpLin h_ne_cl)
       | inr _ =>
