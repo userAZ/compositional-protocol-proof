@@ -2892,17 +2892,26 @@ theorem ProtoForwardStep.level
   | rf_crossGle gleOB _ _ => exact .gleOB gleOB
   | rf_sameGle_cleOB sameGle cleOB _ _ => exact .cleOB sameGle cleOB
   | rf_sameGle_sameCLE _ _ obLevel _ _ => exact obLevel
-  | co_sameCache sameCle e₁_ob_e₂ _ _ => sorry -- derive GLE eq from same CLE
+  | co_sameCache sameCle e₁_ob_e₂ _ _ =>
+    if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
+      exact .eventOB h_gle_eq sameCle e₁_ob_e₂
+    else sorry -- GLE₁ ≠ GLE₂ for same CLE → derive gleOB from dir_ordered
   | co_sameClusDiffCache sameGle cleOB _ _ => exact .cleOB sameGle cleOB
   | co_crossCluster gleOB _ _ => exact .gleOB gleOB
   | fr_sameCache _ obLevel _ _ => exact obLevel
-  | fr_sameClusDiffCache cleOB _ _ => sorry -- derive GLE eq
+  | fr_sameClusDiffCache cleOB _ _ =>
+    if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
+      exact .cleOB h_gle_eq cleOB
+    else sorry -- GLE₁ ≠ GLE₂ for same cluster → derive gleOB
   | fr_diffCluster_coherent gleOB _ _ _ _ => exact .gleOB gleOB
   | fr_diffCluster_evict gleOB _ _ _ _ => exact .gleOB gleOB
   | fr_diffCluster_noncoherent gleOB _ _ _ _ => exact .gleOB gleOB
   | fr_diffCluster_rfCrossCluster gleOB _ _ _ _ _ => exact .gleOB gleOB
   | fr_diffCluster_rfFinishBefore gleOB _ _ _ _ _ => exact .gleOB gleOB
-  | fr_sameCLE sameCle reader_ob_writer _ _ => sorry -- derive GLE eq from same CLE
+  | fr_sameCLE sameCle reader_ob_writer _ _ =>
+    if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
+      exact .eventOB h_gle_eq sameCle reader_ob_writer
+    else sorry -- GLE₁ ≠ GLE₂ for same CLE → derive gleOB
 
 /-- Different clusters → different GLEs (contrapositive of same_gle_implies_same_protocol). -/
 private theorem diff_protocol_implies_diff_gle
