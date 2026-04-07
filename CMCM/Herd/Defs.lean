@@ -306,6 +306,8 @@ structure PPOi {e₁ e₂ : Event n}
   sameCid' : e₁.cid = e₂.cid
   notDown₁ : ¬ e₁.down
   notDown₂ : ¬ e₂.down
+  /-- GLE ordering for PPOi events. Same cache → same cluster → GLEs ordered or equal. -/
+  gle_eq_or_ob : lin₁.gle = lin₂.gle ∨ lin₁.gle.OrderedBefore n lin₂.gle
   cache₁ : e₁.isClusterCache
   cache₂ : e₂.isClusterCache
   in_b₁ : e₁ ∈ b
@@ -439,6 +441,8 @@ inductive FrOrdering
     (same_cache : e₁.struct = e₂.struct)
     (cle_eq_or_ob : e₁_cmpLin.cle = e₂_cmpLin.cle ∨
         e₁_cmpLin.cle.OrderedBefore n e₂_cmpLin.cle)
+    (gle_eq_or_ob : e₁_cmpLin.gle = e₂_cmpLin.gle ∨
+        e₁_cmpLin.gle.OrderedBefore n e₂_cmpLin.gle)
   /-- Same cluster, different cache: cluster directory serializes the accesses.
       CLE₁ OB CLE₂ from dir_ordered + NIW (NoInterveningWrites eliminates wrong direction).
       CleLink derived via .ob. -/
