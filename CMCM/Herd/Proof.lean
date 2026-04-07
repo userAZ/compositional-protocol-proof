@@ -3077,7 +3077,29 @@ private theorem edge_to_proto_forward
         exact .co_sameCache sameCle e₁_ob_e₂ hrel₁ hrel₂
       | sameClusDiffCache sameProt cleOrdering =>
         if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
-          sorry -- same CLE for sameClusDiffCache — unusual, may be contradictory
+          -- sameClusDiffCache + same CLE → contradictory.
+          -- cleOrdering gives CLE₁ OB CLE₂; h_cle_eq gives CLE₁ = CLE₂ → self-OB → False.
+          exfalso
+          -- cleOrdering gives CLE₁ OB evidence. With h_cle_eq → self-OB contradiction.
+          cases cleOrdering with
+          | wImmPredRCle w =>
+            cases w with
+            | sameCluster _ hob =>
+              -- hob : CLE₁ OB CLE₂. With h_cle_eq: CLE₁ OB CLE₁.
+              exact Nat.lt_irrefl _ (Nat.lt_trans (h_cle_eq ▸ hob) (Event.oWellFormed n _))
+            | diffCluster _ hdown hwObRDown =>
+              -- hwObRDown : CLE₁ OB proxy. proxy.oEnd < CLE₂.oEnd = CLE₁.oEnd.
+              -- CLE₁.oEnd < proxy.oStart ≤ proxy.oEnd < CLE₁.oEnd → contradiction.
+              have hcdir_spec := hdown.existsRClusterDirDown.choose_spec
+              have h_lt : Event.oEnd n hdown.existsRClusterDirDown.choose < Event.oEnd n (hknow e₂).cle := by
+                cases hcdir_spec.2.encapDirRelation with
+                | cleEncap henc => exact henc.right
+                | gcacheEncap _ hlt => exact hlt
+              exact Nat.lt_irrefl _ (Nat.lt_trans hwObRDown
+                (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd _) (h_cle_eq ▸ h_lt)))
+          | evictOrReadBetweenWAndRCleSameCluster evict =>
+            -- evict.wObR : CLE₁ OB CLE₂. With h_cle_eq: self-OB.
+            exact Nat.lt_irrefl _ (Nat.lt_trans (h_cle_eq ▸ evict.wObR) (Event.oWellFormed n _))
         else
           exact .co_sameClusDiffCache (by sorry)
             (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
