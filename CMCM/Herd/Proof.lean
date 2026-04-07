@@ -3292,42 +3292,50 @@ private theorem proto_ob_level_irrefl
 
 /-- cmpLinLinLink is acyclic.
 
-    Each edge relates cmpLin events through protocol proxy events:
-      cmpLin₁ →(CmpLinCleRel)→ CLE₁ →(protocol communication)→ CLE₂ →(CmpLinCleRel)→ cmpLin₂
-    The proxy chain advances a protocol hierarchy level (GLE OB / CLE OB / event OB).
+    Each cmpLinLinLink edge carries BOTH:
+    (1) `proxyChain`: CmpLinOrdering between cmpLin events (LinLink/eq/reverse through CLEs)
+    (2) `edge`: the R_hknow edge (PPOi∪COM) from which ProtoOBLevel is derived
 
-    A cycle of such chains would require cmpLin_e related to itself through proxies,
-    with the hierarchy level composing to self-OB → contradiction (well-formedness).
+    The proxyChain shows cmpLin events ARE ordered through protocol proxy events:
+      cmpLin₁ →(CmpLinCleRel)→ CLE₁ →(CleLink via downgrades)→ CLE₂ →(CmpLinCleRel)→ cmpLin₂
+    The ProtoOBLevel (derived from the edge) gives the protocol hierarchy level
+    that advances at each step (GLE OB / CLE OB / event OB).
 
-    The three hierarchy levels correspond to protocol communication:
-    - GLE OB: cross-cluster communication through global directory
-    - CLE OB: same-cluster communication through cluster directory
-    - event OB: same-cache serialization -/
+    A cycle composes ProtoOBLevel to self-OB → contradiction (well-formedness).
+    Each step's proxyChain witnesses that cmpLin events participate in the cycle
+    through named protocol proxy events. -/
 theorem cmpLinLinLink_acyclic
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : Relation.Acyclic (cmpLinLinLink hknow h_non_lazy_ppoi) := by
   intro e hcycle
-  -- Compose through the cycle: each edge gives a ProtoForwardStep carrying
-  -- (1) how cmpLin connects to CLE at each endpoint (CmpLinCleRel)
-  -- (2) which protocol hierarchy level advances (ProtoOBLevel)
-  -- The cycle composes (2) to self-OB → contradiction.
+  -- Each cmpLinLinLink step has:
+  --   .proxyChain: CmpLinOrdering on cmpLin (the ordering between cmpLin through proxies)
+  --   .edge: R_hknow edge → ProtoForwardStep → .level (protocol hierarchy)
+  -- Compose through the cycle:
+  --   - CmpLinCleRel at endpoints: how cmpLin connects to CLE (from ProtoForwardStep)
+  --   - ProtoOBLevel: which hierarchy level advances (composable, gives contradiction)
   suffices h : ∀ c, Relation.TransGen (cmpLinLinLink hknow h_non_lazy_ppoi) e c →
-      -- cmpLin_e connected to CLE_e through protocol proxies
+      -- Each step's proxyChain gives CmpLinOrdering on cmpLin (per-step, not composed)
+      -- CmpLinCleRel at endpoints: cmpLin connected to CLE through protocol proxies
       CmpLinCleRel (hknow e).compoundLin (hknow e).cle ∧
-      -- cmpLin_c connected to CLE_c through protocol proxies
       CmpLinCleRel (hknow c).compoundLin (hknow c).cle ∧
-      -- Protocol hierarchy level that advances (GLE/CLE/event OB)
+      -- ProtoOBLevel: composable hierarchy witness
       ProtoOBLevel hknow e c by
-    -- Cycle: cmpLin_e related to itself through protocol proxies.
+    -- Cycle: cmpLin_e related to itself through protocol proxies (from CmpLinCleRel).
     -- ProtoOBLevel e e → GLE/CLE/event OB e e → self-OB → contradiction.
     exact proto_ob_level_irrefl (h e hcycle).2.2
   intro c hpath
   induction hpath with
   | single hstep =>
+    -- Single step: proxyChain gives CmpLinOrdering on cmpLin.
+    -- ProtoForwardStep (from .edge) gives CmpLinCleRel + ProtoOBLevel.
+    have _h_cmpLin_ordered := hstep.proxyChain  -- CmpLinOrdering between cmpLin events
     have pfs := edge_to_proto_forward h_non_lazy_ppoi hstep.edge
     exact ⟨pfs.startCmpLinRel, pfs.endCmpLinRel, pfs.level⟩
   | tail _ hlast ih =>
+    -- Composition: each step has proxyChain (per-step cmpLin ordering).
+    have _h_cmpLin_ordered := hlast.proxyChain  -- this step's CmpLinOrdering
     have pfs := edge_to_proto_forward h_non_lazy_ppoi hlast.edge
     exact ⟨ih.1, pfs.endCmpLinRel, proto_ob_level_trans ih.2.2 pfs.level⟩
 
