@@ -2851,14 +2851,30 @@ private theorem temporalRel_of_gleOB_and_cmpLinCleRels
       | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
     | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
-/-- The chain is either a genuine TemporalRel (≥1 step) or equality (same cmpLin).
-    Equality arises when both events linearize at the same CLE (eq × eq CmpLinCleRel). -/
+/-- Build TemporalRel chain from ProtoOBLevel + CmpLinCleRel. -/
+private theorem chain_of_obLevel
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n}
+    (obLevel : ProtoOBLevel hknow e₁ e₂)
+    (rel₁ : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
+    (rel₂ : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
+    : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
+      (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
+      TemporalRel (hknow e₂).compoundLin (hknow e₁).compoundLin := by
+  cases obLevel with
+  | gleOB h => exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels h rel₁ rel₂ b.orderedAtEntry.dir_ordered)
+  | cleOB h_eq h => exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels h rel₁ rel₂)
+  | eventOB h_eq₁ h_eq₂ h => sorry -- same GLE + same CLE + event OB → chain through shared CLE
+
+/-- The chain between cmpLin events: forward TemporalRel, equality, or reverse TemporalRel.
+    Forward/eq for most cases. Reverse for cle_ob × eq at same CLE (cmpLin₁ after CLE = cmpLin₂). -/
 theorem ProtoForwardStep.chain
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n}
     (h : ProtoForwardStep hknow e₁ e₂)
     : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
-      (hknow e₁).compoundLin = (hknow e₂).compoundLin := by
+      (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
+      TemporalRel (hknow e₂).compoundLin (hknow e₁).compoundLin := by
   cases h with
   | ppoi cmpLin₁_ob_cmpLin₂ _ _ _ => exact Or.inl (.single (.ob cmpLin₁_ob_cmpLin₂))
   | rf_crossGle gleOB writerRel readerRel =>
@@ -2881,16 +2897,16 @@ theorem ProtoForwardStep.chain
     | inr cleOB => exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels cleOB readerRel writerRel)
   | fr_sameClusDiffCache cleOB _ readerRel writerRel =>
     exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels cleOB readerRel writerRel)
-  | fr_diffCluster_coherent _ _ _ readerRel writerRel =>
-    sorry
-  | fr_diffCluster_evict _ _ _ readerRel writerRel =>
-    sorry
-  | fr_diffCluster_noncoherent _ _ _ readerRel writerRel =>
-    sorry
-  | fr_diffCluster_rfCrossCluster _ _ _ _ readerRel writerRel =>
-    sorry
-  | fr_diffCluster_rfFinishBefore _ _ _ _ readerRel writerRel =>
-    sorry
+  | fr_diffCluster_coherent obLevel _ _ readerRel writerRel =>
+    exact chain_of_obLevel obLevel readerRel writerRel
+  | fr_diffCluster_evict obLevel _ _ readerRel writerRel =>
+    exact chain_of_obLevel obLevel readerRel writerRel
+  | fr_diffCluster_noncoherent obLevel _ _ readerRel writerRel =>
+    exact chain_of_obLevel obLevel readerRel writerRel
+  | fr_diffCluster_rfCrossCluster obLevel _ _ _ readerRel writerRel =>
+    exact chain_of_obLevel obLevel readerRel writerRel
+  | fr_diffCluster_rfFinishBefore obLevel _ _ _ readerRel writerRel =>
+    exact chain_of_obLevel obLevel readerRel writerRel
   | fr_sameCLE sameCle _ readerRel writerRel =>
     sorry
 
