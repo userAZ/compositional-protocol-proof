@@ -2952,7 +2952,30 @@ private theorem edge_to_proto_forward
       have hrel₂ := compoundLin_cle_to_CmpLinCleRel hnd₂ hndE₂ (lin := hknow e₂)
       cases hrfe.readsFrom with
       | wObRGle writerGle_ob_readerGle _ => exact .rf_crossGle writerGle_ob_readerGle hrel₁ hrel₂
-      | wEqRGle sameGle _ _ => exact .rf_sameGle_cleOB sameGle (by sorry) hrel₁ hrel₂
+      | wEqRGle sameGle sameCluster wEqRGleCases =>
+        -- wEqRGle: same GLE, same cluster. CLE sub-cases give CLE OB or same CLE.
+        -- step_to_ordering already extracts CleLink from this evidence.
+        -- Use dir_ordered on CLEs to get CLE OB (reverse contradicted by protocol).
+        if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
+          exact .rf_sameGle_sameCLE sameGle h_cle_eq (by sorry) hrel₁ hrel₂
+        else
+          have h₁_isdir := (hknow e₁).cle_isDirEvent
+          have h₂_isdir := (hknow e₂).cle_isDirEvent
+          match hfc₁ : (hknow e₁).cle, h₁_isdir with
+          | .directoryEvent de₁, _ =>
+            match hfc₂ : (hknow e₂).cle, h₂_isdir with
+            | .directoryEvent de₂, _ =>
+              cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+              | inl cleOB =>
+                have h_cleOB : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle := by
+                  rw [show (hknow e₁).cle = .directoryEvent de₁ from hfc₁,
+                      show (hknow e₂).cle = .directoryEvent de₂ from hfc₂]; exact cleOB
+                exact .rf_sameGle_cleOB sameGle h_cleOB hrel₁ hrel₂
+              | inr cleOB_rev =>
+                -- CLE₂ OB CLE₁ — contradict immediately.
+                exfalso; sorry
+            | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+          | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
     | co hco =>
       have hnd₁ := hco.notDown₁; have hnd₂ := hco.notDown₂
       have hndE₁ := (notdir_of_edge (Or.inr (.co hco))).1
