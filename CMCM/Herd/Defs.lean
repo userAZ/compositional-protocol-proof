@@ -444,6 +444,7 @@ inductive FrOrdering
   | sameClusDiffCache
     (same_protocol : e₁.sameProtocol n e₂)
     (diff_cache : e₁.struct ≠ e₂.struct)
+    (gle_eq_or_ob : e₁_cmpLin.gle = e₂_cmpLin.gle ∨ e₁_cmpLin.gle.OrderedBefore n e₂_cmpLin.gle)
     (cle_ob : e₁_cmpLin.cle.OrderedBefore n e₂_cmpLin.cle)
   /-- Different cluster, e₁ coherent: e₁ has coherent perms (from reading e_w),
       so e₂'s overwrite triggers a downgrade at e₁'s CACHE.

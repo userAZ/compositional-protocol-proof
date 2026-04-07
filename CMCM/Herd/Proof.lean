@@ -639,7 +639,7 @@ theorem fr_ordering_holds
           | .directoryEvent de₂, _ =>
             cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
             | inl hob =>
-              exact .sameClusDiffCache h_same_prot h_same_cache (show Event.OrderedBefore n
+              exact .sameClusDiffCache h_same_prot h_same_cache h_fr_gle (show Event.OrderedBefore n
                 (lin e₁).cle (lin e₂).cle from
                 by rw [hfc₁, hfc₂]; exact hob)
             | inr hob =>
@@ -1478,7 +1478,7 @@ theorem step_to_ordering
         cases h_eq_or_ob with
         | inl cle_eq => exact .eq cle_eq
         | inr cle_ob => exact .ob cle_ob (Event.ne_of_ob cle_ob)
-      | sameClusDiffCache _ _ cle_ob => exact .ob cle_ob (Event.ne_of_ob cle_ob)
+      | sameClusDiffCache _ _ _ cle_ob => exact .ob cle_ob (Event.ne_of_ob cle_ob)
       | diffCluster_coherent _ _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir (Event.ne_of_obEndLt cle₁_ob_p p_lt_cle₂)
       | diffCluster_evict _ _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir (Event.ne_of_obEndLt cle₁_ob_p p_lt_cle₂)
       | diffCluster_noncoherent _ _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir (Event.ne_of_obEndLt cle₁_ob_p p_lt_cle₂)
@@ -2738,6 +2738,7 @@ inductive ProtoForwardStep {n : ℕ}
       Chain: cmpLin_reader →(readerCmpLinRel)→ CLE_r →(OB)→ CLE_w →(writerCmpLinRel⁻¹)→ cmpLin_writer -/
   | fr_sameClusDiffCache
       (readerCle_ob_writerCle : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle)
+      (readerGleEqOrOb : (hknow e₁).gle = (hknow e₂).gle ∨ (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
       (readerCmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
       (writerCmpLinRel : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
   /-- FR diffCluster_coherent: reader has coherent perms, downgrade at reader's cache.
@@ -2895,7 +2896,7 @@ theorem ProtoForwardStep.chain
     cases h_cle_rel with
     | inl h_eq => sorry
     | inr cleOB => exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels cleOB readerRel writerRel)
-  | fr_sameClusDiffCache cleOB readerRel writerRel =>
+  | fr_sameClusDiffCache cleOB _ readerRel writerRel =>
     exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels cleOB readerRel writerRel)
   | fr_diffCluster_coherent _ _ _ readerRel writerRel =>
     sorry
@@ -2970,11 +2971,10 @@ theorem ProtoForwardStep.level
   | co_sameClusDiffCache sameGle cleOB _ _ => exact .cleOB sameGle cleOB
   | co_crossCluster gleOB _ _ => exact .gleOB gleOB
   | fr_sameCache _ obLevel _ _ => exact obLevel
-  | fr_sameClusDiffCache cleOB _ _ =>
-    if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
-      exact .cleOB h_gle_eq cleOB
-    else
-      exact .gleOB (derive_gle_ob' b.orderedAtEntry.dir_ordered h_gle_eq (by sorry))
+  | fr_sameClusDiffCache cleOB readerGleEqOrOb _ _ =>
+    cases readerGleEqOrOb with
+    | inl h_gle_eq => exact .cleOB h_gle_eq cleOB
+    | inr h_gle_ob => exact .gleOB h_gle_ob
   | fr_diffCluster_coherent obLevel _ _ _ _ => exact obLevel
   | fr_diffCluster_evict obLevel _ _ _ _ => exact obLevel
   | fr_diffCluster_noncoherent obLevel _ _ _ _ => exact obLevel
@@ -3131,8 +3131,8 @@ private theorem edge_to_proto_forward
             else .cleOB h_gle_eq (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
           else .gleOB (derive_gle_ob' b.orderedAtEntry.dir_ordered h_gle_eq hfr.event_oEnd_lt)
         exact .fr_sameCache (hflin₁ ▸ hflin₂ ▸ cle_eq_or_ob) h_level (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
-      | sameClusDiffCache _ _ cle_ob =>
-        exact .fr_sameClusDiffCache (hflin₁ ▸ hflin₂ ▸ cle_ob) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
+      | sameClusDiffCache _ _ gleEqOrOb_fr cle_ob =>
+        exact .fr_sameClusDiffCache (hflin₁ ▸ hflin₂ ▸ cle_ob) (hflin₁ ▸ hflin₂ ▸ gleEqOrOb_fr) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | diffCluster_coherent diffProt gleOB_fr p cle₁_ob_p _ _ =>
         exact .fr_diffCluster_coherent (.gleOB (hflin₁ ▸ hflin₂ ▸ gleOB_fr))
           p (hflin₁ ▸ cle₁_ob_p) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
@@ -3180,7 +3180,7 @@ theorem ProtoForwardStep.startCmpLinRel
   | co_sameClusDiffCache _ _ rel _ => exact rel
   | co_crossCluster _ rel _ => exact rel
   | fr_sameCache _ _ rel _ => exact rel
-  | fr_sameClusDiffCache _ rel _ => exact rel
+  | fr_sameClusDiffCache _ _ rel _ => exact rel
   | fr_diffCluster_coherent _ _ _ rel _ => exact rel
   | fr_diffCluster_evict _ _ _ rel _ => exact rel
   | fr_diffCluster_noncoherent _ _ _ rel _ => exact rel
@@ -3202,7 +3202,7 @@ theorem ProtoForwardStep.endCmpLinRel
   | co_sameClusDiffCache _ _ _ rel => exact rel
   | co_crossCluster _ _ rel => exact rel
   | fr_sameCache _ _ _ rel => exact rel
-  | fr_sameClusDiffCache _ _ rel => exact rel
+  | fr_sameClusDiffCache _ _ _ rel => exact rel
   | fr_diffCluster_coherent _ _ _ _ rel => exact rel
   | fr_diffCluster_evict _ _ _ _ rel => exact rel
   | fr_diffCluster_noncoherent _ _ _ _ rel => exact rel
