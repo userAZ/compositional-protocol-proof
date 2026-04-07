@@ -2913,6 +2913,36 @@ private theorem diff_protocol_implies_diff_gle'
     : (hknow e₁).gle ≠ (hknow e₂).gle :=
   fun h_eq => h_diff (same_gle_implies_same_protocol (hknow e₁) (hknow e₂) h_eq)
 
+/-- Same CLE → same GLE. The GLE is derived from the CLE through cDir'sGReq (shim).
+    Same CLE Event → same gcache → same dirAccessOfRequest input → same GLE.
+    Uses: cDir'sGReq depends only on the CLE Event (isDirEvent is Prop/Subsingleton).
+    Proof irrelevance ensures same Prop proof → same Exists.choose. -/
+private theorem same_cle_implies_same_gle
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n}
+    (h_cle_eq : (hknow e₁).cle = (hknow e₂).cle)
+    : (hknow e₁).gle = (hknow e₂).gle := by
+  -- Step 1: same CLE → same cDir'sGReq → same gcache
+  have h_gcache : Behaviour.Shim.ClusterToGlobal.cDir'sGReq compound b init
+      (hknow e₁).hreq's_dir_access.choose
+      (hknow e₁).hreq's_dir_access.choose_spec.2.isDirEvent =
+    Behaviour.Shim.ClusterToGlobal.cDir'sGReq compound b init
+      (hknow e₂).hreq's_dir_access.choose
+      (hknow e₂).hreq's_dir_access.choose_spec.2.isDirEvent := by
+    congr 1 <;> exact h_cle_eq
+  -- Step 2: same gcache → same hreq's_global_lin.choose (= GLE)
+  -- The gle is .choose of an existential. With same gcache, the existentials
+  -- are proofs of the same Prop → by proof irrelevance, they're equal → same .choose.
+  -- Step 2: same gcache → same gle (= hreq's_global_lin.choose).
+  -- Dependent type: hreq's_global_lin TYPE depends on hreq's_dir_access.
+  -- With h_cle_eq: CLE₁ = CLE₂. Need to transport through the dependency.
+  -- Strategy: rewrite h_cle_eq in the GOAL to align the types, then use proof irrelevance.
+  -- .gle unfolds to .hreq's_global_lin.choose
+  -- .hreq's_global_lin depends on .hreq's_dir_access through cDir'sGReq.wrapper
+  -- h_cle_eq says the CLEs (.hreq's_dir_access.choose) are equal.
+  -- The dependent field can be transported using Eq.rec/subst on the CLE equality.
+  sorry
+
 /-- Derive GLE₁ OB GLE₂ for cross-cluster edges. Available before .level.
     Uses dir_ordered + event_fb (direction evidence from the edge). -/
 private theorem derive_gle_ob'
@@ -2959,11 +2989,7 @@ theorem ProtoForwardStep.level
   | fr_diffCluster_rfCrossCluster obLevel _ _ _ _ _ => exact obLevel
   | fr_diffCluster_rfFinishBefore obLevel _ _ _ _ _ => exact obLevel
   | fr_sameCLE sameCle reader_ob_writer _ _ =>
-    if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
-      exact .eventOB h_gle_eq sameCle reader_ob_writer
-    else
-      exact .gleOB (derive_gle_ob' b.orderedAtEntry.dir_ordered h_gle_eq
-        (Nat.lt_trans reader_ob_writer (Event.oWellFormed n e₂)))
+    exact .eventOB (same_cle_implies_same_gle sameCle) sameCle reader_ob_writer
 
 /-- For same-cluster edges with CLE₁ ≠ CLE₂: derive CLE₁ OB CLE₂ from dir_ordered.
     The reverse is contradicted by the protocol forward direction. -/
