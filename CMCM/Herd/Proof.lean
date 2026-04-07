@@ -2713,6 +2713,51 @@ theorem edge_to_cmpLinStep
         (notdir_of_edge (Or.inr hcom)).2)
       h_ne)
 
+/-- The CMCM relation on compoundLin events. Each step carries cache event witnesses
+    and produces CmpLinStep forward or equality between cmpLin events. -/
+def R_cmpLin
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    (h_non_lazy_ppoi : NonLazyPPOi cmp b init)
+    (cl₁ cl₂ : Event n) : Prop :=
+  ∃ e₁ e₂, (hknow e₁).compoundLin = cl₁ ∧ (hknow e₂).compoundLin = cl₂ ∧
+    R_hknow hknow e₁ e₂
+
+/-- The CMCM theorem on compoundLin events: R_cmpLin is acyclic.
+    Each step carries CmpLinStep (with CleLink inductive cases from com, or OB from PPOi)
+    showing how cmpLin events are ordered through CLE proxy events.
+    The cycle contradiction: each step has edge_oEnd_lt on the underlying cache events.
+    Composing edge_oEnd_lt through the cycle gives strictly increasing Nat sequence
+    on a finite event set → contradiction. -/
+theorem cmcm_cmpLin_acyclic
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    : Relation.Acyclic (R_cmpLin hknow h_non_lazy_ppoi) := by
+  intro cl hcycle
+  -- Each R_cmpLin step gives:
+  -- (1) CmpLinStep forward ∨ eq (from edge_to_cmpLinStep) — the cmpLin-level structure
+  -- (2) edge_oEnd_lt on cache events — the cycle contradiction
+  --
+  -- The cmpLin-level structure (CmpLinStep) shows HOW cmpLin events are ordered
+  -- through CLE proxy events (via CleLink inductive cases + CmpLinCleRel bridge)
+  -- or through direct OB (from PPOi via NonLazyPPOi).
+  --
+  -- The cycle contradiction uses edge_oEnd_lt:
+  -- Extract cache events from the first step: e₁ with (hknow e₁).compoundLin = cl.
+  -- edge_oEnd_lt: e₁.oEnd < e₂.oEnd. The cycle returns to cl.
+  -- Well-founded recursion on Nat (oEnd) gives termination → contradiction.
+  --
+  -- Formally: cmcm_acyclic on cache events prevents any cycle on cache events.
+  -- R_cmpLin is a projection of R_hknow through compoundLin.
+  -- A cycle on R_cmpLin doesn't directly give a cycle on R_hknow (non-injective mapping).
+  -- But each step's cache events satisfy edge_oEnd_lt, and the Nat ordering is well-founded.
+  --
+  -- Use: extract the first step, get e₁.oEnd. The full cycle traversal increases oEnd
+  -- at each step. Since b.es is finite (Behaviour.finite), eventually the oEnd exceeds
+  -- all events in b.es → the next step can't find a cache event → contradiction.
+  -- Formally: use well-founded induction on the complement of visited events.
+  sorry
+
 /-- CmpLinOrdering is a subset of TemporalRel (TransGen BasicTemporalRel) ∨ eq.
     Every CmpLinOrdering step decomposes into equality or a transitive chain of
     OB/Encap/EncapBy/FinishesBefore/FinishesAfterProxy steps. -/
