@@ -2610,27 +2610,55 @@ theorem cmcm_acyclic_of_hknow_compoundLinOrdering
     The CleLink inductive carries protocol communication cases (OB, Encap, etc.).
     Acyclicity follows from CleLink + dir_ordered on CLEs. -/
 inductive CmpLinStep {n : ℕ} (cl₁ cl₂ : Event n) : Prop
-  | step (cle₁ cle₂ : Event n)
+  /-- COM edge: cmpLin connected through CLE proxies via CleLink inductive cases. -/
+  | com (cle₁ cle₂ : Event n)
       (h_clelink : @CleLink n cle₁ cle₂)
       (h₁_isdir : cle₁.isDirectoryEvent) (h₂_isdir : cle₂.isDirectoryEvent)
       (h_prefix : CmpLinCleRel cl₁ cle₁) (h_suffix : CmpLinCleRel cl₂ cle₂)
       (h_ne : cl₁ ≠ cl₂)
+  /-- PPOi edge: direct OB between cmpLin events (from NonLazyPPOi).
+      No CLE proxy needed — the OB is between the cmpLin events directly. -/
+  | ob (h_ob : cl₁.OrderedBefore n cl₂) (h_ne : cl₁ ≠ cl₂)
 
 /-- CmpLinStep is irreflexive. -/
 theorem CmpLinStep.irrefl' {cl : Event n} : ¬ @CmpLinStep n cl cl := by
-  intro h; cases h with | step _ _ _ _ _ _ _ h_ne => exact absurd rfl h_ne
+  intro h; cases h with
+  | com _ _ _ _ _ _ _ h_ne => exact absurd rfl h_ne
+  | ob _ h_ne => exact absurd rfl h_ne
 
-/-- Forward LinLink gives CmpLinStep for proxy/step constructors.
-    ppoProxy requires external CLE evidence (not carried in LinLink). -/
+/-- Forward LinLink gives CmpLinStep.
+    step/proxy: CleLink explicit → CmpLinStep.com.
+    ppoProxy: direct OB → CmpLinStep.ob. -/
 theorem linlink_fwd_to_cmpLinStep {cl₁ cl₂ : Event n} (h : LinLink cl₁ cl₂)
-    : CmpLinStep cl₁ cl₂ ∨
-      -- ppoProxy case: OB between cmpLin events (no CLE in LinLink, needs external evidence)
-      (∃ e₁ e₂ : Event n, e₁.OrderedBefore n e₂ ∧ cl₁ ≠ cl₂) := by
+    : CmpLinStep cl₁ cl₂ := by
   cases h with
-  | step hcl h₁ h₂ h_ne => exact Or.inl (.step _ _ hcl h₁ h₂ (.eq rfl) (.eq rfl) h_ne)
-  | proxy cle₁ cle₂ hcl h₁ h₂ hpre hsuf _ h_ne =>
-    exact Or.inl (.step cle₁ cle₂ hcl h₁ h₂ hpre hsuf h_ne)
-  | ppoProxy e₁ e₂ h_ob _ h_ne => exact Or.inr ⟨e₁, e₂, h_ob, h_ne⟩
+  | step hcl h₁ h₂ h_ne => exact .com _ _ hcl h₁ h₂ (.eq rfl) (.eq rfl) h_ne
+  | proxy cle₁ cle₂ hcl h₁ h₂ hpre hsuf _ h_ne => exact .com cle₁ cle₂ hcl h₁ h₂ hpre hsuf h_ne
+  | ppoProxy e₁ e₂ h_ob _ h_ne =>
+    -- ppoProxy: cl₁ OB cl₂ from the h_chain (TemporalRel) or from h_ob (e₁ OB e₂).
+    -- The ppoProxy h_chain : TemporalRel cl₁ cl₂ gives TransGen BasicTemporalRel.
+    -- But we need cl₁ OB cl₂ directly. From NonLazyPPOi: cmpLin₁ OB cmpLin₂.
+    -- Actually, ppoProxy's h_chain includes OB as a step. But the chain might be longer.
+    -- Use: e₁ OB e₂ AND cmpLin₁ relates to e₁, cmpLin₂ relates to e₂.
+    -- For requestLin: cmpLin = e → cl₁ = e₁, cl₂ = e₂ → cl₁ OB cl₂.
+    -- For dirLin: cmpLin inside CLE inside e → cl₁ ≠ e₁.
+    -- The ppoProxy constructor has h_ob : e₁ OB e₂ (the REQUEST events, not cmpLin).
+    -- cl₁ and cl₂ are cmpLin events. cl₁ OB cl₂ is NOT guaranteed from e₁ OB e₂.
+    -- BUT: ppoProxy also has h_chain : TemporalRel cl₁ cl₂.
+    -- h_chain is TransGen BasicTemporalRel cl₁ cl₂. NOT necessarily a single OB step.
+    -- However, NonLazyPPOi gives cmpLin₁.linearizationEvent OB cmpLin₂.linearizationEvent.
+    -- The LinearizationEvent is the compoundLinearizationEvent, so it IS cmpLin₁ OB cmpLin₂.
+    -- Wait — NonLazyPPOi gives linearizationEvent₁ OB linearizationEvent₂.
+    -- linearizationEvent = compoundLinearizationEvent.linearizationEvent, which IS compoundLin.
+    -- So NonLazyPPOi gives cl₁ OB cl₂!
+    -- But I don't have NonLazyPPOi here. The ppoProxy constructor has h_ob : e₁ OB e₂.
+    -- Need to derive cl₁ OB cl₂ from e₁ OB e₂ + the cmpLin/event relationship.
+    -- This is what ppoi_cmpLin_temporalRel does — but it gives TemporalRel, not OB.
+    -- For the ob constructor: I need cl₁.OrderedBefore n cl₂.
+    -- From the h_chain: TemporalRel cl₁ cl₂. This doesn't give OB directly.
+    -- SIMPLIFICATION: just use the TemporalRel h_chain + h_ne. Don't need pure OB.
+    -- But CmpLinStep.ob requires OrderedBefore. Let me check if I can relax it.
+    sorry -- Need cl₁ OB cl₂ from PPOi evidence
 
 /-- Each R_hknow edge gives a CmpLinStep between compoundLin events.
     COM: CleLink from step_to_ordering → CmpLinStep.step via CmpLinCleRel bridge.
@@ -2644,24 +2672,14 @@ theorem edge_to_cmpLinStep
       (hknow e₁).compoundLin = (hknow e₂).compoundLin := by
   -- Use edge_cmpLin_ordered which gives CmpLinOrdering (forward LinLink / eq / reverse LinLink).
   cases edge_cmpLin_ordered h_non_lazy_ppoi h with
-  | inl hlink =>
-    -- Forward LinLink → CmpLinStep (for proxy/step) or PPOi evidence.
-    cases linlink_fwd_to_cmpLinStep hlink with
-    | inl hstep => exact Or.inl hstep
-    | inr h_ppoi =>
-      -- PPOi ppoProxy case: need CleLink from hknow + dir_ordered.
-      -- Extract CLEs: (hknow e₁).cle and (hknow e₂).cle.
-      -- Same cache (PPOi) → same entry → dir_ordered → CleLink.
-      left
-      sorry -- PPOi: derive CmpLinStep from dir_ordered on CLEs
+  | inl hlink => exact Or.inl (linlink_fwd_to_cmpLinStep hlink)
   | inr hr => cases hr with
     | inl heq => exact Or.inr heq
     | inr hlink =>
-      -- Reverse LinLink cl₂ → cl₁. Extract CmpLinStep cl₁ → cl₂.
-      -- The reverse gives CleLink in the reverse direction.
-      -- At same entry: dir_ordered determines the CORRECT direction.
-      left
-      sorry -- Reverse LinLink → forward CmpLinStep via dir_ordered
+      -- Reverse LinLink cl₂ → cl₁. The reverse LinLink gives CleLink cl₂ → cl₁.
+      -- For CmpLinStep cl₁ → cl₂: need CleLink cl₁ → cl₂ direction.
+      -- Extract from reverse LinLink and flip via dir_ordered.
+      sorry -- Reverse LinLink → CmpLinStep
 
 /-- CmpLinOrdering is a subset of TemporalRel (TransGen BasicTemporalRel) ∨ eq.
     Every CmpLinOrdering step decomposes into equality or a transitive chain of
