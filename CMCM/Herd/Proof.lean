@@ -2872,6 +2872,24 @@ private theorem derive_cle_ob_same_cluster
     | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
   | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
+/-- GLE.oEnd < CLE.oEnd: GLE is temporally before CLE ends.
+    From: GLE.oEnd < gcache.oEnd (from dirAccessOfRequest encapsulation) and
+    gcache.oEnd < CLE.oEnd (from gcache_oEnd_lt_cle shim). -/
+private theorem gle_oEnd_lt_cle
+    {lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    : Event.oEnd n lin.gle < Event.oEnd n lin.cle := by
+  -- GLE.oEnd < gcache.oEnd: from dirAccessOfRequest on gcache → GLE encapsulated
+  have hda := lin.hreq's_global_lin.choose_spec.2
+  have h_gle_lt_gcache : Event.oEnd n lin.gle <
+      Event.oEnd n (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init lin.hreq's_dir_access) := by
+    cases hda with
+    | encapDir _ hencap => exact hencap.reqEncapDir.right
+    | orderBeforeDir _ hpred hpred_dir _ _ _ _ _ =>
+      exact Nat.lt_trans hpred_dir.reqEncapDir.right
+        (Nat.lt_trans hpred.choose_spec.2.isImmPred.bPred.isPred (Event.oWellFormed n _))
+    | orderAfterDir _ _ _ _ => sorry -- orderAfterDir at global level: vacuous (NC weak on Vd)
+  exact Nat.lt_trans h_gle_lt_gcache (gcache_oEnd_lt_cle lin)
+
 private theorem temporalRel_of_gleOB_and_cmpLinCleRels
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n}
@@ -2893,28 +2911,43 @@ private theorem temporalRel_of_gleOB_and_cmpLinCleRels
       have h_cleOB := derive_cle_ob_same_cluster hdir h_eq h_clelink h_prot
       exact temporalRel_of_cleOB_and_cmpLinCleRels h_cleOB rel₁ rel₂
     else
-      -- Different protocol (cross-cluster): use dir_ordered. Reverse contradicted by
-      -- GLE₁ OB GLE₂ + GLE inside CLE (via gcache encapsulation: CLE.oStart < GLE.oEnd).
-      have h₁_isdir := (hknow e₁).cle_isDirEvent
-      have h₂_isdir := (hknow e₂).cle_isDirEvent
-      match hfc₁ : (hknow e₁).cle, h₁_isdir with
-      | .directoryEvent de₁, _ =>
-        match hfc₂ : (hknow e₂).cle, h₂_isdir with
-        | .directoryEvent de₂, _ =>
-          cases (hdir de₁ de₂).ordered with
-          | inl cleOB =>
-            have h_cleOB : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle := by rw [hfc₁, hfc₂]; exact cleOB
-            exact temporalRel_of_cleOB_and_cmpLinCleRels h_cleOB rel₁ rel₂
-          | inr cleOB_rev =>
-            -- CLE₂ OB CLE₁ but GLE₁ OB GLE₂. Contradiction via encapsulation chain.
-            -- GLE.oEnd < gcache.oEnd < CLE.oEnd (gle_oEnd_lt_cle).
-            -- CLE₂.oEnd < CLE₁.oStart. GLE₁.oEnd < GLE₂.oEnd < CLE₂.oEnd < CLE₁.oStart.
-            -- Need: CLE₁.oStart < GLE₁.oEnd (from CLE₁ ⊃ gcache₁ ⊃ GLE₁).
-            -- For encapGlobalCache: CLE₁.oStart < gcache₁.oStart < GLE₁.oStart ≤ GLE₁.oEnd. ✓
-            -- For noGlobalCache: gcache₁ finishesBefore CLE₁. CLE₁.oStart vs GLE₁.oEnd unconstrained.
-            sorry
-        | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
-      | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+      -- Different protocol (cross-cluster): build chain through GLE OB directly.
+      -- Chain: cmpLin₁ →(rel₁)→ CLE₁ →(finishesAfterProxy via GLE₁ OB GLE₂)→ GLE₂
+      --        →(finishesBefore)→ CLE₂ →(rel₂⁻¹)→ cmpLin₂
+      -- No CLE ordering needed — goes through GLE level.
+      have h_cle₁_to_gle₂ : BasicTemporalRel (hknow e₁).cle (hknow e₂).gle :=
+        .finishesAfterProxy _ gleOB gle_oEnd_lt_cle
+      have h_gle₂_to_cle₂ : BasicTemporalRel (hknow e₂).gle (hknow e₂).cle :=
+        .finishesBefore gle_oEnd_lt_cle
+      have h_cle_chain : TemporalRel (hknow e₁).cle (hknow e₂).cle :=
+        .tail (.single h_cle₁_to_gle₂) h_gle₂_to_cle₂
+      cases rel₁ with
+      | eq h₁ => cases rel₂ with
+        | eq h₂ => exact h₁ ▸ h₂ ▸ h_cle_chain
+        | cle_ob _ _ h₂_ob _ => exact (h₁ ▸ h_cle_chain).tail (.ob h₂_ob)
+        | inside h₂_enc _ _ => exact (h₁ ▸ h_cle_chain).tail (.encap h₂_enc)
+      | cle_ob _ h₁_eq h₁_ob _ =>
+        -- cmpLin₁ after CLE₁: chain through finishesAfterProxy to GLE₂ → CLE₂ → cmpLin₂.
+        -- GLE₁.oEnd < CLE₁.oEnd < cmpLin₁.oStart ≤ cmpLin₁.oEnd
+        have h_cle_lt_cmpLin : Event.oEnd n (hknow e₁).cle < Event.oEnd n (hknow e₁).compoundLin :=
+          Nat.lt_of_lt_of_le h₁_ob (Event.oStart_le_oEnd _)
+        have h_gle_lt_cmpLin : Event.oEnd n (hknow e₁).gle < Event.oEnd n (hknow e₁).compoundLin :=
+          Nat.lt_trans (gle_oEnd_lt_cle (lin := hknow e₁)) h_cle_lt_cmpLin
+        have h_step : BasicTemporalRel (hknow e₁).compoundLin (hknow e₂).gle :=
+          .finishesAfterProxy _ gleOB h_gle_lt_cmpLin
+        have h_to_cle₂ : TemporalRel (hknow e₁).compoundLin (hknow e₂).cle :=
+          Relation.TransGen.tail (Relation.TransGen.single h_step) h_gle₂_to_cle₂
+        cases rel₂ with
+        | eq h₂ => exact h₂ ▸ h_to_cle₂
+        | cle_ob _ _ h₂_ob _ => exact h_to_cle₂.tail (.ob h₂_ob)
+        | inside h₂_enc _ _ => exact h_to_cle₂.tail (.encap h₂_enc)
+      | inside h₁_enc _ _ =>
+        have h_prefix : TemporalRel (hknow e₁).compoundLin (hknow e₁).cle :=
+          Relation.TransGen.single (.encapBy h₁_enc)
+        cases rel₂ with
+        | eq h₂ => exact h₂ ▸ h_prefix.trans h_cle_chain
+        | cle_ob _ _ h₂_ob _ => exact (h_prefix.trans h_cle_chain).tail (.ob h₂_ob)
+        | inside h₂_enc _ _ => exact (h_prefix.trans h_cle_chain).tail (.encap h₂_enc)
 
 /-- Build chain for same-CLE cases. 9 CmpLinCleRel × CmpLinCleRel combinations.
     For inside × inside: both cmpLin events are global directory events inside the same CLE,

@@ -3327,7 +3327,7 @@ lemma globalToCluster_extract_dir_with_encap
 
 /-- The GCR (global cache request from ClusterToGlobal shim) finishes before the CLE.
     Used in temporal bound computations for encapDirRelation. -/
-private lemma gcache_oEnd_lt_cle
+lemma gcache_oEnd_lt_cle
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e_r : Event n}
     (hr_c_and_g_lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e_r)
     : (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper cmp b init
