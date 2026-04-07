@@ -2807,9 +2807,9 @@ private theorem temporalRel_of_cleOB_and_cmpLinCleRels
     | inside cle₂_encaps_cmpLin₂ _ =>
       exact .tail (.tail (.single h_encapBy) (.ob cleOB)) (.encap cle₂_encaps_cmpLin₂)
 
-/-- same CLE → same GLE. Proven as same_cle_implies_same_gle below; duplicated here
-    for ordering. Uses the same proof technique (generalize+subst). -/
-private theorem same_cle_same_gle
+/-- Same CLE → same GLE. The GLE is derived from the CLE through cDir'sGReq (shim).
+    Uses generalize+subst for dependent type transport through Eq.mpr. -/
+private theorem same_cle_implies_same_gle
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n}
     (h : (hknow e₁).cle = (hknow e₂).cle)
@@ -2904,7 +2904,7 @@ private theorem temporalRel_of_gleOB_and_cmpLinCleRels
   -- Different CLE → derive_cle_ob_same_cluster (CleLink + same_prot contradicts reverse).
   if h_eq : (hknow e₁).cle = (hknow e₂).cle then
     exfalso
-    have h_gle_eq := same_cle_same_gle h_eq
+    have h_gle_eq := same_cle_implies_same_gle h_eq
     exact Nat.lt_irrefl _ (Nat.lt_trans gleOB (h_gle_eq ▸ Event.oWellFormed n _))
   else
     have h_cleOB := derive_cle_ob_same_cluster hdir h_eq h_clelink h_same_prot
@@ -3019,78 +3019,6 @@ private theorem diff_protocol_implies_diff_gle'
     : (hknow e₁).gle ≠ (hknow e₂).gle :=
   fun h_eq => h_diff (same_gle_implies_same_protocol (hknow e₁) (hknow e₂) h_eq)
 
-/-- Same CLE → same GLE. The GLE is derived from the CLE through cDir'sGReq (shim).
-    Same CLE Event → same gcache → same dirAccessOfRequest input → same GLE.
-    Uses: cDir'sGReq depends only on the CLE Event (isDirEvent is Prop/Subsingleton).
-    Proof irrelevance ensures same Prop proof → same Exists.choose. -/
-private theorem same_cle_implies_same_gle
-    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
-    {e₁ e₂ : Event n}
-    (h_cle_eq : (hknow e₁).cle = (hknow e₂).cle)
-    : (hknow e₁).gle = (hknow e₂).gle := by
-  -- .gle = .hreq's_global_lin.choose
-  -- .hreq's_global_lin depends on .hreq's_dir_access through cDir'sGReq.wrapper
-  -- Same CLE (.hreq's_dir_access.choose) → same wrapper output → same existential type → same .choose
-  -- The trick: show the wrapper outputs are the same Event, then use congrArg on the
-  -- function that maps wrapper output to the GLE.
-  --
-  -- Define: gcache e := cDir'sGReq.wrapper compound b init (hknow e).hreq's_dir_access
-  -- gle e := (hknow e).hreq's_global_lin.choose
-  -- hreq's_global_lin e : ∃ g ∈ b, dirAccessOfRequest init (gcache e) g
-  --
-  -- h_cle_eq → gcache e₁ = gcache e₂ (proven via congr on cDir'sGReq)
-  -- Then: the two existentials have the same type (after rewriting)
-  -- Proof irrelevance: same type → equal proofs → same .choose
-  unfold CompoundProtocol.globalLinearizationEventOfRequest.gle
-  -- Goal: (hknow e₁).hreq's_global_lin.choose = (hknow e₂).hreq's_global_lin.choose
-  -- Show wrapper equality:
-  have h_w : Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init
-      (hknow e₁).hreq's_dir_access =
-    Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init
-      (hknow e₂).hreq's_dir_access := by
-    simp only [Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper]
-    congr 1 <;> exact h_cle_eq
-  -- Now: rewrite h_w in the goal. The hreq's_global_lin for (hknow e₂) after rewriting
-  -- has the same type as for (hknow e₁). Then proof irrelevance gives equality.
-  -- Use @Eq.rec to transport:
-  have h₁ := (hknow e₁).hreq's_global_lin
-  have h₂ := (hknow e₂).hreq's_global_lin
-  -- Cast h₂ to h₁'s type using h_w:
-  -- h₂ : ∃ g ∈ b, P (wrapper hda₂) g
-  -- Need: ∃ g ∈ b, P (wrapper hda₁) g
-  -- h_w : wrapper hda₁ = wrapper hda₂ → P (wrapper hda₁) = P (wrapper hda₂)
-  -- So the types are equal by propext/congrArg
-  have h₂' := @Eq.mpr (∃ e_gdir ∈ b, b.dirAccessOfRequest n init
-      (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init
-        (hknow e₁).hreq's_dir_access) e_gdir)
-    (∃ e_gdir ∈ b, b.dirAccessOfRequest n init
-      (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init
-        (hknow e₂).hreq's_dir_access) e_gdir)
-    (congrArg (fun gcache => ∃ e_gdir ∈ b, b.dirAccessOfRequest n init gcache e_gdir) h_w)
-    h₂
-  -- h₁ and h₂' have the same type. By proof irrelevance:
-  have h_eq : h₁ = h₂' := Subsingleton.elim _ _
-  -- .choose of equal proofs:
-  have h_c : h₁.choose = h₂'.choose := congrArg Exists.choose h_eq
-  -- h₂'.choose = h₂.choose because Eq.mpr on ∃ preserves .choose:
-  -- @Eq.mpr (∃ x, P x) (∃ x, Q x) h proof = ⟨proof.choose, ...⟩ where witness is same
-  -- Now: h_c says h₁.choose = h₂'.choose. Need h₁.choose = h₂.choose.
-  -- h₂' = @Eq.mpr ... h₂. The @Eq.mpr transports along congrArg.
-  -- When h_w : a = b, @Eq.mpr (∃ x, P a x) (∃ x, P b x) (congrArg ... h_w) h₂
-  -- has the same .choose as h₂ because the transport only affects the inner Prop.
-  -- Prove by generalizing: let w₂ := wrapper hda₂, generalize to variable, subst.
-  suffices h₂'.choose = h₂.choose by rw [h_c, this]
-  -- h₂' = @Eq.mpr ... (congrArg ... h_w) h₂.
-  -- Generalize wrapper hda₂ to a variable w, then h_w : wrapper hda₁ = w, subst w.
-  -- After subst: h₂' = @Eq.mpr ... rfl h₂ = h₂. So .choose equal.
-  change (@Eq.mpr _ _ (congrArg (fun gcache => ∃ e_gdir ∈ b,
-    b.dirAccessOfRequest n init gcache e_gdir) h_w) h₂).choose = h₂.choose
-  -- Generalize the wrapper output:
-  generalize Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init
-    (hknow e₂).hreq's_dir_access = w₂ at h_w h₂
-  subst h_w
-  rfl
-
 -- derive_gle_ob' REMOVED: all callers now use gle_eq_or_ob from edge structures.
 
 /-- Extract the OB level from any ProtoForwardStep. -/
@@ -3132,19 +3060,27 @@ private theorem compoundLin_eq_linearizationEvent'
   | clusterCacheLin h => simp [CompoundProtocol.compoundLinOf, hcase, ClusterRequestLinearizationEvent.linearizationEvent]
   | clusterDirLin h => simp [CompoundProtocol.compoundLinOf, hcase, ClusterRequestLinearizationEvent.linearizationEvent]
 
+/-- Derive CmpLinCleRel for both endpoints of an R_hknow edge.
+    Common preamble: notDown + notDir → CmpLinCleRel. -/
+private theorem edge_cmpLinCleRels
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n}
+    (h : R_hknow hknow e₁ e₂)
+    : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle ∧
+      CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle :=
+  let ⟨hnd₁, hnd₂⟩ := notdown_of_edge h
+  let ⟨hndE₁, hndE₂⟩ := notdir_of_edge h
+  ⟨compoundLin_cle_to_CmpLinCleRel hnd₁ hndE₁, compoundLin_cle_to_CmpLinCleRel hnd₂ hndE₂⟩
+
 private theorem edge_to_proto_forward
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     {e₁ e₂ : Event n}
     (h : R_hknow hknow e₁ e₂)
     : ProtoForwardStep hknow e₁ e₂ := by
+  have ⟨hrel₁, hrel₂⟩ := edge_cmpLinCleRels h
   cases h with
   | inl hppoi =>
-    have hnd₁ := hppoi.1.notDown₁; have hnd₂ := hppoi.1.notDown₂
-    have hndE₁ := (notdir_of_edge (Or.inl hppoi)).1
-    have hndE₂ := (notdir_of_edge (Or.inl hppoi)).2
-    have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnd₁ hndE₁ (lin := hknow e₁)
-    have hrel₂ := compoundLin_cle_to_CmpLinCleRel hnd₂ hndE₂ (lin := hknow e₂)
     have h_fb := edge_oEnd_lt (Or.inl hppoi)
     have h_cmpLin_ob : (hknow e₁).compoundLin.OrderedBefore n (hknow e₂).compoundLin := by
       rw [compoundLin_eq_linearizationEvent' (lin := hknow e₁),
@@ -3166,11 +3102,6 @@ private theorem edge_to_proto_forward
   | inr hcom =>
     cases hcom with
     | rfe hrfe =>
-      have hnd₁ := hrfe.notDown₁; have hnd₂ := hrfe.notDown₂
-      have hndE₁ := (notdir_of_edge (Or.inr (.rfe hrfe))).1
-      have hndE₂ := (notdir_of_edge (Or.inr (.rfe hrfe))).2
-      have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnd₁ hndE₁ (lin := hknow e₁)
-      have hrel₂ := compoundLin_cle_to_CmpLinCleRel hnd₂ hndE₂ (lin := hknow e₂)
       cases hrfe.readsFrom with
       | wObRGle writerGle_ob_readerGle _ => exact .rf_crossGle writerGle_ob_readerGle hrel₁ hrel₂
       | wEqRGle sameGle sameCluster wEqRGleCases =>
@@ -3186,7 +3117,7 @@ private theorem edge_to_proto_forward
           -- For same cluster (wEqRGle): step_to_ordering gives .ob or .sameLin or .eq.
           -- .eq contradicts h_cle_eq. Other constructors give CLE₁ OB CLE₂.
           -- Extract CLE OB from CleLink using CleLink.subset_temporalRel → oStart increase.
-          -- Simpler: use dir_ordered (existing sorry) for now.
+          -- CLE OB derived from CleLink + same_prot via derive_cle_ob_same_cluster.
           -- CleLink from step_to_ordering. For same-cluster CLE≠:
           -- CleLink decomposes to LinChain (no obFinishBefore for same cluster).
           -- LinChain.oStart_lt gives CLE₁.oStart < CLE₂.oStart.
@@ -3199,11 +3130,6 @@ private theorem edge_to_proto_forward
                   (sameCluster.trans (cle_protocol_eq_event hrfe.notDown₂).symm)))
             hrel₁ hrel₂
     | co hco =>
-      have hnd₁ := hco.notDown₁; have hnd₂ := hco.notDown₂
-      have hndE₁ := (notdir_of_edge (Or.inr (.co hco))).1
-      have hndE₂ := (notdir_of_edge (Or.inr (.co hco))).2
-      have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnd₁ hndE₁ (lin := hknow e₁)
-      have hrel₂ := compoundLin_cle_to_CmpLinCleRel hnd₂ hndE₂ (lin := hknow e₂)
       cases hco.comm with
       | sameCache sameCle sameGle_co e₁_ob_e₂ =>
         exact .co_sameCache sameCle sameGle_co e₁_ob_e₂ hrel₁ hrel₂
@@ -3252,11 +3178,6 @@ private theorem edge_to_proto_forward
       | diffClus diffProt gleOB_co cleOrdering =>
         exact .co_crossCluster gleOB_co hrel₁ hrel₂
     | fr hfr =>
-      have hnd₁ := hfr.notDown₁; have hnd₂ := hfr.notDown₂
-      have hndE₁ := (notdir_of_edge (Or.inr (.fr hfr))).1
-      have hndE₂ := (notdir_of_edge (Or.inr (.fr hfr))).2
-      have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnd₁ hndE₁ (lin := hknow e₁)
-      have hrel₂ := compoundLin_cle_to_CmpLinCleRel hnd₂ hndE₂ (lin := hknow e₂)
       -- FR: derive FrOrdering, case-split on protocol scenarios.
       have frLin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e :=
         fun e => hfr.hknow_dir_access compound b init e
