@@ -3028,7 +3028,106 @@ theorem cmcm_cmpLin_acyclic
   -- ALTERNATIVE: just use sorry for this theorem and note that the CmpLinStep
   -- infrastructure IS the cmpLin-level proof structure. The acyclicity mechanism
   -- (edge_oEnd_lt / CLE path / finiteness) is the remaining formal step.
-  sorry
+  -- Track CLE path + cache event evidence through TransGen induction.
+  -- At each step: extract CLEs from hknow. At junctions: junction_compose.
+  -- Cycle closure: junction_compose + CLE path → CLE cycle → contradiction.
+  --
+  -- The suffices tracks: first/last cache events + CLE path between their CLEs.
+  -- Protocol evidence (isClusterCache, notdown) enables junction_compose at each step.
+  suffices hsuff : ∀ cl₂, Relation.TransGen (R_cmpLin hknow h_non_lazy_ppoi) cl cl₂ →
+      ∃ (e_first e_last : Event n),
+        (hknow e_first).compoundLin = cl ∧ (hknow e_last).compoundLin = cl₂ ∧
+        e_first.isClusterCache ∧ e_last.isClusterCache ∧
+        ¬ e_first.down ∧ ¬ e_last.down ∧ ¬ e_first.isDirectoryEvent ∧ ¬ e_last.isDirectoryEvent ∧
+        ((hknow e_first).cle = (hknow e_last).cle ∨
+         Relation.TransGen (@CleLink n) (hknow e_first).cle (hknow e_last).cle ∨
+         Relation.TransGen (@CleLink n) (hknow e_last).cle (hknow e_first).cle) by
+    -- Cycle closure: cl₂ = cl. junction_compose connects last CLE back to first CLE.
+    sorry -- TODO: cycle closure using junction_compose + CLE cycle contradiction
+  -- Prove the suffices: induction on TransGen.
+  intro cl₂ hpath
+  induction hpath with
+  | single hstep =>
+    obtain ⟨e₁, e₂, h_cl₁, h_cl₂, h_edge⟩ := hstep
+    have ⟨hnd₁, hnd₂⟩ := notdown_of_edge h_edge
+    have ⟨hndE₁, hndE₂⟩ := notdir_of_edge h_edge
+    have ⟨hc₁, hc₂⟩ : e₁.isClusterCache ∧ e₂.isClusterCache := by
+      cases h_edge with
+      | inl h => exact ⟨h.1.cache₁, h.1.cache₂⟩
+      | inr h => cases h with | rfe h => exact ⟨h.cache₁, h.cache₂⟩ | co h => exact ⟨h.cache₁, h.cache₂⟩ | fr h => exact ⟨h.cache₁, h.cache₂⟩
+    refine ⟨e₁, e₂, h_cl₁, h_cl₂, hc₁, hc₂, hnd₁, hnd₂, hndE₁, hndE₂, ?_⟩
+    -- CLE relationship from the edge.
+    cases h_edge with
+    | inl _ =>
+      -- PPOi: dir_ordered on CLEs.
+      if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then exact Or.inl h_cle_eq
+      else
+        match hfc₁ : (hknow e₁).cle, (hknow e₁).cle_isDirEvent with
+        | .directoryEvent de₁, _ =>
+          match hfc₂ : (hknow e₂).cle, (hknow e₂).cle_isDirEvent with
+          | .directoryEvent de₂, _ =>
+            cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+            | inl h_ob =>
+              exact Or.inr (Or.inl (.single (.ob h_ob (by rw [← hfc₁, ← hfc₂]; exact h_cle_eq))))
+            | inr h_ob_rev =>
+              exact Or.inr (Or.inr (.single (.ob h_ob_rev (by rw [← hfc₂, ← hfc₁]; exact Ne.symm h_cle_eq))))
+          | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+        | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+    | inr hcom => exact Or.inr (Or.inl (.single (step_to_ordering_hknow hknow hcom h_non_lazy_ppoi)))
+  | tail _ hlast ih =>
+    -- IH: ∃ e_first e_mid, ... CLE path from (hknow e_first).cle to (hknow e_mid).cle.
+    -- hlast: R_cmpLin cl_mid cl₂ → new step with CleLink.
+    -- Junction at cl_mid: (hknow e_mid).cle meets (hknow e_new_start).cle.
+    -- junction_compose gives CleLink/eq between them.
+    -- Compose CLE paths.
+    obtain ⟨e_f, e_m, h_cl_f, h_cl_m, hc_f, hc_m, hnd_f, hnd_m, hndE_f, hndE_m, h_path_ih⟩ := ih
+    obtain ⟨e₁, e₂, h_cl₁, h_cl₂, h_edge⟩ := hlast
+    have ⟨hnd₁, hnd₂⟩ := notdown_of_edge h_edge
+    have ⟨hndE₁, hndE₂⟩ := notdir_of_edge h_edge
+    have ⟨hc₁, hc₂⟩ : e₁.isClusterCache ∧ e₂.isClusterCache := by
+      cases h_edge with
+      | inl h => exact ⟨h.1.cache₁, h.1.cache₂⟩
+      | inr h => cases h with | rfe h => exact ⟨h.cache₁, h.cache₂⟩ | co h => exact ⟨h.cache₁, h.cache₂⟩ | fr h => exact ⟨h.cache₁, h.cache₂⟩
+    -- Junction at cl_mid: (hknow e_m).cle and (hknow e₁).cle both relate to cl_mid.
+    have hrel_m := compoundLin_cle_to_CmpLinCleRel hnd_m hndE_m (lin := hknow e_m)
+    have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnd₁ hndE₁ (lin := hknow e₁)
+    -- junction_compose at cl_mid.
+    -- Rewrite CmpLinCleRel to use cl_mid instead of (hknow e_m).compoundLin.
+    rw [h_cl_m] at hrel_m
+    rw [h_cl₁] at hrel₁
+    have h_junct := junction_compose
+      hrel_m hrel₁
+      (hknow e_m).cle_isDirEvent (hknow e₁).cle_isDirEvent
+      b.orderedAtEntry.dir_ordered
+      (cle_protocol_ne_global hnd_m hc_m) (cle_protocol_ne_global hnd₁ hc₁)
+      (by sorry) (by sorry) -- CLE protocol = cl_mid protocol
+    -- New step CLE relationship.
+    have h_new_cle : (hknow e₁).cle = (hknow e₂).cle ∨
+        Relation.TransGen (@CleLink n) (hknow e₁).cle (hknow e₂).cle ∨
+        Relation.TransGen (@CleLink n) (hknow e₂).cle (hknow e₁).cle := by
+      cases h_edge with
+      | inl _ =>
+        if h_eq : (hknow e₁).cle = (hknow e₂).cle then exact Or.inl h_eq
+        else
+          match hfc₁ : (hknow e₁).cle, (hknow e₁).cle_isDirEvent with
+          | .directoryEvent de₁, _ =>
+            match hfc₂ : (hknow e₂).cle, (hknow e₂).cle_isDirEvent with
+            | .directoryEvent de₂, _ =>
+              cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+              | inl h_ob => exact Or.inr (Or.inl (.single (.ob h_ob (by rw [← hfc₁, ← hfc₂]; exact h_eq))))
+              | inr h_ob_rev => exact Or.inr (Or.inr (.single (.ob h_ob_rev (by rw [← hfc₂, ← hfc₁]; exact Ne.symm h_eq))))
+            | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+          | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+      | inr hcom => exact Or.inr (Or.inl (.single (step_to_ordering_hknow hknow hcom h_non_lazy_ppoi)))
+    -- Compose: IH path + junction + new step.
+    refine ⟨e_f, e₂, h_cl_f, h_cl₂, hc_f, hc₂, hnd_f, hnd₂, hndE_f, hndE₂, ?_⟩
+    -- Compose the three CLE relationships:
+    -- h_path_ih: (hknow e_f).cle to (hknow e_m).cle (3-way)
+    -- h_junct: (hknow e_m).cle to (hknow e₁).cle (3-way)
+    -- h_new_cle: (hknow e₁).cle to (hknow e₂).cle (3-way)
+    -- Compose into: (hknow e_f).cle to (hknow e₂).cle (3-way)
+    -- This is TransGen composition with 3-way directions.
+    sorry -- Compose 3 × 3-way CLE relationships into one 3-way
 
 /-- CmpLinOrdering is a subset of TemporalRel (TransGen BasicTemporalRel) ∨ eq.
     Every CmpLinOrdering step decomposes into equality or a transitive chain of
