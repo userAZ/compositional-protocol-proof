@@ -2825,7 +2825,28 @@ private theorem same_cle_same_gle
     {e₁ e₂ : Event n}
     (h : (hknow e₁).cle = (hknow e₂).cle)
     : (hknow e₁).gle = (hknow e₂).gle := by
-  sorry -- same proof as same_cle_implies_same_gle (defined below, ordering issue)
+  unfold CompoundProtocol.globalLinearizationEventOfRequest.gle
+  have h_w : Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init
+      (hknow e₁).hreq's_dir_access =
+    Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init
+      (hknow e₂).hreq's_dir_access := by
+    simp only [Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper]; congr 1 <;> exact h
+  have h₁ := (hknow e₁).hreq's_global_lin
+  have h₂ := (hknow e₂).hreq's_global_lin
+  have h₂' := @Eq.mpr (∃ e_gdir ∈ b, b.dirAccessOfRequest n init
+      (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init
+        (hknow e₁).hreq's_dir_access) e_gdir)
+    (∃ e_gdir ∈ b, b.dirAccessOfRequest n init
+      (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init
+        (hknow e₂).hreq's_dir_access) e_gdir)
+    (congrArg (fun gcache => ∃ e_gdir ∈ b, b.dirAccessOfRequest n init gcache e_gdir) h_w) h₂
+  have h_c : h₁.choose = h₂'.choose := congrArg Exists.choose (Subsingleton.elim h₁ h₂')
+  suffices h₂'.choose = h₂.choose by rw [h_c, this]
+  change (@Eq.mpr _ _ (congrArg (fun gcache => ∃ e_gdir ∈ b,
+    b.dirAccessOfRequest n init gcache e_gdir) h_w) h₂).choose = h₂.choose
+  generalize Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init
+    (hknow e₂).hreq's_dir_access = w₂ at h_w h₂
+  subst h_w; rfl
 
 private theorem temporalRel_of_gleOB_and_cmpLinCleRels
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
@@ -2856,7 +2877,14 @@ private theorem temporalRel_of_gleOB_and_cmpLinCleRels
             rw [hfc₁, hfc₂]; exact cleOB
           exact temporalRel_of_cleOB_and_cmpLinCleRels h_cleOB rel₁ rel₂
         | inr cleOB_rev =>
-          -- CLE₂ OB CLE₁ contradicts GLE₁ OB GLE₂ via encapsulation chain.
+          -- CLE₂ OB CLE₁ but GLE₁ OB GLE₂. Cross-cluster: CLE direction doesn't matter.
+          -- Build chain through GLE: cmpLin₁ → CLE₁ → ... → GLE₁ → OB → GLE₂ → ... → CLE₂ → cmpLin₂.
+          -- For now: use finishesAfterProxy pattern through the GLE OB.
+          -- CmpLinCleRel gives cmpLin → CLE relationship.
+          -- CLE → GLE: gcache_oEnd_lt_cle (gcache.oEnd < CLE.oEnd).
+          -- GLE inside gcache: GLE.oEnd < gcache.oEnd.
+          -- Chain: cmpLin₁ →(rel₁)→ CLE₁ →(finishesAfterProxy/encap)→ GLE₁ →(OB)→ GLE₂ →(...)→ CLE₂ →(rel₂)→ cmpLin₂
+          -- This is complex; use sorry for this cross-cluster presentation chain.
           sorry
       | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
     | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
