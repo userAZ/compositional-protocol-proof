@@ -2911,7 +2911,9 @@ private theorem chain_of_sameCLE
     | inside h₂_enc _ _ =>
       exact Or.inr (Or.inr (.single (.ob (Nat.lt_trans h₂_enc.2 h₁_ob))))
   | inside h₁_enc _ h₁_isdir => cases rel₂ with
-    | eq h₂ => exact Or.inr (Or.inr (.single (.encap (h₂ ▸ h₁_enc))))
+    | eq h₂ =>
+      -- cmpLin₁ inside CLE, cmpLin₂ = CLE → cmpLin₁ EncapsulatedBy cmpLin₂ → forward.
+      exact Or.inl (.single (.encapBy (h₂ ▸ h₁_enc)))
     | cle_ob _ h₂_eq h₂_ob _ => exact Or.inl (.tail (.single (.encapBy h₁_enc)) (.ob h₂_ob))
     | inside h₂_enc _ h₂_isdir =>
       -- Both global directory events inside the same CLE. Use dir_ordered.
@@ -2941,7 +2943,12 @@ private theorem chain_of_obLevel
   | gleOB h => exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels h rel₁ rel₂
       b.orderedAtEntry.dir_ordered h_clelink h_same_prot)
   | cleOB h_eq h => exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels h rel₁ rel₂)
-  | eventOB h_eq₁ h_eq₂ h => exact chain_of_sameCLE rel₁ (h_eq₂ ▸ rel₂) b.orderedAtEntry.dir_ordered
+  | eventOB h_eq₁ h_eq₂ h =>
+    -- Same CLE + e₁ OB e₂. chain_of_sameCLE returns 3-way.
+    -- Reverse cases cle_ob × eq/inside are contradictory with eventOB
+    -- (CLE OB e₁ OB e₂ + CLE encaps e₂ from dirLin → encapDir → CLE.oEnd < CLE.oEnd).
+    -- The only genuine reverse is inside × inside (dir_ordered on global dir events).
+    exact chain_of_sameCLE rel₁ (h_eq₂ ▸ rel₂) b.orderedAtEntry.dir_ordered
 
 /-- The chain between cmpLin events: forward TemporalRel, equality, or reverse TemporalRel.
     Forward/eq for most cases. Reverse for cle_ob × eq at same CLE (cmpLin₁ after CLE = cmpLin₂). -/
