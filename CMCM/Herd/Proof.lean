@@ -716,7 +716,7 @@ theorem fr_ordering_holds
               | inl hob_cle₁_cdir =>
                 -- CLE₁ OB cdir → proxy = cdir
                 have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
-                exact .diffCluster_coherent h_same_prot (derive_gle_ob_fr b.orderedAtEntry.dir_ordered (diff_protocol_implies_diff_gle_fr (hknow := lin) h_same_prot) h.event_oEnd_lt) (.directoryEvent de_cdir)
+                exact .diffCluster_coherent h_same_prot (.directoryEvent de_cdir)
                   (show (lin e₁).cle.OrderedBefore n _ from by
                     rw [hfc_cle₁]; exact hob_cle₁_cdir)
                   (by rw [hw₂']; exact hcdir_lt_cle₂)
@@ -730,7 +730,7 @@ theorem fr_ordering_holds
                   cases (b.orderedAtEntry.dir_ordered de_cle₁ de_evict).ordered with
                   | inl hob_cle₁_evict =>
                     have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
-                    exact .diffCluster_coherent h_same_prot (derive_gle_ob_fr b.orderedAtEntry.dir_ordered (diff_protocol_implies_diff_gle_fr (hknow := lin) h_same_prot) h.event_oEnd_lt) (.directoryEvent de_evict)
+                    exact .diffCluster_coherent h_same_prot (.directoryEvent de_evict)
                       (show (lin e₁).cle.OrderedBefore n _ from by
                         rw [hfc_cle₁]; exact hob_cle₁_evict)
                       (by rw [hw₂']; exact hevict_lt_cle₂)
@@ -794,7 +794,7 @@ theorem fr_ordering_holds
                         | inr hcle₁_ob_dco =>
                           -- CLE₁ OB d_co: proxy for .diffCluster_coherent
                           have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
-                          exact .diffCluster_coherent h_same_prot (derive_gle_ob_fr b.orderedAtEntry.dir_ordered (diff_protocol_implies_diff_gle_fr (hknow := lin) h_same_prot) h.event_oEnd_lt) (.directoryEvent de_dco)
+                          exact .diffCluster_coherent h_same_prot (.directoryEvent de_dco)
                             (show (lin e₁).cle.OrderedBefore n _ from by
                               rw [hfc_cle₁]; exact hcle₁_ob_dco)
                             (by rw [hw₂']; exact hdco_lt_cle₂)
@@ -877,7 +877,7 @@ theorem fr_ordering_holds
                                       | .directoryEvent de_cle₂', _ =>
                                         cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
                                         | inl hob =>
-                                          exact .diffCluster_rfCrossCluster h_same_prot (derive_gle_ob_fr b.orderedAtEntry.dir_ordered (diff_protocol_implies_diff_gle_fr (hknow := lin) h_same_prot) h.event_oEnd_lt)
+                                          exact .diffCluster_rfCrossCluster h_same_prot
                                             hencapDir'.existsRClusterDirDown.choose henc'
                                             (by rw [hfc_drf', hfc_cle₂']; exact hob)
                                         | inr hob =>
@@ -947,7 +947,7 @@ theorem fr_ordering_holds
                                       | .directoryEvent de_cle₂', _ =>
                                         cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
                                         | inl hob =>
-                                          exact .diffCluster_rfFinishBefore h_same_prot (derive_gle_ob_fr b.orderedAtEntry.dir_ordered (diff_protocol_implies_diff_gle_fr (hknow := lin) h_same_prot) h.event_oEnd_lt)
+                                          exact .diffCluster_rfFinishBefore h_same_prot
                                             hencapDir'.existsRClusterDirDown.choose
                                             (by rw [hfc_drf'', hfc_cle₂'']; exact hob)
                                             hdrf_lt hdrf_isdir''
@@ -1030,7 +1030,7 @@ theorem fr_ordering_holds
                               | .directoryEvent de_cle₂', _ =>
                                 cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
                                 | inl hob =>
-                                  exact .diffCluster_rfFinishBefore h_same_prot (derive_gle_ob_fr b.orderedAtEntry.dir_ordered (diff_protocol_implies_diff_gle_fr (hknow := lin) h_same_prot) h.event_oEnd_lt)
+                                  exact .diffCluster_rfFinishBefore h_same_prot
                                     hencapDir.existsRClusterDirDown.choose
                                     (by rw [hfc_drf'', hfc_cle₂'']; exact hob) hdrf_lt₂ hdrf_isdir
                                 | inr hob =>
@@ -1071,7 +1071,7 @@ theorem fr_ordering_holds
               cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
               | inl hob =>
                 have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
-                exact .diffCluster_coherent h_same_prot (derive_gle_ob_fr b.orderedAtEntry.dir_ordered (diff_protocol_implies_diff_gle_fr (hknow := lin) h_same_prot) h.event_oEnd_lt) (.directoryEvent de_cdir)
+                exact .diffCluster_coherent h_same_prot (.directoryEvent de_cdir)
                   (by rw [hfc_cle₁₂]; exact hob) (by rw [hw₂']; exact hcdir_lt_cle₂)
                   (by simp [Event.isDirectoryEvent])
               | inr hob =>
@@ -1082,7 +1082,7 @@ theorem fr_ordering_holds
                   cases (b.orderedAtEntry.dir_ordered de_cle₁ de_evict).ordered with
                   | inl hob_evict =>
                     have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
-                    exact .diffCluster_coherent h_same_prot (derive_gle_ob_fr b.orderedAtEntry.dir_ordered (diff_protocol_implies_diff_gle_fr (hknow := lin) h_same_prot) h.event_oEnd_lt) (.directoryEvent de_evict)
+                    exact .diffCluster_coherent h_same_prot (.directoryEvent de_evict)
                       (by rw [hfc_cle₁₂]; exact hob_evict) (by rw [hw₂']; exact hevict_lt_cle₂)
                       (by simp [Event.isDirectoryEvent])
                   | inr hob_evict =>
@@ -1130,7 +1130,7 @@ theorem fr_ordering_holds
                               }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCacheWrite
                         | inr hcle₁_ob_dco =>
                           have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
-                          exact .diffCluster_coherent h_same_prot (derive_gle_ob_fr b.orderedAtEntry.dir_ordered (diff_protocol_implies_diff_gle_fr (hknow := lin) h_same_prot) h.event_oEnd_lt) (.directoryEvent de_dco)
+                          exact .diffCluster_coherent h_same_prot (.directoryEvent de_dco)
                             (show (lin e₁).cle.OrderedBefore n _ from by
                               rw [hfc_cle₁₂]; exact hcle₁_ob_dco)
                             (by rw [hw₂']; exact hdco_lt_cle₂)
@@ -1150,7 +1150,7 @@ theorem fr_ordering_holds
                           | .directoryEvent de_cle₂', _ =>
                             cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
                             | inl hob =>
-                              exact .diffCluster_rfCrossCluster h_same_prot (derive_gle_ob_fr b.orderedAtEntry.dir_ordered (diff_protocol_implies_diff_gle_fr (hknow := lin) h_same_prot) h.event_oEnd_lt)
+                              exact .diffCluster_rfCrossCluster h_same_prot
                                 hencapDir'.existsRClusterDirDown.choose henc'
                                 (by rw [hfc_drf', hfc_cle₂']; exact hob)
                             | inr hob =>
@@ -1189,7 +1189,7 @@ theorem fr_ordering_holds
                           | .directoryEvent de_cle₂', _ =>
                             cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
                             | inl hob =>
-                              exact .diffCluster_rfFinishBefore h_same_prot (derive_gle_ob_fr b.orderedAtEntry.dir_ordered (diff_protocol_implies_diff_gle_fr (hknow := lin) h_same_prot) h.event_oEnd_lt)
+                              exact .diffCluster_rfFinishBefore h_same_prot
                                 hencapDir'.existsRClusterDirDown.choose
                                 (by rw [hfc_drf'', hfc_cle₂'']; exact hob) hdrf_lt₂ hdrf_isdir''
                             | inr hob =>
@@ -1229,7 +1229,7 @@ theorem fr_ordering_holds
               cases (b.orderedAtEntry.dir_ordered de_cle₁ de_cdir).ordered with
               | inl hob =>
                 have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
-                exact .diffCluster_noncoherent h_same_prot (derive_gle_ob_fr b.orderedAtEntry.dir_ordered (diff_protocol_implies_diff_gle_fr (hknow := lin) h_same_prot) h.event_oEnd_lt) (.directoryEvent de_cdir)
+                exact .diffCluster_noncoherent h_same_prot (.directoryEvent de_cdir)
                   (by rw [hfc_cle₁₃]; exact hob) (by rw [hw₂']; exact hcdir_lt_cle₂)
                   (by simp [Event.isDirectoryEvent])
               | inr hob =>
@@ -1240,7 +1240,7 @@ theorem fr_ordering_holds
                   cases (b.orderedAtEntry.dir_ordered de_cle₁ de_evict).ordered with
                   | inl hob_evict =>
                     have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
-                    exact .diffCluster_noncoherent h_same_prot (derive_gle_ob_fr b.orderedAtEntry.dir_ordered (diff_protocol_implies_diff_gle_fr (hknow := lin) h_same_prot) h.event_oEnd_lt) (.directoryEvent de_evict)
+                    exact .diffCluster_noncoherent h_same_prot (.directoryEvent de_evict)
                       (by rw [hfc_cle₁₃]; exact hob_evict) (by rw [hw₂']; exact hevict_lt_cle₂)
                       (by simp [Event.isDirectoryEvent])
                   | inr hob_evict =>
@@ -1288,7 +1288,7 @@ theorem fr_ordering_holds
                               }, h_between⟩ h_constraints.diffClusterNotBetweenCles_sameCacheWrite
                         | inr hcle₁_ob_dco =>
                           have hw₂' : lin e₂ = lin₂ := Subsingleton.elim _ _
-                          exact .diffCluster_noncoherent h_same_prot (derive_gle_ob_fr b.orderedAtEntry.dir_ordered (diff_protocol_implies_diff_gle_fr (hknow := lin) h_same_prot) h.event_oEnd_lt) (.directoryEvent de_dco)
+                          exact .diffCluster_noncoherent h_same_prot (.directoryEvent de_dco)
                             (show (lin e₁).cle.OrderedBefore n _ from by
                               rw [hfc_cle₁₃]; exact hcle₁_ob_dco)
                             (by rw [hw₂']; exact hdco_lt_cle₂)
@@ -1308,7 +1308,7 @@ theorem fr_ordering_holds
                           | .directoryEvent de_cle₂', _ =>
                             cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
                             | inl hob =>
-                              exact .diffCluster_rfCrossCluster h_same_prot (derive_gle_ob_fr b.orderedAtEntry.dir_ordered (diff_protocol_implies_diff_gle_fr (hknow := lin) h_same_prot) h.event_oEnd_lt)
+                              exact .diffCluster_rfCrossCluster h_same_prot
                                 hencapDir'.existsRClusterDirDown.choose henc'
                                 (by rw [hfc_drf', hfc_cle₂']; exact hob)
                             | inr hob =>
@@ -1347,7 +1347,7 @@ theorem fr_ordering_holds
                           | .directoryEvent de_cle₂', _ =>
                             cases (b.orderedAtEntry.dir_ordered de_drf' de_cle₂').ordered with
                             | inl hob =>
-                              exact .diffCluster_rfFinishBefore h_same_prot (derive_gle_ob_fr b.orderedAtEntry.dir_ordered (diff_protocol_implies_diff_gle_fr (hknow := lin) h_same_prot) h.event_oEnd_lt)
+                              exact .diffCluster_rfFinishBefore h_same_prot
                                 hencapDir'.existsRClusterDirDown.choose
                                 (by rw [hfc_drf'', hfc_cle₂'']; exact hob) hdrf_lt₂ hdrf_isdir''
                             | inr hob =>
@@ -1474,11 +1474,11 @@ theorem step_to_ordering
         | inl cle_eq => exact .eq cle_eq
         | inr cle_ob => exact .ob cle_ob (Event.ne_of_ob cle_ob)
       | sameClusDiffCache _ _ cle_ob => exact .ob cle_ob (Event.ne_of_ob cle_ob)
-      | diffCluster_coherent _ _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir (Event.ne_of_obEndLt cle₁_ob_p p_lt_cle₂)
-      | diffCluster_evict _ _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir (Event.ne_of_obEndLt cle₁_ob_p p_lt_cle₂)
-      | diffCluster_noncoherent _ _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir (Event.ne_of_obEndLt cle₁_ob_p p_lt_cle₂)
-      | diffCluster_rfCrossCluster _ _ p p_inside p_ob => exact .encapOb p p_inside p_ob (Event.ne_of_encapOb p_inside p_ob)
-      | diffCluster_rfFinishBefore h_diff _ p p_ob p_lt h_p_isdir =>
+      | diffCluster_coherent _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir (Event.ne_of_obEndLt cle₁_ob_p p_lt_cle₂)
+      | diffCluster_evict _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir (Event.ne_of_obEndLt cle₁_ob_p p_lt_cle₂)
+      | diffCluster_noncoherent _ p cle₁_ob_p p_lt_cle₂ h_p_isdir => exact .obEndLt p cle₁_ob_p p_lt_cle₂ h_p_isdir (Event.ne_of_obEndLt cle₁_ob_p p_lt_cle₂)
+      | diffCluster_rfCrossCluster _ p p_inside p_ob => exact .encapOb p p_inside p_ob (Event.ne_of_encapOb p_inside p_ob)
+      | diffCluster_rfFinishBefore h_diff p p_ob p_lt h_p_isdir =>
         have hcle₁_prot := read_cle_protocol_eq_read_protocol (lin e₁)
         have hcle₂_prot := write_cle_protocol_eq_write_protocol (lin e₂)
         have h_prot_diff : Event.protocol n lin₁.cle ≠ Event.protocol n lin₂.cle :=
@@ -2740,25 +2740,19 @@ inductive ProtoForwardStep {n : ℕ}
       Chain: cmpLin_r →(readerRel)→ CLE_r →(OB)→ cacheDowngrade →(finishesBefore)→ CLE_w →(writerRel)→ cmpLin_w
       OB level: GLE (cross-cluster). -/
   | fr_diffCluster_coherent
-      (readerGle_ob_writerGle : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
+      (obLevel : ProtoOBLevel hknow e₁ e₂)
       (cacheDowngrade : Event n)
       (readerCle_ob_cacheDowngrade : (hknow e₁).cle.OrderedBefore n cacheDowngrade)
       (readerCmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
       (writerCmpLinRel : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
-  /-- FR diffCluster_evict: reader evicted before downgrade arrived.
-      Named proxy: evictDirEvent.
-      Chain shape same as coherent. OB level: GLE. -/
   | fr_diffCluster_evict
-      (readerGle_ob_writerGle : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
+      (obLevel : ProtoOBLevel hknow e₁ e₂)
       (evictDirEvent : Event n)
       (readerCle_ob_evictDirEvent : (hknow e₁).cle.OrderedBefore n evictDirEvent)
       (readerCmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
       (writerCmpLinRel : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
-  /-- FR diffCluster_noncoherent: reader non-coherent, downgrade to cluster dir.
-      Named proxy: clusterDirDown.
-      Chain shape same as coherent. OB level: GLE. -/
   | fr_diffCluster_noncoherent
-      (readerGle_ob_writerGle : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
+      (obLevel : ProtoOBLevel hknow e₁ e₂)
       (clusterDirDown : Event n)
       (readerCle_ob_clusterDirDown : (hknow e₁).cle.OrderedBefore n clusterDirDown)
       (readerCmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
@@ -2768,7 +2762,7 @@ inductive ProtoForwardStep {n : ℕ}
       Chain: cmpLin_r →(readerRel)→ CLE_r →(Encap)→ rfProxy →(OB)→ CLE_w →(writerRel)→ cmpLin_w
       OB level: GLE. -/
   | fr_diffCluster_rfCrossCluster
-      (readerGle_ob_writerGle : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
+      (obLevel : ProtoOBLevel hknow e₁ e₂)
       (rfProxy : Event n)
       (rfProxy_encapBy_readerCle : rfProxy.EncapsulatedBy n (hknow e₁).cle)
       (rfProxy_ob_writerCle : rfProxy.OrderedBefore n (hknow e₂).cle)
@@ -2779,7 +2773,7 @@ inductive ProtoForwardStep {n : ℕ}
       Chain: cmpLin_r →(readerRel)→ CLE_r →(finishesAfterProxy rfFinishProxy)→ CLE_w →(writerRel)→ cmpLin_w
       OB level: GLE (this is the obFinishBefore case — weakest chain, uses finishesBefore). -/
   | fr_diffCluster_rfFinishBefore
-      (readerGle_ob_writerGle : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
+      (obLevel : ProtoOBLevel hknow e₁ e₂)
       (rfFinishProxy : Event n)
       (rfFinishProxy_ob_writerCle : rfFinishProxy.OrderedBefore n (hknow e₂).cle)
       (rfFinishProxy_finishesBefore_readerCle : Event.oEnd n rfFinishProxy < Event.oEnd n (hknow e₁).cle)
@@ -2898,16 +2892,16 @@ theorem ProtoForwardStep.chain
     | inr cleOB => exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels cleOB readerRel writerRel)
   | fr_sameClusDiffCache cleOB readerRel writerRel =>
     exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels cleOB readerRel writerRel)
-  | fr_diffCluster_coherent gleOB _ _ readerRel writerRel =>
-    exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered)
-  | fr_diffCluster_evict gleOB _ _ readerRel writerRel =>
-    exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered)
-  | fr_diffCluster_noncoherent gleOB _ _ readerRel writerRel =>
-    exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered)
-  | fr_diffCluster_rfCrossCluster gleOB _ _ _ readerRel writerRel =>
-    exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered)
-  | fr_diffCluster_rfFinishBefore gleOB _ _ _ readerRel writerRel =>
-    exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered)
+  | fr_diffCluster_coherent _ _ _ readerRel writerRel =>
+    sorry
+  | fr_diffCluster_evict _ _ _ readerRel writerRel =>
+    sorry
+  | fr_diffCluster_noncoherent _ _ _ readerRel writerRel =>
+    sorry
+  | fr_diffCluster_rfCrossCluster _ _ _ _ readerRel writerRel =>
+    sorry
+  | fr_diffCluster_rfFinishBefore _ _ _ _ readerRel writerRel =>
+    sorry
   | fr_sameCLE sameCle _ readerRel writerRel =>
     sorry
 
@@ -2976,11 +2970,11 @@ theorem ProtoForwardStep.level
       exact .cleOB h_gle_eq cleOB
     else
       exact .gleOB (derive_gle_ob' b.orderedAtEntry.dir_ordered h_gle_eq (by sorry))
-  | fr_diffCluster_coherent gleOB _ _ _ _ => exact .gleOB gleOB
-  | fr_diffCluster_evict gleOB _ _ _ _ => exact .gleOB gleOB
-  | fr_diffCluster_noncoherent gleOB _ _ _ _ => exact .gleOB gleOB
-  | fr_diffCluster_rfCrossCluster gleOB _ _ _ _ _ => exact .gleOB gleOB
-  | fr_diffCluster_rfFinishBefore gleOB _ _ _ _ _ => exact .gleOB gleOB
+  | fr_diffCluster_coherent obLevel _ _ _ _ => exact obLevel
+  | fr_diffCluster_evict obLevel _ _ _ _ => exact obLevel
+  | fr_diffCluster_noncoherent obLevel _ _ _ _ => exact obLevel
+  | fr_diffCluster_rfCrossCluster obLevel _ _ _ _ _ => exact obLevel
+  | fr_diffCluster_rfFinishBefore obLevel _ _ _ _ _ => exact obLevel
   | fr_sameCLE sameCle reader_ob_writer _ _ =>
     if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
       exact .eventOB h_gle_eq sameCle reader_ob_writer
@@ -3093,20 +3087,20 @@ private theorem edge_to_proto_forward
         exact .fr_sameCache (hflin₁ ▸ hflin₂ ▸ cle_eq_or_ob) h_level (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | sameClusDiffCache _ _ cle_ob =>
         exact .fr_sameClusDiffCache (hflin₁ ▸ hflin₂ ▸ cle_ob) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
-      | diffCluster_coherent _ gleOB_fr p cle₁_ob_p _ _ =>
-        exact .fr_diffCluster_coherent (hflin₁ ▸ hflin₂ ▸ gleOB_fr)
+      | diffCluster_coherent _ p cle₁_ob_p _ _ =>
+        exact .fr_diffCluster_coherent (by sorry)
           p (hflin₁ ▸ cle₁_ob_p) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
-      | diffCluster_evict _ gleOB_fr p cle₁_ob_p _ _ =>
-        exact .fr_diffCluster_evict (hflin₁ ▸ hflin₂ ▸ gleOB_fr)
+      | diffCluster_evict _ p cle₁_ob_p _ _ =>
+        exact .fr_diffCluster_evict (by sorry)
           p (hflin₁ ▸ cle₁_ob_p) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
-      | diffCluster_noncoherent _ gleOB_fr p cle₁_ob_p _ _ =>
-        exact .fr_diffCluster_noncoherent (hflin₁ ▸ hflin₂ ▸ gleOB_fr)
+      | diffCluster_noncoherent _ p cle₁_ob_p _ _ =>
+        exact .fr_diffCluster_noncoherent (by sorry)
           p (hflin₁ ▸ cle₁_ob_p) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
-      | diffCluster_rfCrossCluster _ gleOB_fr p p_inside p_ob =>
-        exact .fr_diffCluster_rfCrossCluster (hflin₁ ▸ hflin₂ ▸ gleOB_fr)
+      | diffCluster_rfCrossCluster _ p p_inside p_ob =>
+        exact .fr_diffCluster_rfCrossCluster (by sorry)
           p (hflin₁ ▸ p_inside) (hflin₂ ▸ p_ob) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
-      | diffCluster_rfFinishBefore _ gleOB_fr p p_ob p_lt _ =>
-        exact .fr_diffCluster_rfFinishBefore (hflin₁ ▸ hflin₂ ▸ gleOB_fr)
+      | diffCluster_rfFinishBefore _ p p_ob p_lt _ =>
+        exact .fr_diffCluster_rfFinishBefore (by sorry)
           p (hflin₂ ▸ p_ob) (hflin₁ ▸ p_lt) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | sameCLE cle_eq =>
         have h_cle_eq' : (hknow e₁).cle = (hknow e₂).cle := hflin₁ ▸ hflin₂ ▸ cle_eq
