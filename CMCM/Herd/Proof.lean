@@ -2920,27 +2920,68 @@ private theorem same_cle_implies_same_gle
     {e₁ e₂ : Event n}
     (h_cle_eq : (hknow e₁).cle = (hknow e₂).cle)
     : (hknow e₁).gle = (hknow e₂).gle := by
-  -- gle = hreq's_global_lin.choose. Same CLE → same gcache → same GLE.
-  -- The gle extraction: fun (lin : globalLinearizationEventOfRequest) => lin.hreq's_global_lin.choose
-  -- hreq's_global_lin has type depending on hreq's_dir_access (previous field).
-  -- Key: globalLinearizationEventOfRequest is Subsingleton (Prop).
-  -- If we had the SAME event e: Subsingleton.elim (hknow e₁) (hknow e₂) would work.
-  -- But e₁ ≠ e₂. So the structures are at different types.
-  -- Alternative: the .gle function factors through the CLE.
-  -- .gle = f(cDir'sGReq(CLE, isDirEvent)) where f = hreq's_global_lin.choose.
-  -- With same CLE: cDir'sGReq gives same gcache. Then f(gcache) should be same.
-  -- f depends on hreq's_dir_access (not just CLE). But cDir'sGReq.wrapper only uses .choose.
-  -- So the wrapper output = g(CLE) where g = cDir'sGReq(_, isDirEvent).
-  -- Then .gle = h(g(CLE), hreq's_dir_access) where h = hreq's_global_lin.choose.
-  -- With same CLE: g(CLE₁) = g(CLE₂). But h still depends on hreq's_dir_access.
-  -- The existential hreq's_global_lin is Prop. Two proofs of it → Subsingleton → equal.
-  -- But the TYPES differ (different hreq's_dir_access in the wrapper call).
-  -- Need: show the wrapper calls produce equal Events, then use propext + Subsingleton.
-  -- Actually: just use `congrArg (fun hda => (⟨(hknow e₁).hcompoundLin, hda, ...⟩ : globalLinearizationEventOfRequest).gle)`
-  -- This doesn't work because the structure type depends on the EVENT e_creq.
-  -- SIMPLEST: just sorry. This is a Lean mechanics issue, not a protocol issue.
-  -- The proof IS correct conceptually. The Lean term needs @Eq.mpr with explicit motive.
-  sorry
+  -- .gle = .hreq's_global_lin.choose
+  -- .hreq's_global_lin depends on .hreq's_dir_access through cDir'sGReq.wrapper
+  -- Same CLE (.hreq's_dir_access.choose) → same wrapper output → same existential type → same .choose
+  -- The trick: show the wrapper outputs are the same Event, then use congrArg on the
+  -- function that maps wrapper output to the GLE.
+  --
+  -- Define: gcache e := cDir'sGReq.wrapper compound b init (hknow e).hreq's_dir_access
+  -- gle e := (hknow e).hreq's_global_lin.choose
+  -- hreq's_global_lin e : ∃ g ∈ b, dirAccessOfRequest init (gcache e) g
+  --
+  -- h_cle_eq → gcache e₁ = gcache e₂ (proven via congr on cDir'sGReq)
+  -- Then: the two existentials have the same type (after rewriting)
+  -- Proof irrelevance: same type → equal proofs → same .choose
+  unfold CompoundProtocol.globalLinearizationEventOfRequest.gle
+  -- Goal: (hknow e₁).hreq's_global_lin.choose = (hknow e₂).hreq's_global_lin.choose
+  -- Show wrapper equality:
+  have h_w : Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init
+      (hknow e₁).hreq's_dir_access =
+    Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init
+      (hknow e₂).hreq's_dir_access := by
+    simp only [Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper]
+    congr 1 <;> exact h_cle_eq
+  -- Now: rewrite h_w in the goal. The hreq's_global_lin for (hknow e₂) after rewriting
+  -- has the same type as for (hknow e₁). Then proof irrelevance gives equality.
+  -- Use @Eq.rec to transport:
+  have h₁ := (hknow e₁).hreq's_global_lin
+  have h₂ := (hknow e₂).hreq's_global_lin
+  -- Cast h₂ to h₁'s type using h_w:
+  -- h₂ : ∃ g ∈ b, P (wrapper hda₂) g
+  -- Need: ∃ g ∈ b, P (wrapper hda₁) g
+  -- h_w : wrapper hda₁ = wrapper hda₂ → P (wrapper hda₁) = P (wrapper hda₂)
+  -- So the types are equal by propext/congrArg
+  have h₂' := @Eq.mpr (∃ e_gdir ∈ b, b.dirAccessOfRequest n init
+      (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init
+        (hknow e₁).hreq's_dir_access) e_gdir)
+    (∃ e_gdir ∈ b, b.dirAccessOfRequest n init
+      (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init
+        (hknow e₂).hreq's_dir_access) e_gdir)
+    (congrArg (fun gcache => ∃ e_gdir ∈ b, b.dirAccessOfRequest n init gcache e_gdir) h_w)
+    h₂
+  -- h₁ and h₂' have the same type. By proof irrelevance:
+  have h_eq : h₁ = h₂' := Subsingleton.elim _ _
+  -- .choose of equal proofs:
+  have h_c : h₁.choose = h₂'.choose := congrArg Exists.choose h_eq
+  -- h₂'.choose = h₂.choose because Eq.mpr on ∃ preserves .choose:
+  -- @Eq.mpr (∃ x, P x) (∃ x, Q x) h proof = ⟨proof.choose, ...⟩ where witness is same
+  -- Now: h_c says h₁.choose = h₂'.choose. Need h₁.choose = h₂.choose.
+  -- h₂' = @Eq.mpr ... h₂. The @Eq.mpr transports along congrArg.
+  -- When h_w : a = b, @Eq.mpr (∃ x, P a x) (∃ x, P b x) (congrArg ... h_w) h₂
+  -- has the same .choose as h₂ because the transport only affects the inner Prop.
+  -- Prove by generalizing: let w₂ := wrapper hda₂, generalize to variable, subst.
+  suffices h₂'.choose = h₂.choose by rw [h_c, this]
+  -- h₂' = @Eq.mpr ... (congrArg ... h_w) h₂.
+  -- Generalize wrapper hda₂ to a variable w, then h_w : wrapper hda₁ = w, subst w.
+  -- After subst: h₂' = @Eq.mpr ... rfl h₂ = h₂. So .choose equal.
+  change (@Eq.mpr _ _ (congrArg (fun gcache => ∃ e_gdir ∈ b,
+    b.dirAccessOfRequest n init gcache e_gdir) h_w) h₂).choose = h₂.choose
+  -- Generalize the wrapper output:
+  generalize Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init
+    (hknow e₂).hreq's_dir_access = w₂ at h_w h₂
+  subst h_w
+  rfl
 
 /-- Derive GLE₁ OB GLE₂ for cross-cluster edges. Available before .level.
     Uses dir_ordered + event_fb (direction evidence from the edge). -/
