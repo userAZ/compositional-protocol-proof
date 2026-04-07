@@ -5,6 +5,7 @@
 ## Lean mechanics lessons (reference before writing proofs)
 - `▸` direction: `h_eq.symm ▸ h` when `h_eq : a = b` and you need to rewrite `a→b` in `h`
 - **After `match hfc : event, isDir with | .directoryEvent de, _ =>`: the goal rewrites `event` to `.directoryEvent de`, but hypotheses DON'T.** Use `rwa [hfc₁, hfc₂]` to convert DirectoryEvent.OrderedBefore back to Event.OrderedBefore. Or use `show` to reset the goal type. Don't waste time fighting the match rewrite — learn this pattern once.
+- **Dependent type transport (`Eq.mpr`/`▸` on `.choose`): use `generalize` + `subst`.** When you need `(Eq.mpr h proof).choose = proof.choose` (i.e., `.choose` is preserved through type transport): `generalize` the transported term to a fresh variable `w`, then `subst h` collapses `Eq.mpr rfl` to identity, then `rfl`. This resolved `same_cle_implies_same_gle` where `hreq's_global_lin.choose` needed to be equal for two structures with the same CLE but different `hreq's_dir_access` proofs.
 - `compoundLin_cle_of_dirLin` returns `EncapsulatedBy ∧ protocol=global` — use `.1` to extract
 - `reqHasPerms_not_reqMissingPerms` (Rf.lean): proves `reqMissingPerms + ¬down → ¬reqHasPerms`. Use for orderBeforeDir contradiction in dirLin branch.
 - Case-split `compoundLinearizationEvent` (clusterCacheLin/clusterDirLin) AND `dirAccessOfRequest` (encapDir/orderBeforeDir/orderAfterDir) simultaneously. Matching: clusterCacheLin↔orderBeforeDir, clusterDirLin↔encapDir. Cross-cases contradictory via reqHasPerms_not_reqMissingPerms. Write helper lemmas for this matched context.
