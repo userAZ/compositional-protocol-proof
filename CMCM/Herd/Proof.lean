@@ -3005,12 +3005,13 @@ theorem ProtoForwardStep.level
     exact .eventOB (same_cle_implies_same_gle sameCle) sameCle reader_ob_writer
 
 /-- For same-cluster edges with CLE₁ ≠ CLE₂: derive CLE₁ OB CLE₂.
-    Uses dir_ordered. Reverse contradicted by CleLink → LinChain → oStart_lt. -/
+    Uses dir_ordered + CleLink evidence. Reverse contradicted by CleLink → TemporalRel → oEnd chain. -/
 private theorem derive_cle_ob_same_cluster
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n}
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h_ne : (hknow e₁).cle ≠ (hknow e₂).cle)
+    (h_clelink : @CleLink n (hknow e₁).cle (hknow e₂).cle)
     : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle := by
   have h₁_isdir := (hknow e₁).cle_isDirEvent
   have h₂_isdir := (hknow e₂).cle_isDirEvent
@@ -3021,15 +3022,20 @@ private theorem derive_cle_ob_same_cluster
       cases (hdir de₁ de₂).ordered with
       | inl cleOB => exact cleOB
       | inr cleOB_rev =>
-        -- CLE₂ OB CLE₁. Need contradiction.
-        -- For same-cluster edges: step_to_ordering gives CleLink CLE₁ CLE₂.
-        -- CleLink.subset_temporalRel gives TemporalRel CLE₁ CLE₂ (CLE₁ ≠ CLE₂ rules out eq).
-        -- For same-cluster: no obFinishBefore (requires diff_protocol).
-        -- All remaining CleLink constructors give LinChain → oStart_lt.
-        -- CLE₂ OB CLE₁: CLE₂.oEnd < CLE₁.oStart. But oStart_lt: CLE₁.oStart < CLE₂.oStart.
+        -- CLE₂ OB CLE₁: CLE₂.oEnd < CLE₁.oStart.
+        -- CleLink CLE₁ CLE₂ → TemporalRel or eq.
+        -- CLE₁ ≠ CLE₂ → TemporalRel.
+        -- TemporalRel gives CLE₁.oEnd ≤ CLE₂.oEnd (finishesBefore at minimum).
+        -- Combined: CLE₂.oEnd < CLE₁.oStart ≤ CLE₁.oEnd ≤ CLE₂.oEnd → CLE₂.oEnd < CLE₂.oEnd → contradiction.
+        exfalso
+        -- CleLink CLE₁ CLE₂ + CLE₂ OB CLE₁ → contradiction.
+        -- Each non-eq, non-obFinishBefore CleLink gives oStart_lt (via LinStep decomposition).
+        -- CLE₂ OB CLE₁: CLE₂.oEnd < CLE₁.oStart.
+        -- oStart_lt: CLE₁.oStart < CLE₂.oStart.
         -- Combined: CLE₂.oEnd < CLE₁.oStart < CLE₂.oStart ≤ CLE₂.oEnd → contradiction.
-        -- NOTE: we don't have the CleLink here (it's in the caller). Use sorry.
-        exfalso; sorry
+        -- For obFinishBefore: has h_diff_prot which contradicts same-cluster (h_ne context).
+        -- Case-split CleLink to extract LinStep.oStart_lt or contradiction.
+        sorry
     | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
   | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
@@ -3107,7 +3113,7 @@ private theorem edge_to_proto_forward
           -- dir_ordered reverse: CLE₂.oEnd < CLE₁.oStart → contradiction with oStart_lt.
           -- So dir_ordered must give CLE₁ OB CLE₂.
           exact .rf_sameGle_cleOB sameGle
-            (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
+            (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq h_clelink)
             hrel₁ hrel₂
     | co hco =>
       have hnd₁ := hco.notDown₁; have hnd₂ := hco.notDown₂
@@ -3152,8 +3158,8 @@ private theorem edge_to_proto_forward
               | wImmPredRCle w => cases w with
                 | sameCluster _ hob => exact hob
                 | diffCluster _ hdown hwObRDown =>
-                  -- CLE₁ OB proxy, proxy.oEnd < CLE₂.oEnd. Use dir_ordered to get CLE₁ OB CLE₂.
                   exact derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq
+                    (co_step_to_ordering hco)
               | evictOrReadBetweenWAndRCleSameCluster evict => exact evict.wObR
             exact .co_sameClusDiffCache sameGle h_cle_ob hrel₁ hrel₂
           | inr gleOB =>
