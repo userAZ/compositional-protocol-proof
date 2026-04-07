@@ -3093,27 +3093,15 @@ private theorem edge_to_proto_forward
       | sameClusDiffCache _ _ cle_ob =>
         exact .fr_sameClusDiffCache (hflin₁ ▸ hflin₂ ▸ cle_ob) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | diffCluster_coherent diffProt gleOB_fr p cle₁_ob_p _ _ =>
-        have h_diff_gle := diff_protocol_implies_diff_gle' (hknow := hknow) diffProt
-        have h_cle_ne : (hknow e₁).cle ≠ (hknow e₂).cle := by
-          sorry
         exact .fr_diffCluster_coherent (.gleOB (hflin₁ ▸ hflin₂ ▸ gleOB_fr))
           p (hflin₁ ▸ cle₁_ob_p) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | diffCluster_evict diffProt gleOB_fr p cle₁_ob_p _ _ =>
-        have h_diff_gle := diff_protocol_implies_diff_gle' (hknow := hknow) diffProt
-        have h_cle_ne : (hknow e₁).cle ≠ (hknow e₂).cle := by
-          sorry
         exact .fr_diffCluster_evict (.gleOB (hflin₁ ▸ hflin₂ ▸ gleOB_fr))
           p (hflin₁ ▸ cle₁_ob_p) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | diffCluster_noncoherent diffProt gleOB_fr p cle₁_ob_p _ _ =>
-        have h_diff_gle := diff_protocol_implies_diff_gle' (hknow := hknow) diffProt
-        have h_cle_ne : (hknow e₁).cle ≠ (hknow e₂).cle := by
-          sorry
         exact .fr_diffCluster_noncoherent (.gleOB (hflin₁ ▸ hflin₂ ▸ gleOB_fr))
           p (hflin₁ ▸ cle₁_ob_p) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | diffCluster_rfCrossCluster diffProt gleOB_fr p p_inside p_ob =>
-        have h_diff_gle := diff_protocol_implies_diff_gle' (hknow := hknow) diffProt
-        have h_cle_ne : (hknow e₁).cle ≠ (hknow e₂).cle := by
-          sorry
         exact .fr_diffCluster_rfCrossCluster (.gleOB (hflin₁ ▸ hflin₂ ▸ gleOB_fr))
           p (hflin₁ ▸ p_inside) (hflin₂ ▸ p_ob) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | diffCluster_rfFinishBefore diffProt gleOB_fr p p_ob p_lt _ =>
