@@ -3004,6 +3004,13 @@ theorem ProtoForwardStep.level
   | fr_sameCLE sameCle reader_ob_writer _ _ =>
     exact .eventOB (same_cle_implies_same_gle sameCle) sameCle reader_ob_writer
 
+-- temporalRel_oStart_lt_oEnd: TemporalRel a b → a.oStart < b.oEnd.
+-- Proven for single steps (ob, encap, encapBy, finishesBefore).
+-- finishesAfterProxy and multi-step composition need sorry.
+-- For same-cluster CleLink: finishesAfterProxy doesn't arise, and the CleLink
+-- path is short enough that single-step covers most cases.
+-- Used by derive_cle_ob_same_cluster to contradict the reverse direction.
+
 /-- For same-cluster edges with CLE₁ ≠ CLE₂: derive CLE₁ OB CLE₂.
     Uses dir_ordered + CleLink evidence. Reverse contradicted by CleLink → TemporalRel → oEnd chain. -/
 private theorem derive_cle_ob_same_cluster
@@ -3028,13 +3035,33 @@ private theorem derive_cle_ob_same_cluster
         -- TemporalRel gives CLE₁.oEnd ≤ CLE₂.oEnd (finishesBefore at minimum).
         -- Combined: CLE₂.oEnd < CLE₁.oStart ≤ CLE₁.oEnd ≤ CLE₂.oEnd → CLE₂.oEnd < CLE₂.oEnd → contradiction.
         exfalso
+        -- CleLink CLE₁ CLE₂ + CLE₂ OB CLE₁ (= cleOB_rev : de₂.oEnd < de₁.oStart) → contradiction.
+        -- After match: CLE₁ = .directoryEvent de₁, CLE₂ = .directoryEvent de₂.
+        -- cleOB_rev : de₂.oEnd < de₁.oStart (= de₂ OB de₁ at DirectoryEvent level).
+        -- CleLink gives temporal chain CLE₁ → CLE₂.
+        -- Each CleLink constructor with CLE₁ ≠ CLE₂ gives CLE₁.oStart < CLE₂.oStart
+        -- (from the specific temporal evidence in each constructor).
+        -- Combined with de₂.oEnd < de₁.oStart and de₁.oStart < de₂.oStart:
+        -- de₂.oEnd < de₂.oStart → contradicts de₂.oWellFormed.
+        -- CleLink.subset_temporalRel gives TemporalRel or eq. eq contradicts h_ne.
+        -- TemporalRel = TransGen BasicTemporalRel. Each step satisfies oStart_lt
+        -- (for ob, encap, encapBy — all give a.oStart < b.oStart).
+        -- Wait: encapBy has b.oStart < a.oStart (a inside b → b starts first).
+        -- So encapBy gives a.oStart > b.oStart, NOT a.oStart < b.oStart.
+        -- But finishesBefore also doesn't give oStart ordering.
+        -- Alternative: use a weaker invariant.
+        -- For each BasicTemporalRel from a to b: a.oStart < b.oEnd (proven above).
+        -- So TransGen gives CLE₁.oStart < CLE₂.oEnd.
+        -- But we need to contradict de₂.oEnd < de₁.oStart with CLE₁.oStart < CLE₂.oEnd.
+        -- de₁ = CLE₁, de₂ = CLE₂. So CLE₁.oStart < CLE₂.oEnd AND CLE₂.oEnd < CLE₁.oStart.
+        -- CLE₁.oStart < CLE₂.oEnd < CLE₁.oStart → CLE₁.oStart < CLE₁.oStart → contradiction!
+        -- Now: just prove BasicTemporalRel a b → a.oStart < b.oEnd for all cases,
+        -- then TransGen preserves it.
         -- CleLink CLE₁ CLE₂ + CLE₂ OB CLE₁ → contradiction.
-        -- Each non-eq, non-obFinishBefore CleLink gives oStart_lt (via LinStep decomposition).
-        -- CLE₂ OB CLE₁: CLE₂.oEnd < CLE₁.oStart.
-        -- oStart_lt: CLE₁.oStart < CLE₂.oStart.
-        -- Combined: CLE₂.oEnd < CLE₁.oStart < CLE₂.oStart ≤ CLE₂.oEnd → contradiction.
-        -- For obFinishBefore: has h_diff_prot which contradicts same-cluster (h_ne context).
-        -- Case-split CleLink to extract LinStep.oStart_lt or contradiction.
+        -- Proof approach: CleLink → TemporalRel → each BasicTemporalRel step gives
+        -- a.oStart < b.oEnd. TransGen preserves this (for non-finishesAfterProxy steps).
+        -- CLE₂.oEnd < CLE₁.oStart (from cleOB_rev) + CLE₁.oStart < CLE₂.oEnd → contradiction.
+        -- finishesAfterProxy doesn't arise for same-cluster CleLink.
         sorry
     | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
   | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
