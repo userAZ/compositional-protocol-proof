@@ -2648,6 +2648,10 @@ inductive ProtoOBLevel {n : ℕ}
   | gleOB (h : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
   | cleOB (h_gle_eq : (hknow e₁).gle = (hknow e₂).gle)
           (h : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle)
+  /-- Cross-cluster CLE OB: different GLEs but CLE₁ OB CLE₂.
+      For composition: promotes to gleOB via dir_ordered on GLEs. -/
+  | crossCleOB (h_gle_ne : (hknow e₁).gle ≠ (hknow e₂).gle)
+               (h : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle)
   | eventOB (h_gle_eq : (hknow e₁).gle = (hknow e₂).gle)
             (h_cle_eq : (hknow e₁).cle = (hknow e₂).cle)
             (h : e₁.OrderedBefore n e₂)
@@ -3087,19 +3091,36 @@ private theorem edge_to_proto_forward
         exact .fr_sameCache (hflin₁ ▸ hflin₂ ▸ cle_eq_or_ob) h_level (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | sameClusDiffCache _ _ cle_ob =>
         exact .fr_sameClusDiffCache (hflin₁ ▸ hflin₂ ▸ cle_ob) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
-      | diffCluster_coherent _ p cle₁_ob_p _ _ =>
-        exact .fr_diffCluster_coherent (by sorry)
+      | diffCluster_coherent diffProt p cle₁_ob_p _ _ =>
+        have h_diff_gle := diff_protocol_implies_diff_gle' (hknow := hknow) diffProt
+        have h_cle_ne : (hknow e₁).cle ≠ (hknow e₂).cle := by
+          sorry
+        exact .fr_diffCluster_coherent (.crossCleOB h_diff_gle
+          (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_ne))
           p (hflin₁ ▸ cle₁_ob_p) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
-      | diffCluster_evict _ p cle₁_ob_p _ _ =>
-        exact .fr_diffCluster_evict (by sorry)
+      | diffCluster_evict diffProt p cle₁_ob_p _ _ =>
+        have h_diff_gle := diff_protocol_implies_diff_gle' (hknow := hknow) diffProt
+        have h_cle_ne : (hknow e₁).cle ≠ (hknow e₂).cle := by
+          sorry
+        exact .fr_diffCluster_evict (.crossCleOB h_diff_gle
+          (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_ne))
           p (hflin₁ ▸ cle₁_ob_p) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
-      | diffCluster_noncoherent _ p cle₁_ob_p _ _ =>
-        exact .fr_diffCluster_noncoherent (by sorry)
+      | diffCluster_noncoherent diffProt p cle₁_ob_p _ _ =>
+        have h_diff_gle := diff_protocol_implies_diff_gle' (hknow := hknow) diffProt
+        have h_cle_ne : (hknow e₁).cle ≠ (hknow e₂).cle := by
+          sorry
+        exact .fr_diffCluster_noncoherent (.crossCleOB h_diff_gle
+          (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_ne))
           p (hflin₁ ▸ cle₁_ob_p) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
-      | diffCluster_rfCrossCluster _ p p_inside p_ob =>
-        exact .fr_diffCluster_rfCrossCluster (by sorry)
+      | diffCluster_rfCrossCluster diffProt p p_inside p_ob =>
+        have h_diff_gle := diff_protocol_implies_diff_gle' (hknow := hknow) diffProt
+        have h_cle_ne : (hknow e₁).cle ≠ (hknow e₂).cle := by
+          sorry
+        exact .fr_diffCluster_rfCrossCluster (.crossCleOB h_diff_gle
+          (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_ne))
           p (hflin₁ ▸ p_inside) (hflin₂ ▸ p_ob) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
-      | diffCluster_rfFinishBefore _ p p_ob p_lt _ =>
+      | diffCluster_rfFinishBefore diffProt p p_ob p_lt _ =>
+        -- rfFinishBefore: CLE direction unclear. Use dir_ordered on GLEs or CLEs.
         exact .fr_diffCluster_rfFinishBefore (by sorry)
           p (hflin₂ ▸ p_ob) (hflin₁ ▸ p_lt) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | sameCLE cle_eq =>
@@ -3170,20 +3191,22 @@ private theorem proto_ob_level_trans
     (h₁ : ProtoOBLevel hknow e₁ e₂) (h₂ : ProtoOBLevel hknow e₂ e₃)
     : ProtoOBLevel hknow e₁ e₃ := by
   cases h₁ with
-  | gleOB h₁ =>
-    cases h₂ with
+  | gleOB h₁ => cases h₂ with
     | gleOB h₂ => exact .gleOB (ob_trans h₁ h₂)
     | cleOB h₂_eq _ => exact .gleOB (h₂_eq ▸ h₁)
+    | crossCleOB _ _ => sorry -- gleOB + crossCleOB → compose via GLE chain
     | eventOB h₂_eq _ _ => exact .gleOB (h₂_eq ▸ h₁)
-  | cleOB h₁_eq h₁ =>
-    cases h₂ with
+  | cleOB h₁_eq h₁ => cases h₂ with
     | gleOB h₂ => exact .gleOB (h₁_eq ▸ h₂)
     | cleOB h₂_eq h₂ => exact .cleOB (h₁_eq.trans h₂_eq) (ob_trans h₁ h₂)
+    | crossCleOB _ _ => sorry -- cleOB + crossCleOB → compose
     | eventOB h₂_eq h₂_cle _ => exact .cleOB (h₁_eq.trans h₂_eq) (h₂_cle ▸ h₁)
-  | eventOB h₁_eq h₁_cle h₁ =>
-    cases h₂ with
+  | crossCleOB h₁_ne h₁ => cases h₂ with
+    | gleOB _ | cleOB _ _ | crossCleOB _ _ | eventOB _ _ _ => sorry -- crossCleOB composition
+  | eventOB h₁_eq h₁_cle h₁ => cases h₂ with
     | gleOB h₂ => exact .gleOB (h₁_eq ▸ h₂)
     | cleOB h₂_eq h₂ => exact .cleOB (h₁_eq.trans h₂_eq) (h₁_cle ▸ h₂)
+    | crossCleOB _ _ => sorry -- eventOB + crossCleOB
     | eventOB h₂_eq h₂_cle h₂ => exact .eventOB (h₁_eq.trans h₂_eq) (h₁_cle.trans h₂_cle) (ob_trans h₁ h₂)
 
 /-- ProtoOBLevel is irreflexive. -/
@@ -3193,6 +3216,7 @@ private theorem proto_ob_level_irrefl
   cases h with
   | gleOB h => exact ob_irrefl h
   | cleOB _ h => exact ob_irrefl h
+  | crossCleOB _ h => exact ob_irrefl h
   | eventOB _ _ h => exact ob_irrefl h
 
 /-- ProtoForwardStep composes: chain via TransGen.trans, OB level via proto_ob_level_trans. -/
@@ -3209,6 +3233,7 @@ private theorem proto_forward_trans
   cases h_level with
   | gleOB gleOB => exact .rf_crossGle gleOB e₁_cmpLinRel e₃_cmpLinRel
   | cleOB sameGle cleOB => exact .rf_sameGle_cleOB sameGle cleOB e₁_cmpLinRel e₃_cmpLinRel
+  | crossCleOB _ cleOB => exact .fr_sameClusDiffCache cleOB e₁_cmpLinRel e₃_cmpLinRel
   | eventOB sameGle sameCle eventOB => exact .co_sameCache sameCle eventOB e₁_cmpLinRel e₃_cmpLinRel
 
 /-- ProtoForwardStep is irreflexive: self-OB at any level contradicts well-formedness. -/
