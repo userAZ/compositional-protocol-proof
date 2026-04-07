@@ -2651,6 +2651,8 @@ inductive ProtoForwardStep {n : ℕ}
   | ppoi
       (cmpLin₁_ob_cmpLin₂ : (hknow e₁).compoundLin.OrderedBefore n (hknow e₂).compoundLin)
       (obLevel : ProtoOBLevel hknow e₁ e₂)
+      (e₁CmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
+      (e₂CmpLinRel : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
   /-- RF cross-GLE: writer's GLE OB reader's GLE (from gleOrdering.Cases.wObRGle).
       Chain goes through global directory: cmpLin_w → ... → GLE_w →(OB)→ GLE_r → ... → cmpLin_r
       CmpLinCleRel determines whether each endpoint goes through its CLE or directly. -/
@@ -2776,7 +2778,7 @@ theorem ProtoForwardStep.chain
     {e₁ e₂ : Event n}
     (h : ProtoForwardStep hknow e₁ e₂) : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin := by
   cases h with
-  | ppoi cmpLin₁_ob_cmpLin₂ _ => exact .single (.ob cmpLin₁_ob_cmpLin₂)
+  | ppoi cmpLin₁_ob_cmpLin₂ _ _ _ => exact .single (.ob cmpLin₁_ob_cmpLin₂)
   | rf_crossGle _ writerRel readerRel => sorry
   | rf_sameGle_cleOB _ _ writerRel readerRel => sorry
   | rf_sameGle_sameCLE _ _ _ writerRel readerRel => sorry
@@ -2798,7 +2800,7 @@ theorem ProtoForwardStep.level
     {e₁ e₂ : Event n}
     (h : ProtoForwardStep hknow e₁ e₂) : ProtoOBLevel hknow e₁ e₂ := by
   cases h with
-  | ppoi _ obLevel => exact obLevel
+  | ppoi _ obLevel _ _ => exact obLevel
   | rf_crossGle gleOB _ _ => exact .gleOB gleOB
   | rf_sameGle_cleOB sameGle cleOB _ _ => exact .cleOB sameGle cleOB
   | rf_sameGle_sameCLE _ _ obLevel _ _ => exact obLevel
@@ -2825,8 +2827,12 @@ private theorem edge_to_proto_forward
     : ProtoForwardStep hknow e₁ e₂ := by
   cases h with
   | inl hppoi =>
-    -- PPOi: same cache → GLE/CLE ordering from compound protocol.
-    sorry
+    have hnd₁ := hppoi.1.notDown₁; have hnd₂ := hppoi.1.notDown₂
+    have hndE₁ := (notdir_of_edge (Or.inl hppoi)).1
+    have hndE₂ := (notdir_of_edge (Or.inl hppoi)).2
+    have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnd₁ hndE₁ (lin := hknow e₁)
+    have hrel₂ := compoundLin_cle_to_CmpLinCleRel hnd₂ hndE₂ (lin := hknow e₂)
+    exact .ppoi (by sorry) (by sorry) hrel₁ hrel₂
   | inr hcom =>
     cases hcom with
     | rfe hrfe =>
@@ -2898,7 +2904,7 @@ theorem ProtoForwardStep.startCmpLinRel
     {e₁ e₂ : Event n}
     (h : ProtoForwardStep hknow e₁ e₂) : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle := by
   cases h with
-  | ppoi _ obLevel => sorry -- PPOi: derive from hknow
+  | ppoi _ _ rel _ => exact rel
   | rf_crossGle _ rel _ => exact rel
   | rf_sameGle_cleOB _ _ rel _ => exact rel
   | rf_sameGle_sameCLE _ _ _ rel _ => exact rel
@@ -2920,7 +2926,7 @@ theorem ProtoForwardStep.endCmpLinRel
     {e₁ e₂ : Event n}
     (h : ProtoForwardStep hknow e₁ e₂) : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle := by
   cases h with
-  | ppoi _ obLevel => sorry -- PPOi: derive from hknow
+  | ppoi _ _ _ rel => exact rel
   | rf_crossGle _ _ rel => exact rel
   | rf_sameGle_cleOB _ _ _ rel => exact rel
   | rf_sameGle_sameCLE _ _ _ _ rel => exact rel
