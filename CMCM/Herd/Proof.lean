@@ -3297,7 +3297,7 @@ private theorem proto_forward_trans
   cases h_level with
   | gleOB gleOB => exact .rf_crossGle gleOB e₁_cmpLinRel e₃_cmpLinRel
   | cleOB sameGle cleOB => exact .rf_sameGle_cleOB sameGle cleOB e₁_cmpLinRel e₃_cmpLinRel
-  | eventOB sameGle sameCle eventOB => exact .co_sameCache sameCle (by sorry) eventOB e₁_cmpLinRel e₃_cmpLinRel
+  | eventOB sameGle sameCle eventOB => exact .co_sameCache sameCle (same_cle_implies_same_gle sameCle) eventOB e₁_cmpLinRel e₃_cmpLinRel
 
 /-- ProtoForwardStep is irreflexive: self-OB at any level contradicts well-formedness. -/
 private theorem proto_forward_irrefl
