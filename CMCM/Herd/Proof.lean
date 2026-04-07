@@ -2851,6 +2851,25 @@ private theorem temporalRel_of_gleOB_and_cmpLinCleRels
       | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
     | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
+/-- Build chain for same-CLE cases. 9 CmpLinCleRel × CmpLinCleRel combinations. -/
+private theorem chain_of_sameCLE
+    {cmpLin₁ cle cmpLin₂ : Event n}
+    (rel₁ : CmpLinCleRel cmpLin₁ cle) (rel₂ : CmpLinCleRel cmpLin₂ cle)
+    : TemporalRel cmpLin₁ cmpLin₂ ∨ cmpLin₁ = cmpLin₂ ∨ TemporalRel cmpLin₂ cmpLin₁ := by
+  cases rel₁ with
+  | eq h₁ => subst h₁; cases rel₂ with
+    | eq h₂ => exact Or.inr (Or.inl h₂.symm)
+    | cle_ob _ h₂_eq h₂_ob _ => exact Or.inl (.single (.ob h₂_ob))
+    | inside h₂_enc _ => exact Or.inl (.single (.encap h₂_enc))
+  | cle_ob _ h₁_eq h₁_ob _ => subst h₁_eq; cases rel₂ with
+    | eq h₂ => exact Or.inr (Or.inr (.single (.ob (h₂ ▸ h₁_ob))))
+    | cle_ob _ _ _ _ => sorry -- cle_ob × cle_ob: both after same CLE, need event OB
+    | inside h₂_enc _ => sorry -- cle_ob × inside: reverse + encap
+  | inside h₁_enc _ => cases rel₂ with
+    | eq h₂ => exact Or.inr (Or.inr (.single (.encap (h₂ ▸ h₁_enc))))
+    | cle_ob _ h₂_eq h₂_ob _ => exact Or.inl (.tail (.single (.encapBy h₁_enc)) (.ob h₂_ob))
+    | inside h₂_enc _ => sorry -- inside × inside: both inside, need event OB
+
 /-- Build TemporalRel chain from ProtoOBLevel + CmpLinCleRel. -/
 private theorem chain_of_obLevel
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
@@ -2882,18 +2901,16 @@ theorem ProtoForwardStep.chain
   | rf_sameGle_cleOB _ cleOB writerRel readerRel =>
     exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels cleOB writerRel readerRel)
   | rf_sameGle_sameCLE sameCle_gle sameCle _ writerRel readerRel =>
-    -- Same CLE: use temporalRel_of_cleOB_and_cmpLinCleRels with eq rewritten, or derive eq.
-    exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels (sameCle ▸ sorry) writerRel readerRel)
+    exact chain_of_sameCLE writerRel (sameCle ▸ readerRel)
   | co_sameCache sameCle _ _ w₁Rel w₂Rel =>
-    -- Same CLE + event OB. Case-split CmpLinCleRel pairs.
-    exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels (sameCle ▸ sorry) w₁Rel w₂Rel)
+    exact chain_of_sameCLE w₁Rel (sameCle ▸ w₂Rel)
   | co_sameClusDiffCache _ cleOB w₁Rel w₂Rel =>
     exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels cleOB w₁Rel w₂Rel)
   | co_crossCluster gleOB w₁Rel w₂Rel =>
     exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels gleOB w₁Rel w₂Rel b.orderedAtEntry.dir_ordered)
   | fr_sameCache h_cle_rel _ readerRel writerRel =>
     cases h_cle_rel with
-    | inl h_eq => sorry
+    | inl h_eq => exact chain_of_sameCLE readerRel (h_eq ▸ writerRel)
     | inr cleOB => exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels cleOB readerRel writerRel)
   | fr_sameClusDiffCache cleOB _ readerRel writerRel =>
     exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels cleOB readerRel writerRel)
@@ -2908,7 +2925,7 @@ theorem ProtoForwardStep.chain
   | fr_diffCluster_rfFinishBefore obLevel _ _ _ readerRel writerRel =>
     exact chain_of_obLevel obLevel readerRel writerRel
   | fr_sameCLE sameCle _ readerRel writerRel =>
-    sorry
+    exact chain_of_sameCLE readerRel (sameCle ▸ writerRel)
 
 -- event_ob_of_same_cache' (b := b) is now in Defs.lean (needs heartbeat optimization there)
 
