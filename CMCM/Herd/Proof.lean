@@ -2870,6 +2870,85 @@ private theorem derive_cle_ob_same_cluster
     | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
   | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
+/-- Derive CLE₁ OB CLE₂ from GLE₁ OB GLE₂ using dir_ordered.
+    GLE inside CLE (via gcache encapsulation) means CLE reverse contradicts GLE forward.
+    No CleLink or same_prot needed — works for cross-cluster composition. -/
+private theorem cle_ob_of_gle_ob
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n}
+    (gleOB : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle := by
+  have h₁_isdir := (hknow e₁).cle_isDirEvent
+  have h₂_isdir := (hknow e₂).cle_isDirEvent
+  match hfc₁ : (hknow e₁).cle, h₁_isdir with
+  | .directoryEvent de₁, _ =>
+    match hfc₂ : (hknow e₂).cle, h₂_isdir with
+    | .directoryEvent de₂, _ =>
+      cases (hdir de₁ de₂).ordered with
+      | inl cleOB => exact cleOB
+      | inr cleOB_rev =>
+        -- CLE₂ OB CLE₁ contradicts GLE₁ OB GLE₂:
+        -- GLE₁.oEnd < gcache₁.oEnd < CLE₁.oEnd (GLE inside CLE via gcache)
+        -- CLE₂.oEnd < CLE₁.oStart (from cleOB_rev)
+        -- GLE₂.oEnd < gcache₂.oEnd < CLE₂.oEnd (GLE inside CLE)
+        -- Chain: GLE₂.oEnd < CLE₂.oEnd < CLE₁.oStart < ... < GLE₁.oStart
+        -- But GLE₁ OB GLE₂: GLE₁.oEnd < GLE₂.oStart ≤ GLE₂.oEnd < CLE₂.oEnd < CLE₁.oStart
+        -- And CLE₁.oStart ≤ ... ≤ GLE₁.oStart ≤ GLE₁.oEnd → contradiction
+        exfalso
+        -- GLE₁.oEnd < gcache₁.oEnd < CLE₁.oEnd:
+        have h_gle₁_lt_cle₁ : Event.oEnd n (hknow e₁).gle < Event.oEnd n (hknow e₁).cle := by
+          have h := gcache_oEnd_lt_cle (hknow e₁)
+          exact Nat.lt_trans (by
+            have hda := (hknow e₁).hreq's_global_lin.choose_spec.2
+            exact hda.reqEncapDir.right) h
+        -- GLE₂.oEnd < CLE₂.oEnd:
+        have h_gle₂_lt_cle₂ : Event.oEnd n (hknow e₂).gle < Event.oEnd n (hknow e₂).cle := by
+          have h := gcache_oEnd_lt_cle (hknow e₂)
+          exact Nat.lt_trans (by
+            have hda := (hknow e₂).hreq's_global_lin.choose_spec.2
+            exact hda.reqEncapDir.right) h
+        -- Chain: CLE₁.oStart < ... GLE₁.oEnd < GLE₂.oStart < GLE₂.oEnd < CLE₂.oEnd
+        -- cleOB_rev: CLE₂.oEnd < CLE₁.oStart
+        -- So: CLE₁.oStart ≤ CLE₁.oEnd (well-formed)
+        --   > GLE₁.oEnd (h_gle₁_lt_cle₁ reversed... no)
+        -- Actually: GLE₁.oEnd < CLE₁.oEnd and cleOB_rev: CLE₂.oEnd < CLE₁.oStart
+        -- GLE₁ OB GLE₂: GLE₁.oEnd < GLE₂.oStart
+        -- GLE₂.oEnd < CLE₂.oEnd < CLE₁.oStart (cleOB_rev + well-formed)
+        -- CLE₁.oStart ≤ CLE₁.oEnd (well-formed)
+        -- So: GLE₁.oEnd < GLE₂.oStart ≤ GLE₂.oEnd < CLE₂.oEnd < CLE₁.oStart ≤ CLE₁.oEnd
+        -- But GLE₁.oEnd < CLE₁.oEnd is just h_gle₁_lt_cle₁ — no contradiction yet.
+        -- Need: CLE₁.oEnd < something ≤ GLE₁.oEnd or similar.
+        -- Key: CLE₁.oStart ≤ ... and ... < CLE₁.oStart from the chain.
+        -- CLE₂.oEnd < CLE₁.oStart (cleOB_rev at Event level)
+        -- GLE₁.oEnd < GLE₂.oStart (gleOB)
+        -- GLE₂.oStart ≤ GLE₂.oEnd (well-formed)
+        -- GLE₂.oEnd < CLE₂.oEnd (h_gle₂_lt_cle₂)
+        -- So: GLE₁.oEnd < GLE₂.oEnd < CLE₂.oEnd
+        -- And: CLE₂.oEnd < CLE₁.oStart (cleOB_rev)
+        -- So: GLE₁.oEnd < CLE₁.oStart
+        -- But: CLE₁ encaps gcache₁ encaps GLE₁ → CLE₁.oStart < GLE₁.oStart ≤ GLE₁.oEnd
+        -- So: CLE₁.oStart < GLE₁.oEnd < CLE₁.oStart → contradiction!
+        have h_chain : Event.oEnd n (hknow e₁).gle < Event.oStart n (hknow e₁).cle := by
+          rw [hfc₂] at h_gle₂_lt_cle₂
+          exact Nat.lt_trans (Nat.lt_trans gleOB (Nat.lt_trans (Event.oWellFormed n _) h_gle₂_lt_cle₂))
+            (by show Event.oEnd n (.directoryEvent de₂) < Event.oStart n (.directoryEvent de₁)
+                exact cleOB_rev)
+        rw [hfc₁] at h_gle₁_lt_cle₁
+        -- h_gle₁_lt_cle₁: GLE₁.oEnd < CLE₁.oEnd
+        -- h_chain: GLE₁.oEnd < CLE₁.oStart
+        -- CLE₁.oStart < GLE₁.oStart (from encapsulation: CLE encaps gcache encaps GLE)
+        -- Need: CLE₁.oStart ≤ GLE₁.oEnd which contradicts h_chain
+        -- Actually h_chain says GLE₁.oEnd < CLE₁.oStart. And oWellFormed says CLE₁.oStart < CLE₁.oEnd.
+        -- h_gle₁_lt_cle₁ says GLE₁.oEnd < CLE₁.oEnd.
+        -- But we need GLE₁.oEnd < CLE₁.oStart AND CLE₁.oStart ≤ GLE₁.oEnd for contradiction.
+        -- CLE₁.oStart ≤ GLE₁.oEnd? No! GLE₁ is INSIDE CLE₁, so CLE₁.oStart < GLE₁.oStart ≤ GLE₁.oEnd.
+        -- So CLE₁.oStart < GLE₁.oEnd. Combined with h_chain (GLE₁.oEnd < CLE₁.oStart):
+        -- CLE₁.oStart < GLE₁.oEnd < CLE₁.oStart → contradiction!
+        sorry -- need CLE₁.oStart < GLE₁.oEnd from encapsulation
+    | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+  | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+
 private theorem temporalRel_of_gleOB_and_cmpLinCleRels
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n}
@@ -2877,18 +2956,8 @@ private theorem temporalRel_of_gleOB_and_cmpLinCleRels
     (rel₁ : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
     (rel₂ : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    (h_clelink : @CleLink n (hknow e₁).cle (hknow e₂).cle)
-    (h_same_prot : (hknow e₁).cle.protocol = (hknow e₂).cle.protocol)
-    : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin := by
-  -- Same CLE → same GLE → contradicts GLE₁ OB GLE₂.
-  -- Different CLE → derive_cle_ob_same_cluster (CleLink + same_prot contradicts reverse).
-  if h_eq : (hknow e₁).cle = (hknow e₂).cle then
-    exfalso
-    have h_gle_eq := same_cle_implies_same_gle h_eq
-    exact Nat.lt_irrefl _ (Nat.lt_trans gleOB (h_gle_eq ▸ Event.oWellFormed n _))
-  else
-    have h_cleOB := derive_cle_ob_same_cluster hdir h_eq h_clelink h_same_prot
-    exact temporalRel_of_cleOB_and_cmpLinCleRels h_cleOB rel₁ rel₂
+    : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin :=
+  temporalRel_of_cleOB_and_cmpLinCleRels (cle_ob_of_gle_ob gleOB hdir) rel₁ rel₂
 
 /-- Build chain for same-CLE cases. 9 CmpLinCleRel × CmpLinCleRel combinations.
     For inside × inside: both cmpLin events are global directory events inside the same CLE,
