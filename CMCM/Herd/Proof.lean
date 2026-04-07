@@ -1894,7 +1894,24 @@ private theorem compoundLin_cle_to_CmpLinCleRel
             (Nat.not_lt.mpr (Event.oStart_le_oEnd lin.compoundLin))
     exact .cle_ob e h_cmpLin_eq_and_not_dir.1 hob h_cmpLin_eq_and_not_dir.2
   | compoundLin_ob_cle hbad => exact absurd hbad (compoundLin_not_ob_cle lin hnotdown)
-  | compoundLin_inside_cle hinside => exact .inside hinside
+  | compoundLin_inside_cle hinside =>
+    -- Derive h_global: lin.compoundLin.protocol = .global.
+    -- compoundLin_inside_cle comes from dirLin. compoundLin_cle_of_dirLin gives
+    -- eq (cmpLin = CLE → self-encap → False) or inside (protocol = .global ✓).
+    have h_global : lin.compoundLin.protocol = .global := by
+      cases hle : compound.linearizationOfEvent b init e with
+      | requestLin _ =>
+        -- requestLin: for inside (CLE Encaps cmpLin), derive contradiction.
+        -- requestLin + orderBeforeDir: CLE before cmpLin → CLE can't Encaps cmpLin.
+        -- (This was proven absurd in the h_ne work using temporal chains.)
+        sorry -- requestLin + compoundLin_inside_cle → protocol (deep protocol)
+      | dirLin hd =>
+        cases lin.compoundLin_cle_of_dirLin hnotdown hle with
+        | inl h_eq =>
+          -- cmpLin = CLE. CLE Encaps cmpLin → CLE Encaps CLE → self → False.
+          exfalso; rw [h_eq] at hinside; exact Nat.lt_irrefl _ hinside.left
+        | inr h_inside_global => exact h_inside_global.2
+    exact .inside hinside h_global
 
 -- ob_cle (compoundLin OB CLE) is vacuous: no non-downgrade event has compoundLin before its CLE.
 -- For dirLin: compoundLin_cle_of_dirLin gives eq/inside, both temporally contradictory with OB.
@@ -2065,9 +2082,28 @@ private theorem eq_of_shared_encapDir_cle
   | _, _, .cacheEvent _, h =>
     simp [Event.isDirectoryEvent] at h
 
-/-- For orderAfterDir: CLE.protocol = e_req.protocol (cluster, not global).
-    The CLE corresponds to the successor via cacheEncapsulatesCorrespondingDirEvent.
-    sameProtocol chains: CLE.protocol = succ.protocol = e_req.protocol. -/
+/-- CLE has the same protocol as its cache event (from dirAccessOfRequest.sameProtocol chain).
+    For encapDir: sameProtocol directly. For orderBeforeDir: predecessor sameProtocol chain.
+    For orderAfterDir: successor sameProtocol chain. -/
+private theorem cle_protocol_eq_event
+    {lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (hnotdown : ¬ e.down)
+    : lin.cle.protocol = e.protocol := by
+  cases lin.cle_dirAccess with
+  | encapDir _ hencap => exact hencap.sameProtocol.symm
+  | orderBeforeDir _ hpred hpred_encap _ hprot _ _ _ =>
+    exact hpred_encap.sameProtocol.symm.trans hprot
+  | orderAfterDir hweak hsucc hprot _ =>
+    exact (hsucc.choose_spec.2.satisfyP.encapCorresponding.sameProtocol.symm).trans hprot
+
+/-- CLE.protocol ≠ .global for cluster cache events (from sameProtocol + isClusterCache). -/
+private theorem cle_protocol_ne_global
+    {lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (hnotdown : ¬ e.down) (h_cluster : e.isClusterCache)
+    : lin.cle.protocol ≠ .global := by
+  rw [cle_protocol_eq_event hnotdown]
+  cases h_cluster.eCluster with | inl h => simp [h] | inr h => simp [h]
+
 private theorem orderAfterDir_cle_protocol_eq_event
     {b : Behaviour n} {init : InitialSystemState n} {e_req e_dir : Event n}
     (hweak : b.ncWeakReqOnVd n init e_req)
@@ -2676,6 +2712,11 @@ private theorem junction_compose
     (h_in : CmpLinCleRel cl cle_in) (h_out : CmpLinCleRel cl cle_out)
     (h_in_dir : cle_in.isDirectoryEvent) (h_out_dir : cle_out.isDirectoryEvent)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    -- Protocol: CLEs are at cluster level (from sameProtocol + isClusterCache).
+    -- So cl.protocol = .global (from inside.h_global) contradicts cluster CLE protocol.
+    -- Caller derives this from hknow + isClusterCache + cle_protocol_eq_event.
+    (h_cle_in_not_global : cle_in.protocol ≠ .global)
+    (h_cle_out_not_global : cle_out.protocol ≠ .global)
     : @CleLink n cle_in cle_out ∨ cle_in = cle_out ∨ @CleLink n cle_out cle_in := by
   cases h_in with
   | eq h₁ =>
@@ -2686,23 +2727,10 @@ private theorem junction_compose
       -- h₁ : cl = cle_in → cl.isDirectoryEvent = cle_in.isDirectoryEvent. h_in_dir : cle_in.isDir.
       -- So cl.isDir. But h_nd : ¬ cl.isDir. Contradiction.
       exact absurd (h₁ ▸ h_in_dir) h_nd
-    | inside h₂ =>
-      -- cl = cle_in. cle_out Encaps cl = cle_in. cle_out Encaps cle_in.
-      -- Both dir events. dir_ordered gives OB one way.
-      -- cle_out Encaps cle_in → cle_out.oStart < cle_in.oStart.
-      -- dir_ordered: OB cle_in cle_out or OB cle_out cle_in.
-      -- OB cle_in cle_out: cle_in.oEnd < cle_out.oStart. But cle_out Encaps cle_in → cle_out.oStart < cle_in.oStart ≤ cle_in.oEnd. So cle_in.oEnd < cle_out.oStart < cle_in.oStart ≤ cle_in.oEnd → contradiction. So OB cle_in cle_out impossible.
-      -- OB cle_out cle_in: cle_out.oEnd < cle_in.oStart. cle_out Encaps cle_in → cle_in.oEnd < cle_out.oEnd. So cle_out.oEnd > cle_in.oEnd > cle_in.oStart (oWellFormed). But OB: cle_out.oEnd < cle_in.oStart. Chain: cle_in.oEnd < cle_out.oEnd < cle_in.oStart → contradicts oWellFormed.
-      -- Both impossible → cle_in = cle_out? Wait, Encaps means overlap, OB means disjoint. Both can't hold. So dir_ordered can't give OB for encapsulating events. Contradiction with dir_ordered axiom? No — dir_ordered says AreOrdered for same-ENTRY events. If cle_in and cle_out are at different entries, dir_ordered doesn't apply.
-      -- For same entry: Encaps contradicts OB → AreOrdered is False → contradicts axiom.
-      -- But the axiom holds → same-entry events CAN'T encapsulate each other.
-      -- So cle_out Encaps cle_in at same entry → False.
-      -- For different entry: Encaps IS possible. But we don't have CleLink between different entries without communication evidence.
-      -- This case (eq×inside) was eliminated in the junction analysis as impossible (cluster dir vs global protocol). Let me use that argument.
-      -- h₁ : cl = cle_in. h₂ : cle_out Encaps cl. cl is cle_in (dir event, cluster protocol from its cache event).
-      -- For the inside case: compoundLin_cle_of_dirLin gives protocol = .global.
-      -- But we don't have that evidence here (CmpLinCleRel doesn't carry protocol info).
-      sorry -- eq×inside: protocol distinction needed (cluster dir ≠ global inside)
+    | inside _ h₂_global =>
+      -- eq×inside: cl = cle_in (cluster). h₂_global: cl.protocol = .global.
+      -- h_cle_in_not_global: cle_in.protocol ≠ .global. cl = cle_in → contradiction.
+      exact absurd (h₁ ▸ h₂_global) h_cle_in_not_global
   | cle_ob _ _ _ h_nd_in =>
     -- cle_in OB cl. cl not dir. But cle_out is dir.
     cases h_out with
@@ -2721,22 +2749,35 @@ private theorem junction_compose
       -- Their CLEs correspond via dirAccessOfRequest. Same event → same CLE?
       -- We need hknow to derive this. Use sorry for now.
       sorry -- cle_ob×cle_ob: same cache event → same CLE (needs hknow)
-    | inside _ =>
-      -- cle_ob (not dir) × inside: cl is a cache event AND inside a CLE.
-      -- For inside: compoundLin_cle_of_dirLin gives protocol = .global.
-      -- For cle_ob: h_nd_in says cl is NOT dir. Global events... might not be dir.
-      -- But the protocol distinction: cle_ob comes from requestLin (cluster cache event).
-      -- inside comes from dirLin (global protocol). Cluster ≠ global → impossible.
-      sorry -- cle_ob×inside: protocol distinction
-  | inside h₁ =>
+    | inside _ h_global =>
+      -- cle_ob × inside: h_global : cl.protocol = .global.
+      -- cle_in protocol = cl protocol (from cle_ob: CLE OB cl, sameProtocol chain).
+      -- h_cle_in_not_global: cle_in.protocol ≠ .global.
+      -- Need: cl.protocol = cle_in.protocol (from sameProtocol).
+      -- But: CmpLinCleRel.cle_ob gives CLE OB cl. sameProtocol says CLE.protocol = e.protocol.
+      -- And cl = e (from cle_ob.h_eq). So CLE.protocol = cl.protocol.
+      -- h_cle_in_not_global: cle_in.protocol ≠ .global. cle_in = CLE.
+      -- CLE.protocol = cl.protocol. cl.protocol = .global. CLE.protocol = .global. Contradiction.
+      -- Actually simpler: the `cle_ob` case has `h_eq : cl = e` and `h_not_dir : ¬ cl.isDir`.
+      -- The `inside` case has `h_global : cl.protocol = .global`.
+      -- We need cl.protocol ≠ .global from the cle_ob side.
+      -- cle_ob: CLE OB cl. CLE = cle_in. CLE.protocol = h_cle_in_not_global (≠ .global).
+      -- But CLE.protocol vs cl.protocol: from sameProtocol they're equal.
+      -- We DON'T have sameProtocol here. We have h_cle_in_not_global.
+      -- Without sameProtocol: cl.protocol and cle_in.protocol are unrelated.
+      -- STUCK: need protocol chain cle_in.protocol = cl.protocol.
+      sorry -- cle_ob×inside: need CLE.protocol = cl.protocol (sameProtocol)
+  | inside h₁ h₁_global =>
     cases h_out with
     | eq h₂ =>
-      -- inside × eq: symmetric to eq × inside.
-      sorry -- inside×eq: protocol distinction
+      -- inside×eq: h₁_global : cl.protocol = .global. cl = cle_out → cle_out.protocol = .global.
+      -- h_cle_out_not_global: cle_out.protocol ≠ .global. Contradiction.
+      exact absurd (h₂ ▸ h₁_global) h_cle_out_not_global
     | cle_ob _ _ _ h_nd₂ =>
-      -- inside × cle_ob: symmetric to cle_ob × inside.
-      sorry -- inside×cle_ob: protocol distinction
-    | inside h₂ =>
+      -- inside×cle_ob: h₁_global : cl.protocol = .global.
+      -- Same as cle_ob×inside reversed. Need CLE.protocol = cl.protocol.
+      sorry -- inside×cle_ob: need CLE.protocol = cl.protocol
+    | inside h₂ h₂_global =>
       -- inside × inside: both CLEs encapsulate the same cl.
       -- Both are directory events. Use dir_ordered for CleLink.
       if h_eq : cle_in = cle_out then
