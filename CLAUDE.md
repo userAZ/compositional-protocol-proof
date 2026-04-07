@@ -222,21 +222,29 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
    - `edge_to_cmpLinLinLink` lifts every R_hknow edge to cmpLinLinLink.
    - `cmcm_acyclic_of_hknow_compoundLinOrdering` lifts R_hknow cycle to cmpLinLinLink cycle → contradiction.
    - Theorem flow: `cmpLinLinLink_acyclic` → `cmcm_acyclic_of_hknow_compoundLinOrdering` → `cmcm_acyclic` → `cmcm`.
-   - **CURRENT: Replace edge_oEnd_lt with protocol proxy chain acyclicity.**
-     - Each step IS a TransGen of {OB, Encap, EncapBy, finishesBefore} through cmpLin → CLE → GLE → ... → CLE → cmpLin.
-     - Acyclicity from TWO LEVELS of protocol ordering:
-       (a) GLE level: gleOrdering.Cases gives GLE₁ OB GLE₂ or GLE₁ = GLE₂ (NEVER backward). Cross-cluster edges always advance GLE.
-       (b) CLE level (within same GLE): LinChain (OB + Encap) on CLEs, acyclic via oStart_lt.
-     - Combined: lex(GLE.oStart, CLE.oStart) strictly increases at each step.
-     - edge_oEnd_lt was raw arithmetic — it composed trivially but hid the protocol mechanism entirely.
-     - **Key gap found**: CleLink.obFinishBefore (cross-cluster FR) doesn't give CLE₁.oStart < CLE₂.oStart. But gleOrdering.Cases for COM edges guarantees GLE forward progress for this case.
-     - **PPOi GLE ordering**: need to show GLE₁ ≤ GLE₂ for same-cache PPOi. Both CLEs at same cluster → GLEs should be forward-ordered (CLE encaps gcache → GLE inside CLE → CLE₁ OB CLE₂ forces GLE₁ before GLE₂).
-   - `gle_isDirEvent` theorem added to Rf.lean: GLEs are directory events (from dirAccessOfRequest).
-   - `edge_gle_cle_lex_lt`: 1 sorry — the main theorem showing each edge strictly increases lex(GLE.oStart, CLE.oStart).
-   - **3 sorry's in `cmpLin_ne_of_event_fb` dirLin×dirLin (2 orderAfterDir + 1 getGlobalCachePerms). Sorry's 1-2 (orderAfterDir) are unreachable: cle_ob arises ONLY from requestLin, not orderAfterDir, so h_ne_of_cle_ob never calls cmpLin_ne_of_event_fb for orderAfterDir cases. Sorry 3 (getGlobalCachePerms×getGlobalCachePerms) is only reachable from obFinishBefore CleLink case. Needs global-level protocol injectivity.** The sorry is `cmpLin₁ ≠ cmpLin₂` when both events have dirLin linearization. Proven sub-cases: requestLin×requestLin (oEnd), requestLin×dirLin-eq (isDirectoryEvent), requestLin×dirLin-inside (cluster vs global protocol), dirLin-eq×dirLin-eq encapDir×encapDir (shared CLE eReq injectivity via eq_of_shared_encapDir_cle), encapDir×orderAfterDir temporal contradiction, dirLin-eq×dirLin-inside protocol (CLE.protocol = cluster ≠ global). Remaining: orderAfterDir₁×encapDir₂ (e₂ = successor, genuine shared CLE possible but h_ne from temporal if CLE OB or from eq_of_shared_encapDir_cle variant), orderAfterDir₁×orderAfterDir₂ (both successors encapsulate same CLE), getGlobalCachePerms×getGlobalCachePerms (both at global level).
-   - `temporalRel_of_eq_cle_and_rels` returns `(TemporalRel ∧ h_ne) ∨ eq ∨ (TemporalRel ∧ h_ne)` — h_ne derived from temporal chain for 6/8 cases (OB/Encap/EncapBy at self → oWellFormed contradiction), fallback to `cmpLin_ne_of_event_fb` for cle_ob×cle_ob and inside×inside.
-   - `notdir_of_edge` derives ¬isDirectoryEvent from isClusterCache evidence.
-   - `edge_cmpLin_ordered` simplified: derives notdown/notdir internally.
+   - **DONE: ProtoForwardStep defined with 15 protocol-derived cases.**
+     - Cases mirror RF/CO/FR/PPOi definitions with meaningful names and named proxy events.
+     - Each constructor carries: CmpLinCleRel (cmpLin→CLE link), protocol OB (GLE/CLE/event), named proxies.
+     - ProtoOBLevel for 3-level composition (GLE OB / CLE OB / event OB). Transitive + irreflexive.
+     - cmpLinLinLink_acyclic: sorry-free (composes via proto_forward_trans, closes via proto_forward_irrefl).
+   - **TODO: Fill sorry's in ProtoForwardStep infrastructure (31 total):**
+     - **Category A: `.level` — derive ProtoOBLevel (3 sorry's)**
+       - `co_sameCache`: same CLE → derive GLE eq → eventOB level
+       - `fr_sameClusDiffCache`: derive GLE eq from same-cluster evidence
+       - `fr_sameCLE`: same CLE → derive GLE eq → eventOB level
+     - **Category B: `edge_to_proto_forward` — derive GLE OB / CLE OB from protocol evidence (~12 sorry's)**
+       - PPOi: derive ProtoOBLevel from NonLazyPPOi + compound protocol structure
+       - RF wEqRGle: derive CLE₁ OB CLE₂ from CleLink within same GLE
+       - CO sameClusDiffCache: derive GLE eq + CLE OB from co.ordering evidence
+       - CO crossCluster: derive GLE₁ OB GLE₂ from gleOrdering (need co.evidence access)
+       - FR diffCluster_* (×5): derive GLE₁ OB GLE₂ from FR protocol evidence
+       - FR sameCache: derive ProtoOBLevel
+       - FR sameCLE: derive e₁ OB e₂ from cache ordering
+     - **Category C: `.chain` — construct TemporalRel from CmpLinCleRel + proxy OB (~14 sorry's)**
+       - For each constructor: compose CmpLinCleRel₁ + middle OB + CmpLinCleRel₂ into TemporalRel
+       - Existing `cle_to_compoundLinOrdering` infrastructure handles most patterns
+     - **Category D: `proto_forward_trans` — CmpLinCleRel for composed steps (2 sorry's)**
+       - Need CmpLinCleRel at composition boundaries (derivable from hknow)
 4. **Name proxy events meaningfully** in LinLink constructors and CleLink. Use names like `writerCLE`, `readerCLE`, `cdir_downgrade`, `gcache_downgrade`, `predecessor`, `successor` — NOT single-letter variables like `p`, `q`, `e₁'`. The user's definitions always use meaningful names.
 5. **Update LinLink.proxy to use meaningful proxy event names** — rename fields to describe WHAT the proxy events are in the protocol (predecessor CLE, downgrade event, etc.)
 
@@ -326,7 +334,8 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
   The CmpLinCleRel tells you WHICH chain pattern to use (eq → skip CLE, cle_ob → direct from e, inside → go through CLE via EncapBy). But the chain itself follows the protocol flow, not a template.
 - **VERIFY ProtoForwardStep against /philosophy after EVERY change.** Checklist: (1) Does it carry the irreflexive transitive chain of {OB, Encap, EncapBy, finishesBefore} between cmpLin events? (2) Does it carry GLE/CLE/event OB for acyclicity? (3) Are the cases derived from protocol definitions (RF/CO/FR)? (4) Does it use {OB, Encap, EncapBy} (prioritized over finishesBefore)? (5) Does it name the ACTUAL protocol proxy events for each scenario (not a uniform template)? Run this checklist BEFORE committing.
 - **USE MEANINGFUL PARAMETER NAMES — ALWAYS.** Not `h_rel₁`, `h_rel₂`, `h` — use `writerCmpLinRel`, `readerCle`, `writerGle_ob_readerGle`, `readerDowngrade`. The names should say WHAT the event IS in the protocol (writer's CLE, reader's downgrade, etc.). A reviewer should understand the proof from the names alone. This applies to ProtoForwardStep constructors, CleLink evidence, CmpLinCleRel, and ALL protocol proof terms.
-- **APPROACH: /imagine first, then let implementation fill gaps.** When designing inductive cases or proof structure: (1) /imagine the key protocol scenarios and their chain shapes, (2) write the constructors with meaningful names based on imagination, (3) build and let sorry's reveal what evidence each constructor actually needs, (4) refine the constructors based on what the implementation requires. Don't analyze forever — write code, build, iterate.
+- **APPROACH: Define definitions well BEFORE starting proofs.** When the definitions properly reflect the protocol (cases from RF/CO/FR, meaningful names, named proxy events), the sorry's become concrete and mechanical — each says exactly what to prove. This eliminates "is this the right goal?" questions. Steps: (1) /imagine the protocol scenarios and chain shapes, (2) write constructors with meaningful names, (3) build — sorry's reveal exactly what evidence is needed, (4) fill sorry's mechanically. Define first, prove second.
+- **MAINTAIN A TODO LIST of where you are and where you need to get to.** After defining the structure, list all sorry's and categorize them. Track progress. This keeps sight of the goal and prevents going in circles.
 - **CONSULT THIS SECTION AS /philosophy BEFORE EVERY PROOF STEP.** I have repeatedly forgotten these lessons and reverted to arithmetic shortcuts. Before writing ANY proof code for acyclicity: re-read this section. Ask: "Am I using the protocol chain or a numeric shortcut?" If numeric shortcut → STOP and use the chain.
 
 ### Lessons learned (cmpLin h_ne derivation, 2026-04-06)
