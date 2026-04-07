@@ -1900,11 +1900,36 @@ private theorem compoundLin_cle_to_CmpLinCleRel
     -- eq (cmpLin = CLE → self-encap → False) or inside (protocol = .global ✓).
     have h_global : lin.compoundLin.protocol = .global := by
       cases hle : compound.linearizationOfEvent b init e with
-      | requestLin _ =>
-        -- requestLin: for inside (CLE Encaps cmpLin), derive contradiction.
-        -- requestLin + orderBeforeDir: CLE before cmpLin → CLE can't Encaps cmpLin.
-        -- (This was proven absurd in the h_ne work using temporal chains.)
-        sorry -- requestLin + compoundLin_inside_cle → protocol (deep protocol)
+      | requestLin hreq =>
+        -- requestLin: cmpLin = e. CLE Encaps e (hinside). reqHasPerms from requestLin.
+        -- dirAccessOfRequest must be orderBeforeDir (reqHasPerms rules out encapDir/orderAfterDir).
+        -- orderBeforeDir: predecessor Encaps CLE. predecessor OB e.
+        -- CLE.oEnd < predecessor.oEnd < e.oStart. But CLE Encaps e → e.oEnd < CLE.oEnd.
+        -- Chain: e.oEnd < CLE.oEnd < predecessor.oEnd < e.oStart → e.oEnd < e.oStart → False.
+        exfalso
+        have h_has := hreq.choose_spec.2.reqHasPerms
+        have h_eq := lin.compoundLin_eq_event_of_requestLin hle
+        -- CLE Encaps cmpLin = CLE Encaps e (from h_eq)
+        cases lin.cle_dirAccess with
+        | encapDir hm _ => exact reqHasPerms_not_reqMissingPerms hm hnotdown h_has
+        | orderBeforeDir _ hpred hpred_encap _ _ _ _ _ =>
+          -- predecessor Encaps CLE. predecessor OB e.
+          have h_pred_ob := hpred.choose_spec.2.isImmPred.bPred.isPred
+          -- CLE Encaps e: e.oEnd < CLE.oEnd (from hinside at cmpLin = e)
+          -- CLE.oEnd < predecessor.oEnd (from predecessor Encaps CLE)
+          -- predecessor.oEnd < e.oStart (from predecessor OB e)
+          have h_lt : Event.oEnd n lin.compoundLin < Event.oStart n e :=
+            Nat.lt_trans (Nat.lt_trans hinside.right hpred_encap.reqEncapDir.right) h_pred_ob
+          rw [h_eq] at h_lt
+          exact Nat.lt_irrefl _ (Nat.lt_trans h_lt (Event.oWellFormed n e))
+        | orderAfterDir hweak hsucc _ _ =>
+          -- orderAfterDir: e OB succ, succ Encaps CLE → e OB CLE.
+          -- At cmpLin = e: cmpLin OB CLE → compoundLin_not_ob_cle → False.
+          have h_e_ob_cle : e.OrderedBefore n lin.cle :=
+            Nat.lt_trans hsucc.choose_spec.2.isImmBottomSucc.isSucc
+              hsucc.choose_spec.2.satisfyP.encapCorresponding.reqEncapDir.left
+          have h_cmpLin_ob : lin.compoundLin.OrderedBefore n lin.cle := h_eq.symm ▸ h_e_ob_cle
+          exact compoundLin_not_ob_cle lin hnotdown h_cmpLin_ob
       | dirLin hd =>
         cases lin.compoundLin_cle_of_dirLin hnotdown hle with
         | inl h_eq =>
@@ -2717,6 +2742,10 @@ private theorem junction_compose
     -- Caller derives this from hknow + isClusterCache + cle_protocol_eq_event.
     (h_cle_in_not_global : cle_in.protocol ≠ .global)
     (h_cle_out_not_global : cle_out.protocol ≠ .global)
+    -- sameProtocol: each CLE has the same protocol as cl (for non-inside cases).
+    -- Caller derives from cle_protocol_eq_event + cle_ob.h_eq.
+    (h_cle_in_prot : cle_in.protocol = cl.protocol)
+    (h_cle_out_prot : cle_out.protocol = cl.protocol)
     : @CleLink n cle_in cle_out ∨ cle_in = cle_out ∨ @CleLink n cle_out cle_in := by
   cases h_in with
   | eq h₁ =>
@@ -2747,8 +2776,20 @@ private theorem junction_compose
       -- Wait: cle_ob has h_eq : cl = e. For h_in: cl = e_in. For h_out: cl = e_out.
       -- So e_in = cl = e_out → same event. Both cache events encapsulate their CLEs.
       -- Their CLEs correspond via dirAccessOfRequest. Same event → same CLE?
-      -- We need hknow to derive this. Use sorry for now.
-      sorry -- cle_ob×cle_ob: same cache event → same CLE (needs hknow)
+      -- Both cle_ob: both CLEs OB cl. Both directory events.
+      -- Same CLE or different → dir_ordered gives CleLink.
+      if h_eq : cle_in = cle_out then
+        exact Or.inr (Or.inl h_eq)
+      else
+        match hfc_in : cle_in, h_in_dir with
+        | .directoryEvent de_in, _ =>
+          match hfc_out : cle_out, h_out_dir with
+          | .directoryEvent de_out, _ =>
+            cases (hdir de_in de_out).ordered with
+            | inl h_ob => exact Or.inl (.ob h_ob h_eq)
+            | inr h_ob_rev => exact Or.inr (Or.inr (.ob h_ob_rev (Ne.symm h_eq)))
+          | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+        | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
     | inside _ h_global =>
       -- cle_ob × inside: h_global : cl.protocol = .global.
       -- cle_in protocol = cl protocol (from cle_ob: CLE OB cl, sameProtocol chain).
@@ -2766,7 +2807,10 @@ private theorem junction_compose
       -- We DON'T have sameProtocol here. We have h_cle_in_not_global.
       -- Without sameProtocol: cl.protocol and cle_in.protocol are unrelated.
       -- STUCK: need protocol chain cle_in.protocol = cl.protocol.
-      sorry -- cle_ob×inside: need CLE.protocol = cl.protocol (sameProtocol)
+      -- cle_ob×inside: h_global : cl.protocol = .global.
+      -- h_cle_in_prot : cle_in.protocol = cl.protocol → cle_in.protocol = .global.
+      -- h_cle_in_not_global → contradiction.
+      exact absurd (h_cle_in_prot.trans h_global) h_cle_in_not_global
   | inside h₁ h₁_global =>
     cases h_out with
     | eq h₂ =>
@@ -2776,7 +2820,10 @@ private theorem junction_compose
     | cle_ob _ _ _ h_nd₂ =>
       -- inside×cle_ob: h₁_global : cl.protocol = .global.
       -- Same as cle_ob×inside reversed. Need CLE.protocol = cl.protocol.
-      sorry -- inside×cle_ob: need CLE.protocol = cl.protocol
+      -- inside×cle_ob: h₁_global : cl.protocol = .global.
+      -- h_cle_out_prot : cle_out.protocol = cl.protocol → cle_out.protocol = .global.
+      -- h_cle_out_not_global → contradiction.
+      exact absurd (h_cle_out_prot.trans h₁_global) h_cle_out_not_global
     | inside h₂ h₂_global =>
       -- inside × inside: both CLEs encapsulate the same cl.
       -- Both are directory events. Use dir_ordered for CleLink.
