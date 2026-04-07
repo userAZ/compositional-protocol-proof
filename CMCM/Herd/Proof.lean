@@ -3083,12 +3083,13 @@ private theorem edge_to_proto_forward
           compoundLin_eq_linearizationEvent' (lin := hknow e₂)]
       exact h_non_lazy_ppoi e₁ e₂ (hknow e₁) (hknow e₂) hppoi.1 hppoi.2
     have h_level : ProtoOBLevel hknow e₁ e₂ :=
-      if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
-        if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
-          .eventOB h_gle_eq h_cle_eq (event_ob_of_same_cache
-            hppoi.1.cache₁ hppoi.1.cache₂ hppoi.1.notDown₁ hppoi.1.notDown₂ h_fb)
-        else .cleOB h_gle_eq (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
-      else .gleOB (derive_gle_ob' b.orderedAtEntry.dir_ordered h_gle_eq h_fb)
+      if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
+        .eventOB (same_cle_implies_same_gle h_cle_eq) h_cle_eq (event_ob_of_same_cache
+          hppoi.1.cache₁ hppoi.1.cache₂ hppoi.1.notDown₁ hppoi.1.notDown₂ h_fb)
+      else
+        if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
+          .cleOB h_gle_eq (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
+        else .gleOB (derive_gle_ob' b.orderedAtEntry.dir_ordered h_gle_eq h_fb)
     exact .ppoi h_cmpLin_ob h_level hrel₁ hrel₂
   | inr hcom =>
     cases hcom with
