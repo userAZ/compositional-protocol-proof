@@ -2617,42 +2617,77 @@ theorem edge_to_cmpLinLinLink
     : cmpLinLinLink hknow h_non_lazy_ppoi e₁ e₂ :=
   ⟨h, edge_cmpLin_ordered h_non_lazy_ppoi h⟩
 
-/-- Each R_hknow edge gives GLE₁ OB GLE₂, or (GLE₁ = GLE₂ and CLE₁ OB CLE₂),
-    through the protocol proxy chain: cmpLin₁ → CLE₁ → GLE₁ → ... → GLE₂ → CLE₂ → cmpLin₂.
+/-- Protocol forward step: each R_hknow edge advances at least one protocol level.
+    Three levels of protocol ordering, from global to local:
+    1. GLE OB: global directory processes GLE₁ before GLE₂ (cross-cluster communication)
+    2. CLE OB: cluster directory processes CLE₁ before CLE₂ (within-cluster, from CleLink)
+    3. Event OB: cache serializes e₁ before e₂ (within-CLE, from cache ordering)
 
-    The OB steps are between NAMED PROTOCOL EVENTS (GLEs, CLEs):
-    - GLE OB: global directory processes GLE₁ before GLE₂ (from gleOrdering.Cases.wObRGle)
-    - CLE OB: cluster directory processes CLE₁ before CLE₂ (from CleLink.ob / LinChain)
-    These are protocol relations — not arithmetic on oStart/oEnd values.
+    Cases derived from protocol definitions:
+    - RF wObRGle → gleOB (global forward from gleOrdering.Cases)
+    - RF wEqRGle → cleOB (cluster forward from CleLink sub-cases)
+    - CO gleOrdering.sameGle → cleOB; CO gleOrdering.wObRGle → gleOB
+    - CO sameCache → eventOB (cache serialization with e₁ OB e₂)
+    - FR sameCache/sameClusDiffCache → cleOB; FR diffCluster → gleOB
+    - FR sameCLE → eventOB (same CLE, cache-level OB)
+    - PPOi → gleOB or cleOB (from program order + compound protocol structure)
 
-    For cross-cluster edges: GLE₁ OB GLE₂ (global directory ordering)
-    For same-cluster edges: CLE₁ OB CLE₂ (cluster directory ordering via CleLink) -/
-private theorem edge_gle_ob_or_cle_ob
+    Each level's OB is transitive and irreflexive (from event well-formedness).
+    A cycle composes OB steps → self-OB at some level → contradiction. -/
+inductive ProtoForwardStep {n : ℕ}
+    {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (e₁ e₂ : Event n) : Prop
+  /-- Global forward: GLE₁ OB GLE₂. From gleOrdering.Cases.wObRGle.
+      Protocol meaning: the global directory processes e₁'s request before e₂'s. -/
+  | gleOB (h : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
+  /-- Cluster forward: same GLE, CLE₁ OB CLE₂. From CleLink within same cluster.
+      Protocol meaning: same global event, but cluster directory processes e₁'s request before e₂'s. -/
+  | cleOB (h_gle_eq : (hknow e₁).gle = (hknow e₂).gle)
+          (h_cle_ob : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle)
+  /-- Cache forward: same GLE, same CLE, e₁ OB e₂. From cache serialization.
+      Protocol meaning: same directory events, but cache serializes e₁ before e₂.
+      Arises from CO sameCache (cache_ob) and FR sameCLE. -/
+  | eventOB (h_gle_eq : (hknow e₁).gle = (hknow e₂).gle)
+            (h_cle_eq : (hknow e₁).cle = (hknow e₂).cle)
+            (h_event_ob : e₁.OrderedBefore n e₂)
+
+/-- Each R_hknow edge gives a ProtoForwardStep.
+    The proof traces through the protocol definitions (RF/CO/FR/PPOi) to extract
+    the GLE/CLE/event OB evidence from each communication scenario. -/
+private theorem edge_to_proto_forward
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     {e₁ e₂ : Event n}
     (h : R_hknow hknow e₁ e₂)
-    : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle ∨
-      ((hknow e₁).gle = (hknow e₂).gle ∧ (hknow e₁).cle.OrderedBefore n (hknow e₂).cle) := by
+    : ProtoForwardStep hknow e₁ e₂ := by
   cases h with
   | inl hppoi =>
-    -- PPOi: same cache → same cluster → CLE₁ OB CLE₂ from protocol ordering.
-    -- GLE₁ OB GLE₂ or GLE₁ = GLE₂ from compound protocol structure.
+    -- PPOi: same cache → GLE/CLE ordering from compound protocol.
     sorry
   | inr hcom =>
     cases hcom with
     | rfe hrfe =>
       cases hrfe.readsFrom with
-      | wObRGle h_gle_ob _ => exact Or.inl h_gle_ob
+      | wObRGle h_gle_ob _ => exact .gleOB h_gle_ob
       | wEqRGle h_gle_eq _ _ =>
-        exact Or.inr ⟨h_gle_eq, by
-          -- Same GLE, same cluster → CLE₁ OB CLE₂ from CleLink (protocol proxy chain)
-          sorry⟩
+        -- Same GLE, same cluster → CLE₁ OB CLE₂ from CleLink protocol evidence.
+        exact .cleOB h_gle_eq (by sorry)
     | co hco =>
-      -- CO: gleOrdering.Cases from co.evidence → GLE OB or (same GLE + CLE OB)
-      sorry
+      -- CO: case-split on co.ordering for GLE/CLE/event OB.
+      cases hco.comm with
+      | sameCache h_same_cle h_cache_ob =>
+        -- Same cache: e₁ OB e₂ directly from cache serialization.
+        -- GLE and CLE equality from same cache (derive or use dir_ordered).
+        sorry
+      | sameClusDiffCache h_same_prot h_cle_ordering =>
+        -- Same cluster, diff cache: CLE₁ OB CLE₂ from cluster directory ordering.
+        sorry
+      | diffClus h_diff_prot h_cle_ordering =>
+        -- Different cluster: GLE₁ OB GLE₂ from gleOrdering.Cases.
+        sorry
     | fr hfr =>
-      -- FR: composed from rf⁻¹;co → GLE/CLE ordering from composition
+      -- FR: composed from rf⁻¹;co. Extract GLE/CLE/event OB from composition.
       sorry
 
 /-- OB is transitive: a OB b ∧ b OB c → a OB c.
@@ -2667,44 +2702,71 @@ private theorem ob_trans {a b c : Event n}
 private theorem ob_irrefl {e : Event n} (h : e.OrderedBefore n e) : False :=
   Nat.lt_irrefl _ (Nat.lt_trans h (Event.oWellFormed n e))
 
+/-- ProtoForwardStep composes: the result is a ProtoForwardStep at the same or higher level.
+    GLE OB + anything = GLE OB (global level dominates).
+    CLE OB + CLE OB = CLE OB (within same GLE, OB transitive).
+    Event OB + Event OB = Event OB (within same CLE, OB transitive). -/
+private theorem proto_forward_trans
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ e₃ : Event n}
+    (h₁ : ProtoForwardStep hknow e₁ e₂) (h₂ : ProtoForwardStep hknow e₂ e₃)
+    : ProtoForwardStep hknow e₁ e₃ := by
+  cases h₁ with
+  | gleOB h₁_gle =>
+    cases h₂ with
+    | gleOB h₂_gle => exact .gleOB (ob_trans h₁_gle h₂_gle)
+    | cleOB h₂_gle_eq _ => exact .gleOB (h₂_gle_eq ▸ h₁_gle)
+    | eventOB h₂_gle_eq _ _ => exact .gleOB (h₂_gle_eq ▸ h₁_gle)
+  | cleOB h₁_gle_eq h₁_cle =>
+    cases h₂ with
+    | gleOB h₂_gle => exact .gleOB (h₁_gle_eq ▸ h₂_gle)
+    | cleOB h₂_gle_eq h₂_cle =>
+      exact .cleOB (h₁_gle_eq.trans h₂_gle_eq) (ob_trans h₁_cle h₂_cle)
+    | eventOB h₂_gle_eq h₂_cle_eq _ =>
+      exact .cleOB (h₁_gle_eq.trans h₂_gle_eq) (h₂_cle_eq ▸ h₁_cle)
+  | eventOB h₁_gle_eq h₁_cle_eq h₁_ev =>
+    cases h₂ with
+    | gleOB h₂_gle => exact .gleOB (h₁_gle_eq ▸ h₂_gle)
+    | cleOB h₂_gle_eq h₂_cle =>
+      exact .cleOB (h₁_gle_eq.trans h₂_gle_eq) (h₁_cle_eq ▸ h₂_cle)
+    | eventOB h₂_gle_eq h₂_cle_eq h₂_ev =>
+      exact .eventOB (h₁_gle_eq.trans h₂_gle_eq) (h₁_cle_eq.trans h₂_cle_eq) (ob_trans h₁_ev h₂_ev)
+
+/-- ProtoForwardStep is irreflexive: no event can be a forward step from itself.
+    Self-OB at any level (GLE, CLE, event) contradicts event well-formedness. -/
+private theorem proto_forward_irrefl
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e : Event n} (h : ProtoForwardStep hknow e e) : False := by
+  cases h with
+  | gleOB h => exact ob_irrefl h
+  | cleOB _ h => exact ob_irrefl h
+  | eventOB _ _ h => exact ob_irrefl h
+
 /-- cmpLinLinLink is acyclic.
 
-    The proof composes protocol OB steps through the cycle:
-    - Each edge gives GLE₁ OB GLE₂ (global forward) or (GLE eq ∧ CLE₁ OB CLE₂) (cluster forward)
-    - Through the cycle, OB steps compose transitively (OB is transitive)
-    - At cycle closure: self-OB at GLE or CLE level
-    - Self-OB contradicts event well-formedness (e.oEnd < e.oStart impossible) → False
+    The proof composes protocol forward steps through the cycle:
+    - Each edge gives a ProtoForwardStep: GLE OB, CLE OB, or event OB
+    - ProtoForwardStep is transitive (proto_forward_trans) and irreflexive (proto_forward_irrefl)
+    - A cycle composes to a self-step → contradiction
 
-    The OB steps come from the protocol proxy chain through named events:
+    The ProtoForwardStep carries the protocol proxy chain:
       cmpLin₁ →(CmpLinCleRel)→ CLE₁ →(CleLink via downgrades)→ CLE₂ →(CmpLinCleRel)→ cmpLin₂
-    With GLE₁ → GLE₂ at the global level for cross-cluster communication.
-    Connected by OB, Encap, EncapBy between these protocol events. -/
+    With GLE₁ OB GLE₂ at the global level for cross-cluster communication.
+    The three levels (GLE, CLE, event) correspond to the protocol hierarchy:
+    global directory → cluster directory → cache. -/
 theorem cmpLinLinLink_acyclic
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : Relation.Acyclic (cmpLinLinLink hknow h_non_lazy_ppoi) := by
   intro e hcycle
-  -- Compose protocol OB steps through the cycle.
-  -- Each step: GLE₁ OB GLE₂ ∨ (GLE₁ = GLE₂ ∧ CLE₁ OB CLE₂)
-  -- Composition: OB is transitive, eq propagates.
-  -- Cycle closure: self-OB at GLE or CLE → contradiction with well-formedness.
+  -- Compose protocol forward steps through the cycle.
   suffices h : ∀ c, Relation.TransGen (cmpLinLinLink hknow h_non_lazy_ppoi) e c →
-      (hknow e).gle.OrderedBefore n (hknow c).gle ∨
-      ((hknow e).gle = (hknow c).gle ∧ (hknow e).cle.OrderedBefore n (hknow c).cle) by
-    rcases h e hcycle with h_gle_ob | ⟨_, h_cle_ob⟩
-    · exact ob_irrefl h_gle_ob
-    · exact ob_irrefl h_cle_ob
+      ProtoForwardStep hknow e c by
+    exact proto_forward_irrefl (h e hcycle)
   intro c hpath
   induction hpath with
-  | single hstep => exact edge_gle_ob_or_cle_ob h_non_lazy_ppoi hstep.edge
-  | tail _ hlast ih =>
-    have h_last := edge_gle_ob_or_cle_ob h_non_lazy_ppoi hlast.edge
-    rcases ih with h_gle_ih | ⟨h_gle_eq_ih, h_cle_ih⟩ <;>
-      rcases h_last with h_gle_last | ⟨h_gle_eq_last, h_cle_last⟩
-    · exact Or.inl (ob_trans h_gle_ih h_gle_last)
-    · exact Or.inl (h_gle_eq_last ▸ h_gle_ih)
-    · exact Or.inl (h_gle_eq_ih ▸ h_gle_last)
-    · exact Or.inr ⟨h_gle_eq_ih.trans h_gle_eq_last, ob_trans h_cle_ih h_cle_last⟩
+  | single hstep => exact edge_to_proto_forward h_non_lazy_ppoi hstep.edge
+  | tail _ hlast ih => exact proto_forward_trans ih (edge_to_proto_forward h_non_lazy_ppoi hlast.edge)
 
 /-- The CMCM acyclicity theorem via cmpLinLinLink.
 
