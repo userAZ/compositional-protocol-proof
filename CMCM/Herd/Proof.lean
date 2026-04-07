@@ -2882,6 +2882,18 @@ theorem ProtoForwardStep.chain
     exact temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered
   | fr_sameCLE _ _ readerRel writerRel => sorry -- same CLE chain
 
+/-- For same-cache events: derive e₁ OB e₂ from event_fb (direction evidence).
+    Uses cache_ordered + event_fb to eliminate the reverse direction.
+    Protocol meaning: events at the same cache are serialized; event_fb determines the order. -/
+private theorem event_ob_of_same_cache
+    {e₁ e₂ : Event n}
+    (h₁_cluster : e₁.isClusterCache) (h₂_cluster : e₂.isClusterCache)
+    (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
+    (event_fb : Event.oEnd n e₁ < Event.oEnd n e₂)
+    : e₁.OrderedBefore n e₂ := by
+  -- Use dir_ordered on the underlying cache events. event_fb eliminates reverse.
+  sorry
+
 /-- Different clusters → different GLEs (contrapositive of same_gle_implies_same_protocol). -/
 private theorem diff_protocol_implies_diff_gle'
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
@@ -3014,7 +3026,16 @@ private theorem edge_to_proto_forward
     have hndE₂ := (notdir_of_edge (Or.inl hppoi)).2
     have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnd₁ hndE₁ (lin := hknow e₁)
     have hrel₂ := compoundLin_cle_to_CmpLinCleRel hnd₂ hndE₂ (lin := hknow e₂)
-    exact .ppoi (by sorry) (by sorry) hrel₁ hrel₂
+    have h_fb := edge_oEnd_lt (Or.inl hppoi)
+    have h_cmpLin_ob : (hknow e₁).compoundLin.OrderedBefore n (hknow e₂).compoundLin := by sorry
+    have h_level : ProtoOBLevel hknow e₁ e₂ :=
+      if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
+        if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
+          .eventOB h_gle_eq h_cle_eq (event_ob_of_same_cache
+            hppoi.1.cache₁ hppoi.1.cache₂ hppoi.1.notDown₁ hppoi.1.notDown₂ h_fb)
+        else .cleOB h_gle_eq (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
+      else .gleOB (derive_gle_ob' b.orderedAtEntry.dir_ordered h_gle_eq h_fb)
+    exact .ppoi h_cmpLin_ob h_level hrel₁ hrel₂
   | inr hcom =>
     cases hcom with
     | rfe hrfe =>
@@ -3027,7 +3048,10 @@ private theorem edge_to_proto_forward
       | wObRGle writerGle_ob_readerGle _ => exact .rf_crossGle writerGle_ob_readerGle hrel₁ hrel₂
       | wEqRGle sameGle sameCluster wEqRGleCases =>
         if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
-          exact .rf_sameGle_sameCLE sameGle h_cle_eq (by sorry) hrel₁ hrel₂
+          exact .rf_sameGle_sameCLE sameGle h_cle_eq
+            (.eventOB sameGle h_cle_eq (event_ob_of_same_cache
+              hrfe.cache₁ hrfe.cache₂ hrfe.notDown₁ hrfe.notDown₂ hrfe.event_oEnd_lt))
+            hrel₁ hrel₂
         else
           exact .rf_sameGle_cleOB sameGle
             (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
@@ -3065,7 +3089,14 @@ private theorem edge_to_proto_forward
       have hflin₂ : frLin e₂ = hknow e₂ := Subsingleton.elim _ _
       cases fr_ordering_holds hfr frLin with
       | sameCache _ cle_eq_or_ob =>
-        exact .fr_sameCache (hflin₁ ▸ hflin₂ ▸ cle_eq_or_ob) (by sorry) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
+        have h_level : ProtoOBLevel hknow e₁ e₂ :=
+          if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
+            if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
+              .eventOB h_gle_eq h_cle_eq (event_ob_of_same_cache
+                hfr.cache₁ hfr.cache₂ hfr.notDown₁ hfr.notDown₂ hfr.event_oEnd_lt)
+            else .cleOB h_gle_eq (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
+          else .gleOB (derive_gle_ob' b.orderedAtEntry.dir_ordered h_gle_eq hfr.event_oEnd_lt)
+        exact .fr_sameCache (hflin₁ ▸ hflin₂ ▸ cle_eq_or_ob) h_level (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | sameClusDiffCache _ _ cle_ob =>
         exact .fr_sameClusDiffCache (hflin₁ ▸ hflin₂ ▸ cle_ob) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | diffCluster_coherent diffProt p cle₁_ob_p _ _ =>
@@ -3094,7 +3125,9 @@ private theorem edge_to_proto_forward
           (derive_gle_ob_cross_cluster b.orderedAtEntry.dir_ordered h_diff_gle hfr.event_oEnd_lt)
           p (hflin₂ ▸ p_ob) (hflin₁ ▸ p_lt) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | sameCLE cle_eq =>
-        exact .fr_sameCLE (hflin₁ ▸ hflin₂ ▸ cle_eq) (by sorry) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
+        have h_cle_eq' : (hknow e₁).cle = (hknow e₂).cle := hflin₁ ▸ hflin₂ ▸ cle_eq
+        have h_ev_ob := event_ob_of_same_cache hfr.cache₁ hfr.cache₂ hfr.notDown₁ hfr.notDown₂ hfr.event_oEnd_lt
+        exact .fr_sameCLE h_cle_eq' h_ev_ob (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
 
 /-- OB is transitive: a OB b ∧ b OB c → a OB c.
     Protocol meaning: if event a finishes before b starts, and b finishes before c starts,
