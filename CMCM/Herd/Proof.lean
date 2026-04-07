@@ -2892,6 +2892,50 @@ private theorem ob_trans {a b c : Event n}
 private theorem ob_irrefl {e : Event n} (h : e.OrderedBefore n e) : False :=
   Nat.lt_irrefl _ (Nat.lt_trans h (Event.oWellFormed n e))
 
+/-- Extract CmpLinCleRel for e₁ (start of the chain). -/
+theorem ProtoForwardStep.startCmpLinRel
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n}
+    (h : ProtoForwardStep hknow e₁ e₂) : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle := by
+  cases h with
+  | ppoi _ obLevel => sorry -- PPOi: derive from hknow
+  | rf_crossGle _ rel _ => exact rel
+  | rf_sameGle_cleOB _ _ rel _ => exact rel
+  | rf_sameGle_sameCLE _ _ _ rel _ => exact rel
+  | co_sameCache _ _ rel _ => exact rel
+  | co_sameClusDiffCache _ _ rel _ => exact rel
+  | co_crossCluster _ rel _ => exact rel
+  | fr_sameCache _ _ rel _ => exact rel
+  | fr_sameClusDiffCache _ rel _ => exact rel
+  | fr_diffCluster_coherent _ _ _ rel _ => exact rel
+  | fr_diffCluster_evict _ _ _ rel _ => exact rel
+  | fr_diffCluster_noncoherent _ _ _ rel _ => exact rel
+  | fr_diffCluster_rfCrossCluster _ _ _ _ rel _ => exact rel
+  | fr_diffCluster_rfFinishBefore _ _ _ _ rel _ => exact rel
+  | fr_sameCLE _ _ rel _ => exact rel
+
+/-- Extract CmpLinCleRel for e₂ (end of the chain). -/
+theorem ProtoForwardStep.endCmpLinRel
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n}
+    (h : ProtoForwardStep hknow e₁ e₂) : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle := by
+  cases h with
+  | ppoi _ obLevel => sorry -- PPOi: derive from hknow
+  | rf_crossGle _ _ rel => exact rel
+  | rf_sameGle_cleOB _ _ _ rel => exact rel
+  | rf_sameGle_sameCLE _ _ _ _ rel => exact rel
+  | co_sameCache _ _ _ rel => exact rel
+  | co_sameClusDiffCache _ _ _ rel => exact rel
+  | co_crossCluster _ _ rel => exact rel
+  | fr_sameCache _ _ _ rel => exact rel
+  | fr_sameClusDiffCache _ _ rel => exact rel
+  | fr_diffCluster_coherent _ _ _ _ rel => exact rel
+  | fr_diffCluster_evict _ _ _ _ rel => exact rel
+  | fr_diffCluster_noncoherent _ _ _ _ rel => exact rel
+  | fr_diffCluster_rfCrossCluster _ _ _ _ _ rel => exact rel
+  | fr_diffCluster_rfFinishBefore _ _ _ _ _ rel => exact rel
+  | fr_sameCLE _ _ _ rel => exact rel
+
 /-- ProtoOBLevel composes transitively. -/
 private theorem proto_ob_level_trans
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
@@ -2932,12 +2976,14 @@ private theorem proto_forward_trans
     : ProtoForwardStep hknow e₁ e₃ := by
   have h_chain := Relation.TransGen.trans h₁.chain h₂.chain
   have h_level := proto_ob_level_trans h₁.level h₂.level
-  -- Reconstruct: use the protocol constructor matching the composed OB level.
-  -- Composed steps use the generic constructors (the protocol scenario is the composition).
+  -- Extract CmpLinCleRel from the original steps (available in every constructor).
+  have e₁_cmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle := h₁.startCmpLinRel
+  have e₃_cmpLinRel : CmpLinCleRel (hknow e₃).compoundLin (hknow e₃).cle := h₂.endCmpLinRel
+  -- Reconstruct with the composed OB level + extracted CmpLinCleRel.
   cases h_level with
-  | gleOB gleOB => exact .rf_crossGle gleOB (by sorry) (by sorry)
-  | cleOB sameGle cleOB => exact .rf_sameGle_cleOB sameGle cleOB (by sorry) (by sorry)
-  | eventOB sameGle sameCle eventOB => exact .co_sameCache sameCle eventOB (by sorry) (by sorry)
+  | gleOB gleOB => exact .rf_crossGle gleOB e₁_cmpLinRel e₃_cmpLinRel
+  | cleOB sameGle cleOB => exact .rf_sameGle_cleOB sameGle cleOB e₁_cmpLinRel e₃_cmpLinRel
+  | eventOB sameGle sameCle eventOB => exact .co_sameCache sameCle eventOB e₁_cmpLinRel e₃_cmpLinRel
 
 /-- ProtoForwardStep is irreflexive: self-OB at any level contradicts well-formedness. -/
 private theorem proto_forward_irrefl
