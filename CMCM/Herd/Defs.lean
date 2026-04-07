@@ -131,8 +131,6 @@ inductive CleLink : Event n → Event n → Prop where
   | encapObEndLt (q p : Event n) (h_q_enc : q.EncapsulatedBy n l₁)
       (h_q_ob_p : q.OrderedBefore n p) (h_p_lt : Event.oEnd n p < Event.oEnd n l₂)
       (h_p_isdir : p.isDirectoryEvent) (h_ne : l₁ ≠ l₂) : CleLink l₁ l₂
-  /-- Transitivity: chain of two CleLink steps through an intermediate CLE. -/
-  | trans (cle_m : Event n) (h₁ : CleLink l₁ cle_m) (h₂ : CleLink cle_m l₂) : CleLink l₁ l₂
 
 -- CleLink decomposes into equality or a transitive chain of basic temporal steps.
 -- CleLink.subset_temporalRel REMOVED: not used by acyclicity proof.
