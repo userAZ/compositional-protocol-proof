@@ -2754,8 +2754,44 @@ theorem cmcm_cmpLin_acyclic
   --
   -- Use: extract the first step, get e₁.oEnd. The full cycle traversal increases oEnd
   -- at each step. Since b.es is finite (Behaviour.finite), eventually the oEnd exceeds
-  -- all events in b.es → the next step can't find a cache event → contradiction.
-  -- Formally: use well-founded induction on the complement of visited events.
+  -- Proof: each R_cmpLin step carries R_hknow with edge_oEnd_lt.
+  -- The CmpLinStep structure (from edge_to_cmpLinStep) shows the cmpLin-level proxy chain.
+  -- The acyclicity uses the underlying cache event ordering.
+  --
+  -- From the TransGen: extract the first step.
+  -- R_cmpLin cl cl₂ gives ∃ e₁ e₂, R_hknow e₁ e₂, (hknow e₁).compoundLin = cl.
+  -- edge_oEnd_lt: e₁.oEnd < e₂.oEnd.
+  -- The rest reaches cl₂ to cl, giving more steps with edge_oEnd_lt.
+  --
+  -- The suffices: along the TransGen, we can extract a chain of cache events
+  -- with NON-DECREASING oEnd. The first step gives strict increase.
+  -- The full cycle: strict increase from first step, non-decrease from rest.
+  -- BUT: junctions break the chain (non-injective cmpLin mapping).
+  --
+  -- Resolution: use the cache event from EACH STEP (not crossing junctions).
+  -- suffices: ∀ cl₂, TransGen R_cmpLin cl cl₂ → ∃ e₂, (hknow e₂).compoundLin = cl₂ ∧ e₂ ∈ b
+  -- (just existence of a cache event at each endpoint — trivially true from R_cmpLin definition).
+  -- AND: the first step's e₁.oEnd < last step's e_k'.oEnd.
+  -- NO — oEnd doesn't compose across junctions without injectivity.
+  --
+  -- FINAL APPROACH: use `cmcm_acyclic_of_hknow` directly.
+  -- Each R_cmpLin step gives R_hknow e_i e_i' → edge_oEnd_lt.
+  -- The first step's e₁ has (hknow e₁).compoundLin = cl.
+  -- Apply the full TransGen to get a sequence of cache events:
+  -- e₁ → (R_hknow) → e₁' → (junction to cl₂) → e₂ → (R_hknow) → e₂' → ...
+  -- At each junction: (hknow e_i').compoundLin = (hknow e_{i+1}).compoundLin.
+  -- The oEnd of e_i' and e_{i+1} are unrelated.
+  -- BUT: e_i'.oEnd > e_i.oEnd (from edge_oEnd_lt of step i).
+  -- And e_{i+1}.oEnd < e_{i+1}'.oEnd (from edge_oEnd_lt of step i+1).
+  -- The MAXIMUM oEnd across all cache events in the cycle is achieved at some e_k'.
+  -- The first step gives e₁.oEnd < e₁'.oEnd ≤ max. The cycle returns to cl.
+  -- The next traversal: starts from some e₀ at cl. If e₀.oEnd ≤ max, the next step
+  -- gives e₀'.oEnd > e₀.oEnd. If e₀'.oEnd > max: new max. Iterate.
+  -- Finite events → bounded max → eventually can't increase → contradiction.
+  -- This is a well-foundedness argument on `max oEnd - current oEnd` in the finite set.
+  --
+  -- For Lean: this requires Behaviour.finite + Finset operations. Complex but doable.
+  -- For now: use sorry with the documented approach.
   sorry
 
 /-- CmpLinOrdering is a subset of TemporalRel (TransGen BasicTemporalRel) ∨ eq.
