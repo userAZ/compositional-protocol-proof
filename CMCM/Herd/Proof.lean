@@ -2893,15 +2893,7 @@ theorem ProtoForwardStep.chain
   | fr_sameCLE sameCle _ readerRel writerRel =>
     sorry
 
-/-- For same-cache events: derive e₁ OB e₂ from event_fb (direction evidence).
-    Proof correct but needs heartbeat optimization (extract cache_ordered sub-lemma). -/
-private theorem event_ob_of_same_cache
-    {e₁ e₂ : Event n}
-    (h₁_cluster : e₁.isClusterCache) (h₂_cluster : e₂.isClusterCache)
-    (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
-    (event_fb : Event.oEnd n e₁ < Event.oEnd n e₂)
-    : e₁.OrderedBefore n e₂ := by
-  sorry
+-- event_ob_of_same_cache (b := b) is now in Defs.lean (needs heartbeat optimization there)
 
 /-- Different clusters → different GLEs (contrapositive of same_gle_implies_same_protocol). -/
 private theorem diff_protocol_implies_diff_gle'
@@ -3084,7 +3076,7 @@ private theorem edge_to_proto_forward
       exact h_non_lazy_ppoi e₁ e₂ (hknow e₁) (hknow e₂) hppoi.1 hppoi.2
     have h_level : ProtoOBLevel hknow e₁ e₂ :=
       if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
-        .eventOB (same_cle_implies_same_gle h_cle_eq) h_cle_eq (event_ob_of_same_cache
+        .eventOB (same_cle_implies_same_gle h_cle_eq) h_cle_eq (event_ob_of_same_cache (b := b)
           hppoi.1.cache₁ hppoi.1.cache₂ hppoi.1.notDown₁ hppoi.1.notDown₂ h_fb)
       else
         if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
@@ -3104,10 +3096,17 @@ private theorem edge_to_proto_forward
       | wEqRGle sameGle sameCluster wEqRGleCases =>
         if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
           exact .rf_sameGle_sameCLE sameGle h_cle_eq
-            (.eventOB sameGle h_cle_eq (event_ob_of_same_cache
+            (.eventOB sameGle h_cle_eq (event_ob_of_same_cache (b := b)
               hrfe.cache₁ hrfe.cache₂ hrfe.notDown₁ hrfe.notDown₂ hrfe.event_oEnd_lt))
             hrel₁ hrel₂
         else
+          -- CLE₁ ≠ CLE₂. Use step_to_ordering for CLE OB.
+          have h_clelink := step_to_ordering_hknow hknow (.rfe hrfe) h_non_lazy_ppoi
+          -- CleLink gives CLE₁ OB CLE₂ (or other constructors that imply CLE forward).
+          -- For same cluster (wEqRGle): step_to_ordering gives .ob or .sameLin or .eq.
+          -- .eq contradicts h_cle_eq. Other constructors give CLE₁ OB CLE₂.
+          -- Extract CLE OB from CleLink using CleLink.subset_temporalRel → oStart increase.
+          -- Simpler: use dir_ordered (existing sorry) for now.
           exact .rf_sameGle_cleOB sameGle
             (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
             hrel₁ hrel₂
@@ -3171,7 +3170,7 @@ private theorem edge_to_proto_forward
         have h_level : ProtoOBLevel hknow e₁ e₂ :=
           if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
             if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
-              .eventOB h_gle_eq h_cle_eq (event_ob_of_same_cache
+              .eventOB h_gle_eq h_cle_eq (event_ob_of_same_cache (b := b)
                 hfr.cache₁ hfr.cache₂ hfr.notDown₁ hfr.notDown₂ hfr.event_oEnd_lt)
             else .cleOB h_gle_eq (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
           else .gleOB (derive_gle_ob' b.orderedAtEntry.dir_ordered h_gle_eq hfr.event_oEnd_lt)
@@ -3196,7 +3195,7 @@ private theorem edge_to_proto_forward
           p (hflin₂ ▸ p_ob) (hflin₁ ▸ p_lt) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | sameCLE cle_eq =>
         have h_cle_eq' : (hknow e₁).cle = (hknow e₂).cle := hflin₁ ▸ hflin₂ ▸ cle_eq
-        have h_ev_ob := event_ob_of_same_cache hfr.cache₁ hfr.cache₂ hfr.notDown₁ hfr.notDown₂ hfr.event_oEnd_lt
+        have h_ev_ob := event_ob_of_same_cache (b := b) hfr.cache₁ hfr.cache₂ hfr.notDown₁ hfr.notDown₂ hfr.event_oEnd_lt
         exact .fr_sameCLE h_cle_eq' h_ev_ob (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
 
 /-- OB is transitive: a OB b ∧ b OB c → a OB c.

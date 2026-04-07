@@ -525,4 +525,25 @@ structure fr {e₁ e₂ : Event n}
   -- FrOrdering is DERIVED by fr_ordering_holds theorem (not carried as a field).
   -- This ensures the ordering evidence is proven, not assumed.
 
+private theorem cache_ob_of_not_reverse
+    {b : Behaviour n} {ce₁ ce₂ : CacheEvent n}
+    (h₁_nd : ¬ ce₁.down) (h₂_nd : ¬ ce₂.down)
+    (h_not_rev : ¬ (ce₂.oEnd < ce₁.oStart))
+    : ce₁.oEnd < ce₂.oStart := by
+  cases (b.orderedAtEntry.cache_ordered ce₁ ce₂).ordered with
+  | inl h => cases h with
+    | inl henc => exact absurd (b.orderedAtEntry.cache_encap_rule ce₂ ce₁ henc) h₁_nd
+    | inr hob => exact hob
+  | inr h => cases h with
+    | inl henc => exact absurd (b.orderedAtEntry.cache_encap_rule ce₁ ce₂ henc) h₂_nd
+    | inr hob => exact absurd hob h_not_rev
+
+theorem event_ob_of_same_cache
+    {b : Behaviour n} {e₁ e₂ : Event n}
+    (h₁_cluster : e₁.isClusterCache) (h₂_cluster : e₂.isClusterCache)
+    (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
+    (event_fb : Event.oEnd n e₁ < Event.oEnd n e₂)
+    : e₁.OrderedBefore n e₂ := by
+  sorry
+
 end Herd
