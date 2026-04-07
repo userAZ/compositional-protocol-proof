@@ -2596,7 +2596,7 @@ theorem edge_to_cmpLinLinLink
   ⟨h, edge_cmpLin_ordered h_non_lazy_ppoi h⟩
 
 /-- The OB level of a ProtoForwardStep: which protocol hierarchy level advances.
-    Used for composition (proto_forward_trans) — the highest-level OB dominates. -/
+    Used for composition (proto_ob_level_trans) — the highest-level OB dominates. -/
 inductive ProtoOBLevel {n : ℕ}
     {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
@@ -3290,53 +3290,46 @@ private theorem proto_ob_level_irrefl
   | cleOB _ h => exact ob_irrefl h
   | eventOB _ _ h => exact ob_irrefl h
 
-/-- ProtoForwardStep composes: chain via TransGen.trans, OB level via proto_ob_level_trans. -/
-private theorem proto_forward_trans
-    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
-    {e₁ e₂ e₃ : Event n}
-    (h₁ : ProtoForwardStep hknow e₁ e₂) (h₂ : ProtoForwardStep hknow e₂ e₃)
-    : ProtoForwardStep hknow e₁ e₃ := by
-  have h_level := proto_ob_level_trans h₁.level h₂.level
-  -- Extract CmpLinCleRel from the original steps (available in every constructor).
-  have e₁_cmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle := h₁.startCmpLinRel
-  have e₃_cmpLinRel : CmpLinCleRel (hknow e₃).compoundLin (hknow e₃).cle := h₂.endCmpLinRel
-  -- Reconstruct with the composed OB level + extracted CmpLinCleRel.
-  cases h_level with
-  | gleOB gleOB => exact .rf_crossGle gleOB e₁_cmpLinRel e₃_cmpLinRel
-  | cleOB sameGle cleOB => exact .rf_sameGle_cleOB sameGle cleOB e₁_cmpLinRel e₃_cmpLinRel
-  | eventOB sameGle sameCle eventOB => exact .co_sameCache sameCle (same_cle_implies_same_gle sameCle) eventOB e₁_cmpLinRel e₃_cmpLinRel
-
-/-- ProtoForwardStep is irreflexive: self-OB at any level contradicts well-formedness. -/
-private theorem proto_forward_irrefl
-    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
-    {e : Event n} (h : ProtoForwardStep hknow e e) : False :=
-  proto_ob_level_irrefl h.level
-
 /-- cmpLinLinLink is acyclic.
 
-    The proof composes protocol forward steps through the cycle:
-    - Each edge gives a ProtoForwardStep: GLE OB, CLE OB, or event OB
-    - ProtoForwardStep is transitive (proto_forward_trans) and irreflexive (proto_forward_irrefl)
-    - A cycle composes to a self-step → contradiction
+    Each edge relates cmpLin events through protocol proxy events:
+      cmpLin₁ →(CmpLinCleRel)→ CLE₁ →(protocol communication)→ CLE₂ →(CmpLinCleRel)→ cmpLin₂
+    The proxy chain advances a protocol hierarchy level (GLE OB / CLE OB / event OB).
 
-    The ProtoForwardStep carries the protocol proxy chain:
-      cmpLin₁ →(CmpLinCleRel)→ CLE₁ →(CleLink via downgrades)→ CLE₂ →(CmpLinCleRel)→ cmpLin₂
-    With GLE₁ OB GLE₂ at the global level for cross-cluster communication.
-    The three levels (GLE, CLE, event) correspond to the protocol hierarchy:
-    global directory → cluster directory → cache. -/
+    A cycle of such chains would require cmpLin_e related to itself through proxies,
+    with the hierarchy level composing to self-OB → contradiction (well-formedness).
+
+    The three hierarchy levels correspond to protocol communication:
+    - GLE OB: cross-cluster communication through global directory
+    - CLE OB: same-cluster communication through cluster directory
+    - event OB: same-cache serialization -/
 theorem cmpLinLinLink_acyclic
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : Relation.Acyclic (cmpLinLinLink hknow h_non_lazy_ppoi) := by
   intro e hcycle
-  -- Compose protocol forward steps through the cycle.
+  -- Compose through the cycle: each edge gives a ProtoForwardStep carrying
+  -- (1) how cmpLin connects to CLE at each endpoint (CmpLinCleRel)
+  -- (2) which protocol hierarchy level advances (ProtoOBLevel)
+  -- The cycle composes (2) to self-OB → contradiction.
   suffices h : ∀ c, Relation.TransGen (cmpLinLinLink hknow h_non_lazy_ppoi) e c →
-      ProtoForwardStep hknow e c by
-    exact proto_forward_irrefl (h e hcycle)
+      -- cmpLin_e connected to CLE_e through protocol proxies
+      CmpLinCleRel (hknow e).compoundLin (hknow e).cle ∧
+      -- cmpLin_c connected to CLE_c through protocol proxies
+      CmpLinCleRel (hknow c).compoundLin (hknow c).cle ∧
+      -- Protocol hierarchy level that advances (GLE/CLE/event OB)
+      ProtoOBLevel hknow e c by
+    -- Cycle: cmpLin_e related to itself through protocol proxies.
+    -- ProtoOBLevel e e → GLE/CLE/event OB e e → self-OB → contradiction.
+    exact proto_ob_level_irrefl (h e hcycle).2.2
   intro c hpath
   induction hpath with
-  | single hstep => exact edge_to_proto_forward h_non_lazy_ppoi hstep.edge
-  | tail _ hlast ih => exact proto_forward_trans ih (edge_to_proto_forward h_non_lazy_ppoi hlast.edge)
+  | single hstep =>
+    have pfs := edge_to_proto_forward h_non_lazy_ppoi hstep.edge
+    exact ⟨pfs.startCmpLinRel, pfs.endCmpLinRel, pfs.level⟩
+  | tail _ hlast ih =>
+    have pfs := edge_to_proto_forward h_non_lazy_ppoi hlast.edge
+    exact ⟨ih.1, pfs.endCmpLinRel, proto_ob_level_trans ih.2.2 pfs.level⟩
 
 /-- The CMCM acyclicity theorem via cmpLinLinLink.
 
