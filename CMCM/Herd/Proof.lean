@@ -570,13 +570,7 @@ theorem fr_ordering_holds
   -- Case structure: sameCLE / sameCache / sameClusDiffCache / diffCluster.
   -- diffCluster sub-cases by e₁'s coherence state.
   by_cases hcle_eq : (lin e₁).cle = (lin e₂).cle
-  · -- Same CLE: derive same_struct from same CLE + same address (both at same cluster entry).
-    -- For now, use by_cases — if same struct, done; if diff struct, CLE eq + same addr → contradiction.
-    by_cases h_ss : e₁.struct = e₂.struct
-    · exact .sameCLE h_ss hcle_eq
-    · -- Different struct but same CLE — need to show this is contradictory.
-      -- Same CLE → same cluster → same address → same struct for cluster cache events.
-      sorry
+  · exact .sameCLE (same_cle_implies_same_struct (lin e₁) (lin e₂) hcle_eq) hcle_eq
   · by_cases h_same_cache : e₁.struct = e₂.struct
     · -- Same cache e₁/e₂: same cluster + same dir → dir_ordered + NIW.
       have hcle₁_isdir := (lin e₁).cle_isDirEvent
