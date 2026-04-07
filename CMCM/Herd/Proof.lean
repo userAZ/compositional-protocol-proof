@@ -2863,8 +2863,16 @@ private theorem chain_of_sameCLE
     | inside h₂_enc _ => exact Or.inl (.single (.encap h₂_enc))
   | cle_ob _ h₁_eq h₁_ob _ => subst h₁_eq; cases rel₂ with
     | eq h₂ => exact Or.inr (Or.inr (.single (.ob (h₂ ▸ h₁_ob))))
-    | cle_ob _ _ _ _ => sorry -- cle_ob × cle_ob: both after same CLE, need event OB
-    | inside h₂_enc _ => sorry -- cle_ob × inside: reverse + encap
+    | cle_ob _ _ h₂_ob _ =>
+      -- Both after same CLE: use finishesAfterProxy.
+      -- CLE OB cmpLin₁ (h₁_ob) → CLE.oEnd < cmpLin₁.oStart ≤ cmpLin₁.oEnd
+      -- CLE OB cmpLin₂ (h₂_ob) → finishesAfterProxy CLE h₂_ob (CLE.oEnd < cmpLin₁.oEnd)
+      exact Or.inl (.single (.finishesAfterProxy cle h₂_ob
+        (Nat.lt_trans h₁_ob (Event.oWellFormed n _))))
+    | inside h₂_enc _ =>
+      -- cmpLin₁ after CLE (h₁_ob), cmpLin₂ inside CLE (h₂_enc). Reverse.
+      -- cmpLin₂.oEnd < CLE.oEnd < cmpLin₁.oStart → cmpLin₂ OB cmpLin₁.
+      exact Or.inr (Or.inr (.single (.ob (Nat.lt_trans h₂_enc.2 h₁_ob))))
   | inside h₁_enc _ => cases rel₂ with
     | eq h₂ => exact Or.inr (Or.inr (.single (.encap (h₂ ▸ h₁_enc))))
     | cle_ob _ h₂_eq h₂_ob _ => exact Or.inl (.tail (.single (.encapBy h₁_enc)) (.ob h₂_ob))
@@ -2883,7 +2891,7 @@ private theorem chain_of_obLevel
   cases obLevel with
   | gleOB h => exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels h rel₁ rel₂ b.orderedAtEntry.dir_ordered)
   | cleOB h_eq h => exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels h rel₁ rel₂)
-  | eventOB h_eq₁ h_eq₂ h => sorry -- same GLE + same CLE + event OB → chain through shared CLE
+  | eventOB h_eq₁ h_eq₂ h => exact chain_of_sameCLE rel₁ (h_eq₂ ▸ rel₂)
 
 /-- The chain between cmpLin events: forward TemporalRel, equality, or reverse TemporalRel.
     Forward/eq for most cases. Reverse for cle_ob × eq at same CLE (cmpLin₁ after CLE = cmpLin₂). -/
