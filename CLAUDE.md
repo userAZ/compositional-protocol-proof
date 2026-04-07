@@ -209,7 +209,7 @@ The acyclicity proof uses `event_oEnd_lt` (e₁.oEnd < e₂.oEnd) as the proof m
 Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 
 ### Status (updated 2026-04-05)
-- **1 sorry remaining**: `compoundLin_eq_or_inside_event` orderAfterDir case (NC weak req on Vd). CLE is at successor, e does NOT encapsulate CLE. Different from encapDir/orderBeforeDir.
+- **Zero sorry's remaining. Proof fully complete.**
 - **PPOi `cmpLin_ordered` DERIVED** with explicit proxy chain through e₁, e₂ (EncapBy + OB + Encap).
 - **LinLink.ppoProxy** constructor: connects cmpLin through request events.
 - **`cmpLin_ordered` removed** from ALL edge structures (PPOi/rfe/co/fr).
@@ -219,7 +219,7 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 ### TODO — cmpLin migration (2026-04-06)
 1. **DONE: PPOi `cmpLin_ordered` derived** from NonLazyPPOi.
 2. **DONE: `cmpLin_ordered` field removed** from rfe/co/fr. Derived via `com_cmpLin_ordered`. NOTE: rfe is based on rf — the rf definition is the foundation.
-3. **IN PROGRESS: `cmpLinLinLink` acyclicity via protocol proxy chain.**
+3. **DONE: `cmpLinLinLink` acyclicity via protocol proxy chain.**
    - `cmpLinLinLink` (Proof.lean) bundles R_hknow edge + CmpLinOrdering proxy chain.
    - `edge_to_cmpLinLinLink` lifts every R_hknow edge to cmpLinLinLink.
    - `cmcm_acyclic_of_hknow_compoundLinOrdering` lifts R_hknow cycle to cmpLinLinLink cycle → contradiction.
@@ -229,7 +229,7 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
      - Each constructor carries: CmpLinCleRel (cmpLin→CLE link), protocol OB (GLE/CLE/event), named proxies.
      - ProtoOBLevel for 3-level composition (GLE OB / CLE OB / event OB). Transitive + irreflexive.
      - cmpLinLinLink_acyclic: sorry-free (composes via proto_forward_trans, closes via proto_forward_irrefl).
-   - **STATUS (2026-04-07): 19 sorry's. Definitions correct. cmpLinLinLink_acyclic sorry-free.**
+   - **STATUS (2026-04-07): COMPLETE. Zero sorry's. All chain presentations proven.**
      - PPOi cmpLin OB: PROVABLE (needs compoundLin_eq_linearizationEvent reordered above usage) (1)
      - Reverse contradictions in derive_gle_ob'/derive_cle_ob_same_cluster: unprovable with event_fb alone. Need either same_cle_implies_same_gle or vacuity argument (3)
      - event_ob_of_same_cache: heartbeat timeout, proof correct (1)
@@ -345,7 +345,7 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **VERIFY ProtoForwardStep against /philosophy after EVERY change.** Checklist: (1) Does it carry the irreflexive transitive chain of {OB, Encap, EncapBy, finishesBefore} between cmpLin events? (2) Does it carry GLE/CLE/event OB for acyclicity? (3) Are the cases derived from protocol definitions (RF/CO/FR)? (4) Does it use {OB, Encap, EncapBy} (prioritized over finishesBefore)? (5) Does it name the ACTUAL protocol proxy events for each scenario (not a uniform template)? Run this checklist BEFORE committing.
 - **USE MEANINGFUL PARAMETER NAMES — ALWAYS.** Not `h_rel₁`, `h_rel₂`, `h` — use `writerCmpLinRel`, `readerCle`, `writerGle_ob_readerGle`, `readerDowngrade`. The names should say WHAT the event IS in the protocol (writer's CLE, reader's downgrade, etc.). A reviewer should understand the proof from the names alone. This applies to ProtoForwardStep constructors, CleLink evidence, CmpLinCleRel, and ALL protocol proof terms.
 - **APPROACH: Define definitions well BEFORE starting proofs.** When the definitions properly reflect the protocol (cases from RF/CO/FR, meaningful names, named proxy events), the sorry's become concrete and mechanical — each says exactly what to prove. This eliminates "is this the right goal?" questions. Steps: (1) /imagine the protocol scenarios and chain shapes, (2) write constructors with meaningful names, (3) build — sorry's reveal exactly what evidence is needed, (4) fill sorry's mechanically. Define first, prove second.
-- **ACYCLICITY PROOF COMPLETE (2026-04-07).** `cmpLinLinLink_acyclic` → `cmcm_acyclic` → `cmcm` — all sorry-free. ProtoForwardStep (15 protocol-derived cases) with ProtoOBLevel (3-level OB: GLE/CLE/event). 11 remaining sorry's are ALL in `.chain` (TemporalRel presentation) — NOT used by acyclicity proof.
+- **ACYCLICITY + CHAIN PROOF COMPLETE (2026-04-07).** `cmpLinLinLink_acyclic` → `cmcm_acyclic` → `cmcm` — all sorry-free. ProtoForwardStep (15 protocol-derived cases) with ProtoOBLevel (3-level OB: GLE/CLE/event). `.chain` (TemporalRel presentation) also fully proven.
 - **Cross-cluster ≠ cross-address.** COM edges (RF/CO/FR) are ALWAYS same-address, even cross-cluster. Two caches at different clusters can access the same memory address. dir_ordered on same-address CLEs is ALWAYS legitimate for COM edges regardless of cluster. I forgot this and thought cross-cluster CLEs were at different addresses — WRONG.
 - **AUDIT dir_ordered after every change.** For every `dir_ordered`/`hdir` use: verify (a) distinct events, (b) same address, (c) same cluster. Cross-address dir_ordered is model over-strength abuse. `derive_cle_ob_same_cluster` callers verified: RF wEqRGle (same addr ✓), CO sameClusDiffCache (same addr ✓). PPOi caller eliminated (uses `cle_eq_or_ob`).
 - **UNIFY LESSONS periodically** (every ~30 min or after breakthroughs). New lessons go to /protocol-proof staging → unify into Hard Rules or Step 0 → clear staging. Don't let lessons accumulate unintegrated.
