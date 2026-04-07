@@ -2846,41 +2846,48 @@ private theorem temporalRel_of_gleOB_and_cmpLinCleRels
       | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
     | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
-/-- Extract the TemporalRel chain between cmpLin events from any ProtoForwardStep.
-    Derived from the explicit CmpLinCleRel links + GLE/CLE/event OB. -/
+/-- The chain is either a genuine TemporalRel (≥1 step) or equality (same cmpLin).
+    Equality arises when both events linearize at the same CLE (eq × eq CmpLinCleRel). -/
 theorem ProtoForwardStep.chain
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n}
-    (h : ProtoForwardStep hknow e₁ e₂) : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin := by
+    (h : ProtoForwardStep hknow e₁ e₂)
+    : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
+      (hknow e₁).compoundLin = (hknow e₂).compoundLin := by
   cases h with
-  | ppoi cmpLin₁_ob_cmpLin₂ _ _ _ => exact .single (.ob cmpLin₁_ob_cmpLin₂)
+  | ppoi cmpLin₁_ob_cmpLin₂ _ _ _ => exact Or.inl (.single (.ob cmpLin₁_ob_cmpLin₂))
   | rf_crossGle gleOB writerRel readerRel =>
-    exact temporalRel_of_gleOB_and_cmpLinCleRels gleOB writerRel readerRel b.orderedAtEntry.dir_ordered
+    exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels gleOB writerRel readerRel b.orderedAtEntry.dir_ordered)
   | rf_sameGle_cleOB _ cleOB writerRel readerRel =>
-    exact temporalRel_of_cleOB_and_cmpLinCleRels cleOB writerRel readerRel
-  | rf_sameGle_sameCLE _ _ _ writerRel readerRel => sorry -- same CLE chain
-  | co_sameCache _ _ w₁Rel w₂Rel => sorry -- same CLE + event OB chain
+    exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels cleOB writerRel readerRel)
+  | rf_sameGle_sameCLE sameCle_gle sameCle _ writerRel readerRel =>
+    -- Same CLE: use temporalRel_of_cleOB_and_cmpLinCleRels with eq rewritten, or derive eq.
+    exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels (sameCle ▸ sorry) writerRel readerRel)
+  | co_sameCache sameCle _ w₁Rel w₂Rel =>
+    -- Same CLE + event OB. Case-split CmpLinCleRel pairs.
+    exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels (sameCle ▸ sorry) w₁Rel w₂Rel)
   | co_sameClusDiffCache _ cleOB w₁Rel w₂Rel =>
-    exact temporalRel_of_cleOB_and_cmpLinCleRels cleOB w₁Rel w₂Rel
+    exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels cleOB w₁Rel w₂Rel)
   | co_crossCluster gleOB w₁Rel w₂Rel =>
-    exact temporalRel_of_gleOB_and_cmpLinCleRels gleOB w₁Rel w₂Rel b.orderedAtEntry.dir_ordered
+    exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels gleOB w₁Rel w₂Rel b.orderedAtEntry.dir_ordered)
   | fr_sameCache h_cle_rel _ readerRel writerRel =>
     cases h_cle_rel with
-    | inl h_eq => sorry -- same CLE chain
-    | inr cleOB => exact temporalRel_of_cleOB_and_cmpLinCleRels cleOB readerRel writerRel
+    | inl h_eq => sorry
+    | inr cleOB => exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels cleOB readerRel writerRel)
   | fr_sameClusDiffCache cleOB readerRel writerRel =>
-    exact temporalRel_of_cleOB_and_cmpLinCleRels cleOB readerRel writerRel
+    exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels cleOB readerRel writerRel)
   | fr_diffCluster_coherent gleOB _ _ readerRel writerRel =>
-    exact temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered
+    exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered)
   | fr_diffCluster_evict gleOB _ _ readerRel writerRel =>
-    exact temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered
+    exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered)
   | fr_diffCluster_noncoherent gleOB _ _ readerRel writerRel =>
-    exact temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered
+    exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered)
   | fr_diffCluster_rfCrossCluster gleOB _ _ _ readerRel writerRel =>
-    exact temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered
+    exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered)
   | fr_diffCluster_rfFinishBefore gleOB _ _ _ readerRel writerRel =>
-    exact temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered
-  | fr_sameCLE _ _ readerRel writerRel => sorry -- same CLE chain
+    exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered)
+  | fr_sameCLE sameCle _ readerRel writerRel =>
+    sorry
 
 /-- For same-cache events: derive e₁ OB e₂ from event_fb (direction evidence).
     Uses cache_ordered + event_fb to eliminate the reverse direction.
@@ -3223,7 +3230,6 @@ private theorem proto_forward_trans
     {e₁ e₂ e₃ : Event n}
     (h₁ : ProtoForwardStep hknow e₁ e₂) (h₂ : ProtoForwardStep hknow e₂ e₃)
     : ProtoForwardStep hknow e₁ e₃ := by
-  have h_chain := Relation.TransGen.trans h₁.chain h₂.chain
   have h_level := proto_ob_level_trans h₁.level h₂.level
   -- Extract CmpLinCleRel from the original steps (available in every constructor).
   have e₁_cmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle := h₁.startCmpLinRel
