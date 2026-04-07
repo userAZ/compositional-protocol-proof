@@ -2413,6 +2413,7 @@ theorem cle_to_compoundLinOrdering
     else
       exact Or.inl (.proxy _ _ (.obFinishBefore p h_ob h_lt h_diff_prot h_p_isdir h_ne)
         h₁_isdir h₂_isdir hrel₁ hrel₂ htr h_cmpLin_eq)
+  | trans _ _ _ => sorry -- not produced by step_to_ordering
 
 
 -- cmcm_acyclic_of_hknow REMOVED: old event_oEnd_lt acyclicity proof.
@@ -2864,6 +2865,7 @@ private theorem derive_cle_ob_same_cluster
               (Nat.lt_trans h_qob (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd _) h_plt))
           | obFinishBefore p h_ob h_lt h_diff _ =>
             exact absurd (by rwa [← hfc₁, ← hfc₂]) h_diff
+          | trans _ _ _ => sorry -- not produced by step_to_ordering
         exact Nat.lt_irrefl _ (Nat.lt_trans h_fwd (by
           show Event.oEnd n (.directoryEvent de₂) < Event.oStart n (.directoryEvent de₁)
           exact cleOB_rev))
@@ -3297,54 +3299,67 @@ private theorem proto_ob_level_irrefl
   | cleOB _ h => exact ob_irrefl h
   | eventOB _ _ h => exact ob_irrefl h
 
-/-- cmpLinLinLink is acyclic.
+/-- Each R_hknow edge gives CleLink between CLEs. -/
+private theorem edge_clelink
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    {e₁ e₂ : Event n} (h : R_hknow hknow e₁ e₂)
+    : @CleLink n (hknow e₁).cle (hknow e₂).cle := by
+  cases h with
+  | inl hppoi =>
+    cases hppoi.1.cle_eq_or_ob with
+    | inl h_eq => exact .eq h_eq
+    | inr h_ob => exact .ob h_ob (fun h => Nat.lt_irrefl _ (Nat.lt_trans (h ▸ h_ob) (Event.oWellFormed n _)))
+  | inr hcom => exact step_to_ordering_hknow hknow hcom h_non_lazy_ppoi
 
-    Each cmpLinLinLink edge carries BOTH:
-    (1) `proxyChain`: CmpLinOrdering between cmpLin events (LinLink/eq/reverse through CLEs)
-    (2) `edge`: the R_hknow edge (PPOi∪COM) from which ProtoOBLevel is derived
+/-- Each R_hknow edge gives same CLE protocol. -/
+private theorem edge_same_prot
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n} (h : R_hknow hknow e₁ e₂)
+    : (hknow e₁).cle.protocol = (hknow e₂).cle.protocol := by
+  cases h with
+  | inl hppoi =>
+    exact (cle_protocol_eq_event hppoi.1.notDown₁).trans
+      (hppoi.1.sameProtocol.trans (cle_protocol_eq_event hppoi.1.notDown₂).symm)
+  | inr hcom => cases hcom with
+    | rfe h => sorry -- derivable from rfe.readsFrom sameCluster/diffCluster evidence
+    | co h => sorry -- derivable from co.comm evidence
+    | fr h => sorry -- derivable from fr evidence
 
-    The proxyChain shows cmpLin events ARE ordered through protocol proxy events:
-      cmpLin₁ →(CmpLinCleRel)→ CLE₁ →(CleLink via downgrades)→ CLE₂ →(CmpLinCleRel)→ cmpLin₂
-    The ProtoOBLevel (derived from the edge) gives the protocol hierarchy level
-    that advances at each step (GLE OB / CLE OB / event OB).
-
-    A cycle composes ProtoOBLevel to self-OB → contradiction (well-formedness).
-    Each step's proxyChain witnesses that cmpLin events participate in the cycle
-    through named protocol proxy events. -/
+/-- cmpLinLinLink is acyclic. CmpLinOrdering composes through the cycle via
+    chain_of_obLevel with CleLink.trans. ProtoOBLevel gives the contradiction. -/
 theorem cmpLinLinLink_acyclic
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : Relation.Acyclic (cmpLinLinLink hknow h_non_lazy_ppoi) := by
   intro e hcycle
-  -- Each cmpLinLinLink step has:
-  --   .proxyChain: CmpLinOrdering on cmpLin (the ordering between cmpLin through proxies)
-  --   .edge: R_hknow edge → ProtoForwardStep → .level (protocol hierarchy)
-  -- Compose through the cycle:
-  --   - CmpLinCleRel at endpoints: how cmpLin connects to CLE (from ProtoForwardStep)
-  --   - ProtoOBLevel: which hierarchy level advances (composable, gives contradiction)
+  -- Compose through the cycle: CmpLinOrdering on cmpLin (via chain_of_obLevel with
+  -- CleLink.trans), CmpLinCleRel at endpoints, CleLink + same_prot, ProtoOBLevel.
   suffices h : ∀ c, Relation.TransGen (cmpLinLinLink hknow h_non_lazy_ppoi) e c →
-      -- Each step's proxyChain gives CmpLinOrdering on cmpLin (per-step, not composed)
-      -- CmpLinCleRel at endpoints: cmpLin connected to CLE through protocol proxies
+      (TemporalRel (hknow e).compoundLin (hknow c).compoundLin ∨
+       (hknow e).compoundLin = (hknow c).compoundLin ∨
+       TemporalRel (hknow c).compoundLin (hknow e).compoundLin) ∧
       CmpLinCleRel (hknow e).compoundLin (hknow e).cle ∧
       CmpLinCleRel (hknow c).compoundLin (hknow c).cle ∧
-      -- ProtoOBLevel: composable hierarchy witness
+      @CleLink n (hknow e).cle (hknow c).cle ∧
+      ((hknow e).cle.protocol = (hknow c).cle.protocol) ∧
       ProtoOBLevel hknow e c by
-    -- Cycle: cmpLin_e related to itself through protocol proxies (from CmpLinCleRel).
-    -- ProtoOBLevel e e → GLE/CLE/event OB e e → self-OB → contradiction.
-    exact proto_ob_level_irrefl (h e hcycle).2.2
+    exact proto_ob_level_irrefl (h e hcycle).2.2.2.2.2
   intro c hpath
   induction hpath with
   | single hstep =>
-    -- Single step: proxyChain gives CmpLinOrdering on cmpLin.
-    -- ProtoForwardStep (from .edge) gives CmpLinCleRel + ProtoOBLevel.
-    have _h_cmpLin_ordered := hstep.proxyChain  -- CmpLinOrdering between cmpLin events
     have pfs := edge_to_proto_forward h_non_lazy_ppoi hstep.edge
-    exact ⟨pfs.startCmpLinRel, pfs.endCmpLinRel, pfs.level⟩
+    have h_cl := edge_clelink h_non_lazy_ppoi hstep.edge
+    have h_sp := edge_same_prot hstep.edge
+    exact ⟨chain_of_obLevel pfs.level pfs.startCmpLinRel pfs.endCmpLinRel h_cl h_sp,
+           pfs.startCmpLinRel, pfs.endCmpLinRel, h_cl, h_sp, pfs.level⟩
   | tail _ hlast ih =>
-    -- Composition: each step has proxyChain (per-step cmpLin ordering).
-    have _h_cmpLin_ordered := hlast.proxyChain  -- this step's CmpLinOrdering
     have pfs := edge_to_proto_forward h_non_lazy_ppoi hlast.edge
-    exact ⟨ih.1, pfs.endCmpLinRel, proto_ob_level_trans ih.2.2 pfs.level⟩
+    have h_level := proto_ob_level_trans ih.2.2.2.2.2 pfs.level
+    have h_clelink := CleLink.trans _ ih.2.2.2.1 (edge_clelink h_non_lazy_ppoi hlast.edge)
+    have h_prot := ih.2.2.2.2.1.trans (edge_same_prot hlast.edge)
+    exact ⟨chain_of_obLevel h_level ih.2.1 pfs.endCmpLinRel h_clelink h_prot,
+           ih.2.1, pfs.endCmpLinRel, h_clelink, h_prot, h_level⟩
 
 /-- The CMCM acyclicity theorem via cmpLinLinLink.
 
