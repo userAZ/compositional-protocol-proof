@@ -2771,6 +2771,48 @@ inductive ProtoForwardStep {n : ℕ}
       (readerCmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
       (writerCmpLinRel : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
 
+/-- Build TemporalRel chain: cmpLin₁ →(rel₁)→ CLE₁ →(OB)→ CLE₂ →(rel₂⁻¹)→ cmpLin₂.
+    Handles all 9 CmpLinCleRel × CmpLinCleRel combinations. -/
+private theorem temporalRel_of_cleOB_and_cmpLinCleRels
+    {cmpLin₁ cle₁ cle₂ cmpLin₂ : Event n}
+    (cleOB : cle₁.OrderedBefore n cle₂)
+    (rel₁ : CmpLinCleRel cmpLin₁ cle₁)
+    (rel₂ : CmpLinCleRel cmpLin₂ cle₂)
+    : TemporalRel cmpLin₁ cmpLin₂ := by
+  -- Left side: cmpLin₁ to cle₁ (or beyond to cle₂)
+  -- Right side: cle₂ to cmpLin₂
+  cases rel₁ with
+  | eq h_eq =>
+    -- cmpLin₁ = cle₁. Chain starts at cle₁.
+    subst h_eq
+    cases rel₂ with
+    | eq h_eq₂ => exact .single (.ob (h_eq₂ ▸ cleOB))
+    | cle_ob _ _ cle₂_ob_cmpLin₂ _ =>
+      exact .tail (.single (.ob cleOB)) (.ob cle₂_ob_cmpLin₂)
+    | inside cle₂_encaps_cmpLin₂ _ =>
+      exact .tail (.single (.ob cleOB)) (.encap cle₂_encaps_cmpLin₂)
+  | cle_ob _ h_eq cle₁_ob_cmpLin₁ _ =>
+    -- cle₁ OB cmpLin₁ (cmpLin₁ = e₁). Use finishesAfterProxy.
+    -- cmpLin₁ →(finishesAfterProxy cle₁, cle₁ OB cle₂)→ cle₂ →(rel₂⁻¹)→ cmpLin₂
+    have h_proxy : BasicTemporalRel cmpLin₁ cle₂ :=
+      .finishesAfterProxy cle₁ cleOB (Nat.lt_trans cle₁_ob_cmpLin₁ (Event.oWellFormed n cmpLin₁))
+    cases rel₂ with
+    | eq h_eq₂ => exact .single (h_eq₂ ▸ h_proxy)
+    | cle_ob _ _ cle₂_ob_cmpLin₂ _ =>
+      exact .tail (.single h_proxy) (.ob cle₂_ob_cmpLin₂)
+    | inside cle₂_encaps_cmpLin₂ _ =>
+      exact .tail (.single h_proxy) (.encap cle₂_encaps_cmpLin₂)
+  | inside cle₁_encaps_cmpLin₁ _ =>
+    -- cle₁ Encaps cmpLin₁. Chain: cmpLin₁ →(EncapBy)→ cle₁ →(OB)→ cle₂ →(rel₂⁻¹)→ cmpLin₂
+    have h_encapBy : BasicTemporalRel cmpLin₁ cle₁ := .encapBy cle₁_encaps_cmpLin₁
+    cases rel₂ with
+    | eq h_eq₂ =>
+      exact .tail (.single h_encapBy) (.ob (h_eq₂ ▸ cleOB))
+    | cle_ob _ _ cle₂_ob_cmpLin₂ _ =>
+      exact .tail (.tail (.single h_encapBy) (.ob cleOB)) (.ob cle₂_ob_cmpLin₂)
+    | inside cle₂_encaps_cmpLin₂ _ =>
+      exact .tail (.tail (.single h_encapBy) (.ob cleOB)) (.encap cle₂_encaps_cmpLin₂)
+
 /-- Extract the TemporalRel chain between cmpLin events from any ProtoForwardStep.
     Derived from the explicit CmpLinCleRel links + GLE/CLE/event OB. -/
 theorem ProtoForwardStep.chain
@@ -2779,20 +2821,26 @@ theorem ProtoForwardStep.chain
     (h : ProtoForwardStep hknow e₁ e₂) : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin := by
   cases h with
   | ppoi cmpLin₁_ob_cmpLin₂ _ _ _ => exact .single (.ob cmpLin₁_ob_cmpLin₂)
-  | rf_crossGle _ writerRel readerRel => sorry
-  | rf_sameGle_cleOB _ _ writerRel readerRel => sorry
-  | rf_sameGle_sameCLE _ _ _ writerRel readerRel => sorry
-  | co_sameCache _ _ w₁Rel w₂Rel => sorry
-  | co_sameClusDiffCache _ _ w₁Rel w₂Rel => sorry
-  | co_crossCluster _ w₁Rel w₂Rel => sorry
-  | fr_sameCache _ _ readerRel writerRel => sorry
-  | fr_sameClusDiffCache _ readerRel writerRel => sorry
-  | fr_diffCluster_coherent _ _ _ readerRel writerRel => sorry
-  | fr_diffCluster_evict _ _ _ readerRel writerRel => sorry
-  | fr_diffCluster_noncoherent _ _ _ readerRel writerRel => sorry
-  | fr_diffCluster_rfCrossCluster _ _ _ _ readerRel writerRel => sorry
-  | fr_diffCluster_rfFinishBefore _ _ _ _ readerRel writerRel => sorry
-  | fr_sameCLE _ _ readerRel writerRel => sorry
+  | rf_crossGle _ writerRel readerRel => sorry -- GLE OB chain (needs CLE→GLE connection)
+  | rf_sameGle_cleOB _ cleOB writerRel readerRel =>
+    exact temporalRel_of_cleOB_and_cmpLinCleRels cleOB writerRel readerRel
+  | rf_sameGle_sameCLE _ _ _ writerRel readerRel => sorry -- same CLE chain
+  | co_sameCache _ _ w₁Rel w₂Rel => sorry -- same CLE + event OB chain
+  | co_sameClusDiffCache _ cleOB w₁Rel w₂Rel =>
+    exact temporalRel_of_cleOB_and_cmpLinCleRels cleOB w₁Rel w₂Rel
+  | co_crossCluster _ w₁Rel w₂Rel => sorry -- GLE OB chain
+  | fr_sameCache h_cle_rel _ readerRel writerRel =>
+    cases h_cle_rel with
+    | inl h_eq => sorry -- same CLE chain
+    | inr cleOB => exact temporalRel_of_cleOB_and_cmpLinCleRels cleOB readerRel writerRel
+  | fr_sameClusDiffCache cleOB readerRel writerRel =>
+    exact temporalRel_of_cleOB_and_cmpLinCleRels cleOB readerRel writerRel
+  | fr_diffCluster_coherent _ _ _ readerRel writerRel => sorry -- GLE OB chain
+  | fr_diffCluster_evict _ _ _ readerRel writerRel => sorry -- GLE OB chain
+  | fr_diffCluster_noncoherent _ _ _ readerRel writerRel => sorry -- GLE OB chain
+  | fr_diffCluster_rfCrossCluster _ _ _ _ readerRel writerRel => sorry -- GLE OB chain
+  | fr_diffCluster_rfFinishBefore _ _ _ _ readerRel writerRel => sorry -- GLE OB chain
+  | fr_sameCLE _ _ readerRel writerRel => sorry -- same CLE chain
 
 /-- Extract the OB level from any ProtoForwardStep. -/
 theorem ProtoForwardStep.level
