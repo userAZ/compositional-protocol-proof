@@ -554,25 +554,6 @@ private theorem diff_protocol_implies_diff_gle_fr
   fun h_eq => h_diff (same_gle_implies_same_protocol (hknow e₁) (hknow e₂) h_eq)
 
 /-- Derive GLE₁ OB GLE₂ for cross-cluster edges using dir_ordered + event_fb. -/
-private theorem derive_gle_ob_fr
-    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
-    {e₁ e₂ : Event n}
-    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    (h_diff_gle : (hknow e₁).gle ≠ (hknow e₂).gle)
-    (event_fb : Event.oEnd n e₁ < Event.oEnd n e₂)
-    : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle := by
-  have h₁_isdir := (hknow e₁).gle_isDirEvent
-  have h₂_isdir := (hknow e₂).gle_isDirEvent
-  match hfg₁ : (hknow e₁).gle, h₁_isdir with
-  | .directoryEvent gde₁, _ =>
-    match hfg₂ : (hknow e₂).gle, h₂_isdir with
-    | .directoryEvent gde₂, _ =>
-      cases (hdir gde₁ gde₂).ordered with
-      | inl gleOB => exact gleOB
-      | inr gleOB_rev => exfalso; sorry -- reverse contradicts event_fb
-    | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
-  | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
-
 theorem fr_ordering_holds
     {lin₁ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₁}
     {lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e₂}
