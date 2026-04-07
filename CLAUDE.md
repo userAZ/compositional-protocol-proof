@@ -352,6 +352,7 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
   - `temporalRel_of_gleOB_and_cmpLinCleRels`: CLE direction from dir_ordered + GLE OB → resolved 7 sorry's.
   - `diff_protocol_implies_diff_gle`: contrapositive of `same_gle_implies_same_protocol` → resolved 6 sorry's.
   Always ask: "Is there ONE theorem that would resolve 3+ sorry's?" before filling individually.
+  - `same_cle_implies_same_gle` (Defs.lean): same CLE → same GLE. Used generalize+subst for dependent type transport. Resolves GLE equality for same-CLE cases in `.level`.
 - **NEVER carry reverse cases forward.** When a 3-way (forward/eq/reverse) arises, contradict the reverse IMMEDIATELY using the available OB evidence (GLE OB, CLE OB, event OB). The protocol guarantees forward direction — reverse is always contradictory. Don't propagate TemporalRel_reverse through the proof. Eliminate it on the spot with exfalso. This applies to CmpLinOrdering, CleLink composition, and any 3-way case split.
 - **CONSULT THIS SECTION AS /philosophy BEFORE EVERY PROOF STEP.** I have repeatedly forgotten these lessons and reverted to arithmetic shortcuts. Before writing ANY proof code for acyclicity: re-read this section. Ask: "Am I using the protocol chain or a numeric shortcut?" If numeric shortcut → STOP and use the chain.
 
