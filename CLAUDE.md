@@ -98,6 +98,27 @@ cmpLin_w → ... → e_w OB e_r_cache_downgrade
 
 Each step in this chain names a SPECIFIC PROTOCOL EVENT (downgrade, directory event, GLE, predecessor, etc.). This is the communication mechanism that the protocol uses to propagate coherence.
 
+**The chain shape varies by protocol scenario — NOT all chains go through both CLEs:**
+- **RF coherent writer, same cluster:** `cmpLin_w (= e_w) →(OB)→ e_r_cdir_down →(EncapBy)→ CLE_r →(...)→ cmpLin_r`. NO CLE_w — writer has perms so cmpLin_w = e_w (requestLin), chain goes directly through the downgrade.
+- **RF non-coherent writer, same cluster:** `cmpLin_w →(EncapBy)→ CLE_w →(OB)→ CLE_r →(...)→ cmpLin_r`. CLE_w IS in chain — cmpLin_w inside CLE_w (dirLin).
+- **RF cross-cluster:** `cmpLin_w →(...)→ CLE_w →(...)→ GLE_w →(OB)→ GLE_r →(...)→ CLE_r →(...)→ cmpLin_r`. Both CLEs and GLEs.
+- **CO sameCache:** Shared CLE. If cmpLin = e (cle_ob): `cmpLin₁ →(OB)→ cmpLin₂` directly. If cmpLin inside CLE: `cmpLin₁ →(EncapBy)→ CLE →(Encap)→ cmpLin₂`.
+- **PPOi:** `cmpLin₁ →(OB)→ cmpLin₂` directly from NonLazyPPOi.
+
+CmpLinCleRel (eq/cle_ob/inside) determines WHICH chain pattern: eq → skip CLE, cle_ob → direct from e, inside → go through CLE via EncapBy. EXAMINE each scenario before coding.
+
+**The acyclicity uses a three-level protocol hierarchy:**
+1. **GLE OB** (global directory): cross-cluster edges advance GLE. gleOrdering.Cases gives GLE₁ OB GLE₂ or GLE₁ = GLE₂ — never backward.
+2. **CLE OB** (cluster directory): same-GLE edges within a cluster. CLE₁ OB CLE₂ from CleLink.
+3. **Event OB** (cache): same-CLE edges at same cache. e₁ OB e₂ from cache serialization.
+OB is transitive and irreflexive (self-OB → e.oEnd < e.oStart → contradicts well-formedness). A cycle composes OB at the highest applicable level → self-OB → contradiction.
+
+**ProtoForwardStep IS an irreflexive subset of TemporalRel.** Each step carries:
+- The irreflexive transitive chain of {OB, Encap, EncapBy, finishesBefore} between cmpLin events (prioritize OB/Encap/EncapBy over finishesBefore)
+- The GLE/CLE/event OB witness for composition and irreflexibility
+- Named proxy events from the specific protocol scenario
+The chain IS the proof content. The OB level IS the acyclicity mechanism. Both are needed.
+
 **How to open up compoundLin defs (from user guidance):**
 When doing `cases` on `compoundLinearizationEvent`, you get `clusterCacheLin` (has perms) or `clusterDirLin` (no perms). Do `cases` on `dirAccessOfRequest` simultaneously — the sub-cases must LINE UP:
 - `clusterCacheLin` ↔ `orderBeforeDir` (event has perms)
