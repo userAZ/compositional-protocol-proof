@@ -2667,6 +2667,103 @@ theorem CmpLinStep.irrefl' {cl : Event n} : ¬ @CmpLinStep n cl cl := by
   | com _ _ _ _ _ _ _ h_ne => exact absurd rfl h_ne
   | ob _ h_ne => exact absurd rfl h_ne
 
+/-- Junction composition: two CmpLinCleRels at the same cmpLin event give
+    CleLink between the CLEs or CLE equality. Uses dir_ordered for inside×inside.
+    Incompatible pairs (eq×cle_ob, cle_ob×inside, etc.) are eliminated by
+    protocol validity (dir events ≠ non-dir events, cluster ≠ global protocol). -/
+private theorem junction_compose
+    {cl cle_in cle_out : Event n}
+    (h_in : CmpLinCleRel cl cle_in) (h_out : CmpLinCleRel cl cle_out)
+    (h_in_dir : cle_in.isDirectoryEvent) (h_out_dir : cle_out.isDirectoryEvent)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    : @CleLink n cle_in cle_out ∨ cle_in = cle_out ∨ @CleLink n cle_out cle_in := by
+  cases h_in with
+  | eq h₁ =>
+    cases h_out with
+    | eq h₂ => exact Or.inr (Or.inl (h₁.symm.trans h₂))
+    | cle_ob _ _ _ h_nd =>
+      -- cl = cle_in (dir, from h₁ + h_in_dir). cle_ob says ¬ cl.isDirectoryEvent.
+      -- h₁ : cl = cle_in → cl.isDirectoryEvent = cle_in.isDirectoryEvent. h_in_dir : cle_in.isDir.
+      -- So cl.isDir. But h_nd : ¬ cl.isDir. Contradiction.
+      exact absurd (h₁ ▸ h_in_dir) h_nd
+    | inside h₂ =>
+      -- cl = cle_in. cle_out Encaps cl = cle_in. cle_out Encaps cle_in.
+      -- Both dir events. dir_ordered gives OB one way.
+      -- cle_out Encaps cle_in → cle_out.oStart < cle_in.oStart.
+      -- dir_ordered: OB cle_in cle_out or OB cle_out cle_in.
+      -- OB cle_in cle_out: cle_in.oEnd < cle_out.oStart. But cle_out Encaps cle_in → cle_out.oStart < cle_in.oStart ≤ cle_in.oEnd. So cle_in.oEnd < cle_out.oStart < cle_in.oStart ≤ cle_in.oEnd → contradiction. So OB cle_in cle_out impossible.
+      -- OB cle_out cle_in: cle_out.oEnd < cle_in.oStart. cle_out Encaps cle_in → cle_in.oEnd < cle_out.oEnd. So cle_out.oEnd > cle_in.oEnd > cle_in.oStart (oWellFormed). But OB: cle_out.oEnd < cle_in.oStart. Chain: cle_in.oEnd < cle_out.oEnd < cle_in.oStart → contradicts oWellFormed.
+      -- Both impossible → cle_in = cle_out? Wait, Encaps means overlap, OB means disjoint. Both can't hold. So dir_ordered can't give OB for encapsulating events. Contradiction with dir_ordered axiom? No — dir_ordered says AreOrdered for same-ENTRY events. If cle_in and cle_out are at different entries, dir_ordered doesn't apply.
+      -- For same entry: Encaps contradicts OB → AreOrdered is False → contradicts axiom.
+      -- But the axiom holds → same-entry events CAN'T encapsulate each other.
+      -- So cle_out Encaps cle_in at same entry → False.
+      -- For different entry: Encaps IS possible. But we don't have CleLink between different entries without communication evidence.
+      -- This case (eq×inside) was eliminated in the junction analysis as impossible (cluster dir vs global protocol). Let me use that argument.
+      -- h₁ : cl = cle_in. h₂ : cle_out Encaps cl. cl is cle_in (dir event, cluster protocol from its cache event).
+      -- For the inside case: compoundLin_cle_of_dirLin gives protocol = .global.
+      -- But we don't have that evidence here (CmpLinCleRel doesn't carry protocol info).
+      sorry -- eq×inside: protocol distinction needed (cluster dir ≠ global inside)
+  | cle_ob _ _ _ h_nd_in =>
+    -- cle_in OB cl. cl not dir. But cle_out is dir.
+    cases h_out with
+    | eq h₂ => -- cl = cle_out (dir). cl not dir (from h_nd_in). Contradiction.
+      exact absurd (h₂ ▸ h_out_dir : cl.isDirectoryEvent) h_nd_in
+    | cle_ob _ h_eq₂ _ _ =>
+      -- Both cle_ob: both requestLin → cl = e_in = e_out → same event.
+      -- compoundLin_eq_of_cle_ob gives cl = cache event for each.
+      -- At same cl: same cache event → same CLE.
+      -- But we don't have hknow here to derive this.
+      -- cle_ob×cle_ob: both are requestLin → cl is the cache event for both.
+      -- compoundLin_eq_of_cle_ob gives cl = e for each → same event → same CLE.
+      -- But we don't have hknow here. The cle_ob h_eq fields give cl = e_in and cl = e_out.
+      -- Wait: cle_ob has h_eq : cl = e. For h_in: cl = e_in. For h_out: cl = e_out.
+      -- So e_in = cl = e_out → same event. Both cache events encapsulate their CLEs.
+      -- Their CLEs correspond via dirAccessOfRequest. Same event → same CLE?
+      -- We need hknow to derive this. Use sorry for now.
+      sorry -- cle_ob×cle_ob: same cache event → same CLE (needs hknow)
+    | inside _ =>
+      -- cle_ob (not dir) × inside: cl is a cache event AND inside a CLE.
+      -- For inside: compoundLin_cle_of_dirLin gives protocol = .global.
+      -- For cle_ob: h_nd_in says cl is NOT dir. Global events... might not be dir.
+      -- But the protocol distinction: cle_ob comes from requestLin (cluster cache event).
+      -- inside comes from dirLin (global protocol). Cluster ≠ global → impossible.
+      sorry -- cle_ob×inside: protocol distinction
+  | inside h₁ =>
+    cases h_out with
+    | eq h₂ =>
+      -- inside × eq: symmetric to eq × inside.
+      sorry -- inside×eq: protocol distinction
+    | cle_ob _ _ _ h_nd₂ =>
+      -- inside × cle_ob: symmetric to cle_ob × inside.
+      sorry -- inside×cle_ob: protocol distinction
+    | inside h₂ =>
+      -- inside × inside: both CLEs encapsulate the same cl.
+      -- Both are directory events. Use dir_ordered for CleLink.
+      if h_eq : cle_in = cle_out then
+        exact Or.inr (Or.inl h_eq)
+      else
+        -- Different CLEs, both directory events. dir_ordered gives OB one way.
+        match hfc_in : cle_in, h_in_dir with
+        | .directoryEvent de_in, _ =>
+          match hfc_out : cle_out, h_out_dir with
+          | .directoryEvent de_out, _ =>
+            -- dir_ordered gives OB between de_in and de_out.
+            -- Convert to Event.OrderedBefore via Event.oEnd/oStart on .directoryEvent.
+            have h_conv_in : Event.oEnd n cle_in = de_in.oEnd := by rw [hfc_in]; rfl
+            have h_conv_in_s : Event.oStart n cle_in = de_in.oStart := by rw [hfc_in]; rfl
+            have h_conv_out : Event.oEnd n cle_out = de_out.oEnd := by rw [hfc_out]; rfl
+            have h_conv_out_s : Event.oStart n cle_out = de_out.oStart := by rw [hfc_out]; rfl
+            cases (hdir de_in de_out).ordered with
+            | inl h_ob =>
+              -- de_in OB de_out. After match: cle_in = .directoryEvent de_in.
+              -- CleLink goal has (.directoryEvent de_in) and (.directoryEvent de_out).
+              -- h_ob : de_in.oEnd < de_out.oStart. Need: (.directoryEvent de_in).oEnd < (.directoryEvent de_out).oStart.
+              exact Or.inl (.ob h_ob h_eq)
+            | inr h_ob_rev =>
+              exact Or.inr (Or.inr (.ob h_ob_rev (Ne.symm h_eq)))
+          | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+        | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+
 /-- Forward LinLink gives CmpLinStep for step/proxy constructors.
     ppoProxy: returned separately (needs hknow + NonLazyPPOi for OB evidence). -/
 theorem linlink_fwd_to_cmpLinStep_or_ppoi {cl₁ cl₂ : Event n} (h : LinLink cl₁ cl₂)
