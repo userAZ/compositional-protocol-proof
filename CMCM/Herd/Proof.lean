@@ -2904,6 +2904,26 @@ theorem ProtoForwardStep.level
   | fr_diffCluster_rfFinishBefore gleOB _ _ _ _ _ => exact .gleOB gleOB
   | fr_sameCLE sameCle reader_ob_writer _ _ => sorry -- derive GLE eq from same CLE
 
+/-- For same-cluster edges with CLE₁ ≠ CLE₂: derive CLE₁ OB CLE₂ from dir_ordered.
+    The reverse is contradicted by the protocol forward direction. -/
+private theorem derive_cle_ob_same_cluster
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n}
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    (h_ne : (hknow e₁).cle ≠ (hknow e₂).cle)
+    : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle := by
+  have h₁_isdir := (hknow e₁).cle_isDirEvent
+  have h₂_isdir := (hknow e₂).cle_isDirEvent
+  match hfc₁ : (hknow e₁).cle, h₁_isdir with
+  | .directoryEvent de₁, _ =>
+    match hfc₂ : (hknow e₂).cle, h₂_isdir with
+    | .directoryEvent de₂, _ =>
+      cases (hdir de₁ de₂).ordered with
+      | inl cleOB => exact cleOB
+      | inr cleOB_rev => exfalso; sorry -- CLE₂ OB CLE₁ contradicts protocol forward
+    | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+  | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+
 /-- For cross-cluster edges: derive GLE₁ OB GLE₂ from dir_ordered on GLEs.
     Both GLEs are directory events. dir_ordered gives one direction.
     The reverse (GLE₂ OB GLE₁) is contradicted by the protocol structure
@@ -2953,29 +2973,12 @@ private theorem edge_to_proto_forward
       cases hrfe.readsFrom with
       | wObRGle writerGle_ob_readerGle _ => exact .rf_crossGle writerGle_ob_readerGle hrel₁ hrel₂
       | wEqRGle sameGle sameCluster wEqRGleCases =>
-        -- wEqRGle: same GLE, same cluster. CLE sub-cases give CLE OB or same CLE.
-        -- step_to_ordering already extracts CleLink from this evidence.
-        -- Use dir_ordered on CLEs to get CLE OB (reverse contradicted by protocol).
         if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
           exact .rf_sameGle_sameCLE sameGle h_cle_eq (by sorry) hrel₁ hrel₂
         else
-          have h₁_isdir := (hknow e₁).cle_isDirEvent
-          have h₂_isdir := (hknow e₂).cle_isDirEvent
-          match hfc₁ : (hknow e₁).cle, h₁_isdir with
-          | .directoryEvent de₁, _ =>
-            match hfc₂ : (hknow e₂).cle, h₂_isdir with
-            | .directoryEvent de₂, _ =>
-              cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
-              | inl cleOB =>
-                have h_cleOB : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle := by
-                  rw [show (hknow e₁).cle = .directoryEvent de₁ from hfc₁,
-                      show (hknow e₂).cle = .directoryEvent de₂ from hfc₂]; exact cleOB
-                exact .rf_sameGle_cleOB sameGle h_cleOB hrel₁ hrel₂
-              | inr cleOB_rev =>
-                -- CLE₂ OB CLE₁ — contradict immediately.
-                exfalso; sorry
-            | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
-          | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+          exact .rf_sameGle_cleOB sameGle
+            (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
+            hrel₁ hrel₂
     | co hco =>
       have hnd₁ := hco.notDown₁; have hnd₂ := hco.notDown₂
       have hndE₁ := (notdir_of_edge (Or.inr (.co hco))).1
@@ -2986,7 +2989,12 @@ private theorem edge_to_proto_forward
       | sameCache sameCle e₁_ob_e₂ =>
         exact .co_sameCache sameCle e₁_ob_e₂ hrel₁ hrel₂
       | sameClusDiffCache sameProt cleOrdering =>
-        exact .co_sameClusDiffCache (by sorry) (by sorry) hrel₁ hrel₂
+        if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
+          sorry -- same CLE for sameClusDiffCache — unusual, may be contradictory
+        else
+          exact .co_sameClusDiffCache (by sorry)
+            (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
+            hrel₁ hrel₂
       | diffClus diffProt cleOrdering =>
         exact .co_crossCluster
           (derive_gle_ob_cross_cluster b.orderedAtEntry.dir_ordered (by sorry)) hrel₁ hrel₂
