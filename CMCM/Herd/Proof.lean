@@ -3147,9 +3147,16 @@ private theorem edge_to_proto_forward
         else
           cases gleEqOrOb with
           | inl sameGle =>
-            exact .co_sameClusDiffCache sameGle
-              (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
-              hrel₁ hrel₂
+            -- Extract CLE OB from cleOrdering (gives CLE₁ OB CLE₂ or CLE₁ OB proxy)
+            have h_cle_ob : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle := by
+              cases cleOrdering with
+              | wImmPredRCle w => cases w with
+                | sameCluster _ hob => exact hob
+                | diffCluster _ hdown hwObRDown =>
+                  -- CLE₁ OB proxy, proxy.oEnd < CLE₂.oEnd. Use dir_ordered to get CLE₁ OB CLE₂.
+                  exact derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq
+              | evictOrReadBetweenWAndRCleSameCluster evict => exact evict.wObR
+            exact .co_sameClusDiffCache sameGle h_cle_ob hrel₁ hrel₂
           | inr gleOB =>
             exact .co_crossCluster gleOB hrel₁ hrel₂
       | diffClus diffProt gleOB_co cleOrdering =>
