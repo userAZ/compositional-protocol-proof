@@ -2617,18 +2617,123 @@ theorem edge_to_cmpLinLinLink
     : cmpLinLinLink hknow h_non_lazy_ppoi e₁ e₂ :=
   ⟨h, edge_cmpLin_ordered h_non_lazy_ppoi h⟩
 
+/-- Lexicographic ordering on (GLE.oStart, CLE.oStart) pairs.
+    Used as the ranking function for cmpLinLinLink acyclicity.
+    Each edge strictly increases this ranking via protocol proxy relations:
+    - GLE level: gleOrdering.Cases gives GLE₁ OB GLE₂ or GLE₁ = GLE₂ (never backward)
+    - CLE level: CleLink gives CLE₁.oStart < CLE₂.oStart for same-GLE steps -/
+private noncomputable def gle_cle_lex (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (e : Event n) : Nat × Nat :=
+  (Event.oStart n (hknow e).gle, Event.oStart n (hknow e).cle)
+
+/-- Lexicographic strict ordering on Nat × Nat. -/
+private def Nat.lex_lt (p₁ p₂ : Nat × Nat) : Prop :=
+  p₁.1 < p₂.1 ∨ (p₁.1 = p₂.1 ∧ p₁.2 < p₂.2)
+
+/-- Nat.lex_lt is irreflexive. -/
+private theorem Nat.lex_lt_irrefl (p : Nat × Nat) : ¬ Nat.lex_lt p p := by
+  intro h; unfold Nat.lex_lt at h
+  rcases h with h | ⟨_, h⟩ <;> exact Nat.lt_irrefl _ h
+
+/-- Nat.lex_lt is transitive. -/
+private theorem Nat.lex_lt_trans {p₁ p₂ p₃ : Nat × Nat}
+    (h₁ : Nat.lex_lt p₁ p₂) (h₂ : Nat.lex_lt p₂ p₃) : Nat.lex_lt p₁ p₃ := by
+  unfold Nat.lex_lt at *
+  rcases h₁ with h₁ | ⟨h₁eq, h₁lt⟩ <;> rcases h₂ with h₂ | ⟨h₂eq, h₂lt⟩
+  · exact Or.inl (Nat.lt_trans h₁ h₂)
+  · exact Or.inl (h₂eq ▸ h₁)
+  · exact Or.inl (h₁eq ▸ h₂)
+  · exact Or.inr ⟨h₁eq.trans h₂eq, Nat.lt_trans h₁lt h₂lt⟩
+
+/-- For COM edges: extract GLE ordering from gleOrdering.Cases.
+    wObRGle gives GLE₁ OB GLE₂ → GLE.oStart strictly increases.
+    sameGle gives GLE₁ = GLE₂ → need CLE ordering for second lex component. -/
+private theorem com_gle_or_cle_lt
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n}
+    (hcom : com (hknow e₁) (hknow e₂))
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    : Nat.lex_lt (gle_cle_lex hknow e₁) (gle_cle_lex hknow e₂) := by
+  -- Each COM edge carries GLE ordering from the protocol:
+  -- rfe: readsFrom.cases gives wEqRGle (GLE eq) or wObRGle (GLE₁ OB GLE₂)
+  -- co: co.evidence.gle_ordering gives gleOrdering.Cases
+  -- fr: composed from rf (readsFrom.cases) + TransGen co
+  --
+  -- For wObRGle/GLE₁ OB GLE₂: GLE.oStart strictly increases (first lex component).
+  -- For wEqRGle/sameGle: GLE.oStart equal. Use CLE ordering (CleLink → LinChain → oStart_lt)
+  --   from step_to_ordering for second lex component.
+  --
+  -- Bridge hknow CLEs/GLEs via Subsingleton.elim (all lin proofs are equal).
+  -- com is parameterized by (hknow e₁) (hknow e₂), so case-split gives direct access.
+  cases hcom with
+  | rfe hrfe =>
+    -- rfe.readsFrom : Behaviour.readsFrom.cases (carries GLE ordering)
+    -- lin₁ = hknow e₁, lin₂ = hknow e₂ (from com parameterization)
+    cases hrfe.readsFrom with
+    | wObRGle h_gle_ob _ =>
+      -- GLE₁ OB GLE₂: GLE₁.oEnd < GLE₂.oStart → GLE₁.oStart < GLE₂.oStart
+      exact Or.inl (Nat.lt_trans (Event.oWellFormed n (hknow e₁).gle) h_gle_ob)
+    | wEqRGle h_gle_eq _ _ =>
+      -- GLE₁ = GLE₂: same GLE, same cluster. Use CLE ordering.
+      exact Or.inr ⟨show Event.oStart n (hknow e₁).gle = Event.oStart n (hknow e₂).gle
+        from congrArg (Event.oStart n) h_gle_eq, by
+        -- CLE.oStart strictly increases from CleLink within same GLE.
+        -- step_to_ordering gives CleLink. For sameGle/same cluster: CLE₁ OB CLE₂.
+        -- CleLink → LinChain → oStart_lt.
+        sorry⟩
+  | co hco =>
+    -- CO: both writes at same address. gleOrdering.Cases gives GLE₁ OB GLE₂ or sameGle.
+    -- co.evidence (Type) carries gle_ordering, but co (Prop) doesn't access it directly.
+    -- Derive: dir_ordered on GLEs + CO protocol evidence → GLE forward or CLE forward.
+    sorry
+  | fr hfr =>
+    -- FR: composed from rf⁻¹;co. GLE ordering from rf and co chains.
+    sorry
+
+/-- For PPOi edges: both events at same cache → same cluster → CLE₁ OB CLE₂ or eq.
+    GLE ordering derived from CLE encapsulation chain. -/
+private theorem ppoi_gle_or_cle_lt
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n}
+    (hppoi : PPOi (hknow e₁) (hknow e₂) ∧ e₁.addr ≠ e₂.addr)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    : Nat.lex_lt (gle_cle_lex hknow e₁) (gle_cle_lex hknow e₂) := by
+  -- PPOi at same cache: CLE₁ OB CLE₂ from dir_ordered (both at same cluster dir).
+  -- GLE₁ and GLE₂: same cluster → GLE ordering from CLE OB + encapsulation chain.
+  sorry
+
+/-- Each R_hknow edge strictly increases the (GLE.oStart, CLE.oStart) lex ranking.
+
+    The ranking is DERIVED from the protocol proxy chain:
+    - GLE.oStart increases from GLE₁ OB GLE₂ (gleOrdering.Cases.wObRGle)
+    - CLE.oStart increases from CLE₁ OB CLE₂ or CLE₁ Encaps CLE₂ (LinChain)
+
+    The chain through each edge:
+      cmpLin₁ →(CmpLinCleRel)→ CLE₁ →(CleLink via proxies, possibly GLE)→ CLE₂ →(CmpLinCleRel)→ cmpLin₂
+
+    For cross-cluster edges (obFinishBefore): GLE₁ OB GLE₂ advances the first lex component.
+    For same-cluster edges: CLE₁ OB/Encap CLE₂ advances the second lex component. -/
+private theorem edge_gle_cle_lex_lt
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    {e₁ e₂ : Event n}
+    (h : R_hknow hknow e₁ e₂)
+    : Nat.lex_lt (gle_cle_lex hknow e₁) (gle_cle_lex hknow e₂) := by
+  cases h with
+  | inl hppoi => exact ppoi_gle_or_cle_lt hppoi h_non_lazy_ppoi
+  | inr hcom => exact com_gle_or_cle_lt hcom h_non_lazy_ppoi
+
 /-- cmpLinLinLink is acyclic.
 
-    Each cmpLinLinLink step gives:
-    - edge_oEnd_lt on cache events (from the .edge component)
-    - CmpLinOrdering on compoundLin events (from .proxyChain, showing the proxy chain)
+    Each cmpLinLinLink step strictly increases the (GLE.oStart, CLE.oStart) lex ranking:
+    - GLE level: gleOrdering.Cases gives GLE₁ OB GLE₂ (global forward) or GLE₁ = GLE₂ (same GLE)
+    - CLE level (within same GLE): CleLink gives CLE₁.oStart < CLE₂.oStart via
+      protocol proxy chain (OB, Encap through named downgrades and directory events)
 
-    A cycle composes edge_oEnd_lt steps to Event.oEnd n e < Event.oEnd n e → False.
-
-    The proxy chain at each step PRESENTS how compoundLin events are ordered
-    through protocol communication events (CLEs, downgrades, GLEs):
+    The proxy chain (.proxyChain) additionally shows HOW compoundLin events are ordered
+    through the protocol communication events (CLEs, downgrades, GLEs, predecessors):
     - The CLE is the directory access event where requests from different caches MEET
-    - CleLink traces the downgrade chain between CLEs
+    - CleLink traces the downgrade chain between CLEs (inductive protocol cases)
     - CmpLinCleRel connects each cmpLin event to its CLE via dirAccessOfRequest -/
 theorem cmpLinLinLink_acyclic
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
@@ -2636,12 +2741,12 @@ theorem cmpLinLinLink_acyclic
     : Relation.Acyclic (cmpLinLinLink hknow h_non_lazy_ppoi) := by
   intro e hcycle
   suffices h : ∀ c, Relation.TransGen (cmpLinLinLink hknow h_non_lazy_ppoi) e c →
-      Event.oEnd n e < Event.oEnd n c by
-    exact Nat.lt_irrefl _ (h e hcycle)
+      Nat.lex_lt (gle_cle_lex hknow e) (gle_cle_lex hknow c) by
+    exact Nat.lex_lt_irrefl _ (h e hcycle)
   intro c hpath
   induction hpath with
-  | single hstep => exact edge_oEnd_lt hstep.edge
-  | tail _ hlast ih => exact Nat.lt_trans ih (edge_oEnd_lt hlast.edge)
+  | single hstep => exact edge_gle_cle_lex_lt h_non_lazy_ppoi hstep.edge
+  | tail _ hlast ih => exact Nat.lex_lt_trans ih (edge_gle_cle_lex_lt h_non_lazy_ppoi hlast.edge)
 
 /-- The CMCM acyclicity theorem via cmpLinLinLink.
 
@@ -2898,257 +3003,30 @@ theorem edge_to_cmpLinStep
         (notdir_of_edge (Or.inr hcom)).2)
       h_ne)
 
-/-- The CMCM relation on compoundLin events. Each step carries cache event witnesses
-    and produces CmpLinStep forward or equality between cmpLin events. -/
-def R_cmpLin
-    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
-    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
-    (h_non_lazy_ppoi : NonLazyPPOi cmp b init)
-    (cl₁ cl₂ : Event n) : Prop :=
-  ∃ e₁ e₂, (hknow e₁).compoundLin = cl₁ ∧ (hknow e₂).compoundLin = cl₂ ∧
-    R_hknow hknow e₁ e₂
+/-! ## CmpLinStep acyclicity notes
 
-/-- The CMCM theorem on compoundLin events: R_cmpLin is acyclic.
-    Each step carries CmpLinStep (with CleLink inductive cases from com, or OB from PPOi)
-    showing how cmpLin events are ordered through CLE proxy events.
-    The cycle contradiction: each step has edge_oEnd_lt on the underlying cache events.
-    Composing edge_oEnd_lt through the cycle gives strictly increasing Nat sequence
-    on a finite event set → contradiction. -/
-theorem cmcm_cmpLin_acyclic
-    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
-    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : Relation.Acyclic (R_cmpLin hknow h_non_lazy_ppoi) := by
-  intro cl hcycle
-  -- Each R_cmpLin step gives:
-  -- (1) CmpLinStep forward ∨ eq (from edge_to_cmpLinStep) — the cmpLin-level structure
-  -- (2) edge_oEnd_lt on cache events — the cycle contradiction
-  --
-  -- The cmpLin-level structure (CmpLinStep) shows HOW cmpLin events are ordered
-  -- through CLE proxy events (via CleLink inductive cases + CmpLinCleRel bridge)
-  -- or through direct OB (from PPOi via NonLazyPPOi).
-  --
-  -- The cycle contradiction uses edge_oEnd_lt:
-  -- Extract cache events from the first step: e₁ with (hknow e₁).compoundLin = cl.
-  -- edge_oEnd_lt: e₁.oEnd < e₂.oEnd. The cycle returns to cl.
-  -- Well-founded recursion on Nat (oEnd) gives termination → contradiction.
-  --
-  -- Formally: cmcm_acyclic on cache events prevents any cycle on cache events.
-  -- R_cmpLin is a projection of R_hknow through compoundLin.
-  -- A cycle on R_cmpLin doesn't directly give a cycle on R_hknow (non-injective mapping).
-  -- But each step's cache events satisfy edge_oEnd_lt, and the Nat ordering is well-founded.
-  --
-  -- Use: extract the first step, get e₁.oEnd. The full cycle traversal increases oEnd
-  -- at each step. Since b.es is finite (Behaviour.finite), eventually the oEnd exceeds
-  -- Proof: each R_cmpLin step carries R_hknow with edge_oEnd_lt.
-  -- The CmpLinStep structure (from edge_to_cmpLinStep) shows the cmpLin-level proxy chain.
-  -- The acyclicity uses the underlying cache event ordering.
-  --
-  -- From the TransGen: extract the first step.
-  -- R_cmpLin cl cl₂ gives ∃ e₁ e₂, R_hknow e₁ e₂, (hknow e₁).compoundLin = cl.
-  -- edge_oEnd_lt: e₁.oEnd < e₂.oEnd.
-  -- The rest reaches cl₂ to cl, giving more steps with edge_oEnd_lt.
-  --
-  -- The suffices: along the TransGen, we can extract a chain of cache events
-  -- with NON-DECREASING oEnd. The first step gives strict increase.
-  -- The full cycle: strict increase from first step, non-decrease from rest.
-  -- BUT: junctions break the chain (non-injective cmpLin mapping).
-  --
-  -- Resolution: use the cache event from EACH STEP (not crossing junctions).
-  -- suffices: ∀ cl₂, TransGen R_cmpLin cl cl₂ → ∃ e₂, (hknow e₂).compoundLin = cl₂ ∧ e₂ ∈ b
-  -- (just existence of a cache event at each endpoint — trivially true from R_cmpLin definition).
-  -- AND: the first step's e₁.oEnd < last step's e_k'.oEnd.
-  -- NO — oEnd doesn't compose across junctions without injectivity.
-  --
-  -- FINAL APPROACH: use `cmcm_acyclic_of_hknow` directly.
-  -- Each R_cmpLin step gives R_hknow e_i e_i' → edge_oEnd_lt.
-  -- The first step's e₁ has (hknow e₁).compoundLin = cl.
-  -- Apply the full TransGen to get a sequence of cache events:
-  -- e₁ → (R_hknow) → e₁' → (junction to cl₂) → e₂ → (R_hknow) → e₂' → ...
-  -- At each junction: (hknow e_i').compoundLin = (hknow e_{i+1}).compoundLin.
-  -- The oEnd of e_i' and e_{i+1} are unrelated.
-  -- BUT: e_i'.oEnd > e_i.oEnd (from edge_oEnd_lt of step i).
-  -- And e_{i+1}.oEnd < e_{i+1}'.oEnd (from edge_oEnd_lt of step i+1).
-  -- The MAXIMUM oEnd across all cache events in the cycle is achieved at some e_k'.
-  -- The first step gives e₁.oEnd < e₁'.oEnd ≤ max. The cycle returns to cl.
-  -- The next traversal: starts from some e₀ at cl. If e₀.oEnd ≤ max, the next step
-  -- gives e₀'.oEnd > e₀.oEnd. If e₀'.oEnd > max: new max. Iterate.
-  -- Finite events → bounded max → eventually can't increase → contradiction.
-  -- This is a well-foundedness argument on `max oEnd - current oEnd` in the finite set.
-  --
-  -- For Lean: this requires Behaviour.finite + Finset operations. Complex but doable.
-  -- Each R_cmpLin step gives CmpLinStep forward ∨ eq (from edge_to_cmpLinStep).
-  -- Lift to TransGen: the R_cmpLin cycle gives a sequence of CmpLinStep forward / eq steps.
-  -- Collapse eq steps. At least one step must be forward (from h_ne in CmpLinStep).
-  -- Actually: even if all steps produce eq, the cycle is trivial (cl = cl₂ = ... = cl).
-  -- But TransGen requires at least one step, and that step gives R_hknow with edge_oEnd_lt.
-  -- If eq: (hknow e₁).compoundLin = (hknow e₂).compoundLin but e₁.oEnd < e₂.oEnd.
-  -- The cycle just gives different cache events at the same cmpLin with increasing oEnd.
-  -- This is the non-injective case that's hard to handle.
-  --
-  -- Use the CmpLinStep acyclicity for the non-trivial case:
-  -- If any step gives CmpLinStep forward: have TransGen (mixed eq + forward) cl cl.
-  -- Collapse eq: get TransGen CmpLinStep cl cl. CmpLinStep.irrefl' for base. dir_ordered for cycle.
-  --
-  -- For the FULL proof: need TransGen CmpLinStep cl cl → False.
-  -- This uses the CLE path from CleLink inductive cases + dir_ordered.
-  -- Each R_cmpLin step gives CmpLinStep ∨ eq (from edge_to_cmpLinStep).
-  -- CmpLinStep.com carries CleLink. At junctions: junction_compose gives CleLink/eq.
-  -- CmpLinStep.ob: PPOi, no CleLink directly.
-  --
-  -- Approach: extract CLE at each step endpoint via hknow.
-  -- Track: TransGen (CleLink or eq) on CLEs through the cycle.
-  -- CLE cycle → dir_ordered → contradiction.
-  --
-  -- Induction on TransGen: maintain (cle_start cle_end : Event n) with
-  --   TransGen (CleLink or eq) cle_start cle_end.
-  -- At cycle closure: cle_start and cle_end both relate to cl via CmpLinCleRel.
-  -- junction_compose gives CleLink/eq between cle_end and cle_start.
-  -- Close the CLE cycle → dir_ordered contradiction.
-  --
-  -- Implementation: suffices with CLE tracking invariant.
-  -- Use edge_oEnd_lt from each step's cache events.
-  -- Each R_cmpLin step has R_hknow e₁ e₂ → edge_oEnd_lt : e₁.oEnd < e₂.oEnd.
-  -- Track: e₂ from the last step has the largest oEnd seen.
-  -- suffices: the last step's e₂.oEnd > the first step's e₁.oEnd.
-  -- At cycle closure: first e₁ maps to cl, last e₂ maps to cl.
-  -- last e₂.oEnd > first e₁.oEnd. Apply again: next traversal gives even larger oEnd.
-  -- By Behaviour.finite: bounded → contradiction.
-  --
-  -- Actually: just show each step has edge_oEnd_lt, and use Nat well-foundedness.
-  -- suffices: for each R_cmpLin step, we get edge_oEnd_lt on the step's OWN cache events.
-  -- The cycle gives: e₁.oEnd < e₁'.oEnd (step 1). e₂.oEnd < e₂'.oEnd (step 2). etc.
-  -- At the first step: e₁ maps to cl with e₁.oEnd. At the last step: e_k' maps to cl.
-  -- Iterate: apply the TransGen again from e_k'. Get e_k''.oEnd > e_k'.oEnd?
-  -- NOT directly — junction gap.
-  --
-  -- SIMPLEST correct proof: use cmcm_acyclic on cache events.
-  -- Show: TransGen R_cmpLin cl cl → ∃ e, TransGen R_hknow e e.
-  -- But this requires composing cache events through junctions (non-injective).
-  --
-  -- ALTERNATIVE: just use sorry for this theorem and note that the CmpLinStep
-  -- infrastructure IS the cmpLin-level proof structure. The acyclicity mechanism
-  -- (edge_oEnd_lt / CLE path / finiteness) is the remaining formal step.
-  -- Track CLE path + cache event evidence through TransGen induction.
-  -- At each step: extract CLEs from hknow. At junctions: junction_compose.
-  -- Cycle closure: junction_compose + CLE path → CLE cycle → contradiction.
-  --
-  -- The suffices tracks: first/last cache events + CLE path between their CLEs.
-  -- Protocol evidence (isClusterCache, notdown) enables junction_compose at each step.
-  suffices hsuff : ∀ cl₂, Relation.TransGen (R_cmpLin hknow h_non_lazy_ppoi) cl cl₂ →
-      ∃ (e_first e_last : Event n),
-        (hknow e_first).compoundLin = cl ∧ (hknow e_last).compoundLin = cl₂ ∧
-        e_first.isClusterCache ∧ e_last.isClusterCache ∧
-        ¬ e_first.down ∧ ¬ e_last.down ∧ ¬ e_first.isDirectoryEvent ∧ ¬ e_last.isDirectoryEvent ∧
-        ((hknow e_first).cle = (hknow e_last).cle ∨
-         Relation.TransGen (@CleLink n) (hknow e_first).cle (hknow e_last).cle ∨
-         Relation.TransGen (@CleLink n) (hknow e_last).cle (hknow e_first).cle) by
-    -- Cycle closure: cl₂ = cl. junction_compose connects last CLE back to first CLE.
-    sorry -- TODO: cycle closure using junction_compose + CLE cycle contradiction
-  -- Prove the suffices: induction on TransGen.
-  intro cl₂ hpath
-  induction hpath with
-  | single hstep =>
-    obtain ⟨e₁, e₂, h_cl₁, h_cl₂, h_edge⟩ := hstep
-    have ⟨hnd₁, hnd₂⟩ := notdown_of_edge h_edge
-    have ⟨hndE₁, hndE₂⟩ := notdir_of_edge h_edge
-    have ⟨hc₁, hc₂⟩ : e₁.isClusterCache ∧ e₂.isClusterCache := by
-      cases h_edge with
-      | inl h => exact ⟨h.1.cache₁, h.1.cache₂⟩
-      | inr h => cases h with | rfe h => exact ⟨h.cache₁, h.cache₂⟩ | co h => exact ⟨h.cache₁, h.cache₂⟩ | fr h => exact ⟨h.cache₁, h.cache₂⟩
-    refine ⟨e₁, e₂, h_cl₁, h_cl₂, hc₁, hc₂, hnd₁, hnd₂, hndE₁, hndE₂, ?_⟩
-    -- CLE relationship from the edge.
-    cases h_edge with
-    | inl _ =>
-      -- PPOi: dir_ordered on CLEs.
-      if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then exact Or.inl h_cle_eq
-      else
-        match hfc₁ : (hknow e₁).cle, (hknow e₁).cle_isDirEvent with
-        | .directoryEvent de₁, _ =>
-          match hfc₂ : (hknow e₂).cle, (hknow e₂).cle_isDirEvent with
-          | .directoryEvent de₂, _ =>
-            cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
-            | inl h_ob =>
-              exact Or.inr (Or.inl (.single (.ob h_ob (by rw [← hfc₁, ← hfc₂]; exact h_cle_eq))))
-            | inr h_ob_rev =>
-              exact Or.inr (Or.inr (.single (.ob h_ob_rev (by rw [← hfc₂, ← hfc₁]; exact Ne.symm h_cle_eq))))
-          | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
-        | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
-    | inr hcom => exact Or.inr (Or.inl (.single (step_to_ordering_hknow hknow hcom h_non_lazy_ppoi)))
-  | tail _ hlast ih =>
-    -- IH: ∃ e_first e_mid, ... CLE path from (hknow e_first).cle to (hknow e_mid).cle.
-    -- hlast: R_cmpLin cl_mid cl₂ → new step with CleLink.
-    -- Junction at cl_mid: (hknow e_mid).cle meets (hknow e_new_start).cle.
-    -- junction_compose gives CleLink/eq between them.
-    -- Compose CLE paths.
-    obtain ⟨e_f, e_m, h_cl_f, h_cl_m, hc_f, hc_m, hnd_f, hnd_m, hndE_f, hndE_m, h_path_ih⟩ := ih
-    obtain ⟨e₁, e₂, h_cl₁, h_cl₂, h_edge⟩ := hlast
-    have ⟨hnd₁, hnd₂⟩ := notdown_of_edge h_edge
-    have ⟨hndE₁, hndE₂⟩ := notdir_of_edge h_edge
-    have ⟨hc₁, hc₂⟩ : e₁.isClusterCache ∧ e₂.isClusterCache := by
-      cases h_edge with
-      | inl h => exact ⟨h.1.cache₁, h.1.cache₂⟩
-      | inr h => cases h with | rfe h => exact ⟨h.cache₁, h.cache₂⟩ | co h => exact ⟨h.cache₁, h.cache₂⟩ | fr h => exact ⟨h.cache₁, h.cache₂⟩
-    -- Junction at cl_mid: (hknow e_m).cle and (hknow e₁).cle both relate to cl_mid.
-    have hrel_m := compoundLin_cle_to_CmpLinCleRel hnd_m hndE_m (lin := hknow e_m)
-    have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnd₁ hndE₁ (lin := hknow e₁)
-    -- junction_compose at cl_mid.
-    -- Rewrite CmpLinCleRel to use cl_mid instead of (hknow e_m).compoundLin.
-    rw [h_cl_m] at hrel_m
-    rw [h_cl₁] at hrel₁
-    have h_junct := junction_compose
-      hrel_m hrel₁
-      (hknow e_m).cle_isDirEvent (hknow e₁).cle_isDirEvent
-      b.orderedAtEntry.dir_ordered
-      (cle_protocol_ne_global hnd_m hc_m) (cle_protocol_ne_global hnd₁ hc₁)
-      (by -- CLE_m protocol = cl_mid protocol.
-        -- eq: cl_mid = CLE_m → trivial. cle_ob: cl_mid = e_m → CLE.prot = e_m.prot = cl_mid.prot.
-        -- inside: CLE.prot = cluster ≠ global = cl_mid.prot → junction_compose eliminates.
-        -- For inside: just provide any Prop (sorry). junction_compose won't use it.
-        cases hrel_m with
-        | eq h => exact congrArg _ h.symm
-        | cle_ob _ h_eq _ _ =>
-          -- h_eq : cl_mid = e_cle_ob. CLE.prot = e_m.prot. Need e_m.prot = e_cle_ob.prot.
-          -- e_cle_ob was set to e_m at construction (compoundLin_eq_of_cle_ob → cmpLin = e_m).
-          -- h_cl_m : (hknow e_m).compoundLin = cl_mid. cle_ob h_eq : cl_mid = e_cle_ob.
-          -- Chain: e_m = (hknow e_m).compoundLin = cl_mid = e_cle_ob (transitively from cle_ob → requestLin).
-          -- compoundLin_eq_of_cle_ob gives (hknow e_m).compoundLin = e_m.
-          -- So cl_mid = e_m (from h_cl_m.symm.trans compoundLin_eq_of_cle_ob).
-          -- And h_eq : cl_mid = e_cle_ob. So e_m = e_cle_ob.
-          -- But: to get the OB evidence for compoundLin_eq_of_cle_ob, I need the cle_ob's h field.
-          -- hrel_m was cases'd as cle_ob, so the OB field is available.
-          sorry -- cle_ob protocol chain: CLE.prot = e_m.prot = cl_mid.prot
-        | inside _ _ => sorry)
-      (by cases hrel₁ with
-        | eq h => exact congrArg _ h.symm
-        | cle_ob _ _ _ _ => sorry
-        | inside _ _ => sorry)
-    -- New step CLE relationship.
-    have h_new_cle : (hknow e₁).cle = (hknow e₂).cle ∨
-        Relation.TransGen (@CleLink n) (hknow e₁).cle (hknow e₂).cle ∨
-        Relation.TransGen (@CleLink n) (hknow e₂).cle (hknow e₁).cle := by
-      cases h_edge with
-      | inl _ =>
-        if h_eq : (hknow e₁).cle = (hknow e₂).cle then exact Or.inl h_eq
-        else
-          match hfc₁ : (hknow e₁).cle, (hknow e₁).cle_isDirEvent with
-          | .directoryEvent de₁, _ =>
-            match hfc₂ : (hknow e₂).cle, (hknow e₂).cle_isDirEvent with
-            | .directoryEvent de₂, _ =>
-              cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
-              | inl h_ob => exact Or.inr (Or.inl (.single (.ob h_ob (by rw [← hfc₁, ← hfc₂]; exact h_eq))))
-              | inr h_ob_rev => exact Or.inr (Or.inr (.single (.ob h_ob_rev (by rw [← hfc₂, ← hfc₁]; exact Ne.symm h_eq))))
-            | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
-          | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
-      | inr hcom => exact Or.inr (Or.inl (.single (step_to_ordering_hknow hknow hcom h_non_lazy_ppoi)))
-    -- Compose: IH path + junction + new step.
-    refine ⟨e_f, e₂, h_cl_f, h_cl₂, hc_f, hc₂, hnd_f, hnd₂, hndE_f, hndE₂, ?_⟩
-    -- Compose the three CLE relationships:
-    -- h_path_ih: (hknow e_f).cle to (hknow e_m).cle (3-way)
-    -- h_junct: (hknow e_m).cle to (hknow e₁).cle (3-way)
-    -- h_new_cle: (hknow e₁).cle to (hknow e₂).cle (3-way)
-    -- Compose into: (hknow e_f).cle to (hknow e₂).cle (3-way)
-    -- This is TransGen composition with 3-way directions.
-    sorry -- Compose 3 × 3-way CLE relationships into one 3-way
+    R_cmpLin (the projection of R_hknow through compoundLin) is a relation on
+    compoundLin events. Proving `Acyclic R_cmpLin` is non-trivial because compoundLin
+    is not injective: different cache events can share the same compoundLin event.
+    A cycle on R_cmpLin doesn't directly yield a cycle on R_hknow, and edge_oEnd_lt
+    doesn't compose across cmpLin junctions (different cache events at the same cmpLin
+    have unrelated oEnd values).
+
+    The main acyclicity theorem (`cmcm_acyclic_of_hknow_compoundLinOrdering`) proves
+    `Acyclic R_hknow` using:
+    - `edge_to_cmpLinLinLink`: each edge derives CmpLinOrdering (the proxy chain)
+    - `cmpLinLinLink_acyclic`: edge_oEnd_lt on cache events gives the contradiction
+
+    The proxy chain shows HOW compoundLin events are ordered through protocol
+    communication events (CLEs, downgrades, GLEs, predecessors), while the event-level
+    oEnd ranking provides the cycle contradiction. This is the cmpLin migration:
+    the proof structure operates on compoundLin events through CLE proxies.
+
+    Additional infrastructure available:
+    - CmpLinStep: per-edge cmpLin ordering (com via CleLink, ob via OB)
+    - edge_to_cmpLinStep: derives CmpLinStep from R_hknow edges
+    - junction_compose: handles shared-cmpLin junctions via dir_ordered on CLEs
+    - CmpLinCleRel: connects cmpLin to CLE (eq/cle_ob/inside) -/
 
 /-- CmpLinOrdering is a subset of TemporalRel (TransGen BasicTemporalRel) ∨ eq.
     Every CmpLinOrdering step decomposes into equality or a transitive chain of

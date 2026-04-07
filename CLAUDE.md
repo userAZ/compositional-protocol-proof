@@ -196,13 +196,22 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 ### TODO — cmpLin migration (2026-04-06)
 1. **DONE: PPOi `cmpLin_ordered` derived** from NonLazyPPOi.
 2. **DONE: `cmpLin_ordered` field removed** from rfe/co/fr. Derived via `com_cmpLin_ordered`. NOTE: rfe is based on rf — the rf definition is the foundation.
-3. **IN PROGRESS: `cmpLinLinLink` defined with LinLink.irrefl' (h_ne restored).**
+3. **IN PROGRESS: `cmpLinLinLink` acyclicity via protocol proxy chain.**
    - `cmpLinLinLink` (Proof.lean) bundles R_hknow edge + CmpLinOrdering proxy chain.
-   - `LinLink.irrefl'` proves `LinLink l l → False` (h_ne restored to proxy/ppoProxy constructors).
    - `edge_to_cmpLinLinLink` lifts every R_hknow edge to cmpLinLinLink.
-   - `cmpLinLinLink_acyclic` proves acyclicity via event_oEnd_lt on the .edge component.
    - `cmcm_acyclic_of_hknow_compoundLinOrdering` lifts R_hknow cycle to cmpLinLinLink cycle → contradiction.
    - Theorem flow: `cmpLinLinLink_acyclic` → `cmcm_acyclic_of_hknow_compoundLinOrdering` → `cmcm_acyclic` → `cmcm`.
+   - **CURRENT: Replace edge_oEnd_lt with protocol proxy chain acyclicity.**
+     - Each step IS a TransGen of {OB, Encap, EncapBy, finishesBefore} through cmpLin → CLE → GLE → ... → CLE → cmpLin.
+     - Acyclicity from TWO LEVELS of protocol ordering:
+       (a) GLE level: gleOrdering.Cases gives GLE₁ OB GLE₂ or GLE₁ = GLE₂ (NEVER backward). Cross-cluster edges always advance GLE.
+       (b) CLE level (within same GLE): LinChain (OB + Encap) on CLEs, acyclic via oStart_lt.
+     - Combined: lex(GLE.oStart, CLE.oStart) strictly increases at each step.
+     - edge_oEnd_lt was raw arithmetic — it composed trivially but hid the protocol mechanism entirely.
+     - **Key gap found**: CleLink.obFinishBefore (cross-cluster FR) doesn't give CLE₁.oStart < CLE₂.oStart. But gleOrdering.Cases for COM edges guarantees GLE forward progress for this case.
+     - **PPOi GLE ordering**: need to show GLE₁ ≤ GLE₂ for same-cache PPOi. Both CLEs at same cluster → GLEs should be forward-ordered (CLE encaps gcache → GLE inside CLE → CLE₁ OB CLE₂ forces GLE₁ before GLE₂).
+   - `gle_isDirEvent` theorem added to Rf.lean: GLEs are directory events (from dirAccessOfRequest).
+   - `edge_gle_cle_lex_lt`: 1 sorry — the main theorem showing each edge strictly increases lex(GLE.oStart, CLE.oStart).
    - **3 sorry's in `cmpLin_ne_of_event_fb` dirLin×dirLin (2 orderAfterDir + 1 getGlobalCachePerms). Sorry's 1-2 (orderAfterDir) are unreachable: cle_ob arises ONLY from requestLin, not orderAfterDir, so h_ne_of_cle_ob never calls cmpLin_ne_of_event_fb for orderAfterDir cases. Sorry 3 (getGlobalCachePerms×getGlobalCachePerms) is only reachable from obFinishBefore CleLink case. Needs global-level protocol injectivity.** The sorry is `cmpLin₁ ≠ cmpLin₂` when both events have dirLin linearization. Proven sub-cases: requestLin×requestLin (oEnd), requestLin×dirLin-eq (isDirectoryEvent), requestLin×dirLin-inside (cluster vs global protocol), dirLin-eq×dirLin-eq encapDir×encapDir (shared CLE eReq injectivity via eq_of_shared_encapDir_cle), encapDir×orderAfterDir temporal contradiction, dirLin-eq×dirLin-inside protocol (CLE.protocol = cluster ≠ global). Remaining: orderAfterDir₁×encapDir₂ (e₂ = successor, genuine shared CLE possible but h_ne from temporal if CLE OB or from eq_of_shared_encapDir_cle variant), orderAfterDir₁×orderAfterDir₂ (both successors encapsulate same CLE), getGlobalCachePerms×getGlobalCachePerms (both at global level).
    - `temporalRel_of_eq_cle_and_rels` returns `(TemporalRel ∧ h_ne) ∨ eq ∨ (TemporalRel ∧ h_ne)` — h_ne derived from temporal chain for 6/8 cases (OB/Encap/EncapBy at self → oWellFormed contradiction), fallback to `cmpLin_ne_of_event_fb` for cle_ob×cle_ob and inside×inside.
    - `notdir_of_edge` derives ¬isDirectoryEvent from isClusterCache evidence.
@@ -269,6 +278,22 @@ Prove `acyclic(PPOi ∪ rfe ∪ fr ∪ co)` in `CMCM/Herd/Proof.lean`.
 - **The proxy chain IS the RF/CO/FR definitions drawn out.** Read the actual RF def (`Behaviour.readsFrom.cases`). The communication cases describe the exact proxy chains. Mirror them in the proof. Don't invent abstract alternatives.
 - **cmpLin events are NOT directly constrained.** Different cache events at different caches/clusters have no direct OB/Encap/etc constraint. They're connected ONLY through proxy events (downgrades, CLE, GLE, predecessor, successor). NEVER assume cmpLin₁.oEnd < cmpLin₂.oEnd as a field — DERIVE it from the proxy chain.
 - **rfe is based on rf.** The rf definition is the foundation. rfe adds "external" (different cache). Always think about rf first.
+
+### Lessons learned (acyclicity via protocol proxy chain, 2026-04-06)
+- **edge_oEnd_lt is raw arithmetic with NO protocol meaning — NEVER USE IT.** e₁.oEnd < e₂.oEnd on cache events at different caches says nothing about why the protocol prevents cycles. It composed trivially (Nat.lt_trans) which masked the actual protocol mechanism. I forgot this lesson MULTIPLE TIMES and kept reverting to oEnd. NEVER use edge_oEnd_lt as the acyclicity mechanism. The proof must use the protocol proxy chain.
+- **The acyclicity proof IS the protocol proxy chain.** Each clll step IS a TransGen of {OB, Encap, EncapBy, finishesBefore} through cmpLin → CLE → GLE → ... → CLE → cmpLin. The chain goes through NAMED protocol events. The acyclicity IS the chain's irreflexivity. The chain is the proof. Not numbers derived from the chain — THE CHAIN ITSELF.
+- **cmpLin must be part of the chain.** The full chain: cmpLin₁ →(CmpLinCleRel)→ CLE₁ →(CleLink through proxies, possibly GLE)→ CLE₂ →(CmpLinCleRel)→ cmpLin₂. Not just CLEs. Not just numbers. The FULL proxy chain connecting cmpLin through CLE through GLE is the proof.
+- **Prioritize {OB, Encap, EncapBy} over finishesBefore.** finishesBefore is the WEAKEST temporal relation — it only says oEnd₁ < oEnd₂ with no oStart constraint. OB, Encap, EncapBy carry FULL interval information and are the primary protocol relations. Use finishesBefore only when OB/Encap/EncapBy are genuinely insufficient (cross-cluster cases where only oEnd bound is available). Always look for OB/Encap/EncapBy FIRST.
+- **Two-level protocol ordering for acyclicity:**
+  (a) GLE level: gleOrdering.Cases gives GLE₁ OB GLE₂ or GLE₁ = GLE₂ (NEVER backward for COM edges). Cross-cluster edges advance GLE.
+  (b) CLE level (within same GLE): LinChain (OB + Encap on CLEs), acyclic via oStart_lt.
+  The chain goes through cmpLin → CLE → GLE with OB/Encap/EncapBy between these events. The acyclicity follows from the chain structure, not from a separate numeric ranking.
+- **CleLink.obFinishBefore (cross-cluster) doesn't give CLE oStart increase.** But gleOrdering.Cases for COM guarantees GLE forward progress for this case. The GLE level handles cross-cluster; the CLE level handles same-cluster.
+- **TransGen {OB, Encap, EncapBy, finishesBefore} is NOT acyclic in general.** Encap + finishesBefore can cycle (l₁ encaps l₂ trivially gives finishesBefore(l₂, l₁)). BUT the specific chains from the protocol are acyclic because they go through the two-level GLE/CLE structure.
+- **LinChain (TransGen LinStep = ob | encap) IS acyclic** via oStart_lt. This is the CLE-level ranking within same GLE. All non-obFinishBefore CleLink constructors decompose to LinChain.
+- **obEndLt and encapObEndLt: dir_ordered forces forward direction.** If l₂ OB l₁ for these, the temporal chain gives p.oEnd < p.oStart contradiction. So l₁ OB l₂ must hold → LinStep.ob.
+- **Single-step irreflexivity (h_ne) is NOT transitive-closure irreflexivity.** CleLink.irrefl (h_ne per constructor) proves CleLink l l → False. But TransGen CleLink l l needs the chain structure to show the cycle can't close. The oEnd_lt approach bypassed this with arithmetic; the correct approach uses the protocol proxy chain.
+- **CONSULT THIS SECTION AS /philosophy BEFORE EVERY PROOF STEP.** I have repeatedly forgotten these lessons and reverted to arithmetic shortcuts. Before writing ANY proof code for acyclicity: re-read this section. Ask: "Am I using the protocol chain or a numeric shortcut?" If numeric shortcut → STOP and use the chain.
 
 ### Lessons learned (cmpLin h_ne derivation, 2026-04-06)
 - **For cmpLin h_ne: case-split on linearizationOfEvent, not compoundLin_event_rel.** The linearizationOfEvent gives requestLin (cmpLin = e) or dirLin (cmpLin at directory level). This is cleaner than the 3-way from compoundLin_event_rel because requestLin directly gives cmpLin = e (the cache event).

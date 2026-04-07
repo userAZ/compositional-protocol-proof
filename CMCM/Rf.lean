@@ -144,6 +144,13 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.cle_isDirEvent
     : Event.isDirectoryEvent n lin.cle :=
   lin.hreq's_dir_access.choose_spec.2.isDirEvent
 
+/-- GLE is a directory event. -/
+theorem CompoundProtocol.globalLinearizationEventOfRequest.gle_isDirEvent
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    : Event.isDirectoryEvent n lin.gle :=
+  lin.hreq's_global_lin.choose_spec.2.isDirEvent
+
 /-- CLE's dirAccessOfRequest. -/
 noncomputable abbrev CompoundProtocol.globalLinearizationEventOfRequest.cle_dirAccess
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
