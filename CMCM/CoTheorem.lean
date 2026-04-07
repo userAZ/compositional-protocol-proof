@@ -77,7 +77,7 @@ theorem co_ordering_holds
       -- cache_ordered gives e₁ OB e₂ ∨ e₂ OB e₁. h_not_reverse eliminates reverse.
       have h_e₁_ob_e₂ : e₁.OrderedBefore n e₂ :=
         cache_events_ordered_from_not_reverse (b := b) h_cache₁ h_cache₂ h_notdown₁ h_notdown₂ h_not_reverse
-      exact .sameCache w_r_cle_eq h_e₁_ob_e₂
+      exact .sameCache w_r_cle_eq same_gle h_e₁_ob_e₂
     | otherCases other =>
       -- Same GLE → same protocol (same_gle_implies_same_protocol).
       exact .sameClusDiffCache (same_gle_implies_same_protocol w₁_cmpLin w₂_cmpLin same_gle) (Or.inl same_gle) other

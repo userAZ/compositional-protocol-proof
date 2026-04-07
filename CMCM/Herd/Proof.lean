@@ -69,7 +69,7 @@ theorem rfe_irrefl {lin₁ lin₂ : CompoundProtocol.globalLinearizationEventOfR
 theorem co_irrefl {lin₁ lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (h : Herd.co lin₁ lin₂) : False := by
   cases h.comm with
-  | sameCache _ hob => exact Event.contradiction_of_reflexive_ordered_before n hob
+  | sameCache _ _ hob => exact Event.contradiction_of_reflexive_ordered_before n hob
   | sameClusDiffCache _ _ cle_ord =>
     cases cle_ord with
     | wImmPredRCle w =>
@@ -205,7 +205,7 @@ theorem co_step_to_ordering
     (h : Herd.co lin₁ lin₂)
     : @CleLink n lin₁.cle lin₂.cle := by
   cases h.comm with
-  | sameCache same_cle cache_ob =>
+  | sameCache same_cle _ cache_ob =>
     have hda₁ := lin₁.hreq's_dir_access.choose_spec.2
     have hda₂ := lin₂.hreq's_dir_access.choose_spec.2
     cases hda₁ with
@@ -277,7 +277,7 @@ private lemma co_step_oEnd_le
     (h : Herd.co lin₁ lin₂)
     : Event.oEnd n lin₁.cle ≤ Event.oEnd n lin₂.cle := by
   cases h.comm with
-  | sameCache same_cle _ =>
+  | sameCache same_cle _ _ =>
     exact Nat.le_of_eq (congrArg (Event.oEnd n) same_cle)
   | sameClusDiffCache _ _ cle_ord =>
     cases cle_ord with
@@ -375,7 +375,7 @@ private lemma co_chain_cross_cluster_downgrade
     -- Single co step: co(e_w, c). Since protocols differ: must be diffClus.
     obtain ⟨l₁_co, l₂_co, h_co⟩ := h_co_ex
     cases h_co.comm with
-    | sameCache same_cle _ =>
+    | sameCache same_cle _ _ =>
       -- sameCache → same CLE → same protocol. But h_diff_prot says diff protocol. Contradiction.
       exfalso; apply h_diff_prot
       unfold Event.sameProtocol
@@ -436,7 +436,7 @@ private lemma co_chain_cross_cluster_downgrade
             (show e_w.protocol = b_mid.protocol from h_mid_prot).trans h))
       -- h_last.comm must be diffClus
       cases h_last.comm with
-      | sameCache same_cle _ =>
+      | sameCache same_cle _ _ =>
         exfalso; apply h_mid_diff_c; unfold Event.sameProtocol
         have h1 := write_cle_protocol_eq_write_protocol l₁_last_t
         have h2 := write_cle_protocol_eq_write_protocol l₂_last_t
@@ -1509,7 +1509,7 @@ private theorem com_self_false
   | fr h => exact event_write_read_false h.write h.read
   | co h =>
     cases h.comm with
-    | sameCache _ cache_ob =>
+    | sameCache _ _ cache_ob =>
       exact Event.contradiction_of_reflexive_ordered_before n cache_ob
     | sameClusDiffCache _ _ cle_ordering =>
       -- Both w₁_cmpLin and w₂_cmpLin are globalLinearizationEventOfRequest for e.
@@ -2691,6 +2691,7 @@ inductive ProtoForwardStep {n : ℕ}
       - inside both sides: cmpLin₁ →(EncapBy)→ CLE →(Encap)→ cmpLin₂ -/
   | co_sameCache
       (sameCle : (hknow e₁).cle = (hknow e₂).cle)
+      (sameGle : (hknow e₁).gle = (hknow e₂).gle)
       (e₁_ob_e₂ : e₁.OrderedBefore n e₂)
       (w₁CmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
       (w₂CmpLinRel : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
@@ -2866,7 +2867,7 @@ theorem ProtoForwardStep.chain
   | rf_sameGle_sameCLE sameCle_gle sameCle _ writerRel readerRel =>
     -- Same CLE: use temporalRel_of_cleOB_and_cmpLinCleRels with eq rewritten, or derive eq.
     exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels (sameCle ▸ sorry) writerRel readerRel)
-  | co_sameCache sameCle _ w₁Rel w₂Rel =>
+  | co_sameCache sameCle _ _ w₁Rel w₂Rel =>
     -- Same CLE + event OB. Case-split CmpLinCleRel pairs.
     exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels (sameCle ▸ sorry) w₁Rel w₂Rel)
   | co_sameClusDiffCache _ cleOB w₁Rel w₂Rel =>
@@ -2943,12 +2944,8 @@ theorem ProtoForwardStep.level
   | rf_crossGle gleOB _ _ => exact .gleOB gleOB
   | rf_sameGle_cleOB sameGle cleOB _ _ => exact .cleOB sameGle cleOB
   | rf_sameGle_sameCLE _ _ obLevel _ _ => exact obLevel
-  | co_sameCache sameCle e₁_ob_e₂ _ _ =>
-    if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
-      exact .eventOB h_gle_eq sameCle e₁_ob_e₂
-    else
-      exact .gleOB (derive_gle_ob' b.orderedAtEntry.dir_ordered h_gle_eq
-        (Nat.lt_trans e₁_ob_e₂ (Event.oWellFormed n e₂)))
+  | co_sameCache sameCle sameGle_co e₁_ob_e₂ _ _ =>
+    exact .eventOB sameGle_co sameCle e₁_ob_e₂
   | co_sameClusDiffCache sameGle cleOB _ _ => exact .cleOB sameGle cleOB
   | co_crossCluster gleOB _ _ => exact .gleOB gleOB
   | fr_sameCache _ obLevel _ _ => exact obLevel
@@ -3054,8 +3051,8 @@ private theorem edge_to_proto_forward
       have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnd₁ hndE₁ (lin := hknow e₁)
       have hrel₂ := compoundLin_cle_to_CmpLinCleRel hnd₂ hndE₂ (lin := hknow e₂)
       cases hco.comm with
-      | sameCache sameCle e₁_ob_e₂ =>
-        exact .co_sameCache sameCle e₁_ob_e₂ hrel₁ hrel₂
+      | sameCache sameCle sameGle_co e₁_ob_e₂ =>
+        exact .co_sameCache sameCle sameGle_co e₁_ob_e₂ hrel₁ hrel₂
       | sameClusDiffCache sameProt gleEqOrOb cleOrdering =>
         if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
           -- sameClusDiffCache + same CLE → contradictory.
@@ -3157,7 +3154,7 @@ theorem ProtoForwardStep.startCmpLinRel
   | rf_crossGle _ rel _ => exact rel
   | rf_sameGle_cleOB _ _ rel _ => exact rel
   | rf_sameGle_sameCLE _ _ _ rel _ => exact rel
-  | co_sameCache _ _ rel _ => exact rel
+  | co_sameCache _ _ _ rel _ => exact rel
   | co_sameClusDiffCache _ _ rel _ => exact rel
   | co_crossCluster _ rel _ => exact rel
   | fr_sameCache _ _ rel _ => exact rel
@@ -3179,7 +3176,7 @@ theorem ProtoForwardStep.endCmpLinRel
   | rf_crossGle _ _ rel => exact rel
   | rf_sameGle_cleOB _ _ _ rel => exact rel
   | rf_sameGle_sameCLE _ _ _ _ rel => exact rel
-  | co_sameCache _ _ _ rel => exact rel
+  | co_sameCache _ _ _ _ rel => exact rel
   | co_sameClusDiffCache _ _ _ rel => exact rel
   | co_crossCluster _ _ rel => exact rel
   | fr_sameCache _ _ _ rel => exact rel
@@ -3234,7 +3231,7 @@ private theorem proto_forward_trans
   cases h_level with
   | gleOB gleOB => exact .rf_crossGle gleOB e₁_cmpLinRel e₃_cmpLinRel
   | cleOB sameGle cleOB => exact .rf_sameGle_cleOB sameGle cleOB e₁_cmpLinRel e₃_cmpLinRel
-  | eventOB sameGle sameCle eventOB => exact .co_sameCache sameCle eventOB e₁_cmpLinRel e₃_cmpLinRel
+  | eventOB sameGle sameCle eventOB => exact .co_sameCache sameCle (by sorry) eventOB e₁_cmpLinRel e₃_cmpLinRel
 
 /-- ProtoForwardStep is irreflexive: self-OB at any level contradicts well-formedness. -/
 private theorem proto_forward_irrefl

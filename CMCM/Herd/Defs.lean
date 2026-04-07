@@ -348,6 +348,7 @@ inductive co.ordering
       serialized by the cache. Evidence: e₁ OB e₂ + same CLE. -/
   | sameCache
     (same_cle : w₁_cmpLin.cle = w₂_cmpLin.cle)
+    (same_gle : w₁_cmpLin.gle = w₂_cmpLin.gle)
     (cache_ob : e₁.OrderedBefore n e₂)
   /-- Same cluster, different cache: cluster directory serializes the writes.
       The second write's request triggers a downgrade at the first write's cache.
