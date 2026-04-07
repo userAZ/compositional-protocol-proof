@@ -2617,45 +2617,54 @@ theorem edge_to_cmpLinLinLink
     : cmpLinLinLink hknow h_non_lazy_ppoi e₁ e₂ :=
   ⟨h, edge_cmpLin_ordered h_non_lazy_ppoi h⟩
 
-/-- Protocol forward step: each R_hknow edge advances at least one protocol level.
-    Three levels of protocol ordering, from global to local:
-    1. GLE OB: global directory processes GLE₁ before GLE₂ (cross-cluster communication)
-    2. CLE OB: cluster directory processes CLE₁ before CLE₂ (within-cluster, from CleLink)
-    3. Event OB: cache serializes e₁ before e₂ (within-CLE, from cache ordering)
+/-- The OB level of a ProtoForwardStep: which protocol hierarchy level advances.
+    Used for composition (proto_forward_trans) — the highest-level OB dominates. -/
+inductive ProtoOBLevel {n : ℕ}
+    {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
+    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
+    (e₁ e₂ : Event n) : Prop
+  | gleOB (h : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
+  | cleOB (h_gle_eq : (hknow e₁).gle = (hknow e₂).gle)
+          (h : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle)
+  | eventOB (h_gle_eq : (hknow e₁).gle = (hknow e₂).gle)
+            (h_cle_eq : (hknow e₁).cle = (hknow e₂).cle)
+            (h : e₁.OrderedBefore n e₂)
 
-    Cases derived from protocol definitions:
-    - RF wObRGle → gleOB (global forward from gleOrdering.Cases)
-    - RF wEqRGle → cleOB (cluster forward from CleLink sub-cases)
-    - CO gleOrdering.sameGle → cleOB; CO gleOrdering.wObRGle → gleOB
-    - CO sameCache → eventOB (cache serialization with e₁ OB e₂)
-    - FR sameCache/sameClusDiffCache → cleOB; FR diffCluster → gleOB
-    - FR sameCLE → eventOB (same CLE, cache-level OB)
-    - PPOi → gleOB or cleOB (from program order + compound protocol structure)
+/-- Protocol forward step: each R_hknow edge draws an irreflexive chain of
+    {OB, Encap, EncapBy, finishesBefore} through the cmpLin events, going through
+    named protocol proxy events (CLE, GLE, downgrades, predecessors).
 
-    Each level's OB is transitive and irreflexive (from event well-formedness).
-    A cycle composes OB steps → self-OB at some level → contradiction. -/
+    Cases derived from the RF/CO/FR/PPOi protocol definitions.
+    Each constructor carries:
+    1. The TemporalRel chain between cmpLin₁ and cmpLin₂ (the proof content)
+    2. The OB level (GLE/CLE/event) for acyclicity composition
+    3. Named proxy events from the specific protocol scenario -/
 inductive ProtoForwardStep {n : ℕ}
     {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (e₁ e₂ : Event n) : Prop
-  /-- Global forward: GLE₁ OB GLE₂. From gleOrdering.Cases.wObRGle.
-      Protocol meaning: the global directory processes e₁'s request before e₂'s.
-      Chain: cmpLin₁ →{OB,Encap,EncapBy}→ ... → GLE₁ →(OB)→ GLE₂ → ... →{OB,Encap,EncapBy}→ cmpLin₂ -/
-  | gleOB (h_gle_ob : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
-          (h_chain : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin)
-  /-- Cluster forward: same GLE, CLE₁ OB CLE₂. From CleLink within same cluster.
-      Protocol meaning: same global event, cluster directory processes e₁'s before e₂'s.
-      Chain: cmpLin₁ →{OB,Encap,EncapBy}→ CLE₁ →(OB)→ CLE₂ →{OB,Encap,EncapBy}→ cmpLin₂ -/
-  | cleOB (h_gle_eq : (hknow e₁).gle = (hknow e₂).gle)
-          (h_cle_ob : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle)
-          (h_chain : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin)
-  /-- Cache forward: same GLE, same CLE, e₁ OB e₂. From cache serialization.
-      Protocol meaning: same directory events, cache serializes e₁ before e₂.
-      Chain: cmpLin₁ →{OB,Encap,EncapBy}→ CLE →{OB,Encap,EncapBy}→ cmpLin₂ (via e₁ OB e₂) -/
-  | eventOB (h_gle_eq : (hknow e₁).gle = (hknow e₂).gle)
-            (h_cle_eq : (hknow e₁).cle = (hknow e₂).cle)
-            (h_event_ob : e₁.OrderedBefore n e₂)
-            (h_chain : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin)
+  /-- PPOi: program order at same cache. cmpLin₁ OB cmpLin₂ directly from NonLazyPPOi.
+      Chain: cmpLin₁ →(OB)→ cmpLin₂ -/
+  | ppoi (h_cmpLin_ob : (hknow e₁).compoundLin.OrderedBefore n (hknow e₂).compoundLin)
+         (h_level : ProtoOBLevel hknow e₁ e₂)
+  /-- RF/CO cross-GLE: GLE₁ OB GLE₂ (from gleOrdering.Cases.wObRGle).
+      Chain: cmpLin₁ →{EncapBy,OB}→ CLE₁ →{Encap,OB}→ GLE₁ →(OB)→ GLE₂ →{EncapBy,OB}→ CLE₂ →{Encap,OB}→ cmpLin₂
+      Covers: RF wObRGle, CO diffClus, FR diffCluster_* -/
+  | comGleOB (h_gle_ob : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
+             (h_chain : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin)
+  /-- RF/CO same-GLE, CLE₁ OB CLE₂: same cluster directory ordering.
+      Chain: cmpLin₁ →{EncapBy,OB}→ CLE₁ →(OB)→ CLE₂ →{Encap,OB}→ cmpLin₂
+      Covers: RF wEqRGle with CLE OB, CO sameClusDiffCache, FR sameCache/sameClusDiffCache -/
+  | comCleOB (h_gle_eq : (hknow e₁).gle = (hknow e₂).gle)
+             (h_cle_ob : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle)
+             (h_chain : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin)
+  /-- CO sameCache / FR sameCLE: same GLE, same CLE, e₁ OB e₂.
+      Chain: cmpLin₁ →{EncapBy,OB}→ CLE →{Encap,OB}→ cmpLin₂ (via e₁ OB e₂)
+      Covers: CO sameCache, FR sameCLE -/
+  | comEventOB (h_gle_eq : (hknow e₁).gle = (hknow e₂).gle)
+               (h_cle_eq : (hknow e₁).cle = (hknow e₂).cle)
+               (h_event_ob : e₁.OrderedBefore n e₂)
+               (h_chain : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin)
 
 /-- Extract the TemporalRel chain between cmpLin events from any ProtoForwardStep. -/
 theorem ProtoForwardStep.chain
@@ -2663,9 +2672,21 @@ theorem ProtoForwardStep.chain
     {e₁ e₂ : Event n}
     (h : ProtoForwardStep hknow e₁ e₂) : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin := by
   cases h with
-  | gleOB _ h => exact h
-  | cleOB _ _ h => exact h
-  | eventOB _ _ _ h => exact h
+  | ppoi h_ob h_level => exact .single (.ob h_ob)
+  | comGleOB _ h => exact h
+  | comCleOB _ _ h => exact h
+  | comEventOB _ _ _ h => exact h
+
+/-- Extract the OB level from any ProtoForwardStep. -/
+theorem ProtoForwardStep.level
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n}
+    (h : ProtoForwardStep hknow e₁ e₂) : ProtoOBLevel hknow e₁ e₂ := by
+  cases h with
+  | ppoi _ h_level => exact h_level
+  | comGleOB h _ => exact .gleOB h
+  | comCleOB h_eq h_ob _ => exact .cleOB h_eq h_ob
+  | comEventOB h_eq₁ h_eq₂ h_ob _ => exact .eventOB h_eq₁ h_eq₂ h_ob
 
 /-- Each R_hknow edge gives a ProtoForwardStep.
     The proof traces through the protocol definitions (RF/CO/FR/PPOi) to extract
@@ -2688,10 +2709,10 @@ private theorem edge_to_proto_forward
       cases hrfe.readsFrom with
       | wObRGle h_gle_ob _ =>
         -- GLE₁ OB GLE₂: global forward. Build TemporalRel chain through protocol proxies.
-        exact .gleOB h_gle_ob (by sorry)
+        exact .comGleOB h_gle_ob (by sorry)
       | wEqRGle h_gle_eq _ _ =>
         -- Same GLE, same cluster → CLE₁ OB CLE₂. Build chain through CLE proxies.
-        exact .cleOB h_gle_eq (by sorry) (by sorry)
+        exact .comCleOB h_gle_eq (by sorry) (by sorry)
     | co hco =>
       -- CO: case-split on co.ordering for GLE/CLE/event OB.
       cases hco.comm with
@@ -2721,48 +2742,58 @@ private theorem ob_trans {a b c : Event n}
 private theorem ob_irrefl {e : Event n} (h : e.OrderedBefore n e) : False :=
   Nat.lt_irrefl _ (Nat.lt_trans h (Event.oWellFormed n e))
 
-/-- ProtoForwardStep composes: the result is a ProtoForwardStep at the same or higher level.
-    GLE OB + anything = GLE OB (global level dominates).
-    CLE OB + CLE OB = CLE OB (within same GLE, OB transitive).
-    Event OB + Event OB = Event OB (within same CLE, OB transitive). -/
+/-- ProtoOBLevel composes transitively. -/
+private theorem proto_ob_level_trans
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ e₃ : Event n}
+    (h₁ : ProtoOBLevel hknow e₁ e₂) (h₂ : ProtoOBLevel hknow e₂ e₃)
+    : ProtoOBLevel hknow e₁ e₃ := by
+  cases h₁ with
+  | gleOB h₁ =>
+    cases h₂ with
+    | gleOB h₂ => exact .gleOB (ob_trans h₁ h₂)
+    | cleOB h₂_eq _ => exact .gleOB (h₂_eq ▸ h₁)
+    | eventOB h₂_eq _ _ => exact .gleOB (h₂_eq ▸ h₁)
+  | cleOB h₁_eq h₁ =>
+    cases h₂ with
+    | gleOB h₂ => exact .gleOB (h₁_eq ▸ h₂)
+    | cleOB h₂_eq h₂ => exact .cleOB (h₁_eq.trans h₂_eq) (ob_trans h₁ h₂)
+    | eventOB h₂_eq h₂_cle _ => exact .cleOB (h₁_eq.trans h₂_eq) (h₂_cle ▸ h₁)
+  | eventOB h₁_eq h₁_cle h₁ =>
+    cases h₂ with
+    | gleOB h₂ => exact .gleOB (h₁_eq ▸ h₂)
+    | cleOB h₂_eq h₂ => exact .cleOB (h₁_eq.trans h₂_eq) (h₁_cle ▸ h₂)
+    | eventOB h₂_eq h₂_cle h₂ => exact .eventOB (h₁_eq.trans h₂_eq) (h₁_cle.trans h₂_cle) (ob_trans h₁ h₂)
+
+/-- ProtoOBLevel is irreflexive. -/
+private theorem proto_ob_level_irrefl
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e : Event n} (h : ProtoOBLevel hknow e e) : False := by
+  cases h with
+  | gleOB h => exact ob_irrefl h
+  | cleOB _ h => exact ob_irrefl h
+  | eventOB _ _ h => exact ob_irrefl h
+
+/-- ProtoForwardStep composes: chain via TransGen.trans, OB level via proto_ob_level_trans. -/
 private theorem proto_forward_trans
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ e₃ : Event n}
     (h₁ : ProtoForwardStep hknow e₁ e₂) (h₂ : ProtoForwardStep hknow e₂ e₃)
     : ProtoForwardStep hknow e₁ e₃ := by
-  -- Compose: the TemporalRel chains compose via TransGen.trans.
-  -- The GLE/CLE OB levels compose via ob_trans or eq propagation.
   have h_chain := Relation.TransGen.trans h₁.chain h₂.chain
-  cases h₁ with
-  | gleOB h₁_gle _ =>
-    cases h₂ with
-    | gleOB h₂_gle _ => exact .gleOB (ob_trans h₁_gle h₂_gle) h_chain
-    | cleOB h₂_gle_eq _ _ => exact .gleOB (h₂_gle_eq ▸ h₁_gle) h_chain
-    | eventOB h₂_gle_eq _ _ _ => exact .gleOB (h₂_gle_eq ▸ h₁_gle) h_chain
-  | cleOB h₁_gle_eq h₁_cle _ =>
-    cases h₂ with
-    | gleOB h₂_gle _ => exact .gleOB (h₁_gle_eq ▸ h₂_gle) h_chain
-    | cleOB h₂_gle_eq h₂_cle _ =>
-      exact .cleOB (h₁_gle_eq.trans h₂_gle_eq) (ob_trans h₁_cle h₂_cle) h_chain
-    | eventOB h₂_gle_eq h₂_cle_eq _ _ =>
-      exact .cleOB (h₁_gle_eq.trans h₂_gle_eq) (h₂_cle_eq ▸ h₁_cle) h_chain
-  | eventOB h₁_gle_eq h₁_cle_eq h₁_ev _ =>
-    cases h₂ with
-    | gleOB h₂_gle _ => exact .gleOB (h₁_gle_eq ▸ h₂_gle) h_chain
-    | cleOB h₂_gle_eq h₂_cle _ =>
-      exact .cleOB (h₁_gle_eq.trans h₂_gle_eq) (h₁_cle_eq ▸ h₂_cle) h_chain
-    | eventOB h₂_gle_eq h₂_cle_eq h₂_ev _ =>
-      exact .eventOB (h₁_gle_eq.trans h₂_gle_eq) (h₁_cle_eq.trans h₂_cle_eq) (ob_trans h₁_ev h₂_ev) h_chain
+  have h_level := proto_ob_level_trans h₁.level h₂.level
+  -- Reconstruct with the composed chain and level.
+  -- Use comGleOB/comCleOB/comEventOB based on the level.
+  cases h_level with
+  | gleOB h => exact .comGleOB h h_chain
+  | cleOB h_eq h => exact .comCleOB h_eq h h_chain
+  | eventOB h_eq₁ h_eq₂ h => exact .comEventOB h_eq₁ h_eq₂ h h_chain
 
-/-- ProtoForwardStep is irreflexive: no event can be a forward step from itself.
-    Self-OB at any level (GLE, CLE, event) contradicts event well-formedness. -/
+/-- ProtoForwardStep is irreflexive: self-OB at any level contradicts well-formedness. -/
 private theorem proto_forward_irrefl
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
-    {e : Event n} (h : ProtoForwardStep hknow e e) : False := by
-  cases h with
-  | gleOB h _ => exact ob_irrefl h
-  | cleOB _ h _ => exact ob_irrefl h
-  | eventOB _ _ h _ => exact ob_irrefl h
+    {e : Event n} (h : ProtoForwardStep hknow e e) : False :=
+  proto_ob_level_irrefl h.level
 
 /-- cmpLinLinLink is acyclic.
 
