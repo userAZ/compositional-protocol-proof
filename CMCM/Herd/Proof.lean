@@ -2895,14 +2895,40 @@ theorem ProtoForwardStep.level
   | co_sameCache sameCle e₁_ob_e₂ _ _ =>
     if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
       exact .eventOB h_gle_eq sameCle e₁_ob_e₂
-    else sorry -- GLE₁ ≠ GLE₂ for same CLE → derive gleOB from dir_ordered
+    else
+      have h₁_gdir := (hknow e₁).gle_isDirEvent
+      have h₂_gdir := (hknow e₂).gle_isDirEvent
+      match hfg₁ : (hknow e₁).gle, h₁_gdir with
+      | .directoryEvent gde₁, _ =>
+        match hfg₂ : (hknow e₂).gle, h₂_gdir with
+        | .directoryEvent gde₂, _ =>
+          cases (b.orderedAtEntry.dir_ordered gde₁ gde₂).ordered with
+          | inl gleOB =>
+            show ProtoOBLevel hknow e₁ e₂
+            exact .gleOB (by rwa [hfg₁, hfg₂])
+          | inr gleOB_rev => exfalso; sorry
+        | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+      | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
   | co_sameClusDiffCache sameGle cleOB _ _ => exact .cleOB sameGle cleOB
   | co_crossCluster gleOB _ _ => exact .gleOB gleOB
   | fr_sameCache _ obLevel _ _ => exact obLevel
   | fr_sameClusDiffCache cleOB _ _ =>
     if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
       exact .cleOB h_gle_eq cleOB
-    else sorry -- GLE₁ ≠ GLE₂ for same cluster → derive gleOB
+    else
+      have h₁_gdir := (hknow e₁).gle_isDirEvent
+      have h₂_gdir := (hknow e₂).gle_isDirEvent
+      match hfg₁ : (hknow e₁).gle, h₁_gdir with
+      | .directoryEvent gde₁, _ =>
+        match hfg₂ : (hknow e₂).gle, h₂_gdir with
+        | .directoryEvent gde₂, _ =>
+          cases (b.orderedAtEntry.dir_ordered gde₁ gde₂).ordered with
+          | inl gleOB =>
+            show ProtoOBLevel hknow e₁ e₂
+            exact .gleOB (by rwa [hfg₁, hfg₂])
+          | inr gleOB_rev => exfalso; sorry
+        | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+      | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
   | fr_diffCluster_coherent gleOB _ _ _ _ => exact .gleOB gleOB
   | fr_diffCluster_evict gleOB _ _ _ _ => exact .gleOB gleOB
   | fr_diffCluster_noncoherent gleOB _ _ _ _ => exact .gleOB gleOB
@@ -2911,7 +2937,20 @@ theorem ProtoForwardStep.level
   | fr_sameCLE sameCle reader_ob_writer _ _ =>
     if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
       exact .eventOB h_gle_eq sameCle reader_ob_writer
-    else sorry -- GLE₁ ≠ GLE₂ for same CLE → derive gleOB
+    else
+      have h₁_gdir := (hknow e₁).gle_isDirEvent
+      have h₂_gdir := (hknow e₂).gle_isDirEvent
+      match hfg₁ : (hknow e₁).gle, h₁_gdir with
+      | .directoryEvent gde₁, _ =>
+        match hfg₂ : (hknow e₂).gle, h₂_gdir with
+        | .directoryEvent gde₂, _ =>
+          cases (b.orderedAtEntry.dir_ordered gde₁ gde₂).ordered with
+          | inl gleOB =>
+            show ProtoOBLevel hknow e₁ e₂
+            exact .gleOB (by rwa [hfg₁, hfg₂])
+          | inr gleOB_rev => exfalso; sorry
+        | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+      | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
 /-- Different clusters → different GLEs (contrapositive of same_gle_implies_same_protocol). -/
 private theorem diff_protocol_implies_diff_gle
