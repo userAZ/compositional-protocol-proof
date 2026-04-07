@@ -2880,17 +2880,41 @@ private theorem temporalRel_of_gleOB_and_cmpLinCleRels
     (rel₂ : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h_clelink : @CleLink n (hknow e₁).cle (hknow e₂).cle)
-    (h_same_prot : (hknow e₁).cle.protocol = (hknow e₂).cle.protocol)
     : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin := by
-  -- Same CLE → same GLE → contradicts GLE₁ OB GLE₂.
-  -- Different CLE → derive_cle_ob_same_cluster (CleLink + same_prot contradicts reverse).
   if h_eq : (hknow e₁).cle = (hknow e₂).cle then
+    -- Same CLE → same GLE → contradicts GLE₁ OB GLE₂.
     exfalso
     have h_gle_eq := same_cle_implies_same_gle h_eq
     exact Nat.lt_irrefl _ (Nat.lt_trans gleOB (h_gle_eq ▸ Event.oWellFormed n _))
   else
-    have h_cleOB := derive_cle_ob_same_cluster hdir h_eq h_clelink h_same_prot
-    exact temporalRel_of_cleOB_and_cmpLinCleRels h_cleOB rel₁ rel₂
+    -- Different CLE. by_cases on protocol equality:
+    if h_prot : (hknow e₁).cle.protocol = (hknow e₂).cle.protocol then
+      -- Same protocol: derive_cle_ob_same_cluster eliminates reverse via CleLink temporal evidence.
+      have h_cleOB := derive_cle_ob_same_cluster hdir h_eq h_clelink h_prot
+      exact temporalRel_of_cleOB_and_cmpLinCleRels h_cleOB rel₁ rel₂
+    else
+      -- Different protocol (cross-cluster): use dir_ordered. Reverse contradicted by
+      -- GLE₁ OB GLE₂ + GLE inside CLE (via gcache encapsulation: CLE.oStart < GLE.oEnd).
+      have h₁_isdir := (hknow e₁).cle_isDirEvent
+      have h₂_isdir := (hknow e₂).cle_isDirEvent
+      match hfc₁ : (hknow e₁).cle, h₁_isdir with
+      | .directoryEvent de₁, _ =>
+        match hfc₂ : (hknow e₂).cle, h₂_isdir with
+        | .directoryEvent de₂, _ =>
+          cases (hdir de₁ de₂).ordered with
+          | inl cleOB =>
+            have h_cleOB : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle := by rw [hfc₁, hfc₂]; exact cleOB
+            exact temporalRel_of_cleOB_and_cmpLinCleRels h_cleOB rel₁ rel₂
+          | inr cleOB_rev =>
+            -- CLE₂ OB CLE₁ but GLE₁ OB GLE₂. Contradiction via encapsulation chain.
+            -- GLE.oEnd < gcache.oEnd < CLE.oEnd (gle_oEnd_lt_cle).
+            -- CLE₂.oEnd < CLE₁.oStart. GLE₁.oEnd < GLE₂.oEnd < CLE₂.oEnd < CLE₁.oStart.
+            -- Need: CLE₁.oStart < GLE₁.oEnd (from CLE₁ ⊃ gcache₁ ⊃ GLE₁).
+            -- For encapGlobalCache: CLE₁.oStart < gcache₁.oStart < GLE₁.oStart ≤ GLE₁.oEnd. ✓
+            -- For noGlobalCache: gcache₁ finishesBefore CLE₁. CLE₁.oStart vs GLE₁.oEnd unconstrained.
+            sorry
+        | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+      | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
 /-- Build chain for same-CLE cases. 9 CmpLinCleRel × CmpLinCleRel combinations.
     For inside × inside: both cmpLin events are global directory events inside the same CLE,
@@ -2937,13 +2961,12 @@ private theorem chain_of_obLevel
     (rel₁ : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
     (rel₂ : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
     (h_clelink : @CleLink n (hknow e₁).cle (hknow e₂).cle)
-    (h_same_prot : (hknow e₁).cle.protocol = (hknow e₂).cle.protocol)
     : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
       (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
       TemporalRel (hknow e₂).compoundLin (hknow e₁).compoundLin := by
   cases obLevel with
   | gleOB h => exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels h rel₁ rel₂
-      b.orderedAtEntry.dir_ordered h_clelink h_same_prot)
+      b.orderedAtEntry.dir_ordered h_clelink)
   | cleOB h_eq h => exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels h rel₁ rel₂)
   | eventOB h_eq₁ h_eq₂ h =>
     -- Same CLE + e₁ OB e₂. chain_of_sameCLE returns 3-way.
@@ -2959,7 +2982,6 @@ theorem ProtoForwardStep.chain
     {e₁ e₂ : Event n}
     (h : ProtoForwardStep hknow e₁ e₂)
     (h_clelink : @CleLink n (hknow e₁).cle (hknow e₂).cle)
-    (h_same_prot : (hknow e₁).cle.protocol = (hknow e₂).cle.protocol)
     : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
       (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
       TemporalRel (hknow e₂).compoundLin (hknow e₁).compoundLin := by
@@ -2967,7 +2989,7 @@ theorem ProtoForwardStep.chain
   | ppoi cmpLin₁_ob_cmpLin₂ _ _ _ => exact Or.inl (.single (.ob cmpLin₁_ob_cmpLin₂))
   | rf_crossGle gleOB writerRel readerRel =>
     exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels gleOB writerRel readerRel
-      b.orderedAtEntry.dir_ordered h_clelink h_same_prot)
+      b.orderedAtEntry.dir_ordered h_clelink)
   | rf_sameGle_cleOB _ cleOB writerRel readerRel =>
     exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels cleOB writerRel readerRel)
   | rf_sameGle_sameCLE sameCle_gle sameCle _ writerRel readerRel =>
@@ -2978,7 +3000,7 @@ theorem ProtoForwardStep.chain
     exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels cleOB w₁Rel w₂Rel)
   | co_crossCluster gleOB w₁Rel w₂Rel =>
     exact Or.inl (temporalRel_of_gleOB_and_cmpLinCleRels gleOB w₁Rel w₂Rel
-      b.orderedAtEntry.dir_ordered h_clelink h_same_prot)
+      b.orderedAtEntry.dir_ordered h_clelink)
   | fr_sameCache h_cle_rel _ readerRel writerRel =>
     cases h_cle_rel with
     | inl h_eq => exact chain_of_sameCLE readerRel (h_eq ▸ writerRel) b.orderedAtEntry.dir_ordered
@@ -2986,15 +3008,15 @@ theorem ProtoForwardStep.chain
   | fr_sameClusDiffCache cleOB _ readerRel writerRel =>
     exact Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels cleOB readerRel writerRel)
   | fr_diffCluster_coherent obLevel _ _ readerRel writerRel =>
-    exact chain_of_obLevel obLevel readerRel writerRel h_clelink h_same_prot
+    exact chain_of_obLevel obLevel readerRel writerRel h_clelink
   | fr_diffCluster_evict obLevel _ _ readerRel writerRel =>
-    exact chain_of_obLevel obLevel readerRel writerRel h_clelink h_same_prot
+    exact chain_of_obLevel obLevel readerRel writerRel h_clelink
   | fr_diffCluster_noncoherent obLevel _ _ readerRel writerRel =>
-    exact chain_of_obLevel obLevel readerRel writerRel h_clelink h_same_prot
+    exact chain_of_obLevel obLevel readerRel writerRel h_clelink
   | fr_diffCluster_rfCrossCluster obLevel _ _ _ readerRel writerRel =>
-    exact chain_of_obLevel obLevel readerRel writerRel h_clelink h_same_prot
+    exact chain_of_obLevel obLevel readerRel writerRel h_clelink
   | fr_diffCluster_rfFinishBefore obLevel _ _ _ readerRel writerRel =>
-    exact chain_of_obLevel obLevel readerRel writerRel h_clelink h_same_prot
+    exact chain_of_obLevel obLevel readerRel writerRel h_clelink
   | fr_sameCLE sameCle _ readerRel writerRel =>
     exact chain_of_sameCLE readerRel (sameCle ▸ writerRel) b.orderedAtEntry.dir_ordered
 
@@ -3312,20 +3334,6 @@ private theorem edge_clelink
     | inr h_ob => exact .ob h_ob (fun h => Nat.lt_irrefl _ (Nat.lt_trans (h ▸ h_ob) (Event.oWellFormed n _)))
   | inr hcom => exact step_to_ordering_hknow hknow hcom h_non_lazy_ppoi
 
-/-- Each R_hknow edge gives same CLE protocol. -/
-private theorem edge_same_prot
-    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
-    {e₁ e₂ : Event n} (h : R_hknow hknow e₁ e₂)
-    : (hknow e₁).cle.protocol = (hknow e₂).cle.protocol := by
-  cases h with
-  | inl hppoi =>
-    exact (cle_protocol_eq_event hppoi.1.notDown₁).trans
-      (hppoi.1.sameProtocol.trans (cle_protocol_eq_event hppoi.1.notDown₂).symm)
-  | inr hcom => cases hcom with
-    | rfe h => sorry -- derivable from rfe.readsFrom sameCluster/diffCluster evidence
-    | co h => sorry -- derivable from co.comm evidence
-    | fr h => sorry -- derivable from fr evidence
-
 /-- cmpLinLinLink is acyclic. CmpLinOrdering composes through the cycle via
     chain_of_obLevel with CleLink.trans. ProtoOBLevel gives the contradiction. -/
 theorem cmpLinLinLink_acyclic
@@ -3334,7 +3342,7 @@ theorem cmpLinLinLink_acyclic
     : Relation.Acyclic (cmpLinLinLink hknow h_non_lazy_ppoi) := by
   intro e hcycle
   -- Compose through the cycle: CmpLinOrdering on cmpLin (via chain_of_obLevel with
-  -- CleLink.trans), CmpLinCleRel at endpoints, CleLink + same_prot, ProtoOBLevel.
+  -- CleLink.trans), CmpLinCleRel at endpoints, CleLink, ProtoOBLevel.
   suffices h : ∀ c, Relation.TransGen (cmpLinLinLink hknow h_non_lazy_ppoi) e c →
       (TemporalRel (hknow e).compoundLin (hknow c).compoundLin ∨
        (hknow e).compoundLin = (hknow c).compoundLin ∨
@@ -3342,24 +3350,21 @@ theorem cmpLinLinLink_acyclic
       CmpLinCleRel (hknow e).compoundLin (hknow e).cle ∧
       CmpLinCleRel (hknow c).compoundLin (hknow c).cle ∧
       @CleLink n (hknow e).cle (hknow c).cle ∧
-      ((hknow e).cle.protocol = (hknow c).cle.protocol) ∧
       ProtoOBLevel hknow e c by
-    exact proto_ob_level_irrefl (h e hcycle).2.2.2.2.2
+    exact proto_ob_level_irrefl (h e hcycle).2.2.2.2
   intro c hpath
   induction hpath with
   | single hstep =>
     have pfs := edge_to_proto_forward h_non_lazy_ppoi hstep.edge
     have h_cl := edge_clelink h_non_lazy_ppoi hstep.edge
-    have h_sp := edge_same_prot hstep.edge
-    exact ⟨chain_of_obLevel pfs.level pfs.startCmpLinRel pfs.endCmpLinRel h_cl h_sp,
-           pfs.startCmpLinRel, pfs.endCmpLinRel, h_cl, h_sp, pfs.level⟩
+    exact ⟨chain_of_obLevel pfs.level pfs.startCmpLinRel pfs.endCmpLinRel h_cl,
+           pfs.startCmpLinRel, pfs.endCmpLinRel, h_cl, pfs.level⟩
   | tail _ hlast ih =>
     have pfs := edge_to_proto_forward h_non_lazy_ppoi hlast.edge
-    have h_level := proto_ob_level_trans ih.2.2.2.2.2 pfs.level
+    have h_level := proto_ob_level_trans ih.2.2.2.2 pfs.level
     have h_clelink := CleLink.trans _ ih.2.2.2.1 (edge_clelink h_non_lazy_ppoi hlast.edge)
-    have h_prot := ih.2.2.2.2.1.trans (edge_same_prot hlast.edge)
-    exact ⟨chain_of_obLevel h_level ih.2.1 pfs.endCmpLinRel h_clelink h_prot,
-           ih.2.1, pfs.endCmpLinRel, h_clelink, h_prot, h_level⟩
+    exact ⟨chain_of_obLevel h_level ih.2.1 pfs.endCmpLinRel h_clelink,
+           ih.2.1, pfs.endCmpLinRel, h_clelink, h_level⟩
 
 /-- The CMCM acyclicity theorem via cmpLinLinLink.
 
