@@ -544,12 +544,7 @@ private theorem cache_ob_of_not_reverse
     | inl henc => exact absurd (b.orderedAtEntry.cache_encap_rule ce₁ ce₂ henc) h₂_nd
     | inr hob => exact absurd hob h_not_rev
 
-theorem event_ob_of_same_cache
-    {b : Behaviour n} {e₁ e₂ : Event n}
-    (h₁_cluster : e₁.isClusterCache) (h₂_cluster : e₂.isClusterCache)
-    (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
-    (event_fb : Event.oEnd n e₁ < Event.oEnd n e₂)
-    : e₁.OrderedBefore n e₂ := by
-  sorry
+-- event_ob_of_same_cache is defined in ProofHelpers.lean (as event_ob_of_same_cache')
+-- to avoid heartbeat issues in this file. Proof.lean imports ProofHelpers.
 
 end Herd

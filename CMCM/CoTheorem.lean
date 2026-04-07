@@ -24,7 +24,7 @@ variable {e₁ e₂ : Event n}
 
 -- Two non-downgrade cache events at same cache: ¬ e₂ OB e₁ → e₁ OB e₂.
 -- Generalization of eq_gle_cle_implies_write_before_read (which carries unused isRead).
-private lemma cache_events_ordered_from_not_reverse
+theorem cache_events_ordered_from_not_reverse
     {b : Behaviour n} {e₁ e₂ : Event n}
     (h₁_cluster : e₁.isClusterCache) (h₂_cluster : e₂.isClusterCache)
     (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)

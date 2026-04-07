@@ -1,5 +1,6 @@
 import CMCM.Herd.Relations
 import CMCM.Herd.RelationCycles
+import CMCM.Herd.ProofHelpers
 import CMCM.RfProofHelpers
 import CompositionalProtocolProof.CompoundPPOs
 
@@ -2893,7 +2894,7 @@ theorem ProtoForwardStep.chain
   | fr_sameCLE sameCle _ readerRel writerRel =>
     sorry
 
--- event_ob_of_same_cache (b := b) is now in Defs.lean (needs heartbeat optimization there)
+-- event_ob_of_same_cache' (b := b) is now in Defs.lean (needs heartbeat optimization there)
 
 /-- Different clusters → different GLEs (contrapositive of same_gle_implies_same_protocol). -/
 private theorem diff_protocol_implies_diff_gle'
@@ -3099,7 +3100,7 @@ private theorem edge_to_proto_forward
       exact h_non_lazy_ppoi e₁ e₂ (hknow e₁) (hknow e₂) hppoi.1 hppoi.2
     have h_level : ProtoOBLevel hknow e₁ e₂ :=
       if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
-        .eventOB (same_cle_implies_same_gle h_cle_eq) h_cle_eq (event_ob_of_same_cache (b := b)
+        .eventOB (same_cle_implies_same_gle h_cle_eq) h_cle_eq (event_ob_of_same_cache' (b := b)
           hppoi.1.cache₁ hppoi.1.cache₂ hppoi.1.notDown₁ hppoi.1.notDown₂ h_fb)
       else by
         -- CLE≠: use PPOi's cle_eq_or_ob (must be inr since CLE≠)
@@ -3123,7 +3124,7 @@ private theorem edge_to_proto_forward
       | wEqRGle sameGle sameCluster wEqRGleCases =>
         if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
           exact .rf_sameGle_sameCLE sameGle h_cle_eq
-            (.eventOB sameGle h_cle_eq (event_ob_of_same_cache (b := b)
+            (.eventOB sameGle h_cle_eq (event_ob_of_same_cache' (b := b)
               hrfe.cache₁ hrfe.cache₂ hrfe.notDown₁ hrfe.notDown₂ hrfe.event_oEnd_lt))
             hrel₁ hrel₂
         else
@@ -3208,7 +3209,7 @@ private theorem edge_to_proto_forward
       | sameCache _ cle_eq_or_ob gleEqOrOb_frSC =>
         have h_level : ProtoOBLevel hknow e₁ e₂ := by
           if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
-            exact .eventOB (same_cle_implies_same_gle h_cle_eq) h_cle_eq (event_ob_of_same_cache (b := b)
+            exact .eventOB (same_cle_implies_same_gle h_cle_eq) h_cle_eq (event_ob_of_same_cache' (b := b)
               hfr.cache₁ hfr.cache₂ hfr.notDown₁ hfr.notDown₂ hfr.event_oEnd_lt)
           else
             -- CLE≠: FrOrdering.sameCache has cle_eq_or_ob. Must be inr (CLE OB).
@@ -3237,7 +3238,7 @@ private theorem edge_to_proto_forward
           p (hflin₂ ▸ p_ob) (hflin₁ ▸ p_lt) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | sameCLE cle_eq =>
         have h_cle_eq' : (hknow e₁).cle = (hknow e₂).cle := hflin₁ ▸ hflin₂ ▸ cle_eq
-        have h_ev_ob := event_ob_of_same_cache (b := b) hfr.cache₁ hfr.cache₂ hfr.notDown₁ hfr.notDown₂ hfr.event_oEnd_lt
+        have h_ev_ob := event_ob_of_same_cache' (b := b) hfr.cache₁ hfr.cache₂ hfr.notDown₁ hfr.notDown₂ hfr.event_oEnd_lt
         exact .fr_sameCLE h_cle_eq' h_ev_ob (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
 
 /-- OB is transitive: a OB b ∧ b OB c → a OB c.
