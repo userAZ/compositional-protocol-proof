@@ -2885,10 +2885,16 @@ private theorem gle_oEnd_lt_cle
     | orderBeforeDir _ hpred hpred_dir _ _ _ _ _ =>
       exact Nat.lt_trans hpred_dir.reqEncapDir.right
         (Nat.lt_trans hpred.choose_spec.2.isImmPred.bPred.isPred (Event.oWellFormed n _))
-    | orderAfterDir _ _ _ _ => sorry
-      -- orderAfterDir at global level: GLE.oEnd < CLE.oEnd needs protocol argument.
-      -- GLE is inside successor (after gcache). dir_ordered gives GLE OB CLE (✓) or
-      -- CLE OB GLE (needs protocol contradiction: global dir access shouldn't outlive CLE).
+    | orderAfterDir hweak _ _ _ =>
+      -- orderAfterDir at global level: vacuous. The gcache is a global cache event.
+      -- Global cache uses SWMR (coherent=true, SC). ncWeakReqOnVd requires isNcWeak
+      -- (coherent=false). Contradiction.
+      exfalso
+      -- orderAfterDir at global level: vacuous. The gcache from the shim is always
+      -- a global cache event with coherent=true (from matchingOp for encapGlobalCache,
+      -- or from the SWMR protocol invariant for noGlobalCache).
+      -- ncWeakReqOnVd requires isNcWeak (coherent=false) → contradiction.
+      sorry
   exact Nat.lt_trans h_gle_lt_gcache (gcache_oEnd_lt_cle lin)
 
 private theorem temporalRel_of_gleOB_and_cmpLinCleRels
