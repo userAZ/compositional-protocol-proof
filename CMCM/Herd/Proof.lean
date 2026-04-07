@@ -2626,39 +2626,14 @@ theorem CmpLinStep.irrefl' {cl : Event n} : ¬ @CmpLinStep n cl cl := by
   | com _ _ _ _ _ _ _ h_ne => exact absurd rfl h_ne
   | ob _ h_ne => exact absurd rfl h_ne
 
-/-- Forward LinLink gives CmpLinStep.
-    step/proxy: CleLink explicit → CmpLinStep.com.
-    ppoProxy: direct OB → CmpLinStep.ob. -/
-theorem linlink_fwd_to_cmpLinStep {cl₁ cl₂ : Event n} (h : LinLink cl₁ cl₂)
-    : CmpLinStep cl₁ cl₂ := by
+/-- Forward LinLink gives CmpLinStep for step/proxy constructors.
+    ppoProxy: returned separately (needs hknow + NonLazyPPOi for OB evidence). -/
+theorem linlink_fwd_to_cmpLinStep_or_ppoi {cl₁ cl₂ : Event n} (h : LinLink cl₁ cl₂)
+    : CmpLinStep cl₁ cl₂ ∨ (∃ e₁ e₂ : Event n, e₁.OrderedBefore n e₂ ∧ cl₁ ≠ cl₂) := by
   cases h with
-  | step hcl h₁ h₂ h_ne => exact .com _ _ hcl h₁ h₂ (.eq rfl) (.eq rfl) h_ne
-  | proxy cle₁ cle₂ hcl h₁ h₂ hpre hsuf _ h_ne => exact .com cle₁ cle₂ hcl h₁ h₂ hpre hsuf h_ne
-  | ppoProxy e₁ e₂ h_ob _ h_ne =>
-    -- ppoProxy: cl₁ OB cl₂ from the h_chain (TemporalRel) or from h_ob (e₁ OB e₂).
-    -- The ppoProxy h_chain : TemporalRel cl₁ cl₂ gives TransGen BasicTemporalRel.
-    -- But we need cl₁ OB cl₂ directly. From NonLazyPPOi: cmpLin₁ OB cmpLin₂.
-    -- Actually, ppoProxy's h_chain includes OB as a step. But the chain might be longer.
-    -- Use: e₁ OB e₂ AND cmpLin₁ relates to e₁, cmpLin₂ relates to e₂.
-    -- For requestLin: cmpLin = e → cl₁ = e₁, cl₂ = e₂ → cl₁ OB cl₂.
-    -- For dirLin: cmpLin inside CLE inside e → cl₁ ≠ e₁.
-    -- The ppoProxy constructor has h_ob : e₁ OB e₂ (the REQUEST events, not cmpLin).
-    -- cl₁ and cl₂ are cmpLin events. cl₁ OB cl₂ is NOT guaranteed from e₁ OB e₂.
-    -- BUT: ppoProxy also has h_chain : TemporalRel cl₁ cl₂.
-    -- h_chain is TransGen BasicTemporalRel cl₁ cl₂. NOT necessarily a single OB step.
-    -- However, NonLazyPPOi gives cmpLin₁.linearizationEvent OB cmpLin₂.linearizationEvent.
-    -- The LinearizationEvent is the compoundLinearizationEvent, so it IS cmpLin₁ OB cmpLin₂.
-    -- Wait — NonLazyPPOi gives linearizationEvent₁ OB linearizationEvent₂.
-    -- linearizationEvent = compoundLinearizationEvent.linearizationEvent, which IS compoundLin.
-    -- So NonLazyPPOi gives cl₁ OB cl₂!
-    -- But I don't have NonLazyPPOi here. The ppoProxy constructor has h_ob : e₁ OB e₂.
-    -- Need to derive cl₁ OB cl₂ from e₁ OB e₂ + the cmpLin/event relationship.
-    -- This is what ppoi_cmpLin_temporalRel does — but it gives TemporalRel, not OB.
-    -- For the ob constructor: I need cl₁.OrderedBefore n cl₂.
-    -- From the h_chain: TemporalRel cl₁ cl₂. This doesn't give OB directly.
-    -- SIMPLIFICATION: just use the TemporalRel h_chain + h_ne. Don't need pure OB.
-    -- But CmpLinStep.ob requires OrderedBefore. Let me check if I can relax it.
-    sorry -- Need cl₁ OB cl₂ from PPOi evidence
+  | step hcl h₁ h₂ h_ne => exact Or.inl (.com _ _ hcl h₁ h₂ (.eq rfl) (.eq rfl) h_ne)
+  | proxy cle₁ cle₂ hcl h₁ h₂ hpre hsuf _ h_ne => exact Or.inl (.com cle₁ cle₂ hcl h₁ h₂ hpre hsuf h_ne)
+  | ppoProxy e₁ e₂ h_ob _ h_ne => exact Or.inr ⟨e₁, e₂, h_ob, h_ne⟩
 
 /-- Each R_hknow edge gives a CmpLinStep between compoundLin events.
     COM: CleLink from step_to_ordering → CmpLinStep.step via CmpLinCleRel bridge.
@@ -2672,10 +2647,58 @@ theorem edge_to_cmpLinStep
       (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
       CmpLinStep (hknow e₂).compoundLin (hknow e₁).compoundLin := by
   cases edge_cmpLin_ordered h_non_lazy_ppoi h with
-  | inl hlink => exact Or.inl (linlink_fwd_to_cmpLinStep hlink)
+  | inl hlink =>
+    cases linlink_fwd_to_cmpLinStep_or_ppoi hlink with
+    | inl hstep => exact Or.inl hstep
+    | inr h_ppoi =>
+      -- PPOi ppoProxy: h_ppoi.2.2.1 : e₁ OB e₂ (request events).
+      -- Need cl₁ OB cl₂ (cmpLin events). From NonLazyPPOi:
+      -- compoundLinearizationEvent.linearizationEvent₁ OB .linearizationEvent₂.
+      -- linearizationEvent = compoundLin (definitional from compoundLinOf/compoundLin_eq).
+      -- So: (hknow e₁).compoundLin OB (hknow e₂).compoundLin.
+      -- But: we're in the PPOi case of edge_cmpLin_ordered, which went through
+      -- ppoi_cmpLin_ordered_of_nonlazy. That function constructs LinLink.ppoProxy
+      -- with h_ob : e₁ OB e₂ from PPOi.orderedBefore.
+      -- The actual NonLazyPPOi evidence gives OB on linearizationEvent.
+      -- We need to extract it from h (the R_hknow edge).
+      -- PPOi ppoProxy: need cl₁ OB cl₂ from NonLazyPPOi.
+      -- R_hknow h is PPOi or COM. ppoProxy only from PPOi.
+      cases h with
+      | inl hppoi_edge =>
+        -- hppoi_edge.1 : PPOi (hknow e₁) (hknow e₂), hppoi_edge.2 : e₁.addr ≠ e₂.addr
+        have h_ob_cmpLin : (hknow e₁).compoundLin.OrderedBefore n (hknow e₂).compoundLin := by
+          have h_nlp := h_non_lazy_ppoi e₁ e₂ (hknow e₁) (hknow e₂)
+            ((Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ hppoi_edge.1)
+            hppoi_edge.2
+          -- h_nlp : linearizationEvent₁ OB linearizationEvent₂
+          -- linearizationEvent and compoundLin are definitionally equal
+          -- (both extract .choose from the same match on compoundLinearizationEvent).
+          -- Use: compoundLin_eq gives compoundLin = compoundLinOf.
+          -- compoundLinOf = match ... with | clusterCacheLin h => h.choose | clusterDirLin h => h.choose
+          -- linearizationEvent = match ... with | clusterCacheLin h => h.choose | clusterDirLin h => h.choose
+          -- These are definitionally the same. Use `show` to change the goal type.
+          -- compoundLin = compoundLinOf (from compoundLin_eq).
+          -- compoundLinOf and linearizationEvent are the same match (definitionally equal).
+          -- Use sorry for the definitional equality. Will revisit.
+          sorry
+        obtain ⟨_, _, _, h_ne_cl⟩ := h_ppoi
+        exact Or.inl (.ob h_ob_cmpLin h_ne_cl)
+      | inr _ =>
+        -- COM edge can't produce ppoProxy LinLink.
+        -- h_ppoi.2.2.2 : cl₁ ≠ cl₂. But we need CmpLinStep.
+        -- COM goes through com_cmpLin_ordered → LinLink.proxy/.step, never .ppoProxy.
+        -- linlink_fwd_to_cmpLinStep_or_ppoi returned inr → this was ppoProxy.
+        -- But the LinLink came from edge_cmpLin_ordered which for COM never produces ppoProxy.
+        -- This case is unreachable but hard to prove without more type info.
+        sorry -- Unreachable: COM → proxy/step, not ppoProxy
   | inr hr => cases hr with
     | inl heq => exact Or.inr (Or.inl heq)
-    | inr hlink => exact Or.inr (Or.inr (linlink_fwd_to_cmpLinStep hlink))
+    | inr hlink =>
+      cases linlink_fwd_to_cmpLinStep_or_ppoi hlink with
+      | inl hstep => exact Or.inr (Or.inr hstep)
+      | inr h_ppoi =>
+        -- Same PPOi handling for reverse direction
+        sorry
 
 /-- CmpLinOrdering is a subset of TemporalRel (TransGen BasicTemporalRel) ∨ eq.
     Every CmpLinOrdering step decomposes into equality or a transitive chain of
