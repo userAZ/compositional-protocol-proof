@@ -3022,6 +3022,9 @@ private theorem edge_to_proto_forward
     have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnd₁ hndE₁ (lin := hknow e₁)
     have hrel₂ := compoundLin_cle_to_CmpLinCleRel hnd₂ hndE₂ (lin := hknow e₂)
     have h_fb := edge_oEnd_lt (Or.inl hppoi)
+    -- cmpLin = linearizationEvent (from compoundLin_eq_linearizationEvent).
+    -- NonLazyPPOi gives linearizationEvent₁ OB linearizationEvent₂.
+    -- Bridge: compoundLin_eq_linearizationEvent defined below — move above or use sorry.
     have h_cmpLin_ob : (hknow e₁).compoundLin.OrderedBefore n (hknow e₂).compoundLin := by sorry
     have h_level : ProtoOBLevel hknow e₁ e₂ :=
       if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
