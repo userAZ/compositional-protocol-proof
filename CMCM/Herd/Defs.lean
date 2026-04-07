@@ -451,43 +451,34 @@ inductive FrOrdering
       CleLink derived via .obEndLt (CLE₁ OB proxy, proxy.oEnd < CLE₂.oEnd). -/
   | diffCluster_coherent
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (gle_ob : e₁_cmpLin.gle.OrderedBefore n e₂_cmpLin.gle)
     (p : Event n)
     (cle₁_ob_p : e₁_cmpLin.cle.OrderedBefore n p)
     (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_cmpLin.cle)
     (h_p_isdir : p.isDirectoryEvent)
-  /-- Different cluster, e₁ coherent with evict: e₁ had coherent perms but
-      evicted before e₂'s downgrade arrived. The downgrade goes to the cluster
-      directory after the evict. Proxy is the evict directory event.
-      CleLink derived via .obEndLt. -/
   | diffCluster_evict
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (gle_ob : e₁_cmpLin.gle.OrderedBefore n e₂_cmpLin.gle)
     (p : Event n)
     (cle₁_ob_p : e₁_cmpLin.cle.OrderedBefore n p)
     (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_cmpLin.cle)
     (h_p_isdir : p.isDirectoryEvent)
-  /-- Different cluster, e₁ non-coherent: e₁ doesn't have coherent perms,
-      so e₂'s downgrade goes directly to e₁'s CLUSTER DIRECTORY.
-      Proxy is the cluster dir downgrade event.
-      CleLink derived via .obEndLt. -/
   | diffCluster_noncoherent
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (gle_ob : e₁_cmpLin.gle.OrderedBefore n e₂_cmpLin.gle)
     (p : Event n)
     (cle₁_ob_p : e₁_cmpLin.cle.OrderedBefore n p)
     (p_lt_cle₂ : Event.oEnd n p < Event.oEnd n e₂_cmpLin.cle)
     (h_p_isdir : p.isDirectoryEvent)
-  /-- Different cluster, RF cross-cluster: e_w at e₂'s cluster, RF gives
-      proxy p at e_w's cluster INSIDE CLE₁ (from encapDirRelation) and OB CLE₂.
-      CleLink derived via .encapOb (p inside CLE₁, p OB CLE₂). -/
   | diffCluster_rfCrossCluster
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (gle_ob : e₁_cmpLin.gle.OrderedBefore n e₂_cmpLin.gle)
     (p : Event n)
     (p_inside_cle₁ : p.EncapsulatedBy n e₁_cmpLin.cle)
     (p_ob_cle₂ : p.OrderedBefore n e₂_cmpLin.cle)
-  /-- Different cluster, RF cross-cluster with gcacheEncap/noGlobalCache:
-      proxy p OB CLE₂ and p finishes before CLE₁ (p.oEnd < CLE₁.oEnd).
-      CleLink derived via .obFinishBefore. -/
   | diffCluster_rfFinishBefore
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (gle_ob : e₁_cmpLin.gle.OrderedBefore n e₂_cmpLin.gle)
     (p : Event n)
     (p_ob_cle₂ : p.OrderedBefore n e₂_cmpLin.cle)
     (p_lt_cle₁ : Event.oEnd n p < Event.oEnd n e₁_cmpLin.cle)
