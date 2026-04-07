@@ -2602,6 +2602,67 @@ theorem cmcm_acyclic_of_hknow_compoundLinOrdering
   -- cmpLinLinLink is acyclic
   exact cmpLinLinLink_acyclic h_non_lazy_ppoi e (lift e hcycle)
 
+/-! ## CmpLinStep: cmpLin-level relation with CLE inductive cases -/
+
+/-- CmpLinStep: a step between compoundLin events carrying CLE proxy evidence.
+    Each step has proxy CLEs (directory events) connected by CleLink, with
+    CmpLinCleRel bridging each cmpLin to its CLE. h_ne ensures irreflexivity.
+    The CleLink inductive carries protocol communication cases (OB, Encap, etc.).
+    Acyclicity follows from CleLink + dir_ordered on CLEs. -/
+inductive CmpLinStep {n : ℕ} (cl₁ cl₂ : Event n) : Prop
+  | step (cle₁ cle₂ : Event n)
+      (h_clelink : @CleLink n cle₁ cle₂)
+      (h₁_isdir : cle₁.isDirectoryEvent) (h₂_isdir : cle₂.isDirectoryEvent)
+      (h_prefix : CmpLinCleRel cl₁ cle₁) (h_suffix : CmpLinCleRel cl₂ cle₂)
+      (h_ne : cl₁ ≠ cl₂)
+
+/-- CmpLinStep is irreflexive. -/
+theorem CmpLinStep.irrefl' {cl : Event n} : ¬ @CmpLinStep n cl cl := by
+  intro h; cases h with | step _ _ _ _ _ _ _ h_ne => exact absurd rfl h_ne
+
+/-- Forward LinLink gives CmpLinStep for proxy/step constructors.
+    ppoProxy requires external CLE evidence (not carried in LinLink). -/
+theorem linlink_fwd_to_cmpLinStep {cl₁ cl₂ : Event n} (h : LinLink cl₁ cl₂)
+    : CmpLinStep cl₁ cl₂ ∨
+      -- ppoProxy case: OB between cmpLin events (no CLE in LinLink, needs external evidence)
+      (∃ e₁ e₂ : Event n, e₁.OrderedBefore n e₂ ∧ cl₁ ≠ cl₂) := by
+  cases h with
+  | step hcl h₁ h₂ h_ne => exact Or.inl (.step _ _ hcl h₁ h₂ (.eq rfl) (.eq rfl) h_ne)
+  | proxy cle₁ cle₂ hcl h₁ h₂ hpre hsuf _ h_ne =>
+    exact Or.inl (.step cle₁ cle₂ hcl h₁ h₂ hpre hsuf h_ne)
+  | ppoProxy e₁ e₂ h_ob _ h_ne => exact Or.inr ⟨e₁, e₂, h_ob, h_ne⟩
+
+/-- Each R_hknow edge gives a CmpLinStep between compoundLin events.
+    COM: CleLink from step_to_ordering → CmpLinStep.step via CmpLinCleRel bridge.
+    PPOi: CleLink from dir_ordered on same-entry CLEs → CmpLinStep.step. -/
+theorem edge_to_cmpLinStep
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    {e₁ e₂ : Event n}
+    (h : R_hknow hknow e₁ e₂)
+    : CmpLinStep (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
+      (hknow e₁).compoundLin = (hknow e₂).compoundLin := by
+  -- Use edge_cmpLin_ordered which gives CmpLinOrdering (forward LinLink / eq / reverse LinLink).
+  cases edge_cmpLin_ordered h_non_lazy_ppoi h with
+  | inl hlink =>
+    -- Forward LinLink → CmpLinStep (for proxy/step) or PPOi evidence.
+    cases linlink_fwd_to_cmpLinStep hlink with
+    | inl hstep => exact Or.inl hstep
+    | inr h_ppoi =>
+      -- PPOi ppoProxy case: need CleLink from hknow + dir_ordered.
+      -- Extract CLEs: (hknow e₁).cle and (hknow e₂).cle.
+      -- Same cache (PPOi) → same entry → dir_ordered → CleLink.
+      left
+      sorry -- PPOi: derive CmpLinStep from dir_ordered on CLEs
+  | inr hr => cases hr with
+    | inl heq => exact Or.inr heq
+    | inr hlink =>
+      -- Reverse LinLink cl₂ → cl₁. Extract CmpLinStep cl₁ → cl₂.
+      -- The reverse gives CleLink in the reverse direction.
+      -- At same entry: dir_ordered determines the CORRECT direction.
+      left
+      sorry -- Reverse LinLink → forward CmpLinStep via dir_ordered
+
 /-- CmpLinOrdering is a subset of TemporalRel (TransGen BasicTemporalRel) ∨ eq.
     Every CmpLinOrdering step decomposes into equality or a transitive chain of
     OB/Encap/EncapBy/FinishesBefore/FinishesAfterProxy steps. -/
