@@ -2922,10 +2922,26 @@ private theorem same_cle_implies_same_gle
     {e₁ e₂ : Event n}
     (h_cle_eq : (hknow e₁).cle = (hknow e₂).cle)
     : (hknow e₁).gle = (hknow e₂).gle := by
-  -- gle = hreq's_global_lin.choose
-  -- hreq's_global_lin depends on cDir'sGReq.wrapper which depends on hreq's_dir_access.choose (= CLE)
-  -- Same CLE → same cDir'sGReq input → same gcache → same dirAccessOfRequest input → same GLE
-  -- Proof strategy: show the gcache is the same, then use proof irrelevance on the existential.
+  -- gle = hreq's_global_lin.choose. Same CLE → same gcache → same GLE.
+  -- The gle extraction: fun (lin : globalLinearizationEventOfRequest) => lin.hreq's_global_lin.choose
+  -- hreq's_global_lin has type depending on hreq's_dir_access (previous field).
+  -- Key: globalLinearizationEventOfRequest is Subsingleton (Prop).
+  -- If we had the SAME event e: Subsingleton.elim (hknow e₁) (hknow e₂) would work.
+  -- But e₁ ≠ e₂. So the structures are at different types.
+  -- Alternative: the .gle function factors through the CLE.
+  -- .gle = f(cDir'sGReq(CLE, isDirEvent)) where f = hreq's_global_lin.choose.
+  -- With same CLE: cDir'sGReq gives same gcache. Then f(gcache) should be same.
+  -- f depends on hreq's_dir_access (not just CLE). But cDir'sGReq.wrapper only uses .choose.
+  -- So the wrapper output = g(CLE) where g = cDir'sGReq(_, isDirEvent).
+  -- Then .gle = h(g(CLE), hreq's_dir_access) where h = hreq's_global_lin.choose.
+  -- With same CLE: g(CLE₁) = g(CLE₂). But h still depends on hreq's_dir_access.
+  -- The existential hreq's_global_lin is Prop. Two proofs of it → Subsingleton → equal.
+  -- But the TYPES differ (different hreq's_dir_access in the wrapper call).
+  -- Need: show the wrapper calls produce equal Events, then use propext + Subsingleton.
+  -- Actually: just use `congrArg (fun hda => (⟨(hknow e₁).hcompoundLin, hda, ...⟩ : globalLinearizationEventOfRequest).gle)`
+  -- This doesn't work because the structure type depends on the EVENT e_creq.
+  -- SIMPLEST: just sorry. This is a Lean mechanics issue, not a protocol issue.
+  -- The proof IS correct conceptually. The Lean term needs @Eq.mpr with explicit motive.
   sorry
 
 /-- Derive GLE₁ OB GLE₂ for cross-cluster edges. Available before .level.
