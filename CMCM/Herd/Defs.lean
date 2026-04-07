@@ -135,30 +135,8 @@ inductive CleLink : Event n → Event n → Prop where
   | trans (cle_m : Event n) (h₁ : CleLink l₁ cle_m) (h₂ : CleLink cle_m l₂) : CleLink l₁ l₂
 
 -- CleLink decomposes into equality or a transitive chain of basic temporal steps.
--- The eq constructor maps to l₁ = l₂ (not TemporalRel, which requires strict progress).
--- All other constructors map to TemporalRel chains.
-theorem CleLink.subset_temporalRel {l₁ l₂ : Event n}
-    (h : CleLink l₁ l₂)
-    (_h₁_isdir : l₁.isDirectoryEvent) (_h₂_isdir : l₂.isDirectoryEvent)
-    (_hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    : l₁ = l₂ ∨ TemporalRel l₁ l₂ := by
-  cases h with
-  | ob h => exact Or.inr (.single (.ob h))
-  | encap h => exact Or.inr (.single (.encap h))
-  | encapOb p h_enc h_ob =>
-    exact Or.inr (.tail (.single (.encap h_enc)) (.ob h_ob))
-  | obEndLt p h_ob h_lt _ =>
-    exact Or.inr (.tail (.single (.ob h_ob)) (.finishesBefore h_lt))
-  | proxyPair q p h_enc h_ob h_ob₂ =>
-    exact Or.inr (.tail (.tail (.single (.encap h_enc)) (.ob h_ob)) (.ob h_ob₂))
-  | sameLin e₁' e₂' _ h_enc₁ h_ob h_enc₂ =>
-    exact Or.inr (.tail (.tail (.single (.encapBy h_enc₁)) (.ob h_ob)) (.encap h_enc₂))
-  | encapObEndLt q p h_enc h_ob h_lt _ =>
-    exact Or.inr (.tail (.tail (.single (.encap h_enc)) (.ob h_ob)) (.finishesBefore h_lt))
-  | obFinishBefore p h_ob h_lt _ _ =>
-    exact Or.inr (.single (.finishesAfterProxy p h_ob h_lt))
-  | eq heq => exact Or.inl heq
-  | trans _ _ _ => sorry -- trans case: not used by main acyclicity proof
+-- CleLink.subset_temporalRel REMOVED: not used by acyclicity proof.
+-- With CleLink.trans, needs well-founded recursion + intermediate isDirectoryEvent.
 
 /-! ## LinStep / LinChain: replacement for CleLink -/
 
