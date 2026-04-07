@@ -2922,25 +2922,10 @@ private theorem same_cle_implies_same_gle
     {e₁ e₂ : Event n}
     (h_cle_eq : (hknow e₁).cle = (hknow e₂).cle)
     : (hknow e₁).gle = (hknow e₂).gle := by
-  -- Step 1: same CLE → same cDir'sGReq → same gcache
-  have h_gcache : Behaviour.Shim.ClusterToGlobal.cDir'sGReq compound b init
-      (hknow e₁).hreq's_dir_access.choose
-      (hknow e₁).hreq's_dir_access.choose_spec.2.isDirEvent =
-    Behaviour.Shim.ClusterToGlobal.cDir'sGReq compound b init
-      (hknow e₂).hreq's_dir_access.choose
-      (hknow e₂).hreq's_dir_access.choose_spec.2.isDirEvent := by
-    congr 1 <;> exact h_cle_eq
-  -- Step 2: same gcache → same hreq's_global_lin.choose (= GLE)
-  -- The gle is .choose of an existential. With same gcache, the existentials
-  -- are proofs of the same Prop → by proof irrelevance, they're equal → same .choose.
-  -- Step 2: same gcache → same gle (= hreq's_global_lin.choose).
-  -- Dependent type: hreq's_global_lin TYPE depends on hreq's_dir_access.
-  -- With h_cle_eq: CLE₁ = CLE₂. Need to transport through the dependency.
-  -- Strategy: rewrite h_cle_eq in the GOAL to align the types, then use proof irrelevance.
-  -- .gle unfolds to .hreq's_global_lin.choose
-  -- .hreq's_global_lin depends on .hreq's_dir_access through cDir'sGReq.wrapper
-  -- h_cle_eq says the CLEs (.hreq's_dir_access.choose) are equal.
-  -- The dependent field can be transported using Eq.rec/subst on the CLE equality.
+  -- gle = hreq's_global_lin.choose
+  -- hreq's_global_lin depends on cDir'sGReq.wrapper which depends on hreq's_dir_access.choose (= CLE)
+  -- Same CLE → same cDir'sGReq input → same gcache → same dirAccessOfRequest input → same GLE
+  -- Proof strategy: show the gcache is the same, then use proof irrelevance on the existential.
   sorry
 
 /-- Derive GLE₁ OB GLE₂ for cross-cluster edges. Available before .level.
