@@ -2669,17 +2669,13 @@ theorem edge_to_cmpLinStep
     {e₁ e₂ : Event n}
     (h : R_hknow hknow e₁ e₂)
     : CmpLinStep (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
-      (hknow e₁).compoundLin = (hknow e₂).compoundLin := by
-  -- Use edge_cmpLin_ordered which gives CmpLinOrdering (forward LinLink / eq / reverse LinLink).
+      (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
+      CmpLinStep (hknow e₂).compoundLin (hknow e₁).compoundLin := by
   cases edge_cmpLin_ordered h_non_lazy_ppoi h with
   | inl hlink => exact Or.inl (linlink_fwd_to_cmpLinStep hlink)
   | inr hr => cases hr with
-    | inl heq => exact Or.inr heq
-    | inr hlink =>
-      -- Reverse LinLink cl₂ → cl₁. The reverse LinLink gives CleLink cl₂ → cl₁.
-      -- For CmpLinStep cl₁ → cl₂: need CleLink cl₁ → cl₂ direction.
-      -- Extract from reverse LinLink and flip via dir_ordered.
-      sorry -- Reverse LinLink → CmpLinStep
+    | inl heq => exact Or.inr (Or.inl heq)
+    | inr hlink => exact Or.inr (Or.inr (linlink_fwd_to_cmpLinStep hlink))
 
 /-- CmpLinOrdering is a subset of TemporalRel (TransGen BasicTemporalRel) ∨ eq.
     Every CmpLinOrdering step decomposes into equality or a transitive chain of
