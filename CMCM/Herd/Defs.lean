@@ -515,6 +515,9 @@ structure fr {e₁ e₂ : Event n}
     e_w ∈ b ∧ e_w.isClusterCache ∧ ¬ e_w.down
   /-- Protocol causal ordering on cache events. Validated by Murphi model checking. -/
   event_oEnd_lt : Event.oEnd n e₁ < Event.oEnd n e₂
+  /-- GLE ordering for FR (reader vs writer). Provided by CompoundProtocol axioms.
+      For wEqRGle: derivable from RF + CO chain. For wObRGle: external evidence needed. -/
+  gle_ordering : lin₁.gle = lin₂.gle ∨ lin₁.gle.OrderedBefore n lin₂.gle
   -- cmpLin ordering is DERIVED (not a field) via cmpLinLinLink proxy chain.
   -- FrOrdering is DERIVED by fr_ordering_holds theorem (not carried as a field).
   -- This ensures the ordering evidence is proven, not assumed.

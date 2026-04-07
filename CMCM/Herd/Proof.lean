@@ -1473,7 +1473,7 @@ theorem step_to_ordering
       have hlin₂ : lin₂ = lin e₂ := Subsingleton.elim _ _
       show @CleLink n lin₁.cle lin₂.cle
       rw [show lin₁ = lin e₁ from hlin₁, show lin₂ = lin e₂ from hlin₂]
-      cases fr_ordering_holds h lin (by sorry) with
+      cases fr_ordering_holds h lin (hlin₁ ▸ hlin₂ ▸ h.gle_ordering) with
       | sameCache _ h_eq_or_ob =>
         cases h_eq_or_ob with
         | inl cle_eq => exact .eq cle_eq
@@ -3080,7 +3080,7 @@ private theorem edge_to_proto_forward
         fun e => hfr.hknow_dir_access compound b init e
       have hflin₁ : frLin e₁ = hknow e₁ := Subsingleton.elim _ _
       have hflin₂ : frLin e₂ = hknow e₂ := Subsingleton.elim _ _
-      cases fr_ordering_holds hfr frLin (by sorry) with
+      cases fr_ordering_holds hfr frLin (hflin₁ ▸ hflin₂ ▸ hfr.gle_ordering) with
       | sameCache _ cle_eq_or_ob =>
         have h_level : ProtoOBLevel hknow e₁ e₂ :=
           if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
