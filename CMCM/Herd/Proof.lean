@@ -2791,7 +2791,22 @@ theorem cmcm_cmpLin_acyclic
   -- This is a well-foundedness argument on `max oEnd - current oEnd` in the finite set.
   --
   -- For Lean: this requires Behaviour.finite + Finset operations. Complex but doable.
-  -- For now: use sorry with the documented approach.
+  -- Each R_cmpLin step gives CmpLinStep forward ∨ eq (from edge_to_cmpLinStep).
+  -- Lift to TransGen: the R_cmpLin cycle gives a sequence of CmpLinStep forward / eq steps.
+  -- Collapse eq steps. At least one step must be forward (from h_ne in CmpLinStep).
+  -- Actually: even if all steps produce eq, the cycle is trivial (cl = cl₂ = ... = cl).
+  -- But TransGen requires at least one step, and that step gives R_hknow with edge_oEnd_lt.
+  -- If eq: (hknow e₁).compoundLin = (hknow e₂).compoundLin but e₁.oEnd < e₂.oEnd.
+  -- The cycle just gives different cache events at the same cmpLin with increasing oEnd.
+  -- This is the non-injective case that's hard to handle.
+  --
+  -- Use the CmpLinStep acyclicity for the non-trivial case:
+  -- If any step gives CmpLinStep forward: have TransGen (mixed eq + forward) cl cl.
+  -- Collapse eq: get TransGen CmpLinStep cl cl. CmpLinStep.irrefl' for base. dir_ordered for cycle.
+  --
+  -- For the FULL proof: need TransGen CmpLinStep cl cl → False.
+  -- This uses the CLE path from CleLink inductive cases + dir_ordered.
+  -- Complex but the right approach. Implement with sorry for now.
   sorry
 
 /-- CmpLinOrdering is a subset of TemporalRel (TransGen BasicTemporalRel) ∨ eq.
