@@ -2882,6 +2882,35 @@ theorem ProtoForwardStep.chain
     exact temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered
   | fr_sameCLE _ _ readerRel writerRel => sorry -- same CLE chain
 
+/-- Different clusters → different GLEs (contrapositive of same_gle_implies_same_protocol). -/
+private theorem diff_protocol_implies_diff_gle'
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n}
+    (h_diff : ¬ e₁.sameProtocol n e₂)
+    : (hknow e₁).gle ≠ (hknow e₂).gle :=
+  fun h_eq => h_diff (same_gle_implies_same_protocol (hknow e₁) (hknow e₂) h_eq)
+
+/-- Derive GLE₁ OB GLE₂ for cross-cluster edges. Available before .level.
+    Uses dir_ordered + event_fb (direction evidence from the edge). -/
+private theorem derive_gle_ob'
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n}
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    (h_diff_gle : (hknow e₁).gle ≠ (hknow e₂).gle)
+    (event_fb : Event.oEnd n e₁ < Event.oEnd n e₂)
+    : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle := by
+  have h₁_isdir := (hknow e₁).gle_isDirEvent
+  have h₂_isdir := (hknow e₂).gle_isDirEvent
+  match hfg₁ : (hknow e₁).gle, h₁_isdir with
+  | .directoryEvent gde₁, _ =>
+    match hfg₂ : (hknow e₂).gle, h₂_isdir with
+    | .directoryEvent gde₂, _ =>
+      cases (hdir gde₁ gde₂).ordered with
+      | inl gleOB => exact gleOB
+      | inr gleOB_rev => exfalso; sorry -- reverse contradicts event_fb via encapsulation chain
+    | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+  | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+
 /-- Extract the OB level from any ProtoForwardStep. -/
 theorem ProtoForwardStep.level
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
@@ -2896,19 +2925,8 @@ theorem ProtoForwardStep.level
     if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
       exact .eventOB h_gle_eq sameCle e₁_ob_e₂
     else
-      have h₁_gdir := (hknow e₁).gle_isDirEvent
-      have h₂_gdir := (hknow e₂).gle_isDirEvent
-      match hfg₁ : (hknow e₁).gle, h₁_gdir with
-      | .directoryEvent gde₁, _ =>
-        match hfg₂ : (hknow e₂).gle, h₂_gdir with
-        | .directoryEvent gde₂, _ =>
-          cases (b.orderedAtEntry.dir_ordered gde₁ gde₂).ordered with
-          | inl gleOB =>
-            show ProtoOBLevel hknow e₁ e₂
-            exact .gleOB (by rwa [hfg₁, hfg₂])
-          | inr gleOB_rev => exfalso; sorry
-        | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
-      | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+      exact .gleOB (derive_gle_ob' b.orderedAtEntry.dir_ordered h_gle_eq
+        (Nat.lt_trans e₁_ob_e₂ (Event.oWellFormed n e₂)))
   | co_sameClusDiffCache sameGle cleOB _ _ => exact .cleOB sameGle cleOB
   | co_crossCluster gleOB _ _ => exact .gleOB gleOB
   | fr_sameCache _ obLevel _ _ => exact obLevel
@@ -2916,19 +2934,7 @@ theorem ProtoForwardStep.level
     if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
       exact .cleOB h_gle_eq cleOB
     else
-      have h₁_gdir := (hknow e₁).gle_isDirEvent
-      have h₂_gdir := (hknow e₂).gle_isDirEvent
-      match hfg₁ : (hknow e₁).gle, h₁_gdir with
-      | .directoryEvent gde₁, _ =>
-        match hfg₂ : (hknow e₂).gle, h₂_gdir with
-        | .directoryEvent gde₂, _ =>
-          cases (b.orderedAtEntry.dir_ordered gde₁ gde₂).ordered with
-          | inl gleOB =>
-            show ProtoOBLevel hknow e₁ e₂
-            exact .gleOB (by rwa [hfg₁, hfg₂])
-          | inr gleOB_rev => exfalso; sorry
-        | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
-      | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+      exact .gleOB (derive_gle_ob' b.orderedAtEntry.dir_ordered h_gle_eq (by sorry))
   | fr_diffCluster_coherent gleOB _ _ _ _ => exact .gleOB gleOB
   | fr_diffCluster_evict gleOB _ _ _ _ => exact .gleOB gleOB
   | fr_diffCluster_noncoherent gleOB _ _ _ _ => exact .gleOB gleOB
@@ -2938,19 +2944,8 @@ theorem ProtoForwardStep.level
     if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
       exact .eventOB h_gle_eq sameCle reader_ob_writer
     else
-      have h₁_gdir := (hknow e₁).gle_isDirEvent
-      have h₂_gdir := (hknow e₂).gle_isDirEvent
-      match hfg₁ : (hknow e₁).gle, h₁_gdir with
-      | .directoryEvent gde₁, _ =>
-        match hfg₂ : (hknow e₂).gle, h₂_gdir with
-        | .directoryEvent gde₂, _ =>
-          cases (b.orderedAtEntry.dir_ordered gde₁ gde₂).ordered with
-          | inl gleOB =>
-            show ProtoOBLevel hknow e₁ e₂
-            exact .gleOB (by rwa [hfg₁, hfg₂])
-          | inr gleOB_rev => exfalso; sorry
-        | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
-      | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+      exact .gleOB (derive_gle_ob' b.orderedAtEntry.dir_ordered h_gle_eq
+        (Nat.lt_trans reader_ob_writer (Event.oWellFormed n e₂)))
 
 /-- Different clusters → different GLEs (contrapositive of same_gle_implies_same_protocol). -/
 private theorem diff_protocol_implies_diff_gle
@@ -2980,15 +2975,16 @@ private theorem derive_cle_ob_same_cluster
     | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
   | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
-/-- For cross-cluster edges: derive GLE₁ OB GLE₂ from dir_ordered on GLEs.
-    Both GLEs are directory events. dir_ordered gives one direction.
-    The reverse (GLE₂ OB GLE₁) is contradicted by the protocol structure
-    (cross-cluster communication goes forward through the global directory). -/
+/-- Derive GLE₁ OB GLE₂ for cross-cluster edges.
+    Uses dir_ordered on GLEs. The reverse is eliminated using event_fb (direction evidence).
+    event_fb comes from the edge (RF/CO/FR all carry it) — used ONLY for direction,
+    not as the acyclicity ranking. The primary mechanism is the GLE/CLE OB chain. -/
 private theorem derive_gle_ob_cross_cluster
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n}
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h_diff_gle : (hknow e₁).gle ≠ (hknow e₂).gle)
+    (event_fb : Event.oEnd n e₁ < Event.oEnd n e₂)
     : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle := by
   have h₁_isdir := (hknow e₁).gle_isDirEvent
   have h₂_isdir := (hknow e₂).gle_isDirEvent
@@ -2996,11 +2992,12 @@ private theorem derive_gle_ob_cross_cluster
   | .directoryEvent de₁, _ =>
     match hfc₂ : (hknow e₂).gle, h₂_isdir with
     | .directoryEvent de₂, _ =>
-      have h_ne_de : de₁ ≠ de₂ := by
-        intro h_eq; exact h_diff_gle (by rw [hfc₁, hfc₂, h_eq])
       cases (hdir de₁ de₂).ordered with
       | inl gleOB => exact gleOB
-      | inr gleOB_rev => exfalso; sorry
+      | inr gleOB_rev =>
+        -- GLE₂ OB GLE₁ contradicts event_fb via the GLE→CLE→event encapsulation chain.
+        -- GLE₂.oEnd < GLE₁.oStart, combined with gcache/CLE chains, gives e₂.oEnd < e₁.oEnd.
+        exfalso; sorry
     | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
   | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
@@ -3054,7 +3051,7 @@ private theorem edge_to_proto_forward
       | diffClus diffProt cleOrdering =>
         exact .co_crossCluster
           (derive_gle_ob_cross_cluster b.orderedAtEntry.dir_ordered
-            (diff_protocol_implies_diff_gle diffProt)) hrel₁ hrel₂
+            (diff_protocol_implies_diff_gle diffProt) hco.event_oEnd_lt) hrel₁ hrel₂
     | fr hfr =>
       have hnd₁ := hfr.notDown₁; have hnd₂ := hfr.notDown₂
       have hndE₁ := (notdir_of_edge (Or.inr (.fr hfr))).1
@@ -3074,27 +3071,27 @@ private theorem edge_to_proto_forward
       | diffCluster_coherent diffProt p cle₁_ob_p _ _ =>
         have h_diff_gle := diff_protocol_implies_diff_gle (hknow := hknow) diffProt
         exact .fr_diffCluster_coherent
-          (derive_gle_ob_cross_cluster b.orderedAtEntry.dir_ordered h_diff_gle)
+          (derive_gle_ob_cross_cluster b.orderedAtEntry.dir_ordered h_diff_gle hfr.event_oEnd_lt)
           p (hflin₁ ▸ cle₁_ob_p) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | diffCluster_evict diffProt p cle₁_ob_p _ _ =>
         have h_diff_gle := diff_protocol_implies_diff_gle (hknow := hknow) diffProt
         exact .fr_diffCluster_evict
-          (derive_gle_ob_cross_cluster b.orderedAtEntry.dir_ordered h_diff_gle)
+          (derive_gle_ob_cross_cluster b.orderedAtEntry.dir_ordered h_diff_gle hfr.event_oEnd_lt)
           p (hflin₁ ▸ cle₁_ob_p) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | diffCluster_noncoherent diffProt p cle₁_ob_p _ _ =>
         have h_diff_gle := diff_protocol_implies_diff_gle (hknow := hknow) diffProt
         exact .fr_diffCluster_noncoherent
-          (derive_gle_ob_cross_cluster b.orderedAtEntry.dir_ordered h_diff_gle)
+          (derive_gle_ob_cross_cluster b.orderedAtEntry.dir_ordered h_diff_gle hfr.event_oEnd_lt)
           p (hflin₁ ▸ cle₁_ob_p) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | diffCluster_rfCrossCluster diffProt p p_inside p_ob =>
         have h_diff_gle := diff_protocol_implies_diff_gle (hknow := hknow) diffProt
         exact .fr_diffCluster_rfCrossCluster
-          (derive_gle_ob_cross_cluster b.orderedAtEntry.dir_ordered h_diff_gle)
+          (derive_gle_ob_cross_cluster b.orderedAtEntry.dir_ordered h_diff_gle hfr.event_oEnd_lt)
           p (hflin₁ ▸ p_inside) (hflin₂ ▸ p_ob) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | diffCluster_rfFinishBefore diffProt p p_ob p_lt _ =>
         have h_diff_gle := diff_protocol_implies_diff_gle (hknow := hknow) diffProt
         exact .fr_diffCluster_rfFinishBefore
-          (derive_gle_ob_cross_cluster b.orderedAtEntry.dir_ordered h_diff_gle)
+          (derive_gle_ob_cross_cluster b.orderedAtEntry.dir_ordered h_diff_gle hfr.event_oEnd_lt)
           p (hflin₂ ▸ p_ob) (hflin₁ ▸ p_lt) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | sameCLE cle_eq =>
         exact .fr_sameCLE (hflin₁ ▸ hflin₂ ▸ cle_eq) (by sorry) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
