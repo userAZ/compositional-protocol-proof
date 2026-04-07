@@ -3041,8 +3041,26 @@ theorem cmcm_cmpLin_acyclic
       h_cl₁ ▸ hrel₁, h_cl₂ ▸ hrel₂, ?_⟩
     -- CLE relationship: CleLink from the edge.
     cases h_edge with
-    | inl _ => -- PPOi: dir_ordered on same-entry CLEs or equality.
-      sorry -- PPOi CLE relationship (dir_ordered)
+    | inl _ => -- PPOi: both CLEs are directory events. dir_ordered gives CleLink or eq.
+      if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
+        exact Or.inl h_cle_eq
+      else
+        match hfc₁ : (hknow e₁).cle, (hknow e₁).cle_isDirEvent with
+        | .directoryEvent de₁, _ =>
+          match hfc₂ : (hknow e₂).cle, (hknow e₂).cle_isDirEvent with
+          | .directoryEvent de₂, _ =>
+            -- dir_ordered gives OB between de₁ and de₂. After match: CleLink on Event.directoryEvent.
+            cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
+            | inl h_ob =>
+              have h_ne : (Event.directoryEvent de₁ : Event n) ≠ Event.directoryEvent de₂ := by
+                rw [← hfc₁, ← hfc₂]; exact h_cle_eq
+              exact Or.inr (Or.inl (.single (.ob h_ob h_ne)))
+            | inr h_ob_rev =>
+              have h_ne : (Event.directoryEvent de₂ : Event n) ≠ Event.directoryEvent de₁ := by
+                rw [← hfc₂, ← hfc₁]; exact Ne.symm h_cle_eq
+              exact Or.inr (Or.inr (.single (.ob h_ob_rev h_ne)))
+          | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+        | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
     | inr hcom =>
       -- COM: CleLink from step_to_ordering.
       exact Or.inr (Or.inl (.single (step_to_ordering_hknow hknow hcom h_non_lazy_ppoi)))
