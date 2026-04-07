@@ -2813,6 +2813,39 @@ private theorem temporalRel_of_cleOB_and_cmpLinCleRels
     | inside cle₂_encaps_cmpLin₂ _ =>
       exact .tail (.tail (.single h_encapBy) (.ob cleOB)) (.encap cle₂_encaps_cmpLin₂)
 
+/-- For GLE OB cases: derive CLE₁ OB CLE₂ from dir_ordered.
+    The reverse (CLE₂ OB CLE₁) contradicts GLE₁ OB GLE₂ via the CLE-encaps-gcache chain.
+    Then use temporalRel_of_cleOB_and_cmpLinCleRels for the TemporalRel chain. -/
+private theorem temporalRel_of_gleOB_and_cmpLinCleRels
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n}
+    (gleOB : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
+    (rel₁ : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
+    (rel₂ : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
+    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
+    : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin := by
+  -- Strategy: derive CLE₁ OB CLE₂ from dir_ordered, then use the CLE OB helper.
+  -- The reverse (CLE₂ OB CLE₁) is contradicted by GLE₁ OB GLE₂ + encapsulation chain.
+  have h₁_isdir := (hknow e₁).cle_isDirEvent
+  have h₂_isdir := (hknow e₂).cle_isDirEvent
+  if h_eq : (hknow e₁).cle = (hknow e₂).cle then
+    sorry -- same CLE but GLE₁ OB GLE₂ → derive chain or contradiction
+  else
+    match hfc₁ : (hknow e₁).cle, h₁_isdir with
+    | .directoryEvent de₁, _ =>
+      match hfc₂ : (hknow e₂).cle, h₂_isdir with
+      | .directoryEvent de₂, _ =>
+        cases (hdir de₁ de₂).ordered with
+        | inl cleOB =>
+          have h_cleOB : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle := by
+            rw [hfc₁, hfc₂]; exact cleOB
+          exact temporalRel_of_cleOB_and_cmpLinCleRels h_cleOB rel₁ rel₂
+        | inr cleOB_rev =>
+          -- CLE₂ OB CLE₁ contradicts GLE₁ OB GLE₂ via encapsulation chain.
+          sorry
+      | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+    | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
+
 /-- Extract the TemporalRel chain between cmpLin events from any ProtoForwardStep.
     Derived from the explicit CmpLinCleRel links + GLE/CLE/event OB. -/
 theorem ProtoForwardStep.chain
@@ -2821,25 +2854,32 @@ theorem ProtoForwardStep.chain
     (h : ProtoForwardStep hknow e₁ e₂) : TemporalRel (hknow e₁).compoundLin (hknow e₂).compoundLin := by
   cases h with
   | ppoi cmpLin₁_ob_cmpLin₂ _ _ _ => exact .single (.ob cmpLin₁_ob_cmpLin₂)
-  | rf_crossGle _ writerRel readerRel => sorry -- GLE OB chain (needs CLE→GLE connection)
+  | rf_crossGle gleOB writerRel readerRel =>
+    exact temporalRel_of_gleOB_and_cmpLinCleRels gleOB writerRel readerRel b.orderedAtEntry.dir_ordered
   | rf_sameGle_cleOB _ cleOB writerRel readerRel =>
     exact temporalRel_of_cleOB_and_cmpLinCleRels cleOB writerRel readerRel
   | rf_sameGle_sameCLE _ _ _ writerRel readerRel => sorry -- same CLE chain
   | co_sameCache _ _ w₁Rel w₂Rel => sorry -- same CLE + event OB chain
   | co_sameClusDiffCache _ cleOB w₁Rel w₂Rel =>
     exact temporalRel_of_cleOB_and_cmpLinCleRels cleOB w₁Rel w₂Rel
-  | co_crossCluster _ w₁Rel w₂Rel => sorry -- GLE OB chain
+  | co_crossCluster gleOB w₁Rel w₂Rel =>
+    exact temporalRel_of_gleOB_and_cmpLinCleRels gleOB w₁Rel w₂Rel b.orderedAtEntry.dir_ordered
   | fr_sameCache h_cle_rel _ readerRel writerRel =>
     cases h_cle_rel with
     | inl h_eq => sorry -- same CLE chain
     | inr cleOB => exact temporalRel_of_cleOB_and_cmpLinCleRels cleOB readerRel writerRel
   | fr_sameClusDiffCache cleOB readerRel writerRel =>
     exact temporalRel_of_cleOB_and_cmpLinCleRels cleOB readerRel writerRel
-  | fr_diffCluster_coherent _ _ _ readerRel writerRel => sorry -- GLE OB chain
-  | fr_diffCluster_evict _ _ _ readerRel writerRel => sorry -- GLE OB chain
-  | fr_diffCluster_noncoherent _ _ _ readerRel writerRel => sorry -- GLE OB chain
-  | fr_diffCluster_rfCrossCluster _ _ _ _ readerRel writerRel => sorry -- GLE OB chain
-  | fr_diffCluster_rfFinishBefore _ _ _ _ readerRel writerRel => sorry -- GLE OB chain
+  | fr_diffCluster_coherent gleOB _ _ readerRel writerRel =>
+    exact temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered
+  | fr_diffCluster_evict gleOB _ _ readerRel writerRel =>
+    exact temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered
+  | fr_diffCluster_noncoherent gleOB _ _ readerRel writerRel =>
+    exact temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered
+  | fr_diffCluster_rfCrossCluster gleOB _ _ _ readerRel writerRel =>
+    exact temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered
+  | fr_diffCluster_rfFinishBefore gleOB _ _ _ readerRel writerRel =>
+    exact temporalRel_of_gleOB_and_cmpLinCleRels gleOB readerRel writerRel b.orderedAtEntry.dir_ordered
   | fr_sameCLE _ _ readerRel writerRel => sorry -- same CLE chain
 
 /-- Extract the OB level from any ProtoForwardStep. -/
