@@ -355,6 +355,7 @@ inductive co.ordering
       (carries wImmPredRCle or evictOrReadBetween with downgrade chain). -/
   | sameClusDiffCache
     (same_protocol : e₁.sameProtocol n e₂)
+    (gle_eq_or_ob : w₁_cmpLin.gle = w₂_cmpLin.gle ∨ w₁_cmpLin.gle.OrderedBefore n w₂_cmpLin.gle)
     (cle_ordering : CompoundProtocol.SameCluster.cleOb.cleOrdering.Cases w₁_cmpLin w₂_cmpLin)
   /-- Different cluster: cross-cluster downgrade chain.
       The second write's request propagates through global directory to trigger

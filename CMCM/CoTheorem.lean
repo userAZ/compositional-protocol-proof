@@ -80,13 +80,13 @@ theorem co_ordering_holds
       exact .sameCache w_r_cle_eq h_e₁_ob_e₂
     | otherCases other =>
       -- Same GLE → same protocol (same_gle_implies_same_protocol).
-      exact .sameClusDiffCache (same_gle_implies_same_protocol w₁_cmpLin w₂_cmpLin same_gle) other
+      exact .sameClusDiffCache (same_gle_implies_same_protocol w₁_cmpLin w₂_cmpLin same_gle) (Or.inl same_gle) other
   | wObRGle w_ob_r_gle cle_cases =>
     -- w₁'s GLE OB w₂'s GLE.
     cases cle_cases with
     | sameCluster same_prot cle_ord =>
       -- Same cluster, GLE₁ OB GLE₂ → sameClusDiffCache.
-      exact .sameClusDiffCache same_prot cle_ord
+      exact .sameClusDiffCache same_prot (Or.inr w_ob_r_gle) cle_ord
     | diffCluster diff_prot cle_ord =>
       -- Different cluster → diffClus.
       exact .diffClus diff_prot w_ob_r_gle cle_ord

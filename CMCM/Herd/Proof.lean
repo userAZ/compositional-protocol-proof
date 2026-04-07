@@ -70,7 +70,7 @@ theorem co_irrefl {lin₁ lin₂ : CompoundProtocol.globalLinearizationEventOfRe
     (h : Herd.co lin₁ lin₂) : False := by
   cases h.comm with
   | sameCache _ hob => exact Event.contradiction_of_reflexive_ordered_before n hob
-  | sameClusDiffCache _ cle_ord =>
+  | sameClusDiffCache _ _ cle_ord =>
     cases cle_ord with
     | wImmPredRCle w =>
       cases w with
@@ -220,7 +220,7 @@ theorem co_step_to_ordering
       | orderAfterDir _ _ _ _ => exact .eq same_cle
     | orderBeforeDir _ _ _ _ _ _ _ _ => exact .eq same_cle
     | orderAfterDir _ _ _ _ => exact .eq same_cle
-  | sameClusDiffCache _ cle_ord =>
+  | sameClusDiffCache _ _ cle_ord =>
     cases cle_ord with
     | wImmPredRCle w =>
       cases w with
@@ -279,7 +279,7 @@ private lemma co_step_oEnd_le
   cases h.comm with
   | sameCache same_cle _ =>
     exact Nat.le_of_eq (congrArg (Event.oEnd n) same_cle)
-  | sameClusDiffCache _ cle_ord =>
+  | sameClusDiffCache _ _ cle_ord =>
     cases cle_ord with
     | wImmPredRCle w =>
       cases w with
@@ -1530,7 +1530,7 @@ private theorem com_self_false
     cases h.comm with
     | sameCache _ cache_ob =>
       exact Event.contradiction_of_reflexive_ordered_before n cache_ob
-    | sameClusDiffCache _ cle_ordering =>
+    | sameClusDiffCache _ _ cle_ordering =>
       -- Both w₁_cmpLin and w₂_cmpLin are globalLinearizationEventOfRequest for e.
       -- By Subsingleton.elim, they're equal, so their CLEs are equal.
       have heq : lin₁ = lin₂ := Subsingleton.elim _ _
@@ -3075,7 +3075,7 @@ private theorem edge_to_proto_forward
       cases hco.comm with
       | sameCache sameCle e₁_ob_e₂ =>
         exact .co_sameCache sameCle e₁_ob_e₂ hrel₁ hrel₂
-      | sameClusDiffCache sameProt cleOrdering =>
+      | sameClusDiffCache sameProt gleEqOrOb cleOrdering =>
         if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
           -- sameClusDiffCache + same CLE → contradictory.
           -- cleOrdering gives CLE₁ OB CLE₂; h_cle_eq gives CLE₁ = CLE₂ → self-OB → False.
@@ -3101,9 +3101,13 @@ private theorem edge_to_proto_forward
             -- evict.wObR : CLE₁ OB CLE₂. With h_cle_eq: self-OB.
             exact Nat.lt_irrefl _ (Nat.lt_trans (h_cle_eq ▸ evict.wObR) (Event.oWellFormed n _))
         else
-          exact .co_sameClusDiffCache (by sorry)
-            (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
-            hrel₁ hrel₂
+          cases gleEqOrOb with
+          | inl sameGle =>
+            exact .co_sameClusDiffCache sameGle
+              (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
+              hrel₁ hrel₂
+          | inr gleOB =>
+            exact .co_crossCluster gleOB hrel₁ hrel₂
       | diffClus diffProt gleOB_co cleOrdering =>
         exact .co_crossCluster gleOB_co hrel₁ hrel₂
     | fr hfr =>
