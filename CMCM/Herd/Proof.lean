@@ -3008,6 +3008,18 @@ private theorem derive_cle_ob_same_cluster
   | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
 
+/-- compoundLin = linearizationEvent (bridge for PPOi cmpLin OB from NonLazyPPOi). -/
+private theorem compoundLin_eq_linearizationEvent'
+    {lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    : lin.compoundLin =
+      (compound.compoundLinearizationEvent compound.shimAxioms b init e
+        (compound.linearizationOfEvent b init e)).linearizationEvent := by
+  have h1 := lin.compoundLin_eq; rw [h1]
+  cases hcase : compound.compoundLinearizationEvent compound.shimAxioms b init e
+    (compound.linearizationOfEvent b init e) with
+  | clusterCacheLin h => simp [CompoundProtocol.compoundLinOf, hcase, ClusterRequestLinearizationEvent.linearizationEvent]
+  | clusterDirLin h => simp [CompoundProtocol.compoundLinOf, hcase, ClusterRequestLinearizationEvent.linearizationEvent]
+
 private theorem edge_to_proto_forward
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
@@ -3022,10 +3034,10 @@ private theorem edge_to_proto_forward
     have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnd₁ hndE₁ (lin := hknow e₁)
     have hrel₂ := compoundLin_cle_to_CmpLinCleRel hnd₂ hndE₂ (lin := hknow e₂)
     have h_fb := edge_oEnd_lt (Or.inl hppoi)
-    -- cmpLin = linearizationEvent (from compoundLin_eq_linearizationEvent).
-    -- NonLazyPPOi gives linearizationEvent₁ OB linearizationEvent₂.
-    -- Bridge: compoundLin_eq_linearizationEvent defined below — move above or use sorry.
-    have h_cmpLin_ob : (hknow e₁).compoundLin.OrderedBefore n (hknow e₂).compoundLin := by sorry
+    have h_cmpLin_ob : (hknow e₁).compoundLin.OrderedBefore n (hknow e₂).compoundLin := by
+      rw [compoundLin_eq_linearizationEvent' (lin := hknow e₁),
+          compoundLin_eq_linearizationEvent' (lin := hknow e₂)]
+      exact h_non_lazy_ppoi e₁ e₂ (hknow e₁) (hknow e₂) hppoi.1 hppoi.2
     have h_level : ProtoOBLevel hknow e₁ e₂ :=
       if h_gle_eq : (hknow e₁).gle = (hknow e₂).gle then
         if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
