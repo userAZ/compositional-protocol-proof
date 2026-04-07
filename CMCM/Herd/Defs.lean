@@ -237,7 +237,7 @@ inductive CmpLinCleRel {n : ℕ} (cmpLin cle : Event n) : Prop
   /-- cle_ob: CLE OB cmpLin. From requestLin (event has perms).
       Carries cmpLin = e (the cache request event) and ¬ isDirectoryEvent. -/
   | cle_ob (e : Event n) (h_eq : cmpLin = e) (h : cle.OrderedBefore n cmpLin) (h_not_dir : ¬ cmpLin.isDirectoryEvent)
-  | inside (h : cle.Encapsulates n cmpLin) (h_global : cmpLin.protocol = .global)
+  | inside (h : cle.Encapsulates n cmpLin) (h_global : cmpLin.protocol = .global) (h_isdir : cmpLin.isDirectoryEvent)
 
 /-- LinLink: ordering between compoundLin events, bridged through proxy CLEs.
     `step`: both compoundLin events ARE directory events (dirLin case).

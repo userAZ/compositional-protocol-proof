@@ -483,7 +483,8 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_of_di
     (hdir : cmp.linearizationOfEvent b init e = .dirLin hd)
     : lin.compoundLin = lin.cle ∨
       (lin.compoundLin.EncapsulatedBy n lin.cle ∧
-       lin.compoundLin.protocol = .global) := by
+       lin.compoundLin.protocol = .global ∧
+       lin.compoundLin.isDirectoryEvent) := by
   -- Replay the dirLin branch of compoundLin_cle.
   -- dirLin produces .eq (previousGlobalCacheGotPerms) or .inside (getGlobalCachePerms).
   have hrel := lin.compoundLin_cle hnotdown
@@ -569,7 +570,9 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_of_di
                 -- hsucc_same : successor.prot = gcache.prot.
                 exact (hsucc_same.symm.trans h_succ_dir_prot).symm
             -- Step 4: chain compoundLin = hdir_case.choose = hat_dir.choose
-            exact Or.inr ⟨ha, by rw [h_cl_eq, hgcache_lin_cases, h_dir_prot, h_gcache_prot]⟩
+            exact Or.inr ⟨ha,
+              by rw [h_cl_eq, hgcache_lin_cases, h_dir_prot, h_gcache_prot],
+              by rw [h_cl_eq, hgcache_lin_cases, h_gdir_lin.dirIsLin]; exact h_gdir_lin.isDir⟩
           · exact absurd hgcache_lin_cases (by simp)
   | cle_ob_compoundLin ha =>
     -- This only arises from requestLin. But we have dirLin. Contradiction.
