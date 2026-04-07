@@ -2991,8 +2991,63 @@ theorem cmcm_cmpLin_acyclic
   --
   -- For the FULL proof: need TransGen CmpLinStep cl cl → False.
   -- This uses the CLE path from CleLink inductive cases + dir_ordered.
-  -- Complex but the right approach. Implement with sorry for now.
-  sorry
+  -- Each R_cmpLin step gives CmpLinStep ∨ eq (from edge_to_cmpLinStep).
+  -- CmpLinStep.com carries CleLink. At junctions: junction_compose gives CleLink/eq.
+  -- CmpLinStep.ob: PPOi, no CleLink directly.
+  --
+  -- Approach: extract CLE at each step endpoint via hknow.
+  -- Track: TransGen (CleLink or eq) on CLEs through the cycle.
+  -- CLE cycle → dir_ordered → contradiction.
+  --
+  -- Induction on TransGen: maintain (cle_start cle_end : Event n) with
+  --   TransGen (CleLink or eq) cle_start cle_end.
+  -- At cycle closure: cle_start and cle_end both relate to cl via CmpLinCleRel.
+  -- junction_compose gives CleLink/eq between cle_end and cle_start.
+  -- Close the CLE cycle → dir_ordered contradiction.
+  --
+  -- Implementation: suffices with CLE tracking invariant.
+  suffices hsuff : ∀ cl₂, Relation.TransGen (R_cmpLin hknow h_non_lazy_ppoi) cl cl₂ →
+      ∃ (cle_start cle_end : Event n),
+        cle_start.isDirectoryEvent ∧ cle_end.isDirectoryEvent ∧
+        CmpLinCleRel cl cle_start ∧ CmpLinCleRel cl₂ cle_end ∧
+        (cle_start = cle_end ∨ Relation.TransGen (@CleLink n) cle_start cle_end ∨
+         Relation.TransGen (@CleLink n) cle_end cle_start) by
+    -- At cycle closure (cl₂ = cl): CmpLinCleRel cl cle_start AND CmpLinCleRel cl cle_end.
+    -- junction_compose on (cle_end, cle_start) at junction cl gives CleLink/eq.
+    -- Compose with the TransGen CleLink → CLE cycle → contradiction.
+    obtain ⟨cle_s, cle_e, h_s_dir, h_e_dir, h_rel_s, h_rel_e, h_cle_path⟩ := hsuff cl hcycle
+    -- junction at cycle closure: cle_e and cle_s both at cl.
+    -- junction_compose gives CleLink cle_e cle_s ∨ eq ∨ CleLink cle_s cle_e.
+    sorry -- Compose CLE cycle → dir_ordered contradiction
+  -- Prove the suffices: induction on TransGen.
+  intro cl₂ hpath
+  induction hpath with
+  | single hstep =>
+    obtain ⟨e₁, e₂, h_cl₁, h_cl₂, h_edge⟩ := hstep
+    -- Single step: extract CLEs from hknow.
+    -- (hknow e₁).cle and (hknow e₂).cle.
+    -- CmpLinCleRel: cl = (hknow e₁).compoundLin relates to (hknow e₁).cle.
+    -- CmpLinCleRel: cl₂ = (hknow e₂).compoundLin relates to (hknow e₂).cle.
+    have ⟨hnd₁, hnd₂⟩ := notdown_of_edge h_edge
+    have ⟨hndE₁, hndE₂⟩ := notdir_of_edge h_edge
+    have ⟨hc₁, hc₂⟩ : e₁.isClusterCache ∧ e₂.isClusterCache := by
+      cases h_edge with
+      | inl h => exact ⟨h.1.cache₁, h.1.cache₂⟩
+      | inr h => cases h with | rfe h => exact ⟨h.cache₁, h.cache₂⟩ | co h => exact ⟨h.cache₁, h.cache₂⟩ | fr h => exact ⟨h.cache₁, h.cache₂⟩
+    have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnd₁ hndE₁ (lin := hknow e₁)
+    have hrel₂ := compoundLin_cle_to_CmpLinCleRel hnd₂ hndE₂ (lin := hknow e₂)
+    refine ⟨(hknow e₁).cle, (hknow e₂).cle,
+      (hknow e₁).cle_isDirEvent, (hknow e₂).cle_isDirEvent,
+      h_cl₁ ▸ hrel₁, h_cl₂ ▸ hrel₂, ?_⟩
+    -- CLE relationship: CleLink from the edge.
+    cases h_edge with
+    | inl _ => -- PPOi: dir_ordered on same-entry CLEs or equality.
+      sorry -- PPOi CLE relationship (dir_ordered)
+    | inr hcom =>
+      -- COM: CleLink from step_to_ordering.
+      exact Or.inr (Or.inl (.single (step_to_ordering_hknow hknow hcom h_non_lazy_ppoi)))
+  | tail _ hlast ih =>
+    sorry -- Compose: existing CLE path + new step + junction
 
 /-- CmpLinOrdering is a subset of TemporalRel (TransGen BasicTemporalRel) ∨ eq.
     Every CmpLinOrdering step decomposes into equality or a transitive chain of
