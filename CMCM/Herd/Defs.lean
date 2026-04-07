@@ -308,6 +308,8 @@ structure PPOi {e₁ e₂ : Event n}
   notDown₂ : ¬ e₂.down
   /-- GLE ordering for PPOi events. Same cache → same cluster → GLEs ordered or equal. -/
   gle_eq_or_ob : lin₁.gle = lin₂.gle ∨ lin₁.gle.OrderedBefore n lin₂.gle
+  /-- CLE ordering for PPOi events. Same cache → same cluster → CLEs ordered or equal. -/
+  cle_eq_or_ob : lin₁.cle = lin₂.cle ∨ lin₁.cle.OrderedBefore n lin₂.cle
   cache₁ : e₁.isClusterCache
   cache₂ : e₂.isClusterCache
   in_b₁ : e₁ ∈ b

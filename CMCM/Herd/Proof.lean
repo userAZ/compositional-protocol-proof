@@ -3004,8 +3004,8 @@ theorem ProtoForwardStep.level
   | fr_sameCLE sameCle reader_ob_writer _ _ =>
     exact .eventOB (same_cle_implies_same_gle sameCle) sameCle reader_ob_writer
 
-/-- For same-cluster edges with CLE₁ ≠ CLE₂: derive CLE₁ OB CLE₂ from dir_ordered.
-    The reverse is contradicted by the protocol forward direction. -/
+/-- For same-cluster edges with CLE₁ ≠ CLE₂: derive CLE₁ OB CLE₂.
+    Uses dir_ordered. Reverse contradicted by CleLink → LinChain → oStart_lt. -/
 private theorem derive_cle_ob_same_cluster
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n}
@@ -3020,7 +3020,16 @@ private theorem derive_cle_ob_same_cluster
     | .directoryEvent de₂, _ =>
       cases (hdir de₁ de₂).ordered with
       | inl cleOB => exact cleOB
-      | inr cleOB_rev => exfalso; sorry -- CLE₂ OB CLE₁ contradicts protocol forward
+      | inr cleOB_rev =>
+        -- CLE₂ OB CLE₁. Need contradiction.
+        -- For same-cluster edges: step_to_ordering gives CleLink CLE₁ CLE₂.
+        -- CleLink.subset_temporalRel gives TemporalRel CLE₁ CLE₂ (CLE₁ ≠ CLE₂ rules out eq).
+        -- For same-cluster: no obFinishBefore (requires diff_protocol).
+        -- All remaining CleLink constructors give LinChain → oStart_lt.
+        -- CLE₂ OB CLE₁: CLE₂.oEnd < CLE₁.oStart. But oStart_lt: CLE₁.oStart < CLE₂.oStart.
+        -- Combined: CLE₂.oEnd < CLE₁.oStart < CLE₂.oStart ≤ CLE₂.oEnd → contradiction.
+        -- NOTE: we don't have the CleLink here (it's in the caller). Use sorry.
+        exfalso; sorry
     | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
   | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
@@ -3060,9 +3069,13 @@ private theorem edge_to_proto_forward
         .eventOB (same_cle_implies_same_gle h_cle_eq) h_cle_eq (event_ob_of_same_cache (b := b)
           hppoi.1.cache₁ hppoi.1.cache₂ hppoi.1.notDown₁ hppoi.1.notDown₂ h_fb)
       else by
-        cases hppoi.1.gle_eq_or_ob with
-        | inl h_gle_eq => exact .cleOB h_gle_eq (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
-        | inr h_gle_ob => exact .gleOB h_gle_ob
+        -- CLE≠: use PPOi's cle_eq_or_ob (must be inr since CLE≠)
+        cases hppoi.1.cle_eq_or_ob with
+        | inl h_eq => exact absurd h_eq h_cle_eq
+        | inr h_cle_ob =>
+          cases hppoi.1.gle_eq_or_ob with
+          | inl h_gle_eq => exact .cleOB h_gle_eq h_cle_ob
+          | inr h_gle_ob => exact .gleOB h_gle_ob
     exact .ppoi h_cmpLin_ob h_level hrel₁ hrel₂
   | inr hcom =>
     cases hcom with
@@ -3088,6 +3101,11 @@ private theorem edge_to_proto_forward
           -- .eq contradicts h_cle_eq. Other constructors give CLE₁ OB CLE₂.
           -- Extract CLE OB from CleLink using CleLink.subset_temporalRel → oStart increase.
           -- Simpler: use dir_ordered (existing sorry) for now.
+          -- CleLink from step_to_ordering. For same-cluster CLE≠:
+          -- CleLink decomposes to LinChain (no obFinishBefore for same cluster).
+          -- LinChain.oStart_lt gives CLE₁.oStart < CLE₂.oStart.
+          -- dir_ordered reverse: CLE₂.oEnd < CLE₁.oStart → contradiction with oStart_lt.
+          -- So dir_ordered must give CLE₁ OB CLE₂.
           exact .rf_sameGle_cleOB sameGle
             (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
             hrel₁ hrel₂
@@ -3160,8 +3178,10 @@ private theorem edge_to_proto_forward
             exact .eventOB (same_cle_implies_same_gle h_cle_eq) h_cle_eq (event_ob_of_same_cache (b := b)
               hfr.cache₁ hfr.cache₂ hfr.notDown₁ hfr.notDown₂ hfr.event_oEnd_lt)
           else
+            -- CLE≠: FrOrdering.sameCache has cle_eq_or_ob. Must be inr (CLE OB).
+            have h_cle_ob := (hflin₁ ▸ hflin₂ ▸ cle_eq_or_ob).resolve_left h_cle_eq
             cases (hflin₁ ▸ hflin₂ ▸ gleEqOrOb_frSC) with
-            | inl h_gle_eq => exact .cleOB h_gle_eq (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
+            | inl h_gle_eq => exact .cleOB h_gle_eq h_cle_ob
             | inr h_gle_ob => exact .gleOB h_gle_ob
         exact .fr_sameCache (hflin₁ ▸ hflin₂ ▸ cle_eq_or_ob) h_level (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
       | sameClusDiffCache _ _ gleEqOrOb_fr cle_ob =>
