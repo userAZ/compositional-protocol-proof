@@ -3020,6 +3020,7 @@ private theorem derive_cle_ob_same_cluster
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     (h_ne : (hknow e₁).cle ≠ (hknow e₂).cle)
     (h_clelink : @CleLink n (hknow e₁).cle (hknow e₂).cle)
+    (h_same_prot : (hknow e₁).cle.protocol = (hknow e₂).cle.protocol)
     : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle := by
   have h₁_isdir := (hknow e₁).cle_isDirEvent
   have h₂_isdir := (hknow e₂).cle_isDirEvent
@@ -3036,34 +3037,50 @@ private theorem derive_cle_ob_same_cluster
         -- TemporalRel gives CLE₁.oEnd ≤ CLE₂.oEnd (finishesBefore at minimum).
         -- Combined: CLE₂.oEnd < CLE₁.oStart ≤ CLE₁.oEnd ≤ CLE₂.oEnd → CLE₂.oEnd < CLE₂.oEnd → contradiction.
         exfalso
-        -- CleLink CLE₁ CLE₂ + CLE₂ OB CLE₁ (= cleOB_rev : de₂.oEnd < de₁.oStart) → contradiction.
-        -- After match: CLE₁ = .directoryEvent de₁, CLE₂ = .directoryEvent de₂.
-        -- cleOB_rev : de₂.oEnd < de₁.oStart (= de₂ OB de₁ at DirectoryEvent level).
-        -- CleLink gives temporal chain CLE₁ → CLE₂.
-        -- Each CleLink constructor with CLE₁ ≠ CLE₂ gives CLE₁.oStart < CLE₂.oStart
-        -- (from the specific temporal evidence in each constructor).
-        -- Combined with de₂.oEnd < de₁.oStart and de₁.oStart < de₂.oStart:
-        -- de₂.oEnd < de₂.oStart → contradicts de₂.oWellFormed.
-        -- CleLink.subset_temporalRel gives TemporalRel or eq. eq contradicts h_ne.
-        -- TemporalRel = TransGen BasicTemporalRel. Each step satisfies oStart_lt
-        -- (for ob, encap, encapBy — all give a.oStart < b.oStart).
-        -- Wait: encapBy has b.oStart < a.oStart (a inside b → b starts first).
-        -- So encapBy gives a.oStart > b.oStart, NOT a.oStart < b.oStart.
-        -- But finishesBefore also doesn't give oStart ordering.
-        -- Alternative: use a weaker invariant.
-        -- For each BasicTemporalRel from a to b: a.oStart < b.oEnd (proven above).
-        -- So TransGen gives CLE₁.oStart < CLE₂.oEnd.
-        -- But we need to contradict de₂.oEnd < de₁.oStart with CLE₁.oStart < CLE₂.oEnd.
-        -- de₁ = CLE₁, de₂ = CLE₂. So CLE₁.oStart < CLE₂.oEnd AND CLE₂.oEnd < CLE₁.oStart.
-        -- CLE₁.oStart < CLE₂.oEnd < CLE₁.oStart → CLE₁.oStart < CLE₁.oStart → contradiction!
-        -- Now: just prove BasicTemporalRel a b → a.oStart < b.oEnd for all cases,
-        -- then TransGen preserves it.
-        -- CleLink CLE₁ CLE₂ + CLE₂ OB CLE₁ → contradiction.
-        -- Proof approach: CleLink → TemporalRel → each BasicTemporalRel step gives
-        -- a.oStart < b.oEnd. TransGen preserves this (for non-finishesAfterProxy steps).
-        -- CLE₂.oEnd < CLE₁.oStart (from cleOB_rev) + CLE₁.oStart < CLE₂.oEnd → contradiction.
-        -- finishesAfterProxy doesn't arise for same-cluster CleLink.
-        sorry
+        -- cleOB_rev : de₂.oEnd < de₁.oStart (CLE₂ OB CLE₁).
+        -- CleLink CLE₁ CLE₂: each constructor gives de₁.oStart < de₂.oEnd.
+        -- Combined: de₁.oStart < de₂.oEnd < de₁.oStart → contradiction.
+        -- Case-split CleLink to extract de₁.oStart < de₂.oEnd for each constructor.
+        have h_clelink' : @CleLink n (.directoryEvent de₁) (.directoryEvent de₂) := by
+          rwa [← hfc₁, ← hfc₂]
+        have h_fwd : Event.oStart n (.directoryEvent de₁) < Event.oEnd n (.directoryEvent de₂) := by
+          cases h_clelink' with
+          | ob h _ =>
+            -- de₁ OB de₂: de₁.oEnd < de₂.oStart.
+            exact Nat.lt_trans (Event.oWellFormed n _) (Nat.lt_trans h (Event.oWellFormed n _))
+          | encap h _ =>
+            -- de₁ Encaps de₂: de₁.oStart < de₂.oStart < de₂.oEnd.
+            exact Nat.lt_trans h.1 (Event.oWellFormed n _)
+          | encapOb p h_enc h_ob _ =>
+            -- p inside de₁, p OB de₂. de₁.oStart < p.oStart (from enc).
+            -- p.oEnd < de₂.oStart < de₂.oEnd. de₁.oStart < p.oStart ≤ p.oEnd < de₂.oStart < de₂.oEnd.
+            exact Nat.lt_trans (Nat.lt_trans h_enc.1 (Event.oWellFormed n p))
+              (Nat.lt_trans h_ob (Event.oWellFormed n _))
+          | obEndLt p h_ob h_lt _ _ =>
+            -- de₁ OB p, p.oEnd < de₂.oEnd.
+            exact Nat.lt_trans (Event.oWellFormed n _) (Nat.lt_trans h_ob
+              (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd _) h_lt))
+          | sameLin _ _ h_eq _ _ _ =>
+            -- de₁ = de₂. Contradicts h_ne.
+            exact absurd (by rw [hfc₁, h_eq, ← hfc₂]) h_ne
+          | proxyPair q p h_enc h_qob h_pob _ =>
+            -- q inside de₁, q OB p, p OB de₂.
+            exact Nat.lt_trans (Nat.lt_trans h_enc.1 (Event.oWellFormed n q))
+              (Nat.lt_trans h_qob (Nat.lt_trans (Event.oWellFormed n p)
+                (Nat.lt_trans h_pob (Event.oWellFormed n _))))
+          | eq h_eq =>
+            exact absurd (by rw [hfc₁, h_eq, ← hfc₂]) h_ne
+          | encapObEndLt q p h_enc h_qob h_plt _ _ =>
+            -- q inside de₁, q OB p, p.oEnd < de₂.oEnd.
+            exact Nat.lt_trans (Nat.lt_trans h_enc.1 (Event.oWellFormed n q))
+              (Nat.lt_trans h_qob (Nat.lt_of_le_of_lt (Event.oStart_le_oEnd _) h_plt))
+          | obFinishBefore p h_ob h_lt h_diff _ =>
+            -- obFinishBefore has h_diff : de₁.protocol ≠ de₂.protocol.
+            -- h_same_prot : CLE₁.protocol = CLE₂.protocol. After match: de₁.protocol = de₂.protocol.
+            exact absurd (by rwa [← hfc₁, ← hfc₂]) h_diff
+        exact Nat.lt_irrefl _ (Nat.lt_trans h_fwd (by
+          show Event.oEnd n (.directoryEvent de₂) < Event.oStart n (.directoryEvent de₁)
+          exact cleOB_rev))
     | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
   | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
@@ -3141,7 +3158,10 @@ private theorem edge_to_proto_forward
           -- dir_ordered reverse: CLE₂.oEnd < CLE₁.oStart → contradiction with oStart_lt.
           -- So dir_ordered must give CLE₁ OB CLE₂.
           exact .rf_sameGle_cleOB sameGle
-            (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq h_clelink)
+            (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq h_clelink
+              (by -- CLE protocol = event protocol (sameCluster)
+                exact (cle_protocol_eq_event hrfe.notDown₁).trans
+                  (sameCluster.trans (cle_protocol_eq_event hrfe.notDown₂).symm)))
             hrel₁ hrel₂
     | co hco =>
       have hnd₁ := hco.notDown₁; have hnd₂ := hco.notDown₂
@@ -3188,6 +3208,8 @@ private theorem edge_to_proto_forward
                 | diffCluster _ hdown hwObRDown =>
                   exact derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq
                     (co_step_to_ordering hco)
+                    ((cle_protocol_eq_event hco.notDown₁).trans
+                      (sameProt.trans (cle_protocol_eq_event hco.notDown₂).symm))
               | evictOrReadBetweenWAndRCleSameCluster evict => exact evict.wObR
             exact .co_sameClusDiffCache sameGle h_cle_ob hrel₁ hrel₂
           | inr gleOB =>
