@@ -89,6 +89,6 @@ theorem co_ordering_holds
       exact .sameClusDiffCache same_prot cle_ord
     | diffCluster diff_prot cle_ord =>
       -- Different cluster → diffClus.
-      exact .diffClus diff_prot cle_ord
+      exact .diffClus diff_prot w_ob_r_gle cle_ord
 
 end Herd

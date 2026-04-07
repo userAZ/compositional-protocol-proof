@@ -363,6 +363,7 @@ inductive co.ordering
       (carries wCleImmPredDown or evictOrReadBetweenWAndRDown with wObRDown + encapDirRelation). -/
   | diffClus
     (diff_protocol : ¬ e₁.sameProtocol n e₂)
+    (gle_ob : w₁_cmpLin.gle.OrderedBefore n w₂_cmpLin.gle)
     (cle_ordering : CompoundProtocol.DifferentCluster.cleOB.cleOrdering.Cases w₁_cmpLin w₂_cmpLin)
 
 -- CO evidence: carries the GLE ordering (Type-valued) and direction evidence.

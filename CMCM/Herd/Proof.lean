@@ -78,7 +78,7 @@ theorem co_irrefl {lin₁ lin₂ : CompoundProtocol.globalLinearizationEventOfRe
       | diffCluster hdiff _ _ => exact absurd rfl hdiff
     | evictOrReadBetweenWAndRCleSameCluster evict =>
       exact Event.contradiction_of_reflexive_ordered_before n evict.wObR
-  | diffClus hdiff _ => exact absurd rfl hdiff
+  | diffClus hdiff _ _ => exact absurd rfl hdiff
 
 theorem fr_irrefl {lin₁ lin₂ : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (h : Herd.fr lin₁ lin₂) : False := by
@@ -235,7 +235,7 @@ theorem co_step_to_ordering
           hcdir_spec.2.isDir (Event.ne_of_obEndLt hwObRDown h_lt)
     | evictOrReadBetweenWAndRCleSameCluster evict =>
       exact .ob evict.wObR (Event.ne_of_ob evict.wObR)
-  | diffClus _ diff_cluster_cases =>
+  | diffClus _ _ diff_cluster_cases =>
     cases diff_cluster_cases with
     | wCleImmPredDown w =>
       have hcdir_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
@@ -294,7 +294,7 @@ private lemma co_step_oEnd_le
               | gcacheEncap _ hlt => exact hlt))
     | evictOrReadBetweenWAndRCleSameCluster evict =>
       exact Nat.le_of_lt (Nat.lt_trans evict.wObR (Event.oWellFormed n _))
-  | diffClus _ diff_cases =>
+  | diffClus _ _ diff_cases =>
     cases diff_cases with
     | wCleImmPredDown w =>
       have hcdir_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
@@ -383,7 +383,7 @@ private lemma co_chain_cross_cluster_downgrade
       have h2 := write_cle_protocol_eq_write_protocol l₂_co
       rw [← h1, ← h2, same_cle]
     | sameClusDiffCache h_same_prot _ => exact absurd h_same_prot h_diff_prot
-    | diffClus _ diff_cases =>
+    | diffClus _ _ diff_cases =>
       cases diff_cases with
       | wCleImmPredDown w =>
         have hrd_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
@@ -442,7 +442,7 @@ private lemma co_chain_cross_cluster_downgrade
         have h2 := write_cle_protocol_eq_write_protocol l₂_last_t
         rw [← h1, ← h2, same_cle]
       | sameClusDiffCache h_same _ => exact absurd h_same h_mid_diff_c
-      | diffClus _ diff_cases =>
+      | diffClus _ _ diff_cases =>
         cases diff_cases with
         | wCleImmPredDown w =>
           have hrd_spec := w.rDown.encapDir.existsRClusterDirDown.choose_spec
@@ -1521,7 +1521,7 @@ private theorem com_self_false
         have hwObR := evict.wObR
         rw [hcle_eq] at hwObR
         exact Event.contradiction_of_reflexive_ordered_before n hwObR
-    | diffClus hdiff _ =>
+    | diffClus hdiff _ _ =>
       exact absurd (show e.sameProtocol n e from rfl) hdiff
 
 /-- R e e → False for any edge R in (PPOi ∧ addr≠) ∪ com.
@@ -3079,10 +3079,8 @@ private theorem edge_to_proto_forward
           exact .co_sameClusDiffCache (by sorry)
             (derive_cle_ob_same_cluster b.orderedAtEntry.dir_ordered h_cle_eq)
             hrel₁ hrel₂
-      | diffClus diffProt cleOrdering =>
-        exact .co_crossCluster
-          (derive_gle_ob_cross_cluster b.orderedAtEntry.dir_ordered
-            (diff_protocol_implies_diff_gle diffProt) hco.event_oEnd_lt) hrel₁ hrel₂
+      | diffClus diffProt gleOB_co cleOrdering =>
+        exact .co_crossCluster gleOB_co hrel₁ hrel₂
     | fr hfr =>
       have hnd₁ := hfr.notDown₁; have hnd₂ := hfr.notDown₂
       have hndE₁ := (notdir_of_edge (Or.inr (.fr hfr))).1
