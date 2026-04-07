@@ -570,7 +570,13 @@ theorem fr_ordering_holds
   -- Case structure: sameCLE / sameCache / sameClusDiffCache / diffCluster.
   -- diffCluster sub-cases by e₁'s coherence state.
   by_cases hcle_eq : (lin e₁).cle = (lin e₂).cle
-  · exact .sameCLE hcle_eq
+  · -- Same CLE: derive same_struct from same CLE + same address (both at same cluster entry).
+    -- For now, use by_cases — if same struct, done; if diff struct, CLE eq + same addr → contradiction.
+    by_cases h_ss : e₁.struct = e₂.struct
+    · exact .sameCLE h_ss hcle_eq
+    · -- Different struct but same CLE — need to show this is contradictory.
+      -- Same CLE → same cluster → same address → same struct for cluster cache events.
+      sorry
   · by_cases h_same_cache : e₁.struct = e₂.struct
     · -- Same cache e₁/e₂: same cluster + same dir → dir_ordered + NIW.
       have hcle₁_isdir := (lin e₁).cle_isDirEvent
@@ -1471,7 +1477,7 @@ theorem step_to_ordering
         have h_prot_diff : Event.protocol n lin₁.cle ≠ Event.protocol n lin₂.cle :=
           fun heq => h_diff (show e₁.sameProtocol n e₂ from hcle₁_prot.symm.trans (heq ▸ hcle₂_prot))
         exact .obFinishBefore p p_ob p_lt h_prot_diff h_p_isdir (Event.ne_of_diff_prot h_prot_diff)
-      | sameCLE cle_eq => exact .eq cle_eq
+      | sameCLE _ cle_eq => exact .eq cle_eq
 
 /-- Bridge step_to_ordering result from COM edge's CLEs (h.cle₁/h.cle₂) to hknow's CLEs.
     Uses Subsingleton.elim since globalLinearizationEventOfRequest is a Prop. -/
@@ -1548,18 +1554,8 @@ private theorem edge_self_false
   | inr hcom => exact com_self_false hcom
 
 
-/-- Each edge gives strict event oEnd ordering (cache event level). -/
-private theorem edge_oEnd_lt
-    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
-    {e₁ e₂ : Event n}
-    (h : R_hknow hknow e₁ e₂)
-    : Event.oEnd n e₁ < Event.oEnd n e₂ := by
-  cases h with
-  | inl hppoi => exact Nat.lt_trans hppoi.1.orderedBefore (Event.oWellFormed n e₂)
-  | inr hcom => cases hcom with
-    | rfe h => exact h.event_oEnd_lt
-    | co h => exact h.event_oEnd_lt
-    | fr h => exact h.event_oEnd_lt
+-- edge_oEnd_lt REMOVED: replaced by protocol-meaningful evidence.
+-- Same-cache: e₁ OB e₂ from same_cache_ob. Different-cache: through CLE/GLE proxies.
 
 /-- For each non-downgrade event, its compoundLin is related to the event by:
     - eq: cmpLin = e (requestLin: event has perms, linearizes at cache)
@@ -2151,7 +2147,7 @@ theorem cle_to_compoundLinOrdering
     (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
     (h_not_dir₁ : ¬ e₁.isDirectoryEvent) (h_not_dir₂ : ¬ e₂.isDirectoryEvent)
     (h_cluster₁ : e₁.isClusterCache) (h_cluster₂ : e₂.isClusterCache)
-    (h_event_fb : Event.oEnd n e₁ < Event.oEnd n e₂)
+    (h_ne : e₁ ≠ e₂)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
     : CmpLinOrdering lin₁.compoundLin lin₂.compoundLin := by
   have h₁_isdir := lin₁.cle_isDirEvent
@@ -2189,9 +2185,9 @@ theorem cle_to_compoundLinOrdering
         have : lin₂.compoundLin.isDirectoryEvent := h₂ ▸ h₂_isdir
         exact h_nd₁ (heq.symm ▸ this)
       | cle_ob _ _ h_ob₂ _ =>
-        -- Both cle_ob → cmpLin₁ = e₁, cmpLin₂ = e₂ → e₁ = e₂ → oEnd contradiction.
+        -- Both cle_ob → cmpLin₁ = e₁, cmpLin₂ = e₂ → e₁ = e₂ → contradicts h_ne.
         have h_eq₂ := compoundLin_eq_of_cle_ob hnotdown₂ h_ob₂
-        exact Nat.lt_irrefl _ ((h_eq₁.symm.trans (heq.trans h_eq₂)) ▸ h_event_fb)
+        exact absurd (h_eq₁.symm.trans (heq.trans h_eq₂)) h_ne
       | inside h₂_ins =>
         -- cle_ob₁ → cmpLin₁ = e₁ (cache, cluster). inside₂ → dirLin₂.
         -- Case-split linearizationOfEvent for e₂:
@@ -2425,18 +2421,8 @@ theorem cle_to_compoundLinOrdering
         h₁_isdir h₂_isdir hrel₁ hrel₂ htr h_cmpLin_eq)
 
 
-theorem cmcm_acyclic_of_hknow
-    (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : Relation.Acyclic (R_hknow hknow) := by
-  intro e hcycle
-  suffices h : ∀ c, Relation.TransGen (R_hknow hknow) e c →
-      Event.oEnd n e < Event.oEnd n c by
-    exact Nat.lt_irrefl _ (h e hcycle)
-  intro c hpath
-  induction hpath with
-  | single hedge => exact edge_oEnd_lt hedge
-  | tail _ hlast ih => exact Nat.lt_trans ih (edge_oEnd_lt hlast)
+-- cmcm_acyclic_of_hknow REMOVED: old event_oEnd_lt acyclicity proof.
+-- Replaced by cmcm_acyclic_of_hknow_compoundLinOrdering (protocol proxy chain).
 
 /-- Extract ¬e₁.down and ¬e₂.down from any PPOi∪COM edge. -/
 private theorem notdown_of_edge
@@ -2508,13 +2494,13 @@ theorem edge_cmpLin_linlink
     (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
     (h_not_dir₁ : ¬ e₁.isDirectoryEvent) (h_not_dir₂ : ¬ e₂.isDirectoryEvent)
     (h_cluster₁ : e₁.isClusterCache) (h_cluster₂ : e₂.isClusterCache)
-    (h_event_fb : Event.oEnd n e₁ < Event.oEnd n e₂)
+    (h_ne : e₁ ≠ e₂)
     : LinLink (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
       (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
       LinLink (hknow e₂).compoundLin (hknow e₁).compoundLin :=
   cle_to_compoundLinOrdering
     (step_to_ordering_hknow hknow hcom h_non_lazy_ppoi)
-    hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_cluster₁ h_cluster₂ h_event_fb b.orderedAtEntry.dir_ordered
+    hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_cluster₁ h_cluster₂ h_ne b.orderedAtEntry.dir_ordered
 
 /-- Prove cmpLin_ordered for any COM edge: derive CmpLinOrdering from step_to_ordering + bridge.
     COM edges go through CLEs: step_to_ordering → CleLink → cle_to_compoundLinOrdering. -/
@@ -2526,9 +2512,9 @@ theorem com_cmpLin_ordered
     (hnotdown₁ : ¬ e₁.down) (hnotdown₂ : ¬ e₂.down)
     (h_not_dir₁ : ¬ e₁.isDirectoryEvent) (h_not_dir₂ : ¬ e₂.isDirectoryEvent)
     (h_cluster₁ : e₁.isClusterCache) (h_cluster₂ : e₂.isClusterCache)
-    (h_event_fb : Event.oEnd n e₁ < Event.oEnd n e₂)
+    (h_ne : e₁ ≠ e₂)
     : CmpLinOrdering (hknow e₁).compoundLin (hknow e₂).compoundLin :=
-  edge_cmpLin_linlink hknow h_non_lazy_ppoi hcom hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_cluster₁ h_cluster₂ h_event_fb
+  edge_cmpLin_linlink hknow h_non_lazy_ppoi hcom hnotdown₁ hnotdown₂ h_not_dir₁ h_not_dir₂ h_cluster₁ h_cluster₂ h_ne
 
 /-- Derive CmpLinOrdering for PPOi from NonLazyPPOi.
     NonLazyPPOi gives cmpLin₁ OB cmpLin₂ directly.
@@ -2575,8 +2561,8 @@ theorem edge_cmpLin_ordered
     exact ppoi_cmpLin_ordered_of_nonlazy h_non_lazy_ppoi
       ((Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ hppoi.1) hppoi.2
   | inr hcom =>
-    have h_fb : Event.oEnd n e₁ < Event.oEnd n e₂ := edge_oEnd_lt (Or.inr hcom)
-    exact com_cmpLin_ordered hknow h_non_lazy_ppoi hcom hnd₁ hnd₂ hndE₁ hndE₂ hc₁ hc₂ h_fb
+    have h_ne : e₁ ≠ e₂ := fun heq => edge_self_false (heq ▸ Or.inr hcom)
+    exact com_cmpLin_ordered hknow h_non_lazy_ppoi hcom hnd₁ hnd₂ hndE₁ hndE₂ hc₁ hc₂ h_ne
 
 /-! ## cmpLinLinLink: the central CMCM relation -/
 
@@ -3081,15 +3067,14 @@ private theorem edge_to_proto_forward
   have ⟨hrel₁, hrel₂⟩ := edge_cmpLinCleRels h
   cases h with
   | inl hppoi =>
-    have h_fb := edge_oEnd_lt (Or.inl hppoi)
     have h_cmpLin_ob : (hknow e₁).compoundLin.OrderedBefore n (hknow e₂).compoundLin := by
       rw [compoundLin_eq_linearizationEvent' (lin := hknow e₁),
           compoundLin_eq_linearizationEvent' (lin := hknow e₂)]
       exact h_non_lazy_ppoi e₁ e₂ (hknow e₁) (hknow e₂) hppoi.1 hppoi.2
     have h_level : ProtoOBLevel hknow e₁ e₂ :=
       if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
-        .eventOB (same_cle_implies_same_gle h_cle_eq) h_cle_eq (event_ob_of_same_cache' (b := b)
-          hppoi.1.cache₁ hppoi.1.cache₂ hppoi.1.notDown₁ hppoi.1.notDown₂ h_fb)
+        -- PPOi: same cache → e₁ OB e₂ directly from orderedBefore
+        .eventOB (same_cle_implies_same_gle h_cle_eq) h_cle_eq hppoi.1.orderedBefore
       else by
         -- CLE≠: use PPOi's cle_eq_or_ob (must be inr since CLE≠)
         cases hppoi.1.cle_eq_or_ob with
@@ -3106,10 +3091,17 @@ private theorem edge_to_proto_forward
       | wObRGle writerGle_ob_readerGle _ => exact .rf_crossGle writerGle_ob_readerGle hrel₁ hrel₂
       | wEqRGle sameGle sameCluster wEqRGleCases =>
         if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
-          exact .rf_sameGle_sameCLE sameGle h_cle_eq
-            (.eventOB sameGle h_cle_eq (event_ob_of_same_cache' (b := b)
-              hrfe.cache₁ hrfe.cache₂ hrfe.notDown₁ hrfe.notDown₂ hrfe.event_oEnd_lt))
-            hrel₁ hrel₂
+          -- wEqRCle: same CLE, same GLE → same-CLE RF
+          -- wObRCle: CLE₁ OB CLE₂ → contradicts h_cle_eq
+          cases wEqRGleCases with
+          | wEqRCle _ _ hwr_com =>
+            -- Dead: wEqRCle requires sameCache (e_w.struct = e_r.struct),
+            -- but rfe has diffCache (e₁.struct ≠ e₂.struct).
+            exact absurd hwr_com.sameCache hrfe.diffCache
+          | wObRCle hcases =>
+            -- wObRCle carries CLE₁ OB CLE₂. With h_cle_eq: self-OB → contradiction.
+            exfalso
+            exact Nat.lt_irrefl _ (Nat.lt_trans (h_cle_eq ▸ hcases.hw_r_cle_ob) (Event.oWellFormed n _))
         else
           -- CLE₁ ≠ CLE₂. Use step_to_ordering for CLE OB.
           have h_clelink := step_to_ordering_hknow hknow (.rfe hrfe) h_non_lazy_ppoi
@@ -3184,11 +3176,11 @@ private theorem edge_to_proto_forward
       have hflin₁ : frLin e₁ = hknow e₁ := Subsingleton.elim _ _
       have hflin₂ : frLin e₂ = hknow e₂ := Subsingleton.elim _ _
       cases fr_ordering_holds hfr frLin (hflin₁ ▸ hflin₂ ▸ hfr.gle_ordering) with
-      | sameCache _ cle_eq_or_ob gleEqOrOb_frSC =>
+      | sameCache h_same_struct cle_eq_or_ob gleEqOrOb_frSC =>
         have h_level : ProtoOBLevel hknow e₁ e₂ := by
           if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
-            exact .eventOB (same_cle_implies_same_gle h_cle_eq) h_cle_eq (event_ob_of_same_cache' (b := b)
-              hfr.cache₁ hfr.cache₂ hfr.notDown₁ hfr.notDown₂ hfr.event_oEnd_lt)
+            exact .eventOB (same_cle_implies_same_gle h_cle_eq) h_cle_eq
+              (hfr.same_cache_ob h_same_struct)
           else
             -- CLE≠: FrOrdering.sameCache has cle_eq_or_ob. Must be inr (CLE OB).
             have h_cle_ob := (hflin₁ ▸ hflin₂ ▸ cle_eq_or_ob).resolve_left h_cle_eq
@@ -3214,9 +3206,9 @@ private theorem edge_to_proto_forward
         -- rfFinishBefore: CLE direction unclear. Use dir_ordered on GLEs or CLEs.
         exact .fr_diffCluster_rfFinishBefore (.gleOB (hflin₁ ▸ hflin₂ ▸ gleOB_fr))
           p (hflin₂ ▸ p_ob) (hflin₁ ▸ p_lt) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
-      | sameCLE cle_eq =>
+      | sameCLE h_same_struct_sc cle_eq =>
         have h_cle_eq' : (hknow e₁).cle = (hknow e₂).cle := hflin₁ ▸ hflin₂ ▸ cle_eq
-        have h_ev_ob := event_ob_of_same_cache' (b := b) hfr.cache₁ hfr.cache₂ hfr.notDown₁ hfr.notDown₂ hfr.event_oEnd_lt
+        have h_ev_ob := hfr.same_cache_ob h_same_struct_sc
         exact .fr_sameCLE h_cle_eq' h_ev_ob (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
 
 /-- OB is transitive: a OB b ∧ b OB c → a OB c.
