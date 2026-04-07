@@ -3632,40 +3632,6 @@ theorem edge_to_cmpLinStep
     - junction_compose: handles shared-cmpLin junctions via dir_ordered on CLEs
     - CmpLinCleRel: connects cmpLin to CLE (eq/cle_ob/inside) -/
 
-/-- CmpLinOrdering is a subset of TemporalRel (TransGen BasicTemporalRel) ∨ eq.
-    Every CmpLinOrdering step decomposes into equality or a transitive chain of
-    OB/Encap/EncapBy/FinishesBefore/FinishesAfterProxy steps. -/
-theorem CmpLinOrdering.subset_temporalRel_or_eq
-    {cmpLin₁ cmpLin₂ : Event n}
-    (h : CmpLinOrdering cmpLin₁ cmpLin₂)
-    (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
-    : TemporalRel cmpLin₁ cmpLin₂ ∨ cmpLin₁ = cmpLin₂ ∨ TemporalRel cmpLin₂ cmpLin₁ := by
-  cases h with
-  | inl hlink =>
-    cases hlink with
-    | step h h₁ h₂ _ =>
-      cases CleLink.subset_temporalRel h h₁ h₂ hdir with
-      | inl heq => exact Or.inr (Or.inl heq)
-      | inr htr => exact Or.inl htr
-    | proxy _ _ _ _ _ _ _ hchain _ =>
-      exact Or.inl hchain
-    | ppoProxy _ _ _ hchain _ =>
-      exact Or.inl hchain
-  | inr hr => cases hr with
-    | inl heq => exact Or.inr (Or.inl heq)
-    | inr hlink =>
-      -- Reverse LinLink → reverse TemporalRel. Same decomposition.
-      cases hlink with
-      | step h h₁ h₂ _ =>
-        cases CleLink.subset_temporalRel h h₁ h₂ hdir with
-        | inl heq => exact Or.inr (Or.inl heq.symm)
-        | inr htr => exact Or.inr (Or.inr htr)
-      | proxy _ _ _ _ _ _ _ hchain _ =>
-        -- LinLink.proxy carries h_chain : TemporalRel. Extract directly (reverse).
-        exact Or.inr (Or.inr hchain)
-      | ppoProxy _ _ _ hchain _ =>
-        exact Or.inr (Or.inr hchain)
-
 /-- Acyclicity via cmpLinLinLink (convenience alias). -/
 theorem cmpLinOrdering_acyclic
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
