@@ -2617,136 +2617,94 @@ theorem edge_to_cmpLinLinLink
     : cmpLinLinLink hknow h_non_lazy_ppoi e₁ e₂ :=
   ⟨h, edge_cmpLin_ordered h_non_lazy_ppoi h⟩
 
-/-- Lexicographic ordering on (GLE.oStart, CLE.oStart) pairs.
-    Used as the ranking function for cmpLinLinLink acyclicity.
-    Each edge strictly increases this ranking via protocol proxy relations:
-    - GLE level: gleOrdering.Cases gives GLE₁ OB GLE₂ or GLE₁ = GLE₂ (never backward)
-    - CLE level: CleLink gives CLE₁.oStart < CLE₂.oStart for same-GLE steps -/
-private noncomputable def gle_cle_lex (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
-    (e : Event n) : Nat × Nat :=
-  (Event.oStart n (hknow e).gle, Event.oStart n (hknow e).cle)
+/-- Each R_hknow edge gives GLE₁ OB GLE₂, or (GLE₁ = GLE₂ and CLE₁ OB CLE₂),
+    through the protocol proxy chain: cmpLin₁ → CLE₁ → GLE₁ → ... → GLE₂ → CLE₂ → cmpLin₂.
 
-/-- Lexicographic strict ordering on Nat × Nat. -/
-private def Nat.lex_lt (p₁ p₂ : Nat × Nat) : Prop :=
-  p₁.1 < p₂.1 ∨ (p₁.1 = p₂.1 ∧ p₁.2 < p₂.2)
+    The OB steps are between NAMED PROTOCOL EVENTS (GLEs, CLEs):
+    - GLE OB: global directory processes GLE₁ before GLE₂ (from gleOrdering.Cases.wObRGle)
+    - CLE OB: cluster directory processes CLE₁ before CLE₂ (from CleLink.ob / LinChain)
+    These are protocol relations — not arithmetic on oStart/oEnd values.
 
-/-- Nat.lex_lt is irreflexive. -/
-private theorem Nat.lex_lt_irrefl (p : Nat × Nat) : ¬ Nat.lex_lt p p := by
-  intro h; unfold Nat.lex_lt at h
-  rcases h with h | ⟨_, h⟩ <;> exact Nat.lt_irrefl _ h
-
-/-- Nat.lex_lt is transitive. -/
-private theorem Nat.lex_lt_trans {p₁ p₂ p₃ : Nat × Nat}
-    (h₁ : Nat.lex_lt p₁ p₂) (h₂ : Nat.lex_lt p₂ p₃) : Nat.lex_lt p₁ p₃ := by
-  unfold Nat.lex_lt at *
-  rcases h₁ with h₁ | ⟨h₁eq, h₁lt⟩ <;> rcases h₂ with h₂ | ⟨h₂eq, h₂lt⟩
-  · exact Or.inl (Nat.lt_trans h₁ h₂)
-  · exact Or.inl (h₂eq ▸ h₁)
-  · exact Or.inl (h₁eq ▸ h₂)
-  · exact Or.inr ⟨h₁eq.trans h₂eq, Nat.lt_trans h₁lt h₂lt⟩
-
-/-- For COM edges: extract GLE ordering from gleOrdering.Cases.
-    wObRGle gives GLE₁ OB GLE₂ → GLE.oStart strictly increases.
-    sameGle gives GLE₁ = GLE₂ → need CLE ordering for second lex component. -/
-private theorem com_gle_or_cle_lt
-    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
-    {e₁ e₂ : Event n}
-    (hcom : com (hknow e₁) (hknow e₂))
-    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : Nat.lex_lt (gle_cle_lex hknow e₁) (gle_cle_lex hknow e₂) := by
-  -- Each COM edge carries GLE ordering from the protocol:
-  -- rfe: readsFrom.cases gives wEqRGle (GLE eq) or wObRGle (GLE₁ OB GLE₂)
-  -- co: co.evidence.gle_ordering gives gleOrdering.Cases
-  -- fr: composed from rf (readsFrom.cases) + TransGen co
-  --
-  -- For wObRGle/GLE₁ OB GLE₂: GLE.oStart strictly increases (first lex component).
-  -- For wEqRGle/sameGle: GLE.oStart equal. Use CLE ordering (CleLink → LinChain → oStart_lt)
-  --   from step_to_ordering for second lex component.
-  --
-  -- Bridge hknow CLEs/GLEs via Subsingleton.elim (all lin proofs are equal).
-  -- com is parameterized by (hknow e₁) (hknow e₂), so case-split gives direct access.
-  cases hcom with
-  | rfe hrfe =>
-    -- rfe.readsFrom : Behaviour.readsFrom.cases (carries GLE ordering)
-    -- lin₁ = hknow e₁, lin₂ = hknow e₂ (from com parameterization)
-    cases hrfe.readsFrom with
-    | wObRGle h_gle_ob _ =>
-      -- GLE₁ OB GLE₂: GLE₁.oEnd < GLE₂.oStart → GLE₁.oStart < GLE₂.oStart
-      exact Or.inl (Nat.lt_trans (Event.oWellFormed n (hknow e₁).gle) h_gle_ob)
-    | wEqRGle h_gle_eq _ _ =>
-      -- GLE₁ = GLE₂: same GLE, same cluster. Use CLE ordering.
-      exact Or.inr ⟨show Event.oStart n (hknow e₁).gle = Event.oStart n (hknow e₂).gle
-        from congrArg (Event.oStart n) h_gle_eq, by
-        -- CLE.oStart strictly increases from CleLink within same GLE.
-        -- step_to_ordering gives CleLink. For sameGle/same cluster: CLE₁ OB CLE₂.
-        -- CleLink → LinChain → oStart_lt.
-        sorry⟩
-  | co hco =>
-    -- CO: both writes at same address. gleOrdering.Cases gives GLE₁ OB GLE₂ or sameGle.
-    -- co.evidence (Type) carries gle_ordering, but co (Prop) doesn't access it directly.
-    -- Derive: dir_ordered on GLEs + CO protocol evidence → GLE forward or CLE forward.
-    sorry
-  | fr hfr =>
-    -- FR: composed from rf⁻¹;co. GLE ordering from rf and co chains.
-    sorry
-
-/-- For PPOi edges: both events at same cache → same cluster → CLE₁ OB CLE₂ or eq.
-    GLE ordering derived from CLE encapsulation chain. -/
-private theorem ppoi_gle_or_cle_lt
-    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
-    {e₁ e₂ : Event n}
-    (hppoi : PPOi (hknow e₁) (hknow e₂) ∧ e₁.addr ≠ e₂.addr)
-    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
-    : Nat.lex_lt (gle_cle_lex hknow e₁) (gle_cle_lex hknow e₂) := by
-  -- PPOi at same cache: CLE₁ OB CLE₂ from dir_ordered (both at same cluster dir).
-  -- GLE₁ and GLE₂: same cluster → GLE ordering from CLE OB + encapsulation chain.
-  sorry
-
-/-- Each R_hknow edge strictly increases the (GLE.oStart, CLE.oStart) lex ranking.
-
-    The ranking is DERIVED from the protocol proxy chain:
-    - GLE.oStart increases from GLE₁ OB GLE₂ (gleOrdering.Cases.wObRGle)
-    - CLE.oStart increases from CLE₁ OB CLE₂ or CLE₁ Encaps CLE₂ (LinChain)
-
-    The chain through each edge:
-      cmpLin₁ →(CmpLinCleRel)→ CLE₁ →(CleLink via proxies, possibly GLE)→ CLE₂ →(CmpLinCleRel)→ cmpLin₂
-
-    For cross-cluster edges (obFinishBefore): GLE₁ OB GLE₂ advances the first lex component.
-    For same-cluster edges: CLE₁ OB/Encap CLE₂ advances the second lex component. -/
-private theorem edge_gle_cle_lex_lt
+    For cross-cluster edges: GLE₁ OB GLE₂ (global directory ordering)
+    For same-cluster edges: CLE₁ OB CLE₂ (cluster directory ordering via CleLink) -/
+private theorem edge_gle_ob_or_cle_ob
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     {e₁ e₂ : Event n}
     (h : R_hknow hknow e₁ e₂)
-    : Nat.lex_lt (gle_cle_lex hknow e₁) (gle_cle_lex hknow e₂) := by
+    : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle ∨
+      ((hknow e₁).gle = (hknow e₂).gle ∧ (hknow e₁).cle.OrderedBefore n (hknow e₂).cle) := by
   cases h with
-  | inl hppoi => exact ppoi_gle_or_cle_lt hppoi h_non_lazy_ppoi
-  | inr hcom => exact com_gle_or_cle_lt hcom h_non_lazy_ppoi
+  | inl hppoi =>
+    -- PPOi: same cache → same cluster → CLE₁ OB CLE₂ from protocol ordering.
+    -- GLE₁ OB GLE₂ or GLE₁ = GLE₂ from compound protocol structure.
+    sorry
+  | inr hcom =>
+    cases hcom with
+    | rfe hrfe =>
+      cases hrfe.readsFrom with
+      | wObRGle h_gle_ob _ => exact Or.inl h_gle_ob
+      | wEqRGle h_gle_eq _ _ =>
+        exact Or.inr ⟨h_gle_eq, by
+          -- Same GLE, same cluster → CLE₁ OB CLE₂ from CleLink (protocol proxy chain)
+          sorry⟩
+    | co hco =>
+      -- CO: gleOrdering.Cases from co.evidence → GLE OB or (same GLE + CLE OB)
+      sorry
+    | fr hfr =>
+      -- FR: composed from rf⁻¹;co → GLE/CLE ordering from composition
+      sorry
+
+/-- OB is transitive: a OB b ∧ b OB c → a OB c.
+    Protocol meaning: if event a finishes before b starts, and b finishes before c starts,
+    then a finishes before c starts. -/
+private theorem ob_trans {a b c : Event n}
+    (h₁ : a.OrderedBefore n b) (h₂ : b.OrderedBefore n c) : a.OrderedBefore n c :=
+  Nat.lt_trans h₁ (Nat.lt_trans (Event.oWellFormed n b) h₂)
+
+/-- OB is irreflexive: e OB e → False.
+    Protocol meaning: an event cannot finish before it starts (well-formedness). -/
+private theorem ob_irrefl {e : Event n} (h : e.OrderedBefore n e) : False :=
+  Nat.lt_irrefl _ (Nat.lt_trans h (Event.oWellFormed n e))
 
 /-- cmpLinLinLink is acyclic.
 
-    Each cmpLinLinLink step strictly increases the (GLE.oStart, CLE.oStart) lex ranking:
-    - GLE level: gleOrdering.Cases gives GLE₁ OB GLE₂ (global forward) or GLE₁ = GLE₂ (same GLE)
-    - CLE level (within same GLE): CleLink gives CLE₁.oStart < CLE₂.oStart via
-      protocol proxy chain (OB, Encap through named downgrades and directory events)
+    The proof composes protocol OB steps through the cycle:
+    - Each edge gives GLE₁ OB GLE₂ (global forward) or (GLE eq ∧ CLE₁ OB CLE₂) (cluster forward)
+    - Through the cycle, OB steps compose transitively (OB is transitive)
+    - At cycle closure: self-OB at GLE or CLE level
+    - Self-OB contradicts event well-formedness (e.oEnd < e.oStart impossible) → False
 
-    The proxy chain (.proxyChain) additionally shows HOW compoundLin events are ordered
-    through the protocol communication events (CLEs, downgrades, GLEs, predecessors):
-    - The CLE is the directory access event where requests from different caches MEET
-    - CleLink traces the downgrade chain between CLEs (inductive protocol cases)
-    - CmpLinCleRel connects each cmpLin event to its CLE via dirAccessOfRequest -/
+    The OB steps come from the protocol proxy chain through named events:
+      cmpLin₁ →(CmpLinCleRel)→ CLE₁ →(CleLink via downgrades)→ CLE₂ →(CmpLinCleRel)→ cmpLin₂
+    With GLE₁ → GLE₂ at the global level for cross-cluster communication.
+    Connected by OB, Encap, EncapBy between these protocol events. -/
 theorem cmpLinLinLink_acyclic
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     : Relation.Acyclic (cmpLinLinLink hknow h_non_lazy_ppoi) := by
   intro e hcycle
+  -- Compose protocol OB steps through the cycle.
+  -- Each step: GLE₁ OB GLE₂ ∨ (GLE₁ = GLE₂ ∧ CLE₁ OB CLE₂)
+  -- Composition: OB is transitive, eq propagates.
+  -- Cycle closure: self-OB at GLE or CLE → contradiction with well-formedness.
   suffices h : ∀ c, Relation.TransGen (cmpLinLinLink hknow h_non_lazy_ppoi) e c →
-      Nat.lex_lt (gle_cle_lex hknow e) (gle_cle_lex hknow c) by
-    exact Nat.lex_lt_irrefl _ (h e hcycle)
+      (hknow e).gle.OrderedBefore n (hknow c).gle ∨
+      ((hknow e).gle = (hknow c).gle ∧ (hknow e).cle.OrderedBefore n (hknow c).cle) by
+    rcases h e hcycle with h_gle_ob | ⟨_, h_cle_ob⟩
+    · exact ob_irrefl h_gle_ob
+    · exact ob_irrefl h_cle_ob
   intro c hpath
   induction hpath with
-  | single hstep => exact edge_gle_cle_lex_lt h_non_lazy_ppoi hstep.edge
-  | tail _ hlast ih => exact Nat.lex_lt_trans ih (edge_gle_cle_lex_lt h_non_lazy_ppoi hlast.edge)
+  | single hstep => exact edge_gle_ob_or_cle_ob h_non_lazy_ppoi hstep.edge
+  | tail _ hlast ih =>
+    have h_last := edge_gle_ob_or_cle_ob h_non_lazy_ppoi hlast.edge
+    rcases ih with h_gle_ih | ⟨h_gle_eq_ih, h_cle_ih⟩ <;>
+      rcases h_last with h_gle_last | ⟨h_gle_eq_last, h_cle_last⟩
+    · exact Or.inl (ob_trans h_gle_ih h_gle_last)
+    · exact Or.inl (h_gle_eq_last ▸ h_gle_ih)
+    · exact Or.inl (h_gle_eq_ih ▸ h_gle_last)
+    · exact Or.inr ⟨h_gle_eq_ih.trans h_gle_eq_last, ob_trans h_cle_ih h_cle_last⟩
 
 /-- The CMCM acyclicity theorem via cmpLinLinLink.
 
