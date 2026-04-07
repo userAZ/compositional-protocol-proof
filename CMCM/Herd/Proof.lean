@@ -3548,15 +3548,6 @@ private theorem junction_compose
           | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
         | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
-/-- Forward LinLink gives CmpLinStep for step/proxy constructors.
-    ppoProxy: returned separately (needs hknow + NonLazyPPOi for OB evidence). -/
-theorem linlink_fwd_to_cmpLinStep_or_ppoi {cl₁ cl₂ : Event n} (h : LinLink cl₁ cl₂)
-    : CmpLinStep cl₁ cl₂ ∨ (∃ e₁ e₂ : Event n, e₁.OrderedBefore n e₂ ∧ cl₁ ≠ cl₂) := by
-  cases h with
-  | step hcl h₁ h₂ h_ne => exact Or.inl (.com _ _ hcl h₁ h₂ (.eq rfl) (.eq rfl) h_ne)
-  | proxy cle₁ cle₂ hcl h₁ h₂ hpre hsuf _ h_ne => exact Or.inl (.com cle₁ cle₂ hcl h₁ h₂ hpre hsuf h_ne)
-  | ppoProxy e₁ e₂ h_ob _ h_ne => exact Or.inr ⟨e₁, e₂, h_ob, h_ne⟩
-
 /-- Each R_hknow edge gives a CmpLinStep between compoundLin events.
     COM: CleLink from step_to_ordering → CmpLinStep.step via CmpLinCleRel bridge.
     PPOi: CleLink from dir_ordered on same-entry CLEs → CmpLinStep.step. -/

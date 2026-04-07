@@ -244,41 +244,28 @@ inductive CmpLinCleRel {n : ℕ} (cmpLin cle : Event n) : Prop
     `proxy`: compoundLin events connected through CLE proxies with EXPLICIT
     proxy chain via CmpLinCleRel (showing how each cmpLin relates to its CLE
     through dirAccessOfRequest: encapDir, orderBeforeDir, or eq). -/
-inductive LinLink {n : ℕ} (l₁ l₂ : Event n) : Prop
+inductive LinLink {n : ℕ} : (l₁ l₂ : Event n) → Prop
   /-- Both cmpLin events are CLEs themselves (dirLin). -/
-  | step (h : @CleLink n l₁ l₂) (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
-      (h_ne : l₁ ≠ l₂)
-  /-- cmpLin events connected through CLE proxies.
-      cle₁/cle₂ are the proxy dir events from dirAccessOfRequest.
-      h_prefix: how cmpLin₁ connects to cle₁ (eq/cle_ob/inside from dirAccessOfRequest).
-      h_suffix: how cmpLin₂ connects to cle₂.
-      h_so: CleLink between the proxy CLEs (from step_to_ordering).
-      h_chain: composed temporal chain cmpLin₁ → cmpLin₂ (from prefix + CLE chain + suffix). -/
-  | proxy (cle₁ cle₂ : Event n)
+  | step {l₁ l₂ : Event n} (h : @CleLink n l₁ l₂) (h₁_isdir : l₁.isDirectoryEvent) (h₂_isdir : l₂.isDirectoryEvent)
+      (h_ne : l₁ ≠ l₂) : LinLink l₁ l₂
+  /-- cmpLin events connected through CLE proxies. -/
+  | proxy {l₁ l₂ : Event n} (cle₁ cle₂ : Event n)
       (h_so : @CleLink n cle₁ cle₂)
       (h₁_isdir : cle₁.isDirectoryEvent) (h₂_isdir : cle₂.isDirectoryEvent)
       (h_prefix : CmpLinCleRel l₁ cle₁)
       (h_suffix : CmpLinCleRel l₂ cle₂)
       (h_chain : TemporalRel l₁ l₂)
-      (h_ne : l₁ ≠ l₂)
-  /-- cmpLin events connected through request events (PPOi proxy chain).
-      e₁/e₂ are the request events forming a PPO pair at the same cache.
-      h_ob: e₁ finishes before e₂ starts (preserved program order).
-      h_chain: composed temporal chain cmpLin₁ → cmpLin₂ through e₁, e₂.
-      Derived from CompoundLinearizationOrder (CompoundPPOs.lean) via NonLazyPPOi. -/
-  | ppoProxy (e₁ e₂ : Event n)
+      (h_ne : l₁ ≠ l₂) : LinLink l₁ l₂
+  /-- cmpLin events connected through request events (PPOi proxy chain). -/
+  | ppoProxy {l₁ l₂ : Event n} (e₁ e₂ : Event n)
       (h_ob : e₁.OrderedBefore n e₂)
       (h_chain : TemporalRel l₁ l₂)
-      (h_ne : l₁ ≠ l₂)
+      (h_ne : l₁ ≠ l₂) : LinLink l₁ l₂
+  /-- Transitivity: chain of two LinLink steps through an intermediate cmpLin. -/
+  | trans {l₁ l₂ : Event n} (lm : Event n) (h₁ : LinLink l₁ lm) (h₂ : LinLink lm l₂) : LinLink l₁ l₂
 
-/-- LinLink is irreflexive: no compoundLin event can link to itself.
-    Every constructor carries h_ne : l₁ ≠ l₂. -/
-theorem LinLink.irrefl' {l : Event n} : ¬ @LinLink n l l := by
-  intro h
-  cases h with
-  | step _ _ _ h_ne => exact absurd rfl h_ne
-  | proxy _ _ _ _ _ _ _ _ h_ne => exact absurd rfl h_ne
-  | ppoProxy _ _ _ _ h_ne => exact absurd rfl h_ne
+-- LinLink.irrefl' removed: with trans constructor, irreflexivity requires
+-- induction (not simple case-split). Acyclicity uses ProtoOBLevel instead.
 
 
 /-- The 3-way compoundLin ordering for an edge: forward LinLink, equality, or reverse LinLink. -/
