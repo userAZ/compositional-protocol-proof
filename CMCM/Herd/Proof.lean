@@ -2666,6 +2666,15 @@ inductive ProtoForwardStep {n : ℕ}
       (writerCle_ob_readerCle : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle)
       (writerCmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
       (readerCmpLinRel : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
+  /-- RF same-GLE, same CLE: same cluster, shared CLE (wEqRGle + wEqRCle).
+      Both writer and reader share the same directory access event.
+      Chain depends on CmpLinCleRel: cle_ob → cmpLin = e → direct OB. -/
+  | rf_sameGle_sameCLE
+      (sameGle : (hknow e₁).gle = (hknow e₂).gle)
+      (sameCle : (hknow e₁).cle = (hknow e₂).cle)
+      (obLevel : ProtoOBLevel hknow e₁ e₂)
+      (writerCmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
+      (readerCmpLinRel : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
   /-- CO same cache: same CLE, e₁ OB e₂ from cache serialization.
       Chain depends on CmpLinCleRel:
       - cle_ob both sides: cmpLin₁ (= e₁) →(OB)→ cmpLin₂ (= e₂)
@@ -2702,10 +2711,54 @@ inductive ProtoForwardStep {n : ℕ}
       (readerCle_ob_writerCle : (hknow e₁).cle.OrderedBefore n (hknow e₂).cle)
       (readerCmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
       (writerCmpLinRel : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
-  /-- FR cross-cluster: GLE_reader OB GLE_writer.
-      Chain: cmpLin_reader → ... → GLE_r →(OB)→ GLE_w → ... → cmpLin_writer -/
-  | fr_crossCluster
+  /-- FR diffCluster_coherent: reader has coherent perms, downgrade at reader's cache.
+      Named proxy: cacheDowngrade (dir event at reader's cluster).
+      Chain: cmpLin_r →(readerRel)→ CLE_r →(OB)→ cacheDowngrade →(finishesBefore)→ CLE_w →(writerRel)→ cmpLin_w
+      OB level: GLE (cross-cluster). -/
+  | fr_diffCluster_coherent
       (readerGle_ob_writerGle : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
+      (cacheDowngrade : Event n)
+      (readerCle_ob_cacheDowngrade : (hknow e₁).cle.OrderedBefore n cacheDowngrade)
+      (readerCmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
+      (writerCmpLinRel : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
+  /-- FR diffCluster_evict: reader evicted before downgrade arrived.
+      Named proxy: evictDirEvent.
+      Chain shape same as coherent. OB level: GLE. -/
+  | fr_diffCluster_evict
+      (readerGle_ob_writerGle : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
+      (evictDirEvent : Event n)
+      (readerCle_ob_evictDirEvent : (hknow e₁).cle.OrderedBefore n evictDirEvent)
+      (readerCmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
+      (writerCmpLinRel : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
+  /-- FR diffCluster_noncoherent: reader non-coherent, downgrade to cluster dir.
+      Named proxy: clusterDirDown.
+      Chain shape same as coherent. OB level: GLE. -/
+  | fr_diffCluster_noncoherent
+      (readerGle_ob_writerGle : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
+      (clusterDirDown : Event n)
+      (readerCle_ob_clusterDirDown : (hknow e₁).cle.OrderedBefore n clusterDirDown)
+      (readerCmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
+      (writerCmpLinRel : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
+  /-- FR diffCluster_rfCrossCluster: RF cross-cluster proxy INSIDE reader's CLE.
+      Named proxy: rfProxy (EncapBy CLE_r, OB CLE_w).
+      Chain: cmpLin_r →(readerRel)→ CLE_r →(Encap)→ rfProxy →(OB)→ CLE_w →(writerRel)→ cmpLin_w
+      OB level: GLE. -/
+  | fr_diffCluster_rfCrossCluster
+      (readerGle_ob_writerGle : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
+      (rfProxy : Event n)
+      (rfProxy_encapBy_readerCle : rfProxy.EncapsulatedBy n (hknow e₁).cle)
+      (rfProxy_ob_writerCle : rfProxy.OrderedBefore n (hknow e₂).cle)
+      (readerCmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
+      (writerCmpLinRel : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
+  /-- FR diffCluster_rfFinishBefore: RF cross-cluster, proxy finishes before reader CLE.
+      Named proxy: rfFinishProxy (OB CLE_w, finishesBefore CLE_r).
+      Chain: cmpLin_r →(readerRel)→ CLE_r →(finishesAfterProxy rfFinishProxy)→ CLE_w →(writerRel)→ cmpLin_w
+      OB level: GLE (this is the obFinishBefore case — weakest chain, uses finishesBefore). -/
+  | fr_diffCluster_rfFinishBefore
+      (readerGle_ob_writerGle : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
+      (rfFinishProxy : Event n)
+      (rfFinishProxy_ob_writerCle : rfFinishProxy.OrderedBefore n (hknow e₂).cle)
+      (rfFinishProxy_finishesBefore_readerCle : Event.oEnd n rfFinishProxy < Event.oEnd n (hknow e₁).cle)
       (readerCmpLinRel : CmpLinCleRel (hknow e₁).compoundLin (hknow e₁).cle)
       (writerCmpLinRel : CmpLinCleRel (hknow e₂).compoundLin (hknow e₂).cle)
   /-- FR same CLE: same CLE, e₁ OB e₂ from cache ordering.
@@ -2725,13 +2778,18 @@ theorem ProtoForwardStep.chain
   cases h with
   | ppoi cmpLin₁_ob_cmpLin₂ _ => exact .single (.ob cmpLin₁_ob_cmpLin₂)
   | rf_crossGle _ writerRel readerRel => sorry
-  | rf_sameGle_cleOB _ writerCle_ob_readerCle writerRel readerRel => sorry
-  | co_sameCache _ e₁_ob_e₂ w₁Rel w₂Rel => sorry
-  | co_sameClusDiffCache _ w₁Cle_ob_w₂Cle w₁Rel w₂Rel => sorry
+  | rf_sameGle_cleOB _ _ writerRel readerRel => sorry
+  | rf_sameGle_sameCLE _ _ _ writerRel readerRel => sorry
+  | co_sameCache _ _ w₁Rel w₂Rel => sorry
+  | co_sameClusDiffCache _ _ w₁Rel w₂Rel => sorry
   | co_crossCluster _ w₁Rel w₂Rel => sorry
   | fr_sameCache _ _ readerRel writerRel => sorry
-  | fr_sameClusDiffCache readerCle_ob_writerCle readerRel writerRel => sorry
-  | fr_crossCluster _ readerRel writerRel => sorry
+  | fr_sameClusDiffCache _ readerRel writerRel => sorry
+  | fr_diffCluster_coherent _ _ _ readerRel writerRel => sorry
+  | fr_diffCluster_evict _ _ _ readerRel writerRel => sorry
+  | fr_diffCluster_noncoherent _ _ _ readerRel writerRel => sorry
+  | fr_diffCluster_rfCrossCluster _ _ _ _ readerRel writerRel => sorry
+  | fr_diffCluster_rfFinishBefore _ _ _ _ readerRel writerRel => sorry
   | fr_sameCLE _ _ readerRel writerRel => sorry
 
 /-- Extract the OB level from any ProtoForwardStep. -/
@@ -2743,12 +2801,17 @@ theorem ProtoForwardStep.level
   | ppoi _ obLevel => exact obLevel
   | rf_crossGle gleOB _ _ => exact .gleOB gleOB
   | rf_sameGle_cleOB sameGle cleOB _ _ => exact .cleOB sameGle cleOB
+  | rf_sameGle_sameCLE _ _ obLevel _ _ => exact obLevel
   | co_sameCache sameCle e₁_ob_e₂ _ _ => sorry -- derive GLE eq from same CLE
   | co_sameClusDiffCache sameGle cleOB _ _ => exact .cleOB sameGle cleOB
   | co_crossCluster gleOB _ _ => exact .gleOB gleOB
   | fr_sameCache _ obLevel _ _ => exact obLevel
   | fr_sameClusDiffCache cleOB _ _ => sorry -- derive GLE eq
-  | fr_crossCluster gleOB _ _ => exact .gleOB gleOB
+  | fr_diffCluster_coherent gleOB _ _ _ _ => exact .gleOB gleOB
+  | fr_diffCluster_evict gleOB _ _ _ _ => exact .gleOB gleOB
+  | fr_diffCluster_noncoherent gleOB _ _ _ _ => exact .gleOB gleOB
+  | fr_diffCluster_rfCrossCluster gleOB _ _ _ _ _ => exact .gleOB gleOB
+  | fr_diffCluster_rfFinishBefore gleOB _ _ _ _ _ => exact .gleOB gleOB
   | fr_sameCLE sameCle reader_ob_writer _ _ => sorry -- derive GLE eq from same CLE
 
 /-- Each R_hknow edge gives a ProtoForwardStep.
@@ -2789,8 +2852,33 @@ private theorem edge_to_proto_forward
       | diffClus diffProt cleOrdering =>
         exact .co_crossCluster (by sorry) hrel₁ hrel₂
     | fr hfr =>
-      -- FR: case-split on FrOrdering (derived from fr_ordering_holds).
-      sorry
+      have hnd₁ := hfr.notDown₁; have hnd₂ := hfr.notDown₂
+      have hndE₁ := (notdir_of_edge (Or.inr (.fr hfr))).1
+      have hndE₂ := (notdir_of_edge (Or.inr (.fr hfr))).2
+      have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnd₁ hndE₁ (lin := hknow e₁)
+      have hrel₂ := compoundLin_cle_to_CmpLinCleRel hnd₂ hndE₂ (lin := hknow e₂)
+      -- FR: derive FrOrdering, case-split on protocol scenarios.
+      have frLin : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e :=
+        fun e => hfr.hknow_dir_access compound b init e
+      have hflin₁ : frLin e₁ = hknow e₁ := Subsingleton.elim _ _
+      have hflin₂ : frLin e₂ = hknow e₂ := Subsingleton.elim _ _
+      cases fr_ordering_holds hfr frLin with
+      | sameCache _ cle_eq_or_ob =>
+        exact .fr_sameCache (hflin₁ ▸ hflin₂ ▸ cle_eq_or_ob) (by sorry) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
+      | sameClusDiffCache _ _ cle_ob =>
+        exact .fr_sameClusDiffCache (hflin₁ ▸ hflin₂ ▸ cle_ob) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
+      | diffCluster_coherent _ p cle₁_ob_p _ _ =>
+        exact .fr_diffCluster_coherent (by sorry) p (hflin₁ ▸ cle₁_ob_p) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
+      | diffCluster_evict _ p cle₁_ob_p _ _ =>
+        exact .fr_diffCluster_evict (by sorry) p (hflin₁ ▸ cle₁_ob_p) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
+      | diffCluster_noncoherent _ p cle₁_ob_p _ _ =>
+        exact .fr_diffCluster_noncoherent (by sorry) p (hflin₁ ▸ cle₁_ob_p) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
+      | diffCluster_rfCrossCluster _ p p_inside p_ob =>
+        exact .fr_diffCluster_rfCrossCluster (by sorry) p (hflin₁ ▸ p_inside) (hflin₂ ▸ p_ob) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
+      | diffCluster_rfFinishBefore _ p p_ob p_lt _ =>
+        exact .fr_diffCluster_rfFinishBefore (by sorry) p (hflin₂ ▸ p_ob) (hflin₁ ▸ p_lt) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
+      | sameCLE cle_eq =>
+        exact .fr_sameCLE (hflin₁ ▸ hflin₂ ▸ cle_eq) (by sorry) (hflin₁ ▸ hrel₁) (hflin₂ ▸ hrel₂)
 
 /-- OB is transitive: a OB b ∧ b OB c → a OB c.
     Protocol meaning: if event a finishes before b starts, and b finishes before c starts,
