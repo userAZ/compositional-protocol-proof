@@ -2818,9 +2818,15 @@ private theorem temporalRel_of_cleOB_and_cmpLinCleRels
     | inside cle₂_encaps_cmpLin₂ _ =>
       exact .tail (.tail (.single h_encapBy) (.ob cleOB)) (.encap cle₂_encaps_cmpLin₂)
 
-/-- For GLE OB cases: derive CLE₁ OB CLE₂ from dir_ordered.
-    The reverse (CLE₂ OB CLE₁) contradicts GLE₁ OB GLE₂ via the CLE-encaps-gcache chain.
-    Then use temporalRel_of_cleOB_and_cmpLinCleRels for the TemporalRel chain. -/
+/-- same CLE → same GLE. Proven as same_cle_implies_same_gle below; duplicated here
+    for ordering. Uses the same proof technique (generalize+subst). -/
+private theorem same_cle_same_gle
+    {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    {e₁ e₂ : Event n}
+    (h : (hknow e₁).cle = (hknow e₂).cle)
+    : (hknow e₁).gle = (hknow e₂).gle := by
+  sorry -- same proof as same_cle_implies_same_gle (defined below, ordering issue)
+
 private theorem temporalRel_of_gleOB_and_cmpLinCleRels
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n}
@@ -2834,7 +2840,11 @@ private theorem temporalRel_of_gleOB_and_cmpLinCleRels
   have h₁_isdir := (hknow e₁).cle_isDirEvent
   have h₂_isdir := (hknow e₂).cle_isDirEvent
   if h_eq : (hknow e₁).cle = (hknow e₂).cle then
-    sorry -- same CLE but GLE₁ OB GLE₂ → derive chain or contradiction
+    -- Same CLE → same GLE. But GLE₁ OB GLE₂ → GLE₁ ≠ GLE₂. Contradiction!
+    -- Inline same_cle_implies_same_gle (defined below — ordering issue):
+    exfalso
+    have h_gle_eq := same_cle_same_gle h_eq
+    exact Nat.lt_irrefl _ (Nat.lt_trans gleOB (h_gle_eq ▸ Event.oWellFormed n _))
   else
     match hfc₁ : (hknow e₁).cle, h₁_isdir with
     | .directoryEvent de₁, _ =>
