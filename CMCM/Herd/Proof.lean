@@ -2898,7 +2898,7 @@ private theorem event_ob_of_same_cache
     (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
     (event_fb : Event.oEnd n e₁ < Event.oEnd n e₂)
     : e₁.OrderedBefore n e₂ := by
-  -- Use dir_ordered on the underlying cache events. event_fb eliminates reverse.
+  -- Proof: cache_ordered + ¬(e₂ OB e₁) from event_fb. Needs heartbeat optimization.
   sorry
 
 /-- Different clusters → different GLEs (contrapositive of same_gle_implies_same_protocol). -/
