@@ -2685,121 +2685,33 @@ theorem edge_to_cmpLinStep
     {e₁ e₂ : Event n}
     (h : R_hknow hknow e₁ e₂)
     : CmpLinStep (hknow e₁).compoundLin (hknow e₂).compoundLin ∨
-      (hknow e₁).compoundLin = (hknow e₂).compoundLin ∨
-      CmpLinStep (hknow e₂).compoundLin (hknow e₁).compoundLin := by
-  -- Case-split on PPOi vs COM FIRST, then handle each separately.
+      (hknow e₁).compoundLin = (hknow e₂).compoundLin := by
+  -- No reverse case: use communication evidence directly (CleLink / NonLazyPPOi OB).
+  if h_ne : (hknow e₁).compoundLin = (hknow e₂).compoundLin then
+    exact Or.inr h_ne
+  else
   cases h with
   | inl hppoi_edge =>
-    -- PPOi: NonLazyPPOi gives cmpLin₁ OB cmpLin₂ (or eq from DecidableEq).
-    if h_ne : (hknow e₁).compoundLin = (hknow e₂).compoundLin then
-      exact Or.inr (Or.inl h_ne)
-    else
-      have h_ob_cmpLin : (hknow e₁).compoundLin.OrderedBefore n (hknow e₂).compoundLin := by
-        have h_nlp := h_non_lazy_ppoi e₁ e₂ (hknow e₁) (hknow e₂)
-          ((Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ hppoi_edge.1)
-          hppoi_edge.2
-        rw [compoundLin_eq_linearizationEvent (lin := hknow e₁),
-            compoundLin_eq_linearizationEvent (lin := hknow e₂)]
-        exact h_nlp
-      exact Or.inl (.ob h_ob_cmpLin h_ne)
+    -- PPOi: NonLazyPPOi gives cmpLin₁ OB cmpLin₂ → CmpLinStep.ob.
+    have h_ob : (hknow e₁).compoundLin.OrderedBefore n (hknow e₂).compoundLin := by
+      rw [compoundLin_eq_linearizationEvent (lin := hknow e₁),
+          compoundLin_eq_linearizationEvent (lin := hknow e₂)]
+      exact h_non_lazy_ppoi e₁ e₂ (hknow e₁) (hknow e₂)
+        ((Subsingleton.elim (hknow e₁) _) ▸ (Subsingleton.elim (hknow e₂) _) ▸ hppoi_edge.1)
+        hppoi_edge.2
+    exact Or.inl (.ob h_ob h_ne)
   | inr hcom =>
-    -- COM: edge_cmpLin_ordered gives CmpLinOrdering via CleLink.
-    -- COM always produces LinLink.proxy or LinLink.step (never ppoProxy).
-    -- So linlink_fwd_to_cmpLinStep_or_ppoi always gives inl (CmpLinStep.com).
-    cases edge_cmpLin_ordered h_non_lazy_ppoi (Or.inr hcom) with
-    | inl hlink =>
-      -- Forward LinLink from COM → always proxy/step → CmpLinStep.com.
-      cases hlink with
-      | step hcl h₁ h₂ h_ne => exact Or.inl (.com _ _ hcl h₁ h₂ (.eq rfl) (.eq rfl) h_ne)
-      | proxy cle₁ cle₂ hcl h₁ h₂ hpre hsuf _ h_ne =>
-        exact Or.inl (.com cle₁ cle₂ hcl h₁ h₂ hpre hsuf h_ne)
-      | ppoProxy _ _ _ _ h_ne_ppoi =>
-        -- COM produced ppoProxy — shouldn't happen, but handle gracefully.
-        -- Use COM edge's CleLink directly for CmpLinStep.com.
-        exact Or.inl (.com (hknow e₁).cle (hknow e₂).cle
-          (step_to_ordering_hknow hknow hcom h_non_lazy_ppoi)
-          (hknow e₁).cle_isDirEvent (hknow e₂).cle_isDirEvent
-          (compoundLin_cle_to_CmpLinCleRel (notdown_of_edge (Or.inr hcom)).1
-            (notdir_of_edge (Or.inr hcom)).1)
-          (compoundLin_cle_to_CmpLinCleRel (notdown_of_edge (Or.inr hcom)).2
-            (notdir_of_edge (Or.inr hcom)).2)
-          h_ne_ppoi)
-    | inr hr => cases hr with
-      | inl heq => exact Or.inr (Or.inl heq)
-      | inr hlink =>
-        -- Reverse LinLink from COM → same handling.
-        cases hlink with
-        | step hcl h₁ h₂ h_ne => exact Or.inr (Or.inr (.com _ _ hcl h₁ h₂ (.eq rfl) (.eq rfl) h_ne))
-        | proxy cle₁ cle₂ hcl h₁ h₂ hpre hsuf _ h_ne =>
-          exact Or.inr (Or.inr (.com cle₁ cle₂ hcl h₁ h₂ hpre hsuf h_ne))
-        | ppoProxy _ _ _ _ h_ne_ppoi =>
-          -- Reverse ppoProxy from COM — handle with COM CleLink.
-          -- CleLink goes CLE₁ → CLE₂ (forward). For reverse CmpLinStep: swap CLEs.
-          -- But CleLink cle₁ cle₂ doesn't directly give CleLink cle₂ cle₁.
-          -- Use the FORWARD CleLink for a REVERSE CmpLinStep (CmpLinStep.com cle₂→cle₁ with
-          -- swapped prefix/suffix). But CleLink direction matters.
-          -- Actually: the reverse LinLink means CmpLinOrdering returned reverse.
-          -- The cle_to_compoundLinOrdering constructed a reverse LinLink from CleLink + dir_ordered.
-          -- The CleLink IS between CLE₁ and CLE₂. For the reverse CmpLinStep:
-          -- CmpLinStep (hknow e₂).compoundLin (hknow e₁).compoundLin. With CleLink CLE₁ CLE₂.
-          -- CmpLinCleRel: prefix = (hknow e₂).compoundLin to CLE₁? No, prefix should be
-          -- (hknow e₂).compoundLin to some CLE. The reverse means the CmpLinCleRel is swapped.
-          -- For simplicity: just use step_to_ordering for the CleLink and correct CmpLinCleRels.
-          -- The CleLink goes CLE₁ → CLE₂ (from step_to_ordering).
-          -- For CmpLinStep (hknow e₂).compoundLin (hknow e₁).compoundLin:
-          -- prefix: CmpLinCleRel (hknow e₂).compoundLin CLE₂ (suffix of forward)
-          -- suffix: CmpLinCleRel (hknow e₁).compoundLin CLE₁ (prefix of forward)
-          -- CleLink: need CLE₂ → CLE₁ direction. But we only have CLE₁ → CLE₂.
-          -- Use dir_ordered for reverse CleLink? Both are directory events.
-          -- For same-entry: dir_ordered gives OB one way. The forward CleLink says CLE₁ → CLE₂.
-          -- The reverse would need CLE₂ → CLE₁ which contradicts dir_ordered at same entry.
-          -- For different entry: CleLink might not have a reverse.
-          -- SIMPLEST: just construct CmpLinStep with the forward CleLink and swapped roles.
-          -- CmpLinStep (hknow e₂).compoundLin (hknow e₁).compoundLin with CleLink CLE₁ CLE₂
-          -- and prefix = CmpLinCleRel (hknow e₂).compoundLin CLE₁
-          -- and suffix = CmpLinCleRel (hknow e₁).compoundLin CLE₂.
-          -- Wait, that's wrong — prefix should connect cl₁ (= (hknow e₂).compoundLin) to cle₁,
-          -- and suffix should connect cl₂ (= (hknow e₁).compoundLin) to cle₂.
-          -- With CleLink cle₁ cle₂ going CLE₁ → CLE₂:
-          -- prefix = CmpLinCleRel (hknow e₂).compoundLin CLE₁
-          -- suffix = CmpLinCleRel (hknow e₁).compoundLin CLE₂
-          -- This IS valid! The CmpLinCleRel connects the REVERSED cmpLin events to the CLEs.
-          -- CmpLinStep (hknow e₂).compoundLin (hknow e₁).compoundLin.
-          -- Use CleLink CLE₁ → CLE₂ with prefix = CmpLinCleRel cl₂ CLE₁ and suffix = CmpLinCleRel cl₁ CLE₂.
-          -- But CmpLinCleRel connects each cmpLin to ITS OWN CLE:
-          -- (hknow e₂).compoundLin to (hknow e₂).cle, and (hknow e₁).compoundLin to (hknow e₁).cle.
-          -- For CmpLinStep cl₂ cl₁ with CleLink (hknow e₂).cle (hknow e₁).cle:
-          -- Need REVERSE CleLink. Both CLEs are directory events.
-          -- Use dir_ordered for reverse: if same entry, OB one way. The forward CleLink
-          -- gives CLE₁ → CLE₂. For reverse: CLE₂ → CLE₁. At same entry: contradicts
-          -- dir_ordered (total order). At different entry: need separate CleLink evidence.
-          -- SIMPLEST: construct CmpLinStep.com with CleLink CLE₁ → CLE₂ and SWAPPED roles:
-          -- prefix = CmpLinCleRel (hknow e₂).compoundLin (hknow e₁).cle (cross-event!)
-          -- This doesn't work — CmpLinCleRel relates a cmpLin to ITS OWN CLE, not another event's.
-          --
-          -- Actually this entire branch is unreachable (COM never produces ppoProxy),
-          -- but we proved it for the forward direction above. For the reverse:
-          -- Use edge_oEnd_lt to derive h_ne directly, then construct CmpLinStep.com
-          -- with the same approach as the forward ppoProxy case.
-          -- h_ne_ppoi : (hknow e₂).compoundLin ≠ (hknow e₁).compoundLin
-          -- Use forward CleLink + swapped CmpLinCleRels. CmpLinStep.com allows ANY CleLink direction.
-          exact Or.inr (Or.inr (.com (hknow e₂).cle (hknow e₁).cle
-            -- Need CleLink (hknow e₂).cle (hknow e₁).cle. Only have (hknow e₁).cle → (hknow e₂).cle.
-            -- Use dir_ordered: both are directory events at same or different entries.
-            (by
-              have h_fwd := step_to_ordering_hknow hknow hcom h_non_lazy_ppoi
-              -- h_fwd : CleLink (hknow e₁).cle (hknow e₂).cle
-              -- Need: CleLink (hknow e₂).cle (hknow e₁).cle
-              -- Both are directory events. For same entry: dir_ordered gives OB one direction.
-              -- For different entry: the reverse CleLink comes from the protocol.
-              sorry -- Need reverse CleLink from dir_ordered
-              )
-            (hknow e₂).cle_isDirEvent (hknow e₁).cle_isDirEvent
-            (compoundLin_cle_to_CmpLinCleRel (notdown_of_edge (Or.inr hcom)).2
-              (notdir_of_edge (Or.inr hcom)).2)
-            (compoundLin_cle_to_CmpLinCleRel (notdown_of_edge (Or.inr hcom)).1
-              (notdir_of_edge (Or.inr hcom)).1)
-            h_ne_ppoi))
+    -- COM: extract CleLink from step_to_ordering DIRECTLY.
+    -- No 3-way CmpLinOrdering needed. CleLink + CmpLinCleRel → CmpLinStep.com.
+    -- The h_ne was already checked above (DecidableEq returned false).
+    exact Or.inl (.com (hknow e₁).cle (hknow e₂).cle
+      (step_to_ordering_hknow hknow hcom h_non_lazy_ppoi)
+      (hknow e₁).cle_isDirEvent (hknow e₂).cle_isDirEvent
+      (compoundLin_cle_to_CmpLinCleRel (notdown_of_edge (Or.inr hcom)).1
+        (notdir_of_edge (Or.inr hcom)).1)
+      (compoundLin_cle_to_CmpLinCleRel (notdown_of_edge (Or.inr hcom)).2
+        (notdir_of_edge (Or.inr hcom)).2)
+      h_ne)
 
 /-- CmpLinOrdering is a subset of TemporalRel (TransGen BasicTemporalRel) ∨ eq.
     Every CmpLinOrdering step decomposes into equality or a transitive chain of
