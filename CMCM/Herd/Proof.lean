@@ -2885,12 +2885,10 @@ private theorem gle_oEnd_lt_cle
     | orderBeforeDir _ hpred hpred_dir _ _ _ _ _ =>
       exact Nat.lt_trans hpred_dir.reqEncapDir.right
         (Nat.lt_trans hpred.choose_spec.2.isImmPred.bPred.isPred (Event.oWellFormed n _))
-    | orderAfterDir _ hsucc _ _ =>
-      -- orderAfterDir: GLE inside successor which is AFTER gcache.
-      -- GLE.oEnd < successor.oEnd. Need successor.oEnd < gcache.oEnd for the bound.
-      -- But successor is AFTER gcache, so this needs a different chain.
-      -- Use: successor.oEnd < CLE.oEnd (from shim relationship).
-      sorry
+    | orderAfterDir _ _ _ _ => sorry
+      -- orderAfterDir at global level: GLE.oEnd < CLE.oEnd needs protocol argument.
+      -- GLE is inside successor (after gcache). dir_ordered gives GLE OB CLE (✓) or
+      -- CLE OB GLE (needs protocol contradiction: global dir access shouldn't outlive CLE).
   exact Nat.lt_trans h_gle_lt_gcache (gcache_oEnd_lt_cle lin)
 
 private theorem temporalRel_of_gleOB_and_cmpLinCleRels
