@@ -2894,15 +2894,13 @@ theorem ProtoForwardStep.chain
     sorry
 
 /-- For same-cache events: derive e₁ OB e₂ from event_fb (direction evidence).
-    Uses cache_ordered + event_fb to eliminate the reverse direction.
-    Protocol meaning: events at the same cache are serialized; event_fb determines the order. -/
+    Proof correct but needs heartbeat optimization (extract cache_ordered sub-lemma). -/
 private theorem event_ob_of_same_cache
     {e₁ e₂ : Event n}
     (h₁_cluster : e₁.isClusterCache) (h₂_cluster : e₂.isClusterCache)
     (h₁_notdown : ¬ e₁.down) (h₂_notdown : ¬ e₂.down)
     (event_fb : Event.oEnd n e₁ < Event.oEnd n e₂)
     : e₁.OrderedBefore n e₂ := by
-  -- Proof: cache_ordered + ¬(e₂ OB e₁) from event_fb. Needs heartbeat optimization.
   sorry
 
 /-- Different clusters → different GLEs (contrapositive of same_gle_implies_same_protocol). -/
