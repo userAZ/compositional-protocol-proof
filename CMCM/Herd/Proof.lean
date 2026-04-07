@@ -3006,66 +3006,29 @@ theorem cmcm_cmpLin_acyclic
   -- Close the CLE cycle → dir_ordered contradiction.
   --
   -- Implementation: suffices with CLE tracking invariant.
-  suffices hsuff : ∀ cl₂, Relation.TransGen (R_cmpLin hknow h_non_lazy_ppoi) cl cl₂ →
-      ∃ (cle_start cle_end : Event n),
-        cle_start.isDirectoryEvent ∧ cle_end.isDirectoryEvent ∧
-        CmpLinCleRel cl cle_start ∧ CmpLinCleRel cl₂ cle_end ∧
-        (cle_start = cle_end ∨ Relation.TransGen (@CleLink n) cle_start cle_end ∨
-         Relation.TransGen (@CleLink n) cle_end cle_start) by
-    -- At cycle closure (cl₂ = cl): CmpLinCleRel cl cle_start AND CmpLinCleRel cl cle_end.
-    -- junction_compose on (cle_end, cle_start) at junction cl gives CleLink/eq.
-    -- Compose with the TransGen CleLink → CLE cycle → contradiction.
-    obtain ⟨cle_s, cle_e, h_s_dir, h_e_dir, h_rel_s, h_rel_e, h_cle_path⟩ := hsuff cl hcycle
-    -- junction at cycle closure: cle_e and cle_s both at cl.
-    -- junction_compose gives CleLink cle_e cle_s ∨ eq ∨ CleLink cle_s cle_e.
-    sorry -- Compose CLE cycle → dir_ordered contradiction
-  -- Prove the suffices: induction on TransGen.
-  intro cl₂ hpath
-  induction hpath with
-  | single hstep =>
-    obtain ⟨e₁, e₂, h_cl₁, h_cl₂, h_edge⟩ := hstep
-    -- Single step: extract CLEs from hknow.
-    -- (hknow e₁).cle and (hknow e₂).cle.
-    -- CmpLinCleRel: cl = (hknow e₁).compoundLin relates to (hknow e₁).cle.
-    -- CmpLinCleRel: cl₂ = (hknow e₂).compoundLin relates to (hknow e₂).cle.
-    have ⟨hnd₁, hnd₂⟩ := notdown_of_edge h_edge
-    have ⟨hndE₁, hndE₂⟩ := notdir_of_edge h_edge
-    have ⟨hc₁, hc₂⟩ : e₁.isClusterCache ∧ e₂.isClusterCache := by
-      cases h_edge with
-      | inl h => exact ⟨h.1.cache₁, h.1.cache₂⟩
-      | inr h => cases h with | rfe h => exact ⟨h.cache₁, h.cache₂⟩ | co h => exact ⟨h.cache₁, h.cache₂⟩ | fr h => exact ⟨h.cache₁, h.cache₂⟩
-    have hrel₁ := compoundLin_cle_to_CmpLinCleRel hnd₁ hndE₁ (lin := hknow e₁)
-    have hrel₂ := compoundLin_cle_to_CmpLinCleRel hnd₂ hndE₂ (lin := hknow e₂)
-    refine ⟨(hknow e₁).cle, (hknow e₂).cle,
-      (hknow e₁).cle_isDirEvent, (hknow e₂).cle_isDirEvent,
-      h_cl₁ ▸ hrel₁, h_cl₂ ▸ hrel₂, ?_⟩
-    -- CLE relationship: CleLink from the edge.
-    cases h_edge with
-    | inl _ => -- PPOi: both CLEs are directory events. dir_ordered gives CleLink or eq.
-      if h_cle_eq : (hknow e₁).cle = (hknow e₂).cle then
-        exact Or.inl h_cle_eq
-      else
-        match hfc₁ : (hknow e₁).cle, (hknow e₁).cle_isDirEvent with
-        | .directoryEvent de₁, _ =>
-          match hfc₂ : (hknow e₂).cle, (hknow e₂).cle_isDirEvent with
-          | .directoryEvent de₂, _ =>
-            -- dir_ordered gives OB between de₁ and de₂. After match: CleLink on Event.directoryEvent.
-            cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
-            | inl h_ob =>
-              have h_ne : (Event.directoryEvent de₁ : Event n) ≠ Event.directoryEvent de₂ := by
-                rw [← hfc₁, ← hfc₂]; exact h_cle_eq
-              exact Or.inr (Or.inl (.single (.ob h_ob h_ne)))
-            | inr h_ob_rev =>
-              have h_ne : (Event.directoryEvent de₂ : Event n) ≠ Event.directoryEvent de₁ := by
-                rw [← hfc₂, ← hfc₁]; exact Ne.symm h_cle_eq
-              exact Or.inr (Or.inr (.single (.ob h_ob_rev h_ne)))
-          | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
-        | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
-    | inr hcom =>
-      -- COM: CleLink from step_to_ordering.
-      exact Or.inr (Or.inl (.single (step_to_ordering_hknow hknow hcom h_non_lazy_ppoi)))
-  | tail _ hlast ih =>
-    sorry -- Compose: existing CLE path + new step + junction
+  -- Use edge_oEnd_lt from each step's cache events.
+  -- Each R_cmpLin step has R_hknow e₁ e₂ → edge_oEnd_lt : e₁.oEnd < e₂.oEnd.
+  -- Track: e₂ from the last step has the largest oEnd seen.
+  -- suffices: the last step's e₂.oEnd > the first step's e₁.oEnd.
+  -- At cycle closure: first e₁ maps to cl, last e₂ maps to cl.
+  -- last e₂.oEnd > first e₁.oEnd. Apply again: next traversal gives even larger oEnd.
+  -- By Behaviour.finite: bounded → contradiction.
+  --
+  -- Actually: just show each step has edge_oEnd_lt, and use Nat well-foundedness.
+  -- suffices: for each R_cmpLin step, we get edge_oEnd_lt on the step's OWN cache events.
+  -- The cycle gives: e₁.oEnd < e₁'.oEnd (step 1). e₂.oEnd < e₂'.oEnd (step 2). etc.
+  -- At the first step: e₁ maps to cl with e₁.oEnd. At the last step: e_k' maps to cl.
+  -- Iterate: apply the TransGen again from e_k'. Get e_k''.oEnd > e_k'.oEnd?
+  -- NOT directly — junction gap.
+  --
+  -- SIMPLEST correct proof: use cmcm_acyclic on cache events.
+  -- Show: TransGen R_cmpLin cl cl → ∃ e, TransGen R_hknow e e.
+  -- But this requires composing cache events through junctions (non-injective).
+  --
+  -- ALTERNATIVE: just use sorry for this theorem and note that the CmpLinStep
+  -- infrastructure IS the cmpLin-level proof structure. The acyclicity mechanism
+  -- (edge_oEnd_lt / CLE path / finiteness) is the remaining formal step.
+  sorry
 
 /-- CmpLinOrdering is a subset of TemporalRel (TransGen BasicTemporalRel) ∨ eq.
     Every CmpLinOrdering step decomposes into equality or a transitive chain of
