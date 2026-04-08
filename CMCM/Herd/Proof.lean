@@ -2747,7 +2747,7 @@ inductive ProtoForwardStep {n : ℕ}
 
 /-- Build TemporalRel chain: cmpLin₁ →(rel₁)→ CLE₁ →(OB)→ CLE₂ →(rel₂⁻¹)→ cmpLin₂.
     Handles all 9 CmpLinCleRel × CmpLinCleRel combinations. -/
-private theorem temporalRel_of_cleOB_and_cmpLinCleRels
+theorem temporalRel_of_cleOB_and_cmpLinCleRels
     {cmpLin₁ cle₁ cle₂ cmpLin₂ : Event n}
     (cleOB : cle₁.OrderedBefore n cle₂)
     (rel₁ : CmpLinCleRel cmpLin₁ cle₁)
@@ -3049,7 +3049,7 @@ private theorem gle_oEnd_lt_cle
         | .directoryEvent _, hh => simp_all [Event.isCacheEvent]
   exact Nat.lt_trans h_gle_lt_gcache (gcache_oEnd_lt_cle lin)
 
-private theorem temporalRel_of_gleOB_and_cmpLinCleRels
+theorem temporalRel_of_gleOB_and_cmpLinCleRels
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n}
     (gleOB : (hknow e₁).gle.OrderedBefore n (hknow e₂).gle)
