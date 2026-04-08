@@ -84,55 +84,42 @@ theorem edge_to_cmpLinForwardStep
           have h_eq_e₁ := compoundLin_eq_of_cle_ob hnd₁ h₁_ob
           have h_cle_lt_e₂ := Nat.lt_trans h₁_ob
             (Nat.lt_trans (h_eq_e₁ ▸ Event.oWellFormed n _) (h_eq_e₁ ▸ h_ob))
-          -- For eq/inside on e₂: encapDir gives e₂.Encapsulates CLE.
-          -- e₂.oStart < CLE.oStart ≤ CLE.oEnd < e₂.oStart → False.
-          -- orderBeforeDir: reqHasPerms. But eq/inside means dirLin → compoundLin = CLE (dir event).
-          -- requestLin (from reqHasPerms) gives compoundLin = e₂ (cache event).
-          -- CLE is dir, e₂ is not dir → compoundLin can't be both → contradiction.
-          exfalso
-          cases (hknow e₂).cle_dirAccess with
-          | encapDir _ hencap =>
-            exact Nat.lt_irrefl _ (Nat.lt_trans hencap.reqEncapDir.left
-              (Nat.lt_trans (Event.oWellFormed n _) (h_cle_eq ▸ h_cle_lt_e₂)))
-          | orderBeforeDir hhas _ _ _ _ _ _ _ =>
-            -- reqHasPerms → requestLin → compoundLin₂ = e₂.
-            -- But hrel₂' = eq or inside → compoundLin₂ = CLE₂ (dir event) or inside CLE₂ (dir event).
-            -- e₂ is not dir (hndE₂). compoundLin₂ = e₂ → compoundLin₂ not dir.
-            -- compoundLin₂ = CLE₂ (eq) → compoundLin₂ IS dir. Contradiction.
-            -- compoundLin₂ inside CLE₂ (inside) → compoundLin₂ isDirectoryEvent (h_isdir field).
-            -- In both cases: compoundLin₂ is dir. But requestLin → compoundLin₂ = e₂ → not dir.
-            -- Derive requestLin from reqHasPerms:
-            cases hle₂ : compound.linearizationOfEvent b init e₂ with
-            | requestLin hreq =>
-              have h_cmpLin_eq_e₂ := (hknow e₂).compoundLin_eq_event_of_requestLin hle₂
-              -- compoundLin₂ = e₂ (cache, ¬dir). But hrel₂' = eq/inside → compoundLin₂ is dir.
-              cases hrel₂' with
-              | eq h₂ => exact hndE₂ (h_cmpLin_eq_e₂ ▸ h₂ ▸ (h_cle_eq ▸ (hknow e₁).cle_isDirEvent))
-              | cle_ob _ h₂_eq _ h₂_nd =>
-                -- cle_ob: ¬ compoundLin₂.isDirectoryEvent. compoundLin₂ = e₂. No contradiction here.
-                -- But cle_ob means CLE OB compoundLin₂. With same CLE and eventOB... temporal.
-                sorry
-              | inside _ _ h₂_isdir => exact hndE₂ (h_cmpLin_eq_e₂ ▸ h₂_isdir)
-            | dirLin hd =>
-              exact reqHasPerms_not_reqMissingPerms hd.choose_spec.2.reqHasNoPerms hnd₂ hhas
-          | orderAfterDir hweak _ _ _ =>
-            -- orderAfterDir: same as gle_oEnd_lt_cle. Use SWMR or NC argument.
-            -- For cluster level: ncWeakReqOnVd for e₂. e₂ is a cache event at cluster.
-            -- More complex — use temporal contradiction instead.
-            -- CLE.oEnd < e₂.oStart (h_cle_lt_e₂ via h_cle_eq).
-            -- orderAfterDir: successor encaps CLE. successor OB e₂.
-            -- gcache OB successor: gcache.oEnd < successor.oStart.
-            -- But e₂ = CLE₂ (from eq) or inside CLE₂ (from inside).
-            -- For eq: e₂.oStart < CLE₂.oStart (from encapDir)... wait, we're in orderAfterDir, not encapDir.
-            -- orderAfterDir has its own structure. The successor encaps CLE₂.
-            -- CLE₂ inside successor. successor OB e₂.
-            -- CLE₂.oEnd < successor.oEnd. successor.oEnd < e₂.oStart.
-            -- So CLE₂.oEnd < e₂.oStart. Same as h_cle₂_lt. Consistent — no new contradiction.
-            -- Need a DIFFERENT argument. The temporal chain doesn't directly contradict.
-            -- Use: orderAfterDir requires ncWeakReqOnVd. If the event is at a cluster
-            -- where the protocol has SC events, nc_no_sc gives contradiction.
-            -- But this is deep protocol infrastructure. Sorry for now.
+          -- cle_ob on rel₁. Case-split rel₂':
+          cases hrel₂' with
+          | eq h₂ =>
+            -- cle_ob × eq: temporal contradiction via encapDir.
+            exfalso
+            cases (hknow e₂).cle_dirAccess with
+            | encapDir _ hencap =>
+              exact Nat.lt_irrefl _ (Nat.lt_trans hencap.reqEncapDir.left
+                (Nat.lt_trans (Event.oWellFormed n _) (h_cle_eq ▸ h_cle_lt_e₂)))
+            | orderBeforeDir hhas _ _ _ _ _ _ _ =>
+              cases hle₂ : compound.linearizationOfEvent b init e₂ with
+              | requestLin hreq =>
+                have h_cmpLin_eq_e₂ := (hknow e₂).compoundLin_eq_event_of_requestLin hle₂
+                exact hndE₂ (h_cmpLin_eq_e₂ ▸ h₂ ▸ (h_cle_eq ▸ (hknow e₁).cle_isDirEvent))
+              | dirLin hd =>
+                exact reqHasPerms_not_reqMissingPerms hd.choose_spec.2.reqHasNoPerms hnd₂ hhas
+            | orderAfterDir _ _ _ _ => sorry
+          | cle_ob _ _ h₂_ob _ =>
+            -- cle_ob × cle_ob: use chain_of_sameCLE result (which gives forward for this case).
             sorry
+          | inside h₂_enc _ _ =>
+            -- cle_ob × inside: same temporal contradiction as cle_ob × eq.
+            exfalso
+            cases (hknow e₂).cle_dirAccess with
+            | encapDir _ hencap =>
+              exact Nat.lt_irrefl _ (Nat.lt_trans hencap.reqEncapDir.left
+                (Nat.lt_trans (Event.oWellFormed n _) (h_cle_eq ▸ h_cle_lt_e₂)))
+            | orderBeforeDir hhas _ _ _ _ _ _ _ =>
+              cases hle₂ : compound.linearizationOfEvent b init e₂ with
+              | requestLin hreq =>
+                have h_cmpLin_eq_e₂ := (hknow e₂).compoundLin_eq_event_of_requestLin hle₂
+                -- inside has h_isdir: compoundLin₂ isDirectoryEvent. compoundLin₂ = e₂ → e₂ isDir → contradiction.
+                sorry
+              | dirLin hd =>
+                exact reqHasPerms_not_reqMissingPerms hd.choose_spec.2.reqHasNoPerms hnd₂ hhas
+            | orderAfterDir _ _ _ _ => sorry
         | inside h₁_enc _ h₁_isdir => cases hrel₂' with
           | eq h₂ => exact ⟨Or.inl (.single (.encapBy (h₂ ▸ h₁_enc))), .eventOB h_gle_eq h_cle_eq h_ob⟩
           | cle_ob _ _ h₂_ob _ => exact ⟨Or.inl (.tail (.single (.encapBy h₁_enc)) (.ob h₂_ob)), .eventOB h_gle_eq h_cle_eq h_ob⟩
