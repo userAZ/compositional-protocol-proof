@@ -2924,8 +2924,15 @@ private theorem gle_oEnd_lt_cle
           -- h_mo : ce.req = ⟨⟨_, true, .SC⟩, _⟩
           exact h_nonc (by rw [h_mo])
         | .directoryEvent _, h => simp [Event.isCacheEvent] at h
-      | .noGlobalCache _ _ =>
-        -- noGlobalCache: past global cache event. Needs SWMR invariant.
+      | .noGlobalCache h_has_perms _ =>
+        -- noGlobalCache: past gcache = getLatestGlobalCacheEvent. isNcWeak on it.
+        -- The gcache is at the global cache (protocol = .global).
+        -- Global protocol is SWMR: SC ∈ protocol (from matchingOp on past encapGlobalCache events).
+        -- nc_no_sc: NC request in protocol → SC ∉ protocol. Contradiction.
+        -- Derive: gcache.protocol = .global, gcache.req ∈ global protocol.
+        -- Use nc_no_sc + SC existence in global protocol → NC impossible.
+        -- This requires showing SC ∈ global protocol from has_global_cache_perms
+        -- (perms ≥ Vc → prior SC access → SCRead ∈ protocol).
         sorry
   exact Nat.lt_trans h_gle_lt_gcache (gcache_oEnd_lt_cle lin)
 
