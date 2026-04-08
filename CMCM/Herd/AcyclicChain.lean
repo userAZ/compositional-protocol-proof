@@ -11,12 +11,11 @@ namespace Herd
 
 variable {n : ℕ} {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
 
--- linOf refactoring: blocked by hreq's_dir_access_matches_dirLin requiring
--- Exists.choose equality between independently-constructed ∃ proofs.
--- ⟨x, hx⟩.choose ≠ x definitionally (Classical.choice opacity).
--- Needs dirAccessOfRequest uniqueness: each cache event has exactly one CLE.
--- This is a known protocol property (matchesCacheEvent.correspondingCE uniquely
--- determines the directory event) but not yet formalized as a lemma.
+-- Note: `hknow` (∀ e, globalLinearizationEventOfRequest compound b init e) is a required
+-- hypothesis because the structure's field `hreq's_dir_access_matches_dirLin` commits
+-- the caller to a specific Exists.choose alignment between dirAccessOfRequest and
+-- reqLinearizeAtDir. This cannot be derived from CompoundProtocol alone — it requires
+-- the caller to provide consistent CLE choices. This is by design (see Rf.lean:108).
 
 structure CmpLinForwardStep
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
