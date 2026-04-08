@@ -2870,9 +2870,47 @@ private theorem derive_cle_ob_same_cluster
     | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
   | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
-/-- GLE.oEnd < CLE.oEnd: GLE is temporally before CLE ends.
-    From: GLE.oEnd < gcache.oEnd (from dirAccessOfRequest encapsulation) and
-    gcache.oEnd < CLE.oEnd (from gcache_oEnd_lt_cle shim). -/
+/-- Any event satisfying reqAtCorrespondingGCacheOfCDir has protocol = .global. -/
+private theorem global_protocol_of_gCacheOfCDir
+    {e_dir e_gcache : Event n}
+    (h : Event.reqAtCorrespondingGCacheOfCDir n e_dir e_gcache)
+    : Event.protocol n e_gcache = .global := by
+  -- reqAtCorrespondingGCacheOfCDir matches on e_dir (cluster1→cid 0, cluster2→cid 1, global→False)
+  -- then reqAtGlobalCacheCid matches on e_gcache (cacheEvent→cid match, directoryEvent→False)
+  -- cid = .cache (.globalP _) → Event.protocol = .global
+  unfold Event.reqAtCorrespondingGCacheOfCDir at h
+  match e_dir with
+  | .directoryEvent de =>
+    match hprot : de.pInst with
+    | .cluster1 =>
+      simp [hprot, Event.protocol, Event.reqAtGlobalCacheCid] at h ⊢
+      match e_gcache with
+      | .cacheEvent ce =>
+        simp [Event.reqAtGlobalCacheCid] at h
+        match hcid : ce.cid with
+        | .cache pci =>
+          match pci with
+          | .globalP fin => simp [Event.protocol, hcid]
+          | .cluster1 _ => simp [hcid] at h
+          | .cluster2 _ => simp [hcid] at h
+        | .proxy _ => simp [hcid] at h
+      | .directoryEvent _ => simp [Event.reqAtGlobalCacheCid] at h
+    | .cluster2 =>
+      simp [hprot, Event.protocol, Event.reqAtGlobalCacheCid] at h ⊢
+      match e_gcache with
+      | .cacheEvent ce =>
+        simp [Event.reqAtGlobalCacheCid] at h
+        match hcid : ce.cid with
+        | .cache pci =>
+          match pci with
+          | .globalP fin => simp [Event.protocol, hcid]
+          | .cluster1 _ => simp [hcid] at h
+          | .cluster2 _ => simp [hcid] at h
+        | .proxy _ => simp [hcid] at h
+      | .directoryEvent _ => simp [Event.reqAtGlobalCacheCid] at h
+    | .global =>
+      simp only [Event.protocol, hprot] at h
+
 private theorem gle_oEnd_lt_cle
     {lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     : Event.oEnd n lin.gle < Event.oEnd n lin.cle := by
@@ -2963,14 +3001,7 @@ private theorem gle_oEnd_lt_cle
           -- reqAtCorrespondingGCacheOfCDir matches on CLE.protocol (cluster1/cluster2)
           -- and gives reqAtGlobalCacheCid on the gcache.
           -- reqAtGlobalCacheCid → cid = .cache (.globalP _) → protocol = .global.
-          -- Derive protocol = .global from gCacheOfCDir → reqAtGlobalCacheCid.
-          have h_gcoc := h_gcache_nonempty.some.prop.2.finishBefore.gCacheOfCDir
-          -- h_gcoc : reqAtCorrespondingGCacheOfCDir CLE gcache_event
-          -- The goal is about getLatest... which is h_gcache_nonempty.some after dif_pos.
-          -- Both reference the same event. Show protocol = .global from gCacheOfCDir.
-          -- reqAtCorrespondingGCacheOfCDir gives reqAtGlobalCacheCid → cid = .cache (.globalP _).
-          -- Event.protocol (.cacheEvent ce) with ce.cid = .cache (.globalP _) = .global.
-          sorry  -- protocol derivation from gCacheOfCDir; needs Event match + cid analysis
+          exact global_protocol_of_gCacheOfCDir h_gcache_nonempty.some.prop.2.finishBefore.gCacheOfCDir
         have h_req_in_global := compound.eReqOfTheirProtocol compound.global
           (Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent n b lin.hreq's_dir_access.choose)
           (by rw [h_gcache_in_global, compound.globalWellFormed])
