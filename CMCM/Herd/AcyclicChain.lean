@@ -56,11 +56,10 @@ private theorem lift_temporalRel_from_match
 private theorem clusterDirLinEvent_unique
     {shimAxioms : ShimAxioms n} {b : Behaviour n} {init : InitialSystemState n}
     {e_cdir e₁ e₂ : Event n}
+    (h_isdir : e_cdir.isDirectoryEvent)
     (h₁ : CompoundProtocol.clusterDirectoryLinearizationEvent n shimAxioms b init e_cdir e₁)
     (h₂ : CompoundProtocol.clusterDirectoryLinearizationEvent n shimAxioms b init e_cdir e₂)
     : e₁ = e₂ := by
-  -- The test `e_cdir.req.MRS ≤ globalCacheStateOfDirectoryEvent` is decidable.
-  -- Same e_cdir → same test → same constructor.
   cases h₁ with
   | previousGlobalCacheGotPerms _ h_eq₁ =>
     cases h₂ with
@@ -70,16 +69,53 @@ private theorem clusterDirLinEvent_unique
     cases h₂ with
     | previousGlobalCacheGotPerms h_yes _ => exact absurd h_yes h_no₁
     | getGlobalCachePerms _ h_global₂ =>
-      -- Both getGlobalCachePerms with noPerms.linearizationEvent on same CLE.
-      -- Unfold and extract the equality chain.
-      -- The definition has `by classical exact ...`, so we use `change` to get a clean Prop.
-      -- Both have noPerms.linearizationEvent on same CLE.
-      -- The Prop structure determines e_glin uniquely from CLE.
-      -- For now, this requires deep unfolding of the `by classical exact` wrapper.
-      -- Alternative: add `compoundLin_unique_of_same_cle` as a field of CompoundProtocol.
-      -- The protocol guarantees this (clusterDirectoryLinearizationEvent depends only on CLE),
-      -- but the `by classical exact` definition wrapper prevents clean unfolding.
-      sorry
+      -- Both getGlobalCachePerms: unfold noPerms.linearizationEvent (pattern from Rf.lean:401).
+      simp [Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent, h_isdir] at h_global₁ h_global₂
+      -- After simp: `if isDir` reduces to the match branch. Split on shim output.
+      split at h_global₁
+      · exact absurd h_global₁ (by simp)
+      · split at h_global₂
+        · exact absurd h_global₂ (by simp)
+        · -- Both encapGlobalCache: same shim output (same CLE → same shim).
+          obtain ⟨gcache_lin₁, hg₁⟩ := h_global₁
+          obtain ⟨gcache_lin₂, hg₂⟩ := h_global₂
+          -- Unfold globalCacheNoPermsReqDirectory: forces dirLin, gives e_glin = dir_glin.choose.
+          simp [Behaviour.compoundLinearizationEvent.globalCacheNoPermsReqDirectory] at hg₁ hg₂
+          split at hg₁ <;> split at hg₂
+          · -- Both dirLin: e₁ = dir_glin₁.choose, e₂ = dir_glin₂.choose.
+            -- dir_glin₁ and dir_glin₂ prove the same ∃ Prop → equal → same .choose.
+            exact hg₁.trans hg₂.symm
+          · exact absurd hg₂ (by simp)
+          · exact absurd hg₁ (by simp)
+          · exact absurd hg₁ (by simp)
+
+/-- For the `inside` CmpLinCleRel case (dirLin → getGlobalCachePerms), extract
+    the clusterDirectoryLinearizationEvent evidence relating CLE to compoundLin.
+    The `inside` constructor carries isDirectoryEvent, ruling out requestLin (cache event). -/
+private theorem inside_gives_clusterDirLinEvent
+    {lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
+    (hnd : ¬ e.down) (hnd_dir : ¬ e.isDirectoryEvent)
+    (h_isdir : lin.compoundLin.isDirectoryEvent)
+    : CompoundProtocol.clusterDirectoryLinearizationEvent n compound.shimAxioms b init lin.cle lin.compoundLin := by
+  cases hle : compound.linearizationOfEvent b init e with
+  | requestLin hreq =>
+    -- requestLin: compoundLin = e (cache event). But inside.h_isdir says compoundLin is directory. Contradiction.
+    exfalso; exact hnd_dir (lin.compoundLin_eq_event_of_requestLin hle ▸ h_isdir)
+  | dirLin hdir =>
+    cases hcmp : compound.compoundLinearizationEvent compound.shimAxioms b init e (.dirLin hdir) with
+    | clusterCacheLin hcache =>
+      exfalso; exact absurd hcache.choose_spec.2.lin_at_cache (by simp [Behaviour.reqLinearizesAtCache])
+    | clusterDirLin hdir_case =>
+      have h_cle_shared := lin.hreq's_dir_access_matches_dirLin hdir hle
+      have h_deeper := hdir_case.choose_spec.2.e_glin_deeper
+      simp [CompoundProtocol.compoundLinearization.OfReqEncapDirAccess] at h_deeper
+      -- compoundLin = hdir_case.choose, CLE = reqLinearizeAtDir.choose.
+      have h_cmpLin_eq := lin.compoundLin_of_clusterDirLin hle hcmp
+      -- Goal: clusterDirLinEvent ... lin.cle lin.compoundLin
+      -- h_deeper: clusterDirLinEvent ... (hdir...reqLinearizeAtDir.choose) hdir_case.choose
+      -- h_cle_shared: lin.cle = hdir...reqLinearizeAtDir.choose
+      -- h_cmpLin_eq: lin.compoundLin = hdir_case.choose
+      rw [h_cmpLin_eq]; convert h_deeper using 1
 
 /-- Each R_hknow edge gives a CmpLinForwardStep.
     Uses the existing sorry-free cmpLinLinLink_acyclic invariant computation. -/
@@ -205,21 +241,24 @@ theorem edge_to_cmpLinForwardStep
                 | inl h => exact ⟨Or.inl (lift_temporalRel_from_match hfc₁ hfc₂ (temporalRel_of_dirOB h)),
                     .eventOB h_gle_eq h_cle_eq h_ob⟩
                 | inr h =>
-                  -- de₂ OB de₁: reverse. Both de₁, de₂ are global dir events inside same CLE.
-                  --
-                  -- ANALYSIS: compoundLin for the `inside` case comes from
-                  -- `getGlobalCachePerms` in `clusterDirectoryLinearizationEvent`, which depends
-                  -- ONLY on the CLE (not on the cache event e₁/e₂). Same CLE → same e_glin →
-                  -- de₁ = de₂ → self-OB → False. However, `compoundLinearizationEvent` is an
-                  -- opaque axiom field of CompoundProtocol, so the formalization cannot derive
-                  -- de₁ = de₂ without a "same CLE → same compoundLin" axiom.
-                  --
-                  -- The main proof (cmpLinLinLink_acyclic) handles this by carrying the reverse
-                  -- through a 3-way invariant and closing via ProtoOBLevel at cycle level.
-                  -- The CmpLinForwardStep approach (forward-or-eq per edge) is strictly stronger:
-                  -- it requires eliminating the reverse at the single-edge level, which needs
-                  -- the missing axiom.
-                  sorry
+                  -- de₂ OB de₁: reverse. Use clusterDirLinEvent_unique to show de₁ = de₂,
+                  -- then self-OB → False.
+                  exfalso
+                  have h_cle_isdir := (hknow e₁).cle_isDirEvent
+                  have hdl₁ := inside_gives_clusterDirLinEvent hnd₁ hndE₁ h₁_isdir
+                  have hdl₂ := inside_gives_clusterDirLinEvent hnd₂ hndE₂ h₂_isdir
+                  -- Transport hdl₂ from (hknow e₂).cle to (hknow e₁).cle using h_cle_eq.
+                  have hdl₂' : CompoundProtocol.clusterDirectoryLinearizationEvent n
+                      compound.shimAxioms b init (hknow e₁).cle (hknow e₂).compoundLin :=
+                    h_cle_eq ▸ hdl₂
+                  have h_eq := clusterDirLinEvent_unique h_cle_isdir hdl₁ hdl₂'
+                  -- h_eq : (hknow e₁).compoundLin = (hknow e₂).compoundLin
+                  -- de₁ = de₂ from hfc₁, hfc₂, h_eq.
+                  have : de₁ = de₂ := by
+                    have := hfc₁.symm.trans (h_eq.trans hfc₂)
+                    exact Event.directoryEvent.inj this
+                  -- self-OB: de.oEnd < de.oStart contradicts de.oStart < de.oEnd (oWellFormed).
+                  exact Nat.lt_irrefl _ (Nat.lt_trans (this ▸ h) de₂.oWellFormed)
               | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
             | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
