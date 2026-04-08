@@ -129,8 +129,8 @@ theorem edge_to_cmpLinForwardStep
               match hfc₂ : (hknow e₂).compoundLin, h₂_isdir with
               | .directoryEvent de₂, _ =>
                 cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
-                | inl h => sorry -- dir_ordered forward: Lean type mismatch on dir vs event OB
-                | inr h => sorry -- dir_ordered reverse: vacuous (same GLE → same cmpLin)
+                | inl h => sorry -- Lean type: DirectoryEvent.OB → Event.OB after match
+                | inr h => sorry -- Same + vacuous (same GLE → same cmpLin → self-OB)
               | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
             | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
