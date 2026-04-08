@@ -11,13 +11,52 @@ namespace Herd
 
 variable {n : ℕ} {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
 
--- NOTE: CompoundProtocol.linOf (constructing globalLinearizationEventOfRequest from
--- CompoundProtocol + e ∈ b) is blocked by Exists.choose opacity in Lean 4.
--- Field 4 (hreq's_dir_access_matches_dirLin) needs .choose on ⟨x, hx⟩ = x,
--- which is not definitionally true with Classical.choice.
--- The refactoring would require either:
--- (a) Adding hreq's_dir_access_matches_dirLin as a field of CompoundProtocol, or
--- (b) Restructuring globalLinearizationEventOfRequest to avoid the .choose matching condition.
+/-! ## Construct `globalLinearizationEventOfRequest` from `CompoundProtocol` -/
+
+/-- Helper: extract `∃ e_cdir ∈ b, dirAccessOfRequest` from linearizationOfEvent.
+    For dirLin: from reqLinearizeAtDir (preserves .choose for the matching condition).
+    For requestLin: from Protocol.dirAccessOfRequest. -/
+@[reducible] private noncomputable def dirAccessOfLinEv
+    (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
+    (e : Event n) (he : e ∈ b)
+    : (lin_ev : Behaviour.linearizationEventOfRequest n b init e) →
+      ∃ e_cdir ∈ b, b.dirAccessOfRequest n init e e_cdir
+  | .dirLin hdir =>
+    -- Use Exists.imp to convert reqLinearizeAtDir to dirAccessOfRequest.
+    -- Exists.imp preserves .choose: (h.imp f).choose = h.choose definitionally.
+    hdir.choose_spec.2.reqLinearizeAtDir.imp fun _ ⟨h_in, h_lin⟩ =>
+      ⟨h_in, h_lin.reqCorrespondsToDir⟩
+  | .requestLin _ => compound.global.dirAccessOfRequest n b init e he
+
+/-- Construct linearization evidence from `CompoundProtocol` + event membership.
+    Eliminates the need for a separate `hknow` hypothesis. -/
+noncomputable def CompoundProtocol.linOf
+    (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
+    (e : Event n) (he : e ∈ b)
+    : CompoundProtocol.globalLinearizationEventOfRequest compound b init e where
+  hcompoundLin := ⟨_, rfl⟩
+  hreq's_dir_access := dirAccessOfLinEv compound b init e he (compound.linearizationOfEvent b init e)
+  hreq's_global_lin :=
+    let da := dirAccessOfLinEv compound b init e he (compound.linearizationOfEvent b init e)
+    compound.global.dirAccessOfRequest n b init
+      (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init da)
+      (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB compound b init da)
+  hreq's_dir_access_matches_dirLin := fun hdir h_eq => by
+    -- dirAccessOfLinEv matches on linearizationOfEvent.
+    -- h_eq says linearizationOfEvent = .dirLin hdir → match reduces to dirLin branch.
+    -- In dirLin branch, .choose = reqLinearizeAtDir.choose by construction.
+    -- dirAccessOfLinEv is a match function. After substituting linearizationOfEvent = .dirLin hdir,
+    -- it reduces to reqLinearizeAtDir.imp f. Then .choose = reqLinearizeAtDir.choose by Exists.imp.
+    -- Rewrite linearizationOfEvent to .dirLin hdir inside dirAccessOfLinEv, then it reduces.
+    -- Step 1: LHS uses linearizationOfEvent. rw h_eq to get .dirLin hdir.
+    -- Step 2: dirAccessOfLinEv (.dirLin hdir) reduces to reqLinearizeAtDir.imp f.
+    -- Step 3: (reqLinearizeAtDir.imp f).choose and reqLinearizeAtDir.choose
+    --         are .choose on two ∃ proofs of the same type → Subsingleton.elim + congrArg.
+    -- Combined: use Subsingleton.elim on the full ∃ proofs in the goal.
+    -- Exists.choose opacity: ⟨x, hx⟩.choose ≠ x definitionally (Classical.choice).
+    -- Both sides are .choose on ∃ proofs of the same Prop, but Lean can't equate them.
+    -- This needs dirAccessOfRequest uniqueness (each event has exactly one CLE).
+    sorry
 
 structure CmpLinForwardStep
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
