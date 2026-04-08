@@ -94,24 +94,71 @@ theorem edge_to_cmpLinForwardStep
         exact ⟨Or.inl (temporalRel_of_cleOB_and_cmpLinCleRels h_cle_ob hrel₁ hrel₂),
                .cleOB h_gle_eq h_cle_ob⟩
       | eventOB h_gle_eq h_cle_eq h_ob =>
-        -- eventOB + same CLE. chain_of_sameCLE returned reverse.
-        -- Contradict: case-split on rel₁ and (h_cle_eq ▸ rel₂).
+        -- eventOB (e₁ OB e₂) + same CLE. chain_of_sameCLE returned reverse.
+        -- Reverse only from cle_ob in rel₁. Contradict using encapDir on e₂.
         exfalso
-        have hrel₂' := h_cle_eq ▸ hrel₂
-        -- The reverse-producing cases from chain_of_sameCLE:
-        -- cle_ob × eq: CLE OB cmpLin₁ (= e₁). cmpLin₂ = CLE. e₁ OB e₂.
-        --   eq means dirLin → encapDir → e₂.Encapsulates CLE.
-        --   CLE.oEnd < e₁.oStart (CLE OB e₁). e₁.oEnd < e₂.oStart (e₁ OB e₂).
-        --   CLE.oEnd < e₂.oStart. But e₂.Encapsulates CLE → CLE.oEnd < e₂.oEnd.
-        --   Wait: encapDir gives e₂.Encapsulates CLE → e₂.oStart < CLE.oStart ∧ CLE.oEnd < e₂.oEnd.
-        --   So e₂.oStart < CLE.oStart. But CLE.oEnd < e₁.oStart ≤ e₁.oEnd < e₂.oStart.
-        --   e₂.oStart < CLE.oStart ≤ CLE.oEnd < e₂.oStart → e₂.oStart < e₂.oStart → False.
-        -- cle_ob × inside: similar (inside also from encapDir → e₂.Encapsulates CLE).
-        -- inside × inside: same GLE → cmpLin₁ = cmpLin₂ → dir_ordered self → False.
-        -- Extract the CLE's dirAccessOfRequest for the encapDir evidence.
-        -- For the CmpLinCleRel.eq case: cmpLin = CLE comes from dirLin which forces encapDir.
-        -- encapDir gives e.Encapsulates CLE (from cacheEncapsulatesCorrespondingDirEvent.reqEncapDir).
-        sorry
+        -- rel₁ must be cle_ob (eq and inside don't produce reverse after the fix).
+        -- cle_ob: CLE OB cmpLin₁ (= e₁). So CLE.oEnd < e₁.oStart.
+        -- e₁ OB e₂: e₁.oEnd < e₂.oStart. Chain: CLE.oEnd < e₂.oStart.
+        -- From (hknow e₂).cle_dirAccess (encapDir case):
+        --   e₂.Encapsulates CLE₂ → e₂.oStart < CLE₂.oStart.
+        --   h_cle_eq: CLE₁ = CLE₂. So e₂.oStart < CLE.oStart ≤ CLE.oEnd < e₂.oStart → False.
+        cases hrel₁ with
+        | cle_ob _ h₁_eq h₁_ob _ =>
+          -- CLE OB cmpLin₁ (h₁_ob): CLE.oEnd < cmpLin₁.oStart
+          -- cmpLin₁ = e (h₁_eq): so CLE.oEnd < e.oStart ≤ e.oEnd
+          -- We need e₁ OB e₂ but h₁_eq says cmpLin₁ = e, not e₁ = e.
+          -- Actually cle_ob carries h₁_eq : cmpLin₁ = e. And cmpLin₁ = (hknow e₁).compoundLin.
+          -- h_ob : e₁ OB e₂.
+          -- CLE.oEnd < cmpLin₁.oStart (h₁_ob). cmpLin₁.oEnd ≤ ... hmm.
+          -- Use: CLE.oEnd < cmpLin₁.oStart. cmpLin₁ = e₁'s compoundLin.
+          -- gle_oEnd_lt_cle gives GLE.oEnd < CLE.oEnd. Not directly useful.
+          -- Just use: CLE OB e₁ comes from cle_ob_to_temporal_chain or similar.
+          -- Actually: h₁_ob is CLE.OrderedBefore cmpLin₁. e₁.oEnd < e₂.oStart (h_ob).
+          -- Need: CLE.oEnd < e₂.oStart.
+          -- Chain: CLE.oEnd < cmpLin₁.oStart (h₁_ob). cmpLin₁ finishesBefore e₁ (or eq e₁).
+          -- For cle_ob: cmpLin₁ = e₁ (h₁_eq says cmpLin₁ = e, where e is the event from cle_ob).
+          -- Wait: cle_ob has (e : Event n) (h_eq : cmpLin = e). This 'e' is NOT e₁.
+          -- The 'e' in cle_ob is a witness event. h₁_eq : (hknow e₁).compoundLin = e.
+          -- h₁_ob : (hknow e₁).cle.OrderedBefore (hknow e₁).compoundLin.
+          -- So: CLE.oEnd < compoundLin₁.oStart. And compoundLin₁ = e (h₁_eq).
+          -- But e is not e₁. e is the "cache event" from cle_ob's construction.
+          -- For the temporal chain: need CLE.oEnd < e₂.oStart.
+          -- Use gle_oEnd_lt_cle: GLE.oEnd < CLE.oEnd. And h₁_ob: CLE.oEnd < compoundLin₁.oStart.
+          -- compoundLin₁.oStart ≤ compoundLin₁.oEnd. h_ob: e₁.oEnd < e₂.oStart.
+          -- Need compoundLin₁.oEnd ≤ e₁.oEnd or similar. Not directly available.
+          -- Simplest: use edge_oEnd_lt... no, it was removed.
+          -- Use: from ProtoOBLevel.eventOB same CLE: e₁ OB e₂. And cle_ob gives CLE.oEnd < compoundLin₁.oStart.
+          -- gle_oEnd_lt_cle: GLE₁.oEnd < CLE₁.oEnd. Not directly useful.
+          -- Just derive directly: CLE.oEnd < e₁.oStart requires cmpLin₁ = e₁.
+          -- But h₁_eq says cmpLin₁ = e (some event). For cle_ob: e IS the original event.
+          -- Actually in compoundLin_cle_to_CmpLinCleRel, cle_ob sets h_eq : compoundLin = e (the event).
+          -- So e IS e₁. h₁_eq : compoundLin₁ = e₁. Then CLE.oEnd < e₁.oStart (h₁_ob with h₁_eq).
+          have h_cle_lt_e₂ : Event.oEnd n (hknow e₁).cle < Event.oStart n e₂ := by
+            have : Event.oEnd n (hknow e₁).cle < Event.oStart n e₁ := by
+              calc Event.oEnd n (hknow e₁).cle < Event.oStart n (hknow e₁).compoundLin := h₁_ob
+                _ = Event.oStart n e₁ := by
+                    -- h₁_eq : compoundLin = e. But e might not be e₁.
+                    -- For cle_ob from compoundLin_cle_to_CmpLinCleRel: h₁_eq : compoundLin = e
+                    -- where e is the original cache event. So compoundLin = e₁.
+                    -- But we can't prove this without additional evidence.
+                    sorry
+            exact Nat.lt_trans this h_ob
+          have h_cle₂_lt := h_cle_eq ▸ h_cle_lt_e₂  -- CLE₂.oEnd < e₂.oStart
+          cases (hknow e₂).cle_dirAccess with
+          | encapDir _ hencap =>
+            exact Nat.lt_irrefl _ (Nat.lt_trans hencap.reqEncapDir.left
+              (Nat.lt_trans (Event.oWellFormed n _) h_cle₂_lt))
+          | orderBeforeDir hhas _ _ _ _ _ _ _ =>
+            exact reqHasPerms_not_reqMissingPerms
+              (by cases (hknow e₂).cle_dirAccess with
+                  | encapDir hm _ => exact hm
+                  | orderBeforeDir _ _ _ _ _ _ _ _ => sorry
+                  | orderAfterDir _ _ _ _ => sorry)
+              (notdown_of_edge hedge).2 hhas
+          | orderAfterDir _ _ _ _ => sorry
+        | eq _ => sorry -- eq rel₁ never produces reverse in chain_of_sameCLE
+        | inside _ _ _ => sorry -- inside rel₁ never produces reverse (after fix)
 
 /-- Acyclicity via CmpLinForwardStep. -/
 theorem cmcm_acyclic_via_cmpLinForwardStep

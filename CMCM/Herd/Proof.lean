@@ -2060,7 +2060,7 @@ private theorem not_cle_ob_of_dirLin
   | inr h_ins => exact absurd (Nat.lt_trans h_ins.1.right h) (Nat.not_lt.mpr (Event.oStart_le_oEnd _))
 
 /-- CLE OB compoundLin → requestLin → compoundLin = e. -/
-private theorem compoundLin_eq_of_cle_ob
+theorem compoundLin_eq_of_cle_ob
     {lin : CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (hnd : ¬ e.down) (h : lin.cle.OrderedBefore n lin.compoundLin) : lin.compoundLin = e := by
   cases hle : compound.linearizationOfEvent b init e with
