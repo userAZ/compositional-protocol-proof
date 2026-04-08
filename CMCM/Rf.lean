@@ -243,18 +243,12 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_of_cluste
     In all cases, the CLE provides the bridge between compoundLin and the protocol evidence. -/
 inductive CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_rel
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
-    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e) : Prop
-  /-- compoundLin = CLE: request linearizes at directory and global cache already has perms. -/
-  | eq (h : lin.compoundLin = lin.cle)
-  /-- CLE finishes before compoundLin starts: request has perms (orderBeforeDir),
-      so compoundLin = e_creq and CLE is at a predecessor event. -/
-  | cle_ob_compoundLin (h : lin.cle.OrderedBefore n lin.compoundLin)
-  /-- compoundLin OB CLE: request has perms but CLE is at successor (orderAfterDir).
-      compoundLin = e_creq, CLE at successor of e_creq. -/
-  | compoundLin_ob_cle (h : lin.compoundLin.OrderedBefore n lin.cle)
-  /-- compoundLin inside CLE: request linearizes at directory and global cache needs perms,
-      so compoundLin is a deeper global event encapsulated by the CLE. -/
-  | compoundLin_inside_cle (h : lin.compoundLin.EncapsulatedBy n lin.cle)
+    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    (e_cle : Event n := lin.cle) : Prop
+  | eq (h : lin.compoundLin = e_cle)
+  | cle_ob_compoundLin (h : e_cle.OrderedBefore n lin.compoundLin)
+  | compoundLin_ob_cle (h : lin.compoundLin.OrderedBefore n e_cle)
+  | compoundLin_inside_cle (h : lin.compoundLin.EncapsulatedBy n e_cle)
 
 /-- Every non-downgrade request's compoundLin relates to its CLE in one of these ways. -/
 theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
