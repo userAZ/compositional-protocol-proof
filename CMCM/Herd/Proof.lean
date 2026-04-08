@@ -2890,11 +2890,43 @@ private theorem gle_oEnd_lt_cle
       -- Global cache uses SWMR (coherent=true, SC). ncWeakReqOnVd requires isNcWeak
       -- (coherent=false). Contradiction.
       exfalso
-      -- orderAfterDir at global level: vacuous. The gcache from the shim is always
-      -- a global cache event with coherent=true (from matchingOp for encapGlobalCache,
-      -- or from the SWMR protocol invariant for noGlobalCache).
-      -- ncWeakReqOnVd requires isNcWeak (coherent=false) → contradiction.
-      sorry
+      -- hweak.weakReq.left : ¬ isCoherent gcache. But gcache from shim has coherent=true.
+      -- Unfold gcache definition and case-split on shim.
+      -- The gcache from cDir'sGReq goes through the clusterToGlobal shim.
+      -- For encapGlobalCache: matchingOp gives req = ⟨rw, true, .SC⟩ → coherent=true.
+      -- For noGlobalCache: past global cache event, also coherent (SWMR).
+      -- In both cases: isNcWeak (coherent=false) contradicts coherent=true.
+      have h_nc := hweak.weakReq  -- isNcWeak = isNonCoherent ∧ isWeak
+      show False
+      -- Case-split on the clusterToGlobal shim to identify the gcache.
+      match h_shim : compound.shimAxioms.clusterToGlobal b init
+          lin.hreq's_dir_access.choose lin.hreq's_dir_access.choose_spec.right.isDirEvent with
+      | .encapGlobalCache _ h_exists =>
+        -- gcache = h_exists.choose. matchingOp: req = ⟨rw, true, .SC⟩ → coherent=true.
+        have h_mo := h_exists.choose_spec.right.gReqOfCDir.matchingOp
+        -- h_nc.left : isNonCoherent gcache = ¬ gcache.req.val.coherent.
+        have h_nonc := h_nc.left
+        -- Rewrite h_nonc using the shim match to reference the specific gcache.
+        simp only [Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper,
+                    Behaviour.Shim.ClusterToGlobal.cDir'sGReq, h_shim] at h_nonc
+        -- h_nonc : ¬ h_exists.choose.req.val.coherent (or Event.isNonCoherent on it)
+        -- h_nonc matches on Event constructor. The gcache is a cacheEvent (from reqAtCache).
+        have h_cache := h_exists.choose_spec.right.gReqOfCDir.reqGlobalCache.reqAtCache
+        match hce : h_exists.choose, h_cache with
+        | .cacheEvent ce, _ =>
+          simp only [Event.isNonCoherent] at h_nonc
+          -- h_nonc : ¬ ce.req.val.coherent
+          -- h_mo : (Event.cacheEvent ce).req = ⟨⟨_, true, .SC⟩, _⟩
+          -- Event.req (.cacheEvent ce) = ce.req
+          rw [hce] at h_nonc h_mo
+          simp only [Event.isNonCoherent, Event.req] at h_nonc h_mo
+          -- h_nonc : ¬ ce.req.val.coherent = true
+          -- h_mo : ce.req = ⟨⟨_, true, .SC⟩, _⟩
+          exact h_nonc (by rw [h_mo])
+        | .directoryEvent _, h => simp [Event.isCacheEvent] at h
+      | .noGlobalCache _ _ =>
+        -- noGlobalCache: past global cache event. Needs SWMR invariant.
+        sorry
   exact Nat.lt_trans h_gle_lt_gcache (gcache_oEnd_lt_cle lin)
 
 private theorem temporalRel_of_gleOB_and_cmpLinCleRels
