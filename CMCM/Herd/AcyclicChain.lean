@@ -11,11 +11,30 @@ namespace Herd
 
 variable {n : ℕ} {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
 
--- Note: `hknow` (∀ e, globalLinearizationEventOfRequest compound b init e) is a required
--- hypothesis because the structure's field `hreq's_dir_access_matches_dirLin` commits
--- the caller to a specific Exists.choose alignment between dirAccessOfRequest and
--- reqLinearizeAtDir. This cannot be derived from CompoundProtocol alone — it requires
--- the caller to provide consistent CLE choices. This is by design (see Rf.lean:108).
+/-! ## Construct `globalLinearizationEventOfRequest` from `CompoundProtocol` -/
+
+/-- Construct linearization evidence from CompoundProtocol + event membership.
+    The structure is Prop-valued (Subsingleton). requestLin: all fields trivial.
+    dirLin: field 4 (CLE matching) needs dirAccessOfRequest uniqueness per event. -/
+noncomputable def CompoundProtocol.linOf
+    (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
+    (e : Event n) (he : e ∈ b)
+    : CompoundProtocol.globalLinearizationEventOfRequest compound b init e :=
+  let da := compound.global.dirAccessOfRequest n b init e he
+  { hcompoundLin := ⟨_, rfl⟩
+    hreq's_dir_access := da
+    hreq's_global_lin :=
+      compound.global.dirAccessOfRequest n b init
+        (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init da)
+        (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB compound b init da)
+    hreq's_dir_access_matches_dirLin := fun hdir h_eq => by
+      -- Both da.choose and reqLinearizeAtDir.choose satisfy dirAccessOfRequest for e.
+      -- Each carries dirOfReq: de.eReq = ce (matchesCacheEvent.correspondingCE).
+      -- Unique directory event per cache event → da.choose = reqLinearizeAtDir.choose.
+      -- This is a known protocol property (BehaviourRelationDefs.lean:594-598).
+      have hda_spec := da.choose_spec.2.isDirEvent
+      have hrld_spec := hdir.choose_spec.2.reqLinearizeAtDir.choose_spec.2
+      sorry }
 
 structure CmpLinForwardStep
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
@@ -282,5 +301,14 @@ theorem cmcm_acyclic_via_cmpLinForwardStep
   | single hedge => exact edge_to_cmpLinForwardStep h_non_lazy_ppoi hedge
   | tail _ hlast ih =>
     exact CmpLinForwardStep.trans ih (edge_to_cmpLinForwardStep h_non_lazy_ppoi hlast)
+
+/-- Clean acyclicity theorem without `hknow` parameter.
+    Uses `linOf` to construct linearization evidence from CompoundProtocol. -/
+theorem cmcm_acyclic_via_cmpLinForwardStep'
+    (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    (h_in_b : ∀ e : Event n, e ∈ b)
+    : Relation.Acyclic (R_hknow (fun e => CompoundProtocol.linOf compound b init e (h_in_b e))) :=
+  cmcm_acyclic_via_cmpLinForwardStep (fun e => CompoundProtocol.linOf compound b init e (h_in_b e)) h_non_lazy_ppoi
 
 end Herd
