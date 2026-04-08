@@ -468,6 +468,64 @@ theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle
           · -- requestLin: False
             exact absurd hgcache_lin_cases (by simp)
 
+/-- For dirLin: compoundLin relates to rld.choose (the CLE from reqLinearizeAtDir).
+    Returns with a KNOWN CLE — no field 4 needed. -/
+theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_at_dirLin
+    {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
+    (lin : CompoundProtocol.globalLinearizationEventOfRequest cmp b init e)
+    (hnotdown : ¬ e.down)
+    {hd : ∃ e_lin ∈ b, b.requestWithoutCoherentPermsLinearizesAtDir n init e e_lin}
+    (hdir : cmp.linearizationOfEvent b init e = .dirLin hd)
+    : lin.compoundLin_cle_rel (hd.choose_spec.2.reqLinearizeAtDir.choose) := by
+  -- Copy of compoundLin_cle's dirLin branch, returning with rld.choose (= e_cdir after simp).
+  cases hcmp : cmp.compoundLinearizationEvent cmp.shimAxioms b init e (.dirLin hd) with
+  | clusterCacheLin hcache =>
+    exfalso; exact absurd hcache.choose_spec.2.lin_at_cache (by simp [Behaviour.reqLinearizesAtCache])
+  | clusterDirLin hdir_case =>
+    have h_compoundLin_eq := lin.compoundLin_of_clusterDirLin hdir hcmp
+    have h_deeper := hdir_case.choose_spec.2.e_glin_deeper
+    simp [CompoundProtocol.compoundLinearization.OfReqEncapDirAccess] at h_deeper
+    cases h_deeper with
+    | previousGlobalCacheGotPerms _ h_eq =>
+      -- compoundLin = hdir_case.choose = e_cdir = rld.choose.
+      exact .eq (by rw [h_compoundLin_eq, h_eq])
+    | getGlobalCachePerms _ h_global =>
+      have h_cdir_isdir := hd.choose_spec.2.reqLinearizeAtDir.choose_spec.2.isDir
+      simp [Behaviour.Shim.ClusterToGlobal.noPerms.linearizationEvent, h_cdir_isdir] at h_global
+      split at h_global
+      · exact absurd h_global (by simp)
+      · rename_i _ _ htranslation _
+        obtain ⟨hgcache_lin, hgcache_lin_cases⟩ := h_global
+        simp [Behaviour.compoundLinearizationEvent.globalCacheNoPermsReqDirectory] at hgcache_lin_cases
+        split at hgcache_lin_cases
+        · rename_i hgcache_lin_ev hat_dir
+          apply compoundLin_cle_rel.compoundLin_inside_cle
+          show lin.compoundLin.EncapsulatedBy n hd.choose_spec.2.reqLinearizeAtDir.choose
+          rw [h_compoundLin_eq, hgcache_lin_cases, hat_dir.choose_spec.2.reqLinearizeAtDir.choose_spec.2.dirIsLin]
+          have h_cdir_encap_gcache := htranslation.choose_spec.right.encapGlobalCache
+          have h_gdir_lin := hat_dir.choose_spec.2.reqLinearizeAtDir.choose_spec.2
+          cases h_gdir_lin.reqCorrespondsToDir with
+          | encapDir _ hgcache_encap_gdir =>
+            exact Event.encap_encap_trans n h_cdir_encap_gcache hgcache_encap_gdir.reqEncapDir
+          | orderBeforeDir hgcache_has_perms _ _ _ _ _ _ _ =>
+            exact absurd hgcache_has_perms (by
+              have := hat_dir.choose_spec.2.reqHasNoPerms
+              intro h; exact absurd h (reqHasPerms_not_reqMissingPerms this
+                htranslation.choose_spec.right.gReqOfCDir.notDowngrade))
+          | orderAfterDir hweak_vd _ _ _ =>
+            exfalso
+            have hweak_req := hweak_vd.weakReq
+            have htrans := htranslation.choose_spec.right
+            match hge : htranslation.choose with
+            | .directoryEvent _ =>
+              simp [Event.isNcWeak, Event.isNonCoherent, hge] at hweak_req
+            | .cacheEvent ce =>
+              simp [Event.isNcWeak, Event.isNonCoherent, Event.isWeak, hge] at hweak_req
+              have hgreq_req := htrans.gReqOfCDir.matchingOp
+              simp [Event.req, hge] at hgreq_req
+              simp [hgreq_req] at hweak_req
+        · exact absurd hgcache_lin_cases (by simp)
+
 -- For dirLin, compoundLin_cle only returns eq or inside (never cle_ob or ob_cle).
 theorem CompoundProtocol.globalLinearizationEventOfRequest.compoundLin_cle_of_dirLin
     {cmp : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n} {e : Event n}
