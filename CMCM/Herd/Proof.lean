@@ -2419,7 +2419,7 @@ theorem cle_to_compoundLinOrdering
 -- Replaced by cmcm_acyclic_of_hknow_compoundLinOrdering (protocol proxy chain).
 
 /-- Extract ¬e₁.down and ¬e₂.down from any PPOi∪COM edge. -/
-private theorem notdown_of_edge
+theorem notdown_of_edge
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n}
     (h : R_hknow hknow e₁ e₂)
@@ -3105,7 +3105,7 @@ theorem temporalRel_of_gleOB_and_cmpLinCleRels
 /-- Build chain for same-CLE cases. 9 CmpLinCleRel × CmpLinCleRel combinations.
     For inside × inside: both cmpLin events are global directory events inside the same CLE,
     ordered by dir_ordered. -/
-private theorem chain_of_sameCLE
+theorem chain_of_sameCLE
     {cmpLin₁ cle cmpLin₂ : Event n}
     (rel₁ : CmpLinCleRel cmpLin₁ cle) (rel₂ : CmpLinCleRel cmpLin₂ cle)
     (hdir : ∀ (de₁ de₂ : DirectoryEvent n), DirectoryEvent.AreOrdered n de₁ de₂)
