@@ -332,4 +332,20 @@ theorem cmcm_acyclic_via_cmpLinForwardStep'
     : Relation.Acyclic (R_hknow (fun e => CompoundProtocol.linOf compound b init e (h_in_b e))) :=
   cmcm_acyclic_via_cmpLinForwardStep (fun e => CompoundProtocol.linOf compound b init e (h_in_b e)) h_non_lazy_ppoi
 
+/-- Clean wrapper for the main acyclicity theorem (3-way invariant approach). -/
+theorem cmcm_acyclic'
+    (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    (h_in_b : ∀ e : Event n, e ∈ b)
+    : Relation.Acyclic (R_hknow (fun e => CompoundProtocol.linOf compound b init e (h_in_b e))) :=
+  cmcm_acyclic (fun e => CompoundProtocol.linOf compound b init e (h_in_b e)) h_non_lazy_ppoi
+
+/-- Clean wrapper for cmcm theorem. -/
+theorem cmcm'
+    (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
+    (h_non_lazy_ppoi : NonLazyPPOi compound b init)
+    (h_in_b : ∀ e : Event n, e ∈ b)
+    : Relation.Acyclic (R_hknow (fun e => CompoundProtocol.linOf compound b init e (h_in_b e))) :=
+  cmcm compound b init (fun e => CompoundProtocol.linOf compound b init e (h_in_b e)) h_non_lazy_ppoi
+
 end Herd
