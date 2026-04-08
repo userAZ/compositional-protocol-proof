@@ -175,16 +175,19 @@ theorem edge_to_cmpLinForwardStep
                     .eventOB h_gle_eq h_cle_eq h_ob⟩
                 | inr h =>
                   -- de₂ OB de₁: reverse. Both de₁, de₂ are global dir events inside same CLE.
-                  -- Same CLE → same GLE → clusterDirectoryLinearizationEvent depends only on CLE →
-                  -- compoundLin₁ = compoundLin₂ = de₁ = de₂. self-OB → False.
-                  -- Gap: compoundLinearizationEvent is an opaque axiom; can't formally derive
+                  --
+                  -- ANALYSIS: compoundLin for the `inside` case comes from
+                  -- `getGlobalCachePerms` in `clusterDirectoryLinearizationEvent`, which depends
+                  -- ONLY on the CLE (not on the cache event e₁/e₂). Same CLE → same e_glin →
+                  -- de₁ = de₂ → self-OB → False. However, `compoundLinearizationEvent` is an
+                  -- opaque axiom field of CompoundProtocol, so the formalization cannot derive
                   -- de₁ = de₂ without a "same CLE → same compoundLin" axiom.
-                  -- Workaround: reverse OB between directory events + forward via lift gives contradiction.
-                  exfalso
-                  -- Use: de₂ OB de₁ and de₁ OB de₂ (from forward case of dir_ordered on same events).
-                  -- dir_ordered gives at least one direction. If de₁ = de₂, both give self-OB → False.
-                  -- If de₁ ≠ de₂, the reverse IS possible. But clusterDirectoryLinearizationEvent
-                  -- determinism on the CLE means de₁ = de₂. Needs axiom extension to formalize.
+                  --
+                  -- The main proof (cmpLinLinLink_acyclic) handles this by carrying the reverse
+                  -- through a 3-way invariant and closing via ProtoOBLevel at cycle level.
+                  -- The CmpLinForwardStep approach (forward-or-eq per edge) is strictly stronger:
+                  -- it requires eliminating the reverse at the single-edge level, which needs
+                  -- the missing axiom.
                   sorry
               | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
             | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
