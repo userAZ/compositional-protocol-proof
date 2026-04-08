@@ -11,6 +11,14 @@ namespace Herd
 
 variable {n : ℕ} {compound : CompoundProtocol n} {b : Behaviour n} {init : InitialSystemState n}
 
+-- NOTE: CompoundProtocol.linOf (constructing globalLinearizationEventOfRequest from
+-- CompoundProtocol + e ∈ b) is blocked by Exists.choose opacity in Lean 4.
+-- Field 4 (hreq's_dir_access_matches_dirLin) needs .choose on ⟨x, hx⟩ = x,
+-- which is not definitionally true with Classical.choice.
+-- The refactoring would require either:
+-- (a) Adding hreq's_dir_access_matches_dirLin as a field of CompoundProtocol, or
+-- (b) Restructuring globalLinearizationEventOfRequest to avoid the .choose matching condition.
+
 structure CmpLinForwardStep
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
     (e₁ e₂ : Event n) : Prop where
