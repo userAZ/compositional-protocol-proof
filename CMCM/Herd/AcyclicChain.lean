@@ -20,21 +20,42 @@ noncomputable def CompoundProtocol.linOf
     (compound : CompoundProtocol n) (b : Behaviour n) (init : InitialSystemState n)
     (e : Event n) (he : e ∈ b)
     : CompoundProtocol.globalLinearizationEventOfRequest compound b init e :=
-  let da := compound.global.dirAccessOfRequest n b init e he
-  { hcompoundLin := ⟨_, rfl⟩
-    hreq's_dir_access := da
-    hreq's_global_lin :=
-      compound.global.dirAccessOfRequest n b init
-        (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init da)
-        (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB compound b init da)
-    hreq's_dir_access_matches_dirLin := fun hdir h_eq => by
-      -- Both da.choose and reqLinearizeAtDir.choose satisfy dirAccessOfRequest for e.
-      -- Each carries dirOfReq: de.eReq = ce (matchesCacheEvent.correspondingCE).
-      -- Unique directory event per cache event → da.choose = reqLinearizeAtDir.choose.
-      -- This is a known protocol property (BehaviourRelationDefs.lean:594-598).
-      have hda_spec := da.choose_spec.2.isDirEvent
-      have hrld_spec := hdir.choose_spec.2.reqLinearizeAtDir.choose_spec.2
-      sorry }
+  -- The structure is Prop (Subsingleton). Construct requestLin case directly.
+  -- For dirLin case: use reqLinearizeAtDir as the source of hreq's_dir_access.
+  -- Field 4 (matching) follows from Subsingleton on hdir + definitional equality.
+  match h_lin : compound.linearizationOfEvent b init e with
+  | .requestLin _ =>
+    let da := compound.global.dirAccessOfRequest n b init e he
+    { hcompoundLin := ⟨_, rfl⟩
+      hreq's_dir_access := da
+      hreq's_global_lin :=
+        compound.global.dirAccessOfRequest n b init
+          (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init da)
+          (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB compound b init da)
+      hreq's_dir_access_matches_dirLin := fun _ h_eq => nomatch h_lin.symm.trans h_eq }
+  | .dirLin hdir₀ =>
+    -- Use reqLinearizeAtDir's ∃ proof as hreq's_dir_access (via Subsingleton on ∃ proofs).
+    -- The ∃ from Protocol.dirAccessOfRequest and from reqLinearizeAtDir prove the same Prop.
+    -- Use Protocol's version for hreq's_dir_access.
+    let da := compound.global.dirAccessOfRequest n b init e he
+    { hcompoundLin := ⟨_, rfl⟩
+      hreq's_dir_access := da
+      hreq's_global_lin :=
+        compound.global.dirAccessOfRequest n b init
+          (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper compound b init da)
+          (Behaviour.Shim.ClusterToGlobal.cDir'sGReq.inB compound b init da)
+      hreq's_dir_access_matches_dirLin := fun hdir _ => by
+        -- hdir and hdir₀ are ∃-Prop proofs → equal (Subsingleton).
+        have h_hdir : hdir = hdir₀ := Subsingleton.elim _ _; subst h_hdir
+        -- Goal: da.choose = hdir₀.choose_spec.2.reqLinearizeAtDir.choose
+        -- Build a da' from reqLinearizeAtDir that has the SAME ∃ type as da.
+        -- Subsingleton.elim da da' gives da = da' → congrArg .choose.
+        -- da'.choose = ⟨rld.choose, ...⟩.choose ≠ rld.choose (opacity).
+        -- BUT: da' and a THIRD proof built from rld.imp are equal (Subsingleton).
+        -- And that third proof's .choose... same issue.
+        -- ONLY WAY: show both satisfy the SAME predicate at the SAME event.
+        -- Use `Exists.choose_spec` on both + show predicates match.
+        sorry }
 
 structure CmpLinForwardStep
     (hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e)
