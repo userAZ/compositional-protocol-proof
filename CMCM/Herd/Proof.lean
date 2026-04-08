@@ -3140,7 +3140,7 @@ private theorem chain_of_sameCLE
       | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
 /-- Build TemporalRel chain from ProtoOBLevel + CmpLinCleRel. -/
-private theorem chain_of_obLevel
+theorem chain_of_obLevel
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n}
     (obLevel : ProtoOBLevel hknow e₁ e₂)
@@ -3259,7 +3259,7 @@ private theorem compoundLin_eq_linearizationEvent'
 
 /-- Derive CmpLinCleRel for both endpoints of an R_hknow edge.
     Common preamble: notDown + notDir → CmpLinCleRel. -/
-private theorem edge_cmpLinCleRels
+theorem edge_cmpLinCleRels
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n}
     (h : R_hknow hknow e₁ e₂)
@@ -3269,7 +3269,7 @@ private theorem edge_cmpLinCleRels
   let ⟨hndE₁, hndE₂⟩ := notdir_of_edge h
   ⟨compoundLin_cle_to_CmpLinCleRel hnd₁ hndE₁, compoundLin_cle_to_CmpLinCleRel hnd₂ hndE₂⟩
 
-private theorem edge_to_proto_forward
+theorem edge_to_proto_forward
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     {e₁ e₂ : Event n}
@@ -3479,7 +3479,7 @@ theorem ProtoForwardStep.endCmpLinRel
   | fr_sameCLE _ _ _ rel => exact rel
 
 /-- ProtoOBLevel composes transitively. -/
-private theorem proto_ob_level_trans
+theorem proto_ob_level_trans
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ e₃ : Event n}
     (h₁ : ProtoOBLevel hknow e₁ e₂) (h₂ : ProtoOBLevel hknow e₂ e₃)
@@ -3499,7 +3499,7 @@ private theorem proto_ob_level_trans
     | eventOB h₂_eq h₂_cle h₂ => exact .eventOB (h₁_eq.trans h₂_eq) (h₁_cle.trans h₂_cle) (ob_trans h₁ h₂)
 
 /-- ProtoOBLevel is irreflexive. -/
-private theorem proto_ob_level_irrefl
+theorem proto_ob_level_irrefl
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e : Event n} (h : ProtoOBLevel hknow e e) : False := by
   cases h with
@@ -3508,7 +3508,7 @@ private theorem proto_ob_level_irrefl
   | eventOB _ _ h => exact ob_irrefl h
 
 /-- Each R_hknow edge gives CleLink between CLEs. -/
-private theorem edge_clelink
+theorem edge_clelink
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     (h_non_lazy_ppoi : NonLazyPPOi compound b init)
     {e₁ e₂ : Event n} (h : R_hknow hknow e₁ e₂)
