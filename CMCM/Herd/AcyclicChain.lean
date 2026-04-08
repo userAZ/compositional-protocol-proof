@@ -50,6 +50,37 @@ private theorem lift_temporalRel_from_match
     (h : TemporalRel (n := n) (.directoryEvent de₁) (.directoryEvent de₂))
     : TemporalRel cmpLin₁ cmpLin₂ := by subst hfc₁; subst hfc₂; exact h
 
+/-- clusterDirectoryLinearizationEvent uniquely determines e_glin for a given CLE.
+    previousGlobalCacheGotPerms: e_glin = e_cdir (unique).
+    getGlobalCachePerms: e_glin from noPerms.linearizationEvent (determined by CLE). -/
+private theorem clusterDirLinEvent_unique
+    {shimAxioms : ShimAxioms n} {b : Behaviour n} {init : InitialSystemState n}
+    {e_cdir e₁ e₂ : Event n}
+    (h₁ : CompoundProtocol.clusterDirectoryLinearizationEvent n shimAxioms b init e_cdir e₁)
+    (h₂ : CompoundProtocol.clusterDirectoryLinearizationEvent n shimAxioms b init e_cdir e₂)
+    : e₁ = e₂ := by
+  -- The test `e_cdir.req.MRS ≤ globalCacheStateOfDirectoryEvent` is decidable.
+  -- Same e_cdir → same test → same constructor.
+  cases h₁ with
+  | previousGlobalCacheGotPerms _ h_eq₁ =>
+    cases h₂ with
+    | previousGlobalCacheGotPerms _ h_eq₂ => exact h_eq₁.trans h_eq₂.symm
+    | getGlobalCachePerms h_no _ => exact absurd ‹_› h_no
+  | getGlobalCachePerms h_no₁ h_global₁ =>
+    cases h₂ with
+    | previousGlobalCacheGotPerms h_yes _ => exact absurd h_yes h_no₁
+    | getGlobalCachePerms _ h_global₂ =>
+      -- Both getGlobalCachePerms with noPerms.linearizationEvent on same CLE.
+      -- Unfold and extract the equality chain.
+      -- The definition has `by classical exact ...`, so we use `change` to get a clean Prop.
+      -- Both have noPerms.linearizationEvent on same CLE.
+      -- The Prop structure determines e_glin uniquely from CLE.
+      -- For now, this requires deep unfolding of the `by classical exact` wrapper.
+      -- Alternative: add `compoundLin_unique_of_same_cle` as a field of CompoundProtocol.
+      -- The protocol guarantees this (clusterDirectoryLinearizationEvent depends only on CLE),
+      -- but the `by classical exact` definition wrapper prevents clean unfolding.
+      sorry
+
 /-- Each R_hknow edge gives a CmpLinForwardStep.
     Uses the existing sorry-free cmpLinLinLink_acyclic invariant computation. -/
 theorem edge_to_cmpLinForwardStep
