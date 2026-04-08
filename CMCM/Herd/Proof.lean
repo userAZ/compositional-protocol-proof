@@ -2925,15 +2925,97 @@ private theorem gle_oEnd_lt_cle
           exact h_nonc (by rw [h_mo])
         | .directoryEvent _, h => simp [Event.isCacheEvent] at h
       | .noGlobalCache h_has_perms _ =>
-        -- noGlobalCache: past gcache = getLatestGlobalCacheEvent. isNcWeak on it.
-        -- The gcache is at the global cache (protocol = .global).
-        -- Global protocol is SWMR: SC ∈ protocol (from matchingOp on past encapGlobalCache events).
-        -- nc_no_sc: NC request in protocol → SC ∉ protocol. Contradiction.
-        -- Derive: gcache.protocol = .global, gcache.req ∈ global protocol.
-        -- Use nc_no_sc + SC existence in global protocol → NC impossible.
-        -- This requires showing SC ∈ global protocol from has_global_cache_perms
-        -- (perms ≥ Vc → prior SC access → SCRead ∈ protocol).
-        sorry
+        -- noGlobalCache: gcache at global cache. Global = SWMR = {SCWrite, SCRead}.
+        -- NC weak (coherent=false) ∉ {SCWrite, SCRead} (both have coherent=true).
+        -- Step 1: gcache.protocol = .global (from gCacheOfCDir → reqAtGlobalCacheCid).
+        -- Step 2: gcache.req ∈ cmp.global.requests (from eReqOfTheirProtocol).
+        -- Step 3: cmp.global.requests = {SCWrite, SCRead} (from globalSWMR).
+        -- Step 4: gcache.req.val.coherent = true (all SWMR reqs have coherent=true).
+        -- Step 5: isNcWeak requires coherent=false → contradiction.
+        -- Get the gcache's protocol = .global:
+        -- The gcache = getLatest... event satisfying gCacheOfCDir.
+        have h_gcache_nonempty := Behaviour.hasPermsInGlobalCache_implies_nonempty_immFinishBefore
+          b init lin.hreq's_dir_access.choose h_has_perms
+        have h_gcache_gcache_of_cdir := h_gcache_nonempty.some.prop.2.finishBefore.gCacheOfCDir
+        -- h_gcache_gcache_of_cdir : reqAtCorrespondingGCacheOfCDir CLE gcache
+        -- The gcache IS the getLatest... event. Its protocol = .global.
+        -- But h_nc is about the SAME gcache (after simp on cDir'sGReq).
+        -- I need to connect: the h_nc gcache = h_gcache_nonempty.some.val.
+        -- They should be definitionally equal (both from getLatest...).
+        -- Use eReqOfTheirProtocol + globalSWMR to show req ∈ {SCWrite, SCRead}.
+        -- Then: all SWMR reqs have coherent = true. isNcWeak needs coherent = false.
+        -- Derive protocol = .global from gCacheOfCDir:
+        have h_nc_left := h_nc.left  -- isNonCoherent on gcache
+        -- Unfold isNonCoherent to get ¬ coherent on the specific gcache.
+        -- The specific gcache after simp = getLatest... which is h_gcache_nonempty.some.
+        -- Use eReqOfTheirProtocol: gcache.protocol = .global → gcache.req ∈ global.requests.
+        -- globalSWMR: global.requests = swmrProtocol = {SCWrite, SCRead}.
+        -- Both SCWrite and SCRead have coherent = true.
+        -- gcache.req ∈ {SCWrite, SCRead} → gcache.req.val.coherent = true → ¬isNonCoherent.
+        have h_gcache_in_global : Event.protocol n (Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent n b
+            lin.hreq's_dir_access.choose) = .global := by
+          unfold Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent
+          rw [dif_pos h_gcache_nonempty]
+          -- Need: protocol of h_gcache_nonempty.some = .global
+          -- From gCacheOfCDir → reqAtGlobalCacheCid → cid = .cache (.globalP _) → protocol = .global
+          have hgc := h_gcache_nonempty.some.prop.2.finishBefore.gCacheOfCDir
+          -- hgc : reqAtCorrespondingGCacheOfCDir CLE (some event)
+          -- reqAtCorrespondingGCacheOfCDir matches on CLE.protocol (cluster1/cluster2)
+          -- and gives reqAtGlobalCacheCid on the gcache.
+          -- reqAtGlobalCacheCid → cid = .cache (.globalP _) → protocol = .global.
+          -- Derive protocol = .global from gCacheOfCDir → reqAtGlobalCacheCid.
+          have h_gcoc := h_gcache_nonempty.some.prop.2.finishBefore.gCacheOfCDir
+          -- h_gcoc : reqAtCorrespondingGCacheOfCDir CLE gcache_event
+          -- The goal is about getLatest... which is h_gcache_nonempty.some after dif_pos.
+          -- Both reference the same event. Show protocol = .global from gCacheOfCDir.
+          -- reqAtCorrespondingGCacheOfCDir gives reqAtGlobalCacheCid → cid = .cache (.globalP _).
+          -- Event.protocol (.cacheEvent ce) with ce.cid = .cache (.globalP _) = .global.
+          sorry  -- protocol derivation from gCacheOfCDir; needs Event match + cid analysis
+        have h_req_in_global := compound.eReqOfTheirProtocol compound.global
+          (Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent n b lin.hreq's_dir_access.choose)
+          (by rw [h_gcache_in_global, compound.globalWellFormed])
+        -- h_req_in_global : gcache.req ∈ cmp.global.requests
+        -- globalSWMR : cmp.global.requests.isSWMR = (cmp.global.requests = swmrProtocol)
+        have h_swmr := compound.globalSWMR
+        -- h_swmr : cmp.global.requests = swmrProtocol = {SCWrite, SCRead}
+        rw [ProtocolInterface.isSWMR] at h_swmr
+        rw [h_swmr] at h_req_in_global
+        -- h_req_in_global : gcache.req ∈ swmrProtocol = {SCWrite, SCRead}
+        simp [ProtocolInterface.swmrProtocol] at h_req_in_global
+        -- gcache.req = SCWrite ∨ gcache.req = SCRead
+        -- Both have coherent = true. h_nc_left : ¬ coherent. Contradiction.
+        -- h_nc_left and h_req_in_global are about the same gcache.
+        -- gcache.req ∈ {SCWrite, SCRead} but isNonCoherent (coherent=false).
+        -- Both SCWrite and SCRead have coherent=true. Derive contradiction.
+        -- The gcache after unfolding is the same event for both h_nc_left and h_req_in_global.
+        -- gcache.req ∈ {SCWrite, SCRead}. Both have coherent=true.
+        -- isNonCoherent (coherent=false) contradicts this.
+        simp only [Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper,
+                    Behaviour.Shim.ClusterToGlobal.cDir'sGReq] at h_nc_left
+        -- h_nc_left : isNonCoherent on gcache. h_req_in_global : gcache.req ∈ {SCWrite, SCRead}.
+        -- Both about the same gcache (getLatest...). Match on gcache to reduce isNonCoherent.
+        have h_cache := hweak.reqCache  -- gcache.isCacheEvent
+        -- hweak is on cDir'sGReq.wrapper which = getLatest... for noGlobalCache
+        simp only [Behaviour.Shim.ClusterToGlobal.cDir'sGReq.wrapper,
+                    Behaviour.Shim.ClusterToGlobal.cDir'sGReq] at h_cache
+        match hgc : (Behaviour.getLatestGlobalCacheEventOfClusterDirectoryEvent n b
+            lin.hreq's_dir_access.choose), h_cache with
+        | .cacheEvent ce, _ =>
+          rw [hgc] at h_nc_left h_req_in_global
+          simp only [Event.isNonCoherent] at h_nc_left
+          simp only [Event.req] at h_req_in_global
+          -- h_req_in_global : ce.req = SCWrite ∨ ce.req = SCRead
+          -- h_nc_left : ¬ ce.req.val.coherent
+          -- h_nc_left : ¬ ce.req.val.coherent. h_req_in_global : ce.req = SCWrite ∨ SCRead.
+          -- Derive coherent = true from h_req_in_global.
+          have h_coh : ce.req.val.coherent = true := by
+            cases h_req_in_global with
+            | inl h => rw [show ce.req.val = SCWrite.val from congrArg Subtype.val h]
+            | inr h => rw [show ce.req.val = SCRead.val from congrArg Subtype.val h]
+          -- h_nc_left and h_coh give contradiction.
+          -- Bool coherent: h_nc_left says ¬coherent, h_coh says coherent=true.
+          simp_all
+        | .directoryEvent _, hh => simp_all [Event.isCacheEvent]
   exact Nat.lt_trans h_gle_lt_gcache (gcache_oEnd_lt_cle lin)
 
 private theorem temporalRel_of_gleOB_and_cmpLinCleRels
