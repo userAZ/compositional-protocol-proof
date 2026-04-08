@@ -37,6 +37,19 @@ theorem CmpLinForwardStep.irrefl
     {e : Event n} (h : CmpLinForwardStep hknow e e) : False :=
   proto_ob_level_irrefl h.level
 
+/-- Helper: DirectoryEvent OB lifts to Event TemporalRel after match. -/
+private theorem temporalRel_of_dirOB {de₁ de₂ : DirectoryEvent n}
+    (h : de₁.OrderedBefore n de₂)
+    : TemporalRel (n := n) (.directoryEvent de₁) (.directoryEvent de₂) :=
+  Relation.TransGen.single (BasicTemporalRel.ob h)
+
+/-- Helper: lift TemporalRel on matched directory events back to original compoundLin. -/
+private theorem lift_temporalRel_from_match
+    {cmpLin₁ cmpLin₂ : Event n} {de₁ de₂ : DirectoryEvent n}
+    (hfc₁ : cmpLin₁ = .directoryEvent de₁) (hfc₂ : cmpLin₂ = .directoryEvent de₂)
+    (h : TemporalRel (n := n) (.directoryEvent de₁) (.directoryEvent de₂))
+    : TemporalRel cmpLin₁ cmpLin₂ := by subst hfc₁; subst hfc₂; exact h
+
 /-- Each R_hknow edge gives a CmpLinForwardStep.
     Uses the existing sorry-free cmpLinLinLink_acyclic invariant computation. -/
 theorem edge_to_cmpLinForwardStep
@@ -73,6 +86,7 @@ theorem edge_to_cmpLinForwardStep
         -- Direct case-split on rel₁ × (h_cle_eq ▸ rel₂):
         have hnd₁ := (notdown_of_edge hedge).1
         have hnd₂ := (notdown_of_edge hedge).2
+        have hndE₁ := (notdir_of_edge hedge).1
         have hndE₂ := (notdir_of_edge hedge).2
         have hrel₂' := h_cle_eq ▸ hrel₂
         cases hrel₁ with
@@ -100,11 +114,28 @@ theorem edge_to_cmpLinForwardStep
                 exact hndE₂ (h_cmpLin_eq_e₂ ▸ h₂ ▸ (h_cle_eq ▸ (hknow e₁).cle_isDirEvent))
               | dirLin hd =>
                 exact reqHasPerms_not_reqMissingPerms hd.choose_spec.2.reqHasNoPerms hnd₂ hhas
-            | orderAfterDir _ _ _ _ => sorry
+            | orderAfterDir _ hsucc _ _ =>
+              -- orderAfterDir: e₂ OB successor, successor encapsulates CLE₂.
+              -- CLE₁.oEnd < e₂.oStart (h_cle_lt_e₂), e₂.oEnd < succ.oStart (isSucc),
+              -- succ.oStart < CLE₂.oStart (encap). CLE₁ = CLE₂ → CLE.oEnd < CLE.oStart → False.
+              have h_isSucc := hsucc.choose_spec.right.isImmBottomSucc.isSucc
+              have h_encap_left := hsucc.choose_spec.right.satisfyP.encapCorresponding.reqEncapDir.left
+              -- Chain: CLE₁.oStart < CLE₁.oEnd < e₂.oStart < e₂.oEnd < succ.oStart < CLE₂.oStart = CLE₁.oStart
+              have : Event.oStart n (hknow e₁).cle < Event.oStart n (hknow e₁).cle :=
+                calc Event.oStart n (hknow e₁).cle
+                    < Event.oEnd n (hknow e₁).cle := Event.oWellFormed n _
+                  _ < Event.oStart n e₂ := h_cle_lt_e₂
+                  _ < Event.oEnd n e₂ := Event.oWellFormed n _
+                  _ < Event.oStart n hsucc.choose := h_isSucc
+                  _ < Event.oStart n (hknow e₂).cle := h_encap_left
+                  _ = Event.oStart n (hknow e₁).cle := by rw [h_cle_eq]
+              exact absurd this (Nat.lt_irrefl _)
           | cle_ob _ _ h₂_ob _ =>
-            -- cle_ob × cle_ob: use chain_of_sameCLE result (which gives forward for this case).
-            sorry
-          | inside h₂_enc _ _ =>
+            -- cle_ob × cle_ob: direct forward via finishesAfterProxy.
+            -- proxy = CLE₁ = CLE₂ (h_cle_eq). CLE₁ OB cmpLin₂ (h₂_ob). CLE₁.oEnd < cmpLin₁.oEnd (h₁_ob + wf).
+            exact ⟨Or.inl (.single (.finishesAfterProxy (hknow e₁).cle h₂_ob
+              (Nat.lt_trans h₁_ob (Event.oWellFormed n _)))), .eventOB h_gle_eq h_cle_eq h_ob⟩
+          | inside h₂_enc _ h₂_isdir =>
             -- cle_ob × inside: same temporal contradiction as cle_ob × eq.
             exfalso
             cases (hknow e₂).cle_dirAccess with
@@ -114,12 +145,23 @@ theorem edge_to_cmpLinForwardStep
             | orderBeforeDir hhas _ _ _ _ _ _ _ =>
               cases hle₂ : compound.linearizationOfEvent b init e₂ with
               | requestLin hreq =>
-                have h_cmpLin_eq_e₂ := (hknow e₂).compoundLin_eq_event_of_requestLin hle₂
-                -- inside has h_isdir: compoundLin₂ isDirectoryEvent. compoundLin₂ = e₂ → e₂ isDir → contradiction.
-                sorry
+                -- inside: compoundLin₂.isDirectoryEvent. requestLin: compoundLin₂ = e₂. → e₂.isDir. Contradicts hndE₂.
+                exact hndE₂ ((hknow e₂).compoundLin_eq_event_of_requestLin hle₂ ▸ h₂_isdir)
               | dirLin hd =>
                 exact reqHasPerms_not_reqMissingPerms hd.choose_spec.2.reqHasNoPerms hnd₂ hhas
-            | orderAfterDir _ _ _ _ => sorry
+            | orderAfterDir _ hsucc _ _ =>
+              -- Same temporal chain as cle_ob × eq orderAfterDir.
+              have h_isSucc := hsucc.choose_spec.right.isImmBottomSucc.isSucc
+              have h_encap_left := hsucc.choose_spec.right.satisfyP.encapCorresponding.reqEncapDir.left
+              have : Event.oStart n (hknow e₁).cle < Event.oStart n (hknow e₁).cle :=
+                calc Event.oStart n (hknow e₁).cle
+                    < Event.oEnd n (hknow e₁).cle := Event.oWellFormed n _
+                  _ < Event.oStart n e₂ := h_cle_lt_e₂
+                  _ < Event.oEnd n e₂ := Event.oWellFormed n _
+                  _ < Event.oStart n hsucc.choose := h_isSucc
+                  _ < Event.oStart n (hknow e₂).cle := h_encap_left
+                  _ = Event.oStart n (hknow e₁).cle := by rw [h_cle_eq]
+              exact absurd this (Nat.lt_irrefl _)
         | inside h₁_enc _ h₁_isdir => cases hrel₂' with
           | eq h₂ => exact ⟨Or.inl (.single (.encapBy (h₂ ▸ h₁_enc))), .eventOB h_gle_eq h_cle_eq h_ob⟩
           | cle_ob _ _ h₂_ob _ => exact ⟨Or.inl (.tail (.single (.encapBy h₁_enc)) (.ob h₂_ob)), .eventOB h_gle_eq h_cle_eq h_ob⟩
@@ -129,8 +171,21 @@ theorem edge_to_cmpLinForwardStep
               match hfc₂ : (hknow e₂).compoundLin, h₂_isdir with
               | .directoryEvent de₂, _ =>
                 cases (b.orderedAtEntry.dir_ordered de₁ de₂).ordered with
-                | inl h => sorry -- Lean type: DirectoryEvent.OB → Event.OB after match
-                | inr h => sorry -- Same + vacuous (same GLE → same cmpLin → self-OB)
+                | inl h => exact ⟨Or.inl (lift_temporalRel_from_match hfc₁ hfc₂ (temporalRel_of_dirOB h)),
+                    .eventOB h_gle_eq h_cle_eq h_ob⟩
+                | inr h =>
+                  -- de₂ OB de₁: reverse. Both de₁, de₂ are global dir events inside same CLE.
+                  -- Same CLE → same GLE → clusterDirectoryLinearizationEvent depends only on CLE →
+                  -- compoundLin₁ = compoundLin₂ = de₁ = de₂. self-OB → False.
+                  -- Gap: compoundLinearizationEvent is an opaque axiom; can't formally derive
+                  -- de₁ = de₂ without a "same CLE → same compoundLin" axiom.
+                  -- Workaround: reverse OB between directory events + forward via lift gives contradiction.
+                  exfalso
+                  -- Use: de₂ OB de₁ and de₁ OB de₂ (from forward case of dir_ordered on same events).
+                  -- dir_ordered gives at least one direction. If de₁ = de₂, both give self-OB → False.
+                  -- If de₁ ≠ de₂, the reverse IS possible. But clusterDirectoryLinearizationEvent
+                  -- determinism on the CLE means de₁ = de₂. Needs axiom extension to formalize.
+                  sorry
               | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
             | .cacheEvent _, hh => simp_all [Event.isDirectoryEvent]
 
