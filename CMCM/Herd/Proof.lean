@@ -2446,7 +2446,7 @@ private theorem notdown_of_path
 /-- Extract ¬e₁.isDirectoryEvent and ¬e₂.isDirectoryEvent from any PPOi∪COM edge.
     All edge events carry isClusterCache, which requires isCacheEvent.
     Cache events are not directory events (Event.isDirectoryEvent = false for .cacheEvent). -/
-private theorem notdir_of_edge
+theorem notdir_of_edge
     {hknow : ∀ e : Event n, CompoundProtocol.globalLinearizationEventOfRequest compound b init e}
     {e₁ e₂ : Event n}
     (h : R_hknow hknow e₁ e₂)
