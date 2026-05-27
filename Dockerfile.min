@@ -1,4 +1,4 @@
-FROM ubuntu:24.04 AS cmurphi-builder
+FROM ubuntu:26.04 AS cmurphi-builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -17,7 +17,7 @@ RUN mkdir -p /tmp/cmurphi \
   && make -C /tmp/cmurphi/src
 
 
-FROM ubuntu:24.04 AS venv-builder
+FROM ubuntu:26.04 AS venv-builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
@@ -33,7 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN python3 -m venv /opt/venv \
   && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
-  && /opt/venv/bin/pip install --no-cache-dir \
+  && CFLAGS="-Wno-error=incompatible-pointer-types" /opt/venv/bin/pip install --no-cache-dir \
     leanblueprint \
     plasTeX \
     pandas \
@@ -42,7 +42,7 @@ RUN python3 -m venv /opt/venv \
     py-markdown-table
 
 
-FROM ubuntu:24.04
+FROM ubuntu:26.04 AS runtime-base
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -65,6 +65,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN useradd --create-home --shell /bin/bash nixuser
 
 COPY --from=venv-builder /opt/venv /opt/venv
+COPY docker/tred /usr/local/bin/tred
 
 RUN mkdir -p /home/nixuser/cmurphi5.5.0/src /home/nixuser/cmurphi5.5.0/include
 COPY --from=cmurphi-builder /tmp/cmurphi/include/ /home/nixuser/cmurphi5.5.0/include/
@@ -83,9 +84,16 @@ RUN mkdir -p /usr/local/share/fonts/juliamono \
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH=/opt/venv/bin:/home/nixuser/.elan/bin:/home/nixuser/cmurphi5.5.0/src:$PATH
 
-COPY . /home/nixuser/compositional-protocol-proof
 RUN chown -R nixuser:nixuser /home/nixuser /opt/venv
+
+
+FROM runtime-base AS final
+
+COPY . /home/nixuser/compositional-protocol-proof
+RUN chown -R nixuser:nixuser /home/nixuser/compositional-protocol-proof
 
 USER nixuser
 WORKDIR /home/nixuser/compositional-protocol-proof
+RUN lake build \
+  && rm -rf docker
 CMD ["/bin/bash"]

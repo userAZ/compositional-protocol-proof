@@ -29,11 +29,15 @@ This will elaborate and check the Lean mechanization and print the axioms of the
 It will also run the Murphi model checker on the case studies.
 The output should look similar to:
 \begin{verbatim}
-Checking Lean mechanization
-  ✓ CompoundProtocol.enforce_compound_consistency
-Checking Lean mechanization: Load Value Axiom (Reads read from Latest Write)
-is enforced.
-  ✓ CMCM/RfTheorem.lean (PASS)
+Checking Lean mechanization: Cluster PPO
+(Preserved Program Orderings) are enforced.
+  ✓ CompoundProtocol.enforce_compound_consistency (PASS)
+Checking Lean mechanization: Load Value Axiom
+(Reads read from Latest Write) is enforced.
+  ✓ CMCM.rf_holds (PASS)
+Checking Lean mechanization: Compound Memory Consistency Model (CMCM)
+acyclicity is enforced.
+  ✓ Herd.cmcm (PASS)
 Checking Murphi axioms from the Paper's Case Studies.
 Selected 24 axiom file(s) from axioms-to-run.txt
 covering 29 unique axiom number(s) (CXL: 15, RCCO: 14).
@@ -114,6 +118,19 @@ it will print it to \texttt{stdout}). The message should read:
 This means that our main theorem, \texttt{CompoundProtocol.enforce\_compound\_consistency} only depends on the built-in axioms of propositional extensionality, soundness of quotients and the axiom of choice (our proof is classical).
 Notably, the axiom \texttt{sorryAx} is missing, since no helper lemma has been admitted using the \texttt{sorry} keyword.
 
+The artifact script also performs the same check for the Load Value theorem and
+the full CMCM acyclicity theorem:
+\begin{verbatim}
+#print axioms CMCM.rf_holds
+#print axioms Herd.cmcm
+\end{verbatim}
+The expected output for the CMCM theorem is:
+\begin{verbatim}
+'Herd.cmcm' depends on axioms:
+  [propext, Classical.choice, Quot.sound]
+\end{verbatim}
+Again, the important point is that \texttt{sorryAx} does not appear.
+
 The next Chapter (Chapter \ref{ch:proof-overview}) provides an overview of the structure of the proof from the paper.
 You can use it to get an idea of how to navigate parts of the Lean mechanization.
 
@@ -183,7 +200,9 @@ axiom).
 
 This pdf was generated with \LaTeX{} and \texttt{leanblueprint}.
 
-First, setup the leanblueprint dependencies:
+Inside the Docker image, the leanblueprint dependencies are already installed.
+If you are using a source checkout outside Docker, first set up the
+leanblueprint dependencies:
 \begin{verbatim}
   $ nix-shell leanblueprint-shell.nix
 \end{verbatim}

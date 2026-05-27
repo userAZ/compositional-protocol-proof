@@ -1,0 +1,69 @@
+#!/opt/venv/bin/python3
+"""Small Graphviz `tred` compatibility command.
+
+Ubuntu 26.04's graphviz package ships `dot`/`gvpr`/`nop`, but not the
+standalone `tred` program expected by pygraphviz.AGraph.tred().  The
+leanblueprint dependency graph is a directed DOT graph, so implement the
+needed transitive-reduction pass directly with pygraphviz.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pygraphviz as pgv
+
+
+def has_alternate_path(
+    adj: dict[str, set[str]], src: str, dst: str, skipped: tuple[str, str]
+) -> bool:
+    stack = []
+    for nxt in adj.get(src, ()):
+        if (src, nxt) != skipped:
+            stack.append(nxt)
+
+    seen = {src}
+    while stack:
+        node = stack.pop()
+        if node == dst:
+            return True
+        if node in seen:
+            continue
+        seen.add(node)
+        stack.extend(adj.get(node, ()))
+    return False
+
+
+def reduce_graph(dot_text: str) -> str:
+    graph = pgv.AGraph(string=dot_text)
+    if not graph.is_directed():
+        return graph.string()
+
+    edges = [(str(edge[0]), str(edge[1])) for edge in graph.edges()]
+    adj: dict[str, set[str]] = {}
+    for src, dst in edges:
+        adj.setdefault(src, set()).add(dst)
+
+    for src, dst in edges:
+        if has_alternate_path(adj, src, dst, (src, dst)):
+            graph.delete_edge(src, dst)
+
+    return graph.string()
+
+
+def read_inputs(paths: list[str]) -> list[str]:
+    if not paths:
+        return [sys.stdin.read()]
+    return [Path(path).read_text() for path in paths]
+
+
+def main() -> int:
+    paths = [arg for arg in sys.argv[1:] if not arg.startswith("-")]
+    for text in read_inputs(paths):
+        sys.stdout.write(reduce_graph(text))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
